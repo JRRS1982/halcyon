@@ -8,7 +8,7 @@ I consider the items marked with a "*" to be important to my process and should 
 
 Establish why the product exists, who it serves and what success looks like.
 
-- [ ] *Problem definition and [SuccessMetrics.md](SuccessMetrics.md)
+- [x] *Problem definition and [SuccessMetrics.md](SuccessMetrics.md)
 - [ ] *User personas and research [UserPersonas.md](UserPersonas.md)
 - [ ] *Core user journey's and flows [UserJourney.md](UserJourney.md)
 - [ ] *Stakeholder mapping and constraints (ownership, budget, timeline, compliance, etc.) [StakeholderMapping.md](StakeholderMapping.md)
