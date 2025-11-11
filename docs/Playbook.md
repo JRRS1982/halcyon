@@ -11,7 +11,7 @@ Establish why the product exists, who it serves and what success looks like.
 - [x] *Problem definition and [SuccessMetrics.md](SuccessMetrics.md)
 - [x] *User personas and research [UserPersonas.md](UserPersonas.md)
 - [x] *Core user journey's and flows [UserJourney.md](UserJourneys/UserJourney.md)
-- [ ] *Stakeholder mapping and constraints (ownership, budget, timeline, compliance, etc.) [StakeholderMapping.md](StakeholderMapping.md)
+- [x] *Stakeholder mapping and constraints (ownership, budget, timeline, compliance, etc.) [StakeholderMapping.md](StakeholderMapping.md)
 - [ ] *Data privacy and legal requirements (GDPR etc.)
 - [ ] *Checkpoint: Before moving onto design, ensure the problem definition is clear and at least one real user has validated it is a real problem.
 
