@@ -12,8 +12,8 @@ Establish why the product exists, who it serves and what success looks like.
 - [x] *User personas and research [UserPersonas.md](UserPersonas.md)
 - [x] *Core user journey's and flows [UserJourney.md](UserJourneys/UserJourney.md)
 - [x] *Stakeholder mapping and constraints (ownership, budget, timeline, compliance, etc.) [StakeholderMapping.md](StakeholderMapping.md)
-- [ ] *Data privacy and legal requirements (GDPR etc.)
-- [ ] *Checkpoint: Before moving onto design, ensure the problem definition is clear and at least one real user has validated it is a real problem.
+- [x] *Data privacy and legal requirements (GDPR etc.) [DataPrivacyStatement.md](DataPrivacyStatement.md)
+- [x] *Checkpoint: Before moving onto design, ensure the problem definition is clear and at least one real user has validated it is a real problem.
 
 ## 2. Design the product
 
