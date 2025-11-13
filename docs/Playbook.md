@@ -19,7 +19,7 @@ Establish why the product exists, who it serves and what success looks like.
 
 Translate the product intent into validated designs and system models.
 
-- [ ] *Sitemap and information requirements
+- [x] *Sitemap and information requirements
 - [ ] *UX wireframes (low to high fidelity)
 - [ ] Design system standards
 - [ ] Accessibility standards
