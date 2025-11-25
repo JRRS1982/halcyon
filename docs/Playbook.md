@@ -23,7 +23,7 @@ Translate the product intent into validated designs and system models.
 - [x] *UX wireframes (low to high fidelity)
 - [x] [Design system standards](DesignSystemStanards.md)
 - [x] [Accessibility standards](AccessibilityStandards.md)
-- [ ] *Technical architecture and stack selection
+- [x] *Technical architecture and [stack selection](ADRs/ADR-001-TechStackSelection.md)
 - [ ] Data model and API contracts (Entity Relationship diagrams and schema)
 - [ ] Security architecture and threat modelling
 - [ ] Non-functional requirements (performance, reliability, scalability)
