@@ -21,8 +21,8 @@ Translate the product intent into validated designs and system models.
 
 - [x] *Sitemap and information requirements
 - [x] *UX wireframes (low to high fidelity)
-- [x] Design system standards
-- [ ] Accessibility standards
+- [x] [Design system standards](DesignSystemStanards.md)
+- [x] [Accessibility standards](AccessibilityStandards.md)
 - [ ] *Technical architecture and stack selection
 - [ ] Data model and API contracts (Entity Relationship diagrams and schema)
 - [ ] Security architecture and threat modelling
