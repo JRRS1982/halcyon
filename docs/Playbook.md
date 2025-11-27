@@ -24,7 +24,7 @@ Translate the product intent into validated designs and system models.
 - [x] [Design system standards](DesignSystemStanards.md)
 - [x] [Accessibility standards](AccessibilityStandards.md)
 - [x] *Technical architecture and [stack selection](ADRs/ADR-001-TechStackSelection.md)
-- [ ] Data model and API contracts (Entity Relationship diagrams and schema)
+- [x] Data model and API contracts ([Entity Relationship diagrams and schema](DataModels/DataModels.md))
 - [ ] Security architecture and threat modelling
 - [ ] Non-functional requirements (performance, reliability, scalability)
 - [ ] Basic prototypes / mockups
