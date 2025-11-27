@@ -24,6 +24,8 @@ I will want unit tests, end to end tests, and integration tests. I will want to 
 - zod-env: for environment variable validation
 - Biome: an alterative to eslint and prettier, for code quality
 - Swagger: for automatically generating API documentation
+- Next.js middleware: for rate limiting
+- bcrypt: for password hashing
 
 ### Frontend
 

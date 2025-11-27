@@ -68,13 +68,32 @@ Flow for email/password sign-up:
 6. ACCOUNT record created (type: "credentials")
 7. VERIFICATION_TOKEN deleted
 
-### 5. Financial Document
+### 5. Password Reset Token
+
+Separate table for password reset tokens. When a user requests a password reset (e.g., after account lockout or forgotten password), a token is created here.
+
+- identifier: The email address of the user requesting the reset
+- token: The unique reset token (hashed for security)
+- expires: Token expiration timestamp (typically 1 hour from creation)
+
+### 6. Audit Log
+
+Security audit trail for tracking authentication events and suspicious activity. Used for monitoring, incident response, and compliance.
+
+- userId: Foreign key to USER table (nullable for failed login attempts where user doesn't exist)
+- action: The type of event (LOGIN_SUCCESS, LOGIN_FAILED, ACCOUNT_SUSPENDED, PASSWORD_RESET, ACCOUNT_CREATED, etc.)
+- ipAddress: IP address of the request
+- userAgent: Browser/device information
+- metadata: JSON field for additional context (e.g., geolocation, failure reason, previous IP)
+- createdAt: Timestamp of the event
+
+### 7. Financial Document
 
 A record of the form data that the user enters. It will contain a range of items, they may be income or expenditure, for a given date, for a budget or statement. I like this approach as it is extensible and allows for different types of documents to be created.
 
 I considered creating separate tables for a budget and a statement (or expenditure) table, but that felt like duplication as each contains the same fields and the same relationships with the same items.
 
-### 6. Financial Item
+### 8. Financial Item
 
 A record of an item in a financial document, e.g. income or expenditure with amount and date.
 
@@ -91,6 +110,7 @@ erDiagram
     USER ||--o{ FINANCIAL_DOCUMENT : owns
     USER ||--o{ USER_SETTINGS : has
     USER ||--o{ ACCOUNT : has
+    USER ||--o{ AUDIT_LOG : generates
     FINANCIAL_DOCUMENT ||--o{ FINANCIAL_ITEM : contains
 
     USER {
@@ -104,8 +124,11 @@ erDiagram
       string timezone "User's timezone (e.g., 'America/New_York')"
       string status "ACTIVE, SUSPENDED, DELETED"
       datetime lastLogin "Last successful login timestamp"
+      string lastLoginIp "IP address of last successful login, nullable"
       datetime lastActiveAt "Last time user was active"
       integer failedLoginAttempts "Count of failed login attempts"
+      datetime accountLockedAt "When account was locked due to failed attempts, nullable"
+      datetime passwordChangedAt "When password was last changed, nullable"
       datetime createdAt
       datetime updatedAt
     }
@@ -130,12 +153,31 @@ erDiagram
       integer expires_at "Token expiration timestamp, nullable"
       string token_type "Bearer, etc., nullable"
       string scope "OAuth scopes, nullable"
+      datetime createdAt
+      datetime updatedAt
     }
 
     VERIFICATION_TOKEN {
       string identifier "Email address"
       string token "Verification token, unique"
       datetime expires "Token expiration"
+    }
+
+    PASSWORD_RESET_TOKEN {
+      string identifier "Email address"
+      string token "Reset token, unique, hashed"
+      datetime expires "Token expiration (typically 1 hour)"
+      datetime createdAt
+    }
+
+    AUDIT_LOG {
+      string id PK
+      string userId FK "nullable for failed logins"
+      string action "LOGIN_SUCCESS, LOGIN_FAILED, ACCOUNT_SUSPENDED, etc."
+      string ipAddress "IP address of request"
+      string userAgent "Browser/device info"
+      json metadata "Additional context (location, reason, etc.)"
+      datetime createdAt
     }
 
     FINANCIAL_DOCUMENT {
