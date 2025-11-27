@@ -25,10 +25,10 @@ Translate the product intent into validated designs and system models.
 - [x] [Accessibility standards](AccessibilityStandards.md)
 - [x] *Technical architecture and [stack selection](ADRs/ADR-001-TechStackSelection.md)
 - [x] Data model and API contracts ([Entity Relationship diagrams and schema](DataModels/DataModels.md))
-- [ ] Security architecture and threat modelling
+- [x] Security architecture and threat modelling
 - [ ] Non-functional requirements (performance, reliability, scalability)
 - [ ] Basic prototypes / mockups
-- [ ] *Checkpoint: Before moving onto build, ensure the design is clear and there are no unknowns with the tech stack, design or data model.
+- [x] *Checkpoint: Before moving onto build, ensure the design is clear and there are no unknowns with the tech stack, design or data model.
 
 ## 3. Build Foundation
 
