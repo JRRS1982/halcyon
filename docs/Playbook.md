@@ -8,27 +8,27 @@ I consider the items marked with a "*" to be important to my process and should 
 
 Establish why the product exists, who it serves and what success looks like.
 
-- [ ] *Problem definition and [SuccessMetrics.md](SuccessMetrics.md)
-- [ ] *User personas and research [UserPersonas.md](UserPersonas.md)
-- [ ] *Core user journey's and flows [UserJourney.md](UserJourney.md)
-- [ ] *Stakeholder mapping and constraints (ownership, budget, timeline, compliance, etc.) [StakeholderMapping.md](StakeholderMapping.md)
-- [ ] *Data privacy and legal requirements (GDPR etc.)
-- [ ] *Checkpoint: Before moving onto design, ensure the problem definition is clear and at least one real user has validated it is a real problem.
+- [x] *Problem definition and [SuccessMetrics.md](SuccessMetrics.md)
+- [x] *User personas and research [UserPersonas.md](UserPersonas.md)
+- [x] *Core user journey's and flows [UserJourney.md](UserJourneys/UserJourney.md)
+- [x] *Stakeholder mapping and constraints (ownership, budget, timeline, compliance, etc.) [StakeholderMapping.md](StakeholderMapping.md)
+- [x] *Data privacy and legal requirements (GDPR etc.) [DataPrivacyStatement.md](DataPrivacyStatement.md)
+- [x] *Checkpoint: Before moving onto design, ensure the problem definition is clear and at least one real user has validated it is a real problem.
 
 ## 2. Design the product
 
 Translate the product intent into validated designs and system models.
 
-- [ ] *Sitemap and information requirements
-- [ ] *UX wireframes (low to high fidelity)
-- [ ] Design system standards
-- [ ] Accessibility standards
-- [ ] *Technical architecture and stack selection
-- [ ] Data model and API contracts (Entity Relationship diagrams and schema)
-- [ ] Security architecture and threat modelling
+- [x] *Sitemap and information requirements
+- [x] *UX wireframes (low to high fidelity)
+- [x] [Design system standards](DesignSystemStanards.md)
+- [x] [Accessibility standards](AccessibilityStandards.md)
+- [x] *Technical architecture and [stack selection](ADRs/ADR-001-TechStackSelection.md)
+- [x] Data model and API contracts ([Entity Relationship diagrams and schema](DataModels/DataModels.md))
+- [x] Security architecture and threat modelling
 - [ ] Non-functional requirements (performance, reliability, scalability)
 - [ ] Basic prototypes / mockups
-- [ ] *Checkpoint: Before moving onto build, ensure the design is clear and there are no unknowns with the tech stack, design or data model.
+- [x] *Checkpoint: Before moving onto build, ensure the design is clear and there are no unknowns with the tech stack, design or data model.
 
 ## 3. Build Foundation
 
