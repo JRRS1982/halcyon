@@ -42,6 +42,8 @@ Insert gif or link to a demo of the project.
 
 ## Testing
 
+The unit tests run against the code in the `src/` directory, rather than the container code, which improved the speed and reliability of the tests. In other projects i have worked on, running tests against the container code was a common source of frustration.
+
 ### Unit tests
 
 To run the unit tests, use the following command: `pnpm test`, or one of the helpers listed below:
