@@ -74,8 +74,8 @@ I will want unit tests, end to end tests, and integration tests. I will want to 
 ### Testing
 
 - Jest: for unit tests - it is the standard test runner
-- React Testing Library: for end to end tests - it is the standard testing library for React
-- Cypress: for integration tests - it is the standard end to end testing tool for web applications
+- React Testing Library: for component tests - it is the standard testing library for React
+- Playwright: for e2e tests - recommended by Vercel for Next.js, excellent Docker support, faster CI runs
 
 ## Considered Alternatives
 
@@ -87,7 +87,7 @@ I will want unit tests, end to end tests, and integration tests. I will want to 
 - Dotenv: i have used dotenv in a number of projects, but i believe it is not required in Next.js
 - Emotion: i use emotion at work, but have not strong feelings towards it, so i am open to trying styled components.
 - Zustand: i use redux toolkit at work and like it, i performed a deep dive into state management systems for the company a few year ago and my opinion hasn't changed, I would like to try zustand, but I am happy to stick with redux toolkit as i know it to be a safe bet.
-- Playwright: I have used Cypress in a number of my projects, but i have heard that Playwright is a good alternative so would like to give it a go, but not today. I use selenium for my end to end tests at work and have not enjoyed that experience.
+- Cypress: I have used Cypress in a number of my projects, but Playwright offers better Docker support, faster parallel execution, and is recommended by Vercel for Next.js projects.
 
 ### Consequences (optional)
 
