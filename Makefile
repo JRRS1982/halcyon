@@ -45,6 +45,16 @@ db-reset:
 	docker compose exec app npx prisma migrate reset --force
 	docker compose exec app npx tsx prisma/seed.ts
 
+# Create a new migration
+# Usage: make db-migrate name=add_user_settings, the name should start with a verb and include the table name
+.PHONY: db-migrate
+db-migrate:
+	@if [ -z "$(name)" ]; then \
+		echo "Error: name is required. Usage: make db-migrate name=migration_name"; \
+		exit 1; \
+	fi
+	docker compose exec app npx prisma migrate dev --name $(name)
+
 .PHONY: lintAndFormat
 lintAndFormat:
 	pnpm lint:fix
