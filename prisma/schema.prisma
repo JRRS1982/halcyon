@@ -10,11 +10,28 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  password  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                  String     @id @default(cuid())
+  email               String     @unique
+  emailVerified       DateTime?
+  name                String?
+  image               String?
+  password            String?
+  username            String?
+  timezone            String     @default("UTC")
+  status              UserStatus @default(ACTIVE)
+  lastLogin           DateTime?
+  lastLoginIp         String?
+  lastActiveAt        DateTime?
+  failedLoginAttempts Int        @default(0)
+  accountLockedAt     DateTime?
+  passwordChangedAt   DateTime?
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
 }

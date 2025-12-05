@@ -74,6 +74,13 @@ The `make test-e2e-docker` command runs tests in an isolated container environme
 
 This ensures tests run consistently regardless of your local setup.
 
+### Database Seeding
+
+To seed the local development database, use the following command: `pnpm db:seed`, or one of the helpers listed below to seed and reset the database in the container.
+
+- `make db-seed`
+- `make db-reset`
+
 ## Contributing
 
 Contributions are always welcome! Please open a pull request or issue to discuss any changes you would like to make.

@@ -1,9 +1,18 @@
-FROM node:20-alpine
+FROM node:20-slim
 
 WORKDIR /app
 
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+  openssl \
+  && rm -rf /var/lib/apt/lists/*
+
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
+
+# Set up Prisma
+ENV PRISMA_CLI_QUERY_ENGINE_TYPE=library
+ENV PRISMA_CLI_BINARY_TARGETS=debian-openssl-3.0.x
 
 # Copy package files and prisma schema (needed for postinstall)
 COPY package.json pnpm-lock.yaml ./
@@ -14,6 +23,9 @@ RUN pnpm install --frozen-lockfile
 
 # Copy the rest of the application
 COPY . .
+
+# Generate Prisma client
+RUN npx prisma generate
 
 EXPOSE 3000
 

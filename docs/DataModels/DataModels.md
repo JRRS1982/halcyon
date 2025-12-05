@@ -120,7 +120,7 @@ erDiagram
       string name "User's display name (NextAuth standard field)"
       string image "URL to user's avatar/image (NextAuth standard field)"
       string password "Bcrypt hash for email/password auth, nullable"
-      string username "Optional: unique username for profiles"
+      string username "Optional: username for profiles"
       string timezone "User's timezone (e.g., 'America/New_York')"
       string status "ACTIVE, SUSPENDED, DELETED"
       datetime lastLogin "Last successful login timestamp"
