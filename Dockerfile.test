@@ -1,13 +1,16 @@
-FROM node:20-alpine
+FROM node:20-slim
 
 WORKDIR /app
 
-# Install dependencies for Chromium on Alpine
-RUN apk add --no-cache chromium nss freetype harfbuzz ca-certificates ttf-freefont
+# Install dependencies for Chromium and Prisma on Debian
+RUN apt-get update && apt-get install -y \
+  chromium \
+  openssl \
+  && rm -rf /var/lib/apt/lists/*
 
 # Tell Playwright to use system Chromium
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
-ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium-browser
+ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium
 
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
@@ -28,4 +31,5 @@ RUN pnpm build
 
 EXPOSE 3000
 
-CMD ["pnpm", "test:e2e"]
+# Run migrations and then E2E tests
+CMD ["sh", "-c", "npx prisma migrate deploy && pnpm test:e2e"]
