@@ -42,9 +42,17 @@ Insert gif or link to a demo of the project.
 
 ## Testing
 
+### Unit tests
+
+To run the unit tests, use the following command: `pnpm test`, or one of the helpers listed below:
+
+- `make test`
+- `make test-watch`
+- `make test-coverage`
+
 ### End to end tests (E2E)
 
-To run the e2e tests in an isolated container, use the following command pnpm `test:e2e:docker`
+To run the e2e tests in an isolated container, use the following command pnpm `test:e2e:docker` or the helper `make test-e2e-docker`.
 
 Or to run the tests locally, use the following commands:
 
