@@ -36,7 +36,7 @@ Lay the technical groundwork for a reliable, scalable, and testable platform. Wh
 
 - [x] *Repository setup and branching strategy
 - [x] *Project setup in JIRA / task management system
-- [ ] *Dockerized development environment with parity
+- [x] *Dockerized development environment with parity
 - [ ] *Dockerized testing environment with parity
 - [ ] Staging / Pre-production environment with parity
 - [ ] *Database migrations and seed data management
