@@ -64,6 +64,16 @@ Or to run the tests locally, use the following commands:
 
 3. run the tests; `pnpm test:e2e`, or `pnpm test:e2e:ui` to open the UI.
 
+#### How Dockerized E2E Works
+
+The `make test-e2e-docker` command runs tests in an isolated container environment:
+
+- **`compose.test.yaml`** — Orchestrates the test environment (app + database)
+- **`Dockerfile.test`** — Builds the test image with Node.js, Chromium, and the app
+- **`playwright.config.ts`** — Configures Playwright to use Alpine's system Chromium (bundled browsers don't work on node Alpine, which i am using to keep bundle size down)
+
+This ensures tests run consistently regardless of your local setup.
+
 ## Contributing
 
 Contributions are always welcome! Please open a pull request or issue to discuss any changes you would like to make.
