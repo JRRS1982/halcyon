@@ -1,0 +1,20 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+# Copy package files and prisma schema (needed for postinstall)
+COPY package.json pnpm-lock.yaml ./
+COPY prisma ./prisma
+
+# Install dependencies (runs postinstall which generates Prisma client)
+RUN pnpm install --frozen-lockfile
+
+# Copy the rest of the application
+COPY . .
+
+EXPOSE 3000
+
+CMD ["pnpm", "dev"]
