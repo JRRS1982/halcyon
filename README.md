@@ -40,13 +40,23 @@ I have done my best, with the support of AI to put a comprehensive set of docume
 
 Insert gif or link to a demo of the project.
 
+## Testing
+
+### End to end tests (E2E)
+
+To run the e2e tests in an isolated container, use the following command pnpm `test:e2e:docker`
+
+Or to run the tests locally, use the following commands:
+
+1. Install the dependencies for Playwright; `sudo npx playwright install-deps`.
+
+2. Install the dependencies for the project; `pnpm install`.
+
+3. run the tests; `pnpm test:e2e`, or `pnpm test:e2e:ui` to open the UI.
+
 ## Contributing
 
-Contributions are always welcome!
-
-See `contributing.md` for ways to get started.
-
-Please adhere to this project's `code of conduct`.
+Contributions are always welcome! Please open a pull request or issue to discuss any changes you would like to make.
 
 ## Feedback
 
