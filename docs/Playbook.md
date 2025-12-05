@@ -42,9 +42,9 @@ Lay the technical groundwork for a reliable, scalable, and testable platform. Wh
 - [x] *Database migrations and seed data management
 - [ ] Infrastructure as Code (Terraform/CloudFormation)
 - [x] *[Secrets and configuration management](docs/ADRs/ADR-004-SecretManagement.md)
-- [ ] *CI pipeline (lint, format, type check and unit tests guards)
-- [ ] CI pipeline (E2E and integration tests)
-- [ ] CI pipeline (Code test coverage logging, for PR and main branch)
+- [x] *CI pipeline (lint, format, type check and unit tests guards)
+- [x] CI pipeline (E2E and integration tests)
+- [x] CI pipeline (Code test coverage logging, for PR and main branch)
 - [ ] CD pipeline (blue-green deployment strategy)
 - [ ] *CD pipeline (Automated deployment and method to rollback changes)
 - [ ] *Checkpoint: Before moving onto feature development, ensure the foundations are in place to support the iterative and ongoing development of features.
