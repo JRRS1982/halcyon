@@ -1,43 +1,44 @@
-# Project Title
+# Halcyon
 
-This project exists to provide a template for new projects.
+This is a web application for managing personal finance, built to be easy to use and understand.
 
-Add a brief description here of what this project does, why it is needed and who it is for.
-
-This is a useful tool to customise a readme / suggest other fields; [https://readme.so/editor](https://readme.so/editor)
+Please see the [Playbook](docs/Playbook.md) for more information on the project, along with the [docs](docs/) directory for more information on the architecture and design.
 
 ## Deployment
 
 When running, this project is deployed to:
 
-- Production: <https://project-title.com>
-- Staging: <https://staging.project-title.com>
-- Development: <https://dev.project-title.com>
+- Development: <http://localhost:3000/>
 
 ## Setup
 
-Install my-project with npm
+Install halcyon with pnpm, which is a fast, disk space efficient package manager for JavaScript.
 
 ```bash
-  npm install my-project
-  cd my-project
+  pnpm install
+  pnpm run dev
 ```
 
 ## Documentation
 
-Add links to your documentation here.
+I have done my best, with the support of AI to put a comprehensive set of documents in place to help me and others understand the project and its architecture.
 
-[Documentation](docs/something.md)
+- [Tech Stack](docs/ADRs/ADR-001-TechStackSelection.md)
+- [Playbook](docs/Playbook.md)
+- [Data Models](docs/DataModels/)
+- [Design Decisions](docs/DesignDecisions/)
+- [Security Architecture](docs/ADRs/ADR-002-SecurityArchitecture.md)
+- [User Personas](docs/UserPersonas.md)
+- [User Journeys](docs/UserJourney.md)
+- [Stakeholder Mapping](docs/StakeholderMapping.md)
+- [Success Metrics](docs/SuccessMetrics.md)
+- [Data Privacy Statement](docs/DataPrivacyStatement.md)
+- [Design System Standards](docs/DesignSystemStanards.md)
+- [Accessibility Standards](docs/AccessibilityStandards.md)
 
 ## Demo
 
 Insert gif or link to a demo of the project.
-
-## Tech Stack
-
-**Client:** React, Redux, TailwindCSS
-
-**Server:** Node, Express
 
 ## Contributing
 
