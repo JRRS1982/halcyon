@@ -39,9 +39,9 @@ Lay the technical groundwork for a reliable, scalable, and testable platform. Wh
 - [x] *Dockerized development environment with parity
 - [x] *Dockerized testing environment with parity
 - [ ] Staging / Pre-production environment with parity
-- [ ] *Database migrations and seed data management
+- [x] *Database migrations and seed data management
 - [ ] Infrastructure as Code (Terraform/CloudFormation)
-- [ ] *Secrets and configuration management
+- [x] *[Secrets and configuration management](docs/ADRs/ADR-004-SecretManagement.md)
 - [ ] *CI pipeline (lint, format, type check and unit tests guards)
 - [ ] CI pipeline (E2E and integration tests)
 - [ ] CI pipeline (Code test coverage logging, for PR and main branch)
