@@ -28,11 +28,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run linting
+      - name: Run lint and format check
         run: pnpm lint
-
-      - name: Run format check
-        run: pnpm exec biome format --check .
 
       - name: Run type check
         run: pnpm exec tsc --noEmit
