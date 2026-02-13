@@ -1,0 +1,32 @@
+name: Deploy (On Home Server)
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-home
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy via Docker Compose (prod)
+        env:
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+        run: |
+          set -euo pipefail
+          docker compose -f compose.prod.yaml up -d --build --remove-orphans
+
+      - name: Run database migrations (optional)
+        env:
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+        run: |
+          set -euo pipefail
+          docker compose -f compose.prod.yaml exec -T app pnpm exec prisma migrate deploy
