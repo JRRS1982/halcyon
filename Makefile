@@ -1,56 +1,60 @@
+.PHONY: go dev-up dev-down prod-up prod-down prod-logs dev-build dev-logs dev-shell dev-db-shell dev-db-seed dev-db-reset dev-db-migrate lintAndFormat dev-clean test test-watch test-coverage test-e2e-docker test-e2e test-e2e-ui
+
 .DEFAULT_GOAL := go
 
-.PHONY: go
-go: down up
+go: dev-down dev-up
 
 # Start development environment
-.PHONY: up
-up:
+dev-up:
 	docker compose up
 
-# Stop containers
-.PHONY: down
-down:
+# Stop development containers
+dev-down:
 	docker compose down --remove-orphans
 
-# Rebuild containers
-.PHONY: build
-build:
+# Start production containers
+prod-up:
+	docker compose -f compose.prod.yaml up -d --build
+
+# Stop production containers
+prod-down:
+	docker compose -f compose.prod.yaml down
+
+# View production logs
+prod-logs:
+	docker compose -f compose.prod.yaml logs -f
+
+# Rebuild development containers
+dev-build:
 	docker compose build --no-cache
 
-# View logs
-.PHONY: logs
-logs:
+# View development logs
+dev-logs:
 	docker compose logs -f
 
 # Shell into app container
-.PHONY: shell
-shell:
+dev-shell:
 	docker compose exec app sh
 
 # Shell into database
-.PHONY: db-shell
-db-shell:
+dev-db-shell:
 	docker compose exec db psql -U postgres -d halcyon
 
 # Seed database with test data
-.PHONY: db-seed
-db-seed:
+dev-db-seed:
 	docker compose exec app npx prisma migrate deploy
 	docker compose exec app npx tsx prisma/seed.ts
 
 # Reset and seed database
-.PHONY: db-reset
-db-reset:
+dev-db-reset:
 	docker compose exec app npx prisma migrate reset --force
 	docker compose exec app npx tsx prisma/seed.ts
 
 # Create a new migration
-# Usage: make db-migrate name=add_user_settings, the name should start with a verb and include the table name
-.PHONY: db-migrate
-db-migrate:
+# Usage: make dev-db-migrate name=add_user_settings, the name should start with a verb and include the table name
+dev-db-migrate:
 	@if [ -z "$(name)" ]; then \
-		echo "Error: name is required. Usage: make db-migrate name=migration_name"; \
+		echo "Error: name is required. Usage: make dev-db-migrate name=migration_name"; \
 		exit 1; \
 	fi
 	docker compose exec app npx prisma migrate dev --name $(name)
@@ -61,13 +65,11 @@ lintAndFormat:
 	pnpm format
 
 # Remove containers, volumes, and build cache
-.PHONY: clean
-clean:
+dev-clean:
 	docker compose down -v --rmi local
 
 # Unit tests
 # Usage: make test [name=<pattern>]
-.PHONY: test
 test:
 	@if [ -n "$(name)" ]; then \
 		echo "Running tests matching: $(name)"; \
@@ -79,7 +81,6 @@ test:
 
 # Unit tests in watch mode
 # Usage: make test-watch [name=<pattern>]
-.PHONY: test-watch
 test-watch:
 ifdef name
 	pnpm test:watch -- -t "$(name)"
@@ -88,19 +89,16 @@ else
 endif
 
 # Unit tests with coverage
-.PHONY: test-coverage
 test-coverage:
 	pnpm test:coverage
 
 # E2E tests in Docker (recommended)
 # Usage: make test-e2e-docker
-.PHONY: test-e2e-docker
 test-e2e-docker:
 	pnpm test:e2e:docker
 
 # E2E tests locally
 # Usage: make test-e2e [name=<pattern>]
-.PHONY: test-e2e
 test-e2e:
 ifdef name
 	pnpm test:e2e -- --grep "$(name)"
@@ -109,6 +107,5 @@ else
 endif
 
 # E2E tests with UI
-.PHONY: test-e2e-ui
 test-e2e-ui:
 	pnpm test:e2e:ui

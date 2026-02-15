@@ -1,0 +1,62 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    environment:
+      - NODE_ENV=production
+      # Next.js standalone binds to localhost by default; 0.0.0.0 is required for Traefik to reach it across the 'web' network
+      - HOSTNAME=0.0.0.0
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@db:5432/halcyon?schema=public
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - web      # External Traefik network
+      - internal # Private database network
+    labels:
+      # traefik.<protocol>.<component-type>.<component-name>.<property>=<value>
+      - traefik.enable=true
+      - traefik.docker.network=web
+      # HTTPS router (main)
+      - traefik.http.routers.halcyon.rule=Host(`balanced.money`) || Host(`www.balanced.money`)
+      - traefik.http.routers.halcyon.entrypoints=websecure
+      - traefik.http.routers.halcyon.tls=true
+      - traefik.http.routers.halcyon.tls.certresolver=le
+      - traefik.http.routers.halcyon.middlewares=security-headers@file,compression@file
+      # HTTP to HTTPS redirect
+      - traefik.http.routers.halcyon-http.rule=Host(`balanced.money`) || Host(`www.balanced.money`)
+      - traefik.http.routers.halcyon-http.entrypoints=web
+      - traefik.http.routers.halcyon-http.middlewares=https-redirect
+      - traefik.http.middlewares.https-redirect.redirectscheme.scheme=https
+      - traefik.http.middlewares.https-redirect.redirectscheme.permanent=true
+      # Service
+      - traefik.http.services.halcyon.loadbalancer.server.port=3000
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=halcyon
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
+networks:
+  web:
+    external: true
+    name: web
+  internal:
+    driver: bridge
