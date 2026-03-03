@@ -1,9 +1,12 @@
 name: Deploy (On Home Server)
 
 on:
-  push:
-    branches: [master]
-  workflow_dispatch:
+  workflow_dispatch:    # Allow manual deployment via GitHub UI
+  workflow_run:
+    workflows: ["CI"]   # Trigger after CI workflow completes
+    types:
+      - success         # Run only when CI succeeds
+    branches: [master]  # Only on master branch
 
 concurrency:
   group: deploy-home
@@ -24,9 +27,9 @@ jobs:
           set -euo pipefail
           docker compose -f compose.prod.yaml up -d --build --remove-orphans
 
-      - name: Run database migrations (optional)
+      - name: Run database migrations
         env:
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
         run: |
           set -euo pipefail
-          docker compose -f compose.prod.yaml exec -T app pnpm exec prisma migrate deploy
+          docker compose -f compose.prod.yaml exec -T -e HOME=/tmp app pnpm exec prisma migrate deploy
