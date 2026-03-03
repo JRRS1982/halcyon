@@ -57,7 +57,12 @@ ENV NODE_ENV=production
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
+# Re-install openssl and pnpm for migrations
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
 COPY --from=build /app/public ./public
+COPY --from=build /app/prisma ./prisma
 
 # Set the correct permission for prerender cache
 RUN mkdir .next
