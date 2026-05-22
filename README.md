@@ -33,7 +33,7 @@ I have done my best, with the support of AI to put a comprehensive set of docume
 - [Stakeholder Mapping](docs/StakeholderMapping.md)
 - [Success Metrics](docs/SuccessMetrics.md)
 - [Data Privacy Statement](docs/DataPrivacyStatement.md)
-- [Design System Standards](docs/DesignSystemStanards.md)
+- [Design System (DESIGN.md)](DESIGN.md)
 - [Accessibility Standards](docs/AccessibilityStandards.md)
 
 ## Demo

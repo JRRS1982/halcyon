@@ -17,6 +17,9 @@
 # TypeScript incremental build cache
 *.tsbuildinfo
 
+# Visual companion mockups (brainstorming skill)
+.superpowers/
+
 # Production
 /build
 
