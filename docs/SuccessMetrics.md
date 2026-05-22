@@ -23,7 +23,7 @@ The user can;
 
 As this is a personal project, I hope that the app is performant and reliable for your needs, but is not a priority for the MVP as it's first priority is for my educational needs.
 
-- As a guide of thumb I would expect page load time (<3s), API response time (<500ms), uptime (>99%) however this is going to be deployed on a home server, so I expect the uptime is likely to be lower.
+- As a guide of thumb I would expect page load time (<3s), API response time (<500ms), uptime (>99%). The app is hosted on Vercel with Supabase as the managed Postgres + Auth backend, so uptime is bounded by those providers' SLAs (both publish ≥99.9% targets) rather than my own infrastructure.
 
 ## Engagement Metrics (The "How Much")
 

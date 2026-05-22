@@ -3,28 +3,50 @@
 - Status: Accepted
 - Created by: @jrrs1982
 - Date: 2025-12-05
+- Last revised: 2026-05-22 — production secrets now live in Vercel project env vars; added Supabase keys.
 - Decision maker: @jrrs1982
 
 ## Context
 
-The application requires secure management of sensitive configuration values such as database credentials, API keys, and authentication secrets across different environments (development, testing, production).
+The application requires secure management of sensitive configuration values (database credentials, Supabase keys, OAuth client secrets) across development, test, and production environments.
 
-Next.js will use the NODE_ENV, like so `.env.{NODE_ENV}`.
+Next.js loads environment files in the form `.env.{NODE_ENV}` for the matching environment, plus `.env.local` for developer-specific overrides (gitignored).
 
 ## Decision
 
-Use environment variables for secrets management with a tiered approach:
+A tiered approach by environment:
 
-1. **Local Development**: `.env.development` file and Docker Compose `environment` blocks in the compose.yaml file for the development NODE_ENV.
-2. **Test**: Environment variables defined in `.env.test` and `environment` blocks in the compose.test.yaml` for the test NODE_ENV.
-3. **Production**: Platform-native environment variable configuration (i.e. on the platform the app is running for the production NODE_ENV).
+1. **Local development** — `.env.development` checked into the repo for non-secret defaults (the local Docker Postgres URL, the local Supabase project URL/anon key for shared dev). Developer-specific secrets (a private Supabase service-role key, OAuth client secrets) go in `.env.local`, which is gitignored. Docker Compose `environment` blocks in `compose.yaml` provide DB connection strings for the dev container.
+2. **Test** — `.env.test` + `environment` blocks in `compose.test.yaml`. The test DB is ephemeral (tmpfs) so credentials there are not sensitive.
+3. **Production** — **Vercel project environment variables**, configured via the Vercel dashboard. They are injected at build time and runtime; never read from a file in production.
+
+### Required env vars
+
+Documented in `.env.example` (no values):
+
+- `DATABASE_URL` — Supabase pooled connection (port 6543), used by the app at runtime
+- `DIRECT_URL` — Supabase direct connection (port 5432), used by Prisma for migrations
+- `NEXT_PUBLIC_SUPABASE_URL` — Supabase project URL (safe to expose to the browser by design)
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` — Supabase publishable key, `sb_publishable_…` (safe to expose by design; RLS enforces what it can do)
+- `SUPABASE_SECRET_KEY` — Supabase secret key, `sb_secret_…` (**server-only**; bypasses RLS — never expose to the client)
+- `NODE_ENV` — set automatically by Next.js / Vercel; do not override in production
+
+### Rules
+
+- Secrets are never committed to version control. `.env.local` and any file with real secrets are gitignored.
+- `.env.example` documents required env vars without values and is committed.
+- `NEXT_PUBLIC_*` env vars are inlined into client bundles at build time — never put a secret behind this prefix.
+- `SUPABASE_SECRET_KEY` is only used in server components, route handlers, and server actions; it must never appear in a `'use client'` file or a `NEXT_PUBLIC_*` variable.
+- Validate all env vars with zod-env at app startup so missing/malformed values fail loudly.
 
 ## Considered Alternatives
 
-- None
+- **`.env.production` committed with placeholder values** — rejected; Vercel is now the source of truth for production env vars. Keeping a checked-in production env file invites drift and accidental real-value leaks.
+- **A secrets manager (Doppler, Infisical, Vault)** — overkill for a personal project with one production environment.
 
 ## Implementation
 
-- Production secrets are configured directly in the hosting platform's dashboard
-- Secrets are never committed to version control
-- `.env.example` documents required environment variables without values
+- Production secrets are configured directly in the Vercel project's Environment Variables settings.
+- Local dev secrets are configured in `.env.local` (gitignored).
+- `.env.example` is the contract for what variables must be set.
+- A zod-env schema (planned, in `src/lib/env.ts`) validates `process.env` at startup.

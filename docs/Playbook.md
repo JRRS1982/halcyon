@@ -25,9 +25,9 @@ Translate the product intent into validated designs and system models.
 - [x] [Accessibility standards](AccessibilityStandards.md)
 - [x] *Technical architecture and [stack selection](ADRs/ADR-001-TechStackSelection.md)
 - [x] Data model and API contracts ([Entity Relationship diagrams and schema](DataModels/DataModels.md))
-- [x] Security architecture and threat modelling
+- [x] [Security architecture](ADRs/ADR-002-SecurityArchitecture.md) and threat modelling
 - [ ] Non-functional requirements (performance, reliability, scalability)
-- [ ] Basic prototypes / mockups
+- [ ] Basic prototypes / mock-ups
 - [x] *Checkpoint: Before moving onto build, ensure the design is clear and there are no unknowns with the tech stack, design or data model.
 
 ## 3. Build Foundation
@@ -38,15 +38,15 @@ Lay the technical groundwork for a reliable, scalable, and testable platform. Wh
 - [x] *Project setup in JIRA / task management system
 - [x] *Dockerized development environment with parity
 - [x] *Dockerized testing environment with parity
-- [ ] Staging / Pre-production environment with parity
+- [x] Staging / Pre-production environment with parity — Vercel Preview Deployments give every PR its own URL with the same build pipeline as production
 - [x] *Database migrations and seed data management
-- [ ] Infrastructure as Code (Terraform/CloudFormation)
-- [x] *[Secrets and configuration management](docs/ADRs/ADR-004-SecretManagement.md)
+- [x] Infrastructure as Code (Terraform/CloudFormation) — N/A: hosting (Vercel) and database (Supabase) are fully managed; no infrastructure to declare
+- [x] *[Secrets and configuration management](ADRs/ADR-004-SecretManagement.md)
 - [x] *CI pipeline (lint, format, type check and unit tests guards)
 - [x] CI pipeline (E2E and integration tests)
 - [x] CI pipeline (Code test coverage logging, for PR and main branch)
-- [ ] CD pipeline (blue-green deployment strategy)
-- [ ] *CD pipeline (Automated deployment and method to rollback changes)
+- [x] CD pipeline (blue-green deployment strategy) — Vercel performs atomic deploys: the new build only becomes live after it succeeds, and the previous build is retained for instant rollback
+- [x] *CD pipeline (Automated deployment and method to rollback changes) — Vercel's Git integration auto-deploys `master` once CI passes; one-click rollback from the Vercel dashboard
 - [ ] *Checkpoint: Before moving onto feature development, ensure the foundations are in place to support the iterative and ongoing development of features.
 
 ## 4. Develop MVP Features
@@ -68,14 +68,14 @@ Prove the system is correct, performant, and secure.
 - [ ] Non functional requirements validation (Service Level Agreements, Recovery Time Objective / Recovery Point Objective, Error budgets)
 - [ ] CI pipeline (Regression tests running on a schedule)
 - [ ] Common Vulnerabilities and Exposures (CVE) scanning with critical vulnerability blocking
-- [ ] Observeability implementation (logging, metrics, tracing to i.e. Datadog)
+- [ ] Observability implementation (logging, metrics, tracing to i.e. Datadog)
 - [ ] Backup and disaster recovery testing
 
 ## 6. Deploy & Operate
 
 Deliver safely to production and establish operational readiness.
 
-- [ ] Production observeability and telemetry
+- [ ] Production observability and telemetry
 - [ ] Monitoring dashboards and alerting thresholds
 - [ ] Feature flags and release checklist
 - [ ] Post-deploy health verification (24-72h)

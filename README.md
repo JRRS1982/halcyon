@@ -6,9 +6,8 @@ Please see the [Playbook](docs/Playbook.md) for more information on the project,
 
 ## Deployment
 
-When running, this project is deployed to:
-
-- Development: <http://localhost:3000/>
+- **Development**: <http://localhost:3000/> (`pnpm dev` or `make dev-up`)
+- **Production**: hosted on [Vercel](https://vercel.com) with [Supabase](https://supabase.com) for managed Postgres + Auth. Vercel's Git integration deploys `master` automatically once CI succeeds; rollback is one click in the Vercel dashboard. See [ADR-001](docs/ADRs/ADR-001-TechStackSelection.md).
 
 ## Setup
 
@@ -28,6 +27,7 @@ I have done my best, with the support of AI to put a comprehensive set of docume
 - [Data Models](docs/DataModels/)
 - [Design Decisions](docs/DesignDecisions/)
 - [Security Architecture](docs/ADRs/ADR-002-SecurityArchitecture.md)
+- [Auth Flow (sequence diagrams)](docs/AuthFlow.md)
 - [User Personas](docs/UserPersonas.md)
 - [User Journeys](docs/UserJourney.md)
 - [Stakeholder Mapping](docs/StakeholderMapping.md)
@@ -54,25 +54,18 @@ To run the unit tests, use the following command: `pnpm test`, or one of the hel
 
 ### End to end tests (E2E)
 
-To run the e2e tests in an isolated container, use the following command pnpm `test:e2e:docker` or the helper `make test-e2e-docker`.
+Run the tests locally:
 
-Or to run the tests locally, use the following commands:
+1. Install browser system deps once: `sudo npx playwright install-deps`.
+2. Install the project deps: `pnpm install`.
+3. Run the tests: `pnpm test:e2e` (or `pnpm test:e2e:ui` for the UI runner).
 
-1. Install the dependencies for Playwright; `sudo npx playwright install-deps`.
+Playwright spins up two webservers automatically:
 
-2. Install the dependencies for the project; `pnpm install`.
+- a **mock Supabase Auth server** on `localhost:54321` (see [`e2e/_mock/supabase.mjs`](e2e/_mock/supabase.mjs))
+- a **Next.js dev server** on `localhost:3100` (the deliberately-different port lets the test server coexist with a developer's own `pnpm dev` on `:3000`)
 
-3. run the tests; `pnpm test:e2e`, or `pnpm test:e2e:ui` to open the UI.
-
-#### How Dockerized E2E Works
-
-The `make test-e2e-docker` command runs tests in an isolated container environment:
-
-- **`compose.test.yaml`** — Orchestrates the test environment (app + database)
-- **`Dockerfile.test`** — Builds the test image with Node.js, Chromium, and the app
-- **`playwright.config.ts`** — Configures Playwright to use Alpine's system Chromium (bundled browsers don't work on node Alpine, which i am using to keep bundle size down)
-
-This ensures tests run consistently regardless of your local setup.
+No real Supabase project or database is touched during E2E. Coverage and approach are documented in [`docs/AuthFlow.md`](docs/AuthFlow.md#e2e-test-coverage).
 
 ### Database Seeding
 

@@ -6,8 +6,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum UserStatus {
@@ -16,22 +17,25 @@ enum UserStatus {
   DELETED
 }
 
+// Application-side profile row.
+//
+// `id` is the same uuid as `auth.users.id` (Supabase-managed). We don't declare
+// `auth.users` here because it lives in the Supabase-managed `auth` schema, and
+// Prisma cannot manage cross-schema FKs cleanly. The link is enforced either
+// via a Postgres trigger on auth.users insert (preferred, atomic) or by the
+// post-signup handler in the app.
+//
+// All Supabase-managed concerns (email, password hash, email verification,
+// failed-login counters, OAuth identities, MFA) live on `auth.users` and are
+// NOT mirrored here. Read them from the Supabase session.
 model User {
-  id                  String     @id @default(cuid())
-  email               String     @unique
-  emailVerified       DateTime?
-  name                String?
-  image               String?
-  password            String?
-  username            String?
-  timezone            String     @default("UTC")
-  status              UserStatus @default(ACTIVE)
-  lastLogin           DateTime?
-  lastLoginIp         String?
-  lastActiveAt        DateTime?
-  failedLoginAttempts Int        @default(0)
-  accountLockedAt     DateTime?
-  passwordChangedAt   DateTime?
-  createdAt           DateTime   @default(now())
-  updatedAt           DateTime   @updatedAt
+  id           String     @id @db.Uuid
+  username     String?
+  name         String?
+  image        String?
+  timezone     String     @default("UTC")
+  status       UserStatus @default(ACTIVE)
+  lastActiveAt DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 }

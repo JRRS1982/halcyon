@@ -1,4 +1,4 @@
-.PHONY: go dev-up dev-down prod-up prod-down prod-logs dev-build dev-logs dev-shell dev-db-shell dev-db-seed dev-db-reset dev-db-migrate lintAndFormat dev-clean test test-watch test-coverage test-e2e-docker test-e2e test-e2e-ui
+.PHONY: go dev-up dev-down dev-build dev-logs dev-shell dev-db-shell dev-db-seed dev-db-reset dev-db-migrate lintAndFormat dev-clean test test-watch test-coverage test-e2e test-e2e-ui
 
 .DEFAULT_GOAL := go
 
@@ -11,18 +11,6 @@ dev-up:
 # Stop development containers
 dev-down:
 	docker compose down --remove-orphans
-
-# Start production containers
-prod-up:
-	docker compose -f compose.prod.yaml up -d --build
-
-# Stop production containers
-prod-down:
-	docker compose -f compose.prod.yaml down
-
-# View production logs
-prod-logs:
-	docker compose -f compose.prod.yaml logs -f
 
 # Rebuild development containers
 dev-build:
@@ -92,12 +80,7 @@ endif
 test-coverage:
 	pnpm test:coverage
 
-# E2E tests in Docker (recommended)
-# Usage: make test-e2e-docker
-test-e2e-docker:
-	pnpm test:e2e:docker
-
-# E2E tests locally
+# E2E tests
 # Usage: make test-e2e [name=<pattern>]
 test-e2e:
 ifdef name

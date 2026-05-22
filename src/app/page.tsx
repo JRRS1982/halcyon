@@ -1,8 +1,42 @@
-export default function Home() {
+import { createClient } from "@/lib/supabase/server";
+import { signOut } from "./actions";
+
+export default async function Home() {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <h1 className="text-4xl font-bold">Welcome to Halcyon</h1>
-      <p>Your Next.js application is ready to go!</p>
+    <main
+      style={{
+        maxWidth: 480,
+        margin: "4rem auto",
+        padding: "0 1rem",
+        display: "grid",
+        gap: "1rem",
+      }}
+    >
+      <h1>Welcome to Halcyon</h1>
+
+      {user ? (
+        <>
+          <p>
+            Signed in as <strong>{user.email}</strong>
+          </p>
+          <nav style={{ display: "flex", gap: "0.75rem" }}>
+            <a href="/dashboard">Go to dashboard</a>
+            <form action={signOut}>
+              <button type="submit">Sign out</button>
+            </form>
+          </nav>
+        </>
+      ) : (
+        <p>
+          Not signed in. <a href="/sign-in">Sign in</a> or{" "}
+          <a href="/sign-up">create an account</a>.
+        </p>
+      )}
     </main>
   );
 }

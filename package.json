@@ -9,20 +9,26 @@
     "lint": "biome check .",
     "lint:fix": "biome check . --fix",
     "format": "biome format --write .",
-    "postinstall": "prisma generate",
+    "postinstall": "prisma generate && simple-git-hooks",
     "db:seed": "tsx prisma/seed.ts",
     "db:reset": "prisma migrate reset --force && pnpm db:seed",
     "test": "jest",
+    "check": "biome ci .",
+    "typecheck": "tsc --noEmit",
+    "verify": "pnpm typecheck && pnpm check && pnpm test",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui",
-    "test:e2e:docker": "docker compose -f compose.test.yaml up --build --abort-on-container-exit"
+    "test:e2e:ui": "playwright test --ui"
+  },
+  "simple-git-hooks": {
+    "pre-push": "pnpm check"
   },
   "dependencies": {
     "@prisma/client": "^5.0.0",
     "@reduxjs/toolkit": "^2.0.0",
-    "bcryptjs": "^2.4.3",
+    "@supabase/ssr": "^0.5.2",
+    "@supabase/supabase-js": "^2.46.1",
     "next": "^14.0.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -32,7 +38,6 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^1.5.0",
-    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20.0.0",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
@@ -44,6 +49,7 @@
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
     "prisma": "^5.0.0",
+    "simple-git-hooks": "^2.11.1",
     "ts-node": "^10.9.0",
     "typescript": "^5.0.0"
   }

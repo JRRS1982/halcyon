@@ -3,92 +3,111 @@
 - Status: Accepted
 - Created by: @jrrs1982
 - Date: 2025-11-25
+- Last revised: 2026-05-22 — migrated production hosting from self-hosted Docker to Vercel, replaced NextAuth/bcrypt with Supabase Auth, replaced self-hosted Postgres with Supabase managed Postgres.
 - Decision maker: @jrrs1982
 
 ## Context
 
-I am building this webapp as a personal project, i doing it to learn and improve my software development skills/process. I want to follow the steps set out in the [Playbook](../Playbook.md) that i have created, which i hope will help me select the best tech stack for this project.
+I am building this webapp as a personal project to learn and improve my software development skills/process. I want to follow the steps set out in the [Playbook](../Playbook.md), which I hope will help me select the best tech stack for this project.
 
-This project will have a frontend and backend as well as a database and i would like the project to be dockerized to ensure that it can run on any machine.
+This project has a frontend and backend as well as a database. The original plan was to self-host on a home server using Docker Compose; in May 2026 I switched to **Vercel** for hosting and **Supabase** for managed Postgres + Auth so I no longer have to operate the production infrastructure myself. Local development is still Dockerized for parity and offline work.
 
-I will want unit tests, end to end tests, and integration tests. I will want to use a database that is easy to use and scale, as well as an ORM. I will want to use a frontend framework that is easy to use and scale. I will want to use a backend framework that is easy to use and scale.
+I want unit tests, end-to-end tests, and integration tests. I want a database that is easy to use and scale, and an ORM. I want a frontend framework that is easy to use and scale, and a backend framework that is easy to use and scale.
 
 ## Decision
 
 ### General
 
-- pnpm: provides a fast and efficient package manager that is easy to use and scale
-- TypeScript: for type safety
-- Docker and the modern docker compose: for containerization
-- zod: for runtime validation of data
-- zod-env: for environment variable validation
-- Biome: an alterative to eslint and prettier, for code quality
-- Swagger: for automatically generating API documentation
-- Next.js middleware: for rate limiting
-- bcrypt: for password hashing
+- **pnpm**: fast and disk-efficient package manager
+- **TypeScript**: type safety
+- **Docker + modern docker compose**: local development environment only (production runs on Vercel)
+- **zod**: runtime validation of data
+- **zod-env**: environment variable validation
+- **Biome**: alternative to eslint + prettier, for lint + format
+- **simple-git-hooks**: pre-push hook that runs `pnpm check` (`biome ci .`) for fast local guardrails
+- **Swagger**: automatically generated API documentation (planned)
 
 ### Frontend
 
-- React: for building the user interface and handling state
-- Next.js App Router: full stack development framework
-- Styled Components: for isolated styling of components
-- Redux Toolkit (Immer): for state management
+- **React**: building the user interface
+- **Next.js App Router**: full-stack development framework
+- **Styled Components**: isolated styling of components
+- **Redux Toolkit (Immer)**: state management
 
 ### Backend
 
-- Next API Routes: for the API routes
-- Next.js Server Components: for server-side request logic
+- **Next.js API Routes**: API routes
+- **Next.js Server Components**: server-side request logic
+- **Next.js middleware**: server-side route protection (e.g., redirecting unauthenticated users)
+
+### Hosting & Deployment
+
+- **Vercel**: hosting for the Next.js app. Vercel's Git integration deploys `master` automatically when CI succeeds; instant rollback is available via the Vercel dashboard.
+- **No self-hosted production infrastructure.** `Dockerfile.dev` and `compose.yaml` exist for local dev only.
 
 ### Database
 
-- PostgreSQL: works well with Prisma and is easy to scale
+- **Supabase (managed Postgres 16)**: production and staging database. Supabase provides connection pooling (`DATABASE_URL`, port 6543) and a direct connection (`DIRECT_URL`, port 5432) — Prisma uses the pooled URL for runtime and the direct URL for migrations.
+- **Postgres in Docker Compose**: local development database (kept for offline work and CI parity).
 
 ### ORM
 
-- Prisma: provides a type-safe database client and a schema language, with connection pooling and built in migrations
+- **Prisma**: type-safe database client, schema language, and migration tool. Prisma points at Supabase Postgres in production and at the local Docker Postgres in development. See [ADR-003](ADR-003-DBMigrations.md) for the connection-string split and the forward-only migration policy.
+
+### Authentication & Authorization
+
+- **Supabase Auth**: email/password + OAuth providers + magic links. Supabase manages password hashing (Argon2 internally), email verification, password reset flows, and brute-force throttling on its auth endpoints.
+- **`@supabase/ssr`**: integrates Supabase Auth with the Next.js App Router — session cookies are validated server-side in middleware, server components, and route handlers.
+- **Next.js middleware**: enforces route protection by reading the Supabase session from cookies and redirecting unauthenticated users.
+- **Row Level Security (RLS)** in Postgres: defence-in-depth. See [ADR-002](ADR-002-SecurityArchitecture.md).
 
 ### CI/CD
 
-- GitHub Actions: provides a free CI/CD pipeline that can be used to build, test and deploy the application
+- **GitHub Actions**: lint, typecheck, unit tests, build, and E2E tests guard every push and PR. Production deploys are handled by Vercel's Git integration (not GitHub Actions).
 
 ### Monitoring
 
-- TBC: This is not going to be a part of the MVP
+- **Vercel Analytics / Logs**: built-in for the Next.js app.
+- **Supabase Logs**: built-in for database queries and auth events.
+- Anything more sophisticated is out of scope for the MVP.
 
 ### Logging
 
-- TBC: I may log a few things to console, but this is not going to be a part of the MVP
-
-### Security
-
-- [NextAuth.js](https://next-auth.js.org/): supports multiple providers and is easy to use
-
-### Authentication
-
-- [NextAuth.js](https://next-auth.js.org/): supports multiple providers and is easy to use
-
-### Authorization
-
-- Next.js: provides a middleware system that can be used to protect routes
+- Server-side `console.*` is captured by Vercel logs. Structured logging is deferred until there is a need.
 
 ### Testing
 
-- Jest: for unit tests - it is the standard test runner
-- React Testing Library: for component tests - it is the standard testing library for React
-- Playwright: for e2e tests - recommended by Vercel for Next.js, excellent Docker support, faster CI runs
+- **Jest**: unit tests — standard test runner
+- **React Testing Library**: component tests — standard for React
+- **Playwright**: e2e tests — recommended by Vercel for Next.js, excellent Docker support, faster CI runs
 
 ## Considered Alternatives
 
-- npm: i am most familiar with npm and i have used it for many years, but i have heard that pnpm is faster and more efficient, hence I am trying it out in this project.
-- Vite: i really like the idea of using Vite, and the developer experience it provides, but this app is a full stack app where there will be a backend and database, so i don't think Vite is the right choice.
-- Typeorm: I am currently fixing issues with the implementation of Typeorm at work, and i don't want to use it in this project.
-- Tailwind: I have never been a fan of Tailwind as it feels like i am writing CSS in a different language, but i have heard that it is a popular choice for styling React applications.
-- ESLint + Husky: i have used ESLint and Husky in most of my projects, but i have heard that Biome is a good alternative so would like to give it a go.
-- Dotenv: i have used dotenv in a number of projects, but i believe it is not required in Next.js
-- Emotion: i use emotion at work, but have not strong feelings towards it, so i am open to trying styled components.
-- Zustand: i use redux toolkit at work and like it, i performed a deep dive into state management systems for the company a few year ago and my opinion hasn't changed, I would like to try zustand, but I am happy to stick with redux toolkit as i know it to be a safe bet.
-- Cypress: I have used Cypress in a number of my projects, but Playwright offers better Docker support, faster parallel execution, and is recommended by Vercel for Next.js projects.
+### Original (2025-11)
 
-### Consequences (optional)
+- **npm**: most familiar, but pnpm is faster and more efficient.
+- **Vite**: great DX but doesn't fit a full-stack app with API routes + database.
+- **TypeORM**: actively fixing issues with it at work; avoided.
+- **Tailwind**: feels like writing CSS in a different language.
+- **ESLint + Husky**: used in most past projects; trying Biome instead.
+- **Dotenv**: not required in Next.js.
+- **Emotion**: no strong feelings; styled-components is the experiment.
+- **Zustand**: happy with Redux Toolkit; deep-dive at work didn't change my opinion.
+- **Cypress**: Playwright has better Docker support, faster parallel execution, and is Vercel-recommended.
 
-- Good: I have enjoyed creating this document and thinking about the tech stack in advance in a structured way. It has helped me decide what i want in the tech stack (and why) and i feel more confident in my choice, and i expect it will make the development process smoother.
+### Migration (2026-05)
+
+- **Stay on the home server**: removed because operating my own production box (TLS renewal, OS patching, backups, postgres tuning, uptime) was eating time I wanted to spend on the app. The Playbook's "Build Foundation" phase explicitly wants reliable infra without much maintenance burden.
+- **GitHub Pages + Supabase (static export)**: considered. Rejected because it would force `output: 'export'` and kill API routes, server components, server actions, and Next.js middleware — all of which ADR-002 leans on. The architecture rewrite was bigger than the hosting saving justified.
+- **Cloudflare Pages / Netlify**: viable, but Vercel has first-class Next.js support (its origin) and zero-config integration. No reason to use a less-aligned platform for a personal project.
+- **NextAuth.js (kept) + Supabase Postgres only**: would have preserved ADR-002's NextAuth design, but doubles the auth surface area (NextAuth's own user table + Supabase's `auth.users`) and forgoes Supabase's built-in email verification, OAuth, magic links, and brute-force protection. Not worth the duplication.
+- **Drop Prisma in favour of `@supabase/supabase-js` everywhere**: cleaner Supabase-native pattern, but rewrites every planned query and throws away the migration tooling that's already wired into CI. Kept Prisma; supabase-js is used only for Auth.
+
+## Consequences
+
+- **Good**: I stopped owning production infrastructure. Deploys are git-push, rollbacks are one click, Postgres backups are managed by Supabase.
+- **Good**: Supabase Auth deletes a meaningful chunk of ADR-002 (password hashing, lockout policy, email verification flow, OAuth wiring) — code I don't have to write or maintain.
+- **Good**: Prisma + the rest of the dev stack are unchanged, so the migration cost was concentrated in auth and deployment, not the whole app.
+- **Bad**: I now depend on two managed services (Vercel, Supabase) with their own pricing tiers and outages. Vendor-lock-in is real, especially on Supabase Auth (`auth.users` is theirs).
+- **Bad**: Server-side Prisma queries run with the Postgres connection string, which bypasses RLS. That means `userId` filtering has to be enforced in app code; RLS is only a real boundary for client-side queries (currently none planned). See [ADR-002](ADR-002-SecurityArchitecture.md).
+- **Neutral**: Local dev still uses Docker Postgres rather than `supabase start`. Cheaper to spin up; further from production parity. Worth revisiting if schema drift bites.
