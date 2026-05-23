@@ -31,7 +31,7 @@ import {
   useTransition,
 } from "react";
 import styled from "styled-components";
-import { createItem, reparentItem, updateItem } from "./actions";
+import { createItem, deleteItem, reparentItem, updateItem } from "./actions";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -406,6 +406,49 @@ export function BudgetSheet({
     void performReparent(focusedItem.id, parent.parentItemId);
   }, [focusedItem, items, performReparent]);
 
+  // ─── Delete ───────────────────────────────────────────────────────────────
+
+  const onDelete = useCallback(() => {
+    if (!focusedItem) return;
+    const target = focusedItem;
+
+    // Find every descendant of the focused row — they go with the parent.
+    const toDelete = new Set<string>([target.id]);
+    let grew = true;
+    while (grew) {
+      grew = false;
+      for (const item of items) {
+        if (
+          item.parentItemId &&
+          toDelete.has(item.parentItemId) &&
+          !toDelete.has(item.id)
+        ) {
+          toDelete.add(item.id);
+          grew = true;
+        }
+      }
+    }
+
+    // Optimistic — drop the row(s) from local state immediately, clear focus.
+    setItems((prev) => prev.filter((it) => !toDelete.has(it.id)));
+    setFocusedCell(null);
+
+    pendingSavesRef.current += 1;
+    setPendingCount(pendingSavesRef.current);
+    void (async () => {
+      try {
+        await deleteItem({ itemId: target.id });
+        setLastSavedAt(new Date());
+        setSaveError(null);
+      } catch (e) {
+        setSaveError(e instanceof Error ? e.message : "Delete failed");
+      } finally {
+        pendingSavesRef.current = Math.max(0, pendingSavesRef.current - 1);
+        setPendingCount(pendingSavesRef.current);
+      }
+    })();
+  }, [focusedItem, items]);
+
   // ─── Status pip state ─────────────────────────────────────────────────────
 
   const pipState: StatusPipState = saveError
@@ -529,6 +572,11 @@ export function BudgetSheet({
           </ToolbarTool>
           <ToolbarTool onClick={onIndent} disabled={!canIndent}>
             → Indent
+          </ToolbarTool>
+        </ToolbarGroup>
+        <ToolbarGroup>
+          <ToolbarTool onClick={onDelete} disabled={!focusedItem}>
+            × Delete row
           </ToolbarTool>
         </ToolbarGroup>
         <ToolbarSpacer />
