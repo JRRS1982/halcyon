@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/server";
-import { signOut } from "../actions";
 
 // Protected by src/lib/supabase/middleware.ts — unauthenticated visitors are
 // redirected to /sign-in?next=/dashboard before this code runs. The getUser()
@@ -29,12 +28,6 @@ export default async function DashboardPage() {
         without a session is sent to <code>/sign-in?next=/dashboard</code> by
         the middleware.
       </p>
-      <nav style={{ display: "flex", gap: "0.75rem" }}>
-        <a href="/">Home</a>
-        <form action={signOut}>
-          <button type="submit">Sign out</button>
-        </form>
-      </nav>
     </main>
   );
 }

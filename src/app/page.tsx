@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/server";
-import { signOut } from "./actions";
 
 export default async function Home() {
   const supabase = createClient();
@@ -10,7 +9,7 @@ export default async function Home() {
   return (
     <main
       style={{
-        maxWidth: 480,
+        maxWidth: 640,
         margin: "4rem auto",
         padding: "0 1rem",
         display: "grid",
@@ -20,20 +19,14 @@ export default async function Home() {
       <h1>Welcome to Halcyon</h1>
 
       {user ? (
-        <>
-          <p>
-            Signed in as <strong>{user.email}</strong>
-          </p>
-          <nav style={{ display: "flex", gap: "0.75rem" }}>
-            <a href="/dashboard">Go to dashboard</a>
-            <form action={signOut}>
-              <button type="submit">Sign out</button>
-            </form>
-          </nav>
-        </>
+        <p>
+          Signed in as <strong>{user.email}</strong>. Head to{" "}
+          <a href="/budget">your budget</a> or the{" "}
+          <a href="/dashboard">dashboard</a>.
+        </p>
       ) : (
         <p>
-          Not signed in. <a href="/sign-in">Sign in</a> or{" "}
+          Not signed in. Use the Sign in button above or{" "}
           <a href="/sign-up">create an account</a>.
         </p>
       )}
