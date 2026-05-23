@@ -4,9 +4,11 @@ import { currentMonthRange } from "@/lib/budget/period";
 import {
   type CreateItemInput,
   type DeleteItemInput,
+  type ReparentItemInput,
   type UpdateItemInput,
   createItemSchema,
   deleteItemSchema,
+  reparentItemSchema,
   updateItemSchema,
 } from "@/lib/budget/schemas";
 import { prisma } from "@/lib/prisma";
@@ -166,9 +168,87 @@ export async function deleteItem(input: DeleteItemInput) {
   });
 }
 
+// Re-attach an item to a new parent (or to the top level when newParentItemId
+// is null). The client uses this for the Indent / Outdent toolbar actions.
+// Enforces: same-period, same-type, no cycle, depth-3 cap for the item's
+// entire subtree. New sortOrder appends at the end of the destination
+// scope's children.
+export async function reparentItem(input: ReparentItemInput) {
+  const userId = await requireUserId();
+  const parsed = reparentItemSchema.parse(input);
+
+  const item = await prisma.financialItem.findFirst({
+    where: { id: parsed.itemId, deletedAt: null },
+    include: { period: { select: { userId: true } } },
+  });
+  if (!item || item.period.userId !== userId) {
+    throw new Error("Item not found");
+  }
+
+  let newParentDepth = 0;
+
+  if (parsed.newParentItemId !== null) {
+    const newParent = await prisma.financialItem.findFirst({
+      where: {
+        id: parsed.newParentItemId,
+        periodId: item.periodId,
+        type: item.type,
+        deletedAt: null,
+      },
+    });
+    if (!newParent) {
+      throw new Error("New parent not found");
+    }
+
+    // Cycle check — walk up newParent's ancestry; if itemId appears, reject.
+    let ancestorId: string | null = newParent.parentItemId;
+    while (ancestorId !== null) {
+      if (ancestorId === parsed.itemId) {
+        throw new Error("Cannot move item under one of its own descendants");
+      }
+      const ancestor: { parentItemId: string | null } | null =
+        await prisma.financialItem.findFirst({
+          where: { id: ancestorId },
+          select: { parentItemId: true },
+        });
+      if (!ancestor) break;
+      ancestorId = ancestor.parentItemId;
+    }
+
+    newParentDepth = await depthOf(newParent.id);
+  }
+
+  // Depth cap. newParentDepth = 0 when reparenting to top level.
+  // Deepest descendant after move = newParentDepth + 1 + subtreeMaxDepth(item).
+  const subtreeDepth = await subtreeMaxDepth(parsed.itemId);
+  if (newParentDepth + 1 + subtreeDepth > 3) {
+    throw new Error("Move would exceed the depth-3 cap");
+  }
+
+  const last = await prisma.financialItem.findFirst({
+    where: {
+      periodId: item.periodId,
+      type: item.type,
+      parentItemId: parsed.newParentItemId,
+      deletedAt: null,
+      NOT: { id: parsed.itemId },
+    },
+    orderBy: { sortOrder: "desc" },
+    select: { sortOrder: true },
+  });
+
+  return prisma.financialItem.update({
+    where: { id: parsed.itemId },
+    data: {
+      parentItemId: parsed.newParentItemId,
+      sortOrder: (last?.sortOrder ?? 0) + 1,
+    },
+  });
+}
+
 // Walk up the parent chain to find the depth of a given item. depth 1 = top
 // level. Returns 4+ for anything beyond depth 3 (which will fail the cap
-// check in createItem).
+// check in createItem / reparentItem).
 async function depthOf(itemId: string): Promise<number> {
   let depth = 1;
   let currentId: string | null = itemId;
@@ -183,4 +263,24 @@ async function depthOf(itemId: string): Promise<number> {
     depth++;
   }
   return depth;
+}
+
+// Returns the maximum depth of descendants below itemId (the item itself is
+// depth 0). Used by reparentItem to enforce the depth-3 cap across a moved
+// subtree.
+async function subtreeMaxDepth(itemId: string): Promise<number> {
+  const result = await prisma.$queryRaw<{ max_depth: number }[]>`
+    WITH RECURSIVE d AS (
+      SELECT id, 0::int AS depth
+      FROM "FinancialItem"
+      WHERE id = ${itemId}::uuid AND "deletedAt" IS NULL
+      UNION ALL
+      SELECT c.id, d.depth + 1
+      FROM "FinancialItem" c
+      JOIN d ON c."parentItemId" = d.id
+      WHERE c."deletedAt" IS NULL
+    )
+    SELECT COALESCE(MAX(depth), 0)::int AS max_depth FROM d
+  `;
+  return result[0]?.max_depth ?? 0;
 }

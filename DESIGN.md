@@ -31,6 +31,7 @@ colors:
   positive: "#1F8A4C"
   negative: "#B33B3B"
   focus: "#0F1116"
+  accent: "#1E5BC6"
 
 typography:
   display-xxl:
@@ -238,14 +239,6 @@ components:
     border: "1px solid {colors.hairline}"
     rounded: "0 0 {rounded.sm} {rounded.sm}"
 
-  sheet-idx:
-    description: "Row index column on the left (1, 2, 3…). Dim, mono, narrow."
-    width: 40px
-    backgroundColor: "{colors.canvas-soft}"
-    textColor: "{colors.body-muted}"
-    typography: "{typography.mono-caps}"
-    borderRight: "1px solid {colors.hairline-strong}"
-
   sheet-cell:
     description: "Default cell inside the sheet. Right-aligned tabular numerals for amount columns; left-aligned ink for label cells."
     backgroundColor: "{colors.canvas}"
@@ -433,7 +426,7 @@ Surfaces alternate at the row level, not the page level. A page is `{colors.canv
 ### Brand & Accent
 
 - **Ink** (`{colors.primary}` — `#000000`): The single primary CTA colour. Black pill carries every conversion action: Add row, Save changes, Sign in, Continue with Google. Also the fill of the grand-total row.
-- **No accent colour.** Halcyon deliberately ships without a brand accent. The dark section bands + black grand-total row are the decorative system. Future themes (e.g. a year-in-review mode) may introduce a single muted accent; the day-to-day system does not.
+- **Accent** (`{colors.accent}` — `#1E5BC6`): A single muted blue used **sparingly** to highlight identifiers and orient the user — the period date in a page eyebrow (e.g. "Budget · **January 2026**"), an active filter chip, the focused-row marker. Not used as a button fill, never on amounts (those use sign-only positive/negative), and never as a brand-decorative gradient. One accent moment per visible viewport is the upper bound — multiple compete and the orientation value collapses.
 
 ### Surface
 
@@ -513,7 +506,7 @@ The mono face is **never** used for body copy, never for cell amounts (amounts a
 ### Grid & Container
 
 - **Max width**: 1240 px desktop container; nothing renders above that. Content centres with horizontal gutters of `{spacing.2xl}` 24 px on desktop, `{spacing.lg}` 16 px on mobile.
-- **Sheet column template**: row index 40 px · category (flex) · Budget 150 px · Actual 150 px · Variance 150 px · % 90 px. On mobile, fixed-width amount columns drop to 110 px each and the % column collapses behind a horizontal scroll.
+- **Sheet column template**: category (flex) · Budget 150 px · Actual 150 px · Variance 150 px · % 90 px. On mobile, fixed-width amount columns drop to 110 px each and the % column collapses behind a horizontal scroll. (An earlier draft included a 40 px row-index column; removed because spreadsheet-style row numbers added visual noise without earning their column.)
 - **Auth form max-width**: 360 px (per `ex-auth-form-card`).
 - **Page header**: headline + lead on the left, action cluster + status-pip on the right. Stacks on mobile.
 
@@ -554,7 +547,7 @@ The default sheet cell renders at ~36 px tall (14 px text + 8 px × 2 padding + 
 |---|---|---|
 | Level 0 — Flat | No shadow, no border. | Default page surface. Toolbar tools (single hairline border, no shadow). |
 | Level 1 — Hairline | 1 px solid `{colors.hairline}` on `{colors.canvas}` cards. | `card`, `text-input`, `badge-neutral`, `period-tab`, sheet cells (all four sides). |
-| Level 2 — Hairline Strong | 1 px solid `{colors.hairline-strong}` as a structural boundary. | Right edge of `sheet-idx`; bottom of `sheet-row-head`; top of `sheet-row-totals`. |
+| Level 2 — Hairline Strong | 1 px solid `{colors.hairline-strong}` as a structural boundary. | Bottom of `sheet-row-head`; top of `sheet-row-totals`. |
 | Level 3 — Filled Dark | `{colors.canvas-dark}` fill with internal dividers in `{colors.hairline-dark}`. | `sheet-row-section`. The dark fill is the elevation. |
 | Level 4 — Filled Ink | `{colors.primary}` (`#000000`) fill. | `sheet-row-grand`, `button-primary`, `nav .pill`. The single heaviest treatment. |
 | Level 5 — Soft Drop | `rgba(15, 17, 22, 0.08) 0px 4px 12px 0px` — barely-perceptible shadow tinted with `{colors.canvas-dark}`. | Floating elements only — `toast`, `modal` (modal also uses a scrim). Never on inline cards or sheet rows. |
@@ -625,10 +618,6 @@ The Budget page is built around a single bordered grid — the **sheet**. Every 
 **`sheet`** — the bordered spreadsheet container.
 
 - Background `{colors.canvas}`, 1 px solid `{colors.hairline}` on all four sides, `{rounded.sm}` 4 px bottom corners only (the top joins the formula bar above as a single chrome unit). Internal layout is a CSS grid.
-
-**`sheet-idx`** — the row-index column on the left.
-
-- Width 40 px, background `{colors.canvas-soft}`, text `{colors.body-muted}` in `{typography.mono-caps}`, justified centre, right border `{colors.hairline-strong}` 1 px. Inside `sheet-row-section` bands the index column fills with `{colors.surface-dark-soft}` and text in `{colors.body-muted}`.
 
 **`sheet-cell`** — the default cell inside the sheet.
 
@@ -753,6 +742,7 @@ These are not new primitives; they are kit-mirror surfaces composed from the pri
 - Render every currency amount in Inter with `font-variant-numeric: tabular-nums`, two decimal places, right-aligned within its row.
 - Use `sheet-row-section` (dark band) to group rows visually and `sheet-row-grand` (black band) for the final total. Those two bands plus hairline cell borders are the entire visual hierarchy of the sheet.
 - Apply `{colors.positive}` and `{colors.negative}` to **amounts only** — never to button fills, badge backgrounds, banner tints, or headlines.
+- Apply `{colors.accent}` to **orientation identifiers** — the date in a page eyebrow, an active toolbar filter, the focused-row marker. One accent moment per viewport.
 - Dim $0 or empty amount cells to `{colors.dim}` so they recede from real data.
 - Use `{rounded.sm}` 4 px as the canonical card / button / panel radius across the system. Reach for `{rounded.none}` only on full-bleed edges (sheet section bands, sheet grand-total row, nav-bar bottom border, footer wordmark).
 - Render the giant `halcyon` wordmark at the bottom of every long page in `{typography.display-xxl}` at 96 px, tinted to `{colors.hairline}` so it reads as a stencil — not as a heavy footer title.

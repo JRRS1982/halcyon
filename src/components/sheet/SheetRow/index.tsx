@@ -3,7 +3,6 @@ import { SheetCell } from "../SheetCell";
 import {
   GrandRow,
   HeadRow,
-  IndexCell,
   ItemRow,
   SectionRow,
   TotalsRow,
@@ -13,7 +12,6 @@ import {
 export function SheetHeadRow() {
   return (
     <HeadRow>
-      <SheetCell />
       <SheetCell>Category</SheetCell>
       <SheetCell align="right">Budget</SheetCell>
       <SheetCell align="right">Actual</SheetCell>
@@ -32,17 +30,14 @@ type AmountCells = {
 
 // Section group header (Income, Expenses). Dark full-width band.
 export function SheetSectionRow({
-  index,
   label,
   amounts,
 }: {
-  index: number | string;
   label: ReactNode;
   amounts: AmountCells;
 }) {
   return (
     <SectionRow>
-      <IndexCell $dark>{index}</IndexCell>
       <SheetCell>{label}</SheetCell>
       <SheetCell align="right">{amounts.budget}</SheetCell>
       <SheetCell align="right">{amounts.actual}</SheetCell>
@@ -56,13 +51,11 @@ export function SheetSectionRow({
 // Each amount slot is a ReactNode so the caller can wrap in tone/focused
 // state at the cell level if needed.
 export function SheetItemRow({
-  index,
   depth,
   label,
   amounts,
   focusedCell,
 }: {
-  index: number | string;
   depth: 1 | 2 | 3;
   label: ReactNode;
   amounts: {
@@ -87,7 +80,6 @@ export function SheetItemRow({
 }) {
   return (
     <ItemRow>
-      <IndexCell>{index}</IndexCell>
       <SheetCell indent={depth} focused={focusedCell === "label"}>
         {label}
       </SheetCell>
@@ -117,17 +109,14 @@ export function SheetItemRow({
 
 // Section subtotal row.
 export function SheetTotalsRow({
-  index,
   label,
   amounts,
 }: {
-  index: number | string;
   label: ReactNode;
   amounts: AmountCells;
 }) {
   return (
     <TotalsRow>
-      <IndexCell>{index}</IndexCell>
       <SheetCell>{label}</SheetCell>
       <SheetCell align="right">{amounts.budget}</SheetCell>
       <SheetCell align="right">{amounts.actual}</SheetCell>
@@ -139,17 +128,14 @@ export function SheetTotalsRow({
 
 // Grand total row (Net income). Black band.
 export function SheetGrandRow({
-  index,
   label,
   amounts,
 }: {
-  index: number | string;
   label: ReactNode;
   amounts: AmountCells;
 }) {
   return (
     <GrandRow>
-      <IndexCell>{index}</IndexCell>
       <SheetCell>{label}</SheetCell>
       <SheetCell align="right">{amounts.budget}</SheetCell>
       <SheetCell align="right">{amounts.actual}</SheetCell>

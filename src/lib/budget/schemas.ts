@@ -28,6 +28,12 @@ export const deleteItemSchema = z.object({
   itemId: z.string().uuid(),
 });
 
+export const reparentItemSchema = z.object({
+  itemId: z.string().uuid(),
+  newParentItemId: z.string().uuid().nullable(),
+});
+
 export type CreateItemInput = z.infer<typeof createItemSchema>;
 export type UpdateItemInput = z.infer<typeof updateItemSchema>;
 export type DeleteItemInput = z.infer<typeof deleteItemSchema>;
+export type ReparentItemInput = z.infer<typeof reparentItemSchema>;

@@ -23,6 +23,9 @@ export const theme = {
     positive: "#1F8A4C",
     negative: "#B33B3B",
     focus: "#0F1116",
+    // The single highlight accent. Used sparingly — period dates in eyebrows,
+    // selected rows, anything the user should locate at a glance.
+    accent: "#1E5BC6",
   },
 
   // Five sizes only. See DESIGN.md → Typography → Hierarchy.

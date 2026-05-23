@@ -1,6 +1,5 @@
 "use client";
 
-import { FormulaBar } from "@/components/sheet/FormulaBar";
 import { Sheet } from "@/components/sheet/Sheet";
 import {
   SheetGrandRow,
@@ -15,7 +14,6 @@ import {
   ToolbarSpacer,
   ToolbarTool,
 } from "@/components/sheet/Toolbar";
-import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusPip, type StatusPipState } from "@/components/ui/StatusPip";
 import {
@@ -26,7 +24,7 @@ import {
 import { useDebouncedCallback } from "@/lib/hooks/useDebouncedCallback";
 import { useCallback, useMemo, useRef, useState, useTransition } from "react";
 import styled from "styled-components";
-import { createItem, updateItem } from "./actions";
+import { createItem, reparentItem, updateItem } from "./actions";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -102,6 +100,13 @@ const PageShell = styled.main`
     ${({ theme }) => theme.spacing["2xl"]} ${({ theme }) => theme.spacing["5xl"]};
 `;
 
+// Accent-coloured period date in the page eyebrow. Bold + blue — the single
+// orientation moment on the page per DESIGN.md → Do's.
+const PeriodLabel = styled.span`
+  color: ${({ theme }) => theme.colors.accent};
+  font-weight: 600;
+`;
+
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 // Walk top-level → children → grandchildren etc, sorted by sortOrder at each
@@ -132,6 +137,35 @@ function buildSectionOrder(
   }
   walk(null, 1);
   return result;
+}
+
+// Depth of `itemId` walking up the parent chain (top-level = 1).
+function computeItemDepth(items: SerializedItem[], itemId: string): number {
+  const byId = new Map(items.map((i) => [i.id, i]));
+  let depth = 1;
+  let current = byId.get(itemId);
+  while (current && current.parentItemId !== null) {
+    depth++;
+    current = byId.get(current.parentItemId);
+  }
+  return depth;
+}
+
+// Depth of the deepest descendant below `rootId` (rootId itself = 0).
+function computeSubtreeDepth(items: SerializedItem[], rootId: string): number {
+  const childrenByParent = new Map<string, SerializedItem[]>();
+  for (const item of items) {
+    if (item.parentItemId === null) continue;
+    const list = childrenByParent.get(item.parentItemId) ?? [];
+    list.push(item);
+    childrenByParent.set(item.parentItemId, list);
+  }
+  function rec(id: string): number {
+    const children = childrenByParent.get(id) ?? [];
+    if (children.length === 0) return 0;
+    return 1 + Math.max(...children.map((c) => rec(c.id)));
+  }
+  return rec(rootId);
 }
 
 const formatRelative = (then: Date | null, now: Date): string => {
@@ -267,6 +301,80 @@ export function BudgetSheet({
     [incomeTotals, expenseTotals],
   );
 
+  // ─── Indent / outdent ─────────────────────────────────────────────────────
+
+  const focusedItem = useMemo(
+    () =>
+      focusedCell
+        ? (items.find((i) => i.id === focusedCell.itemId) ?? null)
+        : null,
+    [focusedCell, items],
+  );
+
+  // Indent is allowed when the focused row has a preceding sibling at the
+  // same depth/parent AND the move doesn't push the subtree past depth 3.
+  const indentTarget = useMemo(() => {
+    if (!focusedItem) return null;
+    const siblings = items
+      .filter(
+        (i) =>
+          i.type === focusedItem.type &&
+          i.parentItemId === focusedItem.parentItemId,
+      )
+      .sort((a, b) => a.sortOrder - b.sortOrder);
+    const idx = siblings.findIndex((i) => i.id === focusedItem.id);
+    if (idx <= 0) return null;
+    const predecessor = siblings[idx - 1];
+    const predDepth = computeItemDepth(items, predecessor.id);
+    const subtreeDepth = computeSubtreeDepth(items, focusedItem.id);
+    if (predDepth + 1 + subtreeDepth > 3) return null;
+    return predecessor;
+  }, [focusedItem, items]);
+
+  const canIndent = indentTarget !== null;
+  const canOutdent = focusedItem !== null && focusedItem.parentItemId !== null;
+
+  const performReparent = useCallback(
+    async (itemId: string, newParentItemId: string | null) => {
+      pendingSavesRef.current += 1;
+      setPendingCount(pendingSavesRef.current);
+      try {
+        const updated = await reparentItem({ itemId, newParentItemId });
+        setItems((prev) =>
+          prev.map((it) =>
+            it.id === updated.id
+              ? {
+                  ...it,
+                  parentItemId: updated.parentItemId,
+                  sortOrder: updated.sortOrder,
+                }
+              : it,
+          ),
+        );
+        setLastSavedAt(new Date());
+        setSaveError(null);
+      } catch (e) {
+        setSaveError(e instanceof Error ? e.message : "Move failed");
+      } finally {
+        pendingSavesRef.current = Math.max(0, pendingSavesRef.current - 1);
+        setPendingCount(pendingSavesRef.current);
+      }
+    },
+    [],
+  );
+
+  const onIndent = useCallback(() => {
+    if (!focusedItem || !indentTarget) return;
+    void performReparent(focusedItem.id, indentTarget.id);
+  }, [focusedItem, indentTarget, performReparent]);
+
+  const onOutdent = useCallback(() => {
+    if (!focusedItem || !focusedItem.parentItemId) return;
+    const parent = items.find((i) => i.id === focusedItem.parentItemId);
+    if (!parent) return;
+    void performReparent(focusedItem.id, parent.parentItemId);
+  }, [focusedItem, items, performReparent]);
+
   // ─── Status pip state ─────────────────────────────────────────────────────
 
   const pipState: StatusPipState = saveError
@@ -282,44 +390,7 @@ export function BudgetSheet({
         ? `Saved ${formatRelative(lastSavedAt, now)}`
         : "Up to date";
 
-  // ─── Formula bar info ─────────────────────────────────────────────────────
-
-  // Cell ref like "B3" — column letter (B=label, C=budget, D=actual) +
-  // 1-indexed row position within the flat render. Simple v1 mapping.
-  const allRowsInOrder = useMemo(
-    () => [...incomeRows, ...expenseRows].map(({ item }) => item.id),
-    [incomeRows, expenseRows],
-  );
-
-  const cellRef = useMemo(() => {
-    if (!focusedCell) return "";
-    const rowIdx = allRowsInOrder.indexOf(focusedCell.itemId);
-    if (rowIdx < 0) return "";
-    const col =
-      focusedCell.field === "label"
-        ? "B"
-        : focusedCell.field === "budget"
-          ? "C"
-          : "D";
-    return `${col}${rowIdx + 1}`;
-  }, [focusedCell, allRowsInOrder]);
-
-  const cellValue = useMemo(() => {
-    if (!focusedCell) return "";
-    const item = items.find((i) => i.id === focusedCell.itemId);
-    if (!item) return "";
-    if (focusedCell.field === "label") return item.label;
-    if (focusedCell.field === "budget") return formatCurrency(item.budget);
-    return formatCurrency(item.actual);
-  }, [focusedCell, items]);
-
   // ─── Render ───────────────────────────────────────────────────────────────
-
-  let rowCounter = 0;
-  const nextRow = () => {
-    rowCounter += 1;
-    return rowCounter;
-  };
 
   const renderItemRow = (item: SerializedItem, depth: 1 | 2 | 3) => {
     const rollup = rollups.get(item.id) ?? { budget: 0, actual: 0 };
@@ -335,7 +406,6 @@ export function BudgetSheet({
     return (
       <SheetItemRow
         key={item.id}
-        index={nextRow()}
         depth={depth}
         label={
           <CellInput
@@ -398,16 +468,17 @@ export function BudgetSheet({
   return (
     <PageShell>
       <PageHeader
-        eyebrow={`Budget · ${period.label}`}
+        eyebrow={
+          <>
+            Budget · <PeriodLabel>{period.label}</PeriodLabel>
+          </>
+        }
         title="Budget overview"
         lead="Click any cell to edit. Tab moves right, Enter drops down. Totals recalc as you type."
         actions={<StatusPip state={pipState}>{pipText}</StatusPip>}
       />
 
       <Toolbar>
-        <ToolbarGroup>
-          <ToolbarTool disabled>{period.label}</ToolbarTool>
-        </ToolbarGroup>
         <ToolbarGroup>
           <ToolbarTool onClick={() => onAddRow("INCOME")}>
             + Add income row
@@ -417,18 +488,20 @@ export function BudgetSheet({
           </ToolbarTool>
         </ToolbarGroup>
         <ToolbarGroup>
-          <ToolbarTool $active>$ USD</ToolbarTool>
+          <ToolbarTool onClick={onOutdent} disabled={!canOutdent}>
+            ← Outdent
+          </ToolbarTool>
+          <ToolbarTool onClick={onIndent} disabled={!canIndent}>
+            → Indent
+          </ToolbarTool>
         </ToolbarGroup>
         <ToolbarSpacer />
       </Toolbar>
-
-      <FormulaBar cellRef={cellRef} value={cellValue} />
 
       <Sheet>
         <SheetHeadRow />
 
         <SheetSectionRow
-          index={nextRow()}
           label="Income"
           amounts={{
             budget: formatCurrency(incomeTotals.budget),
@@ -439,7 +512,6 @@ export function BudgetSheet({
         />
         {incomeRows.map(({ item, depth }) => renderItemRow(item, depth))}
         <SheetTotalsRow
-          index={nextRow()}
           label="Income subtotal"
           amounts={{
             budget: formatCurrency(incomeTotals.budget),
@@ -450,7 +522,6 @@ export function BudgetSheet({
         />
 
         <SheetSectionRow
-          index={nextRow()}
           label="Expenses"
           amounts={{
             budget: formatCurrency(expenseTotals.budget),
@@ -461,7 +532,6 @@ export function BudgetSheet({
         />
         {expenseRows.map(({ item, depth }) => renderItemRow(item, depth))}
         <SheetTotalsRow
-          index={nextRow()}
           label="Expenses subtotal"
           amounts={{
             budget: formatCurrency(expenseTotals.budget),
@@ -472,7 +542,6 @@ export function BudgetSheet({
         />
 
         <SheetGrandRow
-          index={nextRow()}
           label="Net income"
           amounts={{
             budget: formatSigned(grand.budget),
