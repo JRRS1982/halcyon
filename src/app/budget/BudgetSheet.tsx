@@ -1,7 +1,5 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState, useTransition } from "react";
-import styled from "styled-components";
 import { FormulaBar } from "@/components/sheet/FormulaBar";
 import { Sheet } from "@/components/sheet/Sheet";
 import {
@@ -26,6 +24,8 @@ import {
   sectionTotals,
 } from "@/lib/budget/totals";
 import { useDebouncedCallback } from "@/lib/hooks/useDebouncedCallback";
+import { useCallback, useMemo, useRef, useState, useTransition } from "react";
+import styled from "styled-components";
 import { createItem, updateItem } from "./actions";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -73,7 +73,7 @@ const formatPct = (n: number) => `${n}%`;
 
 const toneFor = (n: number) => {
   if (n === 0) return "dim" as const;
-  return n > 0 ? "positive" as const : "negative" as const;
+  return n > 0 ? ("positive" as const) : ("negative" as const);
 };
 
 // ─── Styled in-cell inputs ──────────────────────────────────────────────────
@@ -117,9 +117,9 @@ function buildSectionOrder(
     list.push(item);
     childrenByParent.set(key, list);
   }
-  childrenByParent.forEach((list) => {
+  for (const list of Array.from(childrenByParent.values())) {
     list.sort((a, b) => a.sortOrder - b.sortOrder);
-  });
+  }
   const result: { item: SerializedItem; depth: 1 | 2 | 3 }[] = [];
   function walk(parentId: string | null, depth: 1 | 2 | 3) {
     const children = childrenByParent.get(parentId) ?? [];
@@ -172,7 +172,10 @@ export function BudgetSheet({
   // ─── Save plumbing ────────────────────────────────────────────────────────
 
   const performUpdate = useCallback(
-    async (itemId: string, patch: { label?: string; budget?: number; actual?: number }) => {
+    async (
+      itemId: string,
+      patch: { label?: string; budget?: number; actual?: number },
+    ) => {
       pendingSavesRef.current += 1;
       setPendingCount(pendingSavesRef.current);
       try {
@@ -193,7 +196,10 @@ export function BudgetSheet({
 
   // Optimistic patch + debounced save.
   const editField = useCallback(
-    (itemId: string, patch: { label?: string; budget?: number; actual?: number }) => {
+    (
+      itemId: string,
+      patch: { label?: string; budget?: number; actual?: number },
+    ) => {
       setItems((prev) =>
         prev.map((it) => (it.id === itemId ? { ...it, ...patch } : it)),
       );
@@ -242,7 +248,10 @@ export function BudgetSheet({
   // ─── Derived data ─────────────────────────────────────────────────────────
 
   const incomeRows = useMemo(() => buildSectionOrder(items, "INCOME"), [items]);
-  const expenseRows = useMemo(() => buildSectionOrder(items, "EXPENSE"), [items]);
+  const expenseRows = useMemo(
+    () => buildSectionOrder(items, "EXPENSE"),
+    [items],
+  );
 
   const rollups = useMemo(() => computeRollups(items), [items]);
   const incomeTotals = useMemo(
@@ -314,12 +323,14 @@ export function BudgetSheet({
 
   const renderItemRow = (item: SerializedItem, depth: 1 | 2 | 3) => {
     const rollup = rollups.get(item.id) ?? { budget: 0, actual: 0 };
-    const variance = item.type === "INCOME"
-      ? rollup.actual - rollup.budget
-      : rollup.budget - rollup.actual;
-    const pct = rollup.budget === 0
-      ? 0
-      : Math.round((rollup.actual / rollup.budget) * 100);
+    const variance =
+      item.type === "INCOME"
+        ? rollup.actual - rollup.budget
+        : rollup.budget - rollup.actual;
+    const pct =
+      rollup.budget === 0
+        ? 0
+        : Math.round((rollup.actual / rollup.budget) * 100);
 
     return (
       <SheetItemRow
@@ -390,11 +401,7 @@ export function BudgetSheet({
         eyebrow={`Budget · ${period.label}`}
         title="Budget overview"
         lead="Click any cell to edit. Tab moves right, Enter drops down. Totals recalc as you type."
-        actions={
-          <>
-            <StatusPip state={pipState}>{pipText}</StatusPip>
-          </>
-        }
+        actions={<StatusPip state={pipState}>{pipText}</StatusPip>}
       />
 
       <Toolbar>

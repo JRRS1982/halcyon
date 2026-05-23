@@ -15,12 +15,7 @@ export type PageHeaderProps = {
   actions?: ReactNode;
 };
 
-export function PageHeader({
-  eyebrow,
-  title,
-  lead,
-  actions,
-}: PageHeaderProps) {
+export function PageHeader({ eyebrow, title, lead, actions }: PageHeaderProps) {
   return (
     <HeaderRow>
       <HeaderLeft>

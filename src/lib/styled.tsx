@@ -8,6 +8,7 @@
 // Pattern from https://styled-components.com/docs/advanced#with-other-css-frameworks-1
 // and https://nextjs.org/docs/app/building-your-application/styling/css-in-js#styled-components.
 
+import { theme } from "@/lib/theme";
 import { useServerInsertedHTML } from "next/navigation";
 import { type ReactNode, useState } from "react";
 import {
@@ -15,9 +16,10 @@ import {
   StyleSheetManager,
   ThemeProvider,
 } from "styled-components";
-import { theme } from "@/lib/theme";
 
-export function StyledComponentsRegistry({ children }: { children: ReactNode }) {
+export function StyledComponentsRegistry({
+  children,
+}: { children: ReactNode }) {
   const [sheet] = useState(() => new ServerStyleSheet());
 
   useServerInsertedHTML(() => {

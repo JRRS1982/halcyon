@@ -66,10 +66,22 @@ export function SheetItemRow({
   depth: 1 | 2 | 3;
   label: ReactNode;
   amounts: {
-    budget: { value: ReactNode; tone?: "default" | "dim" | "positive" | "negative" };
-    actual: { value: ReactNode; tone?: "default" | "dim" | "positive" | "negative" };
-    variance: { value: ReactNode; tone?: "default" | "dim" | "positive" | "negative" };
-    variancePct: { value: ReactNode; tone?: "default" | "dim" | "positive" | "negative" };
+    budget: {
+      value: ReactNode;
+      tone?: "default" | "dim" | "positive" | "negative";
+    };
+    actual: {
+      value: ReactNode;
+      tone?: "default" | "dim" | "positive" | "negative";
+    };
+    variance: {
+      value: ReactNode;
+      tone?: "default" | "dim" | "positive" | "negative";
+    };
+    variancePct: {
+      value: ReactNode;
+      tone?: "default" | "dim" | "positive" | "negative";
+    };
   };
   focusedCell?: "label" | "budget" | "actual";
 }) {

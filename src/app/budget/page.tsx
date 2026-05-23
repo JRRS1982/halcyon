@@ -1,8 +1,12 @@
-import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
+import {
+  BudgetSheet,
+  type SerializedItem,
+  type SerializedPeriod,
+} from "./BudgetSheet";
 import { ensureCurrentPeriod } from "./actions";
-import { BudgetSheet, type SerializedItem, type SerializedPeriod } from "./BudgetSheet";
 
 export default async function BudgetPage() {
   const supabase = createClient();
@@ -39,5 +43,7 @@ export default async function BudgetPage() {
     sortOrder: i.sortOrder,
   }));
 
-  return <BudgetSheet period={serializedPeriod} initialItems={serializedItems} />;
+  return (
+    <BudgetSheet period={serializedPeriod} initialItems={serializedItems} />
+  );
 }

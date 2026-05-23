@@ -1,7 +1,7 @@
 import {
+  type ItemForTotals,
   computeRollups,
   grandTotals,
-  type ItemForTotals,
   sectionTotals,
 } from "@/lib/budget/totals";
 

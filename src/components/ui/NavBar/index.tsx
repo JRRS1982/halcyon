@@ -1,8 +1,8 @@
 "use client";
 
-import { usePathname } from "next/navigation";
 import { signOut } from "@/app/actions";
 import { Button } from "@/components/ui/Button";
+import { usePathname } from "next/navigation";
 import { Bar, Brand, Links, NavLink, Spacer } from "./NavBar.styled";
 
 type NavBarProps = {

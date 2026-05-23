@@ -103,9 +103,9 @@ export const GrandRow = styled.div`
 // Row-index column cell (the leftmost cell in every row).
 export const IndexCell = styled.div<{ $dark?: boolean }>`
   ${({ theme, $dark }) => css`
-    background: ${$dark
-      ? theme.colors.surfaceDarkSoft
-      : theme.colors.canvasSoft};
+    background: ${
+      $dark ? theme.colors.surfaceDarkSoft : theme.colors.canvasSoft
+    };
     color: ${$dark ? theme.colors.bodyMuted : theme.colors.bodyMuted};
     font-family: ${theme.typography.monoCaps.family};
     font-size: ${theme.typography.monoCaps.size};

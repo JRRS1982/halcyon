@@ -1,4 +1,4 @@
-import { PipDot, type StatusPipState, PipWrapper } from "./StatusPip.styled";
+import { PipDot, PipWrapper, type StatusPipState } from "./StatusPip.styled";
 
 export type StatusPipProps = {
   state: StatusPipState;
