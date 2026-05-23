@@ -38,4 +38,62 @@ model User {
   lastActiveAt DateTime?
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
+
+  periods FinancialPeriod[]
+}
+
+enum PeriodGranularity {
+  WEEK
+  MONTH
+  QUARTER
+  YEAR
+}
+
+enum ItemType {
+  INCOME
+  EXPENSE
+}
+
+// A budget / statement period belonging to one user.
+// `userId` references public."User"(id), which mirrors auth.users(id) via the
+// handle_new_user trigger. RLS adds a defence-in-depth boundary on top of
+// app-level userId scoping (per ADR-002).
+model FinancialPeriod {
+  id          String            @id @default(uuid()) @db.Uuid
+  userId      String            @db.Uuid
+  granularity PeriodGranularity @default(MONTH)
+  startDate   DateTime          @db.Date
+  endDate     DateTime          @db.Date
+  label       String
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  deletedAt   DateTime?
+
+  user  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items FinancialItem[]
+
+  @@unique([userId, granularity, startDate])
+  @@index([userId])
+}
+
+// A single line item inside a period. Self-references for hierarchical
+// sub-rows (Salary → His salary / Her salary). UI caps depth at 3.
+model FinancialItem {
+  id           String    @id @default(uuid()) @db.Uuid
+  periodId     String    @db.Uuid
+  type         ItemType
+  parentItemId String?   @db.Uuid
+  label        String
+  budget       Decimal   @default(0) @db.Decimal(12, 2)
+  actual       Decimal   @default(0) @db.Decimal(12, 2)
+  sortOrder    Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  period   FinancialPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  parent   FinancialItem?  @relation("ItemHierarchy", fields: [parentItemId], references: [id], onDelete: Cascade)
+  children FinancialItem[] @relation("ItemHierarchy")
+
+  @@index([periodId, type, parentItemId, sortOrder])
 }
