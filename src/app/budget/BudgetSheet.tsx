@@ -17,11 +17,17 @@ import {
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusPip, type StatusPipState } from "@/components/ui/StatusPip";
 import {
+  MONTH_LABELS_SHORT,
+  nextMonth,
+  previousMonth,
+} from "@/lib/budget/period";
+import {
   computeRollups,
   grandTotals,
   sectionTotals,
 } from "@/lib/budget/totals";
 import { useDebouncedCallback } from "@/lib/hooks/useDebouncedCallback";
+import { useRouter } from "next/navigation";
 import {
   useCallback,
   useEffect,
@@ -31,7 +37,13 @@ import {
   useTransition,
 } from "react";
 import styled from "styled-components";
-import { createItem, deleteItem, reparentItem, updateItem } from "./actions";
+import {
+  createItem,
+  deleteItem,
+  ensurePeriodForMonth,
+  reparentItem,
+  updateItem,
+} from "./actions";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -112,6 +124,94 @@ const PageShell = styled.main`
 const PeriodLabel = styled.span`
   color: ${({ theme }) => theme.colors.accent};
   font-weight: 600;
+`;
+
+// Period nav: wraps the prev/label/next triplet so the picker popover can
+// position itself absolutely relative to the label button.
+const PeriodNavWrapper = styled.div`
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.xs};
+`;
+
+const PickerPopover = styled.div`
+  ${({ theme }) => `
+    position: absolute;
+    top: calc(100% + ${theme.spacing.xs});
+    left: 0;
+    z-index: 10;
+    background: ${theme.colors.canvas};
+    border: 1px solid ${theme.colors.hairline};
+    border-radius: ${theme.rounded.sm};
+    box-shadow: rgba(15, 17, 22, 0.08) 0px 4px 12px 0px;
+    padding: ${theme.spacing.md};
+    min-width: 280px;
+  `}
+`;
+
+const PickerHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: ${({ theme }) => theme.spacing.sm};
+  padding-bottom: ${({ theme }) => theme.spacing.sm};
+  border-bottom: 1px solid ${({ theme }) => theme.colors.hairline};
+  margin-bottom: ${({ theme }) => theme.spacing.sm};
+`;
+
+const PickerYearLabel = styled.span`
+  ${({ theme }) => `
+    font-family: ${theme.typography.bodyMdStrong.family};
+    font-size: ${theme.typography.bodyMdStrong.size};
+    font-weight: ${theme.typography.bodyMdStrong.weight};
+    color: ${theme.colors.ink};
+    font-variant-numeric: tabular-nums;
+  `}
+`;
+
+const PickerYearButton = styled.button`
+  ${({ theme }) => `
+    background: ${theme.colors.canvas};
+    border: 1px solid ${theme.colors.hairline};
+    border-radius: ${theme.rounded.sm};
+    width: 24px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: ${theme.colors.ink};
+    font-size: 11px;
+
+    &:hover {
+      border-color: ${theme.colors.ink};
+    }
+  `}
+`;
+
+const PickerGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: ${({ theme }) => theme.spacing.xs};
+`;
+
+const PickerMonth = styled.button<{ $current?: boolean }>`
+  ${({ theme, $current }) => `
+    background: ${$current ? theme.colors.primary : theme.colors.canvas};
+    color: ${$current ? theme.colors.onPrimary : theme.colors.ink};
+    border: 1px solid ${$current ? theme.colors.primary : theme.colors.hairline};
+    border-radius: ${theme.rounded.sm};
+    font-family: ${theme.typography.bodyMd.family};
+    font-size: ${theme.typography.bodyMd.size};
+    padding: ${theme.spacing.sm} 0;
+    cursor: pointer;
+    transition: border-color 100ms;
+
+    &:hover:not(:disabled) {
+      border-color: ${theme.colors.ink};
+    }
+  `}
 `;
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -203,6 +303,61 @@ export function BudgetSheet({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const [now, setNow] = useState(() => new Date());
+
+  // ─── Period navigation state ──────────────────────────────────────────────
+
+  const router = useRouter();
+  const periodStartDate = useMemo(
+    () => new Date(period.startDate),
+    [period.startDate],
+  );
+  const periodYear = periodStartDate.getUTCFullYear();
+  const periodMonth = periodStartDate.getUTCMonth();
+
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerYear, setPickerYear] = useState(periodYear);
+  const pickerWrapperRef = useRef<HTMLDivElement | null>(null);
+
+  // Close picker on outside click.
+  useEffect(() => {
+    if (!pickerOpen) return;
+    const onMouseDown = (e: MouseEvent) => {
+      if (
+        pickerWrapperRef.current &&
+        !pickerWrapperRef.current.contains(e.target as Node)
+      ) {
+        setPickerOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onMouseDown);
+    return () => document.removeEventListener("mousedown", onMouseDown);
+  }, [pickerOpen]);
+
+  const navigateToMonth = useCallback(
+    (year: number, month: number) => {
+      setPickerOpen(false);
+      startTransition(async () => {
+        try {
+          const target = await ensurePeriodForMonth(year, month);
+          router.push(`/budget?period=${target.id}`);
+          router.refresh();
+        } catch (e) {
+          setSaveError(e instanceof Error ? e.message : "Navigation failed");
+        }
+      });
+    },
+    [router],
+  );
+
+  const onPrevMonth = useCallback(() => {
+    const { year, month } = previousMonth(periodStartDate);
+    navigateToMonth(year, month);
+  }, [periodStartDate, navigateToMonth]);
+
+  const onNextMonth = useCallback(() => {
+    const { year, month } = nextMonth(periodStartDate);
+    navigateToMonth(year, month);
+  }, [periodStartDate, navigateToMonth]);
 
   // When a row is just added, we want the user to land in its label input
   // immediately — both so they can rename "New row" without an extra click and
@@ -558,6 +713,55 @@ export function BudgetSheet({
       />
 
       <Toolbar>
+        <ToolbarGroup>
+          <PeriodNavWrapper ref={pickerWrapperRef}>
+            <ToolbarTool onClick={onPrevMonth} aria-label="Previous month">
+              ◀
+            </ToolbarTool>
+            <ToolbarTool
+              onClick={() => {
+                setPickerYear(periodYear);
+                setPickerOpen((o) => !o);
+              }}
+              aria-expanded={pickerOpen}
+            >
+              {period.label} ▾
+            </ToolbarTool>
+            <ToolbarTool onClick={onNextMonth} aria-label="Next month">
+              ▶
+            </ToolbarTool>
+            {pickerOpen && (
+              <PickerPopover aria-label="Pick period">
+                <PickerHeader>
+                  <PickerYearButton
+                    onClick={() => setPickerYear((y) => y - 1)}
+                    aria-label="Previous year"
+                  >
+                    ◀
+                  </PickerYearButton>
+                  <PickerYearLabel>{pickerYear}</PickerYearLabel>
+                  <PickerYearButton
+                    onClick={() => setPickerYear((y) => y + 1)}
+                    aria-label="Next year"
+                  >
+                    ▶
+                  </PickerYearButton>
+                </PickerHeader>
+                <PickerGrid>
+                  {MONTH_LABELS_SHORT.map((short, i) => (
+                    <PickerMonth
+                      key={short}
+                      $current={pickerYear === periodYear && i === periodMonth}
+                      onClick={() => navigateToMonth(pickerYear, i)}
+                    >
+                      {short}
+                    </PickerMonth>
+                  ))}
+                </PickerGrid>
+              </PickerPopover>
+            )}
+          </PeriodNavWrapper>
+        </ToolbarGroup>
         <ToolbarGroup>
           <ToolbarTool onClick={() => onAddRow("INCOME")}>
             + Add income row

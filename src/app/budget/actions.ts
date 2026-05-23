@@ -1,6 +1,6 @@
 "use server";
 
-import { currentMonthRange } from "@/lib/budget/period";
+import { currentMonthRange, monthRangeFor } from "@/lib/budget/period";
 import {
   type CreateItemInput,
   type DeleteItemInput,
@@ -33,8 +33,29 @@ async function requireUserId(): Promise<string> {
 // creates it if it doesn't exist yet. Idempotent — safe to call on every
 // /budget visit.
 export async function ensureCurrentPeriod() {
+  const now = currentMonthRange();
+  return ensurePeriodForMonthInternal(now.startDate, now.endDate, now.label);
+}
+
+// Returns the user's FinancialPeriod for (year, month) — month 0-indexed.
+// Creates it if missing. Used by the toolbar stepper / picker to navigate
+// between periods (including ones that haven't been visited yet).
+export async function ensurePeriodForMonth(year: number, month: number) {
+  const range = monthRangeFor(year, month);
+  return ensurePeriodForMonthInternal(
+    range.startDate,
+    range.endDate,
+    range.label,
+  );
+}
+
+// Shared implementation. Pulled out so the public actions stay declarative.
+async function ensurePeriodForMonthInternal(
+  startDate: Date,
+  endDate: Date,
+  label: string,
+) {
   const userId = await requireUserId();
-  const { startDate, endDate, label } = currentMonthRange();
 
   const existing = await prisma.financialPeriod.findUnique({
     where: {

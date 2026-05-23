@@ -21,16 +21,49 @@ export type PeriodRange = {
   label: string;
 };
 
-// Returns the calendar-month range that `now` falls inside, in UTC.
-// startDate is the first of the month at 00:00 UTC; endDate is the last day
-// of the month at 00:00 UTC. Label is "<Month> <Year>".
-export function currentMonthRange(now: Date = new Date()): PeriodRange {
-  const year = now.getUTCFullYear();
-  const month = now.getUTCMonth();
-
+// Returns the calendar-month range for a given (year, month) — month is
+// 0-indexed (0=Jan, 11=Dec). startDate is the first of the month at 00:00 UTC;
+// endDate is the last day of the month at 00:00 UTC. Label is "<Month> <Year>".
+export function monthRangeFor(year: number, month: number): PeriodRange {
   const startDate = new Date(Date.UTC(year, month, 1));
   const endDate = new Date(Date.UTC(year, month + 1, 0));
   const label = `${MONTH_NAMES[month]} ${year}`;
-
   return { startDate, endDate, label };
 }
+
+// Returns the calendar-month range containing `now`, in UTC.
+export function currentMonthRange(now: Date = new Date()): PeriodRange {
+  return monthRangeFor(now.getUTCFullYear(), now.getUTCMonth());
+}
+
+// Returns the (year, month) immediately before `date` (UTC), handling year
+// rollover. Month is 0-indexed.
+export function previousMonth(date: Date): { year: number; month: number } {
+  const d = new Date(date);
+  d.setUTCMonth(d.getUTCMonth() - 1);
+  return { year: d.getUTCFullYear(), month: d.getUTCMonth() };
+}
+
+// Returns the (year, month) immediately after `date` (UTC), handling year
+// rollover. Month is 0-indexed.
+export function nextMonth(date: Date): { year: number; month: number } {
+  const d = new Date(date);
+  d.setUTCMonth(d.getUTCMonth() + 1);
+  return { year: d.getUTCFullYear(), month: d.getUTCMonth() };
+}
+
+// Short month labels (3-letter) for picker UI.
+export const MONTH_LABELS_SHORT = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+] as const;

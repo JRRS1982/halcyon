@@ -8,7 +8,11 @@ import {
 } from "./BudgetSheet";
 import { ensureCurrentPeriod } from "./actions";
 
-export default async function BudgetPage() {
+type PageProps = {
+  searchParams: { period?: string };
+};
+
+export default async function BudgetPage({ searchParams }: PageProps) {
   const supabase = createClient();
   const {
     data: { user },
@@ -17,7 +21,22 @@ export default async function BudgetPage() {
     redirect("/sign-in?next=/budget");
   }
 
-  const period = await ensureCurrentPeriod();
+  // ?period=<id> — load that specific period if it exists and belongs to the
+  // signed-in user. Otherwise fall back to the current month (creating if
+  // necessary).
+  let period = null;
+  if (searchParams.period) {
+    period = await prisma.financialPeriod.findFirst({
+      where: {
+        id: searchParams.period,
+        userId: user.id,
+        deletedAt: null,
+      },
+    });
+  }
+  if (!period) {
+    period = await ensureCurrentPeriod();
+  }
 
   const items = await prisma.financialItem.findMany({
     where: { periodId: period.id, deletedAt: null },
