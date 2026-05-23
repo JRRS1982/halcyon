@@ -22,7 +22,14 @@ import {
   sectionTotals,
 } from "@/lib/budget/totals";
 import { useDebouncedCallback } from "@/lib/hooks/useDebouncedCallback";
-import { useCallback, useMemo, useRef, useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import styled from "styled-components";
 import { createItem, reparentItem, updateItem } from "./actions";
 
@@ -197,6 +204,26 @@ export function BudgetSheet({
   const [, startTransition] = useTransition();
   const [now, setNow] = useState(() => new Date());
 
+  // When a row is just added, we want the user to land in its label input
+  // immediately — both so they can rename "New row" without an extra click and
+  // so the toolbar's Indent/Outdent buttons enable (they key off focusedCell).
+  const [pendingFocusItemId, setPendingFocusItemId] = useState<string | null>(
+    null,
+  );
+  const labelInputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
+
+  useEffect(() => {
+    if (!pendingFocusItemId) return;
+    // The new row's input has just mounted in the same batch as
+    // setPendingFocusItemId, so the ref should be populated by now.
+    const input = labelInputRefs.current.get(pendingFocusItemId);
+    if (input) {
+      input.focus();
+      input.select();
+      setPendingFocusItemId(null);
+    }
+  }, [pendingFocusItemId]);
+
   // Tick the "Saved Xs ago" pip every 5s.
   useMemo(() => {
     const id = setInterval(() => setNow(new Date()), 5000);
@@ -266,6 +293,10 @@ export function BudgetSheet({
               sortOrder: created.sortOrder,
             },
           ]);
+          // Focus the new row's label input so the user can rename it
+          // immediately and so Indent/Outdent become available.
+          setFocusedCell({ itemId: created.id, field: "label" });
+          setPendingFocusItemId(created.id);
           setLastSavedAt(new Date());
           setSaveError(null);
         } catch (e) {
@@ -407,8 +438,13 @@ export function BudgetSheet({
       <SheetItemRow
         key={item.id}
         depth={depth}
+        onSelect={() => setFocusedCell({ itemId: item.id, field: "label" })}
         label={
           <CellInput
+            ref={(el) => {
+              if (el) labelInputRefs.current.set(item.id, el);
+              else labelInputRefs.current.delete(item.id);
+            }}
             value={item.label}
             onChange={(e) => editField(item.id, { label: e.target.value })}
             onFocus={() => setFocusedCell({ itemId: item.id, field: "label" })}

@@ -55,6 +55,7 @@ export function SheetItemRow({
   label,
   amounts,
   focusedCell,
+  onSelect,
 }: {
   depth: 1 | 2 | 3;
   label: ReactNode;
@@ -77,9 +78,13 @@ export function SheetItemRow({
     };
   };
   focusedCell?: "label" | "budget" | "actual";
+  // Fires on mousedown on any part of the row. Inputs' onFocus will fire
+  // afterwards and override the focused cell to the specific field — so this
+  // only "selects" the row when the user clicked outside any input.
+  onSelect?: () => void;
 }) {
   return (
-    <ItemRow>
+    <ItemRow onMouseDown={onSelect}>
       <SheetCell indent={depth} focused={focusedCell === "label"}>
         {label}
       </SheetCell>
