@@ -497,24 +497,23 @@ export function BudgetSheet({
     [focusedCell, items],
   );
 
-  // Indent is allowed when the focused row has a preceding sibling at the
-  // same depth/parent AND the move doesn't push the subtree past depth 3.
+  // Indent makes the row immediately above the focused row (in render order,
+  // within the same section) the new parent. Disabled when:
+  //   - nothing is focused
+  //   - focused row is the first row in its section (nothing above)
+  //   - the row above is already this row's parent (no-op)
+  //   - the move would push the focused row's subtree past depth 3
   const indentTarget = useMemo(() => {
     if (!focusedItem) return null;
-    const siblings = items
-      .filter(
-        (i) =>
-          i.type === focusedItem.type &&
-          i.parentItemId === focusedItem.parentItemId,
-      )
-      .sort((a, b) => a.sortOrder - b.sortOrder);
-    const idx = siblings.findIndex((i) => i.id === focusedItem.id);
+    const renderOrder = buildSectionOrder(items, focusedItem.type);
+    const idx = renderOrder.findIndex(({ item }) => item.id === focusedItem.id);
     if (idx <= 0) return null;
-    const predecessor = siblings[idx - 1];
-    const predDepth = computeItemDepth(items, predecessor.id);
+    const above = renderOrder[idx - 1].item;
+    if (above.id === focusedItem.parentItemId) return null;
+    const aboveDepth = computeItemDepth(items, above.id);
     const subtreeDepth = computeSubtreeDepth(items, focusedItem.id);
-    if (predDepth + 1 + subtreeDepth > 3) return null;
-    return predecessor;
+    if (aboveDepth + 1 + subtreeDepth > 3) return null;
+    return above;
   }, [focusedItem, items]);
 
   const canIndent = indentTarget !== null;
@@ -522,6 +521,23 @@ export function BudgetSheet({
 
   const performReparent = useCallback(
     async (itemId: string, newParentItemId: string | null) => {
+      // Snapshot the row's previous parent+sortOrder so we can revert the
+      // optimistic update if the server rejects (cycle, depth cap, ownership).
+      const target = items.find((it) => it.id === itemId);
+      if (!target) return;
+      const previousState = {
+        parentItemId: target.parentItemId,
+        sortOrder: target.sortOrder,
+      };
+
+      // Optimistic — change parentItemId locally so the indent shows up
+      // instantly without waiting on the round-trip.
+      setItems((prev) =>
+        prev.map((it) =>
+          it.id === itemId ? { ...it, parentItemId: newParentItemId } : it,
+        ),
+      );
+
       pendingSavesRef.current += 1;
       setPendingCount(pendingSavesRef.current);
       try {
@@ -540,13 +556,25 @@ export function BudgetSheet({
         setLastSavedAt(new Date());
         setSaveError(null);
       } catch (e) {
+        // Revert so the UI matches the server.
+        setItems((prev) =>
+          prev.map((it) =>
+            it.id === itemId
+              ? {
+                  ...it,
+                  parentItemId: previousState.parentItemId,
+                  sortOrder: previousState.sortOrder,
+                }
+              : it,
+          ),
+        );
         setSaveError(e instanceof Error ? e.message : "Move failed");
       } finally {
         pendingSavesRef.current = Math.max(0, pendingSavesRef.current - 1);
         setPendingCount(pendingSavesRef.current);
       }
     },
-    [],
+    [items],
   );
 
   const onIndent = useCallback(() => {
