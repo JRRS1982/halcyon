@@ -937,12 +937,11 @@ export function BalanceSheet({
   return (
     <PageShell>
       <PageHeader
-        eyebrow={
+        title={
           <>
-            Balance · <PeriodLabel>{periodState.label}</PeriodLabel>
+            Balance Sheet · <PeriodLabel>{periodState.label}</PeriodLabel>
           </>
         }
-        title="Balance Sheet"
         lead="Assets and liabilities snapshot for this period."
         actions={<StatusPip state={pip.state}>{pip.text}</StatusPip>}
       />

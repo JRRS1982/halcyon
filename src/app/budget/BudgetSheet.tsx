@@ -807,12 +807,11 @@ export function BudgetSheet({
   return (
     <PageShell>
       <PageHeader
-        eyebrow={
+        title={
           <>
             Budget · <PeriodLabel>{periodState.label}</PeriodLabel>
           </>
         }
-        title="Budget overview"
         lead="Click any cell to edit. Tab moves right, Enter drops down. Totals recalc as you type."
         actions={<StatusPip state={pipState}>{pipText}</StatusPip>}
       />
