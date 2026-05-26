@@ -11,6 +11,12 @@ import {
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusPip, type StatusPipState } from "@/components/ui/StatusPip";
 import {
+  type BalanceCategory,
+  type BalanceType,
+  canMove,
+  computeMove,
+} from "@/lib/balance/reorder";
+import {
   MONTH_LABELS_SHORT,
   formatYm,
   nextMonth,
@@ -32,6 +38,7 @@ import { ensurePeriodForMonth } from "../budget/actions";
 import {
   createBalanceItem,
   deleteBalanceItem,
+  moveBalanceItem,
   updateBalanceItem,
 } from "./actions";
 
@@ -44,8 +51,7 @@ export type SerializedPeriod = {
   endDate: string;
 };
 
-export type BalanceType = "ASSET" | "LIABILITY";
-export type BalanceCategory = "CURRENT" | "LONG_TERM" | "OTHER";
+export type { BalanceType, BalanceCategory };
 
 export type SerializedBalanceItem = {
   id: string;
@@ -594,6 +600,43 @@ export function BalanceSheet({
     });
   }, [focusedCell, items]);
 
+  // Move the focused row up / down. computeMove handles crossing the
+  // category and Asset/Liability boundaries one slot at a time. Optimistic:
+  // apply locally, then persist; revert on error.
+  const onMove = useCallback(
+    (direction: "up" | "down") => {
+      if (!focusedCell) return;
+      const target = focusedCell.itemId;
+      const next = computeMove(items, target, direction);
+      if (!next) return;
+      const previous = items;
+      setItems(next);
+      startTransition(async () => {
+        pendingSavesRef.current += 1;
+        setPendingCount(pendingSavesRef.current);
+        try {
+          await moveBalanceItem({ itemId: target, direction });
+          setLastSavedAt(new Date());
+          setSaveError(null);
+        } catch (e) {
+          setItems(previous);
+          setSaveError(e instanceof Error ? e.message : "Move failed");
+        } finally {
+          pendingSavesRef.current = Math.max(0, pendingSavesRef.current - 1);
+          setPendingCount(pendingSavesRef.current);
+        }
+      });
+    },
+    [focusedCell, items],
+  );
+
+  const canMoveUp = focusedCell
+    ? canMove(items, focusedCell.itemId, "up")
+    : false;
+  const canMoveDown = focusedCell
+    ? canMove(items, focusedCell.itemId, "down")
+    : false;
+
   // ─── Derived totals ───────────────────────────────────────────────────────
 
   const groups = useMemo(() => {
@@ -737,20 +780,9 @@ export function BalanceSheet({
         }
         title="Balance Sheet"
         lead="Assets and liabilities snapshot for this period."
+        actions={<StatusPip state={pip.state}>{pip.text}</StatusPip>}
       />
       <Toolbar>
-        <ToolbarGroup>
-          <ToolbarTool onClick={() => onAddRow("ASSET", "CURRENT")}>
-            + Asset
-          </ToolbarTool>
-          <ToolbarTool onClick={() => onAddRow("LIABILITY", "CURRENT")}>
-            + Liability
-          </ToolbarTool>
-          <ToolbarTool onClick={onDelete} disabled={!focusedCell}>
-            × Delete
-          </ToolbarTool>
-        </ToolbarGroup>
-        <ToolbarSpacer />
         <ToolbarGroup>
           <PeriodNavWrapper ref={pickerWrapperRef}>
             <ToolbarTool onClick={onPrevMonth} aria-label="Previous month">
@@ -802,8 +834,29 @@ export function BalanceSheet({
               </PickerPopover>
             )}
           </PeriodNavWrapper>
-          <StatusPip state={pip.state}>{pip.text}</StatusPip>
         </ToolbarGroup>
+        <ToolbarGroup>
+          <ToolbarTool onClick={() => onAddRow("ASSET", "CURRENT")}>
+            + Asset
+          </ToolbarTool>
+          <ToolbarTool onClick={() => onAddRow("LIABILITY", "CURRENT")}>
+            + Liability
+          </ToolbarTool>
+        </ToolbarGroup>
+        <ToolbarGroup>
+          <ToolbarTool onClick={() => onMove("up")} disabled={!canMoveUp}>
+            ↑ Move up
+          </ToolbarTool>
+          <ToolbarTool onClick={() => onMove("down")} disabled={!canMoveDown}>
+            ↓ Move down
+          </ToolbarTool>
+        </ToolbarGroup>
+        <ToolbarGroup>
+          <ToolbarTool onClick={onDelete} disabled={!focusedCell}>
+            × Delete
+          </ToolbarTool>
+        </ToolbarGroup>
+        <ToolbarSpacer />
       </Toolbar>
       <Sheet>
         <HeadRow>
