@@ -15,6 +15,7 @@ const SIGNED_IN_ITEMS = [
   { href: "/", label: "Home" },
   { href: "/dashboard", label: "Dashboard" },
   { href: "/budget", label: "Budget" },
+  { href: "/balance", label: "Balance" },
   { href: "/settings", label: "Settings" },
 ] as const;
 

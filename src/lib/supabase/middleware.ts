@@ -43,7 +43,7 @@ export const updateSession = async (request: NextRequest) => {
   // Route protection: any path starting with one of these requires a session.
   // Unauthenticated visits get redirected to /sign-in with `?next=...` so the
   // user can be sent back where they were heading after they log in.
-  const protectedPaths = ["/dashboard", "/budget", "/settings"];
+  const protectedPaths = ["/dashboard", "/budget", "/balance", "/settings"];
   const isProtected = protectedPaths.some((p) =>
     request.nextUrl.pathname.startsWith(p),
   );
