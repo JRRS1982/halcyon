@@ -39,7 +39,19 @@ model User {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
-  periods FinancialPeriod[]
+  periods  FinancialPeriod[]
+  settings UserSettings?
+}
+
+// Per-user app preferences. Lazily upserted on first read — there is no
+// guaranteed row for every user. Add columns here as new settings appear.
+model UserSettings {
+  userId    String   @id @db.Uuid
+  currency  String   @default("USD")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 enum PeriodGranularity {

@@ -28,6 +28,7 @@ import {
   sectionTotals,
 } from "@/lib/budget/totals";
 import { useDebouncedCallback } from "@/lib/hooks/useDebouncedCallback";
+import { formatAmount, formatSignedAmount } from "@/lib/settings/currency";
 import { useRouter } from "next/navigation";
 import {
   useCallback,
@@ -72,20 +73,8 @@ type FocusedCell = {
 
 // ─── Formatting helpers ─────────────────────────────────────────────────────
 
-const formatCurrency = (n: number) =>
-  `$${n.toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-
-const formatSigned = (n: number) => {
-  if (n === 0) return "$0.00";
-  const abs = Math.abs(n).toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-  return n > 0 ? `+$${abs}` : `−$${abs}`;
-};
+// Currency formatters live in @/lib/settings/currency and take the user's
+// currency code so the same symbol is rendered everywhere.
 
 const formatPct = (n: number) => `${n}%`;
 
@@ -353,16 +342,14 @@ export function BudgetSheet({
   initialItems,
   year,
   month,
+  currency,
 }: {
   period: SerializedPeriod;
   initialItems: SerializedItem[];
   year: number;
   month: number;
+  currency: string;
 }) {
-  // year and month come from the URL ?ym=YYYY-MM (resolved server-side).
-  // They drive the period nav UI and onAddRow's lazy create.
-  const periodYear = year;
-  const periodMonth = month;
   // periodState carries the period's DB id once it's been materialised.
   // A virtual period (no row in DB yet) starts with id="". The first
   // onAddRow call ensures the DB row exists and flips id to the real uuid.
@@ -379,7 +366,11 @@ export function BudgetSheet({
   // ─── Period navigation state ──────────────────────────────────────────────
 
   const router = useRouter();
+  const periodYear = year;
+  const periodMonth = month;
 
+  // What the "Today" button targets — recomputed on render so it stays fresh
+  // if the user leaves the tab open across a date boundary.
   const today = useMemo(() => {
     const d = new Date();
     return { year: d.getUTCFullYear(), month: d.getUTCMonth() };
@@ -788,7 +779,7 @@ export function BudgetSheet({
             tone: item.actual === 0 ? "dim" : "default",
           },
           variance: {
-            value: formatSigned(variance),
+            value: formatSignedAmount(currency, variance),
             tone: toneFor(variance),
           },
           variancePct: {
@@ -899,9 +890,9 @@ export function BudgetSheet({
         <SheetSectionRow
           label="Income"
           amounts={{
-            budget: formatCurrency(incomeTotals.budget),
-            actual: formatCurrency(incomeTotals.actual),
-            variance: formatSigned(incomeTotals.variance),
+            budget: formatAmount(currency, incomeTotals.budget),
+            actual: formatAmount(currency, incomeTotals.actual),
+            variance: formatSignedAmount(currency, incomeTotals.variance),
             variancePct: formatPct(incomeTotals.variancePct),
           }}
         />
@@ -909,9 +900,9 @@ export function BudgetSheet({
         <SheetTotalsRow
           label="Income subtotal"
           amounts={{
-            budget: formatCurrency(incomeTotals.budget),
-            actual: formatCurrency(incomeTotals.actual),
-            variance: formatSigned(incomeTotals.variance),
+            budget: formatAmount(currency, incomeTotals.budget),
+            actual: formatAmount(currency, incomeTotals.actual),
+            variance: formatSignedAmount(currency, incomeTotals.variance),
             variancePct: formatPct(incomeTotals.variancePct),
           }}
         />
@@ -919,9 +910,9 @@ export function BudgetSheet({
         <SheetSectionRow
           label="Expenses"
           amounts={{
-            budget: formatCurrency(expenseTotals.budget),
-            actual: formatCurrency(expenseTotals.actual),
-            variance: formatSigned(expenseTotals.variance),
+            budget: formatAmount(currency, expenseTotals.budget),
+            actual: formatAmount(currency, expenseTotals.actual),
+            variance: formatSignedAmount(currency, expenseTotals.variance),
             variancePct: formatPct(expenseTotals.variancePct),
           }}
         />
@@ -929,9 +920,9 @@ export function BudgetSheet({
         <SheetTotalsRow
           label="Expenses subtotal"
           amounts={{
-            budget: formatCurrency(expenseTotals.budget),
-            actual: formatCurrency(expenseTotals.actual),
-            variance: formatSigned(expenseTotals.variance),
+            budget: formatAmount(currency, expenseTotals.budget),
+            actual: formatAmount(currency, expenseTotals.actual),
+            variance: formatSignedAmount(currency, expenseTotals.variance),
             variancePct: formatPct(expenseTotals.variancePct),
           }}
         />
@@ -939,9 +930,9 @@ export function BudgetSheet({
         <SheetGrandRow
           label="Net income"
           amounts={{
-            budget: formatSigned(grand.budget),
-            actual: formatSigned(grand.actual),
-            variance: formatSigned(grand.variance),
+            budget: formatSignedAmount(currency, grand.budget),
+            actual: formatSignedAmount(currency, grand.actual),
+            variance: formatSignedAmount(currency, grand.variance),
             variancePct: "",
           }}
         />

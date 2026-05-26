@@ -5,6 +5,7 @@ import {
   parseYm,
 } from "@/lib/budget/period";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUserSettings } from "@/lib/settings/server";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import {
@@ -54,6 +55,7 @@ export default async function BudgetPage({ searchParams }: PageProps) {
   }
 
   const range = monthRangeFor(year, month);
+  const { currency } = await getCurrentUserSettings();
 
   // Find — don't create.
   const period = await prisma.financialPeriod.findUnique({
@@ -104,6 +106,7 @@ export default async function BudgetPage({ searchParams }: PageProps) {
       initialItems={serializedItems}
       year={year}
       month={month}
+      currency={currency}
     />
   );
 }
