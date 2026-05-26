@@ -18,6 +18,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusPip, type StatusPipState } from "@/components/ui/StatusPip";
 import {
   MONTH_LABELS_SHORT,
+  formatYm,
   nextMonth,
   previousMonth,
 } from "@/lib/budget/period";
@@ -291,10 +292,22 @@ const formatRelative = (then: Date | null, now: Date): string => {
 export function BudgetSheet({
   period,
   initialItems,
+  year,
+  month,
 }: {
   period: SerializedPeriod;
   initialItems: SerializedItem[];
+  year: number;
+  month: number;
 }) {
+  // year and month come from the URL ?ym=YYYY-MM (resolved server-side).
+  // They drive the period nav UI and onAddRow's lazy create.
+  const periodYear = year;
+  const periodMonth = month;
+  // periodState carries the period's DB id once it's been materialised.
+  // A virtual period (no row in DB yet) starts with id="". The first
+  // onAddRow call ensures the DB row exists and flips id to the real uuid.
+  const [periodState, setPeriodState] = useState(period);
   const [items, setItems] = useState(initialItems);
   const [focusedCell, setFocusedCell] = useState<FocusedCell>(null);
   const pendingSavesRef = useRef(0);
@@ -307,12 +320,13 @@ export function BudgetSheet({
   // ─── Period navigation state ──────────────────────────────────────────────
 
   const router = useRouter();
-  const periodStartDate = useMemo(
-    () => new Date(period.startDate),
-    [period.startDate],
-  );
-  const periodYear = periodStartDate.getUTCFullYear();
-  const periodMonth = periodStartDate.getUTCMonth();
+
+  const today = useMemo(() => {
+    const d = new Date();
+    return { year: d.getUTCFullYear(), month: d.getUTCMonth() };
+  }, []);
+  const isOnCurrentMonth =
+    periodYear === today.year && periodMonth === today.month;
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerYear, setPickerYear] = useState(periodYear);
@@ -333,31 +347,35 @@ export function BudgetSheet({
     return () => document.removeEventListener("mousedown", onMouseDown);
   }, [pickerOpen]);
 
+  // Navigation is pure URL push — no server work, no DB write. The new
+  // page render fetches the period (or renders virtual). The period only
+  // becomes a DB row when the user adds an item to it (see onAddRow).
   const navigateToMonth = useCallback(
-    (year: number, month: number) => {
+    (targetYear: number, targetMonth: number) => {
       setPickerOpen(false);
-      startTransition(async () => {
-        try {
-          const target = await ensurePeriodForMonth(year, month);
-          router.push(`/budget?period=${target.id}`);
-          router.refresh();
-        } catch (e) {
-          setSaveError(e instanceof Error ? e.message : "Navigation failed");
-        }
+      startTransition(() => {
+        router.push(`/budget?ym=${formatYm(targetYear, targetMonth)}`);
+        router.refresh();
       });
     },
     [router],
   );
 
   const onPrevMonth = useCallback(() => {
-    const { year, month } = previousMonth(periodStartDate);
-    navigateToMonth(year, month);
-  }, [periodStartDate, navigateToMonth]);
+    const d = new Date(Date.UTC(year, month, 1));
+    const { year: y, month: m } = previousMonth(d);
+    navigateToMonth(y, m);
+  }, [year, month, navigateToMonth]);
 
   const onNextMonth = useCallback(() => {
-    const { year, month } = nextMonth(periodStartDate);
-    navigateToMonth(year, month);
-  }, [periodStartDate, navigateToMonth]);
+    const d = new Date(Date.UTC(year, month, 1));
+    const { year: y, month: m } = nextMonth(d);
+    navigateToMonth(y, m);
+  }, [year, month, navigateToMonth]);
+
+  const onToday = useCallback(() => {
+    navigateToMonth(today.year, today.month);
+  }, [today, navigateToMonth]);
 
   // When a row is just added, we want the user to land in its label input
   // immediately — both so they can rename "New row" without an extra click and
@@ -430,8 +448,16 @@ export function BudgetSheet({
         pendingSavesRef.current += 1;
         setPendingCount(pendingSavesRef.current);
         try {
+          // Lazy: if the period doesn't have a DB row yet (virtual), create
+          // it now. Once it has an id, subsequent adds reuse that id.
+          let pid = periodState.id;
+          if (!pid) {
+            const real = await ensurePeriodForMonth(year, month);
+            pid = real.id;
+            setPeriodState((prev) => ({ ...prev, id: real.id }));
+          }
           const created = await createItem({
-            periodId: period.id,
+            periodId: pid,
             type,
             parentItemId: null,
             label: "New row",
@@ -462,7 +488,7 @@ export function BudgetSheet({
         }
       });
     },
-    [period.id],
+    [periodState.id, year, month],
   );
 
   // ─── Derived data ─────────────────────────────────────────────────────────
@@ -732,7 +758,7 @@ export function BudgetSheet({
       <PageHeader
         eyebrow={
           <>
-            Budget · <PeriodLabel>{period.label}</PeriodLabel>
+            Budget · <PeriodLabel>{periodState.label}</PeriodLabel>
           </>
         }
         title="Budget overview"
@@ -746,6 +772,9 @@ export function BudgetSheet({
             <ToolbarTool onClick={onPrevMonth} aria-label="Previous month">
               ◀
             </ToolbarTool>
+            <ToolbarTool onClick={onToday} disabled={isOnCurrentMonth}>
+              Today
+            </ToolbarTool>
             <ToolbarTool
               onClick={() => {
                 setPickerYear(periodYear);
@@ -753,7 +782,7 @@ export function BudgetSheet({
               }}
               aria-expanded={pickerOpen}
             >
-              {period.label} ▾
+              {periodState.label} ▾
             </ToolbarTool>
             <ToolbarTool onClick={onNextMonth} aria-label="Next month">
               ▶

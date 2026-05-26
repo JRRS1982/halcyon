@@ -1,3 +1,9 @@
+import {
+  currentMonthRange,
+  formatYm,
+  monthRangeFor,
+  parseYm,
+} from "@/lib/budget/period";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
@@ -6,12 +12,20 @@ import {
   type SerializedItem,
   type SerializedPeriod,
 } from "./BudgetSheet";
-import { ensureCurrentPeriod } from "./actions";
 
 type PageProps = {
-  searchParams: { period?: string };
+  searchParams: { ym?: string };
 };
 
+// Route logic:
+//   /budget          → current calendar month
+//   /budget?ym=2026-03 → March 2026
+//
+// Periods are looked up by (userId, MONTH, startDate); if the row doesn't
+// exist yet we render a **virtual** period (id="") with no items. The DB
+// row is only created when the user adds their first item (see
+// BudgetSheet.onAddRow). This avoids leaving an empty FinancialPeriod row
+// every time someone rotates through a month they don't end up using.
 export default async function BudgetPage({ searchParams }: PageProps) {
   const supabase = createClient();
   const {
@@ -21,35 +35,53 @@ export default async function BudgetPage({ searchParams }: PageProps) {
     redirect("/sign-in?next=/budget");
   }
 
-  // ?period=<id> — load that specific period if it exists and belongs to the
-  // signed-in user. Otherwise fall back to the current month (creating if
-  // necessary).
-  let period = null;
-  if (searchParams.period) {
-    period = await prisma.financialPeriod.findFirst({
-      where: {
-        id: searchParams.period,
-        userId: user.id,
-        deletedAt: null,
-      },
-    });
-  }
-  if (!period) {
-    period = await ensureCurrentPeriod();
+  // Resolve (year, month) from the URL or fall back to "today".
+  let year: number;
+  let month: number;
+  if (searchParams.ym) {
+    const parsed = parseYm(searchParams.ym);
+    if (parsed) {
+      ({ year, month } = parsed);
+    } else {
+      const now = currentMonthRange();
+      year = now.startDate.getUTCFullYear();
+      month = now.startDate.getUTCMonth();
+    }
+  } else {
+    const now = currentMonthRange();
+    year = now.startDate.getUTCFullYear();
+    month = now.startDate.getUTCMonth();
   }
 
-  const items = await prisma.financialItem.findMany({
-    where: { periodId: period.id, deletedAt: null },
-    orderBy: [{ type: "asc" }, { sortOrder: "asc" }],
+  const range = monthRangeFor(year, month);
+
+  // Find — don't create.
+  const period = await prisma.financialPeriod.findUnique({
+    where: {
+      userId_granularity_startDate: {
+        userId: user.id,
+        granularity: "MONTH",
+        startDate: range.startDate,
+      },
+    },
   });
 
-  // Serialize Decimal + Date for the client component (Next.js can't pass
-  // those over the RSC boundary directly).
+  const items = period
+    ? await prisma.financialItem.findMany({
+        where: { periodId: period.id, deletedAt: null },
+        orderBy: [{ type: "asc" }, { sortOrder: "asc" }],
+      })
+    : [];
+
+  // Serialise Decimal + Date for the client component (Next.js can't pass
+  // those over the RSC boundary directly). For a virtual period we use
+  // id="" — BudgetSheet treats that as "no DB row yet, create on first
+  // item add".
   const serializedPeriod: SerializedPeriod = {
-    id: period.id,
-    label: period.label,
-    startDate: period.startDate.toISOString(),
-    endDate: period.endDate.toISOString(),
+    id: period?.id ?? "",
+    label: range.label,
+    startDate: range.startDate.toISOString(),
+    endDate: range.endDate.toISOString(),
   };
 
   const serializedItems: SerializedItem[] = items.map((i) => ({
@@ -62,7 +94,16 @@ export default async function BudgetPage({ searchParams }: PageProps) {
     sortOrder: i.sortOrder,
   }));
 
+  // key on ym forces a fresh component instance per month, so the
+  // client's local state (items, periodState, picker) doesn't leak from
+  // the previous month.
   return (
-    <BudgetSheet period={serializedPeriod} initialItems={serializedItems} />
+    <BudgetSheet
+      key={formatYm(year, month)}
+      period={serializedPeriod}
+      initialItems={serializedItems}
+      year={year}
+      month={month}
+    />
   );
 }

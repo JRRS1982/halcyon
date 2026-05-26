@@ -67,3 +67,19 @@ export const MONTH_LABELS_SHORT = [
   "Nov",
   "Dec",
 ] as const;
+
+// Format (year, month-0-indexed) → "YYYY-MM" for the ?ym= URL param.
+export function formatYm(year: number, month: number): string {
+  const m = String(month + 1).padStart(2, "0");
+  return `${year}-${m}`;
+}
+
+// Parse "YYYY-MM" → { year, month-0-indexed } or null if malformed.
+export function parseYm(s: string): { year: number; month: number } | null {
+  const match = /^(\d{4})-(\d{2})$/.exec(s);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const m = Number(match[2]);
+  if (!Number.isFinite(year) || m < 1 || m > 12) return null;
+  return { year, month: m - 1 };
+}
