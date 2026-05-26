@@ -861,11 +861,9 @@ export function BudgetSheet({
           </PeriodNavWrapper>
         </ToolbarGroup>
         <ToolbarGroup>
-          <ToolbarTool onClick={() => onAddRow("INCOME")}>
-            + Add income row
-          </ToolbarTool>
+          <ToolbarTool onClick={() => onAddRow("INCOME")}>+ Income</ToolbarTool>
           <ToolbarTool onClick={() => onAddRow("EXPENSE")}>
-            + Add expense row
+            + Expense
           </ToolbarTool>
         </ToolbarGroup>
         <ToolbarGroup>
