@@ -76,6 +76,43 @@ const CATEGORIES: { key: BalanceCategory; label: string }[] = [
   { key: "OTHER", label: "Other" },
 ];
 
+// Guidance shown in the per-subhead info popover. Plain-English, UK-flavoured
+// examples — "what should go in this bucket". Edit freely; this is the only
+// source of the help text.
+const CATEGORY_HELP: Record<
+  BalanceType,
+  Record<BalanceCategory, { title: string; body: string }>
+> = {
+  ASSET: {
+    CURRENT: {
+      title: "Current assets",
+      body: "Cash, or anything you could turn into cash within a year — current accounts, savings, cash ISAs, and money owed to you that's due soon.",
+    },
+    LONG_TERM: {
+      title: "Long-term assets",
+      body: "Things you expect to hold for more than a year — property, vehicles, pensions, and long-term investments such as shares or funds.",
+    },
+    OTHER: {
+      title: "Other assets",
+      body: "Anything that doesn't fit the two buckets above — collectibles, a stake in a business, or longer-dated loans you've made to others.",
+    },
+  },
+  LIABILITY: {
+    CURRENT: {
+      title: "Current liabilities",
+      body: "Debts due within a year — credit-card balances, overdrafts, outstanding bills, and short-term loans.",
+    },
+    LONG_TERM: {
+      title: "Long-term liabilities",
+      body: "Debts that run beyond a year — your mortgage, car finance, and student loans.",
+    },
+    OTHER: {
+      title: "Other liabilities",
+      body: "Anything else you owe that doesn't fit above — tax due, personal loans from family, or miscellaneous obligations.",
+    },
+  },
+};
+
 // ─── Layout ─────────────────────────────────────────────────────────────────
 
 // 3-column grid: Label (flex), Value (200px right-aligned tabular nums),
@@ -281,6 +318,78 @@ const PeriodLabel = styled.span`
   font-weight: 600;
 `;
 
+// Subhead label cell content: the category name + an info "i" button.
+const SubheadLabel = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.sm};
+`;
+
+const InfoButton = styled.button`
+  ${({ theme }) => `
+    /* Reset the mono-caps/uppercase the subhead cell imposes on its text. */
+    text-transform: none;
+    letter-spacing: normal;
+    width: 16px;
+    height: 16px;
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: ${theme.rounded.full};
+    border: 1px solid ${theme.colors.hairlineStrong};
+    background: ${theme.colors.canvas};
+    color: ${theme.colors.body};
+    font-family: ${theme.typography.bodyMd.family};
+    font-size: 10px;
+    font-weight: 600;
+    font-style: italic;
+    line-height: 1;
+    cursor: pointer;
+
+    &:hover {
+      border-color: ${theme.colors.ink};
+      color: ${theme.colors.ink};
+    }
+  `}
+`;
+
+// Fixed-position so it isn't clipped by the Sheet's overflow:hidden. Anchored
+// to the clicked icon's bounding rect at open time.
+const InfoPopover = styled.div`
+  ${({ theme }) => `
+    position: fixed;
+    z-index: 50;
+    max-width: 280px;
+    background: ${theme.colors.canvas};
+    border: 1px solid ${theme.colors.hairline};
+    border-radius: ${theme.rounded.sm};
+    box-shadow: rgba(15, 17, 22, 0.12) 0px 6px 16px 0px;
+    padding: ${theme.spacing.md};
+    text-transform: none;
+    letter-spacing: normal;
+  `}
+`;
+
+const InfoTitle = styled.div`
+  ${({ theme }) => `
+    font-family: ${theme.typography.bodyMdStrong.family};
+    font-size: ${theme.typography.bodyMdStrong.size};
+    font-weight: ${theme.typography.bodyMdStrong.weight};
+    color: ${theme.colors.ink};
+    margin-bottom: ${theme.spacing.xs};
+  `}
+`;
+
+const InfoBody = styled.div`
+  ${({ theme }) => `
+    font-family: ${theme.typography.bodyMd.family};
+    font-size: ${theme.typography.bodyMd.size};
+    line-height: ${theme.typography.bodyMd.lineHeight};
+    color: ${theme.colors.body};
+  `}
+`;
+
 const PeriodNavWrapper = styled.div`
   position: relative;
   display: inline-flex;
@@ -414,6 +523,35 @@ export function BalanceSheet({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const [now, setNow] = useState(() => new Date());
+
+  // Per-subhead info popover. Fixed-positioned at the clicked icon's rect so
+  // it escapes the Sheet's overflow:hidden clipping.
+  const [openInfo, setOpenInfo] = useState<{
+    title: string;
+    body: string;
+    top: number;
+    left: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!openInfo) return;
+    const close = () => setOpenInfo(null);
+    const onDocMouseDown = (e: MouseEvent) => {
+      if (!(e.target as Element).closest("[data-info-root]")) close();
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") close();
+    };
+    document.addEventListener("mousedown", onDocMouseDown);
+    document.addEventListener("keydown", onKey);
+    // Fixed coords detach on scroll — just dismiss.
+    window.addEventListener("scroll", close, true);
+    return () => {
+      document.removeEventListener("mousedown", onDocMouseDown);
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", close, true);
+    };
+  }, [openInfo]);
 
   // ─── Period nav ───────────────────────────────────────────────────────────
 
@@ -750,10 +888,35 @@ export function BalanceSheet({
       </SectionRow>
       {CATEGORIES.map((c) => {
         const bucket = groups[type][c.key];
+        const help = CATEGORY_HELP[type][c.key];
         return (
           <div key={`${type}-${c.key}`}>
             <SubheadRow>
-              <SheetCell>{c.label}</SheetCell>
+              <SheetCell>
+                <SubheadLabel>
+                  {c.label}
+                  <InfoButton
+                    type="button"
+                    data-info-root
+                    aria-label={`What goes in ${help.title}?`}
+                    onClick={(e) => {
+                      const r = e.currentTarget.getBoundingClientRect();
+                      setOpenInfo((cur) =>
+                        cur?.title === help.title
+                          ? null
+                          : {
+                              title: help.title,
+                              body: help.body,
+                              top: r.bottom + 6,
+                              left: Math.min(r.left, window.innerWidth - 296),
+                            },
+                      );
+                    }}
+                  >
+                    i
+                  </InfoButton>
+                </SubheadLabel>
+              </SheetCell>
               <SheetCell align="right">
                 {formatAmount(currency, bucket.subtotal)}
               </SheetCell>
@@ -897,6 +1060,15 @@ export function BalanceSheet({
           <SheetCell />
         </GrandRow>
       </Sheet>
+      {openInfo && (
+        <InfoPopover
+          data-info-root
+          style={{ top: openInfo.top, left: openInfo.left }}
+        >
+          <InfoTitle>{openInfo.title}</InfoTitle>
+          <InfoBody>{openInfo.body}</InfoBody>
+        </InfoPopover>
+      )}
     </PageShell>
   );
 }
