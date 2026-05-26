@@ -55,7 +55,7 @@ export default async function BudgetPage({ searchParams }: PageProps) {
   }
 
   const range = monthRangeFor(year, month);
-  const { currency } = await getCurrentUserSettings();
+  const { currency, numberFormat } = await getCurrentUserSettings();
 
   // Find — don't create.
   const period = await prisma.financialPeriod.findUnique({
@@ -107,6 +107,7 @@ export default async function BudgetPage({ searchParams }: PageProps) {
       year={year}
       month={month}
       currency={currency}
+      numberFormat={numberFormat}
     />
   );
 }

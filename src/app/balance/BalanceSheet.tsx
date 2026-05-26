@@ -23,7 +23,7 @@ import {
   previousMonth,
 } from "@/lib/budget/period";
 import { useDebouncedCallback } from "@/lib/hooks/useDebouncedCallback";
-import { formatAmount } from "@/lib/settings/currency";
+import { type NumberFormat, formatAmount } from "@/lib/settings/currency";
 import { useRouter } from "next/navigation";
 import {
   useCallback,
@@ -504,15 +504,18 @@ export function BalanceSheet({
   year,
   month,
   currency,
+  numberFormat,
 }: {
   period: SerializedPeriod;
   initialItems: SerializedBalanceItem[];
   year: number;
   month: number;
   currency: string;
+  numberFormat: NumberFormat;
 }) {
   const periodYear = year;
   const periodMonth = month;
+  const fmtAmount = (n: number) => formatAmount(currency, n, numberFormat);
 
   const [periodState, setPeriodState] = useState(period);
   const [items, setItems] = useState(initialItems);
@@ -883,7 +886,7 @@ export function BalanceSheet({
     <>
       <SectionRow>
         <SheetCell>{label}</SheetCell>
-        <SheetCell align="right">{formatAmount(currency, total)}</SheetCell>
+        <SheetCell align="right">{fmtAmount(total)}</SheetCell>
         <SheetCell />
       </SectionRow>
       {CATEGORIES.map((c) => {
@@ -917,9 +920,7 @@ export function BalanceSheet({
                   </InfoButton>
                 </SubheadLabel>
               </SheetCell>
-              <SheetCell align="right">
-                {formatAmount(currency, bucket.subtotal)}
-              </SheetCell>
+              <SheetCell align="right">{fmtAmount(bucket.subtotal)}</SheetCell>
               <SheetCell />
             </SubheadRow>
             {bucket.rows.map(renderItemRow)}
@@ -1030,17 +1031,13 @@ export function BalanceSheet({
         {renderSection("ASSET", "Assets", assetsTotal)}
         <TotalsRow>
           <SheetCell>Total assets</SheetCell>
-          <SheetCell align="right">
-            {formatAmount(currency, assetsTotal)}
-          </SheetCell>
+          <SheetCell align="right">{fmtAmount(assetsTotal)}</SheetCell>
           <SheetCell />
         </TotalsRow>
         {renderSection("LIABILITY", "Liabilities", liabilitiesTotal)}
         <TotalsRow>
           <SheetCell>Total liabilities</SheetCell>
-          <SheetCell align="right">
-            {formatAmount(currency, liabilitiesTotal)}
-          </SheetCell>
+          <SheetCell align="right">{fmtAmount(liabilitiesTotal)}</SheetCell>
           <SheetCell />
         </TotalsRow>
         <GrandRow>
@@ -1055,7 +1052,7 @@ export function BalanceSheet({
                   : "negative"
             }
           >
-            {formatAmount(currency, netWorth)}
+            {fmtAmount(netWorth)}
           </SheetCell>
           <SheetCell />
         </GrandRow>

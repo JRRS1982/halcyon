@@ -54,16 +54,20 @@ const SavedNote = styled.span`
   color: ${({ theme }) => theme.colors.dim};
 `;
 
-type CurrencyOption = { code: string; label: string };
+type SelectOption = { value: string; label: string };
 
 export function SettingsForm({
   action,
   currency,
   currencyOptions,
+  numberFormat,
+  numberFormatOptions,
 }: {
   action: (formData: FormData) => Promise<void>;
   currency: string;
-  currencyOptions: CurrencyOption[];
+  currencyOptions: SelectOption[];
+  numberFormat: string;
+  numberFormatOptions: SelectOption[];
 }) {
   const [pending, startTransition] = useTransition();
   const [justSaved, setJustSaved] = useState(false);
@@ -88,7 +92,17 @@ export function SettingsForm({
           <FieldLabel>Currency</FieldLabel>
           <Select name="currency" defaultValue={currency}>
             {currencyOptions.map((opt) => (
-              <option key={opt.code} value={opt.code}>
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field>
+          <FieldLabel>Number format</FieldLabel>
+          <Select name="numberFormat" defaultValue={numberFormat}>
+            {numberFormatOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>
                 {opt.label}
               </option>
             ))}

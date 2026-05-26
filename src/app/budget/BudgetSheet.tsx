@@ -28,7 +28,11 @@ import {
   sectionTotals,
 } from "@/lib/budget/totals";
 import { useDebouncedCallback } from "@/lib/hooks/useDebouncedCallback";
-import { formatAmount, formatSignedAmount } from "@/lib/settings/currency";
+import {
+  type NumberFormat,
+  formatAmount,
+  formatSignedAmount,
+} from "@/lib/settings/currency";
 import { useRouter } from "next/navigation";
 import {
   useCallback,
@@ -343,13 +347,19 @@ export function BudgetSheet({
   year,
   month,
   currency,
+  numberFormat,
 }: {
   period: SerializedPeriod;
   initialItems: SerializedItem[];
   year: number;
   month: number;
   currency: string;
+  numberFormat: NumberFormat;
 }) {
+  // Bind currency + number format once so the many call sites stay terse.
+  const fmtAmount = (n: number) => formatAmount(currency, n, numberFormat);
+  const fmtSigned = (n: number) =>
+    formatSignedAmount(currency, n, numberFormat);
   // periodState carries the period's DB id once it's been materialised.
   // A virtual period (no row in DB yet) starts with id="". The first
   // onAddRow call ensures the DB row exists and flips id to the real uuid.
@@ -779,7 +789,7 @@ export function BudgetSheet({
             tone: item.actual === 0 ? "dim" : "default",
           },
           variance: {
-            value: formatSignedAmount(currency, variance),
+            value: fmtSigned(variance),
             tone: toneFor(variance),
           },
           variancePct: {
@@ -888,9 +898,9 @@ export function BudgetSheet({
         <SheetSectionRow
           label="Income"
           amounts={{
-            budget: formatAmount(currency, incomeTotals.budget),
-            actual: formatAmount(currency, incomeTotals.actual),
-            variance: formatSignedAmount(currency, incomeTotals.variance),
+            budget: fmtAmount(incomeTotals.budget),
+            actual: fmtAmount(incomeTotals.actual),
+            variance: fmtSigned(incomeTotals.variance),
             variancePct: formatPct(incomeTotals.variancePct),
           }}
         />
@@ -898,9 +908,9 @@ export function BudgetSheet({
         <SheetTotalsRow
           label="Income subtotal"
           amounts={{
-            budget: formatAmount(currency, incomeTotals.budget),
-            actual: formatAmount(currency, incomeTotals.actual),
-            variance: formatSignedAmount(currency, incomeTotals.variance),
+            budget: fmtAmount(incomeTotals.budget),
+            actual: fmtAmount(incomeTotals.actual),
+            variance: fmtSigned(incomeTotals.variance),
             variancePct: formatPct(incomeTotals.variancePct),
           }}
         />
@@ -908,9 +918,9 @@ export function BudgetSheet({
         <SheetSectionRow
           label="Expenses"
           amounts={{
-            budget: formatAmount(currency, expenseTotals.budget),
-            actual: formatAmount(currency, expenseTotals.actual),
-            variance: formatSignedAmount(currency, expenseTotals.variance),
+            budget: fmtAmount(expenseTotals.budget),
+            actual: fmtAmount(expenseTotals.actual),
+            variance: fmtSigned(expenseTotals.variance),
             variancePct: formatPct(expenseTotals.variancePct),
           }}
         />
@@ -918,9 +928,9 @@ export function BudgetSheet({
         <SheetTotalsRow
           label="Expenses subtotal"
           amounts={{
-            budget: formatAmount(currency, expenseTotals.budget),
-            actual: formatAmount(currency, expenseTotals.actual),
-            variance: formatSignedAmount(currency, expenseTotals.variance),
+            budget: fmtAmount(expenseTotals.budget),
+            actual: fmtAmount(expenseTotals.actual),
+            variance: fmtSigned(expenseTotals.variance),
             variancePct: formatPct(expenseTotals.variancePct),
           }}
         />
@@ -928,9 +938,9 @@ export function BudgetSheet({
         <SheetGrandRow
           label="Net income"
           amounts={{
-            budget: formatSignedAmount(currency, grand.budget),
-            actual: formatSignedAmount(currency, grand.actual),
-            variance: formatSignedAmount(currency, grand.variance),
+            budget: fmtSigned(grand.budget),
+            actual: fmtSigned(grand.actual),
+            variance: fmtSigned(grand.variance),
             variancePct: "",
           }}
         />

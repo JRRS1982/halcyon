@@ -3,13 +3,20 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { type CurrencyCode, isCurrencyCode } from "./currency";
+import {
+  type CurrencyCode,
+  DEFAULT_NUMBER_FORMAT,
+  type NumberFormat,
+  isCurrencyCode,
+  isNumberFormat,
+} from "./currency";
 
 // Returns the signed-in user's settings, creating the row lazily on first
 // access. Safe to call from any server component / server action.
 export async function getCurrentUserSettings(): Promise<{
   userId: string;
   currency: CurrencyCode;
+  numberFormat: NumberFormat;
 }> {
   const supabase = createClient();
   const {
@@ -25,5 +32,8 @@ export async function getCurrentUserSettings(): Promise<{
   return {
     userId: user.id,
     currency: isCurrencyCode(row.currency) ? row.currency : "USD",
+    numberFormat: isNumberFormat(row.numberFormat)
+      ? row.numberFormat
+      : DEFAULT_NUMBER_FORMAT,
   };
 }

@@ -48,7 +48,7 @@ export default async function BalancePage({ searchParams }: PageProps) {
   }
 
   const range = monthRangeFor(year, month);
-  const { currency } = await getCurrentUserSettings();
+  const { currency, numberFormat } = await getCurrentUserSettings();
 
   const period = await prisma.financialPeriod.findUnique({
     where: {
@@ -92,6 +92,7 @@ export default async function BalancePage({ searchParams }: PageProps) {
       year={year}
       month={month}
       currency={currency}
+      numberFormat={numberFormat}
     />
   );
 }
