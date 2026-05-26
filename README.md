@@ -1,13 +1,21 @@
 # Halcyon
 
+[![CI](https://github.com/JRRS1982/halcyon/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/JRRS1982/halcyon/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
 This is a web application for managing personal finance, built to be easy to use and understand.
 
 Please see the [Playbook](docs/Playbook.md) for more information on the project, along with the [docs](docs/) directory for more information on the architecture and design.
 
 ## Deployment
 
-- **Development**: <http://localhost:3000/> (`pnpm dev` or `make dev-up`)
-- **Production**: hosted on [Vercel](https://vercel.com) with [Supabase](https://supabase.com) for managed Postgres + Auth. Vercel's Git integration deploys `master` automatically once CI succeeds; rollback is one click in the Vercel dashboard. See [ADR-001](docs/ADRs/ADR-001-TechStackSelection.md).
+- **Development**: <http://localhost:3000/> (`pnpm dev` or `make dev-up`).
+- **Production**: <https://halcyon-silk.vercel.app>.
+- **Hosting**: [Vercel](https://vercel.com) runs the Next.js app (App Router server components + route handlers + middleware). [Supabase](https://supabase.com) provides managed Postgres and Auth. See [ADR-001](docs/ADRs/ADR-001-TechStackSelection.md) for the rationale.
+- **Pipeline**: pushes to `master` trigger GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) which runs `biome ci`, `tsc --noEmit`, Jest, and Playwright on Node 22 + pnpm 10. Vercel watches `master` independently and ships the build to production once its own build passes.
+- **Database migrations**: not part of the deploy. After merging a Prisma schema change, run `pnpm prisma migrate deploy` against `DIRECT_URL` (the unpooled Supabase connection, port 5432). The migration is forward-only; rollback means a corrective migration, not a downgrade.
+- **Rollback**: one click in the Vercel dashboard (it keeps every previous build immutable). Pair with a corrective DB migration if a release introduced a schema change.
+- **Secrets**: managed in the Vercel project settings, not committed. The repo's `.env.example` lists every variable the app reads. See [ADR-004](docs/ADRs/ADR-004-SecretManagement.md).
 
 ## Setup
 
