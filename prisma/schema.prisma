@@ -66,6 +66,17 @@ enum ItemType {
   EXPENSE
 }
 
+enum BalanceItemType {
+  ASSET
+  LIABILITY
+}
+
+enum BalanceItemCategory {
+  CURRENT
+  LONG_TERM
+  OTHER
+}
+
 // A budget / statement period belonging to one user.
 // `userId` references public."User"(id), which mirrors auth.users(id) via the
 // handle_new_user trigger. RLS adds a defence-in-depth boundary on top of
@@ -81,8 +92,9 @@ model FinancialPeriod {
   updatedAt   DateTime          @updatedAt
   deletedAt   DateTime?
 
-  user  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items FinancialItem[]
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items        FinancialItem[]
+  balanceItems BalanceItem[]
 
   @@unique([userId, granularity, startDate])
   @@index([userId])
@@ -108,4 +120,27 @@ model FinancialItem {
   children FinancialItem[] @relation("ItemHierarchy")
 
   @@index([periodId, type, parentItemId, sortOrder])
+}
+
+// Balance sheet line items belonging to a FinancialPeriod (shared with the
+// budget so /budget and /balance for a given month touch the same period
+// row). Flat — no parent self-reference — because the three category
+// buckets (CURRENT / LONG_TERM / OTHER) replace hierarchy. Notes is free-
+// form context attached to the row.
+model BalanceItem {
+  id        String              @id @default(uuid()) @db.Uuid
+  periodId  String              @db.Uuid
+  type      BalanceItemType
+  category  BalanceItemCategory
+  label     String
+  value     Decimal             @default(0) @db.Decimal(14, 2)
+  notes     String?
+  sortOrder Int                 @default(0)
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+  deletedAt DateTime?
+
+  period FinancialPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+
+  @@index([periodId, type, category, sortOrder])
 }
