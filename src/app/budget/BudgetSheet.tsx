@@ -378,8 +378,8 @@ export function BudgetSheet({
   }, [today, navigateToMonth]);
 
   // When a row is just added, we want the user to land in its label input
-  // immediately — both so they can rename "New row" without an extra click and
-  // so the toolbar's Indent/Outdent buttons enable (they key off focusedCell).
+  // immediately — both so they can type a name without an extra click and so
+  // the toolbar's Indent/Outdent buttons enable (they key off focusedCell).
   const [pendingFocusItemId, setPendingFocusItemId] = useState<string | null>(
     null,
   );
@@ -460,7 +460,7 @@ export function BudgetSheet({
             periodId: pid,
             type,
             parentItemId: null,
-            label: "New row",
+            label: "",
           });
           setItems((prev) => [
             ...prev,
@@ -698,6 +698,7 @@ export function BudgetSheet({
               else labelInputRefs.current.delete(item.id);
             }}
             value={item.label}
+            placeholder="Name this row"
             onChange={(e) => editField(item.id, { label: e.target.value })}
             onFocus={() => setFocusedCell({ itemId: item.id, field: "label" })}
           />

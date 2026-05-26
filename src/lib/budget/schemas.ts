@@ -6,7 +6,7 @@ export const createItemSchema = z.object({
   periodId: z.string().uuid(),
   type: itemTypeSchema,
   parentItemId: z.string().uuid().nullable(),
-  label: z.string().trim().min(1, "Label is required").max(120),
+  label: z.string().trim().max(120),
 });
 
 export const updateItemSchema = z
