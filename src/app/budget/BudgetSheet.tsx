@@ -113,6 +113,65 @@ const CellInput = styled.input<{ $align?: "left" | "right" }>`
   }
 `;
 
+// Numeric cell input. Keeps a local draft string while focused so the user's
+// typing isn't fought by re-formatting from the model (e.g. typing "50" was
+// becoming "5.00" because each keystroke fed back through toFixed(2)).
+//
+//   - while focused: draft string is the source of truth for what's displayed
+//   - while unfocused: re-syncs to the formatted value (toFixed(2) or "" for 0)
+//   - onChange emits a parsed number so the debounced save still fires per
+//     keystroke; intermediate junk like "" or "1." emits 0 / no-op
+//   - onBlur normalises whatever the user left in the cell
+function AmountInput({
+  value,
+  onCommit,
+  onFocus,
+}: {
+  value: number;
+  onCommit: (n: number) => void;
+  onFocus: () => void;
+}) {
+  const formatted = value === 0 ? "" : value.toFixed(2);
+  const [draft, setDraft] = useState(formatted);
+  const [focused, setFocused] = useState(false);
+
+  // External value change while not focused (e.g. coming back from a save,
+  // or switching periods) → re-sync the displayed string.
+  useEffect(() => {
+    if (!focused) setDraft(formatted);
+  }, [formatted, focused]);
+
+  return (
+    <CellInput
+      $align="right"
+      value={draft}
+      placeholder="0.00"
+      inputMode="decimal"
+      onFocus={() => {
+        setFocused(true);
+        onFocus();
+      }}
+      onChange={(e) => {
+        const next = e.target.value;
+        setDraft(next);
+        if (next === "") {
+          onCommit(0);
+          return;
+        }
+        const n = Number.parseFloat(next);
+        if (Number.isFinite(n) && n >= 0) onCommit(n);
+      }}
+      onBlur={() => {
+        setFocused(false);
+        const n = Number.parseFloat(draft);
+        const final = Number.isFinite(n) && n >= 0 ? n : 0;
+        setDraft(final === 0 ? "" : final.toFixed(2));
+        if (final !== value) onCommit(final);
+      }}
+    />
+  );
+}
+
 const PageShell = styled.main`
   max-width: 1240px;
   margin: 0 auto;
@@ -706,14 +765,9 @@ export function BudgetSheet({
         amounts={{
           budget: {
             value: (
-              <CellInput
-                $align="right"
-                value={item.budget === 0 ? "" : item.budget.toFixed(2)}
-                placeholder="0.00"
-                onChange={(e) => {
-                  const v = Number.parseFloat(e.target.value);
-                  editField(item.id, { budget: Number.isNaN(v) ? 0 : v });
-                }}
+              <AmountInput
+                value={item.budget}
+                onCommit={(v) => editField(item.id, { budget: v })}
                 onFocus={() =>
                   setFocusedCell({ itemId: item.id, field: "budget" })
                 }
@@ -723,14 +777,9 @@ export function BudgetSheet({
           },
           actual: {
             value: (
-              <CellInput
-                $align="right"
-                value={item.actual === 0 ? "" : item.actual.toFixed(2)}
-                placeholder="0.00"
-                onChange={(e) => {
-                  const v = Number.parseFloat(e.target.value);
-                  editField(item.id, { actual: Number.isNaN(v) ? 0 : v });
-                }}
+              <AmountInput
+                value={item.actual}
+                onCommit={(v) => editField(item.id, { actual: v })}
                 onFocus={() =>
                   setFocusedCell({ itemId: item.id, field: "actual" })
                 }
