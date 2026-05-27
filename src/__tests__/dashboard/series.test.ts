@@ -1,9 +1,4 @@
-import {
-  balanceSeries,
-  budgetVsActualTrend,
-  cashFlowSeries,
-  composition,
-} from "@/lib/dashboard/series";
+import { balanceSeries, cashFlowSeries } from "@/lib/dashboard/series";
 
 describe("balanceSeries", () => {
   const sums = (overrides = {}) => ({
@@ -71,46 +66,5 @@ describe("cashFlowSeries", () => {
     ]);
     expect(point.net).toBe(-1000);
     expect(point.savingsRatePct).toBe(-50);
-  });
-});
-
-describe("budgetVsActualTrend", () => {
-  const months = Array.from({ length: 8 }, (_, i) => ({
-    month: `M${i}`,
-    budget: i,
-    actual: i,
-  }));
-
-  test("returns only the last 6 months", () => {
-    const out = budgetVsActualTrend(months);
-    expect(out.map((m) => m.month)).toEqual([
-      "M2",
-      "M3",
-      "M4",
-      "M5",
-      "M6",
-      "M7",
-    ]);
-  });
-
-  test("returns all months when fewer than the window", () => {
-    const out = budgetVsActualTrend(months.slice(0, 3));
-    expect(out).toHaveLength(3);
-  });
-});
-
-describe("composition", () => {
-  test("returns a slice per category", () => {
-    const out = composition({ fixed: 100, variable: 50, discretionary: 25 });
-    expect(out).toEqual([
-      { name: "Fixed", value: 100 },
-      { name: "Variable", value: 50 },
-      { name: "Discretionary", value: 25 },
-    ]);
-  });
-
-  test("drops categories with no spend so the donut has no empty slices", () => {
-    const out = composition({ fixed: 100, variable: 0, discretionary: 0 });
-    expect(out).toEqual([{ name: "Fixed", value: 100 }]);
   });
 });

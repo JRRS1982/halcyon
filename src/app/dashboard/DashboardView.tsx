@@ -1,47 +1,45 @@
 "use client";
 
 import { PageHeader } from "@/components/ui/PageHeader";
-import type {
-  BudgetActualPoint,
-  CashFlowPoint,
-  CompositionSlice,
-} from "@/lib/dashboard/series";
+import type { CashFlowPoint, ExpenditurePoint } from "@/lib/dashboard/series";
 import type { NumberFormat } from "@/lib/settings/currency";
 import styled from "styled-components";
 import { type BalancePoint, BalanceTrendChart } from "./BalanceTrendChart";
-import {
-  BudgetVsActualChart,
-  type CategoryBudgetActual,
-} from "./BudgetVsActualChart";
 import { CashFlowChart } from "./CashFlowChart";
 import { CategoryExpenditureChart } from "./CategoryExpenditureChart";
-import { CompositionChart } from "./CompositionChart";
-import { ExpenditureChart, type ExpenditurePoint } from "./ExpenditureChart";
 
-// The three dedicated per-category panels, with the same colour each uses in
-// the combined chart.
+// The per-category spending panels. Each shows actual vs budget vs the trailing
+// 6-month average, in the category's colour.
 const CATEGORY_PANELS: {
   label: string;
   color: string;
+  lead: string;
   actualKey: keyof ExpenditurePoint;
+  budgetKey: keyof ExpenditurePoint;
   avgKey: keyof ExpenditurePoint;
 }[] = [
   {
     label: "Fixed",
     color: "#1F8A4C",
+    lead: "Fixed costs each month — actual vs budget vs the 6-month average.",
     actualKey: "fixedActual",
+    budgetKey: "fixedBudget",
     avgKey: "fixedAvg",
   },
   {
     label: "Variable",
     color: "#1E5BC6",
+    lead: "Variable spending each month — actual vs budget vs the 6-month average.",
     actualKey: "variableActual",
+    budgetKey: "variableBudget",
     avgKey: "variableAvg",
   },
   {
     label: "Discretionary",
     color: "#D97706",
+    lead: "Discretionary spending each month — actual vs budget vs the 6-month average.",
     actualKey: "discretionaryActual",
+    budgetKey: "discretionaryBudget",
     avgKey: "discretionaryAvg",
   },
 ];
@@ -109,18 +107,12 @@ export function DashboardView({
   balanceData,
   expenditureData,
   cashFlowData,
-  budgetCategories,
-  budgetTrend,
-  compositionData,
   currency,
   numberFormat,
 }: {
   balanceData: BalancePoint[];
   expenditureData: ExpenditurePoint[];
   cashFlowData: CashFlowPoint[];
-  budgetCategories: CategoryBudgetActual[];
-  budgetTrend: BudgetActualPoint[];
-  compositionData: CompositionSlice[];
   currency: string;
   numberFormat: NumberFormat;
 }) {
@@ -133,29 +125,12 @@ export function DashboardView({
       />
       <Panels>
         <Panel>
-          <PanelTitle>Balance over time</PanelTitle>
-          <PanelLead>
-            Assets (green) sit above zero and debts (red) below; the black line
-            is your net balance — total assets minus what you owe.
-          </PanelLead>
-          {balanceData.length > 0 ? (
-            <BalanceTrendChart
-              data={balanceData}
-              currency={currency}
-              numberFormat={numberFormat}
-            />
-          ) : (
-            <EmptyState>
-              Add assets and liabilities on the Balance page to see your balance
-              trend here.
-            </EmptyState>
-          )}
-        </Panel>
-        <Panel>
           <PanelTitle>Income vs expenses</PanelTitle>
           <PanelLead>
-            Money coming in versus going out each month. The gap is your surplus
-            or shortfall; the dashed line tracks the share of income you kept.
+            Money in versus money out each month — income is your net
+            (take-home) figure, after tax and pension. The gap is your surplus
+            or shortfall, and the dashed line tracks the share of income you
+            kept.
           </PanelLead>
           {cashFlowData.length > 0 ? (
             <CashFlowChart
@@ -171,29 +146,31 @@ export function DashboardView({
           )}
         </Panel>
         <Panel>
-          <PanelTitle>Expenditure vs 6-month average</PanelTitle>
+          <PanelTitle>Balance over time</PanelTitle>
           <PanelLead>
-            Each spending category against its own trailing 6-month average — an
-            easy way to spot a month that ran unusually hot or cold.
+            Assets (green) sit above zero and debts (red) below; the dash
+            pattern tells the categories apart, and the solid black line is your
+            net balance — total assets minus what you owe.
           </PanelLead>
-          {expenditureData.length > 0 ? (
-            <ExpenditureChart
-              data={expenditureData}
+          {balanceData.length > 0 ? (
+            <BalanceTrendChart
+              data={balanceData}
               currency={currency}
               numberFormat={numberFormat}
             />
           ) : (
             <EmptyState>
-              Record expenses on the Budget page to see your average spend by
-              category here.
+              Add assets and liabilities on the Balance page to see your balance
+              trend here.
             </EmptyState>
           )}
         </Panel>
-        {expenditureData.length > 0 && (
+        {expenditureData.length > 0 ? (
           <CategoryGrid>
             {CATEGORY_PANELS.map((c) => (
               <Panel key={c.label}>
                 <PanelTitle>{c.label}</PanelTitle>
+                <PanelLead>{c.lead}</PanelLead>
                 <CategoryExpenditureChart
                   color={c.color}
                   currency={currency}
@@ -201,53 +178,22 @@ export function DashboardView({
                   data={expenditureData.map((p) => ({
                     month: p.month,
                     actual: p[c.actualKey] as number,
+                    budget: p[c.budgetKey] as number,
                     avg: p[c.avgKey] as number,
                   }))}
                 />
               </Panel>
             ))}
           </CategoryGrid>
+        ) : (
+          <Panel>
+            <PanelTitle>Spending by category</PanelTitle>
+            <EmptyState>
+              Record expenses on the Budget page to see Fixed, Variable and
+              Discretionary spending here.
+            </EmptyState>
+          </Panel>
         )}
-        <Panel>
-          <PanelTitle>Budget vs actual</PanelTitle>
-          <PanelLead>
-            What you planned to spend versus what you actually spent — this
-            month by category, plus the total trend. Actual above budget means
-            you overspent.
-          </PanelLead>
-          {budgetCategories.length > 0 ? (
-            <BudgetVsActualChart
-              categories={budgetCategories}
-              trend={budgetTrend}
-              currency={currency}
-              numberFormat={numberFormat}
-            />
-          ) : (
-            <EmptyState>
-              Set budgets and record actuals on the Budget page to compare them
-              here.
-            </EmptyState>
-          )}
-        </Panel>
-        <Panel>
-          <PanelTitle>Where the money went</PanelTitle>
-          <PanelLead>
-            How the latest month's spending splits across Fixed, Variable and
-            Discretionary — a quick read on where most of your money goes.
-          </PanelLead>
-          {compositionData.length > 0 ? (
-            <CompositionChart
-              data={compositionData}
-              currency={currency}
-              numberFormat={numberFormat}
-            />
-          ) : (
-            <EmptyState>
-              Record expenses on the Budget page to see your latest spending
-              breakdown here.
-            </EmptyState>
-          )}
-        </Panel>
       </Panels>
     </Shell>
   );

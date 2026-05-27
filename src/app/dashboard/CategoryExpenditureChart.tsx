@@ -7,6 +7,7 @@ import {
 } from "@/lib/settings/currency";
 import {
   CartesianGrid,
+  Legend,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -16,10 +17,17 @@ import {
 } from "recharts";
 import { useTheme } from "styled-components";
 
-export type CategoryPoint = { month: string; actual: number; avg: number };
+export type CategoryPoint = {
+  month: string;
+  actual: number;
+  budget: number;
+  avg: number;
+};
 
-// A single expense category on its own y-scale: solid = month's actual,
-// dashed = trailing 6-month average. Used for the per-category panels.
+const BUDGET_COLOR = "#9CA3AF";
+
+// A single expense category over time: solid = this month's actual, dashed grey
+// = its budget, dotted = the trailing 6-month average.
 export function CategoryExpenditureChart({
   data,
   color,
@@ -40,7 +48,7 @@ export function CategoryExpenditureChart({
   };
 
   return (
-    <ResponsiveContainer width="100%" height={240}>
+    <ResponsiveContainer width="100%" height={260}>
       <LineChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: 4 }}>
         <CartesianGrid stroke={theme.colors.hairline} vertical={false} />
         <XAxis
@@ -67,6 +75,7 @@ export function CategoryExpenditureChart({
             fontSize: 12,
           }}
         />
+        <Legend wrapperStyle={{ fontSize: 12 }} />
         <Line
           type="monotone"
           dataKey="actual"
@@ -78,11 +87,21 @@ export function CategoryExpenditureChart({
         />
         <Line
           type="monotone"
+          dataKey="budget"
+          name="Budget"
+          stroke={BUDGET_COLOR}
+          strokeWidth={2}
+          strokeDasharray="5 4"
+          dot={false}
+          isAnimationActive={false}
+        />
+        <Line
+          type="monotone"
           dataKey="avg"
           name="6-month avg"
           stroke={color}
-          strokeWidth={2}
-          strokeDasharray="4 4"
+          strokeWidth={1.5}
+          strokeDasharray="2 3"
           dot={false}
           isAnimationActive={false}
         />

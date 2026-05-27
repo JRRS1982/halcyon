@@ -2,26 +2,25 @@ import { MONTH_LABELS_SHORT, currentMonthRange } from "@/lib/budget/period";
 import { computeRollups } from "@/lib/budget/totals";
 import {
   type BalanceSums,
-  type BudgetActualPoint,
+  type ExpenditurePoint,
   type MonthFlow,
   balanceSeries,
-  budgetVsActualTrend,
   cashFlowSeries,
-  composition,
 } from "@/lib/dashboard/series";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserSettings } from "@/lib/settings/server";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import type { CategoryBudgetActual } from "./BudgetVsActualChart";
 import { DashboardView } from "./DashboardView";
-import type { ExpenditurePoint } from "./ExpenditureChart";
 
 const WINDOW_MONTHS = 12;
+const TRAILING = 6;
 
-// Protected by middleware. Pulls the last 12 months of periods and shapes two
-// series: balance buckets over time, and average actual spend per expense
-// category.
+type Cat = "FIXED" | "VARIABLE" | "DISCRETIONARY";
+
+// Protected by middleware. Pulls the last 12 months of periods and shapes the
+// series each dashboard chart needs: monthly cash flow, balance buckets, and
+// per-category expenditure (actual/budget/average).
 export default async function DashboardPage() {
   const supabase = createClient();
   const {
@@ -54,6 +53,11 @@ export default async function DashboardPage() {
     },
   });
 
+  const monthLabel = (date: Date) =>
+    `${MONTH_LABELS_SHORT[date.getUTCMonth()]} ${String(
+      date.getUTCFullYear(),
+    ).slice(2)}`;
+
   // ─── Balance series: one point per month that has balance data ────────────
   const balanceSums: BalanceSums[] = [];
   for (const p of periods) {
@@ -78,20 +82,17 @@ export default async function DashboardPage() {
         else sums.liabilityOther += v;
       }
     }
-    const m = p.startDate.getUTCMonth();
-    const yy = String(p.startDate.getUTCFullYear()).slice(2);
-    balanceSums.push({ month: `${MONTH_LABELS_SHORT[m]} ${yy}`, ...sums });
+    balanceSums.push({ month: monthLabel(p.startDate), ...sums });
   }
-
   const balanceData = balanceSeries(balanceSums);
 
-  // ─── Expenditure over time: per-category actual + trailing-6-month average ─
-  // First, each month (that has expense data) and its per-category actuals.
+  // ─── Per-category expenditure: actual + budget per month, plus a trailing
+  // 6-month average of the actual. ─────────────────────────────────────────
   const monthly: {
     month: string;
-    FIXED: number;
-    VARIABLE: number;
-    DISCRETIONARY: number;
+    FIXED: { actual: number; budget: number };
+    VARIABLE: { actual: number; budget: number };
+    DISCRETIONARY: { actual: number; budget: number };
   }[] = [];
   for (const p of periods) {
     if (!p.items.some((i) => i.type === "EXPENSE")) continue;
@@ -104,52 +105,44 @@ export default async function DashboardPage() {
         actual: Number(i.actual),
       })),
     );
-    const cat = { FIXED: 0, VARIABLE: 0, DISCRETIONARY: 0 };
+    const cat = {
+      FIXED: { actual: 0, budget: 0 },
+      VARIABLE: { actual: 0, budget: 0 },
+      DISCRETIONARY: { actual: 0, budget: 0 },
+    };
     for (const it of p.items) {
       if (it.type !== "EXPENSE" || it.parentItemId !== null) continue;
       const r = rollups.get(it.id);
       if (!r) continue;
-      cat[it.category ?? "FIXED"] += r.actual;
+      const c: Cat = it.category ?? "FIXED";
+      cat[c].actual += r.actual;
+      cat[c].budget += r.budget;
     }
-    const m = p.startDate.getUTCMonth();
-    const yy = String(p.startDate.getUTCFullYear()).slice(2);
-    monthly.push({ month: `${MONTH_LABELS_SHORT[m]} ${yy}`, ...cat });
+    monthly.push({ month: monthLabel(p.startDate), ...cat });
   }
 
-  // Trailing average over the last 6 recorded months (inclusive), so it shifts
-  // with recent spending instead of being one flat number.
-  const TRAILING = 6;
-  const trailingAvg = (
-    i: number,
-    key: "FIXED" | "VARIABLE" | "DISCRETIONARY",
-  ) => {
+  const trailingAvg = (i: number, key: Cat) => {
     const start = Math.max(0, i - (TRAILING - 1));
     const window = monthly.slice(start, i + 1);
-    const sum = window.reduce((acc, m) => acc + m[key], 0);
+    const sum = window.reduce((acc, m) => acc + m[key].actual, 0);
     return sum / window.length;
   };
 
   const expenditureData: ExpenditurePoint[] = monthly.map((m, i) => ({
     month: m.month,
-    fixedActual: m.FIXED,
+    fixedActual: m.FIXED.actual,
+    fixedBudget: m.FIXED.budget,
     fixedAvg: trailingAvg(i, "FIXED"),
-    variableActual: m.VARIABLE,
+    variableActual: m.VARIABLE.actual,
+    variableBudget: m.VARIABLE.budget,
     variableAvg: trailingAvg(i, "VARIABLE"),
-    discretionaryActual: m.DISCRETIONARY,
+    discretionaryActual: m.DISCRETIONARY.actual,
+    discretionaryBudget: m.DISCRETIONARY.budget,
     discretionaryAvg: trailingAvg(i, "DISCRETIONARY"),
   }));
 
-  // ─── Cash flow, budget-vs-actual, composition ─────────────────────────────
-  // A second pass over the same periods shaping the inputs the new charts need.
+  // ─── Cash flow: income vs expense actuals per month ───────────────────────
   const cashFlowInput: MonthFlow[] = [];
-  const budgetActualByMonth: BudgetActualPoint[] = [];
-  let latestCategories: CategoryBudgetActual[] = [];
-  let latestComposition: {
-    fixed: number;
-    variable: number;
-    discretionary: number;
-  } | null = null;
-
   for (const p of periods) {
     const hasIncome = p.items.some((i) => i.type === "INCOME");
     const hasExpense = p.items.some((i) => i.type === "EXPENSE");
@@ -166,79 +159,23 @@ export default async function DashboardPage() {
     );
 
     let income = 0;
-    let expenseBudget = 0;
-    let expenseActual = 0;
-    const cat = {
-      FIXED: { budget: 0, actual: 0 },
-      VARIABLE: { budget: 0, actual: 0 },
-      DISCRETIONARY: { budget: 0, actual: 0 },
-    };
+    let expense = 0;
     for (const it of p.items) {
       if (it.parentItemId !== null) continue;
       const r = rollups.get(it.id);
       if (!r) continue;
-      if (it.type === "INCOME") {
-        income += r.actual;
-        continue;
-      }
-      expenseBudget += r.budget;
-      expenseActual += r.actual;
-      const c = it.category ?? "FIXED";
-      cat[c].budget += r.budget;
-      cat[c].actual += r.actual;
+      if (it.type === "INCOME") income += r.actual;
+      else expense += r.actual;
     }
-
-    const m = p.startDate.getUTCMonth();
-    const yy = String(p.startDate.getUTCFullYear()).slice(2);
-    const month = `${MONTH_LABELS_SHORT[m]} ${yy}`;
-
-    cashFlowInput.push({ month, income, expense: expenseActual });
-    if (hasExpense) {
-      budgetActualByMonth.push({
-        month,
-        budget: expenseBudget,
-        actual: expenseActual,
-      });
-      // Overwritten each expense month, so it ends on the latest one.
-      latestCategories = [
-        {
-          category: "Fixed",
-          budget: cat.FIXED.budget,
-          actual: cat.FIXED.actual,
-        },
-        {
-          category: "Variable",
-          budget: cat.VARIABLE.budget,
-          actual: cat.VARIABLE.actual,
-        },
-        {
-          category: "Discretionary",
-          budget: cat.DISCRETIONARY.budget,
-          actual: cat.DISCRETIONARY.actual,
-        },
-      ];
-      latestComposition = {
-        fixed: cat.FIXED.actual,
-        variable: cat.VARIABLE.actual,
-        discretionary: cat.DISCRETIONARY.actual,
-      };
-    }
+    cashFlowInput.push({ month: monthLabel(p.startDate), income, expense });
   }
-
   const cashFlowData = cashFlowSeries(cashFlowInput);
-  const budgetTrend = budgetVsActualTrend(budgetActualByMonth);
-  const compositionData = latestComposition
-    ? composition(latestComposition)
-    : [];
 
   return (
     <DashboardView
       balanceData={balanceData}
       expenditureData={expenditureData}
       cashFlowData={cashFlowData}
-      budgetCategories={latestCategories}
-      budgetTrend={budgetTrend}
-      compositionData={compositionData}
       currency={currency}
       numberFormat={numberFormat}
     />

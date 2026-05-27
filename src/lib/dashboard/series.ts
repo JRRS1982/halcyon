@@ -73,34 +73,17 @@ export function cashFlowSeries(months: MonthFlow[]): CashFlowPoint[] {
   });
 }
 
-export type BudgetActualPoint = {
+// Per-category expenditure point: actual, budget, and trailing-6-month average
+// for each expense bucket. One element per recorded month.
+export type ExpenditurePoint = {
   month: string;
-  budget: number;
-  actual: number;
+  fixedActual: number;
+  fixedBudget: number;
+  fixedAvg: number;
+  variableActual: number;
+  variableBudget: number;
+  variableAvg: number;
+  discretionaryActual: number;
+  discretionaryBudget: number;
+  discretionaryAvg: number;
 };
-
-const TREND_MONTHS = 6;
-
-// The trailing window of months for the budget-vs-actual trend line.
-export function budgetVsActualTrend(
-  months: BudgetActualPoint[],
-  trailing: number = TREND_MONTHS,
-): BudgetActualPoint[] {
-  return months.slice(Math.max(0, months.length - trailing));
-}
-
-export type CompositionSlice = { name: string; value: number };
-
-// The latest month's spend split into donut slices, dropping any category
-// with no spend so the chart shows no empty wedges.
-export function composition(latest: {
-  fixed: number;
-  variable: number;
-  discretionary: number;
-}): CompositionSlice[] {
-  return [
-    { name: "Fixed", value: latest.fixed },
-    { name: "Variable", value: latest.variable },
-    { name: "Discretionary", value: latest.discretionary },
-  ].filter((s) => s.value > 0);
-}

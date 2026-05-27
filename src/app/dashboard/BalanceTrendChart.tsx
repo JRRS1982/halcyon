@@ -20,23 +20,57 @@ import { useTheme } from "styled-components";
 
 export type { BalancePoint };
 
-// Assets are shades of green, liabilities shades of red (and plotted below
-// zero, since they're debt). The solid black line on top is the net balance.
-const ASSET_SERIES: { key: keyof BalancePoint; name: string; color: string }[] =
-  [
-    { key: "assetCurrent", name: "Current assets", color: "#1F8A4C" },
-    { key: "assetLongTerm", name: "Long-term assets", color: "#37A968" },
-    { key: "assetOther", name: "Other assets", color: "#86C9A3" },
-  ];
+// Colour says which side (green = assets, red = liabilities, plotted below zero
+// as debt); the dash pattern says which category — Current = long dash,
+// Long-term = dotted, Other = dash-dot. The solid black line on top is net.
+const ASSET_COLOR = "#1F8A4C";
+const LIABILITY_COLOR = "#B33B3B";
+const CURRENT_DASH = "8 4";
+const LONG_TERM_DASH = "2 3";
+const OTHER_DASH = "10 4 2 4";
 
-const LIABILITY_SERIES: {
+const SERIES: {
   key: keyof BalancePoint;
   name: string;
   color: string;
+  dash: string;
 }[] = [
-  { key: "liabilityCurrent", name: "Current liabilities", color: "#B33B3B" },
-  { key: "liabilityLongTerm", name: "Long-term liabilities", color: "#CE6464" },
-  { key: "liabilityOther", name: "Other liabilities", color: "#E49B9B" },
+  {
+    key: "assetCurrent",
+    name: "Current assets",
+    color: ASSET_COLOR,
+    dash: CURRENT_DASH,
+  },
+  {
+    key: "assetLongTerm",
+    name: "Long-term assets",
+    color: ASSET_COLOR,
+    dash: LONG_TERM_DASH,
+  },
+  {
+    key: "assetOther",
+    name: "Other assets",
+    color: ASSET_COLOR,
+    dash: OTHER_DASH,
+  },
+  {
+    key: "liabilityCurrent",
+    name: "Current liabilities",
+    color: LIABILITY_COLOR,
+    dash: CURRENT_DASH,
+  },
+  {
+    key: "liabilityLongTerm",
+    name: "Long-term liabilities",
+    color: LIABILITY_COLOR,
+    dash: LONG_TERM_DASH,
+  },
+  {
+    key: "liabilityOther",
+    name: "Other liabilities",
+    color: LIABILITY_COLOR,
+    dash: OTHER_DASH,
+  },
 ];
 
 export function BalanceTrendChart({
@@ -87,7 +121,7 @@ export function BalanceTrendChart({
             fontSize: 12,
           }}
         />
-        {[...ASSET_SERIES, ...LIABILITY_SERIES].map((s) => (
+        {SERIES.map((s) => (
           <Line
             key={s.key}
             type="monotone"
@@ -95,7 +129,7 @@ export function BalanceTrendChart({
             name={s.name}
             stroke={s.color}
             strokeWidth={1.5}
-            strokeDasharray="2 3"
+            strokeDasharray={s.dash}
             dot={false}
             isAnimationActive={false}
           />
