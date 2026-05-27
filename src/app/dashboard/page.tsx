@@ -1,18 +1,18 @@
 import { MONTH_LABELS_SHORT, currentMonthRange } from "@/lib/budget/period";
 import { computeRollups } from "@/lib/budget/totals";
 import {
+  type BalanceSums,
   type BudgetActualPoint,
   type MonthFlow,
+  balanceSeries,
   budgetVsActualTrend,
   cashFlowSeries,
   composition,
-  netWorthSeries,
 } from "@/lib/dashboard/series";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserSettings } from "@/lib/settings/server";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import type { BalancePoint } from "./BalanceTrendChart";
 import type { CategoryBudgetActual } from "./BudgetVsActualChart";
 import { DashboardView } from "./DashboardView";
 import type { ExpenditurePoint } from "./ExpenditureChart";
@@ -55,7 +55,7 @@ export default async function DashboardPage() {
   });
 
   // ─── Balance series: one point per month that has balance data ────────────
-  const balanceData: BalancePoint[] = [];
+  const balanceSums: BalanceSums[] = [];
   for (const p of periods) {
     if (p.balanceItems.length === 0) continue;
     const sums = {
@@ -80,8 +80,10 @@ export default async function DashboardPage() {
     }
     const m = p.startDate.getUTCMonth();
     const yy = String(p.startDate.getUTCFullYear()).slice(2);
-    balanceData.push({ month: `${MONTH_LABELS_SHORT[m]} ${yy}`, ...sums });
+    balanceSums.push({ month: `${MONTH_LABELS_SHORT[m]} ${yy}`, ...sums });
   }
+
+  const balanceData = balanceSeries(balanceSums);
 
   // ─── Expenditure over time: per-category actual + trailing-6-month average ─
   // First, each month (that has expense data) and its per-category actuals.
@@ -139,7 +141,6 @@ export default async function DashboardPage() {
 
   // ─── Cash flow, budget-vs-actual, composition ─────────────────────────────
   // A second pass over the same periods shaping the inputs the new charts need.
-  // Net worth reuses the balance buckets already summed above.
   const cashFlowInput: MonthFlow[] = [];
   const budgetActualByMonth: BudgetActualPoint[] = [];
   let latestCategories: CategoryBudgetActual[] = [];
@@ -224,7 +225,6 @@ export default async function DashboardPage() {
     }
   }
 
-  const netWorthData = netWorthSeries(balanceData);
   const cashFlowData = cashFlowSeries(cashFlowInput);
   const budgetTrend = budgetVsActualTrend(budgetActualByMonth);
   const compositionData = latestComposition
@@ -235,7 +235,6 @@ export default async function DashboardPage() {
     <DashboardView
       balanceData={balanceData}
       expenditureData={expenditureData}
-      netWorthData={netWorthData}
       cashFlowData={cashFlowData}
       budgetCategories={latestCategories}
       budgetTrend={budgetTrend}

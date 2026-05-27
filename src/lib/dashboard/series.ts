@@ -2,7 +2,9 @@
 // numeric inputs (Prisma Decimals converted to numbers in the page) and
 // returns the shape its chart consumes. Kept pure so it stays unit-testable.
 
-export type BalanceBuckets = {
+// Per-month balance buckets as stored: liabilities are positive magnitudes
+// (the balance sheet keeps them positive and subtracts for net worth).
+export type BalanceSums = {
   month: string;
   assetCurrent: number;
   assetLongTerm: number;
@@ -12,25 +14,35 @@ export type BalanceBuckets = {
   liabilityOther: number;
 };
 
-export type NetWorthPoint = {
+// Chart-ready balance point: liabilities are negated (debt sits below zero) and
+// net = total assets − total liabilities.
+export type BalancePoint = {
   month: string;
-  assets: number;
-  liabilities: number;
-  netWorth: number;
+  assetCurrent: number;
+  assetLongTerm: number;
+  assetOther: number;
+  liabilityCurrent: number;
+  liabilityLongTerm: number;
+  liabilityOther: number;
+  net: number;
 };
 
-// Collapse the six balance buckets into one net-worth line, plus the asset
-// and liability subtotals the chart draws as faint reference lines.
-export function netWorthSeries(balance: BalanceBuckets[]): NetWorthPoint[] {
-  return balance.map((b) => {
-    const assets = b.assetCurrent + b.assetLongTerm + b.assetOther;
+const neg = (v: number) => (v === 0 ? 0 : -v);
+
+export function balanceSeries(sums: BalanceSums[]): BalancePoint[] {
+  return sums.map((s) => {
+    const assets = s.assetCurrent + s.assetLongTerm + s.assetOther;
     const liabilities =
-      b.liabilityCurrent + b.liabilityLongTerm + b.liabilityOther;
+      s.liabilityCurrent + s.liabilityLongTerm + s.liabilityOther;
     return {
-      month: b.month,
-      assets,
-      liabilities,
-      netWorth: assets - liabilities,
+      month: s.month,
+      assetCurrent: s.assetCurrent,
+      assetLongTerm: s.assetLongTerm,
+      assetOther: s.assetOther,
+      liabilityCurrent: neg(s.liabilityCurrent),
+      liabilityLongTerm: neg(s.liabilityLongTerm),
+      liabilityOther: neg(s.liabilityOther),
+      net: assets - liabilities,
     };
   });
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import type { BalancePoint } from "@/lib/dashboard/series";
 import {
   type NumberFormat,
   formatAmount,
@@ -9,6 +10,7 @@ import {
   CartesianGrid,
   Line,
   LineChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -16,25 +18,25 @@ import {
 } from "recharts";
 import { useTheme } from "styled-components";
 
-export type BalancePoint = {
-  month: string;
-  assetCurrent: number;
-  assetLongTerm: number;
-  assetOther: number;
-  liabilityCurrent: number;
-  liabilityLongTerm: number;
-  liabilityOther: number;
-};
+export type { BalancePoint };
 
-// One line per balance bucket. Assets cool, liabilities warm, so the two
-// halves read apart at a glance.
-const SERIES: { key: keyof BalancePoint; name: string; color: string }[] = [
-  { key: "assetCurrent", name: "Current assets", color: "#1E5BC6" },
-  { key: "assetLongTerm", name: "Long-term assets", color: "#1F8A4C" },
-  { key: "assetOther", name: "Other assets", color: "#3BA7C4" },
+// Assets are shades of green, liabilities shades of red (and plotted below
+// zero, since they're debt). The solid black line on top is the net balance.
+const ASSET_SERIES: { key: keyof BalancePoint; name: string; color: string }[] =
+  [
+    { key: "assetCurrent", name: "Current assets", color: "#1F8A4C" },
+    { key: "assetLongTerm", name: "Long-term assets", color: "#37A968" },
+    { key: "assetOther", name: "Other assets", color: "#86C9A3" },
+  ];
+
+const LIABILITY_SERIES: {
+  key: keyof BalancePoint;
+  name: string;
+  color: string;
+}[] = [
   { key: "liabilityCurrent", name: "Current liabilities", color: "#B33B3B" },
-  { key: "liabilityLongTerm", name: "Long-term liabilities", color: "#D97706" },
-  { key: "liabilityOther", name: "Other liabilities", color: "#9A6BBA" },
+  { key: "liabilityLongTerm", name: "Long-term liabilities", color: "#CE6464" },
+  { key: "liabilityOther", name: "Other liabilities", color: "#E49B9B" },
 ];
 
 export function BalanceTrendChart({
@@ -72,6 +74,8 @@ export function BalanceTrendChart({
           axisLine={false}
           tickFormatter={tick}
         />
+        {/* Zero baseline separates assets (above) from debts (below). */}
+        <ReferenceLine y={0} stroke={theme.colors.body} strokeWidth={1} />
         <Tooltip
           formatter={(value, name) => [
             formatAmount(currency, Number(value), numberFormat),
@@ -83,18 +87,28 @@ export function BalanceTrendChart({
             fontSize: 12,
           }}
         />
-        {SERIES.map((s) => (
+        {[...ASSET_SERIES, ...LIABILITY_SERIES].map((s) => (
           <Line
             key={s.key}
             type="monotone"
             dataKey={s.key}
             name={s.name}
             stroke={s.color}
-            strokeWidth={2}
+            strokeWidth={1.5}
+            strokeDasharray="2 3"
             dot={false}
             isAnimationActive={false}
           />
         ))}
+        <Line
+          type="monotone"
+          dataKey="net"
+          name="Net balance"
+          stroke={theme.colors.body}
+          strokeWidth={2.5}
+          dot={false}
+          isAnimationActive={false}
+        />
       </LineChart>
     </ResponsiveContainer>
   );

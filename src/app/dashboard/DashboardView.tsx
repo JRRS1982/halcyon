@@ -5,7 +5,6 @@ import type {
   BudgetActualPoint,
   CashFlowPoint,
   CompositionSlice,
-  NetWorthPoint,
 } from "@/lib/dashboard/series";
 import type { NumberFormat } from "@/lib/settings/currency";
 import styled from "styled-components";
@@ -18,7 +17,6 @@ import { CashFlowChart } from "./CashFlowChart";
 import { CategoryExpenditureChart } from "./CategoryExpenditureChart";
 import { CompositionChart } from "./CompositionChart";
 import { ExpenditureChart, type ExpenditurePoint } from "./ExpenditureChart";
-import { NetWorthChart } from "./NetWorthChart";
 
 // The three dedicated per-category panels, with the same colour each uses in
 // the combined chart.
@@ -83,7 +81,17 @@ const PanelTitle = styled.h2`
   letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
   text-transform: uppercase;
   color: ${({ theme }) => theme.colors.body};
+  margin: 0 0 ${({ theme }) => theme.spacing.sm};
+`;
+
+// One-line explainer under a panel title: what the chart shows and why it helps.
+const PanelLead = styled.p`
   margin: 0 0 ${({ theme }) => theme.spacing.lg};
+  color: ${({ theme }) => theme.colors.dim};
+  font-family: ${({ theme }) => theme.typography.bodyMd.family};
+  font-size: ${({ theme }) => theme.typography.bodyMd.size};
+  line-height: 1.4;
+  max-width: 70ch;
 `;
 
 const EmptyState = styled.div`
@@ -100,7 +108,6 @@ const EmptyState = styled.div`
 export function DashboardView({
   balanceData,
   expenditureData,
-  netWorthData,
   cashFlowData,
   budgetCategories,
   budgetTrend,
@@ -110,7 +117,6 @@ export function DashboardView({
 }: {
   balanceData: BalancePoint[];
   expenditureData: ExpenditurePoint[];
-  netWorthData: NetWorthPoint[];
   cashFlowData: CashFlowPoint[];
   budgetCategories: CategoryBudgetActual[];
   budgetTrend: BudgetActualPoint[];
@@ -128,6 +134,10 @@ export function DashboardView({
       <Panels>
         <Panel>
           <PanelTitle>Balance over time</PanelTitle>
+          <PanelLead>
+            Assets (green) sit above zero and debts (red) below; the black line
+            is your net balance — total assets minus what you owe.
+          </PanelLead>
           {balanceData.length > 0 ? (
             <BalanceTrendChart
               data={balanceData}
@@ -142,22 +152,11 @@ export function DashboardView({
           )}
         </Panel>
         <Panel>
-          <PanelTitle>Net worth over time</PanelTitle>
-          {netWorthData.length > 0 ? (
-            <NetWorthChart
-              data={netWorthData}
-              currency={currency}
-              numberFormat={numberFormat}
-            />
-          ) : (
-            <EmptyState>
-              Add assets and liabilities on the Balance page to track your net
-              worth here.
-            </EmptyState>
-          )}
-        </Panel>
-        <Panel>
           <PanelTitle>Income vs expenses</PanelTitle>
+          <PanelLead>
+            Money coming in versus going out each month. The gap is your surplus
+            or shortfall; the dashed line tracks the share of income you kept.
+          </PanelLead>
           {cashFlowData.length > 0 ? (
             <CashFlowChart
               data={cashFlowData}
@@ -173,6 +172,10 @@ export function DashboardView({
         </Panel>
         <Panel>
           <PanelTitle>Expenditure vs 6-month average</PanelTitle>
+          <PanelLead>
+            Each spending category against its own trailing 6-month average — an
+            easy way to spot a month that ran unusually hot or cold.
+          </PanelLead>
           {expenditureData.length > 0 ? (
             <ExpenditureChart
               data={expenditureData}
@@ -207,6 +210,11 @@ export function DashboardView({
         )}
         <Panel>
           <PanelTitle>Budget vs actual</PanelTitle>
+          <PanelLead>
+            What you planned to spend versus what you actually spent — this
+            month by category, plus the total trend. Actual above budget means
+            you overspent.
+          </PanelLead>
           {budgetCategories.length > 0 ? (
             <BudgetVsActualChart
               categories={budgetCategories}
@@ -223,6 +231,10 @@ export function DashboardView({
         </Panel>
         <Panel>
           <PanelTitle>Where the money went</PanelTitle>
+          <PanelLead>
+            How the latest month's spending splits across Fixed, Variable and
+            Discretionary — a quick read on where most of your money goes.
+          </PanelLead>
           {compositionData.length > 0 ? (
             <CompositionChart
               data={compositionData}
