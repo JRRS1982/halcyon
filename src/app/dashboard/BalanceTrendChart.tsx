@@ -8,6 +8,7 @@ import {
 } from "@/lib/settings/currency";
 import {
   CartesianGrid,
+  Legend,
   Line,
   LineChart,
   ReferenceLine,
@@ -120,6 +121,13 @@ export function BalanceTrendChart({
             borderRadius: theme.rounded.sm,
             fontSize: 12,
           }}
+        />
+        {/* Ordered assets → liabilities → net, read top to bottom. */}
+        <Legend
+          layout="vertical"
+          align="right"
+          verticalAlign="middle"
+          wrapperStyle={{ fontSize: 12 }}
         />
         {SERIES.map((s) => (
           <Line
