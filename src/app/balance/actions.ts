@@ -1,12 +1,15 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { computeMove } from "@/lib/balance/reorder";
 import {
+  type CopyBalancePeriodFromInput,
   type CreateBalanceItemInput,
   type DeleteBalanceItemInput,
   type MoveBalanceItemInput,
   type SetBalanceItemSectionInput,
   type UpdateBalanceItemInput,
+  copyBalancePeriodFromSchema,
   createBalanceItemSchema,
   deleteBalanceItemSchema,
   moveBalanceItemSchema,
@@ -16,6 +19,7 @@ import {
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { ensurePeriodForMonth } from "../budget/actions";
 
 // Mirrors the auth gate in src/app/budget/actions.ts — every action enforces
 // auth independently. Middleware also guards /balance but we never trust a
@@ -193,4 +197,94 @@ export async function deleteBalanceItem(input: DeleteBalanceItemInput) {
     where: { id: parsed.itemId },
     data: { deletedAt: new Date() },
   });
+}
+
+// The user's periods that have at least one balance item — the candidate
+// sources for "Copy from…" on the balance sheet. Newest first.
+export async function listCopyableBalancePeriods() {
+  const userId = await requireUserId();
+
+  const periods = await prisma.financialPeriod.findMany({
+    where: {
+      userId,
+      deletedAt: null,
+      balanceItems: { some: { deletedAt: null } },
+    },
+    orderBy: { startDate: "desc" },
+    select: { id: true, label: true },
+  });
+
+  return periods.map((p) => ({ id: p.id, label: p.label }));
+}
+
+// Replace the target month's balance rows with a copy of the source period's.
+// Balance rows are flat (no hierarchy) and carry a single value, so the whole
+// line — type, category, label, value and notes — copies over as a starting
+// point the user then adjusts. The target period is created on the fly if it
+// was still virtual; existing target rows are soft-deleted in the same
+// transaction so the copy is an atomic overwrite. Returns the new item list
+// so the client can swap state without a refetch.
+export async function copyBalancePeriodFrom(input: CopyBalancePeriodFromInput) {
+  const userId = await requireUserId();
+  const parsed = copyBalancePeriodFromSchema.parse(input);
+
+  const source = await prisma.financialPeriod.findFirst({
+    where: { id: parsed.sourcePeriodId, userId, deletedAt: null },
+  });
+  if (!source) {
+    throw new Error("Source period not found");
+  }
+
+  const target = await ensurePeriodForMonth(
+    parsed.targetYear,
+    parsed.targetMonth,
+  );
+
+  if (target.id === source.id) {
+    throw new Error("Cannot copy a period onto itself");
+  }
+
+  const sourceItems = await prisma.balanceItem.findMany({
+    where: { periodId: source.id, deletedAt: null },
+    orderBy: { sortOrder: "asc" },
+    select: {
+      type: true,
+      category: true,
+      label: true,
+      value: true,
+      notes: true,
+      sortOrder: true,
+    },
+  });
+
+  const copied = sourceItems.map((it) => ({
+    id: randomUUID(),
+    type: it.type,
+    category: it.category,
+    label: it.label,
+    value: Number(it.value),
+    notes: it.notes,
+    sortOrder: it.sortOrder,
+  }));
+
+  await prisma.$transaction([
+    prisma.balanceItem.updateMany({
+      where: { periodId: target.id, deletedAt: null },
+      data: { deletedAt: new Date() },
+    }),
+    prisma.balanceItem.createMany({
+      data: copied.map((it) => ({
+        id: it.id,
+        periodId: target.id,
+        type: it.type,
+        category: it.category,
+        label: it.label,
+        value: it.value,
+        notes: it.notes,
+        sortOrder: it.sortOrder,
+      })),
+    }),
+  ]);
+
+  return { periodId: target.id, items: copied };
 }

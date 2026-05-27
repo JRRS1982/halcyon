@@ -44,10 +44,19 @@ export const setBalanceItemSectionSchema = z.object({
   category: balanceItemCategorySchema,
 });
 
+export const copyBalancePeriodFromSchema = z.object({
+  sourcePeriodId: z.string().uuid(),
+  targetYear: z.number().int(),
+  targetMonth: z.number().int().min(0).max(11),
+});
+
 export type CreateBalanceItemInput = z.infer<typeof createBalanceItemSchema>;
 export type UpdateBalanceItemInput = z.infer<typeof updateBalanceItemSchema>;
 export type DeleteBalanceItemInput = z.infer<typeof deleteBalanceItemSchema>;
 export type MoveBalanceItemInput = z.infer<typeof moveBalanceItemSchema>;
 export type SetBalanceItemSectionInput = z.infer<
   typeof setBalanceItemSectionSchema
+>;
+export type CopyBalancePeriodFromInput = z.infer<
+  typeof copyBalancePeriodFromSchema
 >;
