@@ -5,6 +5,7 @@ import {
   HeadRow,
   ItemRow,
   SectionRow,
+  SubheadRow,
   TotalsRow,
 } from "./SheetRow.styled";
 
@@ -44,6 +45,27 @@ export function SheetSectionRow({
       <SheetCell align="right">{amounts.variance}</SheetCell>
       <SheetCell align="right">{amounts.variancePct}</SheetCell>
     </SectionRow>
+  );
+}
+
+// Sub-section header sitting between a section and its items (e.g. expense
+// category buckets). Softer than SheetSectionRow so the hierarchy reads
+// Section > Subhead > Item.
+export function SheetSubheadRow({
+  label,
+  amounts,
+}: {
+  label: ReactNode;
+  amounts: AmountCells;
+}) {
+  return (
+    <SubheadRow>
+      <SheetCell>{label}</SheetCell>
+      <SheetCell align="right">{amounts.budget}</SheetCell>
+      <SheetCell align="right">{amounts.actual}</SheetCell>
+      <SheetCell align="right">{amounts.variance}</SheetCell>
+      <SheetCell align="right">{amounts.variancePct}</SheetCell>
+    </SubheadRow>
   );
 }
 

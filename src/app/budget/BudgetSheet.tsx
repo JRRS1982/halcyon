@@ -6,6 +6,7 @@ import {
   SheetHeadRow,
   SheetItemRow,
   SheetSectionRow,
+  SheetSubheadRow,
   SheetTotalsRow,
 } from "@/components/sheet/SheetRow";
 import {
@@ -186,6 +187,93 @@ const PeriodLabel = styled.span`
   font-weight: 600;
 `;
 
+// Category subhead label cell content: the bucket name + an info "i" button.
+const SubheadLabel = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.sm};
+`;
+
+const InfoButton = styled.button`
+  ${({ theme }) => `
+    text-transform: none;
+    letter-spacing: normal;
+    width: 16px;
+    height: 16px;
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: ${theme.rounded.full};
+    border: 1px solid ${theme.colors.hairlineStrong};
+    background: ${theme.colors.canvas};
+    color: ${theme.colors.body};
+    font-family: ${theme.typography.bodyMd.family};
+    font-size: 10px;
+    font-weight: 600;
+    font-style: italic;
+    line-height: 1;
+    cursor: pointer;
+
+    &:hover {
+      border-color: ${theme.colors.ink};
+      color: ${theme.colors.ink};
+    }
+  `}
+`;
+
+// Fixed-position so it isn't clipped by the Sheet's overflow:hidden.
+const InfoPopover = styled.div`
+  ${({ theme }) => `
+    position: fixed;
+    z-index: 50;
+    max-width: 280px;
+    background: ${theme.colors.canvas};
+    border: 1px solid ${theme.colors.hairline};
+    border-radius: ${theme.rounded.sm};
+    box-shadow: rgba(15, 17, 22, 0.12) 0px 6px 16px 0px;
+    padding: ${theme.spacing.md};
+    text-transform: none;
+    letter-spacing: normal;
+  `}
+`;
+
+const InfoTitle = styled.div`
+  ${({ theme }) => `
+    font-family: ${theme.typography.bodyMdStrong.family};
+    font-size: ${theme.typography.bodyMdStrong.size};
+    font-weight: ${theme.typography.bodyMdStrong.weight};
+    color: ${theme.colors.ink};
+    margin-bottom: ${theme.spacing.xs};
+  `}
+`;
+
+const InfoBody = styled.div`
+  ${({ theme }) => `
+    font-family: ${theme.typography.bodyMd.family};
+    font-size: ${theme.typography.bodyMd.size};
+    line-height: ${theme.typography.bodyMd.lineHeight};
+    color: ${theme.colors.body};
+  `}
+`;
+
+// Toolbar category control, shown only when a top-level expense row is focused.
+const CategorySelect = styled.select`
+  ${({ theme }) => `
+    border: 1px solid ${theme.colors.hairline};
+    border-radius: ${theme.rounded.sm};
+    background: ${theme.colors.canvas};
+    color: ${theme.colors.ink};
+    font-family: ${theme.typography.monoCaps.family};
+    font-size: ${theme.typography.monoCaps.size};
+    font-weight: ${theme.typography.monoCaps.weight};
+    letter-spacing: ${theme.typography.monoCaps.letterSpacing};
+    text-transform: uppercase;
+    padding: ${theme.spacing.xs} ${theme.spacing.sm};
+    cursor: pointer;
+  `}
+`;
+
 // Period nav: wraps the prev/label/next triplet so the picker popover can
 // position itself absolutely relative to the label button.
 const PeriodNavWrapper = styled.div`
@@ -278,9 +366,13 @@ const PickerMonth = styled.button<{ $current?: boolean }>`
 
 // Walk top-level → children → grandchildren etc, sorted by sortOrder at each
 // level. Returns the flat render order plus each item's depth (1..3).
+// Render order for a section. When `category` is given, only top-level rows
+// in that bucket (and their descendants) are included — used to render the
+// expense category buckets. Income passes no category (flat).
 function buildSectionOrder(
   items: SerializedItem[],
   type: "INCOME" | "EXPENSE",
+  category?: ExpenseCategory,
 ): { item: SerializedItem; depth: 1 | 2 | 3 }[] {
   const childrenByParent = new Map<string | null, SerializedItem[]>();
   for (const item of items.filter((i) => i.type === type)) {
@@ -294,7 +386,10 @@ function buildSectionOrder(
   }
   const result: { item: SerializedItem; depth: 1 | 2 | 3 }[] = [];
   function walk(parentId: string | null, depth: 1 | 2 | 3) {
-    const children = childrenByParent.get(parentId) ?? [];
+    let children = childrenByParent.get(parentId) ?? [];
+    if (depth === 1 && category !== undefined) {
+      children = children.filter((c) => c.category === category);
+    }
     for (const child of children) {
       result.push({ item: child, depth });
       if (depth < 3) {
@@ -304,6 +399,42 @@ function buildSectionOrder(
   }
   walk(null, 1);
   return result;
+}
+
+// The three expense buckets, in display order, with labels + help text.
+const EXPENSE_CATEGORIES: {
+  key: ExpenseCategory;
+  label: string;
+  help: string;
+}[] = [
+  {
+    key: "FIXED",
+    label: "Fixed",
+    help: "Locked-in commitments that stay roughly the same each month — rent or mortgage, insurance, loan repayments, subscriptions.",
+  },
+  {
+    key: "VARIABLE",
+    label: "Variable",
+    help: "Necessary spending that fluctuates month to month — groceries, utilities, fuel, phone usage.",
+  },
+  {
+    key: "DISCRETIONARY",
+    label: "Discretionary",
+    help: "Wants you could cut back without real hardship — eating out, entertainment, hobbies, shopping.",
+  },
+];
+
+// Category of `itemId`'s top-level ancestor (the bucket its subtree sits in).
+function topLevelCategoryOf(
+  items: SerializedItem[],
+  itemId: string,
+): ExpenseCategory | null {
+  const byId = new Map(items.map((i) => [i.id, i]));
+  let current = byId.get(itemId);
+  while (current && current.parentItemId !== null) {
+    current = byId.get(current.parentItemId);
+  }
+  return current?.category ?? null;
 }
 
 // Depth of `itemId` walking up the parent chain (top-level = 1).
@@ -379,6 +510,34 @@ export function BudgetSheet({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const [now, setNow] = useState(() => new Date());
+
+  // Per-subhead info popover. Fixed-positioned at the clicked icon's rect so
+  // it escapes the Sheet's overflow:hidden clipping.
+  const [openInfo, setOpenInfo] = useState<{
+    title: string;
+    body: string;
+    top: number;
+    left: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!openInfo) return;
+    const close = () => setOpenInfo(null);
+    const onDocMouseDown = (e: MouseEvent) => {
+      if (!(e.target as Element).closest("[data-info-root]")) close();
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") close();
+    };
+    document.addEventListener("mousedown", onDocMouseDown);
+    document.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", close, true);
+    return () => {
+      document.removeEventListener("mousedown", onDocMouseDown);
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", close, true);
+    };
+  }, [openInfo]);
 
   // ─── Period navigation state ──────────────────────────────────────────────
 
@@ -509,6 +668,31 @@ export function BudgetSheet({
     [debouncedUpdate],
   );
 
+  // Re-bucket a top-level expense row. Optimistic + immediate save (not
+  // debounced — it's a discrete click, not typing).
+  const editCategory = useCallback(
+    (itemId: string, category: ExpenseCategory) => {
+      setItems((prev) =>
+        prev.map((it) => (it.id === itemId ? { ...it, category } : it)),
+      );
+      startTransition(async () => {
+        pendingSavesRef.current += 1;
+        setPendingCount(pendingSavesRef.current);
+        try {
+          await updateItem({ itemId, category });
+          setLastSavedAt(new Date());
+          setSaveError(null);
+        } catch (e) {
+          setSaveError(e instanceof Error ? e.message : "Save failed");
+        } finally {
+          pendingSavesRef.current = Math.max(0, pendingSavesRef.current - 1);
+          setPendingCount(pendingSavesRef.current);
+        }
+      });
+    },
+    [],
+  );
+
   const onAddRow = useCallback(
     (type: "INCOME" | "EXPENSE") => {
       startTransition(async () => {
@@ -562,12 +746,42 @@ export function BudgetSheet({
   // ─── Derived data ─────────────────────────────────────────────────────────
 
   const incomeRows = useMemo(() => buildSectionOrder(items, "INCOME"), [items]);
-  const expenseRows = useMemo(
-    () => buildSectionOrder(items, "EXPENSE"),
+
+  const rollups = useMemo(() => computeRollups(items), [items]);
+
+  // Expenses grouped into their three category buckets, each with the rows
+  // (top-level + nested) and a bucket subtotal computed from top-level rollups.
+  const expenseBuckets = useMemo(
+    () =>
+      EXPENSE_CATEGORIES.map((cat) => {
+        const rows = buildSectionOrder(items, "EXPENSE", cat.key);
+        let budget = 0;
+        let actual = 0;
+        for (const { item, depth } of rows) {
+          if (depth !== 1) continue;
+          const r = rollups.get(item.id);
+          if (!r) continue;
+          budget += r.budget;
+          actual += r.actual;
+        }
+        const variance = budget - actual;
+        const variancePct =
+          budget === 0 ? 0 : Math.round((actual / budget) * 100);
+        return { cat, rows, totals: { budget, actual, variance, variancePct } };
+      }),
+    [items, rollups],
+  );
+
+  // Flat expense render order (buckets concatenated) — used for indent target
+  // adjacency so it matches what's on screen.
+  const expenseRenderOrder = useMemo(
+    () =>
+      EXPENSE_CATEGORIES.flatMap(({ key }) =>
+        buildSectionOrder(items, "EXPENSE", key),
+      ),
     [items],
   );
 
-  const rollups = useMemo(() => computeRollups(items), [items]);
   const incomeTotals = useMemo(
     () => sectionTotals(items, "INCOME", rollups),
     [items, rollups],
@@ -599,7 +813,10 @@ export function BudgetSheet({
   //   - the move would push the focused row's subtree past depth 3
   const indentTarget = useMemo(() => {
     if (!focusedItem) return null;
-    const renderOrder = buildSectionOrder(items, focusedItem.type);
+    const renderOrder =
+      focusedItem.type === "EXPENSE"
+        ? expenseRenderOrder
+        : buildSectionOrder(items, "INCOME");
     const idx = renderOrder.findIndex(({ item }) => item.id === focusedItem.id);
     if (idx <= 0) return null;
     const above = renderOrder[idx - 1].item;
@@ -608,27 +825,41 @@ export function BudgetSheet({
     const subtreeDepth = computeSubtreeDepth(items, focusedItem.id);
     if (aboveDepth + 1 + subtreeDepth > 3) return null;
     return above;
-  }, [focusedItem, items]);
+  }, [focusedItem, items, expenseRenderOrder]);
 
   const canIndent = indentTarget !== null;
   const canOutdent = focusedItem !== null && focusedItem.parentItemId !== null;
 
   const performReparent = useCallback(
     async (itemId: string, newParentItemId: string | null) => {
-      // Snapshot the row's previous parent+sortOrder so we can revert the
-      // optimistic update if the server rejects (cycle, depth cap, ownership).
+      // Snapshot previous parent+sortOrder+category so we can revert if the
+      // server rejects (cycle, depth cap, ownership).
       const target = items.find((it) => it.id === itemId);
       if (!target) return;
       const previousState = {
         parentItemId: target.parentItemId,
         sortOrder: target.sortOrder,
+        category: target.category,
       };
 
-      // Optimistic — change parentItemId locally so the indent shows up
-      // instantly without waiting on the round-trip.
+      // Mirror the server's category bookkeeping optimistically: a row demoted
+      // to a child goes null; a row promoted to top level inherits the bucket
+      // of the top-level ancestor it's leaving.
+      let optimisticCategory = target.category;
+      if (target.type === "EXPENSE") {
+        optimisticCategory =
+          newParentItemId === null ? topLevelCategoryOf(items, itemId) : null;
+      }
+
       setItems((prev) =>
         prev.map((it) =>
-          it.id === itemId ? { ...it, parentItemId: newParentItemId } : it,
+          it.id === itemId
+            ? {
+                ...it,
+                parentItemId: newParentItemId,
+                category: optimisticCategory,
+              }
+            : it,
         ),
       );
 
@@ -643,6 +874,7 @@ export function BudgetSheet({
                   ...it,
                   parentItemId: updated.parentItemId,
                   sortOrder: updated.sortOrder,
+                  category: updated.category,
                 }
               : it,
           ),
@@ -658,6 +890,7 @@ export function BudgetSheet({
                   ...it,
                   parentItemId: previousState.parentItemId,
                   sortOrder: previousState.sortOrder,
+                  category: previousState.category,
                 }
               : it,
           ),
@@ -893,6 +1126,27 @@ export function BudgetSheet({
             → Indent
           </ToolbarTool>
         </ToolbarGroup>
+        {focusedItem?.type === "EXPENSE" &&
+          focusedItem.parentItemId === null && (
+            <ToolbarGroup>
+              <CategorySelect
+                aria-label="Expense category"
+                value={focusedItem.category ?? "FIXED"}
+                onChange={(e) =>
+                  editCategory(
+                    focusedItem.id,
+                    e.target.value as ExpenseCategory,
+                  )
+                }
+              >
+                {EXPENSE_CATEGORIES.map((c) => (
+                  <option key={c.key} value={c.key}>
+                    {c.label}
+                  </option>
+                ))}
+              </CategorySelect>
+            </ToolbarGroup>
+          )}
         <ToolbarGroup>
           <ToolbarTool onClick={onDelete} disabled={!focusedItem}>
             × Delete row
@@ -933,7 +1187,44 @@ export function BudgetSheet({
             variancePct: formatPct(expenseTotals.variancePct),
           }}
         />
-        {expenseRows.map(({ item, depth }) => renderItemRow(item, depth))}
+        {expenseBuckets.map(({ cat, rows, totals }) => (
+          <div key={cat.key}>
+            <SheetSubheadRow
+              label={
+                <SubheadLabel>
+                  {cat.label}
+                  <InfoButton
+                    type="button"
+                    data-info-root
+                    aria-label={`What goes in ${cat.label}?`}
+                    onClick={(e) => {
+                      const r = e.currentTarget.getBoundingClientRect();
+                      setOpenInfo((prevInfo) =>
+                        prevInfo?.title === cat.label
+                          ? null
+                          : {
+                              title: cat.label,
+                              body: cat.help,
+                              top: r.bottom + 6,
+                              left: Math.min(r.left, window.innerWidth - 296),
+                            },
+                      );
+                    }}
+                  >
+                    i
+                  </InfoButton>
+                </SubheadLabel>
+              }
+              amounts={{
+                budget: fmtAmount(totals.budget),
+                actual: fmtAmount(totals.actual),
+                variance: fmtSigned(totals.variance),
+                variancePct: formatPct(totals.variancePct),
+              }}
+            />
+            {rows.map(({ item, depth }) => renderItemRow(item, depth))}
+          </div>
+        ))}
         <SheetTotalsRow
           label="Expenses subtotal"
           amounts={{
@@ -954,6 +1245,15 @@ export function BudgetSheet({
           }}
         />
       </Sheet>
+      {openInfo && (
+        <InfoPopover
+          data-info-root
+          style={{ top: openInfo.top, left: openInfo.left }}
+        >
+          <InfoTitle>{openInfo.title}</InfoTitle>
+          <InfoBody>{openInfo.body}</InfoBody>
+        </InfoPopover>
+      )}
     </PageShell>
   );
 }

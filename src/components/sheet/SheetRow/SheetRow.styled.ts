@@ -50,6 +50,26 @@ export const SectionRow = styled.div`
   }
 `;
 
+export const SubheadRow = styled.div`
+  ${baseRow}
+
+  > div {
+    background: ${({ theme }) => theme.colors.canvasSoft};
+    border-top: 1px solid ${({ theme }) => theme.colors.hairline};
+  }
+  > div:nth-child(1) {
+    font-family: ${({ theme }) => theme.typography.monoCaps.family};
+    font-size: ${({ theme }) => theme.typography.monoCaps.size};
+    font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
+    text-transform: uppercase;
+    letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
+    color: ${({ theme }) => theme.colors.body};
+  }
+  > div:nth-child(n + 2) {
+    font-weight: 500;
+  }
+`;
+
 export const ItemRow = styled.div`
   ${baseRow}
 `;
