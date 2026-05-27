@@ -4,7 +4,36 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import type { NumberFormat } from "@/lib/settings/currency";
 import styled from "styled-components";
 import { type BalancePoint, BalanceTrendChart } from "./BalanceTrendChart";
+import { CategoryExpenditureChart } from "./CategoryExpenditureChart";
 import { ExpenditureChart, type ExpenditurePoint } from "./ExpenditureChart";
+
+// The three dedicated per-category panels, with the same colour each uses in
+// the combined chart.
+const CATEGORY_PANELS: {
+  label: string;
+  color: string;
+  actualKey: keyof ExpenditurePoint;
+  avgKey: keyof ExpenditurePoint;
+}[] = [
+  {
+    label: "Fixed",
+    color: "#1F8A4C",
+    actualKey: "fixedActual",
+    avgKey: "fixedAvg",
+  },
+  {
+    label: "Variable",
+    color: "#1E5BC6",
+    actualKey: "variableActual",
+    avgKey: "variableAvg",
+  },
+  {
+    label: "Discretionary",
+    color: "#D97706",
+    actualKey: "discretionaryActual",
+    avgKey: "discretionaryAvg",
+  },
+];
 
 const Shell = styled.main`
   max-width: 1240px;
@@ -17,6 +46,14 @@ const Panels = styled.div`
   display: grid;
   gap: ${({ theme }) => theme.spacing["2xl"]};
   margin-top: ${({ theme }) => theme.spacing["2xl"]};
+`;
+
+// The dedicated per-category panels sit side by side on wide screens and wrap
+// down to one column when there isn't room.
+const CategoryGrid = styled.div`
+  display: grid;
+  gap: ${({ theme }) => theme.spacing["2xl"]};
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
 `;
 
 const Panel = styled.section`
@@ -96,6 +133,25 @@ export function DashboardView({
             </EmptyState>
           )}
         </Panel>
+        {expenditureData.length > 0 && (
+          <CategoryGrid>
+            {CATEGORY_PANELS.map((c) => (
+              <Panel key={c.label}>
+                <PanelTitle>{c.label}</PanelTitle>
+                <CategoryExpenditureChart
+                  color={c.color}
+                  currency={currency}
+                  numberFormat={numberFormat}
+                  data={expenditureData.map((p) => ({
+                    month: p.month,
+                    actual: p[c.actualKey] as number,
+                    avg: p[c.avgKey] as number,
+                  }))}
+                />
+              </Panel>
+            ))}
+          </CategoryGrid>
+        )}
       </Panels>
     </Shell>
   );
