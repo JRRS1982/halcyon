@@ -1,11 +1,15 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
+import { buildCopiedItems } from "@/lib/budget/copyPeriod";
 import { currentMonthRange, monthRangeFor } from "@/lib/budget/period";
 import {
+  type CopyPeriodFromInput,
   type CreateItemInput,
   type DeleteItemInput,
   type ReparentItemInput,
   type UpdateItemInput,
+  copyPeriodFromSchema,
   createItemSchema,
   deleteItemSchema,
   reparentItemSchema,
@@ -294,6 +298,98 @@ export async function reparentItem(input: ReparentItemInput) {
       sortOrder: (last?.sortOrder ?? 0) + 1,
     },
   });
+}
+
+// The user's periods that have at least one item — the candidate sources for
+// "Copy from…". Newest first. Virtual (never-saved) months have no row and so
+// never appear, which is what we want — there's nothing to copy from them.
+export async function listCopyablePeriods() {
+  const userId = await requireUserId();
+
+  const periods = await prisma.financialPeriod.findMany({
+    where: {
+      userId,
+      deletedAt: null,
+      items: { some: { deletedAt: null } },
+    },
+    orderBy: { startDate: "desc" },
+    select: { id: true, label: true },
+  });
+
+  return periods.map((p) => ({ id: p.id, label: p.label }));
+}
+
+// Replace the target month's budget rows with a copy of the source period's:
+// the full item hierarchy and budgeted amounts carry over, actuals reset to 0.
+// The target period is created on the fly if it was still virtual. Existing
+// target rows are soft-deleted in the same transaction so the copy is an
+// atomic overwrite. Returns the new item list so the client can swap state
+// without a refetch.
+export async function copyPeriodFrom(input: CopyPeriodFromInput) {
+  const userId = await requireUserId();
+  const parsed = copyPeriodFromSchema.parse(input);
+
+  const source = await prisma.financialPeriod.findFirst({
+    where: { id: parsed.sourcePeriodId, userId, deletedAt: null },
+  });
+  if (!source) {
+    throw new Error("Source period not found");
+  }
+
+  const range = monthRangeFor(parsed.targetYear, parsed.targetMonth);
+  const target = await ensurePeriodForMonthInternal(
+    range.startDate,
+    range.endDate,
+    range.label,
+  );
+
+  if (target.id === source.id) {
+    throw new Error("Cannot copy a period onto itself");
+  }
+
+  // Ordered parents-before-children (a child can only exist after its parent,
+  // so createdAt ordering guarantees it), letting buildCopiedItems' output be
+  // inserted in array order without tripping the parentItemId foreign key.
+  const sourceItems = await prisma.financialItem.findMany({
+    where: { periodId: source.id, deletedAt: null },
+    orderBy: { createdAt: "asc" },
+    select: {
+      id: true,
+      type: true,
+      parentItemId: true,
+      category: true,
+      label: true,
+      budget: true,
+      sortOrder: true,
+    },
+  });
+
+  const copied = buildCopiedItems(
+    sourceItems.map((it) => ({ ...it, budget: Number(it.budget) })),
+    randomUUID,
+  );
+
+  await prisma.$transaction([
+    prisma.financialItem.updateMany({
+      where: { periodId: target.id, deletedAt: null },
+      data: { deletedAt: new Date() },
+    }),
+    prisma.financialItem.createMany({
+      data: copied.map((it) => ({
+        id: it.id,
+        periodId: target.id,
+        type: it.type,
+        parentItemId: it.parentItemId,
+        category: it.category,
+        label: it.label,
+        budget: it.budget,
+        actual: it.actual,
+        sortOrder: it.sortOrder,
+      })),
+    }),
+  ]);
+
+  return { periodId: target.id, items: copied };
 }
 
 // Walk up the parent chain to the top-level ancestor and return its expense

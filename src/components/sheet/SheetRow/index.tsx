@@ -71,13 +71,16 @@ export function SheetSubheadRow({
 
 // Default line-item row. Depth controls label indent (1, 2, or 3).
 // Each amount slot is a ReactNode so the caller can wrap in tone/focused
-// state at the cell level if needed.
+// state at the cell level if needed. `variant="group"` tints the row and
+// bolds its amounts to mark a parent whose figures are a roll-up of its
+// children rather than directly-editable values.
 export function SheetItemRow({
   depth,
   label,
   amounts,
   focusedCell,
   onSelect,
+  variant = "default",
 }: {
   depth: 1 | 2 | 3;
   label: ReactNode;
@@ -104,9 +107,10 @@ export function SheetItemRow({
   // afterwards and override the focused cell to the specific field — so this
   // only "selects" the row when the user clicked outside any input.
   onSelect?: () => void;
+  variant?: "default" | "group";
 }) {
   return (
-    <ItemRow onMouseDown={onSelect}>
+    <ItemRow onMouseDown={onSelect} $group={variant === "group"}>
       <SheetCell indent={depth} focused={focusedCell === "label"}>
         {label}
       </SheetCell>

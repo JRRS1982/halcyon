@@ -47,9 +47,11 @@ import {
 } from "react";
 import styled from "styled-components";
 import {
+  copyPeriodFrom,
   createItem,
   deleteItem,
   ensurePeriodForMonth,
+  listCopyablePeriods,
   reparentItem,
   updateItem,
 } from "./actions";
@@ -362,6 +364,143 @@ const PickerMonth = styled.button<{ $current?: boolean }>`
   `}
 `;
 
+// Copy-from popover: anchored under its toolbar button like the period picker.
+const CopyWrapper = styled.div`
+  position: relative;
+  display: inline-flex;
+`;
+
+const CopyPopover = styled.div`
+  ${({ theme }) => `
+    position: absolute;
+    top: calc(100% + ${theme.spacing.xs});
+    left: 0;
+    z-index: 10;
+    background: ${theme.colors.canvas};
+    border: 1px solid ${theme.colors.hairline};
+    border-radius: ${theme.rounded.sm};
+    box-shadow: rgba(15, 17, 22, 0.08) 0px 4px 12px 0px;
+    padding: ${theme.spacing.md};
+    min-width: 260px;
+  `}
+`;
+
+const CopyTitle = styled.div`
+  ${({ theme }) => `
+    font-family: ${theme.typography.bodyMdStrong.family};
+    font-size: ${theme.typography.bodyMdStrong.size};
+    font-weight: ${theme.typography.bodyMdStrong.weight};
+    color: ${theme.colors.ink};
+    padding-bottom: ${theme.spacing.sm};
+    border-bottom: 1px solid ${theme.colors.hairline};
+    margin-bottom: ${theme.spacing.sm};
+  `}
+`;
+
+const CopyMuted = styled.div`
+  ${({ theme }) => `
+    font-family: ${theme.typography.bodyMd.family};
+    font-size: ${theme.typography.bodyMd.size};
+    color: ${theme.colors.dim};
+    padding: ${theme.spacing.sm} 0;
+  `}
+`;
+
+const CopyList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${({ theme }) => theme.spacing.xs};
+  max-height: 220px;
+  overflow-y: auto;
+`;
+
+const CopySource = styled.button<{ $selected?: boolean }>`
+  ${({ theme, $selected }) => `
+    text-align: left;
+    background: ${$selected ? theme.colors.primary : theme.colors.canvas};
+    color: ${$selected ? theme.colors.onPrimary : theme.colors.ink};
+    border: 1px solid ${$selected ? theme.colors.primary : theme.colors.hairline};
+    border-radius: ${theme.rounded.sm};
+    font-family: ${theme.typography.bodyMd.family};
+    font-size: ${theme.typography.bodyMd.size};
+    padding: ${theme.spacing.sm};
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+      border-color: ${theme.colors.ink};
+    }
+  `}
+`;
+
+const CopyConfirm = styled.div`
+  ${({ theme }) => `
+    margin-top: ${theme.spacing.sm};
+    padding-top: ${theme.spacing.sm};
+    border-top: 1px solid ${theme.colors.hairline};
+  `}
+`;
+
+const CopyConfirmText = styled.div`
+  ${({ theme }) => `
+    font-family: ${theme.typography.bodyMd.family};
+    font-size: ${theme.typography.bodyMd.size};
+    line-height: ${theme.typography.bodyMd.lineHeight};
+    color: ${theme.colors.body};
+    margin-bottom: ${theme.spacing.sm};
+  `}
+`;
+
+const CopyActions = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  gap: ${({ theme }) => theme.spacing.sm};
+`;
+
+const CopyButton = styled.button<{ $primary?: boolean }>`
+  ${({ theme, $primary }) => `
+    background: ${$primary ? theme.colors.primary : theme.colors.canvas};
+    color: ${$primary ? theme.colors.onPrimary : theme.colors.ink};
+    border: 1px solid ${$primary ? theme.colors.primary : theme.colors.hairline};
+    border-radius: ${theme.rounded.sm};
+    font-family: ${theme.typography.bodyMd.family};
+    font-size: ${theme.typography.bodyMd.size};
+    padding: ${theme.spacing.xs} ${theme.spacing.md};
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+      border-color: ${theme.colors.ink};
+    }
+    &:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+  `}
+`;
+
+// Group (parent) row label: a small ▾ marker + the editable name + a faint
+// child count, so it's obvious the row is a group whose amounts are a total.
+const GroupLabelWrap = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.sm};
+  width: 100%;
+  min-width: 0;
+`;
+
+const GroupCaret = styled.span`
+  flex: none;
+  color: ${({ theme }) => theme.colors.dim};
+  font-size: 10px;
+  line-height: 1;
+`;
+
+const GroupCount = styled.span`
+  flex: none;
+  color: ${({ theme }) => theme.colors.dim};
+  font-size: 11px;
+  white-space: nowrap;
+`;
+
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 // Walk top-level → children → grandchildren etc, sorted by sortOrder at each
@@ -558,6 +697,17 @@ export function BudgetSheet({
   const [pickerYear, setPickerYear] = useState(periodYear);
   const pickerWrapperRef = useRef<HTMLDivElement | null>(null);
 
+  // ─── Copy-from popover state ──────────────────────────────────────────────
+
+  const [copyOpen, setCopyOpen] = useState(false);
+  // null while the period list is loading; an array once fetched.
+  const [copyList, setCopyList] = useState<
+    { id: string; label: string }[] | null
+  >(null);
+  const [copySelectedId, setCopySelectedId] = useState<string | null>(null);
+  const [copyBusy, setCopyBusy] = useState(false);
+  const copyWrapperRef = useRef<HTMLDivElement | null>(null);
+
   // Close picker on outside click.
   useEffect(() => {
     if (!pickerOpen) return;
@@ -572,6 +722,21 @@ export function BudgetSheet({
     document.addEventListener("mousedown", onMouseDown);
     return () => document.removeEventListener("mousedown", onMouseDown);
   }, [pickerOpen]);
+
+  // Close the copy-from popover on outside click.
+  useEffect(() => {
+    if (!copyOpen) return;
+    const onMouseDown = (e: MouseEvent) => {
+      if (
+        copyWrapperRef.current &&
+        !copyWrapperRef.current.contains(e.target as Node)
+      ) {
+        setCopyOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onMouseDown);
+    return () => document.removeEventListener("mousedown", onMouseDown);
+  }, [copyOpen]);
 
   // Navigation is pure URL push — no server work, no DB write. The new
   // page render fetches the period (or renders virtual). The period only
@@ -602,6 +767,52 @@ export function BudgetSheet({
   const onToday = useCallback(() => {
     navigateToMonth(today.year, today.month);
   }, [today, navigateToMonth]);
+
+  // Open the copy-from popover and fetch the candidate source months. The
+  // current period is filtered out — you can't copy a month onto itself.
+  const openCopy = useCallback(() => {
+    setCopySelectedId(null);
+    setCopyList(null);
+    setCopyOpen(true);
+    startTransition(async () => {
+      try {
+        const periods = await listCopyablePeriods();
+        setCopyList(periods.filter((p) => p.id !== periodState.id));
+      } catch (e) {
+        setSaveError(e instanceof Error ? e.message : "Couldn't load periods");
+        setCopyOpen(false);
+      }
+    });
+  }, [periodState.id]);
+
+  // Overwrite the current month with a copy of the selected source month.
+  const confirmCopy = useCallback(() => {
+    if (!copySelectedId) return;
+    setCopyBusy(true);
+    pendingSavesRef.current += 1;
+    setPendingCount(pendingSavesRef.current);
+    startTransition(async () => {
+      try {
+        const result = await copyPeriodFrom({
+          sourcePeriodId: copySelectedId,
+          targetYear: year,
+          targetMonth: month,
+        });
+        setPeriodState((prev) => ({ ...prev, id: result.periodId }));
+        setItems(result.items);
+        setFocusedCell(null);
+        setLastSavedAt(new Date());
+        setSaveError(null);
+        setCopyOpen(false);
+      } catch (e) {
+        setSaveError(e instanceof Error ? e.message : "Copy failed");
+      } finally {
+        setCopyBusy(false);
+        pendingSavesRef.current = Math.max(0, pendingSavesRef.current - 1);
+        setPendingCount(pendingSavesRef.current);
+      }
+    });
+  }, [copySelectedId, year, month]);
 
   // When a row is just added, we want the user to land in its label input
   // immediately — both so they can type a name without an extra click and so
@@ -748,6 +959,17 @@ export function BudgetSheet({
   const incomeRows = useMemo(() => buildSectionOrder(items, "INCOME"), [items]);
 
   const rollups = useMemo(() => computeRollups(items), [items]);
+
+  // Direct-child count per parent id. A row with children is a "group": its
+  // amounts are a roll-up of its children, so it renders read-only.
+  const childCount = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const it of items) {
+      if (it.parentItemId === null) continue;
+      counts.set(it.parentItemId, (counts.get(it.parentItemId) ?? 0) + 1);
+    }
+    return counts;
+  }, [items]);
 
   // Expenses grouped into their three category buckets, each with the rows
   // (top-level + nested) and a bucket subtotal computed from top-level rollups.
@@ -987,50 +1209,86 @@ export function BudgetSheet({
         ? 0
         : Math.round((rollup.actual / rollup.budget) * 100);
 
+    // A row with children is a group: its budget/actual are the roll-up of
+    // its children, shown read-only. Leaf rows keep editable amount inputs.
+    const count = childCount.get(item.id) ?? 0;
+    const isGroup = count > 0;
+
+    const labelInput = (
+      <CellInput
+        ref={(el) => {
+          if (el) labelInputRefs.current.set(item.id, el);
+          else labelInputRefs.current.delete(item.id);
+        }}
+        value={item.label}
+        placeholder="Name this row"
+        onChange={(e) => editField(item.id, { label: e.target.value })}
+        onFocus={() => setFocusedCell({ itemId: item.id, field: "label" })}
+      />
+    );
+
     return (
       <SheetItemRow
         key={item.id}
         depth={depth}
+        variant={isGroup ? "group" : "default"}
         onSelect={() => setFocusedCell({ itemId: item.id, field: "label" })}
         label={
-          <CellInput
-            ref={(el) => {
-              if (el) labelInputRefs.current.set(item.id, el);
-              else labelInputRefs.current.delete(item.id);
-            }}
-            value={item.label}
-            placeholder="Name this row"
-            onChange={(e) => editField(item.id, { label: e.target.value })}
-            onFocus={() => setFocusedCell({ itemId: item.id, field: "label" })}
-          />
+          isGroup ? (
+            <GroupLabelWrap>
+              <GroupCaret aria-hidden>▾</GroupCaret>
+              {labelInput}
+              <GroupCount>
+                {count} item{count === 1 ? "" : "s"}
+              </GroupCount>
+            </GroupLabelWrap>
+          ) : (
+            labelInput
+          )
         }
         amounts={{
-          budget: {
-            value: (
-              <AmountInput
-                value={item.budget}
-                numberFormat={numberFormat}
-                onCommit={(v) => editField(item.id, { budget: v })}
-                onFocus={() =>
-                  setFocusedCell({ itemId: item.id, field: "budget" })
-                }
-              />
-            ),
-            tone: item.budget === 0 ? "dim" : "default",
-          },
-          actual: {
-            value: (
-              <AmountInput
-                value={item.actual}
-                numberFormat={numberFormat}
-                onCommit={(v) => editField(item.id, { actual: v })}
-                onFocus={() =>
-                  setFocusedCell({ itemId: item.id, field: "actual" })
-                }
-              />
-            ),
-            tone: item.actual === 0 ? "dim" : "default",
-          },
+          budget: isGroup
+            ? {
+                value:
+                  rollup.budget === 0
+                    ? ""
+                    : formatNumber(rollup.budget, numberFormat),
+                tone: rollup.budget === 0 ? "dim" : "default",
+              }
+            : {
+                value: (
+                  <AmountInput
+                    value={item.budget}
+                    numberFormat={numberFormat}
+                    onCommit={(v) => editField(item.id, { budget: v })}
+                    onFocus={() =>
+                      setFocusedCell({ itemId: item.id, field: "budget" })
+                    }
+                  />
+                ),
+                tone: item.budget === 0 ? "dim" : "default",
+              },
+          actual: isGroup
+            ? {
+                value:
+                  rollup.actual === 0
+                    ? ""
+                    : formatNumber(rollup.actual, numberFormat),
+                tone: rollup.actual === 0 ? "dim" : "default",
+              }
+            : {
+                value: (
+                  <AmountInput
+                    value={item.actual}
+                    numberFormat={numberFormat}
+                    onCommit={(v) => editField(item.id, { actual: v })}
+                    onFocus={() =>
+                      setFocusedCell({ itemId: item.id, field: "actual" })
+                    }
+                  />
+                ),
+                tone: item.actual === 0 ? "dim" : "default",
+              },
           variance: {
             value: fmtSigned(variance),
             tone: toneFor(variance),
@@ -1111,6 +1369,68 @@ export function BudgetSheet({
               </PickerPopover>
             )}
           </PeriodNavWrapper>
+        </ToolbarGroup>
+        <ToolbarGroup>
+          <CopyWrapper ref={copyWrapperRef}>
+            <ToolbarTool
+              onClick={() => (copyOpen ? setCopyOpen(false) : openCopy())}
+              aria-expanded={copyOpen}
+            >
+              ⧉ Copy from…
+            </ToolbarTool>
+            {copyOpen && (
+              <CopyPopover aria-label="Copy from another month">
+                <CopyTitle>Copy into {periodState.label}</CopyTitle>
+                {copyList === null ? (
+                  <CopyMuted>Loading…</CopyMuted>
+                ) : copyList.length === 0 ? (
+                  <CopyMuted>
+                    No other months with data to copy from yet.
+                  </CopyMuted>
+                ) : (
+                  <CopyList>
+                    {copyList.map((p) => (
+                      <CopySource
+                        key={p.id}
+                        type="button"
+                        $selected={p.id === copySelectedId}
+                        onClick={() => setCopySelectedId(p.id)}
+                      >
+                        {p.label}
+                      </CopySource>
+                    ))}
+                  </CopyList>
+                )}
+                {copySelectedId && (
+                  <CopyConfirm>
+                    <CopyConfirmText>
+                      {items.length > 0
+                        ? `This replaces the rows in ${periodState.label}. `
+                        : ""}
+                      Budgeted amounts copy over; actuals reset to 0.
+                    </CopyConfirmText>
+                    <CopyActions>
+                      <CopyButton
+                        type="button"
+                        onClick={() => setCopyOpen(false)}
+                        disabled={copyBusy}
+                      >
+                        Cancel
+                      </CopyButton>
+                      <CopyButton
+                        type="button"
+                        $primary
+                        onClick={confirmCopy}
+                        disabled={copyBusy}
+                      >
+                        {copyBusy ? "Copying…" : "Copy"}
+                      </CopyButton>
+                    </CopyActions>
+                  </CopyConfirm>
+                )}
+              </CopyPopover>
+            )}
+          </CopyWrapper>
         </ToolbarGroup>
         <ToolbarGroup>
           <ToolbarTool onClick={() => onAddRow("INCOME")}>+ Income</ToolbarTool>

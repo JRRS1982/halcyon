@@ -70,8 +70,21 @@ export const SubheadRow = styled.div`
   }
 `;
 
-export const ItemRow = styled.div`
+export const ItemRow = styled.div<{ $group?: boolean }>`
   ${baseRow}
+
+  /* Group (parent) row: subtle tint + bold amount cells so the rolled-up
+     figures read as totals, not editable entries. */
+  ${({ $group, theme }) =>
+    $group &&
+    css`
+      > div {
+        background: ${theme.colors.canvasSoft};
+      }
+      > div:nth-child(n + 2) {
+        font-weight: 500;
+      }
+    `}
 `;
 
 export const TotalsRow = styled.div`
