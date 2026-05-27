@@ -4,15 +4,19 @@ import { randomUUID } from "node:crypto";
 import { computeMove } from "@/lib/balance/reorder";
 import {
   type CopyBalancePeriodFromInput,
+  type CopyBalanceTemplateInput,
   type CreateBalanceItemInput,
   type DeleteBalanceItemInput,
   type MoveBalanceItemInput,
+  type SaveBalanceTemplateInput,
   type SetBalanceItemSectionInput,
   type UpdateBalanceItemInput,
   copyBalancePeriodFromSchema,
+  copyBalanceTemplateSchema,
   createBalanceItemSchema,
   deleteBalanceItemSchema,
   moveBalanceItemSchema,
+  saveBalanceTemplateSchema,
   setBalanceItemSectionSchema,
   updateBalanceItemSchema,
 } from "@/lib/balance/schemas";
@@ -258,6 +262,114 @@ export async function copyBalancePeriodFrom(input: CopyBalancePeriodFromInput) {
   });
 
   const copied = sourceItems.map((it) => ({
+    id: randomUUID(),
+    type: it.type,
+    category: it.category,
+    label: it.label,
+    value: Number(it.value),
+    notes: it.notes,
+    sortOrder: it.sortOrder,
+  }));
+
+  await prisma.$transaction([
+    prisma.balanceItem.updateMany({
+      where: { periodId: target.id, deletedAt: null },
+      data: { deletedAt: new Date() },
+    }),
+    prisma.balanceItem.createMany({
+      data: copied.map((it) => ({
+        id: it.id,
+        periodId: target.id,
+        type: it.type,
+        category: it.category,
+        label: it.label,
+        value: it.value,
+        notes: it.notes,
+        sortOrder: it.sortOrder,
+      })),
+    }),
+  ]);
+
+  return { periodId: target.id, items: copied };
+}
+
+// Snapshot a month's balance rows into the user's reusable balance template,
+// replacing whatever was there. Balance rows are flat, so this is a straight
+// copy of type/category/label/value/notes.
+export async function saveBalanceTemplate(input: SaveBalanceTemplateInput) {
+  const userId = await requireUserId();
+  const parsed = saveBalanceTemplateSchema.parse(input);
+
+  const period = await prisma.financialPeriod.findFirst({
+    where: { id: parsed.sourcePeriodId, userId, deletedAt: null },
+  });
+  if (!period) {
+    throw new Error("Source period not found");
+  }
+
+  const sourceItems = await prisma.balanceItem.findMany({
+    where: { periodId: period.id, deletedAt: null },
+    orderBy: { sortOrder: "asc" },
+    select: {
+      type: true,
+      category: true,
+      label: true,
+      value: true,
+      notes: true,
+      sortOrder: true,
+    },
+  });
+
+  const rows = sourceItems.map((it) => ({
+    id: randomUUID(),
+    userId,
+    type: it.type,
+    category: it.category,
+    label: it.label,
+    value: Number(it.value),
+    notes: it.notes,
+    sortOrder: it.sortOrder,
+  }));
+
+  await prisma.$transaction([
+    prisma.balanceTemplateItem.updateMany({
+      where: { userId, deletedAt: null },
+      data: { deletedAt: new Date() },
+    }),
+    prisma.balanceTemplateItem.createMany({ data: rows }),
+  ]);
+
+  return { count: rows.length };
+}
+
+// Seed a month from the user's balance template, replacing the month's rows.
+// Mirror of copyBalancePeriodFrom but the source is the template.
+export async function copyBalanceTemplateInto(input: CopyBalanceTemplateInput) {
+  const userId = await requireUserId();
+  const parsed = copyBalanceTemplateSchema.parse(input);
+
+  const templateItems = await prisma.balanceTemplateItem.findMany({
+    where: { userId, deletedAt: null },
+    orderBy: { sortOrder: "asc" },
+    select: {
+      type: true,
+      category: true,
+      label: true,
+      value: true,
+      notes: true,
+      sortOrder: true,
+    },
+  });
+  if (templateItems.length === 0) {
+    throw new Error("No balance template saved yet");
+  }
+
+  const target = await ensurePeriodForMonth(
+    parsed.targetYear,
+    parsed.targetMonth,
+  );
+
+  const copied = templateItems.map((it) => ({
     id: randomUUID(),
     type: it.type,
     category: it.category,

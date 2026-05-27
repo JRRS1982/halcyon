@@ -97,6 +97,13 @@ export default async function BudgetPage({ searchParams }: PageProps) {
     sortOrder: i.sortOrder,
   }));
 
+  // Whether the user has a saved budget template, so the sheet can show the
+  // "★ Template" copy source and the right save-confirm wording.
+  const hasTemplate =
+    (await prisma.budgetTemplateItem.count({
+      where: { userId: user.id, deletedAt: null },
+    })) > 0;
+
   // key on ym forces a fresh component instance per month, so the
   // client's local state (items, periodState, picker) doesn't leak from
   // the previous month.
@@ -109,6 +116,7 @@ export default async function BudgetPage({ searchParams }: PageProps) {
       month={month}
       currency={currency}
       numberFormat={numberFormat}
+      hasTemplate={hasTemplate}
     />
   );
 }

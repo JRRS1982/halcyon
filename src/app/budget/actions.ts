@@ -4,15 +4,19 @@ import { randomUUID } from "node:crypto";
 import { buildCopiedItems } from "@/lib/budget/copyPeriod";
 import { currentMonthRange, monthRangeFor } from "@/lib/budget/period";
 import {
+  type CopyBudgetTemplateInput,
   type CopyPeriodFromInput,
   type CreateItemInput,
   type DeleteItemInput,
   type ReparentItemInput,
+  type SaveBudgetTemplateInput,
   type UpdateItemInput,
+  copyBudgetTemplateSchema,
   copyPeriodFromSchema,
   createItemSchema,
   deleteItemSchema,
   reparentItemSchema,
+  saveBudgetTemplateSchema,
   updateItemSchema,
 } from "@/lib/budget/schemas";
 import { prisma } from "@/lib/prisma";
@@ -366,6 +370,121 @@ export async function copyPeriodFrom(input: CopyPeriodFromInput) {
 
   const copied = buildCopiedItems(
     sourceItems.map((it) => ({ ...it, budget: Number(it.budget) })),
+    randomUUID,
+  );
+
+  await prisma.$transaction([
+    prisma.financialItem.updateMany({
+      where: { periodId: target.id, deletedAt: null },
+      data: { deletedAt: new Date() },
+    }),
+    prisma.financialItem.createMany({
+      data: copied.map((it) => ({
+        id: it.id,
+        periodId: target.id,
+        type: it.type,
+        parentItemId: it.parentItemId,
+        category: it.category,
+        label: it.label,
+        budget: it.budget,
+        actual: it.actual,
+        sortOrder: it.sortOrder,
+      })),
+    }),
+  ]);
+
+  return { periodId: target.id, items: copied };
+}
+
+// Snapshot a month's rows into the user's reusable budget template, replacing
+// whatever was there. Hierarchy and budgets carry over (via buildCopiedItems);
+// actuals are dropped — a template is the plan, not spending.
+export async function saveBudgetTemplate(input: SaveBudgetTemplateInput) {
+  const userId = await requireUserId();
+  const parsed = saveBudgetTemplateSchema.parse(input);
+
+  const period = await prisma.financialPeriod.findFirst({
+    where: { id: parsed.sourcePeriodId, userId, deletedAt: null },
+  });
+  if (!period) {
+    throw new Error("Source period not found");
+  }
+
+  // Ordered parents-before-children so the createMany insert satisfies the
+  // self-referential parentItemId foreign key.
+  const sourceItems = await prisma.financialItem.findMany({
+    where: { periodId: period.id, deletedAt: null },
+    orderBy: { createdAt: "asc" },
+    select: {
+      id: true,
+      type: true,
+      parentItemId: true,
+      category: true,
+      label: true,
+      budget: true,
+      sortOrder: true,
+    },
+  });
+
+  const copied = buildCopiedItems(
+    sourceItems.map((it) => ({ ...it, budget: Number(it.budget) })),
+    randomUUID,
+  );
+
+  await prisma.$transaction([
+    prisma.budgetTemplateItem.updateMany({
+      where: { userId, deletedAt: null },
+      data: { deletedAt: new Date() },
+    }),
+    prisma.budgetTemplateItem.createMany({
+      data: copied.map((it) => ({
+        id: it.id,
+        userId,
+        type: it.type,
+        parentItemId: it.parentItemId,
+        category: it.category,
+        label: it.label,
+        budget: it.budget,
+        sortOrder: it.sortOrder,
+      })),
+    }),
+  ]);
+
+  return { count: copied.length };
+}
+
+// Seed a month from the user's budget template, replacing the month's rows.
+// Mirror of copyPeriodFrom but the source is the template, not a period.
+export async function copyBudgetTemplateInto(input: CopyBudgetTemplateInput) {
+  const userId = await requireUserId();
+  const parsed = copyBudgetTemplateSchema.parse(input);
+
+  const templateItems = await prisma.budgetTemplateItem.findMany({
+    where: { userId, deletedAt: null },
+    orderBy: { createdAt: "asc" },
+    select: {
+      id: true,
+      type: true,
+      parentItemId: true,
+      category: true,
+      label: true,
+      budget: true,
+      sortOrder: true,
+    },
+  });
+  if (templateItems.length === 0) {
+    throw new Error("No budget template saved yet");
+  }
+
+  const range = monthRangeFor(parsed.targetYear, parsed.targetMonth);
+  const target = await ensurePeriodForMonthInternal(
+    range.startDate,
+    range.endDate,
+    range.label,
+  );
+
+  const copied = buildCopiedItems(
+    templateItems.map((it) => ({ ...it, budget: Number(it.budget) })),
     randomUUID,
   );
 

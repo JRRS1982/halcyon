@@ -42,10 +42,12 @@ import styled, { css } from "styled-components";
 import { ensurePeriodForMonth } from "../budget/actions";
 import {
   copyBalancePeriodFrom,
+  copyBalanceTemplateInto,
   createBalanceItem,
   deleteBalanceItem,
   listCopyableBalancePeriods,
   moveBalanceItem,
+  saveBalanceTemplate,
   setBalanceItemSection,
   updateBalanceItem,
 } from "./actions";
@@ -661,6 +663,10 @@ const pipState = (
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
+// Sentinel "source" id for the saved template entry in the Copy-from list,
+// distinct from any real period uuid.
+const TEMPLATE_SOURCE_ID = "__template__";
+
 export function BalanceSheet({
   period,
   initialItems,
@@ -668,6 +674,7 @@ export function BalanceSheet({
   month,
   currency,
   numberFormat,
+  hasTemplate,
 }: {
   period: SerializedPeriod;
   initialItems: SerializedBalanceItem[];
@@ -675,6 +682,7 @@ export function BalanceSheet({
   month: number;
   currency: string;
   numberFormat: NumberFormat;
+  hasTemplate: boolean;
 }) {
   const periodYear = year;
   const periodMonth = month;
@@ -816,7 +824,8 @@ export function BalanceSheet({
     });
   }, [periodState.id]);
 
-  // Overwrite the current month's balance rows with a copy of the selected one.
+  // Overwrite the current month's balance rows with a copy of the selected
+  // source — either a chosen month, or the saved balance template.
   const confirmCopy = useCallback(() => {
     if (!copySelectedId) return;
     setCopyBusy(true);
@@ -824,11 +833,17 @@ export function BalanceSheet({
     setPendingCount(pendingSavesRef.current);
     startTransition(async () => {
       try {
-        const result = await copyBalancePeriodFrom({
-          sourcePeriodId: copySelectedId,
-          targetYear: year,
-          targetMonth: month,
-        });
+        const result =
+          copySelectedId === TEMPLATE_SOURCE_ID
+            ? await copyBalanceTemplateInto({
+                targetYear: year,
+                targetMonth: month,
+              })
+            : await copyBalancePeriodFrom({
+                sourcePeriodId: copySelectedId,
+                targetYear: year,
+                targetMonth: month,
+              });
         setPeriodState((prev) => ({ ...prev, id: result.periodId }));
         setItems(result.items);
         setFocusedCell(null);
@@ -844,6 +859,50 @@ export function BalanceSheet({
       }
     });
   }, [copySelectedId, year, month]);
+
+  // ─── Save-as-template state ───────────────────────────────────────────────
+
+  const [templateExists, setTemplateExists] = useState(hasTemplate);
+  const [saveTplOpen, setSaveTplOpen] = useState(false);
+  const [saveTplBusy, setSaveTplBusy] = useState(false);
+  const saveTplWrapperRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!saveTplOpen) return;
+    const onMouseDown = (e: MouseEvent) => {
+      if (
+        saveTplWrapperRef.current &&
+        !saveTplWrapperRef.current.contains(e.target as Node)
+      ) {
+        setSaveTplOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onMouseDown);
+    return () => document.removeEventListener("mousedown", onMouseDown);
+  }, [saveTplOpen]);
+
+  // Snapshot this month's balance rows into the user's reusable template.
+  const confirmSaveTemplate = useCallback(() => {
+    if (!periodState.id) return;
+    setSaveTplBusy(true);
+    pendingSavesRef.current += 1;
+    setPendingCount(pendingSavesRef.current);
+    startTransition(async () => {
+      try {
+        await saveBalanceTemplate({ sourcePeriodId: periodState.id });
+        setTemplateExists(true);
+        setLastSavedAt(new Date());
+        setSaveError(null);
+        setSaveTplOpen(false);
+      } catch (e) {
+        setSaveError(e instanceof Error ? e.message : "Save template failed");
+      } finally {
+        setSaveTplBusy(false);
+        pendingSavesRef.current = Math.max(0, pendingSavesRef.current - 1);
+        setPendingCount(pendingSavesRef.current);
+      }
+    });
+  }, [periodState.id]);
 
   // ─── Auto-focus on add ────────────────────────────────────────────────────
 
@@ -1312,12 +1371,21 @@ export function BalanceSheet({
                 <CopyTitle>Copy into {periodState.label}</CopyTitle>
                 {copyList === null ? (
                   <CopyMuted>Loading…</CopyMuted>
-                ) : copyList.length === 0 ? (
+                ) : copyList.length === 0 && !templateExists ? (
                   <CopyMuted>
-                    No other months with balances to copy from yet.
+                    No template or other months to copy from yet.
                   </CopyMuted>
                 ) : (
                   <CopyList>
+                    {templateExists && (
+                      <CopySource
+                        type="button"
+                        $selected={copySelectedId === TEMPLATE_SOURCE_ID}
+                        onClick={() => setCopySelectedId(TEMPLATE_SOURCE_ID)}
+                      >
+                        ★ Template
+                      </CopySource>
+                    )}
                     {copyList.map((p) => (
                       <CopySource
                         key={p.id}
@@ -1357,6 +1425,44 @@ export function BalanceSheet({
                     </CopyActions>
                   </CopyConfirm>
                 )}
+              </CopyPopover>
+            )}
+          </CopyWrapper>
+          <CopyWrapper ref={saveTplWrapperRef}>
+            <ToolbarTool
+              onClick={() => setSaveTplOpen((o) => !o)}
+              aria-expanded={saveTplOpen}
+              disabled={items.length === 0}
+            >
+              ⤓ Save as template
+            </ToolbarTool>
+            {saveTplOpen && (
+              <CopyPopover aria-label="Save this month as your balance template">
+                <CopyTitle>Save as balance template</CopyTitle>
+                <CopyConfirmText>
+                  {templateExists
+                    ? "Replaces your current balance template. "
+                    : ""}
+                  Saves this month's asset & liability lines as your reusable
+                  template.
+                </CopyConfirmText>
+                <CopyActions>
+                  <CopyButton
+                    type="button"
+                    onClick={() => setSaveTplOpen(false)}
+                    disabled={saveTplBusy}
+                  >
+                    Cancel
+                  </CopyButton>
+                  <CopyButton
+                    type="button"
+                    $primary
+                    onClick={confirmSaveTemplate}
+                    disabled={saveTplBusy}
+                  >
+                    {saveTplBusy ? "Saving…" : "Save"}
+                  </CopyButton>
+                </CopyActions>
               </CopyPopover>
             )}
           </CopyWrapper>
