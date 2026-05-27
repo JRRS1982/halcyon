@@ -39,8 +39,10 @@ model User {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
-  periods  FinancialPeriod[]
-  settings UserSettings?
+  periods              FinancialPeriod[]
+  settings             UserSettings?
+  budgetTemplateItems  BudgetTemplateItem[]
+  balanceTemplateItems BalanceTemplateItem[]
 }
 
 // Per-user app preferences. Lazily upserted on first read — there is no
@@ -154,4 +156,49 @@ model BalanceItem {
   period FinancialPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
 
   @@index([periodId, type, category, sortOrder])
+}
+
+// A reusable budget template row, owned directly by a user (not tied to a
+// period). "Save this month as template" snapshots a month into these;
+// "Copy from → Template" seeds a month from them. Preserves the month's
+// hierarchy (self-reference) so nested rows round-trip. No `actual` — a
+// template is the plan, not spending.
+model BudgetTemplateItem {
+  id           String           @id @default(uuid()) @db.Uuid
+  userId       String           @db.Uuid
+  type         ItemType
+  parentItemId String?          @db.Uuid
+  category     ExpenseCategory?
+  label        String
+  budget       Decimal          @default(0) @db.Decimal(12, 2)
+  sortOrder    Int              @default(0)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  deletedAt    DateTime?
+
+  user     User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent   BudgetTemplateItem?  @relation("BudgetTemplateHierarchy", fields: [parentItemId], references: [id], onDelete: Cascade)
+  children BudgetTemplateItem[] @relation("BudgetTemplateHierarchy")
+
+  @@index([userId, type, parentItemId, sortOrder])
+}
+
+// A reusable balance-sheet template row, owned directly by a user. Flat, like
+// BalanceItem. "Copy from → Template" seeds a month's balance from these.
+model BalanceTemplateItem {
+  id        String              @id @default(uuid()) @db.Uuid
+  userId    String              @db.Uuid
+  type      BalanceItemType
+  category  BalanceItemCategory
+  label     String
+  value     Decimal             @default(0) @db.Decimal(14, 2)
+  notes     String?
+  sortOrder Int                 @default(0)
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+  deletedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type, category, sortOrder])
 }
