@@ -62,10 +62,13 @@ export type SerializedPeriod = {
   endDate: string;
 };
 
+export type ExpenseCategory = "FIXED" | "VARIABLE" | "DISCRETIONARY";
+
 export type SerializedItem = {
   id: string;
   type: "INCOME" | "EXPENSE";
   parentItemId: string | null;
+  category: ExpenseCategory | null;
   label: string;
   budget: number;
   actual: number;
@@ -532,6 +535,7 @@ export function BudgetSheet({
               id: created.id,
               type: created.type,
               parentItemId: created.parentItemId,
+              category: created.category,
               label: created.label,
               budget: Number(created.budget),
               actual: Number(created.actual),

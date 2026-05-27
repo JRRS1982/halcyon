@@ -126,11 +126,19 @@ export async function createItem(input: CreateItemInput) {
     select: { sortOrder: true },
   });
 
+  // Category only applies to top-level expense rows. Income rows and nested
+  // children carry null (children inherit their ancestor's bucket visually).
+  const category =
+    parsed.type === "EXPENSE" && parsed.parentItemId === null
+      ? (parsed.category ?? "FIXED")
+      : null;
+
   return prisma.financialItem.create({
     data: {
       periodId: parsed.periodId,
       type: parsed.type,
       parentItemId: parsed.parentItemId,
+      category,
       label: parsed.label,
       sortOrder: (last?.sortOrder ?? 0) + 1,
     },
@@ -149,12 +157,21 @@ export async function updateItem(input: UpdateItemInput) {
     throw new Error("Item not found");
   }
 
+  // Category changes only make sense for top-level expense rows.
+  if (
+    parsed.category !== undefined &&
+    !(item.type === "EXPENSE" && item.parentItemId === null)
+  ) {
+    throw new Error("Only top-level expense rows have a category");
+  }
+
   return prisma.financialItem.update({
     where: { id: parsed.itemId },
     data: {
       ...(parsed.label !== undefined && { label: parsed.label }),
       ...(parsed.budget !== undefined && { budget: parsed.budget }),
       ...(parsed.actual !== undefined && { actual: parsed.actual }),
+      ...(parsed.category !== undefined && { category: parsed.category }),
     },
   });
 }
@@ -258,13 +275,45 @@ export async function reparentItem(input: ReparentItemInput) {
     select: { sortOrder: true },
   });
 
+  // Category bookkeeping for expenses: a child carries null (it inherits its
+  // ancestor's bucket); a row promoted to top level inherits the bucket of the
+  // top-level ancestor it's leaving so it lands somewhere sensible.
+  let category = item.category;
+  if (item.type === "EXPENSE") {
+    category =
+      parsed.newParentItemId === null
+        ? await topLevelCategoryOf(parsed.itemId)
+        : null;
+  }
+
   return prisma.financialItem.update({
     where: { id: parsed.itemId },
     data: {
       parentItemId: parsed.newParentItemId,
+      category,
       sortOrder: (last?.sortOrder ?? 0) + 1,
     },
   });
+}
+
+// Walk up the parent chain to the top-level ancestor and return its expense
+// category. Used when a row is promoted to top level so it inherits the
+// bucket of the subtree it came from.
+async function topLevelCategoryOf(itemId: string) {
+  let current: {
+    parentItemId: string | null;
+    category: "FIXED" | "VARIABLE" | "DISCRETIONARY" | null;
+  } | null = await prisma.financialItem.findFirst({
+    where: { id: itemId },
+    select: { parentItemId: true, category: true },
+  });
+  while (current && current.parentItemId !== null) {
+    current = await prisma.financialItem.findFirst({
+      where: { id: current.parentItemId },
+      select: { parentItemId: true, category: true },
+    });
+  }
+  return current?.category ?? "FIXED";
 }
 
 // Walk up the parent chain to find the depth of a given item. depth 1 = top

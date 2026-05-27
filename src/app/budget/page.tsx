@@ -90,6 +90,7 @@ export default async function BudgetPage({ searchParams }: PageProps) {
     id: i.id,
     type: i.type,
     parentItemId: i.parentItemId,
+    category: i.category,
     label: i.label,
     budget: Number(i.budget),
     actual: Number(i.actual),
