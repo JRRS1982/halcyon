@@ -25,10 +25,15 @@ export default async function SettingsPage() {
   const { currency, numberFormat } = await getCurrentUserSettings();
   const symbol = symbolFor(currency);
 
-  const currencyOptions = CURRENCY_CODES.map((code) => ({
-    value: code,
-    label: `${CURRENCY_META[code].symbol} ${code} · ${CURRENCY_META[code].name}`,
-  }));
+  const currencyOptions = CURRENCY_CODES.map((code) => {
+    const meta = CURRENCY_META[code];
+    return {
+      value: code,
+      label: meta.symbol
+        ? `${meta.symbol} ${code} · ${meta.name}`
+        : `${code} · ${meta.name}`,
+    };
+  });
 
   const numberFormatOptions = NUMBER_FORMATS.map((fmt) => ({
     value: fmt,

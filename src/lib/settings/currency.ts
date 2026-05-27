@@ -3,7 +3,14 @@
 // purpose — v1 only supports a curated list. Add codes by extending both
 // CURRENCY_CODES and CURRENCY_META; the rest of the app reads from here.
 
-export const CURRENCY_CODES = ["USD", "GBP", "EUR", "CAD", "AUD"] as const;
+export const CURRENCY_CODES = [
+  "USD",
+  "GBP",
+  "EUR",
+  "CAD",
+  "AUD",
+  "NONE",
+] as const;
 export type CurrencyCode = (typeof CURRENCY_CODES)[number];
 
 export const CURRENCY_META: Record<
@@ -15,6 +22,8 @@ export const CURRENCY_META: Record<
   EUR: { symbol: "€", name: "Euro" },
   CAD: { symbol: "C$", name: "Canadian dollar" },
   AUD: { symbol: "A$", name: "Australian dollar" },
+  // No symbol — amounts render as plain numbers.
+  NONE: { symbol: "", name: "No symbol" },
 };
 
 export function isCurrencyCode(value: unknown): value is CurrencyCode {
