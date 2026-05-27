@@ -44,6 +44,7 @@ import {
   createBalanceItem,
   deleteBalanceItem,
   moveBalanceItem,
+  setBalanceItemSection,
   updateBalanceItem,
 } from "./actions";
 
@@ -80,6 +81,23 @@ const CATEGORIES: { key: BalanceCategory; label: string }[] = [
   { key: "LONG_TERM", label: "Long-term" },
   { key: "OTHER", label: "Other" },
 ];
+
+// Every (type, category) destination for the toolbar's "move to section"
+// dropdown, in display order (Assets first, then Liabilities). The value
+// encodes both dimensions so a single <select> can move a row anywhere.
+const SECTIONS: {
+  value: string;
+  type: BalanceType;
+  category: BalanceCategory;
+  label: string;
+}[] = (["ASSET", "LIABILITY"] as const).flatMap((type) =>
+  CATEGORIES.map((c) => ({
+    value: `${type}:${c.key}`,
+    type,
+    category: c.key,
+    label: `${type === "ASSET" ? "Assets" : "Liabilities"} · ${c.label}`,
+  })),
+);
 
 // Guidance shown in the per-subhead info popover. Plain-English, UK-flavoured
 // examples — "what should go in this bucket". Edit freely; this is the only
@@ -313,6 +331,24 @@ function AmountInput({
     />
   );
 }
+
+// Toolbar control for moving the focused row into another section. Mirrors
+// /budget's CategorySelect styling.
+const SectionSelect = styled.select`
+  ${({ theme }) => `
+    border: 1px solid ${theme.colors.hairline};
+    border-radius: ${theme.rounded.sm};
+    background: ${theme.colors.canvas};
+    color: ${theme.colors.ink};
+    font-family: ${theme.typography.monoCaps.family};
+    font-size: ${theme.typography.monoCaps.size};
+    font-weight: ${theme.typography.monoCaps.weight};
+    letter-spacing: ${theme.typography.monoCaps.letterSpacing};
+    text-transform: uppercase;
+    padding: ${theme.spacing.xs} ${theme.spacing.sm};
+    cursor: pointer;
+  `}
+`;
 
 // ─── Page chrome ────────────────────────────────────────────────────────────
 
@@ -788,6 +824,73 @@ export function BalanceSheet({
     ? canMove(items, focusedCell.itemId, "down")
     : false;
 
+  const focusedItem = useMemo(
+    () =>
+      focusedCell
+        ? (items.find((i) => i.id === focusedCell.itemId) ?? null)
+        : null,
+    [focusedCell, items],
+  );
+
+  // Jump the focused row to another (type, category) section, appending it to
+  // the end of that bucket. Optimistic + immediate save (a discrete pick, not
+  // typing); revert on error like onMove/onDelete.
+  const editSection = useCallback(
+    (itemId: string, type: BalanceType, category: BalanceCategory) => {
+      const target = items.find((it) => it.id === itemId);
+      if (!target) return;
+      if (target.type === type && target.category === category) return;
+
+      const previous = items;
+      const maxSort = items.reduce(
+        (max, it) =>
+          it.type === type && it.category === category && it.sortOrder > max
+            ? it.sortOrder
+            : max,
+        0,
+      );
+      setItems((prev) =>
+        prev.map((it) =>
+          it.id === itemId
+            ? { ...it, type, category, sortOrder: maxSort + 1 }
+            : it,
+        ),
+      );
+      startTransition(async () => {
+        pendingSavesRef.current += 1;
+        setPendingCount(pendingSavesRef.current);
+        try {
+          const updated = await setBalanceItemSection({
+            itemId,
+            type,
+            category,
+          });
+          setItems((prev) =>
+            prev.map((it) =>
+              it.id === updated.id
+                ? {
+                    ...it,
+                    type: updated.type,
+                    category: updated.category,
+                    sortOrder: updated.sortOrder,
+                  }
+                : it,
+            ),
+          );
+          setLastSavedAt(new Date());
+          setSaveError(null);
+        } catch (e) {
+          setItems(previous);
+          setSaveError(e instanceof Error ? e.message : "Move failed");
+        } finally {
+          pendingSavesRef.current = Math.max(0, pendingSavesRef.current - 1);
+          setPendingCount(pendingSavesRef.current);
+        }
+      });
+    },
+    [items],
+  );
+
   // ─── Derived totals ───────────────────────────────────────────────────────
 
   const groups = useMemo(() => {
@@ -1025,6 +1128,24 @@ export function BalanceSheet({
             ↓ Move down
           </ToolbarTool>
         </ToolbarGroup>
+        {focusedItem && (
+          <ToolbarGroup>
+            <SectionSelect
+              aria-label="Move to section"
+              value={`${focusedItem.type}:${focusedItem.category}`}
+              onChange={(e) => {
+                const next = SECTIONS.find((s) => s.value === e.target.value);
+                if (next) editSection(focusedItem.id, next.type, next.category);
+              }}
+            >
+              {SECTIONS.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
+                </option>
+              ))}
+            </SectionSelect>
+          </ToolbarGroup>
+        )}
         <ToolbarGroup>
           <ToolbarTool onClick={onDelete} disabled={!focusedCell}>
             × Delete

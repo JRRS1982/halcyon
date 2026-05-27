@@ -5,10 +5,12 @@ import {
   type CreateBalanceItemInput,
   type DeleteBalanceItemInput,
   type MoveBalanceItemInput,
+  type SetBalanceItemSectionInput,
   type UpdateBalanceItemInput,
   createBalanceItemSchema,
   deleteBalanceItemSchema,
   moveBalanceItemSchema,
+  setBalanceItemSectionSchema,
   updateBalanceItemSchema,
 } from "@/lib/balance/schemas";
 import { prisma } from "@/lib/prisma";
@@ -131,6 +133,47 @@ export async function moveBalanceItem(input: MoveBalanceItemInput) {
       }),
     ),
   );
+}
+
+// Move an item directly into a chosen (type, category) section, appending it
+// to the end of that bucket. Unlike moveBalanceItem this jumps to any section
+// in one step; the new sortOrder is computed the same way createBalanceItem
+// appends a fresh row.
+export async function setBalanceItemSection(input: SetBalanceItemSectionInput) {
+  const userId = await requireUserId();
+  const parsed = setBalanceItemSectionSchema.parse(input);
+
+  const item = await prisma.balanceItem.findFirst({
+    where: { id: parsed.itemId, deletedAt: null },
+    include: { period: { select: { userId: true } } },
+  });
+  if (!item || item.period.userId !== userId) {
+    throw new Error("Item not found");
+  }
+
+  if (item.type === parsed.type && item.category === parsed.category) {
+    return item;
+  }
+
+  const last = await prisma.balanceItem.findFirst({
+    where: {
+      periodId: item.periodId,
+      type: parsed.type,
+      category: parsed.category,
+      deletedAt: null,
+    },
+    orderBy: { sortOrder: "desc" },
+    select: { sortOrder: true },
+  });
+
+  return prisma.balanceItem.update({
+    where: { id: parsed.itemId },
+    data: {
+      type: parsed.type,
+      category: parsed.category,
+      sortOrder: (last?.sortOrder ?? 0) + 1,
+    },
+  });
 }
 
 // Soft-delete a single balance item. No descendants — balance rows are flat.
