@@ -82,7 +82,7 @@ export function DashboardView({
           )}
         </Panel>
         <Panel>
-          <PanelTitle>Average actual expenditure</PanelTitle>
+          <PanelTitle>Expenditure vs 6-month average</PanelTitle>
           {expenditureData.length > 0 ? (
             <ExpenditureChart
               data={expenditureData}

@@ -6,10 +6,9 @@ import {
   symbolFor,
 } from "@/lib/settings/currency";
 import {
-  Bar,
-  BarChart,
   CartesianGrid,
-  Cell,
+  Line,
+  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -17,9 +16,41 @@ import {
 } from "recharts";
 import { useTheme } from "styled-components";
 
-export type ExpenditurePoint = { category: string; average: number };
+export type ExpenditurePoint = {
+  month: string;
+  fixedActual: number;
+  fixedAvg: number;
+  variableActual: number;
+  variableAvg: number;
+  discretionaryActual: number;
+  discretionaryAvg: number;
+};
 
-const BAR_COLORS = ["#1E5BC6", "#1F8A4C", "#D97706"];
+// Per category: a solid line for the month's actual and a dashed line for the
+// trailing 6-month average, in the same colour so the pair reads together.
+const SERIES: {
+  key: keyof ExpenditurePoint;
+  name: string;
+  color: string;
+  dash: boolean;
+}[] = [
+  { key: "fixedActual", name: "Fixed", color: "#1F8A4C", dash: false },
+  { key: "fixedAvg", name: "Fixed avg", color: "#1F8A4C", dash: true },
+  { key: "variableActual", name: "Variable", color: "#1E5BC6", dash: false },
+  { key: "variableAvg", name: "Variable avg", color: "#1E5BC6", dash: true },
+  {
+    key: "discretionaryActual",
+    name: "Discretionary",
+    color: "#D97706",
+    dash: false,
+  },
+  {
+    key: "discretionaryAvg",
+    name: "Discretionary avg",
+    color: "#D97706",
+    dash: true,
+  },
+];
 
 export function ExpenditureChart({
   data,
@@ -40,10 +71,10 @@ export function ExpenditureChart({
 
   return (
     <ResponsiveContainer width="100%" height={320}>
-      <BarChart data={data} margin={{ top: 8, right: 16, bottom: 0, left: 8 }}>
+      <LineChart data={data} margin={{ top: 8, right: 16, bottom: 0, left: 8 }}>
         <CartesianGrid stroke={theme.colors.hairline} vertical={false} />
         <XAxis
-          dataKey="category"
+          dataKey="month"
           tick={{ fontSize: 11, fill: theme.colors.body }}
           tickLine={false}
           axisLine={{ stroke: theme.colors.hairline }}
@@ -56,10 +87,9 @@ export function ExpenditureChart({
           tickFormatter={tick}
         />
         <Tooltip
-          cursor={{ fill: theme.colors.canvasSoft }}
-          formatter={(value) => [
+          formatter={(value, name) => [
             formatAmount(currency, Number(value), numberFormat),
-            "Avg actual",
+            name,
           ]}
           contentStyle={{
             border: `1px solid ${theme.colors.hairline}`,
@@ -67,12 +97,20 @@ export function ExpenditureChart({
             fontSize: 12,
           }}
         />
-        <Bar dataKey="average" radius={[2, 2, 0, 0]} isAnimationActive={false}>
-          {data.map((d, i) => (
-            <Cell key={d.category} fill={BAR_COLORS[i % BAR_COLORS.length]} />
-          ))}
-        </Bar>
-      </BarChart>
+        {SERIES.map((s) => (
+          <Line
+            key={s.key}
+            type="monotone"
+            dataKey={s.key}
+            name={s.name}
+            stroke={s.color}
+            strokeWidth={2}
+            strokeDasharray={s.dash ? "4 4" : undefined}
+            dot={false}
+            isAnimationActive={false}
+          />
+        ))}
+      </LineChart>
     </ResponsiveContainer>
   );
 }

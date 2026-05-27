@@ -74,12 +74,16 @@ export default async function DashboardPage() {
     balanceData.push({ month: `${MONTH_LABELS_SHORT[m]} ${yy}`, ...sums });
   }
 
-  // ─── Expenditure: average actual per expense category over tracked months ──
-  const catTotals = { FIXED: 0, VARIABLE: 0, DISCRETIONARY: 0 };
-  let expenseMonths = 0;
+  // ─── Expenditure over time: per-category actual + trailing-6-month average ─
+  // First, each month (that has expense data) and its per-category actuals.
+  const monthly: {
+    month: string;
+    FIXED: number;
+    VARIABLE: number;
+    DISCRETIONARY: number;
+  }[] = [];
   for (const p of periods) {
     if (!p.items.some((i) => i.type === "EXPENSE")) continue;
-    expenseMonths++;
     const rollups = computeRollups(
       p.items.map((i) => ({
         id: i.id,
@@ -89,24 +93,40 @@ export default async function DashboardPage() {
         actual: Number(i.actual),
       })),
     );
+    const cat = { FIXED: 0, VARIABLE: 0, DISCRETIONARY: 0 };
     for (const it of p.items) {
       if (it.type !== "EXPENSE" || it.parentItemId !== null) continue;
       const r = rollups.get(it.id);
       if (!r) continue;
-      catTotals[it.category ?? "FIXED"] += r.actual;
+      cat[it.category ?? "FIXED"] += r.actual;
     }
+    const m = p.startDate.getUTCMonth();
+    const yy = String(p.startDate.getUTCFullYear()).slice(2);
+    monthly.push({ month: `${MONTH_LABELS_SHORT[m]} ${yy}`, ...cat });
   }
-  const expenditureData: ExpenditurePoint[] =
-    expenseMonths === 0
-      ? []
-      : [
-          { category: "Fixed", average: catTotals.FIXED / expenseMonths },
-          { category: "Variable", average: catTotals.VARIABLE / expenseMonths },
-          {
-            category: "Discretionary",
-            average: catTotals.DISCRETIONARY / expenseMonths,
-          },
-        ];
+
+  // Trailing average over the last 6 recorded months (inclusive), so it shifts
+  // with recent spending instead of being one flat number.
+  const TRAILING = 6;
+  const trailingAvg = (
+    i: number,
+    key: "FIXED" | "VARIABLE" | "DISCRETIONARY",
+  ) => {
+    const start = Math.max(0, i - (TRAILING - 1));
+    const window = monthly.slice(start, i + 1);
+    const sum = window.reduce((acc, m) => acc + m[key], 0);
+    return sum / window.length;
+  };
+
+  const expenditureData: ExpenditurePoint[] = monthly.map((m, i) => ({
+    month: m.month,
+    fixedActual: m.FIXED,
+    fixedAvg: trailingAvg(i, "FIXED"),
+    variableActual: m.VARIABLE,
+    variableAvg: trailingAvg(i, "VARIABLE"),
+    discretionaryActual: m.DISCRETIONARY,
+    discretionaryAvg: trailingAvg(i, "DISCRETIONARY"),
+  }));
 
   return (
     <DashboardView
