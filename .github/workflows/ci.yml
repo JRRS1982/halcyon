@@ -43,6 +43,28 @@ jobs:
   e2e-tests:
     runs-on: ubuntu-latest
 
+    # Authed pages (e.g. the dashboard) server-render Prisma queries, so e2e
+    # needs a real Postgres. Credentials match playwright.config.ts's
+    # DATABASE_URL (postgresql://test:test@localhost:5432/halcyon_test).
+    env:
+      DATABASE_URL: postgresql://test:test@localhost:5432/halcyon_test
+      DIRECT_URL: postgresql://test:test@localhost:5432/halcyon_test
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: halcyon_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -64,9 +86,16 @@ jobs:
       - name: Install Playwright browsers
         run: pnpm exec playwright install --with-deps chromium
 
+      - name: Set up test database
+        run: |
+          pnpm prisma migrate deploy
+          pnpm db:seed
+
       # E2E tests run against a mock Supabase server (e2e/_mock/supabase.mjs)
       # and a Next.js dev server on port 3100, both started by Playwright's
-      # webServer config. No real database or Supabase project is touched.
+      # webServer config. The Postgres service above backs the app's Prisma
+      # queries (e.g. the dashboard's user-settings lookup); no real Supabase
+      # project is touched.
       - name: Run E2E tests
         run: pnpm test:e2e
 
