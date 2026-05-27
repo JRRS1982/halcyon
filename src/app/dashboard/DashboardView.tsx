@@ -1,11 +1,24 @@
 "use client";
 
 import { PageHeader } from "@/components/ui/PageHeader";
+import type {
+  BudgetActualPoint,
+  CashFlowPoint,
+  CompositionSlice,
+  NetWorthPoint,
+} from "@/lib/dashboard/series";
 import type { NumberFormat } from "@/lib/settings/currency";
 import styled from "styled-components";
 import { type BalancePoint, BalanceTrendChart } from "./BalanceTrendChart";
+import {
+  BudgetVsActualChart,
+  type CategoryBudgetActual,
+} from "./BudgetVsActualChart";
+import { CashFlowChart } from "./CashFlowChart";
 import { CategoryExpenditureChart } from "./CategoryExpenditureChart";
+import { CompositionChart } from "./CompositionChart";
 import { ExpenditureChart, type ExpenditurePoint } from "./ExpenditureChart";
+import { NetWorthChart } from "./NetWorthChart";
 
 // The three dedicated per-category panels, with the same colour each uses in
 // the combined chart.
@@ -87,11 +100,21 @@ const EmptyState = styled.div`
 export function DashboardView({
   balanceData,
   expenditureData,
+  netWorthData,
+  cashFlowData,
+  budgetCategories,
+  budgetTrend,
+  compositionData,
   currency,
   numberFormat,
 }: {
   balanceData: BalancePoint[];
   expenditureData: ExpenditurePoint[];
+  netWorthData: NetWorthPoint[];
+  cashFlowData: CashFlowPoint[];
+  budgetCategories: CategoryBudgetActual[];
+  budgetTrend: BudgetActualPoint[];
+  compositionData: CompositionSlice[];
   currency: string;
   numberFormat: NumberFormat;
 }) {
@@ -115,6 +138,36 @@ export function DashboardView({
             <EmptyState>
               Add assets and liabilities on the Balance page to see your balance
               trend here.
+            </EmptyState>
+          )}
+        </Panel>
+        <Panel>
+          <PanelTitle>Net worth over time</PanelTitle>
+          {netWorthData.length > 0 ? (
+            <NetWorthChart
+              data={netWorthData}
+              currency={currency}
+              numberFormat={numberFormat}
+            />
+          ) : (
+            <EmptyState>
+              Add assets and liabilities on the Balance page to track your net
+              worth here.
+            </EmptyState>
+          )}
+        </Panel>
+        <Panel>
+          <PanelTitle>Income vs expenses</PanelTitle>
+          {cashFlowData.length > 0 ? (
+            <CashFlowChart
+              data={cashFlowData}
+              currency={currency}
+              numberFormat={numberFormat}
+            />
+          ) : (
+            <EmptyState>
+              Record income and expenses on the Budget page to see your monthly
+              cash flow and savings rate here.
             </EmptyState>
           )}
         </Panel>
@@ -152,6 +205,37 @@ export function DashboardView({
             ))}
           </CategoryGrid>
         )}
+        <Panel>
+          <PanelTitle>Budget vs actual</PanelTitle>
+          {budgetCategories.length > 0 ? (
+            <BudgetVsActualChart
+              categories={budgetCategories}
+              trend={budgetTrend}
+              currency={currency}
+              numberFormat={numberFormat}
+            />
+          ) : (
+            <EmptyState>
+              Set budgets and record actuals on the Budget page to compare them
+              here.
+            </EmptyState>
+          )}
+        </Panel>
+        <Panel>
+          <PanelTitle>Where the money went</PanelTitle>
+          {compositionData.length > 0 ? (
+            <CompositionChart
+              data={compositionData}
+              currency={currency}
+              numberFormat={numberFormat}
+            />
+          ) : (
+            <EmptyState>
+              Record expenses on the Budget page to see your latest spending
+              breakdown here.
+            </EmptyState>
+          )}
+        </Panel>
       </Panels>
     </Shell>
   );
