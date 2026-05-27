@@ -20,6 +20,9 @@
 # Visual companion mockups (brainstorming skill)
 .superpowers/
 
+# Claude Code worktrees (transient; the rest of .claude/ stays committable)
+.claude/worktrees/
+
 # Production
 /build
 

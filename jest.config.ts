@@ -8,7 +8,13 @@ const createJestConfig = nextJest({
 const config: Config = {
   testEnvironment: "jsdom",
   setupFilesAfterEnv: ["<rootDir>/jest.setup.ts"],
-  testPathIgnorePatterns: ["<rootDir>/node_modules/", "<rootDir>/e2e/"],
+  testPathIgnorePatterns: [
+    "<rootDir>/node_modules/",
+    "<rootDir>/e2e/",
+    // Nested git worktrees (e.g. .claude/worktrees/*) carry their own copies of
+    // src/ and e2e/; without this, a test run here crawls into them.
+    "<rootDir>/.claude/worktrees/",
+  ],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
   },
@@ -16,6 +22,7 @@ const config: Config = {
     "<rootDir>/node_modules/",
     "<rootDir>/e2e/",
     "<rootDir>/.next/",
+    "<rootDir>/.claude/worktrees/",
   ],
 };
 
