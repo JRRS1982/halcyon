@@ -23,7 +23,12 @@ import {
   previousMonth,
 } from "@/lib/budget/period";
 import { useDebouncedCallback } from "@/lib/hooks/useDebouncedCallback";
-import { type NumberFormat, formatAmount } from "@/lib/settings/currency";
+import {
+  NUMBER_FORMAT_SPEC,
+  type NumberFormat,
+  formatAmount,
+  formatNumber,
+} from "@/lib/settings/currency";
 import { useRouter } from "next/navigation";
 import {
   useCallback,
@@ -254,33 +259,39 @@ const CellInput = styled.input<{ $align?: "left" | "right" }>`
   }
 `;
 
-// Same pattern as /budget's AmountInput — local draft string while focused
-// so re-formatting doesn't fight the user mid-keystroke.
+// Same pattern as /budget's AmountInput — raw editable string while focused,
+// formatted per the user's number format when not.
 function AmountInput({
   value,
+  numberFormat,
   onCommit,
   onFocus,
 }: {
   value: number;
+  numberFormat: NumberFormat;
   onCommit: (n: number) => void;
   onFocus: () => void;
 }) {
-  const formatted = value === 0 ? "" : value.toFixed(2);
-  const [draft, setDraft] = useState(formatted);
   const [focused, setFocused] = useState(false);
+  const [draft, setDraft] = useState("");
 
-  useEffect(() => {
-    if (!focused) setDraft(formatted);
-  }, [formatted, focused]);
+  const display = focused
+    ? draft
+    : value === 0
+      ? ""
+      : formatNumber(value, numberFormat);
 
   return (
     <CellInput
       $align="right"
-      value={draft}
-      placeholder="0.00"
+      value={display}
+      placeholder={
+        NUMBER_FORMAT_SPEC[numberFormat].decimals === 0 ? "0" : "0.00"
+      }
       inputMode="decimal"
       onFocus={() => {
         setFocused(true);
+        setDraft(value === 0 ? "" : String(value));
         onFocus();
       }}
       onChange={(e) => {
@@ -297,7 +308,6 @@ function AmountInput({
         setFocused(false);
         const n = Number.parseFloat(draft);
         const final = Number.isFinite(n) && n >= 0 ? n : 0;
-        setDraft(final === 0 ? "" : final.toFixed(2));
         if (final !== value) onCommit(final);
       }}
     />
@@ -860,6 +870,7 @@ export function BalanceSheet({
       >
         <AmountInput
           value={item.value}
+          numberFormat={numberFormat}
           onCommit={(v) => editField(item.id, { value: v })}
           onFocus={() => setFocusedCell({ itemId: item.id, field: "value" })}
         />

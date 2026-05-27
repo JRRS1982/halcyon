@@ -84,6 +84,17 @@ function formatDigits(n: number, fmt: NumberFormat): string {
   return fracPart ? `${grouped}${spec.decimal}${fracPart}` : grouped;
 }
 
+// Format a number per the preset, with no currency symbol — e.g. "1,234".
+// Used by the editable amount cells to show the formatted value when not
+// being edited.
+export function formatNumber(
+  n: number,
+  fmt: NumberFormat = DEFAULT_NUMBER_FORMAT,
+): string {
+  const sign = n < 0 ? "−" : "";
+  return `${sign}${formatDigits(Math.abs(n), fmt)}`;
+}
+
 // Format an amount in the user's currency + number format — e.g. "£1,234".
 // A negative amount gets a leading minus before the symbol ("−£1,234").
 export function formatAmount(
