@@ -3,7 +3,9 @@ import { z } from "zod";
 export const balanceItemTypeSchema = z.enum(["ASSET", "LIABILITY"]);
 export const balanceItemCategorySchema = z.enum([
   "CURRENT",
+  "MEDIUM_TERM",
   "LONG_TERM",
+  "PROPERTY",
   "OTHER",
 ]);
 

@@ -4,9 +4,12 @@ describe("balanceSeries", () => {
   const sums = (overrides = {}) => ({
     month: "Jan 25",
     assetCurrent: 100,
+    assetMediumTerm: 80,
     assetLongTerm: 200,
+    assetProperty: 300,
     assetOther: 50,
     liabilityCurrent: 40,
+    liabilityMediumTerm: 20,
     liabilityLongTerm: 60,
     liabilityOther: 10,
     ...overrides,
@@ -15,26 +18,32 @@ describe("balanceSeries", () => {
   test("negates liability buckets so debt sits below zero, assets stay positive", () => {
     const [point] = balanceSeries([sums()]);
     expect(point.assetCurrent).toBe(100);
+    expect(point.assetMediumTerm).toBe(80);
     expect(point.assetLongTerm).toBe(200);
+    expect(point.assetProperty).toBe(300);
     expect(point.assetOther).toBe(50);
     expect(point.liabilityCurrent).toBe(-40);
+    expect(point.liabilityMediumTerm).toBe(-20);
     expect(point.liabilityLongTerm).toBe(-60);
     expect(point.liabilityOther).toBe(-10);
   });
 
   test("net is total assets minus total liabilities", () => {
     const [point] = balanceSeries([sums()]);
-    // assets 350 − liabilities 110
-    expect(point.net).toBe(240);
+    // assets 100+80+200+300+50 = 730, liabilities 40+20+60+10 = 130
+    expect(point.net).toBe(600);
   });
 
   test("net goes negative when liabilities exceed assets", () => {
     const [point] = balanceSeries([
       sums({
         assetCurrent: 10,
+        assetMediumTerm: 0,
         assetLongTerm: 0,
+        assetProperty: 0,
         assetOther: 0,
         liabilityCurrent: 30,
+        liabilityMediumTerm: 0,
         liabilityLongTerm: 0,
         liabilityOther: 0,
       }),

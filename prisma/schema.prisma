@@ -85,7 +85,12 @@ enum BalanceItemType {
 
 enum BalanceItemCategory {
   CURRENT
+  MEDIUM_TERM
   LONG_TERM
+  // Asset-only in the UI — a "property liability" doesn't make sense; mortgage
+  // debt stays under Long-term liabilities. Kept on the shared enum to avoid
+  // splitting the type per side.
+  PROPERTY
   OTHER
 }
 

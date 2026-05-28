@@ -21,13 +21,15 @@ import { useTheme } from "styled-components";
 
 export type { BalancePoint };
 
-// Colour says which side (green = assets, red = liabilities, plotted below zero
-// as debt); the dash pattern says which category — Current = long dash,
-// Long-term = dotted, Other = dash-dot. The solid black line on top is net.
+// Colour says which side (green = assets, red = liabilities, plotted below
+// zero as debt); the dash pattern says which category. PROPERTY is asset-only.
+// The solid black line on top is the net balance.
 const ASSET_COLOR = "#1F8A4C";
 const LIABILITY_COLOR = "#B33B3B";
 const CURRENT_DASH = "8 4";
+const MEDIUM_TERM_DASH = "4 2";
 const LONG_TERM_DASH = "2 3";
+const PROPERTY_DASH = "12 4";
 const OTHER_DASH = "10 4 2 4";
 
 const SERIES: {
@@ -43,10 +45,22 @@ const SERIES: {
     dash: CURRENT_DASH,
   },
   {
+    key: "assetMediumTerm",
+    name: "Medium-term assets",
+    color: ASSET_COLOR,
+    dash: MEDIUM_TERM_DASH,
+  },
+  {
     key: "assetLongTerm",
     name: "Long-term assets",
     color: ASSET_COLOR,
     dash: LONG_TERM_DASH,
+  },
+  {
+    key: "assetProperty",
+    name: "Property",
+    color: ASSET_COLOR,
+    dash: PROPERTY_DASH,
   },
   {
     key: "assetOther",
@@ -59,6 +73,12 @@ const SERIES: {
     name: "Current liabilities",
     color: LIABILITY_COLOR,
     dash: CURRENT_DASH,
+  },
+  {
+    key: "liabilityMediumTerm",
+    name: "Medium-term liabilities",
+    color: LIABILITY_COLOR,
+    dash: MEDIUM_TERM_DASH,
   },
   {
     key: "liabilityLongTerm",

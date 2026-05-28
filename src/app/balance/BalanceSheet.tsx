@@ -82,7 +82,9 @@ type FocusedCell = {
 // even when empty — so the user can see where to add a row.
 const CATEGORIES: { key: BalanceCategory; label: string }[] = [
   { key: "CURRENT", label: "Current" },
+  { key: "MEDIUM_TERM", label: "Medium-term" },
   { key: "LONG_TERM", label: "Long-term" },
+  { key: "PROPERTY", label: "Property" },
   { key: "OTHER", label: "Other" },
 ];
 
@@ -95,12 +97,15 @@ const SECTIONS: {
   category: BalanceCategory;
   label: string;
 }[] = (["ASSET", "LIABILITY"] as const).flatMap((type) =>
-  CATEGORIES.map((c) => ({
-    value: `${type}:${c.key}`,
-    type,
-    category: c.key,
-    label: `${type === "ASSET" ? "Assets" : "Liabilities"} · ${c.label}`,
-  })),
+  CATEGORIES
+    // PROPERTY is asset-only; mortgage debt belongs in Long-term liabilities.
+    .filter((c) => !(type === "LIABILITY" && c.key === "PROPERTY"))
+    .map((c) => ({
+      value: `${type}:${c.key}`,
+      type,
+      category: c.key,
+      label: `${type === "ASSET" ? "Assets" : "Liabilities"} · ${c.label}`,
+    })),
 );
 
 // Guidance shown in the per-subhead info popover. Plain-English, UK-flavoured
@@ -113,15 +118,23 @@ const CATEGORY_HELP: Record<
   ASSET: {
     CURRENT: {
       title: "Current assets",
-      body: "Cash, or anything you could turn into cash within a year — current accounts, savings, cash ISAs, and money owed to you that's due soon.",
+      body: "Cash you could spend today — current accounts, instant-access savings, and money owed to you that's due within weeks.",
+    },
+    MEDIUM_TERM: {
+      title: "Medium-term assets",
+      body: "Funds you can reach in days, not minutes — cash and stocks-&-shares ISAs, fixed-term savings, brokerage cash.",
     },
     LONG_TERM: {
       title: "Long-term assets",
-      body: "Things you expect to hold for more than a year — property, vehicles, pensions, and long-term investments such as shares or funds.",
+      body: "Financial investments you expect to hold for years — SIPPs and other pensions, stocks, bonds, and long-term funds.",
+    },
+    PROPERTY: {
+      title: "Property",
+      body: "Real estate and land — your home, a buy-to-let, or any other property you own.",
     },
     OTHER: {
       title: "Other assets",
-      body: "Anything that doesn't fit the two buckets above — collectibles, a stake in a business, or longer-dated loans you've made to others.",
+      body: "Anything that doesn't fit above — collectibles, a stake in a business, or longer-dated loans you've made to others.",
     },
   },
   LIABILITY: {
@@ -129,9 +142,19 @@ const CATEGORY_HELP: Record<
       title: "Current liabilities",
       body: "Debts due within a year — credit-card balances, overdrafts, outstanding bills, and short-term loans.",
     },
+    MEDIUM_TERM: {
+      title: "Medium-term liabilities",
+      body: "Debts you'll clear over a few years — personal loans, car finance, BNPL plans.",
+    },
     LONG_TERM: {
       title: "Long-term liabilities",
-      body: "Debts that run beyond a year — your mortgage, car finance, and student loans.",
+      body: "Debts that run for many years — your mortgage and student loans.",
+    },
+    // Asset-only category; this entry satisfies the type but is never rendered
+    // (the UI suppresses Liabilities · Property).
+    PROPERTY: {
+      title: "Property",
+      body: "Asset-only category.",
     },
     OTHER: {
       title: "Other liabilities",
@@ -1154,12 +1177,16 @@ export function BalanceSheet({
     > = {
       ASSET: {
         CURRENT: { rows: [], subtotal: 0 },
+        MEDIUM_TERM: { rows: [], subtotal: 0 },
         LONG_TERM: { rows: [], subtotal: 0 },
+        PROPERTY: { rows: [], subtotal: 0 },
         OTHER: { rows: [], subtotal: 0 },
       },
       LIABILITY: {
         CURRENT: { rows: [], subtotal: 0 },
+        MEDIUM_TERM: { rows: [], subtotal: 0 },
         LONG_TERM: { rows: [], subtotal: 0 },
+        PROPERTY: { rows: [], subtotal: 0 },
         OTHER: { rows: [], subtotal: 0 },
       },
     };
@@ -1249,7 +1276,9 @@ export function BalanceSheet({
         <SheetCell align="right">{fmtAmount(total)}</SheetCell>
         <SheetCell />
       </SectionRow>
-      {CATEGORIES.map((c) => {
+      {CATEGORIES.filter(
+        (c) => !(type === "LIABILITY" && c.key === "PROPERTY"),
+      ).map((c) => {
         const bucket = groups[type][c.key];
         const help = CATEGORY_HELP[type][c.key];
         return (

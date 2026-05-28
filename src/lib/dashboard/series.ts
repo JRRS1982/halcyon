@@ -4,12 +4,16 @@
 
 // Per-month balance buckets as stored: liabilities are positive magnitudes
 // (the balance sheet keeps them positive and subtracts for net worth).
+// PROPERTY is asset-only — see comments in src/lib/balance/reorder.ts.
 export type BalanceSums = {
   month: string;
   assetCurrent: number;
+  assetMediumTerm: number;
   assetLongTerm: number;
+  assetProperty: number;
   assetOther: number;
   liabilityCurrent: number;
+  liabilityMediumTerm: number;
   liabilityLongTerm: number;
   liabilityOther: number;
 };
@@ -19,9 +23,12 @@ export type BalanceSums = {
 export type BalancePoint = {
   month: string;
   assetCurrent: number;
+  assetMediumTerm: number;
   assetLongTerm: number;
+  assetProperty: number;
   assetOther: number;
   liabilityCurrent: number;
+  liabilityMediumTerm: number;
   liabilityLongTerm: number;
   liabilityOther: number;
   net: number;
@@ -31,15 +38,26 @@ const neg = (v: number) => (v === 0 ? 0 : -v);
 
 export function balanceSeries(sums: BalanceSums[]): BalancePoint[] {
   return sums.map((s) => {
-    const assets = s.assetCurrent + s.assetLongTerm + s.assetOther;
+    const assets =
+      s.assetCurrent +
+      s.assetMediumTerm +
+      s.assetLongTerm +
+      s.assetProperty +
+      s.assetOther;
     const liabilities =
-      s.liabilityCurrent + s.liabilityLongTerm + s.liabilityOther;
+      s.liabilityCurrent +
+      s.liabilityMediumTerm +
+      s.liabilityLongTerm +
+      s.liabilityOther;
     return {
       month: s.month,
       assetCurrent: s.assetCurrent,
+      assetMediumTerm: s.assetMediumTerm,
       assetLongTerm: s.assetLongTerm,
+      assetProperty: s.assetProperty,
       assetOther: s.assetOther,
       liabilityCurrent: neg(s.liabilityCurrent),
+      liabilityMediumTerm: neg(s.liabilityMediumTerm),
       liabilityLongTerm: neg(s.liabilityLongTerm),
       liabilityOther: neg(s.liabilityOther),
       net: assets - liabilities,

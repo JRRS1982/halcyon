@@ -1,16 +1,27 @@
 export type BalanceType = "ASSET" | "LIABILITY";
-export type BalanceCategory = "CURRENT" | "LONG_TERM" | "OTHER";
+export type BalanceCategory =
+  | "CURRENT"
+  | "MEDIUM_TERM"
+  | "LONG_TERM"
+  | "PROPERTY"
+  | "OTHER";
 
-// The six buckets in top-to-bottom display order. Move up/down walks this
-// list one boundary at a time, so a row can cross from the top of its bucket
-// into the (possibly empty) bucket above it, and vice versa.
+// Buckets in top-to-bottom display order. Move up/down walks this list one
+// boundary at a time, so a row can cross from the top of its bucket into the
+// (possibly empty) bucket above it, and vice versa. LIABILITY:PROPERTY is
+// included so the algorithm stays robust if such a row ever exists, but the
+// UI never surfaces a Liabilities · Property section.
 export const BUCKET_ORDER: { type: BalanceType; category: BalanceCategory }[] =
   [
     { type: "ASSET", category: "CURRENT" },
+    { type: "ASSET", category: "MEDIUM_TERM" },
     { type: "ASSET", category: "LONG_TERM" },
+    { type: "ASSET", category: "PROPERTY" },
     { type: "ASSET", category: "OTHER" },
     { type: "LIABILITY", category: "CURRENT" },
+    { type: "LIABILITY", category: "MEDIUM_TERM" },
     { type: "LIABILITY", category: "LONG_TERM" },
+    { type: "LIABILITY", category: "PROPERTY" },
     { type: "LIABILITY", category: "OTHER" },
   ];
 

@@ -64,9 +64,12 @@ export default async function DashboardPage() {
     if (p.balanceItems.length === 0) continue;
     const sums = {
       assetCurrent: 0,
+      assetMediumTerm: 0,
       assetLongTerm: 0,
+      assetProperty: 0,
       assetOther: 0,
       liabilityCurrent: 0,
+      liabilityMediumTerm: 0,
       liabilityLongTerm: 0,
       liabilityOther: 0,
     };
@@ -74,11 +77,16 @@ export default async function DashboardPage() {
       const v = Number(b.value);
       if (b.type === "ASSET") {
         if (b.category === "CURRENT") sums.assetCurrent += v;
+        else if (b.category === "MEDIUM_TERM") sums.assetMediumTerm += v;
         else if (b.category === "LONG_TERM") sums.assetLongTerm += v;
+        else if (b.category === "PROPERTY") sums.assetProperty += v;
         else sums.assetOther += v;
       } else {
         if (b.category === "CURRENT") sums.liabilityCurrent += v;
+        else if (b.category === "MEDIUM_TERM") sums.liabilityMediumTerm += v;
         else if (b.category === "LONG_TERM") sums.liabilityLongTerm += v;
+        // PROPERTY is asset-only in the UI; if a stray LIABILITY:PROPERTY
+        // ever exists in data, fold it into Other rather than dropping it.
         else sums.liabilityOther += v;
       }
     }
