@@ -117,10 +117,13 @@ export const GrandRow = styled.div`
     padding-top: ${({ theme }) => theme.spacing.md};
     padding-bottom: ${({ theme }) => theme.spacing.md};
   }
+  /* Match the label's size to the value's so the grand-total row reads as one
+     line, not a small label next to a big number. */
   > div:nth-child(1) {
     font-family: ${({ theme }) => theme.typography.monoCaps.family};
-    font-size: ${({ theme }) => theme.typography.monoCaps.size};
+    font-size: ${({ theme }) => theme.typography.amountXl.size};
     font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
+    line-height: ${({ theme }) => theme.typography.amountXl.lineHeight};
     text-transform: uppercase;
     letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
   }
