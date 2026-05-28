@@ -6,12 +6,20 @@ export const expenseCategorySchema = z.enum([
   "VARIABLE",
   "DISCRETIONARY",
 ]);
+export const incomeCategorySchema = z.enum([
+  "SALARY",
+  "SIDE_INCOME",
+  "INVESTMENTS",
+  "PENSIONS",
+  "OTHER",
+]);
 
 export const createItemSchema = z.object({
   periodId: z.string().uuid(),
   type: itemTypeSchema,
   parentItemId: z.string().uuid().nullable(),
   category: expenseCategorySchema.nullable().optional(),
+  incomeCategory: incomeCategorySchema.nullable().optional(),
   label: z.string().trim().max(120),
 });
 
@@ -22,13 +30,15 @@ export const updateItemSchema = z
     budget: z.number().nonnegative().optional(),
     actual: z.number().nonnegative().optional(),
     category: expenseCategorySchema.optional(),
+    incomeCategory: incomeCategorySchema.optional(),
   })
   .refine(
     (patch) =>
       patch.label !== undefined ||
       patch.budget !== undefined ||
       patch.actual !== undefined ||
-      patch.category !== undefined,
+      patch.category !== undefined ||
+      patch.incomeCategory !== undefined,
     { message: "At least one field must be updated" },
   );
 

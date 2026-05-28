@@ -15,6 +15,7 @@ const src = (
   type: "EXPENSE",
   parentItemId,
   category: parentItemId === null ? "FIXED" : null,
+  incomeCategory: null,
   label: id,
   budget: 100,
   sortOrder: 0,
@@ -60,10 +61,15 @@ describe("buildCopiedItems", () => {
     expect(byLabel.get("leaf")?.parentItemId).toBe(byLabel.get("mid")?.id);
   });
 
-  test("keeps type, category, label and sortOrder", () => {
+  test("keeps type, category, incomeCategory, label and sortOrder", () => {
     const copied = buildCopiedItems(
       [
-        src("income", null, { type: "INCOME", category: null, sortOrder: 3 }),
+        src("income", null, {
+          type: "INCOME",
+          category: null,
+          incomeCategory: "SALARY",
+          sortOrder: 3,
+        }),
         src("rent", null, { category: "VARIABLE", sortOrder: 7 }),
       ],
       seqIds(),
@@ -71,12 +77,14 @@ describe("buildCopiedItems", () => {
     expect(copied[0]).toMatchObject({
       type: "INCOME",
       category: null,
+      incomeCategory: "SALARY",
       label: "income",
       sortOrder: 3,
     });
     expect(copied[1]).toMatchObject({
       type: "EXPENSE",
       category: "VARIABLE",
+      incomeCategory: null,
       label: "rent",
       sortOrder: 7,
     });

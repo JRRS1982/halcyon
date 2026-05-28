@@ -68,12 +68,19 @@ export type SerializedPeriod = {
 };
 
 export type ExpenseCategory = "FIXED" | "VARIABLE" | "DISCRETIONARY";
+export type IncomeCategory =
+  | "SALARY"
+  | "SIDE_INCOME"
+  | "INVESTMENTS"
+  | "PENSIONS"
+  | "OTHER";
 
 export type SerializedItem = {
   id: string;
   type: "INCOME" | "EXPENSE";
   parentItemId: string | null;
   category: ExpenseCategory | null;
+  incomeCategory: IncomeCategory | null;
   label: string;
   budget: number;
   actual: number;
@@ -513,7 +520,7 @@ const GroupCount = styled.span`
 function buildSectionOrder(
   items: SerializedItem[],
   type: "INCOME" | "EXPENSE",
-  category?: ExpenseCategory,
+  category?: ExpenseCategory | IncomeCategory,
 ): { item: SerializedItem; depth: 1 | 2 | 3 }[] {
   const childrenByParent = new Map<string | null, SerializedItem[]>();
   for (const item of items.filter((i) => i.type === type)) {
@@ -529,7 +536,12 @@ function buildSectionOrder(
   function walk(parentId: string | null, depth: 1 | 2 | 3) {
     let children = childrenByParent.get(parentId) ?? [];
     if (depth === 1 && category !== undefined) {
-      children = children.filter((c) => c.category === category);
+      // Different column per side: top-level expenses use `category`, top-level
+      // income items use `incomeCategory`.
+      children =
+        type === "EXPENSE"
+          ? children.filter((c) => c.category === category)
+          : children.filter((c) => c.incomeCategory === category);
     }
     for (const child of children) {
       result.push({ item: child, depth });
@@ -562,6 +574,39 @@ const EXPENSE_CATEGORIES: {
     key: "DISCRETIONARY",
     label: "Discretionary",
     help: "Wants you could cut back without real hardship — eating out, entertainment, hobbies, shopping.",
+  },
+];
+
+// The five income buckets, in display order, with labels + help text.
+const INCOME_CATEGORIES: {
+  key: IncomeCategory;
+  label: string;
+  help: string;
+}[] = [
+  {
+    key: "SALARY",
+    label: "Salary",
+    help: "Your primary employment income — net of tax and pension (what actually lands in your account).",
+  },
+  {
+    key: "SIDE_INCOME",
+    label: "Side income",
+    help: "Freelance, gigs, a second job, hobby earnings.",
+  },
+  {
+    key: "INVESTMENTS",
+    label: "Investments",
+    help: "Bank interest, dividends, fund distributions, rental income.",
+  },
+  {
+    key: "PENSIONS",
+    label: "Pensions",
+    help: "State pension, workplace pension drawdown, SIPP withdrawals, annuities.",
+  },
+  {
+    key: "OTHER",
+    label: "Other",
+    help: "Gifts, refunds, government support, one-off receipts.",
   },
 ];
 
@@ -963,6 +1008,29 @@ export function BudgetSheet({
     [],
   );
 
+  const editIncomeCategory = useCallback(
+    (itemId: string, incomeCategory: IncomeCategory) => {
+      setItems((prev) =>
+        prev.map((it) => (it.id === itemId ? { ...it, incomeCategory } : it)),
+      );
+      startTransition(async () => {
+        pendingSavesRef.current += 1;
+        setPendingCount(pendingSavesRef.current);
+        try {
+          await updateItem({ itemId, incomeCategory });
+          setLastSavedAt(new Date());
+          setSaveError(null);
+        } catch (e) {
+          setSaveError(e instanceof Error ? e.message : "Save failed");
+        } finally {
+          pendingSavesRef.current = Math.max(0, pendingSavesRef.current - 1);
+          setPendingCount(pendingSavesRef.current);
+        }
+      });
+    },
+    [],
+  );
+
   const onAddRow = useCallback(
     (type: "INCOME" | "EXPENSE") => {
       startTransition(async () => {
@@ -990,6 +1058,7 @@ export function BudgetSheet({
               type: created.type,
               parentItemId: created.parentItemId,
               category: created.category,
+              incomeCategory: created.incomeCategory,
               label: created.label,
               budget: Number(created.budget),
               actual: Number(created.actual),
@@ -1036,6 +1105,28 @@ export function BudgetSheet({
     () =>
       EXPENSE_CATEGORIES.map((cat) => {
         const rows = buildSectionOrder(items, "EXPENSE", cat.key);
+        let budget = 0;
+        let actual = 0;
+        for (const { item, depth } of rows) {
+          if (depth !== 1) continue;
+          const r = rollups.get(item.id);
+          if (!r) continue;
+          budget += r.budget;
+          actual += r.actual;
+        }
+        const variance = budget - actual;
+        const variancePct =
+          budget === 0 ? 0 : Math.round((actual / budget) * 100);
+        return { cat, rows, totals: { budget, actual, variance, variancePct } };
+      }),
+    [items, rollups],
+  );
+
+  // Income grouped into the five income buckets, same shape as expenseBuckets.
+  const incomeBuckets = useMemo(
+    () =>
+      INCOME_CATEGORIES.map((cat) => {
+        const rows = buildSectionOrder(items, "INCOME", cat.key);
         let budget = 0;
         let actual = 0;
         for (const { item, depth } of rows) {
@@ -1573,6 +1664,27 @@ export function BudgetSheet({
               </CategorySelect>
             </ToolbarGroup>
           )}
+        {focusedItem?.type === "INCOME" &&
+          focusedItem.parentItemId === null && (
+            <ToolbarGroup>
+              <CategorySelect
+                aria-label="Income category"
+                value={focusedItem.incomeCategory ?? "OTHER"}
+                onChange={(e) =>
+                  editIncomeCategory(
+                    focusedItem.id,
+                    e.target.value as IncomeCategory,
+                  )
+                }
+              >
+                {INCOME_CATEGORIES.map((c) => (
+                  <option key={c.key} value={c.key}>
+                    {c.label}
+                  </option>
+                ))}
+              </CategorySelect>
+            </ToolbarGroup>
+          )}
         <ToolbarGroup>
           <ToolbarTool onClick={onDelete} disabled={!focusedItem}>
             × Delete row
@@ -1593,7 +1705,44 @@ export function BudgetSheet({
             variancePct: formatPct(incomeTotals.variancePct),
           }}
         />
-        {incomeRows.map(({ item, depth }) => renderItemRow(item, depth))}
+        {incomeBuckets.map(({ cat, rows, totals }) => (
+          <div key={cat.key}>
+            <SheetSubheadRow
+              label={
+                <SubheadLabel>
+                  {cat.label}
+                  <InfoButton
+                    type="button"
+                    data-info-root
+                    aria-label={`What goes in ${cat.label}?`}
+                    onClick={(e) => {
+                      const r = e.currentTarget.getBoundingClientRect();
+                      setOpenInfo((prevInfo) =>
+                        prevInfo?.title === cat.label
+                          ? null
+                          : {
+                              title: cat.label,
+                              body: cat.help,
+                              top: r.bottom + 6,
+                              left: Math.min(r.left, window.innerWidth - 296),
+                            },
+                      );
+                    }}
+                  >
+                    i
+                  </InfoButton>
+                </SubheadLabel>
+              }
+              amounts={{
+                budget: fmtAmount(totals.budget),
+                actual: fmtAmount(totals.actual),
+                variance: fmtSigned(totals.variance),
+                variancePct: formatPct(totals.variancePct),
+              }}
+            />
+            {rows.map(({ item, depth }) => renderItemRow(item, depth))}
+          </div>
+        ))}
         <SheetTotalsRow
           label="Income subtotal"
           amounts={{

@@ -78,6 +78,16 @@ enum ExpenseCategory {
   DISCRETIONARY
 }
 
+// Income grouping buckets. Only set on top-level INCOME items; null for
+// expenses and for nested children.
+enum IncomeCategory {
+  SALARY
+  SIDE_INCOME
+  INVESTMENTS
+  PENSIONS
+  OTHER
+}
+
 enum BalanceItemType {
   ASSET
   LIABILITY
@@ -122,10 +132,11 @@ model FinancialPeriod {
 model FinancialItem {
   id           String           @id @default(uuid()) @db.Uuid
   periodId     String           @db.Uuid
-  type         ItemType
-  parentItemId String?          @db.Uuid
-  category     ExpenseCategory?
-  label        String
+  type           ItemType
+  parentItemId   String?          @db.Uuid
+  category       ExpenseCategory?
+  incomeCategory IncomeCategory?
+  label          String
   budget       Decimal          @default(0) @db.Decimal(12, 2)
   actual       Decimal          @default(0) @db.Decimal(12, 2)
   sortOrder    Int              @default(0)
@@ -171,10 +182,11 @@ model BalanceItem {
 model BudgetTemplateItem {
   id           String           @id @default(uuid()) @db.Uuid
   userId       String           @db.Uuid
-  type         ItemType
-  parentItemId String?          @db.Uuid
-  category     ExpenseCategory?
-  label        String
+  type           ItemType
+  parentItemId   String?          @db.Uuid
+  category       ExpenseCategory?
+  incomeCategory IncomeCategory?
+  label          String
   budget       Decimal          @default(0) @db.Decimal(12, 2)
   sortOrder    Int              @default(0)
   createdAt    DateTime         @default(now())

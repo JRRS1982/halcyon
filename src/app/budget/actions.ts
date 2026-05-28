@@ -134,11 +134,17 @@ export async function createItem(input: CreateItemInput) {
     select: { sortOrder: true },
   });
 
-  // Category only applies to top-level expense rows. Income rows and nested
-  // children carry null (children inherit their ancestor's bucket visually).
+  // Categories only apply to the top level of each side. Income rows get an
+  // incomeCategory; expense rows get a category; nested children carry null
+  // (children inherit their ancestor's bucket visually).
+  const isTopLevel = parsed.parentItemId === null;
   const category =
-    parsed.type === "EXPENSE" && parsed.parentItemId === null
+    isTopLevel && parsed.type === "EXPENSE"
       ? (parsed.category ?? "FIXED")
+      : null;
+  const incomeCategory =
+    isTopLevel && parsed.type === "INCOME"
+      ? (parsed.incomeCategory ?? "OTHER")
       : null;
 
   return prisma.financialItem.create({
@@ -147,6 +153,7 @@ export async function createItem(input: CreateItemInput) {
       type: parsed.type,
       parentItemId: parsed.parentItemId,
       category,
+      incomeCategory,
       label: parsed.label,
       sortOrder: (last?.sortOrder ?? 0) + 1,
     },
@@ -165,12 +172,19 @@ export async function updateItem(input: UpdateItemInput) {
     throw new Error("Item not found");
   }
 
-  // Category changes only make sense for top-level expense rows.
+  // Category changes only make sense at the top level of the matching side.
+  const isTopLevel = item.parentItemId === null;
   if (
     parsed.category !== undefined &&
-    !(item.type === "EXPENSE" && item.parentItemId === null)
+    !(isTopLevel && item.type === "EXPENSE")
   ) {
     throw new Error("Only top-level expense rows have a category");
+  }
+  if (
+    parsed.incomeCategory !== undefined &&
+    !(isTopLevel && item.type === "INCOME")
+  ) {
+    throw new Error("Only top-level income rows have an income category");
   }
 
   return prisma.financialItem.update({
@@ -180,6 +194,9 @@ export async function updateItem(input: UpdateItemInput) {
       ...(parsed.budget !== undefined && { budget: parsed.budget }),
       ...(parsed.actual !== undefined && { actual: parsed.actual }),
       ...(parsed.category !== undefined && { category: parsed.category }),
+      ...(parsed.incomeCategory !== undefined && {
+        incomeCategory: parsed.incomeCategory,
+      }),
     },
   });
 }
@@ -362,6 +379,7 @@ export async function copyPeriodFrom(input: CopyPeriodFromInput) {
       type: true,
       parentItemId: true,
       category: true,
+      incomeCategory: true,
       label: true,
       budget: true,
       sortOrder: true,
@@ -385,6 +403,7 @@ export async function copyPeriodFrom(input: CopyPeriodFromInput) {
         type: it.type,
         parentItemId: it.parentItemId,
         category: it.category,
+        incomeCategory: it.incomeCategory,
         label: it.label,
         budget: it.budget,
         actual: it.actual,
@@ -420,6 +439,7 @@ export async function saveBudgetTemplate(input: SaveBudgetTemplateInput) {
       type: true,
       parentItemId: true,
       category: true,
+      incomeCategory: true,
       label: true,
       budget: true,
       sortOrder: true,
@@ -443,6 +463,7 @@ export async function saveBudgetTemplate(input: SaveBudgetTemplateInput) {
         type: it.type,
         parentItemId: it.parentItemId,
         category: it.category,
+        incomeCategory: it.incomeCategory,
         label: it.label,
         budget: it.budget,
         sortOrder: it.sortOrder,
@@ -467,6 +488,7 @@ export async function copyBudgetTemplateInto(input: CopyBudgetTemplateInput) {
       type: true,
       parentItemId: true,
       category: true,
+      incomeCategory: true,
       label: true,
       budget: true,
       sortOrder: true,
@@ -500,6 +522,7 @@ export async function copyBudgetTemplateInto(input: CopyBudgetTemplateInput) {
         type: it.type,
         parentItemId: it.parentItemId,
         category: it.category,
+        incomeCategory: it.incomeCategory,
         label: it.label,
         budget: it.budget,
         actual: it.actual,

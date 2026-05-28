@@ -3,6 +3,13 @@ export type CopyableItem = {
   type: "INCOME" | "EXPENSE";
   parentItemId: string | null;
   category: "FIXED" | "VARIABLE" | "DISCRETIONARY" | null;
+  incomeCategory:
+    | "SALARY"
+    | "SIDE_INCOME"
+    | "INVESTMENTS"
+    | "PENSIONS"
+    | "OTHER"
+    | null;
   label: string;
   budget: number;
   sortOrder: number;
@@ -33,6 +40,7 @@ export function buildCopiedItems(
         ? null
         : (idMap.get(item.parentItemId) ?? null),
     category: item.category,
+    incomeCategory: item.incomeCategory,
     label: item.label,
     budget: item.budget,
     actual: 0,
