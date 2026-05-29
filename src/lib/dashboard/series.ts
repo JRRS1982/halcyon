@@ -65,6 +65,25 @@ export function balanceSeries(sums: BalanceSums[]): BalancePoint[] {
   });
 }
 
+export type ValuePoint = { month: string; value: number };
+export type ValueAvgPoint = { month: string; value: number; avg: number };
+
+const TRAILING_MONTHS = 6;
+
+// Pairs each month's value with the trailing N-month average of the value
+// (inclusive), so a per-category line can be shown against its own moving
+// average. Before the window fills, averages over the months seen so far.
+export function trailingAverageSeries(
+  points: ValuePoint[],
+  window: number = TRAILING_MONTHS,
+): ValueAvgPoint[] {
+  return points.map((p, i) => {
+    const slice = points.slice(Math.max(0, i - (window - 1)), i + 1);
+    const sum = slice.reduce((acc, q) => acc + q.value, 0);
+    return { month: p.month, value: p.value, avg: sum / slice.length };
+  });
+}
+
 export type MonthFlow = { month: string; income: number; expense: number };
 
 export type CashFlowPoint = {

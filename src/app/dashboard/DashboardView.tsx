@@ -1,12 +1,62 @@
 "use client";
 
 import { PageHeader } from "@/components/ui/PageHeader";
-import type { CashFlowPoint, ExpenditurePoint } from "@/lib/dashboard/series";
+import {
+  type CashFlowPoint,
+  type ExpenditurePoint,
+  trailingAverageSeries,
+} from "@/lib/dashboard/series";
 import type { NumberFormat } from "@/lib/settings/currency";
 import styled from "styled-components";
+import { BalanceCategoryChart } from "./BalanceCategoryChart";
 import { type BalancePoint, BalanceTrendChart } from "./BalanceTrendChart";
 import { CashFlowChart } from "./CashFlowChart";
 import { CategoryExpenditureChart } from "./CategoryExpenditureChart";
+
+const ASSET_COLOR = "#1F8A4C";
+const LIABILITY_COLOR = "#B33B3B";
+
+// Per-category balance panels: Current / Medium-term / Long-term for each side.
+// `sign` flips liabilities (stored negated in BalancePoint) back to a positive
+// magnitude so each debt graph reads as "how much".
+const BALANCE_PANELS: {
+  label: string;
+  color: string;
+  key: keyof BalancePoint;
+  sign: 1 | -1;
+}[] = [
+  { label: "Current assets", color: ASSET_COLOR, key: "assetCurrent", sign: 1 },
+  {
+    label: "Medium-term assets",
+    color: ASSET_COLOR,
+    key: "assetMediumTerm",
+    sign: 1,
+  },
+  {
+    label: "Long-term assets",
+    color: ASSET_COLOR,
+    key: "assetLongTerm",
+    sign: 1,
+  },
+  {
+    label: "Current liabilities",
+    color: LIABILITY_COLOR,
+    key: "liabilityCurrent",
+    sign: -1,
+  },
+  {
+    label: "Medium-term liabilities",
+    color: LIABILITY_COLOR,
+    key: "liabilityMediumTerm",
+    sign: -1,
+  },
+  {
+    label: "Long-term liabilities",
+    color: LIABILITY_COLOR,
+    key: "liabilityLongTerm",
+    sign: -1,
+  },
+];
 
 // The per-category spending panels. Each shows actual vs budget vs the trailing
 // 6-month average, in the category's colour.
@@ -116,6 +166,51 @@ export function DashboardView({
   currency: string;
   numberFormat: NumberFormat;
 }) {
+  // Per-category balance series with trailing average, dropping categories that
+  // are empty across every month (e.g. no medium-term debt).
+  const balancePanels = BALANCE_PANELS.map((p) => ({
+    ...p,
+    series: trailingAverageSeries(
+      balanceData.map((d) => ({
+        month: d.month,
+        value: (d[p.key] as number) * p.sign,
+      })),
+    ),
+  })).filter((p) => p.series.some((s) => s.value !== 0));
+
+  // The Fixed / Variable / Discretionary spending panels, shown under Income vs
+  // expenses.
+  const expenditureGrid =
+    expenditureData.length > 0 ? (
+      <CategoryGrid>
+        {CATEGORY_PANELS.map((c) => (
+          <Panel key={c.label}>
+            <PanelTitle>{c.label}</PanelTitle>
+            <PanelLead>{c.lead}</PanelLead>
+            <CategoryExpenditureChart
+              color={c.color}
+              currency={currency}
+              numberFormat={numberFormat}
+              data={expenditureData.map((p) => ({
+                month: p.month,
+                actual: p[c.actualKey] as number,
+                budget: p[c.budgetKey] as number,
+                avg: p[c.avgKey] as number,
+              }))}
+            />
+          </Panel>
+        ))}
+      </CategoryGrid>
+    ) : (
+      <Panel>
+        <PanelTitle>Spending by category</PanelTitle>
+        <EmptyState>
+          Record expenses on the Budget page to see Fixed, Variable and
+          Discretionary spending here.
+        </EmptyState>
+      </Panel>
+    );
+
   return (
     <Shell>
       <PageHeader
@@ -146,6 +241,7 @@ export function DashboardView({
             </EmptyState>
           )}
         </Panel>
+        {expenditureGrid}
         <Panel>
           <PanelTitle>Balance over time</PanelTitle>
           <PanelLead>
@@ -168,34 +264,23 @@ export function DashboardView({
             </EmptyState>
           )}
         </Panel>
-        {expenditureData.length > 0 ? (
+        {balancePanels.length > 0 && (
           <CategoryGrid>
-            {CATEGORY_PANELS.map((c) => (
-              <Panel key={c.label}>
-                <PanelTitle>{c.label}</PanelTitle>
-                <PanelLead>{c.lead}</PanelLead>
-                <CategoryExpenditureChart
-                  color={c.color}
+            {balancePanels.map((p) => (
+              <Panel key={p.label}>
+                <PanelTitle>{p.label}</PanelTitle>
+                <PanelLead>
+                  {p.label} each month, against the 6-month average.
+                </PanelLead>
+                <BalanceCategoryChart
+                  data={p.series}
+                  color={p.color}
                   currency={currency}
                   numberFormat={numberFormat}
-                  data={expenditureData.map((p) => ({
-                    month: p.month,
-                    actual: p[c.actualKey] as number,
-                    budget: p[c.budgetKey] as number,
-                    avg: p[c.avgKey] as number,
-                  }))}
                 />
               </Panel>
             ))}
           </CategoryGrid>
-        ) : (
-          <Panel>
-            <PanelTitle>Spending by category</PanelTitle>
-            <EmptyState>
-              Record expenses on the Budget page to see Fixed, Variable and
-              Discretionary spending here.
-            </EmptyState>
-          </Panel>
         )}
       </Panels>
     </Shell>
