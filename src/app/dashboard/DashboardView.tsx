@@ -130,7 +130,8 @@ export function DashboardView({
             Money in versus money out each month — income is your net
             (take-home) figure, after tax and pension. The gap is your surplus
             or shortfall, and the dashed line tracks the share of income you
-            kept.
+            kept. Each net point is marked with its change from the month before
+            (green ▲ up, red ▼ down).
           </PanelLead>
           {cashFlowData.length > 0 ? (
             <CashFlowChart

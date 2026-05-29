@@ -44,11 +44,46 @@ export function CashFlowChart({
     return `${sym}${v}`;
   };
 
+  const fmtDelta = (d: number) => {
+    const sym = symbolFor(currency);
+    const abs = Math.abs(d);
+    return abs >= 1000
+      ? `${sym}${Math.round(abs / 1000)}k`
+      : `${sym}${Math.round(abs)}`;
+  };
+
+  // Month-on-month change marker above each net point: green ▲ when the surplus
+  // improved on the prior month, red ▼ when it worsened. Skips the first month
+  // and unchanged months.
+  const NetDeltaLabel = (props: {
+    x?: number | string;
+    y?: number | string;
+    index?: number;
+  }) => {
+    const { x, y, index } = props;
+    if (x == null || y == null || index == null || index === 0) return <g />;
+    const delta = data[index].net - data[index - 1].net;
+    if (delta === 0) return <g />;
+    const up = delta > 0;
+    return (
+      <text
+        x={Number(x)}
+        y={Number(y) - 10}
+        textAnchor="middle"
+        fontSize={11}
+        fontWeight={600}
+        fill={up ? INCOME_COLOR : EXPENSE_COLOR}
+      >
+        {up ? "▲" : "▼"} {fmtDelta(delta)}
+      </text>
+    );
+  };
+
   return (
     <ResponsiveContainer width="100%" height={320}>
       <ComposedChart
         data={data}
-        margin={{ top: 8, right: 16, bottom: 0, left: 8 }}
+        margin={{ top: 28, right: 16, bottom: 0, left: 8 }}
       >
         <CartesianGrid stroke={theme.colors.hairline} vertical={false} />
         <XAxis
@@ -108,7 +143,8 @@ export function CashFlowChart({
           name="Net"
           stroke={NET_COLOR}
           strokeWidth={2}
-          dot={false}
+          dot={{ r: 2.5, fill: NET_COLOR }}
+          label={NetDeltaLabel}
           isAnimationActive={false}
         />
         <Line
