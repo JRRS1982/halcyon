@@ -150,7 +150,9 @@ export function DashboardView({
           <PanelLead>
             Assets (green) sit above zero and debts (red) below; the dash
             pattern tells the categories apart, and the solid black line is your
-            net balance — total assets minus what you owe.
+            net balance — total assets minus what you owe. Each net point is
+            marked with its change from the month before (green ▲ up, red ▼
+            down).
           </PanelLead>
           {balanceData.length > 0 ? (
             <BalanceTrendChart

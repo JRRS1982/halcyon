@@ -112,9 +112,46 @@ export function BalanceTrendChart({
     return `${sym}${v}`;
   };
 
+  const fmtDelta = (d: number) => {
+    const sym = symbolFor(currency);
+    const abs = Math.abs(d);
+    return abs >= 1000
+      ? `${sym}${Math.round(abs / 1000)}k`
+      : `${sym}${Math.round(abs)}`;
+  };
+
+  // Month-on-month change marker above each net point: green ▲ when net grew,
+  // red ▼ when it shrank. Skips the first month (no prior) and unchanged months.
+  const NetDeltaLabel = (props: {
+    x?: number | string;
+    y?: number | string;
+    index?: number;
+  }) => {
+    const { x, y, index } = props;
+    if (x == null || y == null || index == null || index === 0) return <g />;
+    const delta = data[index].net - data[index - 1].net;
+    if (delta === 0) return <g />;
+    const up = delta > 0;
+    return (
+      <text
+        x={Number(x)}
+        y={Number(y) - 10}
+        textAnchor="middle"
+        fontSize={11}
+        fontWeight={600}
+        fill={up ? ASSET_COLOR : LIABILITY_COLOR}
+      >
+        {up ? "▲" : "▼"} {fmtDelta(delta)}
+      </text>
+    );
+  };
+
   return (
     <ResponsiveContainer width="100%" height={320}>
-      <LineChart data={data} margin={{ top: 8, right: 16, bottom: 0, left: 8 }}>
+      <LineChart
+        data={data}
+        margin={{ top: 28, right: 16, bottom: 0, left: 8 }}
+      >
         <CartesianGrid stroke={theme.colors.hairline} vertical={false} />
         <XAxis
           dataKey="month"
@@ -168,7 +205,8 @@ export function BalanceTrendChart({
           name="Net balance"
           stroke={theme.colors.body}
           strokeWidth={2.5}
-          dot={false}
+          dot={{ r: 2.5, fill: theme.colors.body }}
+          label={NetDeltaLabel}
           isAnimationActive={false}
         />
       </LineChart>
