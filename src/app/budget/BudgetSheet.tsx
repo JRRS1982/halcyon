@@ -38,6 +38,7 @@ import {
 } from "@/lib/settings/currency";
 import { useRouter } from "next/navigation";
 import {
+  type KeyboardEventHandler,
   useCallback,
   useEffect,
   useMemo,
@@ -133,11 +134,15 @@ function AmountInput({
   numberFormat,
   onCommit,
   onFocus,
+  onKeyDown,
+  inputRef,
 }: {
   value: number;
   numberFormat: NumberFormat;
   onCommit: (n: number) => void;
   onFocus: () => void;
+  onKeyDown?: KeyboardEventHandler<HTMLInputElement>;
+  inputRef?: (el: HTMLInputElement | null) => void;
 }) {
   const [focused, setFocused] = useState(false);
   const [draft, setDraft] = useState("");
@@ -150,12 +155,14 @@ function AmountInput({
 
   return (
     <CellInput
+      ref={inputRef}
       $align="right"
       value={display}
       placeholder={
         NUMBER_FORMAT_SPEC[numberFormat].decimals === 0 ? "0" : "0.00"
       }
       inputMode="decimal"
+      onKeyDown={onKeyDown}
       onFocus={() => {
         setFocused(true);
         // Raw editable form — plain number, no separators.
@@ -827,18 +834,24 @@ export function BudgetSheet({
   }, [periodState.id]);
 
   // When a row is just added, we want the user to land in its label input
-  // immediately — both so they can type a name without an extra click and so
-  // the toolbar's Indent/Outdent buttons enable (they key off focusedCell).
+  // immediately so they can type a name without an extra click.
   const [pendingFocusItemId, setPendingFocusItemId] = useState<string | null>(
     null,
   );
-  const labelInputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
+
+  // Every editable cell input, keyed `${itemId}:${field}`, so Enter can move
+  // focus to the same field one row down (see onCellKeyDown).
+  const cellRefs = useRef<Map<string, HTMLInputElement>>(new Map());
+  const registerCell = (key: string) => (el: HTMLInputElement | null) => {
+    if (el) cellRefs.current.set(key, el);
+    else cellRefs.current.delete(key);
+  };
 
   useEffect(() => {
     if (!pendingFocusItemId) return;
     // The new row's input has just mounted in the same batch as
     // setPendingFocusItemId, so the ref should be populated by now.
-    const input = labelInputRefs.current.get(pendingFocusItemId);
+    const input = cellRefs.current.get(`${pendingFocusItemId}:label`);
     if (input) {
       input.focus();
       input.select();
@@ -1057,6 +1070,34 @@ export function BudgetSheet({
     [focusedCell, items],
   );
 
+  // Item ids in the order they're rendered (income buckets, then expense
+  // buckets), so Enter can step to the next row down.
+  const orderedItemIds = useMemo(
+    () =>
+      [
+        ...incomeBuckets.flatMap((b) => b.rows),
+        ...expenseBuckets.flatMap((b) => b.rows),
+      ].map((it) => it.id),
+    [incomeBuckets, expenseBuckets],
+  );
+
+  // Enter moves focus to the same field one row down (matching the header's
+  // "Enter drops down"). No-op on the last row.
+  const onCellKeyDown = useCallback(
+    (
+      itemId: string,
+      field: "label" | "budget" | "actual",
+    ): KeyboardEventHandler<HTMLInputElement> =>
+      (e) => {
+        if (e.key !== "Enter") return;
+        e.preventDefault();
+        const idx = orderedItemIds.indexOf(itemId);
+        const nextId = orderedItemIds[idx + 1];
+        if (nextId) cellRefs.current.get(`${nextId}:${field}`)?.focus();
+      },
+    [orderedItemIds],
+  );
+
   // ─── Delete ───────────────────────────────────────────────────────────────
 
   const onDelete = useCallback(() => {
@@ -1116,13 +1157,11 @@ export function BudgetSheet({
         onSelect={() => setFocusedCell({ itemId: item.id, field: "label" })}
         label={
           <CellInput
-            ref={(el) => {
-              if (el) labelInputRefs.current.set(item.id, el);
-              else labelInputRefs.current.delete(item.id);
-            }}
+            ref={registerCell(`${item.id}:label`)}
             value={item.label}
             placeholder="Name this row"
             onChange={(e) => editField(item.id, { label: e.target.value })}
+            onKeyDown={onCellKeyDown(item.id, "label")}
             onFocus={() => setFocusedCell({ itemId: item.id, field: "label" })}
           />
         }
@@ -1132,7 +1171,9 @@ export function BudgetSheet({
               <AmountInput
                 value={item.budget}
                 numberFormat={numberFormat}
+                inputRef={registerCell(`${item.id}:budget`)}
                 onCommit={(v) => editField(item.id, { budget: v })}
+                onKeyDown={onCellKeyDown(item.id, "budget")}
                 onFocus={() =>
                   setFocusedCell({ itemId: item.id, field: "budget" })
                 }
@@ -1145,7 +1186,9 @@ export function BudgetSheet({
               <AmountInput
                 value={item.actual}
                 numberFormat={numberFormat}
+                inputRef={registerCell(`${item.id}:actual`)}
                 onCommit={(v) => editField(item.id, { actual: v })}
+                onKeyDown={onCellKeyDown(item.id, "actual")}
                 onFocus={() =>
                   setFocusedCell({ itemId: item.id, field: "actual" })
                 }
