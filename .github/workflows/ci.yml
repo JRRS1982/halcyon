@@ -106,3 +106,42 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 7
+
+  # Applies pending Prisma migrations to the production Supabase database.
+  # Runs only on push to master (never on PRs) and only after lint/test and
+  # e2e pass, so prod schema changes are gated on a green build. Vercel is
+  # configured to wait for this workflow before deploying, so the new code
+  # never goes live against an un-migrated schema. Host-agnostic: the deploy
+  # platform runs no migrations itself.
+  migrate-prod:
+    runs-on: ubuntu-latest
+    needs: [lint-and-test, e2e-tests]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+
+    env:
+      # Unpooled Supabase connection (port 5432). migrate deploy must use the
+      # direct URL, not the pooled 6543 one. Prisma reads DATABASE_URL too, so
+      # point both at the direct URL for this job.
+      DATABASE_URL: ${{ secrets.PROD_DIRECT_URL }}
+      DIRECT_URL: ${{ secrets.PROD_DIRECT_URL }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Apply migrations to production
+        run: pnpm prisma migrate deploy

@@ -31,8 +31,8 @@ datasource db {
 
 - **No rollback scripts.** Forward-only migrations only.
 - **Prisma migrations** are the single tool — both for the local Docker Postgres and for Supabase Postgres. Supabase's own migration tool (`supabase db push`) is **not** used; Prisma owns the schema.
-- **CI** runs `prisma migrate deploy` against the database before E2E tests.
-- **Production migrations** are applied as part of Vercel's build step (or manually via `pnpm exec prisma migrate deploy` against `DIRECT_URL`). The exact wiring is tracked separately.
+- **CI** runs `prisma migrate deploy` against an ephemeral Postgres service in the `e2e-tests` job, just to back the Playwright tests; that database is destroyed when the job ends.
+- **Production migrations** run in the GitHub Actions `migrate-prod` job (`prisma migrate deploy` against `DIRECT_URL`, port 5432, from the `PROD_DIRECT_URL` secret). It is gated on `lint-and-test` + `e2e-tests` passing and runs only on push to `master`, so the same migration files are proven against a fresh Postgres in the same run before they touch prod. Vercel is configured to wait for the workflow's required checks before deploying, so a failed migration blocks the deploy and the app never serves new code against a stale schema. The deploy host itself runs no migrations — this stays portable across hosts. Manual fallback: `pnpm exec prisma migrate deploy` against `DIRECT_URL`.
 - **RLS policies** that accompany schema changes go into Prisma migrations as raw SQL (see [ADR-002](ADR-002-SecurityArchitecture.md)).
 
 ## Considered Alternatives
