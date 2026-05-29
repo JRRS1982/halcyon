@@ -4,7 +4,6 @@
 export type ItemForTotals = {
   id: string;
   type: "INCOME" | "EXPENSE";
-  parentItemId: string | null;
   budget: number;
   actual: number;
 };
@@ -14,50 +13,16 @@ export type ItemAmounts = {
   actual: number;
 };
 
-// Compute roll-up amounts for every item in the tree.
-// A parent's effective amount is the sum of its children when it has
-// children; its own (budget, actual) when it's a leaf. Mutually
-// exclusive — a parent's own (budget, actual) are ignored when it has
-// children (they exist in the schema but should be 0 for parents).
+// Items are a flat list, so each item's amount is simply its own
+// (budget, actual). Returned as a Map keyed by id so call sites can look up
+// amounts uniformly.
 export function computeRollups(
   items: ItemForTotals[],
 ): Map<string, ItemAmounts> {
-  const childrenByParent = new Map<string, ItemForTotals[]>();
-  for (const item of items) {
-    if (item.parentItemId === null) continue;
-    const list = childrenByParent.get(item.parentItemId) ?? [];
-    list.push(item);
-    childrenByParent.set(item.parentItemId, list);
-  }
-
   const rollups = new Map<string, ItemAmounts>();
-
-  function compute(item: ItemForTotals): ItemAmounts {
-    if (rollups.has(item.id)) {
-      return rollups.get(item.id) as ItemAmounts;
-    }
-    const children = childrenByParent.get(item.id) ?? [];
-    if (children.length === 0) {
-      const result = { budget: item.budget, actual: item.actual };
-      rollups.set(item.id, result);
-      return result;
-    }
-    let budget = 0;
-    let actual = 0;
-    for (const child of children) {
-      const r = compute(child);
-      budget += r.budget;
-      actual += r.actual;
-    }
-    const result = { budget, actual };
-    rollups.set(item.id, result);
-    return result;
-  }
-
   for (const item of items) {
-    compute(item);
+    rollups.set(item.id, { budget: item.budget, actual: item.actual });
   }
-
   return rollups;
 }
 
@@ -68,8 +33,7 @@ export type SectionTotals = {
   variancePct: number;
 };
 
-// Computes the section roll-up over its top-level items only (children's
-// amounts are already folded into their parent by computeRollups).
+// Computes the section roll-up over every item of the given type.
 //
 // Variance convention:
 //   INCOME  → actual - budget  (positive = received more than planned)
@@ -84,7 +48,6 @@ export function sectionTotals(
   let actual = 0;
   for (const item of items) {
     if (item.type !== type) continue;
-    if (item.parentItemId !== null) continue;
     const r = rollups.get(item.id);
     if (!r) continue;
     budget += r.budget;

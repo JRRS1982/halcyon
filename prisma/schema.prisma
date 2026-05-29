@@ -127,28 +127,25 @@ model FinancialPeriod {
   @@index([userId])
 }
 
-// A single line item inside a period. Self-references for hierarchical
-// sub-rows (Salary → His salary / Her salary). UI caps depth at 3.
+// A single line item inside a period. A flat list — items belong to a period
+// and a category bucket, with no nesting.
 model FinancialItem {
-  id           String           @id @default(uuid()) @db.Uuid
-  periodId     String           @db.Uuid
+  id             String           @id @default(uuid()) @db.Uuid
+  periodId       String           @db.Uuid
   type           ItemType
-  parentItemId   String?          @db.Uuid
   category       ExpenseCategory?
   incomeCategory IncomeCategory?
   label          String
-  budget       Decimal          @default(0) @db.Decimal(12, 2)
-  actual       Decimal          @default(0) @db.Decimal(12, 2)
-  sortOrder    Int              @default(0)
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
-  deletedAt    DateTime?
+  budget         Decimal          @default(0) @db.Decimal(12, 2)
+  actual         Decimal          @default(0) @db.Decimal(12, 2)
+  sortOrder      Int              @default(0)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  deletedAt      DateTime?
 
-  period   FinancialPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
-  parent   FinancialItem?  @relation("ItemHierarchy", fields: [parentItemId], references: [id], onDelete: Cascade)
-  children FinancialItem[] @relation("ItemHierarchy")
+  period FinancialPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
 
-  @@index([periodId, type, parentItemId, sortOrder])
+  @@index([periodId, type, sortOrder])
 }
 
 // Balance sheet line items belonging to a FinancialPeriod (shared with the
@@ -176,28 +173,24 @@ model BalanceItem {
 
 // A reusable budget template row, owned directly by a user (not tied to a
 // period). "Save this month as template" snapshots a month into these;
-// "Copy from → Template" seeds a month from them. Preserves the month's
-// hierarchy (self-reference) so nested rows round-trip. No `actual` — a
-// template is the plan, not spending.
+// "Copy from → Template" seeds a month from them. A flat list — no `actual`,
+// a template is the plan, not spending.
 model BudgetTemplateItem {
-  id           String           @id @default(uuid()) @db.Uuid
-  userId       String           @db.Uuid
+  id             String           @id @default(uuid()) @db.Uuid
+  userId         String           @db.Uuid
   type           ItemType
-  parentItemId   String?          @db.Uuid
   category       ExpenseCategory?
   incomeCategory IncomeCategory?
   label          String
-  budget       Decimal          @default(0) @db.Decimal(12, 2)
-  sortOrder    Int              @default(0)
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
-  deletedAt    DateTime?
+  budget         Decimal          @default(0) @db.Decimal(12, 2)
+  sortOrder      Int              @default(0)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  deletedAt      DateTime?
 
-  user     User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  parent   BudgetTemplateItem?  @relation("BudgetTemplateHierarchy", fields: [parentItemId], references: [id], onDelete: Cascade)
-  children BudgetTemplateItem[] @relation("BudgetTemplateHierarchy")
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId, type, parentItemId, sortOrder])
+  @@index([userId, type, sortOrder])
 }
 
 // A reusable balance-sheet template row, owned directly by a user. Flat, like

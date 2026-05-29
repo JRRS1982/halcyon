@@ -17,7 +17,6 @@ export const incomeCategorySchema = z.enum([
 export const createItemSchema = z.object({
   periodId: z.string().uuid(),
   type: itemTypeSchema,
-  parentItemId: z.string().uuid().nullable(),
   category: expenseCategorySchema.nullable().optional(),
   incomeCategory: incomeCategorySchema.nullable().optional(),
   label: z.string().trim().max(120),
@@ -46,11 +45,6 @@ export const deleteItemSchema = z.object({
   itemId: z.string().uuid(),
 });
 
-export const reparentItemSchema = z.object({
-  itemId: z.string().uuid(),
-  newParentItemId: z.string().uuid().nullable(),
-});
-
 export const copyPeriodFromSchema = z.object({
   sourcePeriodId: z.string().uuid(),
   targetYear: z.number().int(),
@@ -69,7 +63,6 @@ export const copyBudgetTemplateSchema = z.object({
 export type CreateItemInput = z.infer<typeof createItemSchema>;
 export type UpdateItemInput = z.infer<typeof updateItemSchema>;
 export type DeleteItemInput = z.infer<typeof deleteItemSchema>;
-export type ReparentItemInput = z.infer<typeof reparentItemSchema>;
 export type CopyPeriodFromInput = z.infer<typeof copyPeriodFromSchema>;
 export type SaveBudgetTemplateInput = z.infer<typeof saveBudgetTemplateSchema>;
 export type CopyBudgetTemplateInput = z.infer<typeof copyBudgetTemplateSchema>;

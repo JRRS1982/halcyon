@@ -8,14 +8,12 @@ import {
   type CopyPeriodFromInput,
   type CreateItemInput,
   type DeleteItemInput,
-  type ReparentItemInput,
   type SaveBudgetTemplateInput,
   type UpdateItemInput,
   copyBudgetTemplateSchema,
   copyPeriodFromSchema,
   createItemSchema,
   deleteItemSchema,
-  reparentItemSchema,
   saveBudgetTemplateSchema,
   updateItemSchema,
 } from "@/lib/budget/schemas";
@@ -100,58 +98,27 @@ export async function createItem(input: CreateItemInput) {
     throw new Error("Period not found");
   }
 
-  // If parentItemId provided, verify it belongs to the same period and isn't
-  // already at the depth-3 cap.
-  if (parsed.parentItemId) {
-    const parent = await prisma.financialItem.findFirst({
-      where: {
-        id: parsed.parentItemId,
-        periodId: parsed.periodId,
-        deletedAt: null,
-      },
-    });
-    if (!parent) {
-      throw new Error("Parent item not found");
-    }
-    if (parent.type !== parsed.type) {
-      throw new Error("Sub-row type must match parent");
-    }
-    const depth = await depthOf(parsed.parentItemId);
-    if (depth >= 3) {
-      throw new Error("Maximum depth reached");
-    }
-  }
-
-  // New row's sortOrder = max(sortOrder) + 1 within (periodId, type, parentItemId).
+  // New row's sortOrder = max(sortOrder) + 1 within (periodId, type).
   const last = await prisma.financialItem.findFirst({
     where: {
       periodId: parsed.periodId,
       type: parsed.type,
-      parentItemId: parsed.parentItemId,
       deletedAt: null,
     },
     orderBy: { sortOrder: "desc" },
     select: { sortOrder: true },
   });
 
-  // Categories only apply to the top level of each side. Income rows get an
-  // incomeCategory; expense rows get a category; nested children carry null
-  // (children inherit their ancestor's bucket visually).
-  const isTopLevel = parsed.parentItemId === null;
+  // Income rows get an incomeCategory; expense rows get a category.
   const category =
-    isTopLevel && parsed.type === "EXPENSE"
-      ? (parsed.category ?? "FIXED")
-      : null;
+    parsed.type === "EXPENSE" ? (parsed.category ?? "FIXED") : null;
   const incomeCategory =
-    isTopLevel && parsed.type === "INCOME"
-      ? (parsed.incomeCategory ?? "OTHER")
-      : null;
+    parsed.type === "INCOME" ? (parsed.incomeCategory ?? "OTHER") : null;
 
   return prisma.financialItem.create({
     data: {
       periodId: parsed.periodId,
       type: parsed.type,
-      parentItemId: parsed.parentItemId,
       category,
       incomeCategory,
       label: parsed.label,
@@ -172,19 +139,12 @@ export async function updateItem(input: UpdateItemInput) {
     throw new Error("Item not found");
   }
 
-  // Category changes only make sense at the top level of the matching side.
-  const isTopLevel = item.parentItemId === null;
-  if (
-    parsed.category !== undefined &&
-    !(isTopLevel && item.type === "EXPENSE")
-  ) {
-    throw new Error("Only top-level expense rows have a category");
+  // Category changes only make sense on the matching side.
+  if (parsed.category !== undefined && item.type !== "EXPENSE") {
+    throw new Error("Only expense rows have a category");
   }
-  if (
-    parsed.incomeCategory !== undefined &&
-    !(isTopLevel && item.type === "INCOME")
-  ) {
-    throw new Error("Only top-level income rows have an income category");
+  if (parsed.incomeCategory !== undefined && item.type !== "INCOME") {
+    throw new Error("Only income rows have an income category");
   }
 
   return prisma.financialItem.update({
@@ -201,7 +161,7 @@ export async function updateItem(input: UpdateItemInput) {
   });
 }
 
-// Soft-delete an item and all its descendants atomically.
+// Soft-delete an item.
 export async function deleteItem(input: DeleteItemInput) {
   const userId = await requireUserId();
   const parsed = deleteItemSchema.parse(input);
@@ -214,110 +174,9 @@ export async function deleteItem(input: DeleteItemInput) {
     throw new Error("Item not found");
   }
 
-  await prisma.$transaction(async (tx) => {
-    const descendants = await tx.$queryRaw<{ id: string }[]>`
-      WITH RECURSIVE d AS (
-        SELECT id FROM "FinancialItem" WHERE id = ${parsed.itemId}::uuid
-        UNION
-        SELECT c.id FROM "FinancialItem" c JOIN d ON c."parentItemId" = d.id
-      )
-      SELECT id FROM d
-    `;
-    const ids = descendants.map((r) => r.id);
-    await tx.financialItem.updateMany({
-      where: { id: { in: ids } },
-      data: { deletedAt: new Date() },
-    });
-  });
-}
-
-// Re-attach an item to a new parent (or to the top level when newParentItemId
-// is null). The client uses this for the Indent / Outdent toolbar actions.
-// Enforces: same-period, same-type, no cycle, depth-3 cap for the item's
-// entire subtree. New sortOrder appends at the end of the destination
-// scope's children.
-export async function reparentItem(input: ReparentItemInput) {
-  const userId = await requireUserId();
-  const parsed = reparentItemSchema.parse(input);
-
-  const item = await prisma.financialItem.findFirst({
-    where: { id: parsed.itemId, deletedAt: null },
-    include: { period: { select: { userId: true } } },
-  });
-  if (!item || item.period.userId !== userId) {
-    throw new Error("Item not found");
-  }
-
-  let newParentDepth = 0;
-
-  if (parsed.newParentItemId !== null) {
-    const newParent = await prisma.financialItem.findFirst({
-      where: {
-        id: parsed.newParentItemId,
-        periodId: item.periodId,
-        type: item.type,
-        deletedAt: null,
-      },
-    });
-    if (!newParent) {
-      throw new Error("New parent not found");
-    }
-
-    // Cycle check — walk up newParent's ancestry; if itemId appears, reject.
-    let ancestorId: string | null = newParent.parentItemId;
-    while (ancestorId !== null) {
-      if (ancestorId === parsed.itemId) {
-        throw new Error("Cannot move item under one of its own descendants");
-      }
-      const ancestor: { parentItemId: string | null } | null =
-        await prisma.financialItem.findFirst({
-          where: { id: ancestorId },
-          select: { parentItemId: true },
-        });
-      if (!ancestor) break;
-      ancestorId = ancestor.parentItemId;
-    }
-
-    newParentDepth = await depthOf(newParent.id);
-  }
-
-  // Depth cap. newParentDepth = 0 when reparenting to top level.
-  // Deepest descendant after move = newParentDepth + 1 + subtreeMaxDepth(item).
-  const subtreeDepth = await subtreeMaxDepth(parsed.itemId);
-  if (newParentDepth + 1 + subtreeDepth > 3) {
-    throw new Error("Move would exceed the depth-3 cap");
-  }
-
-  const last = await prisma.financialItem.findFirst({
-    where: {
-      periodId: item.periodId,
-      type: item.type,
-      parentItemId: parsed.newParentItemId,
-      deletedAt: null,
-      NOT: { id: parsed.itemId },
-    },
-    orderBy: { sortOrder: "desc" },
-    select: { sortOrder: true },
-  });
-
-  // Category bookkeeping for expenses: a child carries null (it inherits its
-  // ancestor's bucket); a row promoted to top level inherits the bucket of the
-  // top-level ancestor it's leaving so it lands somewhere sensible.
-  let category = item.category;
-  if (item.type === "EXPENSE") {
-    category =
-      parsed.newParentItemId === null
-        ? await topLevelCategoryOf(parsed.itemId)
-        : null;
-  }
-
-  return prisma.financialItem.update({
+  await prisma.financialItem.update({
     where: { id: parsed.itemId },
-    data: {
-      parentItemId: parsed.newParentItemId,
-      category,
-      sortOrder: (last?.sortOrder ?? 0) + 1,
-    },
+    data: { deletedAt: new Date() },
   });
 }
 
@@ -368,16 +227,12 @@ export async function copyPeriodFrom(input: CopyPeriodFromInput) {
     throw new Error("Cannot copy a period onto itself");
   }
 
-  // Ordered parents-before-children (a child can only exist after its parent,
-  // so createdAt ordering guarantees it), letting buildCopiedItems' output be
-  // inserted in array order without tripping the parentItemId foreign key.
   const sourceItems = await prisma.financialItem.findMany({
     where: { periodId: source.id, deletedAt: null },
     orderBy: { createdAt: "asc" },
     select: {
       id: true,
       type: true,
-      parentItemId: true,
       category: true,
       incomeCategory: true,
       label: true,
@@ -401,7 +256,6 @@ export async function copyPeriodFrom(input: CopyPeriodFromInput) {
         id: it.id,
         periodId: target.id,
         type: it.type,
-        parentItemId: it.parentItemId,
         category: it.category,
         incomeCategory: it.incomeCategory,
         label: it.label,
@@ -429,15 +283,12 @@ export async function saveBudgetTemplate(input: SaveBudgetTemplateInput) {
     throw new Error("Source period not found");
   }
 
-  // Ordered parents-before-children so the createMany insert satisfies the
-  // self-referential parentItemId foreign key.
   const sourceItems = await prisma.financialItem.findMany({
     where: { periodId: period.id, deletedAt: null },
     orderBy: { createdAt: "asc" },
     select: {
       id: true,
       type: true,
-      parentItemId: true,
       category: true,
       incomeCategory: true,
       label: true,
@@ -461,7 +312,6 @@ export async function saveBudgetTemplate(input: SaveBudgetTemplateInput) {
         id: it.id,
         userId,
         type: it.type,
-        parentItemId: it.parentItemId,
         category: it.category,
         incomeCategory: it.incomeCategory,
         label: it.label,
@@ -486,7 +336,6 @@ export async function copyBudgetTemplateInto(input: CopyBudgetTemplateInput) {
     select: {
       id: true,
       type: true,
-      parentItemId: true,
       category: true,
       incomeCategory: true,
       label: true,
@@ -520,7 +369,6 @@ export async function copyBudgetTemplateInto(input: CopyBudgetTemplateInput) {
         id: it.id,
         periodId: target.id,
         type: it.type,
-        parentItemId: it.parentItemId,
         category: it.category,
         incomeCategory: it.incomeCategory,
         label: it.label,
@@ -532,63 +380,4 @@ export async function copyBudgetTemplateInto(input: CopyBudgetTemplateInput) {
   ]);
 
   return { periodId: target.id, items: copied };
-}
-
-// Walk up the parent chain to the top-level ancestor and return its expense
-// category. Used when a row is promoted to top level so it inherits the
-// bucket of the subtree it came from.
-async function topLevelCategoryOf(itemId: string) {
-  let current: {
-    parentItemId: string | null;
-    category: "FIXED" | "VARIABLE" | "DISCRETIONARY" | null;
-  } | null = await prisma.financialItem.findFirst({
-    where: { id: itemId },
-    select: { parentItemId: true, category: true },
-  });
-  while (current && current.parentItemId !== null) {
-    current = await prisma.financialItem.findFirst({
-      where: { id: current.parentItemId },
-      select: { parentItemId: true, category: true },
-    });
-  }
-  return current?.category ?? "FIXED";
-}
-
-// Walk up the parent chain to find the depth of a given item. depth 1 = top
-// level. Returns 4+ for anything beyond depth 3 (which will fail the cap
-// check in createItem / reparentItem).
-async function depthOf(itemId: string): Promise<number> {
-  let depth = 1;
-  let currentId: string | null = itemId;
-  while (currentId !== null && depth <= 5) {
-    const row: { parentItemId: string | null } | null =
-      await prisma.financialItem.findFirst({
-        where: { id: currentId },
-        select: { parentItemId: true },
-      });
-    if (!row || row.parentItemId === null) break;
-    currentId = row.parentItemId;
-    depth++;
-  }
-  return depth;
-}
-
-// Returns the maximum depth of descendants below itemId (the item itself is
-// depth 0). Used by reparentItem to enforce the depth-3 cap across a moved
-// subtree.
-async function subtreeMaxDepth(itemId: string): Promise<number> {
-  const result = await prisma.$queryRaw<{ max_depth: number }[]>`
-    WITH RECURSIVE d AS (
-      SELECT id, 0::int AS depth
-      FROM "FinancialItem"
-      WHERE id = ${itemId}::uuid AND "deletedAt" IS NULL
-      UNION ALL
-      SELECT c.id, d.depth + 1
-      FROM "FinancialItem" c
-      JOIN d ON c."parentItemId" = d.id
-      WHERE c."deletedAt" IS NULL
-    )
-    SELECT COALESCE(MAX(depth), 0)::int AS max_depth FROM d
-  `;
-  return result[0]?.max_depth ?? 0;
 }

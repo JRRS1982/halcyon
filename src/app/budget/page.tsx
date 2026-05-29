@@ -89,7 +89,6 @@ export default async function BudgetPage({ searchParams }: PageProps) {
   const serializedItems: SerializedItem[] = items.map((i) => ({
     id: i.id,
     type: i.type,
-    parentItemId: i.parentItemId,
     category: i.category,
     incomeCategory: i.incomeCategory,
     label: i.label,

@@ -53,7 +53,6 @@ import {
   deleteItem,
   ensurePeriodForMonth,
   listCopyablePeriods,
-  reparentItem,
   saveBudgetTemplate,
   updateItem,
 } from "./actions";
@@ -78,7 +77,6 @@ export type IncomeCategory =
 export type SerializedItem = {
   id: string;
   type: "INCOME" | "EXPENSE";
-  parentItemId: string | null;
   category: ExpenseCategory | null;
   incomeCategory: IncomeCategory | null;
   label: string;
@@ -486,72 +484,24 @@ const CopyButton = styled.button<{ $primary?: boolean }>`
   `}
 `;
 
-// Group (parent) row label: a small ▾ marker + the editable name + a faint
-// child count, so it's obvious the row is a group whose amounts are a total.
-const GroupLabelWrap = styled.span`
-  display: inline-flex;
-  align-items: center;
-  gap: ${({ theme }) => theme.spacing.sm};
-  width: 100%;
-  min-width: 0;
-`;
-
-const GroupCaret = styled.span`
-  flex: none;
-  color: ${({ theme }) => theme.colors.dim};
-  font-size: 10px;
-  line-height: 1;
-`;
-
-const GroupCount = styled.span`
-  flex: none;
-  color: ${({ theme }) => theme.colors.dim};
-  font-size: 11px;
-  white-space: nowrap;
-`;
-
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-// Walk top-level → children → grandchildren etc, sorted by sortOrder at each
-// level. Returns the flat render order plus each item's depth (1..3).
-// Render order for a section. When `category` is given, only top-level rows
-// in that bucket (and their descendants) are included — used to render the
-// expense category buckets. Income passes no category (flat).
+// The rows for one category bucket, sorted by sortOrder. Expenses match on
+// `category`, income on `incomeCategory`.
 function buildSectionOrder(
   items: SerializedItem[],
   type: "INCOME" | "EXPENSE",
-  category?: ExpenseCategory | IncomeCategory,
-): { item: SerializedItem; depth: 1 | 2 | 3 }[] {
-  const childrenByParent = new Map<string | null, SerializedItem[]>();
-  for (const item of items.filter((i) => i.type === type)) {
-    const key = item.parentItemId;
-    const list = childrenByParent.get(key) ?? [];
-    list.push(item);
-    childrenByParent.set(key, list);
-  }
-  for (const list of Array.from(childrenByParent.values())) {
-    list.sort((a, b) => a.sortOrder - b.sortOrder);
-  }
-  const result: { item: SerializedItem; depth: 1 | 2 | 3 }[] = [];
-  function walk(parentId: string | null, depth: 1 | 2 | 3) {
-    let children = childrenByParent.get(parentId) ?? [];
-    if (depth === 1 && category !== undefined) {
-      // Different column per side: top-level expenses use `category`, top-level
-      // income items use `incomeCategory`.
-      children =
-        type === "EXPENSE"
-          ? children.filter((c) => c.category === category)
-          : children.filter((c) => c.incomeCategory === category);
-    }
-    for (const child of children) {
-      result.push({ item: child, depth });
-      if (depth < 3) {
-        walk(child.id, (depth + 1) as 1 | 2 | 3);
-      }
-    }
-  }
-  walk(null, 1);
-  return result;
+  category: ExpenseCategory | IncomeCategory,
+): SerializedItem[] {
+  return items
+    .filter(
+      (i) =>
+        i.type === type &&
+        (type === "EXPENSE"
+          ? i.category === category
+          : i.incomeCategory === category),
+    )
+    .sort((a, b) => a.sortOrder - b.sortOrder);
 }
 
 // The three expense buckets, in display order, with labels + help text.
@@ -609,48 +559,6 @@ const INCOME_CATEGORIES: {
     help: "Gifts, refunds, government support, one-off receipts.",
   },
 ];
-
-// Category of `itemId`'s top-level ancestor (the bucket its subtree sits in).
-function topLevelCategoryOf(
-  items: SerializedItem[],
-  itemId: string,
-): ExpenseCategory | null {
-  const byId = new Map(items.map((i) => [i.id, i]));
-  let current = byId.get(itemId);
-  while (current && current.parentItemId !== null) {
-    current = byId.get(current.parentItemId);
-  }
-  return current?.category ?? null;
-}
-
-// Depth of `itemId` walking up the parent chain (top-level = 1).
-function computeItemDepth(items: SerializedItem[], itemId: string): number {
-  const byId = new Map(items.map((i) => [i.id, i]));
-  let depth = 1;
-  let current = byId.get(itemId);
-  while (current && current.parentItemId !== null) {
-    depth++;
-    current = byId.get(current.parentItemId);
-  }
-  return depth;
-}
-
-// Depth of the deepest descendant below `rootId` (rootId itself = 0).
-function computeSubtreeDepth(items: SerializedItem[], rootId: string): number {
-  const childrenByParent = new Map<string, SerializedItem[]>();
-  for (const item of items) {
-    if (item.parentItemId === null) continue;
-    const list = childrenByParent.get(item.parentItemId) ?? [];
-    list.push(item);
-    childrenByParent.set(item.parentItemId, list);
-  }
-  function rec(id: string): number {
-    const children = childrenByParent.get(id) ?? [];
-    if (children.length === 0) return 0;
-    return 1 + Math.max(...children.map((c) => rec(c.id)));
-  }
-  return rec(rootId);
-}
 
 const formatRelative = (then: Date | null, now: Date): string => {
   if (!then) return "";
@@ -1048,7 +956,6 @@ export function BudgetSheet({
           const created = await createItem({
             periodId: pid,
             type,
-            parentItemId: null,
             label: "",
           });
           setItems((prev) => [
@@ -1056,7 +963,6 @@ export function BudgetSheet({
             {
               id: created.id,
               type: created.type,
-              parentItemId: created.parentItemId,
               category: created.category,
               incomeCategory: created.incomeCategory,
               label: created.label,
@@ -1084,31 +990,17 @@ export function BudgetSheet({
 
   // ─── Derived data ─────────────────────────────────────────────────────────
 
-  const incomeRows = useMemo(() => buildSectionOrder(items, "INCOME"), [items]);
-
   const rollups = useMemo(() => computeRollups(items), [items]);
 
-  // Direct-child count per parent id. A row with children is a "group": its
-  // amounts are a roll-up of its children, so it renders read-only.
-  const childCount = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const it of items) {
-      if (it.parentItemId === null) continue;
-      counts.set(it.parentItemId, (counts.get(it.parentItemId) ?? 0) + 1);
-    }
-    return counts;
-  }, [items]);
-
-  // Expenses grouped into their three category buckets, each with the rows
-  // (top-level + nested) and a bucket subtotal computed from top-level rollups.
+  // Expenses grouped into their three category buckets, each with its rows and
+  // a bucket subtotal.
   const expenseBuckets = useMemo(
     () =>
       EXPENSE_CATEGORIES.map((cat) => {
         const rows = buildSectionOrder(items, "EXPENSE", cat.key);
         let budget = 0;
         let actual = 0;
-        for (const { item, depth } of rows) {
-          if (depth !== 1) continue;
+        for (const item of rows) {
           const r = rollups.get(item.id);
           if (!r) continue;
           budget += r.budget;
@@ -1129,8 +1021,7 @@ export function BudgetSheet({
         const rows = buildSectionOrder(items, "INCOME", cat.key);
         let budget = 0;
         let actual = 0;
-        for (const { item, depth } of rows) {
-          if (depth !== 1) continue;
+        for (const item of rows) {
           const r = rollups.get(item.id);
           if (!r) continue;
           budget += r.budget;
@@ -1142,16 +1033,6 @@ export function BudgetSheet({
         return { cat, rows, totals: { budget, actual, variance, variancePct } };
       }),
     [items, rollups],
-  );
-
-  // Flat expense render order (buckets concatenated) — used for indent target
-  // adjacency so it matches what's on screen.
-  const expenseRenderOrder = useMemo(
-    () =>
-      EXPENSE_CATEGORIES.flatMap(({ key }) =>
-        buildSectionOrder(items, "EXPENSE", key),
-      ),
-    [items],
   );
 
   const incomeTotals = useMemo(
@@ -1167,8 +1048,7 @@ export function BudgetSheet({
     [incomeTotals, expenseTotals],
   );
 
-  // ─── Indent / outdent ─────────────────────────────────────────────────────
-
+  // The focused row, if any — drives the category dropdown and delete button.
   const focusedItem = useMemo(
     () =>
       focusedCell
@@ -1177,142 +1057,14 @@ export function BudgetSheet({
     [focusedCell, items],
   );
 
-  // Indent makes the row immediately above the focused row (in render order,
-  // within the same section) the new parent. Disabled when:
-  //   - nothing is focused
-  //   - focused row is the first row in its section (nothing above)
-  //   - the row above is already this row's parent (no-op)
-  //   - the move would push the focused row's subtree past depth 3
-  const indentTarget = useMemo(() => {
-    if (!focusedItem) return null;
-    const renderOrder =
-      focusedItem.type === "EXPENSE"
-        ? expenseRenderOrder
-        : buildSectionOrder(items, "INCOME");
-    const idx = renderOrder.findIndex(({ item }) => item.id === focusedItem.id);
-    if (idx <= 0) return null;
-    const above = renderOrder[idx - 1].item;
-    if (above.id === focusedItem.parentItemId) return null;
-    const aboveDepth = computeItemDepth(items, above.id);
-    const subtreeDepth = computeSubtreeDepth(items, focusedItem.id);
-    if (aboveDepth + 1 + subtreeDepth > 3) return null;
-    return above;
-  }, [focusedItem, items, expenseRenderOrder]);
-
-  const canIndent = indentTarget !== null;
-  const canOutdent = focusedItem !== null && focusedItem.parentItemId !== null;
-
-  const performReparent = useCallback(
-    async (itemId: string, newParentItemId: string | null) => {
-      // Snapshot previous parent+sortOrder+category so we can revert if the
-      // server rejects (cycle, depth cap, ownership).
-      const target = items.find((it) => it.id === itemId);
-      if (!target) return;
-      const previousState = {
-        parentItemId: target.parentItemId,
-        sortOrder: target.sortOrder,
-        category: target.category,
-      };
-
-      // Mirror the server's category bookkeeping optimistically: a row demoted
-      // to a child goes null; a row promoted to top level inherits the bucket
-      // of the top-level ancestor it's leaving.
-      let optimisticCategory = target.category;
-      if (target.type === "EXPENSE") {
-        optimisticCategory =
-          newParentItemId === null ? topLevelCategoryOf(items, itemId) : null;
-      }
-
-      setItems((prev) =>
-        prev.map((it) =>
-          it.id === itemId
-            ? {
-                ...it,
-                parentItemId: newParentItemId,
-                category: optimisticCategory,
-              }
-            : it,
-        ),
-      );
-
-      pendingSavesRef.current += 1;
-      setPendingCount(pendingSavesRef.current);
-      try {
-        const updated = await reparentItem({ itemId, newParentItemId });
-        setItems((prev) =>
-          prev.map((it) =>
-            it.id === updated.id
-              ? {
-                  ...it,
-                  parentItemId: updated.parentItemId,
-                  sortOrder: updated.sortOrder,
-                  category: updated.category,
-                }
-              : it,
-          ),
-        );
-        setLastSavedAt(new Date());
-        setSaveError(null);
-      } catch (e) {
-        // Revert so the UI matches the server.
-        setItems((prev) =>
-          prev.map((it) =>
-            it.id === itemId
-              ? {
-                  ...it,
-                  parentItemId: previousState.parentItemId,
-                  sortOrder: previousState.sortOrder,
-                  category: previousState.category,
-                }
-              : it,
-          ),
-        );
-        setSaveError(e instanceof Error ? e.message : "Move failed");
-      } finally {
-        pendingSavesRef.current = Math.max(0, pendingSavesRef.current - 1);
-        setPendingCount(pendingSavesRef.current);
-      }
-    },
-    [items],
-  );
-
-  const onIndent = useCallback(() => {
-    if (!focusedItem || !indentTarget) return;
-    void performReparent(focusedItem.id, indentTarget.id);
-  }, [focusedItem, indentTarget, performReparent]);
-
-  const onOutdent = useCallback(() => {
-    if (!focusedItem || !focusedItem.parentItemId) return;
-    const parent = items.find((i) => i.id === focusedItem.parentItemId);
-    if (!parent) return;
-    void performReparent(focusedItem.id, parent.parentItemId);
-  }, [focusedItem, items, performReparent]);
-
   // ─── Delete ───────────────────────────────────────────────────────────────
 
   const onDelete = useCallback(() => {
     if (!focusedItem) return;
     const target = focusedItem;
 
-    // Find every descendant of the focused row — they go with the parent.
-    const toDelete = new Set<string>([target.id]);
-    let grew = true;
-    while (grew) {
-      grew = false;
-      for (const item of items) {
-        if (
-          item.parentItemId &&
-          toDelete.has(item.parentItemId) &&
-          !toDelete.has(item.id)
-        ) {
-          toDelete.add(item.id);
-          grew = true;
-        }
-      }
-    }
-
-    // Optimistic — drop the row(s) from local state immediately, clear focus.
-    setItems((prev) => prev.filter((it) => !toDelete.has(it.id)));
+    // Optimistic — drop the row from local state immediately, clear focus.
+    setItems((prev) => prev.filter((it) => it.id !== target.id));
     setFocusedCell(null);
 
     pendingSavesRef.current += 1;
@@ -1329,7 +1081,7 @@ export function BudgetSheet({
         setPendingCount(pendingSavesRef.current);
       }
     })();
-  }, [focusedItem, items]);
+  }, [focusedItem]);
 
   // ─── Status pip state ─────────────────────────────────────────────────────
 
@@ -1348,97 +1100,59 @@ export function BudgetSheet({
 
   // ─── Render ───────────────────────────────────────────────────────────────
 
-  const renderItemRow = (item: SerializedItem, depth: 1 | 2 | 3) => {
-    const rollup = rollups.get(item.id) ?? { budget: 0, actual: 0 };
+  const renderItemRow = (item: SerializedItem) => {
     const variance =
       item.type === "INCOME"
-        ? rollup.actual - rollup.budget
-        : rollup.budget - rollup.actual;
+        ? item.actual - item.budget
+        : item.budget - item.actual;
     const pct =
-      rollup.budget === 0
-        ? 0
-        : Math.round((rollup.actual / rollup.budget) * 100);
-
-    // A row with children is a group: its budget/actual are the roll-up of
-    // its children, shown read-only. Leaf rows keep editable amount inputs.
-    const count = childCount.get(item.id) ?? 0;
-    const isGroup = count > 0;
-
-    const labelInput = (
-      <CellInput
-        ref={(el) => {
-          if (el) labelInputRefs.current.set(item.id, el);
-          else labelInputRefs.current.delete(item.id);
-        }}
-        value={item.label}
-        placeholder="Name this row"
-        onChange={(e) => editField(item.id, { label: e.target.value })}
-        onFocus={() => setFocusedCell({ itemId: item.id, field: "label" })}
-      />
-    );
+      item.budget === 0 ? 0 : Math.round((item.actual / item.budget) * 100);
 
     return (
       <SheetItemRow
         key={item.id}
-        depth={depth}
-        variant={isGroup ? "group" : "default"}
+        depth={1}
+        variant="default"
         onSelect={() => setFocusedCell({ itemId: item.id, field: "label" })}
         label={
-          isGroup ? (
-            <GroupLabelWrap>
-              <GroupCaret aria-hidden>▾</GroupCaret>
-              {labelInput}
-              <GroupCount>
-                {count} item{count === 1 ? "" : "s"}
-              </GroupCount>
-            </GroupLabelWrap>
-          ) : (
-            labelInput
-          )
+          <CellInput
+            ref={(el) => {
+              if (el) labelInputRefs.current.set(item.id, el);
+              else labelInputRefs.current.delete(item.id);
+            }}
+            value={item.label}
+            placeholder="Name this row"
+            onChange={(e) => editField(item.id, { label: e.target.value })}
+            onFocus={() => setFocusedCell({ itemId: item.id, field: "label" })}
+          />
         }
         amounts={{
-          budget: isGroup
-            ? {
-                value:
-                  rollup.budget === 0
-                    ? ""
-                    : formatNumber(rollup.budget, numberFormat),
-                tone: rollup.budget === 0 ? "dim" : "default",
-              }
-            : {
-                value: (
-                  <AmountInput
-                    value={item.budget}
-                    numberFormat={numberFormat}
-                    onCommit={(v) => editField(item.id, { budget: v })}
-                    onFocus={() =>
-                      setFocusedCell({ itemId: item.id, field: "budget" })
-                    }
-                  />
-                ),
-                tone: item.budget === 0 ? "dim" : "default",
-              },
-          actual: isGroup
-            ? {
-                value:
-                  rollup.actual === 0
-                    ? ""
-                    : formatNumber(rollup.actual, numberFormat),
-                tone: rollup.actual === 0 ? "dim" : "default",
-              }
-            : {
-                value: (
-                  <AmountInput
-                    value={item.actual}
-                    numberFormat={numberFormat}
-                    onCommit={(v) => editField(item.id, { actual: v })}
-                    onFocus={() =>
-                      setFocusedCell({ itemId: item.id, field: "actual" })
-                    }
-                  />
-                ),
-                tone: item.actual === 0 ? "dim" : "default",
-              },
+          budget: {
+            value: (
+              <AmountInput
+                value={item.budget}
+                numberFormat={numberFormat}
+                onCommit={(v) => editField(item.id, { budget: v })}
+                onFocus={() =>
+                  setFocusedCell({ itemId: item.id, field: "budget" })
+                }
+              />
+            ),
+            tone: item.budget === 0 ? "dim" : "default",
+          },
+          actual: {
+            value: (
+              <AmountInput
+                value={item.actual}
+                numberFormat={numberFormat}
+                onCommit={(v) => editField(item.id, { actual: v })}
+                onFocus={() =>
+                  setFocusedCell({ itemId: item.id, field: "actual" })
+                }
+              />
+            ),
+            tone: item.actual === 0 ? "dim" : "default",
+          },
           variance: {
             value: fmtSigned(variance),
             tone: toneFor(variance),
@@ -1635,56 +1349,43 @@ export function BudgetSheet({
             + Expense
           </ToolbarTool>
         </ToolbarGroup>
-        <ToolbarGroup>
-          <ToolbarTool onClick={onOutdent} disabled={!canOutdent}>
-            ← Outdent
-          </ToolbarTool>
-          <ToolbarTool onClick={onIndent} disabled={!canIndent}>
-            → Indent
-          </ToolbarTool>
-        </ToolbarGroup>
-        {focusedItem?.type === "EXPENSE" &&
-          focusedItem.parentItemId === null && (
-            <ToolbarGroup>
-              <CategorySelect
-                aria-label="Expense category"
-                value={focusedItem.category ?? "FIXED"}
-                onChange={(e) =>
-                  editCategory(
-                    focusedItem.id,
-                    e.target.value as ExpenseCategory,
-                  )
-                }
-              >
-                {EXPENSE_CATEGORIES.map((c) => (
-                  <option key={c.key} value={c.key}>
-                    {c.label}
-                  </option>
-                ))}
-              </CategorySelect>
-            </ToolbarGroup>
-          )}
-        {focusedItem?.type === "INCOME" &&
-          focusedItem.parentItemId === null && (
-            <ToolbarGroup>
-              <CategorySelect
-                aria-label="Income category"
-                value={focusedItem.incomeCategory ?? "OTHER"}
-                onChange={(e) =>
-                  editIncomeCategory(
-                    focusedItem.id,
-                    e.target.value as IncomeCategory,
-                  )
-                }
-              >
-                {INCOME_CATEGORIES.map((c) => (
-                  <option key={c.key} value={c.key}>
-                    {c.label}
-                  </option>
-                ))}
-              </CategorySelect>
-            </ToolbarGroup>
-          )}
+        {focusedItem?.type === "EXPENSE" && (
+          <ToolbarGroup>
+            <CategorySelect
+              aria-label="Expense category"
+              value={focusedItem.category ?? "FIXED"}
+              onChange={(e) =>
+                editCategory(focusedItem.id, e.target.value as ExpenseCategory)
+              }
+            >
+              {EXPENSE_CATEGORIES.map((c) => (
+                <option key={c.key} value={c.key}>
+                  {c.label}
+                </option>
+              ))}
+            </CategorySelect>
+          </ToolbarGroup>
+        )}
+        {focusedItem?.type === "INCOME" && (
+          <ToolbarGroup>
+            <CategorySelect
+              aria-label="Income category"
+              value={focusedItem.incomeCategory ?? "OTHER"}
+              onChange={(e) =>
+                editIncomeCategory(
+                  focusedItem.id,
+                  e.target.value as IncomeCategory,
+                )
+              }
+            >
+              {INCOME_CATEGORIES.map((c) => (
+                <option key={c.key} value={c.key}>
+                  {c.label}
+                </option>
+              ))}
+            </CategorySelect>
+          </ToolbarGroup>
+        )}
         <ToolbarGroup>
           <ToolbarTool onClick={onDelete} disabled={!focusedItem}>
             × Delete row
@@ -1740,7 +1441,7 @@ export function BudgetSheet({
                 variancePct: formatPct(totals.variancePct),
               }}
             />
-            {rows.map(({ item, depth }) => renderItemRow(item, depth))}
+            {rows.map((item) => renderItemRow(item))}
           </div>
         ))}
         <SheetTotalsRow
@@ -1797,7 +1498,7 @@ export function BudgetSheet({
                 variancePct: formatPct(totals.variancePct),
               }}
             />
-            {rows.map(({ item, depth }) => renderItemRow(item, depth))}
+            {rows.map((item) => renderItemRow(item))}
           </div>
         ))}
         <SheetTotalsRow

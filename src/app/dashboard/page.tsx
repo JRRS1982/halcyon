@@ -108,7 +108,6 @@ export default async function DashboardPage() {
       p.items.map((i) => ({
         id: i.id,
         type: i.type,
-        parentItemId: i.parentItemId,
         budget: Number(i.budget),
         actual: Number(i.actual),
       })),
@@ -119,7 +118,7 @@ export default async function DashboardPage() {
       DISCRETIONARY: { actual: 0, budget: 0 },
     };
     for (const it of p.items) {
-      if (it.type !== "EXPENSE" || it.parentItemId !== null) continue;
+      if (it.type !== "EXPENSE") continue;
       const r = rollups.get(it.id);
       if (!r) continue;
       const c: Cat = it.category ?? "FIXED";
@@ -160,7 +159,6 @@ export default async function DashboardPage() {
       p.items.map((i) => ({
         id: i.id,
         type: i.type,
-        parentItemId: i.parentItemId,
         budget: Number(i.budget),
         actual: Number(i.actual),
       })),
@@ -169,7 +167,6 @@ export default async function DashboardPage() {
     let income = 0;
     let expense = 0;
     for (const it of p.items) {
-      if (it.parentItemId !== null) continue;
       const r = rollups.get(it.id);
       if (!r) continue;
       if (it.type === "INCOME") income += r.actual;
