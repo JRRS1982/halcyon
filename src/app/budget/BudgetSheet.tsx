@@ -32,15 +32,20 @@ import { useDebouncedCallback } from "@/lib/hooks/useDebouncedCallback";
 import {
   NUMBER_FORMAT_SPEC,
   type NumberFormat,
+  caretAfterSignificant,
   formatAmount,
   formatNumber,
   formatSignedAmount,
+  groupForEditing,
+  parseEditable,
+  significantBefore,
 } from "@/lib/settings/currency";
 import { useRouter } from "next/navigation";
 import {
   type KeyboardEventHandler,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -146,6 +151,23 @@ function AmountInput({
 }) {
   const [focused, setFocused] = useState(false);
   const [draft, setDraft] = useState("");
+  const localRef = useRef<HTMLInputElement | null>(null);
+  // Caret position to restore after regrouping shifts the separators.
+  const caretRef = useRef<number | null>(null);
+
+  const setRef = (el: HTMLInputElement | null) => {
+    localRef.current = el;
+    inputRef?.(el);
+  };
+
+  // Reapply the caret after a regrouped draft re-renders, so inserting a
+  // thousands separator doesn't bump the cursor to the end.
+  useLayoutEffect(() => {
+    if (!focused || caretRef.current === null || !localRef.current) return;
+    const pos = Math.min(caretRef.current, draft.length);
+    localRef.current.setSelectionRange(pos, pos);
+    caretRef.current = null;
+  }, [draft, focused]);
 
   const display = focused
     ? draft
@@ -155,7 +177,7 @@ function AmountInput({
 
   return (
     <CellInput
-      ref={inputRef}
+      ref={setRef}
       $align="right"
       value={display}
       placeholder={
@@ -165,24 +187,23 @@ function AmountInput({
       onKeyDown={onKeyDown}
       onFocus={() => {
         setFocused(true);
-        // Raw editable form — plain number, no separators.
-        setDraft(value === 0 ? "" : String(value));
+        // Start from the same grouped form shown when unfocused, so focusing a
+        // cell doesn't change how the number looks.
+        setDraft(value === 0 ? "" : formatNumber(value, numberFormat));
         onFocus();
       }}
       onChange={(e) => {
-        const next = e.target.value;
-        setDraft(next);
-        if (next === "") {
-          onCommit(0);
-          return;
-        }
-        const n = Number.parseFloat(next);
-        if (Number.isFinite(n) && n >= 0) onCommit(n);
+        const raw = e.target.value;
+        const caret = e.target.selectionStart ?? raw.length;
+        const sig = significantBefore(raw, caret, numberFormat);
+        const formatted = groupForEditing(raw, numberFormat);
+        setDraft(formatted);
+        caretRef.current = caretAfterSignificant(formatted, sig, numberFormat);
+        onCommit(parseEditable(formatted, numberFormat));
       }}
       onBlur={() => {
         setFocused(false);
-        const n = Number.parseFloat(draft);
-        const final = Number.isFinite(n) && n >= 0 ? n : 0;
+        const final = parseEditable(draft, numberFormat);
         if (final !== value) onCommit(final);
       }}
     />

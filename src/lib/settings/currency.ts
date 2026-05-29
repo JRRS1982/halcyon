@@ -95,6 +95,88 @@ export function formatNumber(
   return `${sign}${formatDigits(Math.abs(n), fmt)}`;
 }
 
+// ─── Live (mid-typing) number formatting ────────────────────────────────────
+// The editable amount cells group the integer part with thousands separators
+// as the user types, while leaving the decimal portion exactly as typed (no
+// padding) so entering "1234.5" isn't fought by re-formatting.
+
+// A char counts as "significant" for caret tracking if it survives regrouping:
+// a digit or the decimal separator (group separators are inserted/removed).
+function isSignificant(ch: string, decimal: string): boolean {
+  return /\d/.test(ch) || ch === decimal;
+}
+
+// Regroup a partially-typed string: strip existing thousands separators, keep
+// digits and at most one decimal separator, then group the integer part. A
+// trailing decimal separator and any typed decimals are preserved as-is.
+export function groupForEditing(
+  raw: string,
+  fmt: NumberFormat = DEFAULT_NUMBER_FORMAT,
+): string {
+  const spec = NUMBER_FORMAT_SPEC[fmt];
+  const withoutGroups = raw.split(spec.thousands).join("");
+  const decIdx = withoutGroups.indexOf(spec.decimal);
+  const digits = (s: string) => s.replace(/\D/g, "");
+  const group = (intDigits: string) =>
+    intDigits.replace(/\B(?=(\d{3})+(?!\d))/g, spec.thousands);
+
+  if (decIdx === -1) return group(digits(withoutGroups));
+
+  const intPart = group(digits(withoutGroups.slice(0, decIdx)));
+  const fracPart = digits(withoutGroups.slice(decIdx + spec.decimal.length));
+  return `${intPart}${spec.decimal}${fracPart}`;
+}
+
+// Parse a (possibly partially-typed, grouped) editable string back to a number.
+// Empty or decimal-only input is 0.
+export function parseEditable(
+  raw: string,
+  fmt: NumberFormat = DEFAULT_NUMBER_FORMAT,
+): number {
+  const spec = NUMBER_FORMAT_SPEC[fmt];
+  const normalized = raw
+    .split(spec.thousands)
+    .join("")
+    .replace(spec.decimal, ".");
+  const n = Number.parseFloat(normalized);
+  return Number.isFinite(n) ? n : 0;
+}
+
+// After regrouping shifts separators around, place the caret just after the
+// Nth significant char (digits + decimal sep) so it stays where the user was
+// typing rather than jumping to the end.
+export function caretAfterSignificant(
+  formatted: string,
+  significantCount: number,
+  fmt: NumberFormat = DEFAULT_NUMBER_FORMAT,
+): number {
+  if (significantCount <= 0) return 0;
+  const { decimal } = NUMBER_FORMAT_SPEC[fmt];
+  let seen = 0;
+  for (let i = 0; i < formatted.length; i++) {
+    if (isSignificant(formatted[i], decimal)) {
+      seen++;
+      if (seen === significantCount) return i + 1;
+    }
+  }
+  return formatted.length;
+}
+
+// Count significant chars (digits + decimal sep) to the left of `caret` in
+// `raw` — the anchor for caretAfterSignificant after regrouping.
+export function significantBefore(
+  raw: string,
+  caret: number,
+  fmt: NumberFormat = DEFAULT_NUMBER_FORMAT,
+): number {
+  const { decimal } = NUMBER_FORMAT_SPEC[fmt];
+  let count = 0;
+  for (let i = 0; i < caret && i < raw.length; i++) {
+    if (isSignificant(raw[i], decimal)) count++;
+  }
+  return count;
+}
+
 // Format an amount in the user's currency + number format — e.g. "£1,234".
 // A negative amount gets a leading minus before the symbol ("−£1,234").
 export function formatAmount(
