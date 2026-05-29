@@ -65,17 +65,34 @@ export function CashFlowChart({
     const delta = data[index].net - data[index - 1].net;
     if (delta === 0) return <g />;
     const up = delta > 0;
+    const text = `${up ? "▲" : "▼"} ${fmtDelta(delta)}`;
+    const cx = Number(x);
+    const cy = Number(y) - 10;
+    const w = text.length * 6.6 + 10;
+    // Chip background so the marker stays legible over the bars behind it.
     return (
-      <text
-        x={Number(x)}
-        y={Number(y) - 10}
-        textAnchor="middle"
-        fontSize={11}
-        fontWeight={600}
-        fill={up ? INCOME_COLOR : EXPENSE_COLOR}
-      >
-        {up ? "▲" : "▼"} {fmtDelta(delta)}
-      </text>
+      <g>
+        <rect
+          x={cx - w / 2}
+          y={cy - 11}
+          width={w}
+          height={15}
+          rx={3}
+          fill={theme.colors.canvas}
+          stroke={up ? INCOME_COLOR : EXPENSE_COLOR}
+          strokeWidth={1.5}
+        />
+        <text
+          x={cx}
+          y={cy}
+          textAnchor="middle"
+          fontSize={11}
+          fontWeight={700}
+          fill={up ? INCOME_COLOR : EXPENSE_COLOR}
+        >
+          {text}
+        </text>
+      </g>
     );
   };
 
