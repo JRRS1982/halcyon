@@ -25,6 +25,20 @@ export async function getCurrentUserSettings(): Promise<{
   } = await supabase.auth.getUser();
   if (!user) redirect("/sign-in");
 
+  // Ensure the app-side profile row exists before any User-referencing write.
+  // In production the `handle_new_user` trigger on auth.users creates this row
+  // (see ADR-002 / the supabase_auth_integration migration). But that trigger
+  // lives in the Supabase database; when Prisma points at a separate DB (e.g.
+  // local Docker Postgres with auth still on Supabase), the row is never
+  // created locally and FK constraints fail. This idempotent upsert mirrors the
+  // trigger as an app-side fallback so sign-in works regardless of which DB
+  // Prisma targets. Trigger-first, app-fallback.
+  await prisma.user.upsert({
+    where: { id: user.id },
+    update: {},
+    create: { id: user.id },
+  });
+
   const row = await prisma.userSettings.upsert({
     where: { userId: user.id },
     update: {},
