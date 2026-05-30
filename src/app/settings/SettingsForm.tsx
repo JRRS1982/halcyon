@@ -158,6 +158,18 @@ const DialogText = styled.p`
   color: ${({ theme }) => theme.colors.ink};
 `;
 
+const DialogInfo = styled.p`
+  margin: 0;
+  font-family: ${({ theme }) => theme.typography.bodyMd.family};
+  font-size: 13px;
+  line-height: 1.5;
+  color: ${({ theme }) => theme.colors.body};
+
+  strong {
+    color: ${({ theme }) => theme.colors.ink};
+  }
+`;
+
 const DialogActions = styled.div`
   display: flex;
   justify-content: flex-end;
@@ -197,13 +209,21 @@ export function SettingsForm({
   const [pending, startTransition] = useTransition();
   const [justSaved, setJustSaved] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  // The toggle's intended value when the dialog opened, so we can explain the
+  // consequence of the specific change (enable vs disable vs no change).
+  const [nextTransactions, setNextTransactions] = useState(transactionsEnabled);
 
   // Saving is gated behind a confirmation: submitting the form opens the
   // dialog; only the dialog's Confirm actually runs the action.
   const requestSave = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const form = event.currentTarget;
+    setNextTransactions(new FormData(form).get("transactionsEnabled") === "on");
     setConfirming(true);
   };
+
+  const enabling = nextTransactions && !transactionsEnabled;
+  const disabling = !nextTransactions && transactionsEnabled;
 
   const confirmSave = () => {
     const form = formRef.current;
@@ -279,6 +299,24 @@ export function SettingsForm({
         >
           <Dialog open>
             <DialogText>Save these settings?</DialogText>
+            {enabling && (
+              <DialogInfo>
+                <strong>Turning Transactions on:</strong> adds the Transactions
+                page to the nav, lets you import bank statements, and switches
+                each budget category’s <em>actual</em> to the sum of its
+                categorized transactions (the actual column becomes read-only).
+                Your existing manual actuals are kept, not overwritten.
+              </DialogInfo>
+            )}
+            {disabling && (
+              <DialogInfo>
+                <strong>Turning Transactions off:</strong> hides the
+                Transactions page and makes the budget’s <em>actual</em> column
+                editable again, showing your manually-entered values. Your
+                imported transactions and categories are kept — they’ll reappear
+                if you switch it back on.
+              </DialogInfo>
+            )}
             <DialogActions>
               <GhostButton type="button" onClick={() => setConfirming(false)}>
                 Cancel
