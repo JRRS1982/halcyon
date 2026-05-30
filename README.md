@@ -26,6 +26,23 @@ Install halcyon with pnpm, which is a fast, disk space efficient package manager
   pnpm run dev
 ```
 
+### Local development & databases — ⚠️ read this
+
+There are **two databases** in play, and which one you hit depends on _how you run the app_:
+
+| How you run it | Database used |
+| --- | --- |
+| **Docker** (`make dev-up` / `docker compose up`) — recommended for local dev | **Local Postgres** (the `db` container) |
+| **Host** (`pnpm dev`) | **Production Supabase** ⚠️ |
+
+**Why:** Next.js (and Prisma) load env files in precedence order **`.env.local` → `.env.development` → `.env`**, and the first file to set a variable wins. `.env.local` holds the **production Supabase** `DATABASE_URL`/`DIRECT_URL`, so anything run on the host — `pnpm dev`, `pnpm prisma migrate`, a seed script — talks to **production** by default. The Docker container avoids this because `compose.yaml` sets `DATABASE_URL` **and** `DIRECT_URL` to the local `db` service via its `environment:` block, which takes precedence over the mounted `.env*` files.
+
+Practical rules:
+
+- **Develop against the local DB by running in Docker** (`make dev-up`). Don't _also_ run `pnpm dev` on the host — it serves `:3000` against production.
+- **Never run `pnpm prisma migrate …` on the host.** It uses `DIRECT_URL` from `.env.local` → production. Run migrations inside the container instead: `make dev-db-migrate name=<verb_table>`.
+- If you _must_ run the host `pnpm dev` against the local DB, override **both** `DATABASE_URL` and `DIRECT_URL` in **`.env.local`** (not `.env` — it's lower precedence and won't take effect) to point at `postgresql://postgres:postgres@localhost:5432/halcyon?schema=public`, and keep the `NEXT_PUBLIC_SUPABASE_*` keys (auth still uses real Supabase).
+
 ## Documentation
 
 I have done my best, with the support of AI to put a comprehensive set of documents in place to help me and others understand the project and its architecture.
