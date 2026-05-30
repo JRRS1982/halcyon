@@ -11,7 +11,8 @@
       "playwright-report",
       "test-results",
       ".claude",
-      ".agents"
+      ".agents",
+      ".pnpm-store"
     ]
   },
   "formatter": {

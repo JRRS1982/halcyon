@@ -2,6 +2,9 @@
 /node_modules
 /.pnp
 .pnp.js
+# Local pnpm content-addressable store (created when running pnpm inside the
+# dev container, which mounts the repo). It's a package cache, not source.
+/.pnpm-store
 
 # Testing
 /coverage
