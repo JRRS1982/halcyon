@@ -5,6 +5,11 @@ import { prisma } from "@/lib/prisma";
 import { requireTransactionsEnabled } from "@/lib/settings/server";
 import { transactionFingerprint } from "@/lib/transactions/dedupe";
 import { type ColumnMapping, mapRows } from "@/lib/transactions/import";
+import {
+  type LedgerCategory,
+  type LedgerPage,
+  getTransactionsPage,
+} from "@/lib/transactions/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -138,4 +143,71 @@ export async function importTransactions(
     invalid,
     accountName: account.name,
   };
+}
+
+const setCategorySchema = z.object({
+  transactionId: z.string().uuid(),
+  categoryId: z.string().uuid().nullable(),
+});
+
+// Assigns (or clears) a transaction's category. Both the transaction and the
+// category must belong to the signed-in user. Revalidates the budget/dashboard
+// since this changes computed actuals.
+export async function setTransactionCategory(
+  input: z.input<typeof setCategorySchema>,
+): Promise<void> {
+  const userId = await requireTransactionsEnabled();
+  const { transactionId, categoryId } = setCategorySchema.parse(input);
+
+  if (categoryId) {
+    const category = await prisma.category.findFirst({
+      where: { id: categoryId, userId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!category) throw new Error("Category not found");
+  }
+
+  const result = await prisma.transaction.updateMany({
+    where: { id: transactionId, userId, deletedAt: null },
+    data: { categoryId },
+  });
+  if (result.count === 0) throw new Error("Transaction not found");
+
+  revalidatePath("/transactions");
+  revalidatePath("/budget");
+  revalidatePath("/dashboard");
+}
+
+const createCategorySchema = z.object({
+  label: z.string().trim().min(1).max(120),
+  type: z.enum(["INCOME", "EXPENSE"]),
+});
+
+// Creates a new category for inline assignment from the ledger.
+export async function createCategory(
+  input: z.input<typeof createCategorySchema>,
+): Promise<LedgerCategory> {
+  const userId = await requireTransactionsEnabled();
+  const { label, type } = createCategorySchema.parse(input);
+
+  const created = await prisma.category.create({
+    data: { userId, label: cleanLabel(label), type },
+    select: { id: true, label: true, type: true },
+  });
+  revalidatePath("/budget");
+  return created;
+}
+
+const loadMoreSchema = z.object({
+  cursor: z.string().nullable(),
+  onlyUncategorized: z.boolean(),
+});
+
+// Fetches the next keyset page of the ledger for the "Load more" control.
+export async function loadMoreTransactions(
+  input: z.input<typeof loadMoreSchema>,
+): Promise<LedgerPage> {
+  const userId = await requireTransactionsEnabled();
+  const { cursor, onlyUncategorized } = loadMoreSchema.parse(input);
+  return getTransactionsPage(userId, { cursor, onlyUncategorized });
 }

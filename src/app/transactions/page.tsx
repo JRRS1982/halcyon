@@ -1,5 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { requireTransactionsEnabled } from "@/lib/settings/server";
+import {
+  countUncategorized,
+  getOrProvisionCategories,
+  getTransactionsPage,
+} from "@/lib/transactions/server";
 import { TransactionsView } from "./TransactionsView";
 
 // Gated route. requireTransactionsEnabled redirects to /sign-in when signed
@@ -9,11 +14,24 @@ import { TransactionsView } from "./TransactionsView";
 export default async function TransactionsPage() {
   const userId = await requireTransactionsEnabled();
 
-  const accounts = await prisma.account.findMany({
-    where: { userId, deletedAt: null },
-    orderBy: { name: "asc" },
-    select: { id: true, name: true },
-  });
+  const [accounts, categories, initialPage, uncategorizedCount] =
+    await Promise.all([
+      prisma.account.findMany({
+        where: { userId, deletedAt: null },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true },
+      }),
+      getOrProvisionCategories(userId),
+      getTransactionsPage(userId),
+      countUncategorized(userId),
+    ]);
 
-  return <TransactionsView accounts={accounts} />;
+  return (
+    <TransactionsView
+      accounts={accounts}
+      categories={categories}
+      initialPage={initialPage}
+      uncategorizedCount={uncategorizedCount}
+    />
+  );
 }
