@@ -1,0 +1,101 @@
+import { guessMapping, mapRows } from "@/lib/transactions/import";
+
+const mapping = {
+  dateColumn: 0,
+  amountColumn: 2,
+  descriptionColumn: 1,
+  dateFormat: "YMD" as const,
+  hasHeader: true,
+};
+
+describe("mapRows", () => {
+  const rows = [
+    ["date", "description", "amount"],
+    ["2026-03-14", "Tesco", "-50"],
+    ["2026-03-15", "Salary", "2000"],
+  ];
+
+  test("skips the header and maps each data row by column index", () => {
+    const mapped = mapRows(rows, mapping);
+    expect(mapped).toHaveLength(2);
+    expect(mapped[0]).toMatchObject({
+      description: "Tesco",
+      amount: -50,
+      errors: [],
+    });
+    expect(mapped[0].date?.toISOString()).toBe("2026-03-14T00:00:00.000Z");
+  });
+
+  test("includes the first row when hasHeader is false", () => {
+    const mapped = mapRows(rows, { ...mapping, hasHeader: false });
+    expect(mapped).toHaveLength(3);
+    expect(mapped[0].errors).toContain("Invalid date");
+  });
+
+  test("flags an unparseable date", () => {
+    const mapped = mapRows(
+      [["x", "y", "z"], ["nope", "Tesco", "-50"]],
+      mapping,
+    );
+    expect(mapped[0].errors).toContain("Invalid date");
+    expect(mapped[0].date).toBeNull();
+  });
+
+  test("flags an unparseable amount", () => {
+    const mapped = mapRows(
+      [["x", "y", "z"], ["2026-03-14", "Tesco", "abc"]],
+      mapping,
+    );
+    expect(mapped[0].errors).toContain("Invalid amount");
+    expect(mapped[0].amount).toBeNull();
+  });
+
+  test("trims the description and tolerates a missing column", () => {
+    const mapped = mapRows(
+      [["x", "y", "z"], ["2026-03-14", "  Tesco  "]],
+      mapping,
+    );
+    expect(mapped[0].description).toBe("Tesco");
+    expect(mapped[0].errors).toContain("Invalid amount");
+  });
+
+  test("carries the original row and its data index", () => {
+    const mapped = mapRows(rows, mapping);
+    expect(mapped[1]).toMatchObject({ index: 1, raw: ["2026-03-15", "Salary", "2000"] });
+  });
+});
+
+describe("guessMapping", () => {
+  test("matches common header names case-insensitively", () => {
+    const guess = guessMapping(["Date", "Description", "Amount"]);
+    expect(guess).toMatchObject({
+      dateColumn: 0,
+      descriptionColumn: 1,
+      amountColumn: 2,
+    });
+  });
+
+  test("recognises synonyms (Transaction Date, Narrative, Value)", () => {
+    const guess = guessMapping(["Narrative", "Value", "Transaction Date"]);
+    expect(guess).toMatchObject({
+      descriptionColumn: 0,
+      amountColumn: 1,
+      dateColumn: 2,
+    });
+  });
+
+  test("falls back to the first three columns when nothing matches", () => {
+    const guess = guessMapping(["a", "b", "c"]);
+    expect(guess).toMatchObject({
+      dateColumn: 0,
+      descriptionColumn: 1,
+      amountColumn: 2,
+    });
+  });
+
+  test("defaults hasHeader true and a date format", () => {
+    const guess = guessMapping(["Date", "Description", "Amount"]);
+    expect(guess.hasHeader).toBe(true);
+    expect(["DMY", "MDY", "YMD"]).toContain(guess.dateFormat);
+  });
+});
