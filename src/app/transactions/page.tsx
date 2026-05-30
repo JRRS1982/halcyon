@@ -1,3 +1,4 @@
+import { prisma } from "@/lib/prisma";
 import { requireTransactionsEnabled } from "@/lib/settings/server";
 import { TransactionsView } from "./TransactionsView";
 
@@ -6,6 +7,13 @@ import { TransactionsView } from "./TransactionsView";
 // bookmark or direct URL never exposes the page. The nav link is likewise
 // hidden when off — but this server gate is the real boundary.
 export default async function TransactionsPage() {
-  await requireTransactionsEnabled();
-  return <TransactionsView />;
+  const userId = await requireTransactionsEnabled();
+
+  const accounts = await prisma.account.findMany({
+    where: { userId, deletedAt: null },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true },
+  });
+
+  return <TransactionsView accounts={accounts} />;
 }

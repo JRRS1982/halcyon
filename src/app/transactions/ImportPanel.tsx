@@ -1,0 +1,405 @@
+"use client";
+
+import { Button } from "@/components/ui/Button";
+import { parseCsv } from "@/lib/transactions/csv";
+import { DATE_FORMATS, type DateFormat } from "@/lib/transactions/date";
+import {
+  type ColumnMapping,
+  guessMapping,
+  mapRows,
+} from "@/lib/transactions/import";
+import { useRouter } from "next/navigation";
+import { type ChangeEvent, useMemo, useState, useTransition } from "react";
+import styled from "styled-components";
+import { type ImportResult, importTransactions } from "./actions";
+
+type Account = { id: string; name: string };
+
+const Panel = styled.section`
+  margin-top: ${({ theme }) => theme.spacing["3xl"]};
+  display: grid;
+  gap: ${({ theme }) => theme.spacing.xl};
+`;
+
+const Label = styled.span`
+  font-family: ${({ theme }) => theme.typography.monoCaps.family};
+  font-size: ${({ theme }) => theme.typography.monoCaps.size};
+  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
+  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
+  text-transform: uppercase;
+  color: ${({ theme }) => theme.colors.dim};
+`;
+
+const FileRow = styled.label`
+  display: inline-flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.md};
+  cursor: pointer;
+`;
+
+const HiddenFile = styled.input`
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+`;
+
+const FileButton = styled.span`
+  display: inline-flex;
+  align-items: center;
+  padding: ${({ theme }) => theme.spacing.sm}
+    ${({ theme }) => theme.spacing.lg};
+  border: 1px solid ${({ theme }) => theme.colors.hairlineStrong};
+  border-radius: ${({ theme }) => theme.rounded.sm};
+  font-family: ${({ theme }) => theme.typography.bodyMd.family};
+  font-size: ${({ theme }) => theme.typography.bodyMd.size};
+  color: ${({ theme }) => theme.colors.ink};
+`;
+
+const FileName = styled.span`
+  font-family: ${({ theme }) => theme.typography.bodyMd.family};
+  font-size: ${({ theme }) => theme.typography.bodyMd.size};
+  color: ${({ theme }) => theme.colors.body};
+`;
+
+const MapGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: ${({ theme }) => theme.spacing.lg};
+`;
+
+const Field = styled.label`
+  display: grid;
+  gap: ${({ theme }) => theme.spacing.sm};
+`;
+
+const Select = styled.select`
+  padding: ${({ theme }) => theme.spacing.sm}
+    ${({ theme }) => theme.spacing.md};
+  border: 1px solid ${({ theme }) => theme.colors.hairline};
+  border-radius: ${({ theme }) => theme.rounded.sm};
+  background: ${({ theme }) => theme.colors.canvas};
+  color: ${({ theme }) => theme.colors.ink};
+  font-family: ${({ theme }) => theme.typography.bodyMd.family};
+  font-size: ${({ theme }) => theme.typography.bodyMd.size};
+`;
+
+const Input = styled.input`
+  padding: ${({ theme }) => theme.spacing.sm}
+    ${({ theme }) => theme.spacing.md};
+  border: 1px solid ${({ theme }) => theme.colors.hairline};
+  border-radius: ${({ theme }) => theme.rounded.sm};
+  background: ${({ theme }) => theme.colors.canvas};
+  color: ${({ theme }) => theme.colors.ink};
+  font-family: ${({ theme }) => theme.typography.bodyMd.family};
+  font-size: ${({ theme }) => theme.typography.bodyMd.size};
+`;
+
+const CheckRow = styled.label`
+  display: inline-flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.sm};
+  font-family: ${({ theme }) => theme.typography.bodyMd.family};
+  font-size: ${({ theme }) => theme.typography.bodyMd.size};
+  color: ${({ theme }) => theme.colors.body};
+`;
+
+const Table = styled.table`
+  width: 100%;
+  border-collapse: collapse;
+  font-family: ${({ theme }) => theme.typography.bodyMd.family};
+  font-size: 13px;
+`;
+
+const Th = styled.th`
+  text-align: left;
+  padding: ${({ theme }) => theme.spacing.sm};
+  border-bottom: 1px solid ${({ theme }) => theme.colors.hairline};
+  color: ${({ theme }) => theme.colors.dim};
+  font-weight: 600;
+`;
+
+const Td = styled.td<{ $bad?: boolean }>`
+  padding: ${({ theme }) => theme.spacing.sm};
+  border-bottom: 1px solid ${({ theme }) => theme.colors.hairline};
+  color: ${({ $bad, theme }) => ($bad ? theme.colors.dim : theme.colors.ink)};
+`;
+
+const Summary = styled.p`
+  font-family: ${({ theme }) => theme.typography.bodyMd.family};
+  font-size: ${({ theme }) => theme.typography.bodyMd.size};
+  color: ${({ theme }) => theme.colors.body};
+`;
+
+const Note = styled.p`
+  margin: 0;
+  font-family: ${({ theme }) => theme.typography.bodyMd.family};
+  font-size: 13px;
+  color: ${({ theme }) => theme.colors.body};
+`;
+
+const NEW_ACCOUNT = "__new__";
+const PREVIEW_LIMIT = 8;
+
+function columnLabel(
+  rows: string[][],
+  hasHeader: boolean,
+  index: number,
+): string {
+  const header = hasHeader ? rows[0]?.[index]?.trim() : "";
+  return header ? header : `Column ${index + 1}`;
+}
+
+export function ImportPanel({ accounts }: { accounts: Account[] }) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [fileName, setFileName] = useState<string | null>(null);
+  const [rows, setRows] = useState<string[][]>([]);
+  const [mapping, setMapping] = useState<ColumnMapping | null>(null);
+  const [accountChoice, setAccountChoice] = useState<string>(
+    accounts[0]?.id ?? NEW_ACCOUNT,
+  );
+  const [newAccountName, setNewAccountName] = useState("");
+  const [result, setResult] = useState<ImportResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const columnCount = useMemo(
+    () => rows.reduce((max, row) => Math.max(max, row.length), 0),
+    [rows],
+  );
+
+  const preview = useMemo(
+    () => (mapping ? mapRows(rows, mapping) : []),
+    [rows, mapping],
+  );
+  const validCount = preview.filter((row) => row.errors.length === 0).length;
+  const errorCount = preview.length - validCount;
+
+  const onFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    setResult(null);
+    setError(null);
+    if (!file) return;
+
+    const text = await file.text();
+    const parsed = parseCsv(text);
+    if (parsed.length === 0) {
+      setRows([]);
+      setMapping(null);
+      setError("That file has no rows.");
+      return;
+    }
+    setFileName(file.name);
+    setRows(parsed);
+    setMapping(guessMapping(parsed[0]));
+  };
+
+  const patchMapping = (patch: Partial<ColumnMapping>) =>
+    setMapping((current) => (current ? { ...current, ...patch } : current));
+
+  const onImport = () => {
+    if (!mapping) return;
+    setError(null);
+    startTransition(async () => {
+      try {
+        const res = await importTransactions({
+          accountId: accountChoice === NEW_ACCOUNT ? null : accountChoice,
+          newAccountName: accountChoice === NEW_ACCOUNT ? newAccountName : null,
+          rows,
+          mapping,
+        });
+        setResult(res);
+        router.refresh();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Import failed");
+      }
+    });
+  };
+
+  const columnOptions = Array.from(
+    { length: columnCount },
+    (_, index) => index,
+  );
+  const accountReady =
+    accountChoice !== NEW_ACCOUNT || newAccountName.trim().length > 0;
+
+  return (
+    <Panel>
+      <div>
+        <Label>Import a statement</Label>
+        <div style={{ marginTop: 8 }}>
+          <FileRow>
+            <HiddenFile type="file" accept=".csv,text/csv" onChange={onFile} />
+            <FileButton>Choose CSV…</FileButton>
+            {fileName && <FileName>{fileName}</FileName>}
+          </FileRow>
+        </div>
+      </div>
+
+      {mapping && (
+        <>
+          <CheckRow>
+            <input
+              type="checkbox"
+              checked={mapping.hasHeader}
+              onChange={(e) => patchMapping({ hasHeader: e.target.checked })}
+            />
+            First row is a header
+          </CheckRow>
+
+          <MapGrid>
+            <Field>
+              <Label>Date column</Label>
+              <Select
+                value={mapping.dateColumn}
+                onChange={(e) =>
+                  patchMapping({ dateColumn: Number(e.target.value) })
+                }
+              >
+                {columnOptions.map((i) => (
+                  <option key={i} value={i}>
+                    {columnLabel(rows, mapping.hasHeader, i)}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+
+            <Field>
+              <Label>Description column</Label>
+              <Select
+                value={mapping.descriptionColumn}
+                onChange={(e) =>
+                  patchMapping({ descriptionColumn: Number(e.target.value) })
+                }
+              >
+                {columnOptions.map((i) => (
+                  <option key={i} value={i}>
+                    {columnLabel(rows, mapping.hasHeader, i)}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+
+            <Field>
+              <Label>Amount column</Label>
+              <Select
+                value={mapping.amountColumn}
+                onChange={(e) =>
+                  patchMapping({ amountColumn: Number(e.target.value) })
+                }
+              >
+                {columnOptions.map((i) => (
+                  <option key={i} value={i}>
+                    {columnLabel(rows, mapping.hasHeader, i)}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+
+            <Field>
+              <Label>Date format</Label>
+              <Select
+                value={mapping.dateFormat}
+                onChange={(e) =>
+                  patchMapping({ dateFormat: e.target.value as DateFormat })
+                }
+              >
+                {DATE_FORMATS.map((fmt) => (
+                  <option key={fmt} value={fmt}>
+                    {fmt === "DMY"
+                      ? "Day / Month / Year"
+                      : fmt === "MDY"
+                        ? "Month / Day / Year"
+                        : "Year / Month / Day"}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+
+            <Field>
+              <Label>Account</Label>
+              <Select
+                value={accountChoice}
+                onChange={(e) => setAccountChoice(e.target.value)}
+              >
+                {accounts.map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.name}
+                  </option>
+                ))}
+                <option value={NEW_ACCOUNT}>+ New account…</option>
+              </Select>
+            </Field>
+
+            {accountChoice === NEW_ACCOUNT && (
+              <Field>
+                <Label>New account name</Label>
+                <Input
+                  value={newAccountName}
+                  onChange={(e) => setNewAccountName(e.target.value)}
+                  placeholder="e.g. Current account"
+                />
+              </Field>
+            )}
+          </MapGrid>
+
+          <div>
+            <Label>Preview</Label>
+            <Table>
+              <thead>
+                <tr>
+                  <Th>Date</Th>
+                  <Th>Description</Th>
+                  <Th>Amount</Th>
+                  <Th>Status</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {preview.slice(0, PREVIEW_LIMIT).map((row) => {
+                  const bad = row.errors.length > 0;
+                  return (
+                    <tr key={row.index}>
+                      <Td $bad={bad}>
+                        {row.date ? row.date.toISOString().slice(0, 10) : "—"}
+                      </Td>
+                      <Td $bad={bad}>{row.description || "—"}</Td>
+                      <Td $bad={bad}>{row.amount ?? "—"}</Td>
+                      <Td $bad={bad}>
+                        {bad ? row.errors.join(", ") : "Ready"}
+                      </Td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </Table>
+            <Summary>
+              {validCount} ready to import
+              {errorCount > 0 ? `, ${errorCount} with errors (skipped)` : ""}.
+            </Summary>
+          </div>
+
+          <div>
+            <Button
+              type="button"
+              onClick={onImport}
+              disabled={pending || validCount === 0 || !accountReady}
+            >
+              {pending ? "Importing…" : `Import ${validCount} transactions`}
+            </Button>
+          </div>
+        </>
+      )}
+
+      {result && (
+        <Note>
+          Imported {result.imported} into {result.accountName}
+          {result.duplicates > 0
+            ? `, skipped ${result.duplicates} duplicate(s)`
+            : ""}
+          {result.invalid > 0 ? `, ${result.invalid} invalid` : ""}.
+        </Note>
+      )}
+      {error && <Note>{error}</Note>}
+    </Panel>
+  );
+}

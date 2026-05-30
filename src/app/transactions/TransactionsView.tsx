@@ -2,6 +2,9 @@
 
 import { PageHeader } from "@/components/ui/PageHeader";
 import styled from "styled-components";
+import { ImportPanel } from "./ImportPanel";
+
+type Account = { id: string; name: string };
 
 const Shell = styled.main`
   max-width: 960px;
@@ -18,7 +21,7 @@ const Placeholder = styled.p`
   max-width: 60ch;
 `;
 
-export function TransactionsView() {
+export function TransactionsView({ accounts }: { accounts: Account[] }) {
   return (
     <Shell>
       <PageHeader
@@ -26,9 +29,10 @@ export function TransactionsView() {
         title="Transactions"
         lead="Import bank statements and categorize spending against your budget."
       />
+      <ImportPanel accounts={accounts} />
       <Placeholder>
-        Statement import and the transactions ledger are coming next. Manage
-        your categories in Settings in the meantime.
+        The categorized ledger and per-category budget actuals are coming next.
+        Manage your categories in Settings in the meantime.
       </Placeholder>
     </Shell>
   );
