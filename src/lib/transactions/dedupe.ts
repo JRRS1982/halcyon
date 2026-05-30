@@ -26,7 +26,10 @@ export function transactionFingerprint({
   description,
 }: FingerprintInput): string {
   const cents = Math.round(amount * 100);
-  return [accountId, isoDay(date), cents, normalizeDescription(description)].join(
-    "|",
-  );
+  return [
+    accountId,
+    isoDay(date),
+    cents,
+    normalizeDescription(description),
+  ].join("|");
 }

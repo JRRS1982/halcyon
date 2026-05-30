@@ -35,14 +35,19 @@ describe("transactionFingerprint", () => {
 
   test("distinguishes account, date, amount, sign and description", () => {
     const fp = transactionFingerprint(base);
-    expect(transactionFingerprint({ ...base, accountId: "acc-2" })).not.toBe(fp);
+    expect(transactionFingerprint({ ...base, accountId: "acc-2" })).not.toBe(
+      fp,
+    );
     expect(
-      transactionFingerprint({ ...base, date: new Date("2026-03-15T00:00:00Z") }),
+      transactionFingerprint({
+        ...base,
+        date: new Date("2026-03-15T00:00:00Z"),
+      }),
     ).not.toBe(fp);
     expect(transactionFingerprint({ ...base, amount: -51 })).not.toBe(fp);
     expect(transactionFingerprint({ ...base, amount: 50 })).not.toBe(fp);
-    expect(transactionFingerprint({ ...base, description: "Sainsbury" })).not.toBe(
-      fp,
-    );
+    expect(
+      transactionFingerprint({ ...base, description: "Sainsbury" }),
+    ).not.toBe(fp);
   });
 });

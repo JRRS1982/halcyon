@@ -9,9 +9,7 @@ describe("parseCsv", () => {
   });
 
   test("keeps commas that live inside quoted fields", () => {
-    expect(parseCsv('"Tesco, Express",-5')).toEqual([
-      ["Tesco, Express", "-5"],
-    ]);
+    expect(parseCsv('"Tesco, Express",-5')).toEqual([["Tesco, Express", "-5"]]);
   });
 
   test("unescapes doubled quotes inside a quoted field", () => {
