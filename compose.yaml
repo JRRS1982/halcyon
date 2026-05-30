@@ -11,6 +11,10 @@ services:
       - /app/.next
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/halcyon?schema=public
+      # DIRECT_URL is what `prisma migrate` uses. Without it set here, Prisma
+      # falls back to the root .env (Supabase) for the direct connection and
+      # migrations run against PRODUCTION. Pin it to the local db service.
+      - DIRECT_URL=postgresql://postgres:postgres@db:5432/halcyon?schema=public
       - NODE_ENV=development
     depends_on:
       db:

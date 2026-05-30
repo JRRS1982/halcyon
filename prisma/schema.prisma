@@ -43,16 +43,20 @@ model User {
   settings             UserSettings?
   budgetTemplateItems  BudgetTemplateItem[]
   balanceTemplateItems BalanceTemplateItem[]
+  categories           Category[]
+  accounts             Account[]
+  transactions         Transaction[]
 }
 
 // Per-user app preferences. Lazily upserted on first read — there is no
 // guaranteed row for every user. Add columns here as new settings appear.
 model UserSettings {
-  userId       String   @id @db.Uuid
-  currency     String   @default("USD")
-  numberFormat String   @default("COMMA_0")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  userId              String   @id @db.Uuid
+  currency            String   @default("USD")
+  numberFormat        String   @default("COMMA_0")
+  transactionsEnabled Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -132,6 +136,11 @@ model FinancialPeriod {
 model FinancialItem {
   id             String           @id @default(uuid()) @db.Uuid
   periodId       String           @db.Uuid
+  // Links to the stable Category once the transactions feature exists. Nullable
+  // so legacy/pre-migration rows and free-typed rows still parse; `label`
+  // remains the source of truth when no category is linked, and a fallback even
+  // when one is.
+  categoryId     String?          @db.Uuid
   type           ItemType
   category       ExpenseCategory?
   incomeCategory IncomeCategory?
@@ -143,9 +152,11 @@ model FinancialItem {
   updatedAt      DateTime         @updatedAt
   deletedAt      DateTime?
 
-  period FinancialPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  period         FinancialPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  linkedCategory Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 
   @@index([periodId, type, sortOrder])
+  @@index([categoryId])
 }
 
 // Balance sheet line items belonging to a FinancialPeriod (shared with the
@@ -211,4 +222,76 @@ model BalanceTemplateItem {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, type, category, sortOrder])
+}
+
+// A stable, user-owned spending/earning category — the spine both the budget
+// and transactions hang off (per docs/superpowers/specs). Present regardless
+// of whether the transactions feature is enabled. `label` is mutable so a
+// rename touches one row and propagates by id; `type` + bucket mirror
+// FinancialItem so a category carries its grouping. Categories are curated in
+// Settings (rename / merge / archive). Soft-deleted via deletedAt.
+model Category {
+  id             String           @id @default(uuid()) @db.Uuid
+  userId         String           @db.Uuid
+  type           ItemType
+  category       ExpenseCategory?
+  incomeCategory IncomeCategory?
+  label          String
+  sortOrder      Int              @default(0)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  deletedAt      DateTime?
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  financialItems FinancialItem[]
+  transactions   Transaction[]
+
+  @@index([userId, type, sortOrder])
+}
+
+// A bank account a statement was imported from. Picked or created at import
+// time; managed in Settings. Lightweight by design — v1 has no per-account
+// balances, just a label to scope and filter transactions (and dedup).
+model Account {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  name      String
+  type      String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@index([userId])
+}
+
+// An imported (or hand-entered) bank transaction. `amount` is stored SIGNED;
+// the linked Category's type routes whether it counts as income or expense
+// (see src/lib/transactions/actual.ts). No periodId — the `date` derives the
+// budget month on the fly, so a category's monthly `actual` is a grouped
+// aggregate keyed by (userId, categoryId, date-range). categoryId is nullable:
+// uncategorized spend is surfaced, never auto-bucketed. Soft-deleted.
+model Transaction {
+  id          String    @id @default(uuid()) @db.Uuid
+  userId      String    @db.Uuid
+  accountId   String    @db.Uuid
+  categoryId  String?   @db.Uuid
+  date        DateTime  @db.Date
+  amount      Decimal   @db.Decimal(14, 2)
+  description String
+  note        String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account  Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  category Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  // (userId, accountId, date) → pagination + the dedup-fingerprint day lookup.
+  // (userId, categoryId, date) → the per-category-per-month actual aggregate.
+  @@index([userId, accountId, date])
+  @@index([userId, categoryId, date])
 }
