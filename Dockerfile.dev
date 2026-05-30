@@ -7,8 +7,10 @@ RUN apt-get update && apt-get install -y \
   openssl \
   && rm -rf /var/lib/apt/lists/*
 
-# Install pnpm
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# Install pnpm. Pin the version (not @latest) for reproducible builds — a
+# floating @latest pulled pnpm 11, which is incompatible with this image's
+# Node 20 (ERR_UNKNOWN_BUILTIN_MODULE). Keep in sync with the host pnpm.
+RUN corepack enable && corepack prepare pnpm@10.24.0 --activate
 
 # Set up Prisma
 ENV PRISMA_CLI_QUERY_ENGINE_TYPE=library
