@@ -10,6 +10,8 @@ import { z } from "zod";
 const updateSettingsSchema = z.object({
   currency: z.enum(CURRENCY_CODES),
   numberFormat: z.enum(NUMBER_FORMATS),
+  // Unchecked checkboxes are absent from FormData; a checked one submits "on".
+  transactionsEnabled: z.boolean(),
 });
 
 export async function updateSettings(formData: FormData) {
@@ -22,21 +24,22 @@ export async function updateSettings(formData: FormData) {
   const parsed = updateSettingsSchema.parse({
     currency: formData.get("currency"),
     numberFormat: formData.get("numberFormat"),
+    transactionsEnabled: formData.get("transactionsEnabled") === "on",
   });
 
+  const values = {
+    currency: parsed.currency,
+    numberFormat: parsed.numberFormat,
+    transactionsEnabled: parsed.transactionsEnabled,
+  };
   await prisma.userSettings.upsert({
     where: { userId: user.id },
-    update: { currency: parsed.currency, numberFormat: parsed.numberFormat },
-    create: {
-      userId: user.id,
-      currency: parsed.currency,
-      numberFormat: parsed.numberFormat,
-    },
+    update: values,
+    create: { userId: user.id, ...values },
   });
 
   // Currency + number format are read by /budget and /balance server
-  // components; invalidate so the formatters pick up the new values.
-  revalidatePath("/budget");
-  revalidatePath("/balance");
-  revalidatePath("/settings");
+  // components; the transactions toggle changes the nav + route gating, which
+  // the root layout renders. Invalidate broadly so all pick up the new values.
+  revalidatePath("/", "layout");
 }

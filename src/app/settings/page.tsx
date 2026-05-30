@@ -22,7 +22,8 @@ const NUMBER_FORMAT_LABELS: Record<(typeof NUMBER_FORMATS)[number], string> = {
 
 // Protected by middleware → /sign-in?next=/settings if no session.
 export default async function SettingsPage() {
-  const { currency, numberFormat } = await getCurrentUserSettings();
+  const { currency, numberFormat, transactionsEnabled } =
+    await getCurrentUserSettings();
   const symbol = symbolFor(currency);
 
   const currencyOptions = CURRENCY_CODES.map((code) => {
@@ -47,6 +48,7 @@ export default async function SettingsPage() {
       currencyOptions={currencyOptions}
       numberFormat={numberFormat}
       numberFormatOptions={numberFormatOptions}
+      transactionsEnabled={transactionsEnabled}
     />
   );
 }

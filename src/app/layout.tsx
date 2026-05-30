@@ -1,4 +1,5 @@
 import { NavBar } from "@/components/ui/NavBar";
+import { isTransactionsEnabled } from "@/lib/settings/server";
 import { StyledComponentsRegistry } from "@/lib/styled";
 import { createClient } from "@/lib/supabase/server";
 import type { Metadata } from "next";
@@ -21,12 +22,15 @@ export default async function RootLayout({
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  const transactionsEnabled = user
+    ? await isTransactionsEnabled(user.id)
+    : false;
 
   return (
     <html lang="en">
       <body className={inter.className}>
         <StyledComponentsRegistry>
-          <NavBar signedIn={!!user} />
+          <NavBar signedIn={!!user} transactionsEnabled={transactionsEnabled} />
           <div className="min-h-screen">{children}</div>
         </StyledComponentsRegistry>
       </body>

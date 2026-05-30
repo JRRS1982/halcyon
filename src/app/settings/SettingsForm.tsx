@@ -54,6 +54,30 @@ const SavedNote = styled.span`
   color: ${({ theme }) => theme.colors.dim};
 `;
 
+const ToggleField = styled.label`
+  display: flex;
+  align-items: flex-start;
+  gap: ${({ theme }) => theme.spacing.md};
+  margin-top: ${({ theme }) => theme.spacing["2xl"]};
+  cursor: pointer;
+`;
+
+const Checkbox = styled.input`
+  margin-top: 3px;
+`;
+
+const ToggleText = styled.span`
+  display: grid;
+  gap: ${({ theme }) => theme.spacing.sm};
+`;
+
+const FieldHint = styled.span`
+  font-family: ${({ theme }) => theme.typography.bodyMd.family};
+  font-size: 13px;
+  color: ${({ theme }) => theme.colors.body};
+  max-width: 52ch;
+`;
+
 type SelectOption = { value: string; label: string };
 
 export function SettingsForm({
@@ -62,12 +86,14 @@ export function SettingsForm({
   currencyOptions,
   numberFormat,
   numberFormatOptions,
+  transactionsEnabled,
 }: {
   action: (formData: FormData) => Promise<void>;
   currency: string;
   currencyOptions: SelectOption[];
   numberFormat: string;
   numberFormatOptions: SelectOption[];
+  transactionsEnabled: boolean;
 }) {
   const [pending, startTransition] = useTransition();
   const [justSaved, setJustSaved] = useState(false);
@@ -108,6 +134,21 @@ export function SettingsForm({
             ))}
           </Select>
         </Field>
+        <ToggleField>
+          <Checkbox
+            type="checkbox"
+            name="transactionsEnabled"
+            defaultChecked={transactionsEnabled}
+          />
+          <ToggleText>
+            <FieldLabel>Transactions</FieldLabel>
+            <FieldHint>
+              Show the Transactions page and import bank statements. When on,
+              each budget category’s actual is summed from its categorized
+              transactions instead of being typed by hand.
+            </FieldHint>
+          </ToggleText>
+        </ToggleField>
         <Row>
           <Button type="submit" disabled={pending}>
             {pending ? "Saving…" : "Save"}

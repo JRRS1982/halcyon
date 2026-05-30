@@ -17,6 +17,7 @@ export async function getCurrentUserSettings(): Promise<{
   userId: string;
   currency: CurrencyCode;
   numberFormat: NumberFormat;
+  transactionsEnabled: boolean;
 }> {
   const supabase = createClient();
   const {
@@ -35,5 +36,29 @@ export async function getCurrentUserSettings(): Promise<{
     numberFormat: isNumberFormat(row.numberFormat)
       ? row.numberFormat
       : DEFAULT_NUMBER_FORMAT,
+    transactionsEnabled: row.transactionsEnabled,
   };
+}
+
+// Gate for the transactions feature: ensures a signed-in user (via
+// getCurrentUserSettings) who has the feature enabled, redirecting to
+// /dashboard otherwise. Call at the top of the /transactions page and every
+// transactions server action — never trust the hidden nav link alone.
+export async function requireTransactionsEnabled(): Promise<string> {
+  const { userId, transactionsEnabled } = await getCurrentUserSettings();
+  if (!transactionsEnabled) redirect("/dashboard");
+  return userId;
+}
+
+// Whether the signed-in user has the transactions feature switched on, without
+// the redirect-if-signed-out behaviour of getCurrentUserSettings. Used by the
+// root layout (which renders for signed-out users too) to decide whether to
+// show the Transactions nav link. Returns false when there's no user or no
+// settings row yet.
+export async function isTransactionsEnabled(userId: string): Promise<boolean> {
+  const row = await prisma.userSettings.findUnique({
+    where: { userId },
+    select: { transactionsEnabled: true },
+  });
+  return row?.transactionsEnabled ?? false;
 }
