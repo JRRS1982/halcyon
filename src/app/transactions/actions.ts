@@ -178,20 +178,46 @@ export async function setTransactionCategory(
   revalidatePath("/dashboard");
 }
 
+const EXPENSE_BUCKETS = ["FIXED", "VARIABLE", "DISCRETIONARY"] as const;
+const INCOME_BUCKETS = [
+  "SALARY",
+  "SIDE_INCOME",
+  "INVESTMENTS",
+  "PENSIONS",
+  "OTHER",
+] as const;
+
 const createCategorySchema = z.object({
   label: z.string().trim().min(1).max(120),
   type: z.enum(["INCOME", "EXPENSE"]),
+  // The budget section/bucket this category belongs to, so it can be placed on
+  // the budget. Validated against the right set for the type below.
+  bucket: z.string().nullable().optional(),
 });
 
-// Creates a new category for inline assignment from the ledger.
+// Creates a new category for inline assignment from the ledger. The bucket
+// (section) is stored in `category` for expenses or `incomeCategory` for
+// income, mirroring how budget line items carry their section.
 export async function createCategory(
   input: z.input<typeof createCategorySchema>,
 ): Promise<LedgerCategory> {
   const userId = await requireTransactionsEnabled();
-  const { label, type } = createCategorySchema.parse(input);
+  const { label, type, bucket } = createCategorySchema.parse(input);
+
+  const expense = type === "EXPENSE";
+  const category =
+    expense &&
+    EXPENSE_BUCKETS.includes(bucket as (typeof EXPENSE_BUCKETS)[number])
+      ? (bucket as (typeof EXPENSE_BUCKETS)[number])
+      : null;
+  const incomeCategory =
+    !expense &&
+    INCOME_BUCKETS.includes(bucket as (typeof INCOME_BUCKETS)[number])
+      ? (bucket as (typeof INCOME_BUCKETS)[number])
+      : null;
 
   const created = await prisma.category.create({
-    data: { userId, label: cleanLabel(label), type },
+    data: { userId, label: cleanLabel(label), type, category, incomeCategory },
     select: { id: true, label: true, type: true },
   });
   revalidatePath("/budget");
@@ -199,15 +225,20 @@ export async function createCategory(
 }
 
 const loadMoreSchema = z.object({
-  cursor: z.string().nullable(),
+  offset: z.number().int().min(0),
+  search: z.string().optional(),
   onlyUncategorized: z.boolean(),
+  sortColumn: z
+    .enum(["date", "description", "amount", "account", "category"])
+    .optional(),
+  sortDir: z.enum(["asc", "desc"]).optional(),
 });
 
-// Fetches the next keyset page of the ledger for the "Load more" control.
+// Fetches a page of the ledger for the table (filter / search / sort / paging).
 export async function loadMoreTransactions(
   input: z.input<typeof loadMoreSchema>,
 ): Promise<LedgerPage> {
   const userId = await requireTransactionsEnabled();
-  const { cursor, onlyUncategorized } = loadMoreSchema.parse(input);
-  return getTransactionsPage(userId, { cursor, onlyUncategorized });
+  const query = loadMoreSchema.parse(input);
+  return getTransactionsPage(userId, query);
 }

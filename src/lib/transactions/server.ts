@@ -2,7 +2,7 @@ import "server-only";
 
 import { categoryKey, cleanLabel } from "@/lib/categories/normalize";
 import { prisma } from "@/lib/prisma";
-import { PAGE_SIZE, decodeCursor, sliceForCursor } from "./pagination";
+import { PAGE_SIZE } from "./pagination";
 
 export type LedgerCategory = {
   id: string;
@@ -19,9 +19,25 @@ export type LedgerTransaction = {
   accountName: string;
 };
 
+export type SortColumn =
+  | "date"
+  | "description"
+  | "amount"
+  | "account"
+  | "category";
+export type SortDir = "asc" | "desc";
+
+export type LedgerQuery = {
+  offset?: number;
+  search?: string;
+  onlyUncategorized?: boolean;
+  sortColumn?: SortColumn;
+  sortDir?: SortDir;
+};
+
 export type LedgerPage = {
   items: LedgerTransaction[];
-  nextCursor: string | null;
+  nextOffset: number | null;
 };
 
 // Returns the user's categories, lazily provisioning them from existing budget
@@ -120,29 +136,45 @@ function serialize(tx: {
   };
 }
 
-// One keyset page of the ledger, newest first. `cursor` continues after a prior
-// page; `onlyUncategorized` filters to transactions needing a category.
+// Maps a sortable column + direction to a Prisma orderBy, always tie-breaking
+// on id so paging is stable. Offset paging is used (rather than keyset) because
+// it composes cleanly with arbitrary column sorts and a text search.
+function orderByFor(column: SortColumn, dir: SortDir) {
+  switch (column) {
+    case "amount":
+      return [{ amount: dir }, { id: dir }];
+    case "description":
+      return [{ description: dir }, { id: dir }];
+    case "account":
+      return [{ account: { name: dir } }, { id: dir }];
+    case "category":
+      return [{ category: { label: dir } }, { id: dir }];
+    default:
+      return [{ date: dir }, { id: dir }];
+  }
+}
+
+// One page of the ledger. Supports a description phrase search, an optional
+// "uncategorized only" filter, and sorting by any column. `nextOffset` is the
+// skip value for the next page, or null when the last page has been reached.
 export async function getTransactionsPage(
   userId: string,
-  options: { cursor?: string | null; onlyUncategorized?: boolean } = {},
+  query: LedgerQuery = {},
 ): Promise<LedgerPage> {
-  const cur = options.cursor ? decodeCursor(options.cursor) : null;
+  const offset = query.offset ?? 0;
+  const search = query.search?.trim();
 
   const rows = await prisma.transaction.findMany({
     where: {
       userId,
       deletedAt: null,
-      ...(options.onlyUncategorized ? { categoryId: null } : {}),
-      ...(cur
-        ? {
-            OR: [
-              { date: { lt: cur.date } },
-              { date: cur.date, id: { lt: cur.id } },
-            ],
-          }
+      ...(query.onlyUncategorized ? { categoryId: null } : {}),
+      ...(search
+        ? { description: { contains: search, mode: "insensitive" } }
         : {}),
     },
-    orderBy: [{ date: "desc" }, { id: "desc" }],
+    orderBy: orderByFor(query.sortColumn ?? "date", query.sortDir ?? "desc"),
+    skip: offset,
     take: PAGE_SIZE + 1,
     select: {
       id: true,
@@ -154,8 +186,9 @@ export async function getTransactionsPage(
     },
   });
 
-  const { items, nextCursor } = sliceForCursor(rows, PAGE_SIZE);
-  return { items: items.map(serialize), nextCursor };
+  const hasMore = rows.length > PAGE_SIZE;
+  const items = rows.slice(0, PAGE_SIZE).map(serialize);
+  return { items, nextOffset: hasMore ? offset + PAGE_SIZE : null };
 }
 
 // Count of uncategorized transactions, for the "needs attention" nudge.
