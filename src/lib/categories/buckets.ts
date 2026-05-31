@@ -38,6 +38,26 @@ export function sectionLabel(bucket: string | null | undefined): string {
   return SECTION_LABELS[bucket] ?? bucket;
 }
 
+// Display order for sections: expenses first (Fixed → Variable → Discretionary),
+// then income, with OTHER near the end and unsectioned/unknown last. Used to
+// group the category list.
+const SECTION_ORDER = [
+  "FIXED",
+  "VARIABLE",
+  "DISCRETIONARY",
+  "SALARY",
+  "SIDE_INCOME",
+  "INVESTMENTS",
+  "PENSIONS",
+  "OTHER",
+];
+
+export function sectionOrderIndex(bucket: string | null | undefined): number {
+  if (!bucket) return SECTION_ORDER.length;
+  const index = SECTION_ORDER.indexOf(bucket);
+  return index === -1 ? SECTION_ORDER.length : index;
+}
+
 const EXPENSE_VALUES: string[] = EXPENSE_BUCKETS.map((b) => b.value);
 const INCOME_VALUES: string[] = INCOME_BUCKETS.map((b) => b.value);
 

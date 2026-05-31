@@ -1,7 +1,11 @@
 "use client";
 
 import { Button } from "@/components/ui/Button";
-import { EXPENSE_BUCKETS, INCOME_BUCKETS } from "@/lib/categories/buckets";
+import {
+  EXPENSE_BUCKETS,
+  INCOME_BUCKETS,
+  sectionOrderIndex,
+} from "@/lib/categories/buckets";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import styled from "styled-components";
@@ -113,6 +117,15 @@ const Empty = styled.p`
   color: ${({ theme }) => theme.colors.body};
 `;
 
+const SectionHeader = styled.h3`
+  margin: ${({ theme }) => theme.spacing.xl} 0 0;
+  font-family: ${({ theme }) => theme.typography.monoCaps.family};
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
+  color: ${({ theme }) => theme.colors.bodyMuted};
+`;
+
 type Mode = { kind: "edit" | "merge" | "delete"; id: string } | null;
 
 function bucketsFor(type: "INCOME" | "EXPENSE") {
@@ -192,6 +205,26 @@ export function CategoryManager({
     setMergeTarget("");
   };
 
+  // Group by section in display order (Fixed → Variable → Discretionary →
+  // income → Other → Unsectioned), alphabetical within each.
+  const byBucket: Record<string, ManagedCategory[]> = {};
+  for (const c of categories) {
+    const key = c.bucket ?? "__none__";
+    if (!byBucket[key]) byBucket[key] = [];
+    byBucket[key].push(c);
+  }
+  const groups = Object.keys(byBucket)
+    .sort(
+      (a, b) =>
+        sectionOrderIndex(a === "__none__" ? null : a) -
+        sectionOrderIndex(b === "__none__" ? null : b),
+    )
+    .map((key) => ({
+      key,
+      label: byBucket[key][0].section,
+      items: [...byBucket[key]].sort((a, b) => a.label.localeCompare(b.label)),
+    }));
+
   return (
     <Shell>
       <Heading>Categories</Heading>
@@ -232,145 +265,150 @@ export function CategoryManager({
           No categories yet — they appear as you budget and categorise.
         </Empty>
       ) : (
-        categories.map((c) => {
-          const editing = mode?.kind === "edit" && mode.id === c.id;
-          const merging = mode?.kind === "merge" && mode.id === c.id;
-          const deleting = mode?.kind === "delete" && mode.id === c.id;
+        groups.map((g) => (
+          <div key={g.key}>
+            <SectionHeader>{g.label}</SectionHeader>
+            {g.items.map((c) => {
+              const editing = mode?.kind === "edit" && mode.id === c.id;
+              const merging = mode?.kind === "merge" && mode.id === c.id;
+              const deleting = mode?.kind === "delete" && mode.id === c.id;
 
-          if (editing) {
-            return (
-              <Row key={c.id}>
-                <Input
-                  value={editLabel}
-                  onChange={(e) => setEditLabel(e.target.value)}
-                />
-                <Select
-                  value={editType}
-                  onChange={(e) => {
-                    const t = e.target.value as "EXPENSE" | "INCOME";
-                    setEditType(t);
-                    setEditBucket(bucketsFor(t)[0].value);
-                  }}
-                >
-                  <option value="EXPENSE">Expense</option>
-                  <option value="INCOME">Income</option>
-                </Select>
-                <SectionSelect
-                  type={editType}
-                  value={editBucket}
-                  onChange={setEditBucket}
-                />
-                <TextButton
-                  type="button"
-                  disabled={pending || !editLabel.trim()}
-                  onClick={() =>
-                    run(() =>
-                      updateCategory({
-                        categoryId: c.id,
-                        label: editLabel,
-                        type: editType,
-                        bucket: editBucket,
-                      }),
-                    )
-                  }
-                >
-                  Save
-                </TextButton>
-                <TextButton type="button" onClick={() => setMode(null)}>
-                  Cancel
-                </TextButton>
-              </Row>
-            );
-          }
+              if (editing) {
+                return (
+                  <Row key={c.id}>
+                    <Input
+                      value={editLabel}
+                      onChange={(e) => setEditLabel(e.target.value)}
+                    />
+                    <Select
+                      value={editType}
+                      onChange={(e) => {
+                        const t = e.target.value as "EXPENSE" | "INCOME";
+                        setEditType(t);
+                        setEditBucket(bucketsFor(t)[0].value);
+                      }}
+                    >
+                      <option value="EXPENSE">Expense</option>
+                      <option value="INCOME">Income</option>
+                    </Select>
+                    <SectionSelect
+                      type={editType}
+                      value={editBucket}
+                      onChange={setEditBucket}
+                    />
+                    <TextButton
+                      type="button"
+                      disabled={pending || !editLabel.trim()}
+                      onClick={() =>
+                        run(() =>
+                          updateCategory({
+                            categoryId: c.id,
+                            label: editLabel,
+                            type: editType,
+                            bucket: editBucket,
+                          }),
+                        )
+                      }
+                    >
+                      Save
+                    </TextButton>
+                    <TextButton type="button" onClick={() => setMode(null)}>
+                      Cancel
+                    </TextButton>
+                  </Row>
+                );
+              }
 
-          if (merging) {
-            const others = categories.filter((o) => o.id !== c.id);
-            return (
-              <Row key={c.id}>
-                <Grow>
-                  Merge <strong>{c.label}</strong> into:
-                </Grow>
-                <Select
-                  value={mergeTarget}
-                  onChange={(e) => setMergeTarget(e.target.value)}
-                >
-                  <option value="">Choose…</option>
-                  {others.map((o) => (
-                    <option key={o.id} value={o.id}>
-                      {o.label} ({o.section})
-                    </option>
-                  ))}
-                </Select>
-                <TextButton
-                  type="button"
-                  disabled={pending || !mergeTarget}
-                  onClick={() =>
-                    run(() =>
-                      mergeCategories({
-                        sourceId: c.id,
-                        survivorId: mergeTarget,
-                      }),
-                    )
-                  }
-                >
-                  Merge
-                </TextButton>
-                <TextButton type="button" onClick={() => setMode(null)}>
-                  Cancel
-                </TextButton>
-              </Row>
-            );
-          }
+              if (merging) {
+                const others = categories.filter((o) => o.id !== c.id);
+                return (
+                  <Row key={c.id}>
+                    <Grow>
+                      Merge <strong>{c.label}</strong> into:
+                    </Grow>
+                    <Select
+                      value={mergeTarget}
+                      onChange={(e) => setMergeTarget(e.target.value)}
+                    >
+                      <option value="">Choose…</option>
+                      {others.map((o) => (
+                        <option key={o.id} value={o.id}>
+                          {o.label} ({o.section})
+                        </option>
+                      ))}
+                    </Select>
+                    <TextButton
+                      type="button"
+                      disabled={pending || !mergeTarget}
+                      onClick={() =>
+                        run(() =>
+                          mergeCategories({
+                            sourceId: c.id,
+                            survivorId: mergeTarget,
+                          }),
+                        )
+                      }
+                    >
+                      Merge
+                    </TextButton>
+                    <TextButton type="button" onClick={() => setMode(null)}>
+                      Cancel
+                    </TextButton>
+                  </Row>
+                );
+              }
 
-          if (deleting) {
-            return (
-              <Row key={c.id}>
-                <Grow>
-                  Remove <strong>{c.label}</strong>?
-                  {c.txnCount > 0
-                    ? ` ${c.txnCount} transaction(s) keep it for history.`
-                    : ""}
-                </Grow>
-                <TextButton
-                  type="button"
-                  $danger
-                  disabled={pending}
-                  onClick={() =>
-                    run(() => deleteCategory({ categoryId: c.id }))
-                  }
-                >
-                  Remove
-                </TextButton>
-                <TextButton type="button" onClick={() => setMode(null)}>
-                  Cancel
-                </TextButton>
-              </Row>
-            );
-          }
+              if (deleting) {
+                return (
+                  <Row key={c.id}>
+                    <Grow>
+                      Remove <strong>{c.label}</strong>?
+                      {c.txnCount > 0
+                        ? ` ${c.txnCount} transaction(s) keep it for history.`
+                        : ""}
+                    </Grow>
+                    <TextButton
+                      type="button"
+                      $danger
+                      disabled={pending}
+                      onClick={() =>
+                        run(() => deleteCategory({ categoryId: c.id }))
+                      }
+                    >
+                      Remove
+                    </TextButton>
+                    <TextButton type="button" onClick={() => setMode(null)}>
+                      Cancel
+                    </TextButton>
+                  </Row>
+                );
+              }
 
-          return (
-            <Row key={c.id}>
-              <Grow>{c.label}</Grow>
-              <Meta>
-                {c.section} · {c.type === "INCOME" ? "in" : "out"} ·{" "}
-                {c.txnCount} txns
-              </Meta>
-              <TextButton type="button" onClick={() => startEdit(c)}>
-                Edit
-              </TextButton>
-              <TextButton type="button" onClick={() => startMerge(c)}>
-                Merge
-              </TextButton>
-              <TextButton
-                type="button"
-                $danger
-                onClick={() => setMode({ kind: "delete", id: c.id })}
-              >
-                Delete
-              </TextButton>
-            </Row>
-          );
-        })
+              return (
+                <Row key={c.id}>
+                  <Grow>{c.label}</Grow>
+                  <Meta>
+                    {c.section} · {c.type === "INCOME" ? "in" : "out"} ·{" "}
+                    {c.txnCount} txns
+                  </Meta>
+                  <TextButton type="button" onClick={() => startEdit(c)}>
+                    Edit
+                  </TextButton>
+                  <TextButton type="button" onClick={() => startMerge(c)}>
+                    Merge
+                  </TextButton>
+                  <TextButton
+                    type="button"
+                    $danger
+                    onClick={() => setMode({ kind: "delete", id: c.id })}
+                  >
+                    Delete
+                  </TextButton>
+                </Row>
+              );
+            })}
+          </div>
+        ))
       )}
     </Shell>
   );
