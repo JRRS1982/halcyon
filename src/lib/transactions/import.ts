@@ -35,7 +35,11 @@ const DESCRIPTION_HINTS = [
   "memo",
 ];
 
-function findColumn(headers: string[], hints: string[], fallback: number): number {
+function findColumn(
+  headers: string[],
+  hints: string[],
+  fallback: number,
+): number {
   const index = headers.findIndex((header) => {
     const normalized = header.trim().toLowerCase();
     return hints.some((hint) => normalized.includes(hint));

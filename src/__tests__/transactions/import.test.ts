@@ -34,7 +34,10 @@ describe("mapRows", () => {
 
   test("flags an unparseable date", () => {
     const mapped = mapRows(
-      [["x", "y", "z"], ["nope", "Tesco", "-50"]],
+      [
+        ["x", "y", "z"],
+        ["nope", "Tesco", "-50"],
+      ],
       mapping,
     );
     expect(mapped[0].errors).toContain("Invalid date");
@@ -43,7 +46,10 @@ describe("mapRows", () => {
 
   test("flags an unparseable amount", () => {
     const mapped = mapRows(
-      [["x", "y", "z"], ["2026-03-14", "Tesco", "abc"]],
+      [
+        ["x", "y", "z"],
+        ["2026-03-14", "Tesco", "abc"],
+      ],
       mapping,
     );
     expect(mapped[0].errors).toContain("Invalid amount");
@@ -52,7 +58,10 @@ describe("mapRows", () => {
 
   test("trims the description and tolerates a missing column", () => {
     const mapped = mapRows(
-      [["x", "y", "z"], ["2026-03-14", "  Tesco  "]],
+      [
+        ["x", "y", "z"],
+        ["2026-03-14", "  Tesco  "],
+      ],
       mapping,
     );
     expect(mapped[0].description).toBe("Tesco");
@@ -61,7 +70,10 @@ describe("mapRows", () => {
 
   test("carries the original row and its data index", () => {
     const mapped = mapRows(rows, mapping);
-    expect(mapped[1]).toMatchObject({ index: 1, raw: ["2026-03-15", "Salary", "2000"] });
+    expect(mapped[1]).toMatchObject({
+      index: 1,
+      raw: ["2026-03-15", "Salary", "2000"],
+    });
   });
 });
 
