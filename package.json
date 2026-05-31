@@ -21,6 +21,7 @@
     "verify": "pnpm typecheck && pnpm check && pnpm test",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
+    "test:int": "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/halcyon_test?schema=public DIRECT_URL=postgresql://postgres:postgres@localhost:5432/halcyon_test?schema=public jest --config jest.integration.config.ts --runInBand",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui"
   },
