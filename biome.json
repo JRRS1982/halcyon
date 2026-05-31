@@ -12,7 +12,8 @@
       "test-results",
       ".claude",
       ".agents",
-      ".pnpm-store"
+      ".pnpm-store",
+      ".vscode"
     ]
   },
   "formatter": {
