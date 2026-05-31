@@ -1,3 +1,5 @@
+import { sectionLabel } from "@/lib/categories/buckets";
+import { prisma } from "@/lib/prisma";
 import {
   CURRENCY_CODES,
   CURRENCY_META,
@@ -6,6 +8,8 @@ import {
   symbolFor,
 } from "@/lib/settings/currency";
 import { getCurrentUserSettings } from "@/lib/settings/server";
+import { getOrProvisionCategories } from "@/lib/transactions/server";
+import { CategoryManager, type ManagedCategory } from "./CategoryManager";
 import { SettingsForm } from "./SettingsForm";
 import { updateSettings } from "./actions";
 
@@ -22,9 +26,49 @@ const NUMBER_FORMAT_LABELS: Record<(typeof NUMBER_FORMATS)[number], string> = {
 
 // Protected by middleware → /sign-in?next=/settings if no session.
 export default async function SettingsPage() {
-  const { currency, numberFormat, transactionsEnabled } =
+  const { userId, currency, numberFormat, transactionsEnabled } =
     await getCurrentUserSettings();
   const symbol = symbolFor(currency);
+
+  // Provision categories from the budget if none exist yet (idempotent), then
+  // load them with usage counts for the management section. Categories are
+  // editable regardless of the transactions toggle.
+  await getOrProvisionCategories(userId);
+  const [categoryRows, counts] = await Promise.all([
+    prisma.category.findMany({
+      where: { userId, deletedAt: null },
+      orderBy: [{ type: "asc" }, { sortOrder: "asc" }, { label: "asc" }],
+      select: {
+        id: true,
+        label: true,
+        type: true,
+        category: true,
+        incomeCategory: true,
+      },
+    }),
+    prisma.transaction.groupBy({
+      by: ["categoryId"],
+      where: { userId, deletedAt: null, categoryId: { not: null } },
+      _count: { _all: true },
+    }),
+  ]);
+
+  const countByCategory: Record<string, number> = {};
+  for (const c of counts) {
+    if (c.categoryId) countByCategory[c.categoryId] = c._count._all;
+  }
+
+  const managedCategories: ManagedCategory[] = categoryRows.map((c) => {
+    const bucket = c.category ?? c.incomeCategory;
+    return {
+      id: c.id,
+      label: c.label,
+      type: c.type,
+      bucket,
+      section: sectionLabel(bucket),
+      txnCount: countByCategory[c.id] ?? 0,
+    };
+  });
 
   const currencyOptions = CURRENCY_CODES.map((code) => {
     const meta = CURRENCY_META[code];
@@ -42,13 +86,16 @@ export default async function SettingsPage() {
   }));
 
   return (
-    <SettingsForm
-      action={updateSettings}
-      currency={currency}
-      currencyOptions={currencyOptions}
-      numberFormat={numberFormat}
-      numberFormatOptions={numberFormatOptions}
-      transactionsEnabled={transactionsEnabled}
-    />
+    <>
+      <SettingsForm
+        action={updateSettings}
+        currency={currency}
+        currencyOptions={currencyOptions}
+        numberFormat={numberFormat}
+        numberFormatOptions={numberFormatOptions}
+        transactionsEnabled={transactionsEnabled}
+      />
+      <CategoryManager categories={managedCategories} />
+    </>
   );
 }

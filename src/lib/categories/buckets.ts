@@ -37,3 +37,27 @@ export function sectionLabel(bucket: string | null | undefined): string {
   if (!bucket) return "Unsectioned";
   return SECTION_LABELS[bucket] ?? bucket;
 }
+
+const EXPENSE_VALUES: string[] = EXPENSE_BUCKETS.map((b) => b.value);
+const INCOME_VALUES: string[] = INCOME_BUCKETS.map((b) => b.value);
+
+// Splits a chosen bucket into the right column for a category's type, ignoring
+// a bucket that doesn't belong to the type. Shared by create/update so a
+// category's section is stored consistently (Prisma `category` for expenses,
+// `incomeCategory` for income).
+export function bucketFields(
+  type: "INCOME" | "EXPENSE",
+  bucket: string | null | undefined,
+): { category: ExpenseBucket | null; incomeCategory: IncomeBucket | null } {
+  const expense = type === "EXPENSE";
+  return {
+    category:
+      expense && bucket && EXPENSE_VALUES.includes(bucket)
+        ? (bucket as ExpenseBucket)
+        : null,
+    incomeCategory:
+      !expense && bucket && INCOME_VALUES.includes(bucket)
+        ? (bucket as IncomeBucket)
+        : null,
+  };
+}

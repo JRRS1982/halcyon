@@ -1,10 +1,6 @@
 "use server";
 
-import {
-  EXPENSE_BUCKETS,
-  INCOME_BUCKETS,
-  sectionLabel,
-} from "@/lib/categories/buckets";
+import { bucketFields, sectionLabel } from "@/lib/categories/buckets";
 import { cleanLabel } from "@/lib/categories/normalize";
 import { prisma } from "@/lib/prisma";
 import { requireTransactionsEnabled } from "@/lib/settings/server";
@@ -234,14 +230,11 @@ export async function setTransactionCategory(
   revalidatePath("/dashboard");
 }
 
-const EXPENSE_BUCKET_VALUES: string[] = EXPENSE_BUCKETS.map((b) => b.value);
-const INCOME_BUCKET_VALUES: string[] = INCOME_BUCKETS.map((b) => b.value);
-
 const createCategorySchema = z.object({
   label: z.string().trim().min(1).max(120),
   type: z.enum(["INCOME", "EXPENSE"]),
   // The budget section/bucket this category belongs to, so it can be placed on
-  // the budget. Validated against the right set for the type below.
+  // the budget.
   bucket: z.string().nullable().optional(),
 });
 
@@ -253,16 +246,7 @@ export async function createCategory(
 ): Promise<LedgerCategory> {
   const userId = await requireTransactionsEnabled();
   const { label, type, bucket } = createCategorySchema.parse(input);
-
-  const expense = type === "EXPENSE";
-  const category =
-    expense && bucket && EXPENSE_BUCKET_VALUES.includes(bucket)
-      ? (bucket as (typeof EXPENSE_BUCKETS)[number]["value"])
-      : null;
-  const incomeCategory =
-    !expense && bucket && INCOME_BUCKET_VALUES.includes(bucket)
-      ? (bucket as (typeof INCOME_BUCKETS)[number]["value"])
-      : null;
+  const { category, incomeCategory } = bucketFields(type, bucket);
 
   const created = await prisma.category.create({
     data: { userId, label: cleanLabel(label), type, category, incomeCategory },
