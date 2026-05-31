@@ -60,7 +60,7 @@ export default async function BudgetPage({ searchParams }: PageProps) {
     await getCurrentUserSettings();
 
   // Find — don't create.
-  const period = await prisma.financialPeriod.findUnique({
+  let period = await prisma.financialPeriod.findUnique({
     where: {
       userId_granularity_startDate: {
         userId: user.id,
@@ -70,12 +70,79 @@ export default async function BudgetPage({ searchParams }: PageProps) {
     },
   });
 
-  const items = period
+  let items = period
     ? await prisma.financialItem.findMany({
         where: { periodId: period.id, deletedAt: null },
         orderBy: [{ type: "asc" }, { sortOrder: "asc" }],
       })
     : [];
+
+  // Force-show: when transactions mode is on, any category with spend this
+  // month must appear on the budget. For categories that have transactions but
+  // no line item yet, materialise a budget=0 row in the category's own section
+  // (type + bucket); the actual is filled by the overlay below. This is what
+  // makes categorised spend show up on the budget even if it was never budgeted.
+  if (transactionsEnabled) {
+    const transacted = await prisma.transaction.findMany({
+      where: {
+        userId: user.id,
+        deletedAt: null,
+        categoryId: { not: null },
+        date: { gte: range.startDate, lte: range.endDate },
+      },
+      select: { categoryId: true },
+      distinct: ["categoryId"],
+    });
+    const existing = new Set(
+      items.map((i) => i.categoryId).filter((id): id is string => id !== null),
+    );
+    const missingIds = transacted
+      .map((t) => t.categoryId)
+      .filter((id): id is string => id !== null && !existing.has(id));
+
+    if (missingIds.length > 0) {
+      const targetPeriod =
+        period ??
+        (await prisma.financialPeriod.create({
+          data: {
+            userId: user.id,
+            granularity: "MONTH",
+            startDate: range.startDate,
+            endDate: range.endDate,
+            label: range.label,
+          },
+        }));
+      period = targetPeriod;
+
+      const cats = await prisma.category.findMany({
+        where: { id: { in: missingIds }, userId: user.id, deletedAt: null },
+        select: {
+          id: true,
+          type: true,
+          category: true,
+          incomeCategory: true,
+          label: true,
+        },
+      });
+      const baseSort = items.reduce((max, i) => Math.max(max, i.sortOrder), 0);
+      await prisma.financialItem.createMany({
+        data: cats.map((c, idx) => ({
+          periodId: targetPeriod.id,
+          categoryId: c.id,
+          type: c.type,
+          category: c.category,
+          incomeCategory: c.incomeCategory,
+          label: c.label,
+          budget: 0,
+          sortOrder: baseSort + 1 + idx,
+        })),
+      });
+      items = await prisma.financialItem.findMany({
+        where: { periodId: targetPeriod.id, deletedAt: null },
+        orderBy: [{ type: "asc" }, { sortOrder: "asc" }],
+      });
+    }
+  }
 
   // Serialise Decimal + Date for the client component (Next.js can't pass
   // those over the RSC boundary directly). For a virtual period we use
