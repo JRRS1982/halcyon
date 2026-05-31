@@ -35,6 +35,29 @@ const importSchema = z.object({
 
 export type ImportInput = z.input<typeof importSchema>;
 
+const commitSchema = importSchema.extend({
+  // Data-row indexes the user chose NOT to import (flagged duplicates they
+  // confirmed are true re-uploads).
+  skipIndexes: z.array(z.number().int()).default([]),
+});
+
+export type CommitInput = z.input<typeof commitSchema>;
+
+// A row flagged as a likely duplicate of an existing transaction, for the
+// confirmation step.
+export type DuplicateRow = {
+  index: number;
+  date: string;
+  description: string;
+  amount: number;
+};
+
+export type ImportPreview = {
+  duplicates: DuplicateRow[];
+  validCount: number;
+  invalidCount: number;
+};
+
 export type ImportResult = {
   imported: number;
   duplicates: number;
@@ -67,62 +90,90 @@ async function resolveAccount(
   return created;
 }
 
-export async function importTransactions(
-  input: ImportInput,
-): Promise<ImportResult> {
-  const userId = await requireTransactionsEnabled();
-  const { accountId, newAccountName, rows, mapping } =
-    importSchema.parse(input);
-
-  const account = await resolveAccount(userId, accountId, newAccountName);
-
-  const mapped = mapRows(rows, mapping as ColumnMapping);
+// Maps + splits the parsed CSV into importable (valid) rows and an invalid
+// count. Shared by preview and commit so both see identical row indexes.
+function splitRows(rows: string[][], mapping: ColumnMapping) {
+  const mapped = mapRows(rows, mapping);
   const valid = mapped.filter(
     (row) => row.errors.length === 0 && row.date && row.amount !== null,
   );
-  const invalid = mapped.length - valid.length;
+  return { valid, invalidCount: mapped.length - valid.length };
+}
 
-  // Flag rows that already exist for this account (re-uploads / overlaps).
-  // Scope the existing lookup to the import's date span so we never load the
-  // whole ledger.
-  const dates = valid.map((row) => row.date as Date);
-  const existingFingerprints = new Set<string>();
-  if (dates.length > 0) {
-    const min = new Date(Math.min(...dates.map((d) => d.getTime())));
-    const max = new Date(Math.max(...dates.map((d) => d.getTime())));
-    const existing = await prisma.transaction.findMany({
-      where: {
-        userId,
-        accountId: account.id,
-        deletedAt: null,
-        date: { gte: min, lte: max },
-      },
-      select: { date: true, amount: true, description: true },
+// Step 1 of import: flags which valid rows look like duplicates of existing
+// transactions in the chosen account, so the user can confirm before committing.
+// A brand-new account has nothing to match against, so never flags anything.
+// Does NOT write — no account is created here.
+export async function previewImport(
+  input: ImportInput,
+): Promise<ImportPreview> {
+  const userId = await requireTransactionsEnabled();
+  const { accountId, rows, mapping } = importSchema.parse(input);
+  const { valid, invalidCount } = splitRows(rows, mapping as ColumnMapping);
+
+  const duplicates: DuplicateRow[] = [];
+  if (accountId && valid.length > 0) {
+    const account = await prisma.account.findFirst({
+      where: { id: accountId, userId, deletedAt: null },
+      select: { id: true },
     });
-    for (const tx of existing) {
-      existingFingerprints.add(
-        transactionFingerprint({
-          accountId: account.id,
-          date: tx.date,
-          amount: Number(tx.amount),
-          description: tx.description,
-        }),
+    if (account) {
+      const dates = valid.map((row) => row.date as Date);
+      const min = new Date(Math.min(...dates.map((d) => d.getTime())));
+      const max = new Date(Math.max(...dates.map((d) => d.getTime())));
+      const existing = await prisma.transaction.findMany({
+        where: {
+          userId,
+          accountId,
+          deletedAt: null,
+          date: { gte: min, lte: max },
+        },
+        select: { date: true, amount: true, description: true },
+      });
+      const seen = new Set(
+        existing.map((tx) =>
+          transactionFingerprint({
+            accountId,
+            date: tx.date,
+            amount: Number(tx.amount),
+            description: tx.description,
+          }),
+        ),
       );
-    }
-  }
-
-  const toInsert = valid.filter(
-    (row) =>
-      !existingFingerprints.has(
-        transactionFingerprint({
-          accountId: account.id,
+      for (const row of valid) {
+        const fp = transactionFingerprint({
+          accountId,
           date: row.date as Date,
           amount: row.amount as number,
           description: row.description,
-        }),
-      ),
-  );
-  const duplicates = valid.length - toInsert.length;
+        });
+        if (seen.has(fp)) {
+          duplicates.push({
+            index: row.index,
+            date: (row.date as Date).toISOString(),
+            description: row.description,
+            amount: row.amount as number,
+          });
+        }
+      }
+    }
+  }
+
+  return { duplicates, validCount: valid.length, invalidCount };
+}
+
+// Step 2 of import: resolves/creates the account and inserts every valid row
+// except the ones the user chose to skip (confirmed duplicates).
+export async function commitImport(input: CommitInput): Promise<ImportResult> {
+  const userId = await requireTransactionsEnabled();
+  const { accountId, newAccountName, rows, mapping, skipIndexes } =
+    commitSchema.parse(input);
+
+  const account = await resolveAccount(userId, accountId, newAccountName);
+  const { valid, invalidCount } = splitRows(rows, mapping as ColumnMapping);
+
+  const skip = new Set(skipIndexes);
+  const toInsert = valid.filter((row) => !skip.has(row.index));
 
   if (toInsert.length > 0) {
     await prisma.transaction.createMany({
@@ -144,8 +195,8 @@ export async function importTransactions(
 
   return {
     imported: toInsert.length,
-    duplicates,
-    invalid,
+    duplicates: valid.length - toInsert.length,
+    invalid: invalidCount,
     accountName: account.name,
   };
 }
