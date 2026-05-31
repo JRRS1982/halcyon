@@ -1,0 +1,39 @@
+// The budget sections a category can belong to, mirroring the ItemType buckets
+// on FinancialItem. EXPENSE categories use one of the expense buckets, INCOME
+// categories one of the income buckets. Shared by the ledger UI (section
+// pickers + suggestions), the create-category action, and the server mappers.
+
+export const EXPENSE_BUCKETS = [
+  { value: "FIXED", label: "Fixed" },
+  { value: "VARIABLE", label: "Variable" },
+  { value: "DISCRETIONARY", label: "Discretionary" },
+] as const;
+
+export const INCOME_BUCKETS = [
+  { value: "SALARY", label: "Salary" },
+  { value: "SIDE_INCOME", label: "Side income" },
+  { value: "INVESTMENTS", label: "Investments" },
+  { value: "PENSIONS", label: "Pensions" },
+  { value: "OTHER", label: "Other" },
+] as const;
+
+export type ExpenseBucket = (typeof EXPENSE_BUCKETS)[number]["value"];
+export type IncomeBucket = (typeof INCOME_BUCKETS)[number]["value"];
+
+const SECTION_LABELS: Record<string, string> = {
+  FIXED: "Fixed",
+  VARIABLE: "Variable",
+  DISCRETIONARY: "Discretionary",
+  SALARY: "Salary",
+  SIDE_INCOME: "Side income",
+  INVESTMENTS: "Investments",
+  PENSIONS: "Pensions",
+  OTHER: "Other",
+};
+
+// Human label for a category's section, given its expense/income bucket value
+// (either may be null — an un-sectioned category).
+export function sectionLabel(bucket: string | null | undefined): string {
+  if (!bucket) return "Unsectioned";
+  return SECTION_LABELS[bucket] ?? bucket;
+}

@@ -11,6 +11,7 @@ import type {
 } from "@/lib/transactions/server";
 import { useState, useTransition } from "react";
 import styled from "styled-components";
+import { CategoryCombobox, type NewCategoryInput } from "./CategoryCombobox";
 import {
   createCategory,
   loadMoreTransactions,
@@ -122,13 +123,13 @@ const Table = styled.table`
   font-size: 13px;
 `;
 
-const Th = styled.th<{ $sortable?: boolean; $align?: "right" }>`
+const Th = styled.th<{ $align?: "right" }>`
   text-align: ${({ $align }) => ($align === "right" ? "right" : "left")};
   padding: ${({ theme }) => theme.spacing.sm};
   border-bottom: 1px solid ${({ theme }) => theme.colors.hairline};
   color: ${({ theme }) => theme.colors.dim};
   font-weight: 600;
-  cursor: ${({ $sortable }) => ($sortable ? "pointer" : "default")};
+  cursor: pointer;
   user-select: none;
   white-space: nowrap;
 `;
@@ -149,53 +150,11 @@ const Amount = styled.td<{ $negative: boolean }>`
     $negative ? theme.colors.ink : theme.colors.positive};
 `;
 
-const Select = styled.select`
-  padding: ${({ theme }) => theme.spacing.xs}
-    ${({ theme }) => theme.spacing.sm};
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  background: ${({ theme }) => theme.colors.canvas};
-  color: ${({ theme }) => theme.colors.ink};
-  font-family: ${({ theme }) => theme.typography.bodyMd.family};
-  font-size: 13px;
-  max-width: 220px;
-`;
-
-const Input = styled.input`
-  padding: ${({ theme }) => theme.spacing.xs}
-    ${({ theme }) => theme.spacing.sm};
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  font-family: ${({ theme }) => theme.typography.bodyMd.family};
-  font-size: 13px;
-`;
-
 const Empty = styled.p`
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
   font-size: ${({ theme }) => theme.typography.bodyMd.size};
   color: ${({ theme }) => theme.colors.body};
 `;
-
-const NewCategory = styled.div`
-  display: flex;
-  align-items: center;
-  gap: ${({ theme }) => theme.spacing.sm};
-  flex-wrap: wrap;
-`;
-
-const EXPENSE_BUCKETS = [
-  { value: "FIXED", label: "Fixed" },
-  { value: "VARIABLE", label: "Variable" },
-  { value: "DISCRETIONARY", label: "Discretionary" },
-] as const;
-
-const INCOME_BUCKETS = [
-  { value: "SALARY", label: "Salary" },
-  { value: "SIDE_INCOME", label: "Side income" },
-  { value: "INVESTMENTS", label: "Investments" },
-  { value: "PENSIONS", label: "Pensions" },
-  { value: "OTHER", label: "Other" },
-] as const;
 
 const COLUMNS: { key: SortColumn; label: string; align?: "right" }[] = [
   { key: "date", label: "Date" },
@@ -226,12 +185,6 @@ export function Ledger({
   const [sortColumn, setSortColumn] = useState<SortColumn>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [categories, setCategories] = useState(initialCategories);
-  const [newLabel, setNewLabel] = useState("");
-  const [newType, setNewType] = useState<"EXPENSE" | "INCOME">("EXPENSE");
-  const [newBucket, setNewBucket] = useState<string>(EXPENSE_BUCKETS[0].value);
-
-  const bucketOptions =
-    newType === "EXPENSE" ? EXPENSE_BUCKETS : INCOME_BUCKETS;
 
   // Loads page from `offset`. Replaces the list unless appending more.
   const load = (
@@ -286,43 +239,39 @@ export function Ledger({
     load({ offset: nextOffset }, true);
   };
 
-  const onAssign = (transactionId: string, categoryId: string) => {
-    const value = categoryId === "" ? null : categoryId;
+  // Optimistically reflect an assignment; drop the row if it no longer matches
+  // the "uncategorized only" filter.
+  const applyAssignment = (transactionId: string, categoryId: string | null) =>
     setItems((prev) =>
-      onlyUncategorized && value !== null
+      onlyUncategorized && categoryId !== null
         ? prev.filter((t) => t.id !== transactionId)
-        : prev.map((t) =>
-            t.id === transactionId ? { ...t, categoryId: value } : t,
-          ),
+        : prev.map((t) => (t.id === transactionId ? { ...t, categoryId } : t)),
     );
+
+  const onSelect = (transactionId: string, categoryId: string | null) => {
+    applyAssignment(transactionId, categoryId);
     startTransition(async () => {
-      await setTransactionCategory({ transactionId, categoryId: value });
+      await setTransactionCategory({ transactionId, categoryId });
     });
   };
 
-  const onChangeNewType = (type: "EXPENSE" | "INCOME") => {
-    setNewType(type);
-    setNewBucket(
-      (type === "EXPENSE" ? EXPENSE_BUCKETS : INCOME_BUCKETS)[0].value,
-    );
-  };
-
-  const onCreateCategory = () => {
-    const label = newLabel.trim();
-    if (!label) return;
+  const onCreateAndAssign = (
+    transactionId: string,
+    input: NewCategoryInput,
+  ) => {
     startTransition(async () => {
-      const created = await createCategory({
-        label,
-        type: newType,
-        bucket: newBucket,
-      });
+      const created = await createCategory(input);
       setCategories((prev) =>
         [...prev, created].sort(
           (a, b) =>
             a.type.localeCompare(b.type) || a.label.localeCompare(b.label),
         ),
       );
-      setNewLabel("");
+      applyAssignment(transactionId, created.id);
+      await setTransactionCategory({
+        transactionId,
+        categoryId: created.id,
+      });
     });
   };
 
@@ -357,36 +306,6 @@ export function Ledger({
         />
       </Controls>
 
-      <NewCategory>
-        <Input
-          value={newLabel}
-          onChange={(e) => setNewLabel(e.target.value)}
-          placeholder="New category…"
-        />
-        <Select
-          value={newType}
-          onChange={(e) =>
-            onChangeNewType(e.target.value as "EXPENSE" | "INCOME")
-          }
-        >
-          <option value="EXPENSE">Expense</option>
-          <option value="INCOME">Income</option>
-        </Select>
-        <Select
-          value={newBucket}
-          onChange={(e) => setNewBucket(e.target.value)}
-        >
-          {bucketOptions.map((b) => (
-            <option key={b.value} value={b.value}>
-              {b.label}
-            </option>
-          ))}
-        </Select>
-        <Button type="button" onClick={onCreateCategory} disabled={pending}>
-          Add category
-        </Button>
-      </NewCategory>
-
       {items.length === 0 ? (
         <Empty>
           {onlyUncategorized || search
@@ -400,7 +319,6 @@ export function Ledger({
               {COLUMNS.map((col) => (
                 <Th
                   key={col.key}
-                  $sortable
                   $align={col.align}
                   onClick={() => onSort(col.key)}
                 >
@@ -420,17 +338,13 @@ export function Ledger({
                   {tx.amount.toFixed(2)}
                 </Amount>
                 <Td>
-                  <Select
-                    value={tx.categoryId ?? ""}
-                    onChange={(e) => onAssign(tx.id, e.target.value)}
-                  >
-                    <option value="">— Uncategorized —</option>
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.label} ({c.type === "INCOME" ? "in" : "out"})
-                      </option>
-                    ))}
-                  </Select>
+                  <CategoryCombobox
+                    categories={categories}
+                    value={tx.categoryId}
+                    defaultType={tx.amount < 0 ? "EXPENSE" : "INCOME"}
+                    onSelect={(categoryId) => onSelect(tx.id, categoryId)}
+                    onCreate={(input) => onCreateAndAssign(tx.id, input)}
+                  />
                 </Td>
               </tr>
             ))}

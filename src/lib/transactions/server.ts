@@ -1,5 +1,6 @@
 import "server-only";
 
+import { sectionLabel } from "@/lib/categories/buckets";
 import { categoryKey, cleanLabel } from "@/lib/categories/normalize";
 import { prisma } from "@/lib/prisma";
 import { PAGE_SIZE } from "./pagination";
@@ -8,6 +9,8 @@ export type LedgerCategory = {
   id: string;
   label: string;
   type: "INCOME" | "EXPENSE";
+  // Human label of the budget section the category sits in (e.g. "Variable").
+  section: string;
 };
 
 export type LedgerTransaction = {
@@ -52,9 +55,22 @@ export async function getOrProvisionCategories(
   const existing = await prisma.category.findMany({
     where: { userId, deletedAt: null },
     orderBy: [{ type: "asc" }, { sortOrder: "asc" }, { label: "asc" }],
-    select: { id: true, label: true, type: true },
+    select: {
+      id: true,
+      label: true,
+      type: true,
+      category: true,
+      incomeCategory: true,
+    },
   });
-  if (existing.length > 0) return existing;
+  if (existing.length > 0) {
+    return existing.map((c) => ({
+      id: c.id,
+      label: c.label,
+      type: c.type,
+      section: sectionLabel(c.category ?? c.incomeCategory),
+    }));
+  }
 
   const items = await prisma.financialItem.findMany({
     where: { period: { userId }, deletedAt: null },
@@ -109,7 +125,12 @@ export async function getOrProvisionCategories(
       where: { id: { in: group.itemIds } },
       data: { categoryId: category.id },
     });
-    created.push(category);
+    created.push({
+      id: category.id,
+      label: category.label,
+      type: category.type,
+      section: sectionLabel(group.category ?? group.incomeCategory),
+    });
   }
 
   created.sort(

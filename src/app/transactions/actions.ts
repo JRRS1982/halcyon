@@ -1,5 +1,10 @@
 "use server";
 
+import {
+  EXPENSE_BUCKETS,
+  INCOME_BUCKETS,
+  sectionLabel,
+} from "@/lib/categories/buckets";
 import { cleanLabel } from "@/lib/categories/normalize";
 import { prisma } from "@/lib/prisma";
 import { requireTransactionsEnabled } from "@/lib/settings/server";
@@ -178,14 +183,8 @@ export async function setTransactionCategory(
   revalidatePath("/dashboard");
 }
 
-const EXPENSE_BUCKETS = ["FIXED", "VARIABLE", "DISCRETIONARY"] as const;
-const INCOME_BUCKETS = [
-  "SALARY",
-  "SIDE_INCOME",
-  "INVESTMENTS",
-  "PENSIONS",
-  "OTHER",
-] as const;
+const EXPENSE_BUCKET_VALUES: string[] = EXPENSE_BUCKETS.map((b) => b.value);
+const INCOME_BUCKET_VALUES: string[] = INCOME_BUCKETS.map((b) => b.value);
 
 const createCategorySchema = z.object({
   label: z.string().trim().min(1).max(120),
@@ -206,14 +205,12 @@ export async function createCategory(
 
   const expense = type === "EXPENSE";
   const category =
-    expense &&
-    EXPENSE_BUCKETS.includes(bucket as (typeof EXPENSE_BUCKETS)[number])
-      ? (bucket as (typeof EXPENSE_BUCKETS)[number])
+    expense && bucket && EXPENSE_BUCKET_VALUES.includes(bucket)
+      ? (bucket as (typeof EXPENSE_BUCKETS)[number]["value"])
       : null;
   const incomeCategory =
-    !expense &&
-    INCOME_BUCKETS.includes(bucket as (typeof INCOME_BUCKETS)[number])
-      ? (bucket as (typeof INCOME_BUCKETS)[number])
+    !expense && bucket && INCOME_BUCKET_VALUES.includes(bucket)
+      ? (bucket as (typeof INCOME_BUCKETS)[number]["value"])
       : null;
 
   const created = await prisma.category.create({
@@ -221,7 +218,12 @@ export async function createCategory(
     select: { id: true, label: true, type: true },
   });
   revalidatePath("/budget");
-  return created;
+  return {
+    id: created.id,
+    label: created.label,
+    type: created.type,
+    section: sectionLabel(category ?? incomeCategory),
+  };
 }
 
 const loadMoreSchema = z.object({
