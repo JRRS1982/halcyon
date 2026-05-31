@@ -85,6 +85,7 @@ export type SerializedItem = {
   type: "INCOME" | "EXPENSE";
   category: ExpenseCategory | null;
   incomeCategory: IncomeCategory | null;
+  categoryId: string | null;
   label: string;
   budget: number;
   actual: number;
@@ -613,6 +614,7 @@ export function BudgetSheet({
   currency,
   numberFormat,
   hasTemplate,
+  actualsReadOnly = false,
 }: {
   period: SerializedPeriod;
   initialItems: SerializedItem[];
@@ -621,6 +623,7 @@ export function BudgetSheet({
   currency: string;
   numberFormat: NumberFormat;
   hasTemplate: boolean;
+  actualsReadOnly?: boolean;
 }) {
   // Bind currency + number format once so the many call sites stay terse.
   const fmtAmount = (n: number) => formatAmount(currency, n, numberFormat);
@@ -795,7 +798,9 @@ export function BudgetSheet({
                 targetMonth: month,
               });
         setPeriodState((prev) => ({ ...prev, id: result.periodId }));
-        setItems(result.items);
+        // Copied rows aren't category-linked yet (carry categoryId forward is a
+        // follow-up); they show as unlinked until categorised.
+        setItems(result.items.map((it) => ({ ...it, categoryId: null })));
         setFocusedCell(null);
         setLastSavedAt(new Date());
         setSaveError(null);
@@ -999,6 +1004,7 @@ export function BudgetSheet({
               type: created.type,
               category: created.category,
               incomeCategory: created.incomeCategory,
+              categoryId: created.categoryId ?? null,
               label: created.label,
               budget: Number(created.budget),
               actual: Number(created.actual),
@@ -1203,7 +1209,12 @@ export function BudgetSheet({
             tone: item.budget === 0 ? "dim" : "default",
           },
           actual: {
-            value: (
+            // When transactions mode is on, actual is the computed sum of the
+            // category's transactions — read-only, rendered as static text so
+            // there's no edit path that could overwrite the stored value.
+            value: actualsReadOnly ? (
+              fmtAmount(item.actual)
+            ) : (
               <AmountInput
                 value={item.actual}
                 numberFormat={numberFormat}

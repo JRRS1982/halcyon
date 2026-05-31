@@ -7,6 +7,7 @@ import {
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserSettings } from "@/lib/settings/server";
 import { createClient } from "@/lib/supabase/server";
+import { netActual } from "@/lib/transactions/actual";
 import { redirect } from "next/navigation";
 import {
   BudgetSheet,
@@ -55,7 +56,8 @@ export default async function BudgetPage({ searchParams }: PageProps) {
   }
 
   const range = monthRangeFor(year, month);
-  const { currency, numberFormat } = await getCurrentUserSettings();
+  const { currency, numberFormat, transactionsEnabled } =
+    await getCurrentUserSettings();
 
   // Find — don't create.
   const period = await prisma.financialPeriod.findUnique({
@@ -86,14 +88,45 @@ export default async function BudgetPage({ searchParams }: PageProps) {
     endDate: range.endDate.toISOString(),
   };
 
+  // When transactions mode is on, a category's actual is the net sum of its
+  // transactions in this month (see src/lib/transactions/actual.ts) rather than
+  // the manually-typed value. The stored `actual` column is left untouched — we
+  // only overlay the computed figure for display.
+  const amountsByCategory = new Map<string, number[]>();
+  if (transactionsEnabled && period) {
+    const categoryIds = items
+      .map((i) => i.categoryId)
+      .filter((id): id is string => id !== null);
+    if (categoryIds.length > 0) {
+      const txns = await prisma.transaction.findMany({
+        where: {
+          userId: user.id,
+          deletedAt: null,
+          categoryId: { in: categoryIds },
+          date: { gte: range.startDate, lte: range.endDate },
+        },
+        select: { categoryId: true, amount: true },
+      });
+      for (const tx of txns) {
+        if (!tx.categoryId) continue;
+        const arr = amountsByCategory.get(tx.categoryId) ?? [];
+        arr.push(Number(tx.amount));
+        amountsByCategory.set(tx.categoryId, arr);
+      }
+    }
+  }
+
   const serializedItems: SerializedItem[] = items.map((i) => ({
     id: i.id,
     type: i.type,
     category: i.category,
     incomeCategory: i.incomeCategory,
+    categoryId: i.categoryId,
     label: i.label,
     budget: Number(i.budget),
-    actual: Number(i.actual),
+    actual: transactionsEnabled
+      ? netActual(amountsByCategory.get(i.categoryId ?? "") ?? [], i.type)
+      : Number(i.actual),
     sortOrder: i.sortOrder,
   }));
 
@@ -117,6 +150,7 @@ export default async function BudgetPage({ searchParams }: PageProps) {
       currency={currency}
       numberFormat={numberFormat}
       hasTemplate={hasTemplate}
+      actualsReadOnly={transactionsEnabled}
     />
   );
 }
