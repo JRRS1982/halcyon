@@ -126,7 +126,9 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Install Playwright browsers
-        run: pnpm exec playwright install --with-deps chromium
+        # All three engines run in CI (chromium + firefox + webkit); --with-deps
+        # also installs the required system libraries.
+        run: pnpm exec playwright install --with-deps
 
       - name: Set up test database
         run: |
