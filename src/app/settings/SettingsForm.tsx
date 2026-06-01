@@ -145,6 +145,11 @@ const Overlay = styled.div`
 const Dialog = styled.dialog`
   display: grid;
   gap: ${({ theme }) => theme.spacing.xl};
+  /* A native <dialog open> defaults to position: absolute + margin: auto,
+     which drops it out of the Overlay's flexbox so it can't be centred.
+     Reset to a normal flex child centred by the Overlay. */
+  position: static;
+  margin: 0;
   width: 100%;
   max-width: 380px;
   padding: ${({ theme }) => theme.spacing["2xl"]};
