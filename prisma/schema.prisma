@@ -55,6 +55,8 @@ model UserSettings {
   currency            String   @default("USD")
   numberFormat        String   @default("COMMA_0")
   transactionsEnabled Boolean  @default(false)
+  // Dashboard chart keys the user has switched off (empty = all shown).
+  hiddenCharts        String[] @default([])
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 

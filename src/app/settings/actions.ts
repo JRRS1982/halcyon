@@ -1,5 +1,6 @@
 "use server";
 
+import { isDashboardChartKey } from "@/lib/dashboard/charts";
 import { prisma } from "@/lib/prisma";
 import { CURRENCY_CODES, NUMBER_FORMATS } from "@/lib/settings/currency";
 import { createClient } from "@/lib/supabase/server";
@@ -39,6 +40,38 @@ export async function updateSettings(formData: FormData) {
   // Read by /budget and /balance server components for formatting.
   revalidatePath("/budget");
   revalidatePath("/balance");
+  revalidatePath("/settings");
+}
+
+const setChartVisibilitySchema = z.object({
+  key: z.string(),
+  visible: z.boolean(),
+});
+
+// Shows/hides a single dashboard chart group for the user by adding/removing
+// its key from UserSettings.hiddenCharts.
+export async function setChartVisibility(
+  input: z.input<typeof setChartVisibilitySchema>,
+) {
+  const userId = await requireUserId();
+  const { key, visible } = setChartVisibilitySchema.parse(input);
+  if (!isDashboardChartKey(key)) throw new Error("Unknown chart");
+
+  const row = await prisma.userSettings.upsert({
+    where: { userId },
+    update: {},
+    create: { userId },
+    select: { hiddenCharts: true },
+  });
+  const hidden = new Set(row.hiddenCharts);
+  if (visible) hidden.delete(key);
+  else hidden.add(key);
+
+  await prisma.userSettings.update({
+    where: { userId },
+    data: { hiddenCharts: Array.from(hidden) },
+  });
+  revalidatePath("/dashboard");
   revalidatePath("/settings");
 }
 

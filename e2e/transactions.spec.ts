@@ -27,7 +27,7 @@ test.describe("transactions journey", () => {
     // Enable Transactions in Settings: toggling the switch opens a confirm
     // dialog; Confirm persists it. Skip if already on (shared test DB).
     await page.goto("/settings");
-    const toggle = page.getByRole("checkbox");
+    const toggle = page.getByRole("checkbox", { name: "Transactions" });
     if (!(await toggle.isChecked())) {
       await toggle.check({ force: true });
       await page.getByRole("button", { name: "Confirm" }).click();

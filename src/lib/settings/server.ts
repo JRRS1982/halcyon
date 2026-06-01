@@ -18,6 +18,7 @@ export async function getCurrentUserSettings(): Promise<{
   currency: CurrencyCode;
   numberFormat: NumberFormat;
   transactionsEnabled: boolean;
+  hiddenCharts: string[];
 }> {
   const supabase = createClient();
   const {
@@ -51,6 +52,7 @@ export async function getCurrentUserSettings(): Promise<{
       ? row.numberFormat
       : DEFAULT_NUMBER_FORMAT,
     transactionsEnabled: row.transactionsEnabled,
+    hiddenCharts: row.hiddenCharts,
   };
 }
 

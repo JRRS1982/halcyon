@@ -302,6 +302,7 @@ export function SettingsForm({
         <SwitchControl>
           <SwitchInput
             type="checkbox"
+            aria-label="Transactions"
             checked={enabled}
             disabled={togglePending}
             onChange={(event) => onToggle(event.target.checked)}
