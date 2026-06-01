@@ -80,6 +80,22 @@ To run the unit tests, use the following command: `pnpm test`, or one of the hel
 - `make test-watch`
 - `make test-coverage`
 
+### Integration tests (real Postgres)
+
+Server actions and DB queries (imports, categorisation, merge, provisioning,
+ledger queries) are tested against a **real `halcyon_test` database**, with only
+the Supabase auth boundary mocked. Files use the `*.int.test.ts` suffix and run
+in a node-env Jest project, separate from the unit run.
+
+```bash
+pnpm test:int
+```
+
+It needs a Postgres reachable at `localhost:5432` (the `db` container from
+`make dev-up` is fine — the test database `halcyon_test` lives alongside the dev
+`halcyon` DB). The command pins `DATABASE_URL` at `halcyon_test` and a guard
+refuses to run against anything else; `globalSetup` applies migrations.
+
 ### End to end tests (E2E)
 
 Run the tests locally:

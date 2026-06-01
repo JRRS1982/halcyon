@@ -60,11 +60,12 @@ There is no longer a self-hosted production setup — `Dockerfile.prod`, `compos
 - **Testing layout**:
   - Jest runs against `src/` only — `jest.config.ts` excludes `e2e/` and `.next/` from both test discovery and coverage.
   - Playwright tests live in `e2e/`. Auth tests use a mock Supabase Auth server (`e2e/_mock/supabase.mjs`) rather than a real Supabase project. `playwright.config.ts` runs the mock + a Next.js dev server on port `3100` with env vars pointing at the mock (so it doesn't accidentally hit production).
-  - Real Postgres is **not** mocked. The day we add a Prisma-touching test, spin up real postgres in Docker — mocking postgres semantics is a tarpit.
-- **CI/CD**: GitHub Actions `.github/workflows/ci.yml` has two jobs:
+  - Real Postgres is **not** mocked. Prisma-touching **integration tests** (`*.int.test.ts`, node env, `jest.integration.config.ts`, run via `pnpm test:int`) execute the real server actions against a real `halcyon_test` database — only the Supabase auth boundary + next cache/navigation are mocked. The unit run excludes `*.int.test.ts`. `pnpm test:int` pins `DATABASE_URL` at `halcyon_test` with a hard guard; never point it at a real DB.
+- **CI/CD**: GitHub Actions `.github/workflows/ci.yml` has four jobs:
   - `lint-and-test` — `pnpm check`, `pnpm typecheck`, `pnpm test:coverage`
-  - `e2e-tests` — `pnpm install`, `playwright install --with-deps chromium`, `pnpm test:e2e` (no database service; mock supplies auth, no Prisma-touching tests yet)
-  Production deploys are Vercel's job, not GitHub Actions — Vercel watches `master` and deploys automatically once its own build succeeds. Rollback is one-click in the Vercel dashboard.
+  - `integration-tests` — `pnpm test:int` against a Postgres service (`postgres/postgres`, `halcyon_test`)
+  - `e2e-tests` — `playwright install --with-deps chromium`, `pnpm test:e2e`, backed by a Postgres service (`test/test`, `halcyon_test`) + the mock Supabase auth server
+  - `migrate-prod` — on push to `master` only, gated on the three above; runs `prisma migrate deploy` against production Supabase (`PROD_DIRECT_URL` secret). Vercel waits for this workflow before deploying, so code never goes live against an un-migrated schema. Rollback is one-click in the Vercel dashboard.
 
 ## Code style (from .ai/code-style.md)
 

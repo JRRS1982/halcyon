@@ -14,6 +14,8 @@ const config: Config = {
     // Nested git worktrees (e.g. .claude/worktrees/*) carry their own copies of
     // src/ and e2e/; without this, a test run here crawls into them.
     "<rootDir>/.claude/worktrees/",
+    // Integration tests (real Postgres, node env) run via jest.integration.config.
+    "\\.int\\.test\\.",
   ],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",

@@ -9,7 +9,7 @@ import type {
   SortColumn,
   SortDir,
 } from "@/lib/transactions/server";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import styled from "styled-components";
 import { CategoryCombobox, type NewCategoryInput } from "./CategoryCombobox";
 import {
@@ -185,6 +185,17 @@ export function Ledger({
   const [sortColumn, setSortColumn] = useState<SortColumn>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [categories, setCategories] = useState(initialCategories);
+
+  // Re-sync from the server when it re-renders this component with fresh props
+  // (e.g. after an import calls router.refresh()) — otherwise the initial
+  // useState snapshot would hide newly-imported rows until a full reload. The
+  // prop reference only changes on a server refresh/navigation, not on this
+  // component's own state updates, so client interactions aren't clobbered.
+  useEffect(() => {
+    setItems(initialPage.items);
+    setNextOffset(initialPage.nextOffset);
+    setCategories(initialCategories);
+  }, [initialPage, initialCategories]);
 
   // Loads page from `offset`. Replaces the list unless appending more.
   const load = (
