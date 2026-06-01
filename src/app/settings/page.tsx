@@ -10,6 +10,7 @@ import {
 import { getCurrentUserSettings } from "@/lib/settings/server";
 import { getOrProvisionCategories } from "@/lib/transactions/server";
 import { CategoryManager, type ManagedCategory } from "./CategoryManager";
+import { DashboardSettings } from "./DashboardSettings";
 import { SettingsForm } from "./SettingsForm";
 import { updateSettings } from "./actions";
 
@@ -26,7 +27,7 @@ const NUMBER_FORMAT_LABELS: Record<(typeof NUMBER_FORMATS)[number], string> = {
 
 // Protected by middleware → /sign-in?next=/settings if no session.
 export default async function SettingsPage() {
-  const { userId, currency, numberFormat, transactionsEnabled } =
+  const { userId, currency, numberFormat, transactionsEnabled, hiddenCharts } =
     await getCurrentUserSettings();
   const symbol = symbolFor(currency);
 
@@ -95,6 +96,7 @@ export default async function SettingsPage() {
         numberFormatOptions={numberFormatOptions}
         transactionsEnabled={transactionsEnabled}
       />
+      <DashboardSettings hiddenCharts={hiddenCharts} />
       <CategoryManager categories={managedCategories} />
     </>
   );

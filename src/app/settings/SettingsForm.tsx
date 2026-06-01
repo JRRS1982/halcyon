@@ -2,8 +2,11 @@
 
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { useRouter } from "next/navigation";
 import { type FormEvent, useRef, useState, useTransition } from "react";
 import styled from "styled-components";
+import { SectionHeading } from "./SectionHeading";
+import { toggleTransactions } from "./actions";
 
 const Shell = styled.main`
   max-width: 720px;
@@ -142,6 +145,11 @@ const Overlay = styled.div`
 const Dialog = styled.dialog`
   display: grid;
   gap: ${({ theme }) => theme.spacing.xl};
+  /* A native <dialog open> defaults to position: absolute + margin: auto,
+     which drops it out of the Overlay's flexbox so it can't be centred.
+     Reset to a normal flex child centred by the Overlay. */
+  position: static;
+  margin: 0;
   width: 100%;
   max-width: 380px;
   padding: ${({ theme }) => theme.spacing["2xl"]};
@@ -205,37 +213,50 @@ export function SettingsForm({
   numberFormatOptions: SelectOption[];
   transactionsEnabled: boolean;
 }) {
-  const formRef = useRef<HTMLFormElement>(null);
-  const [pending, startTransition] = useTransition();
+  const router = useRouter();
+  const [savePending, startSave] = useTransition();
   const [justSaved, setJustSaved] = useState(false);
+
+  // The transactions toggle persists immediately behind a confirm dialog,
+  // independent of the Format Save button. `enabled` is the displayed state;
+  // committedRef holds the last persisted value to revert to on cancel.
+  const [enabled, setEnabled] = useState(transactionsEnabled);
+  const committedRef = useRef(transactionsEnabled);
   const [confirming, setConfirming] = useState(false);
-  // The toggle's intended value when the dialog opened, so we can explain the
-  // consequence of the specific change (enable vs disable vs no change).
-  const [nextTransactions, setNextTransactions] = useState(transactionsEnabled);
+  const [togglePending, startToggle] = useTransition();
 
-  // Saving is gated behind a confirmation: submitting the form opens the
-  // dialog; only the dialog's Confirm actually runs the action.
-  const requestSave = (event: FormEvent<HTMLFormElement>) => {
+  const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const form = event.currentTarget;
-    setNextTransactions(new FormData(form).get("transactionsEnabled") === "on");
-    setConfirming(true);
-  };
-
-  const enabling = nextTransactions && !transactionsEnabled;
-  const disabling = !nextTransactions && transactionsEnabled;
-
-  const confirmSave = () => {
-    const form = formRef.current;
-    if (!form) return;
-    const formData = new FormData(form);
-    setConfirming(false);
+    const formData = new FormData(event.currentTarget);
     setJustSaved(false);
-    startTransition(async () => {
+    startSave(async () => {
       await action(formData);
       setJustSaved(true);
     });
   };
+
+  // Changing the toggle optimistically moves it and opens the dialog; only
+  // Confirm persists, Cancel reverts to the last committed value.
+  const onToggle = (next: boolean) => {
+    setEnabled(next);
+    setConfirming(true);
+  };
+  const cancelToggle = () => {
+    setEnabled(committedRef.current);
+    setConfirming(false);
+  };
+  const confirmToggle = () => {
+    setConfirming(false);
+    const value = enabled;
+    startToggle(async () => {
+      await toggleTransactions(value);
+      committedRef.current = value;
+      router.refresh();
+    });
+  };
+
+  const enabling = enabled && !committedRef.current;
+  const disabling = !enabled && committedRef.current;
 
   return (
     <Shell>
@@ -244,7 +265,8 @@ export function SettingsForm({
         title="Settings"
         lead="App-wide preferences for your account."
       />
-      <form ref={formRef} onSubmit={requestSave}>
+      <form onSubmit={onSubmit}>
+        <SectionHeading>Format</SectionHeading>
         <Field>
           <FieldLabel>Currency</FieldLabel>
           <Select name="currency" defaultValue={currency}>
@@ -265,63 +287,71 @@ export function SettingsForm({
             ))}
           </Select>
         </Field>
-        <ToggleField>
-          <ToggleText>
-            <FieldLabel>Transactions</FieldLabel>
-            <FieldHint>
-              Show the Transactions page and import bank statements. When on,
-              each budget category’s actual is summed from its categorized
-              transactions instead of being typed by hand.
-            </FieldHint>
-          </ToggleText>
-          <SwitchControl>
-            <SwitchInput
-              type="checkbox"
-              name="transactionsEnabled"
-              defaultChecked={transactionsEnabled}
-            />
-            <SwitchTrack />
-          </SwitchControl>
-        </ToggleField>
         <Row>
-          <Button type="submit" disabled={pending}>
-            {pending ? "Saving…" : "Save"}
+          <Button type="submit" disabled={savePending}>
+            {savePending ? "Saving…" : "Save"}
           </Button>
-          {justSaved && !pending && <SavedNote>Saved</SavedNote>}
+          {justSaved && !savePending && <SavedNote>Saved</SavedNote>}
         </Row>
       </form>
+
+      <SectionHeading>Transactions</SectionHeading>
+      <ToggleField>
+        <ToggleText>
+          <FieldHint>
+            Show the Transactions page and import bank statements. When on, each
+            budget category’s actual is summed from its categorized transactions
+            instead of being typed by hand.
+          </FieldHint>
+        </ToggleText>
+        <SwitchControl>
+          <SwitchInput
+            type="checkbox"
+            aria-label="Transactions"
+            checked={enabled}
+            disabled={togglePending}
+            onChange={(event) => onToggle(event.target.checked)}
+          />
+          <SwitchTrack />
+        </SwitchControl>
+      </ToggleField>
 
       {confirming && (
         <Overlay
           onClick={(event) => {
-            if (event.target === event.currentTarget) setConfirming(false);
+            if (event.target === event.currentTarget) cancelToggle();
           }}
         >
           <Dialog open>
-            <DialogText>Save these settings?</DialogText>
+            <DialogText>
+              {enabling ? "Turn Transactions on?" : "Turn Transactions off?"}
+            </DialogText>
             {enabling && (
               <DialogInfo>
-                <strong>Turning Transactions on:</strong> adds the Transactions
-                page to the nav, lets you import bank statements, and switches
-                each budget category’s <em>actual</em> to the sum of its
-                categorized transactions (the actual column becomes read-only).
-                Your existing manual actuals are kept, not overwritten.
+                Adds the Transactions page to the nav, lets you import bank
+                statements, and switches each budget category’s <em>actual</em>{" "}
+                to the sum of its categorized transactions (the actual column
+                becomes read-only). Your existing manual actuals are kept, not
+                overwritten.
               </DialogInfo>
             )}
             {disabling && (
               <DialogInfo>
-                <strong>Turning Transactions off:</strong> hides the
-                Transactions page and makes the budget’s <em>actual</em> column
-                editable again, showing your manually-entered values. Your
-                imported transactions and categories are kept — they’ll reappear
-                if you switch it back on.
+                Hides the Transactions page and makes the budget’s{" "}
+                <em>actual</em> column editable again, showing your
+                manually-entered values. Your imported transactions and
+                categories are kept — they’ll reappear if you switch it back on.
               </DialogInfo>
             )}
             <DialogActions>
-              <GhostButton type="button" onClick={() => setConfirming(false)}>
+              <GhostButton type="button" onClick={cancelToggle}>
                 Cancel
               </GhostButton>
-              <Button type="button" onClick={confirmSave}>
+              <Button
+                type="button"
+                onClick={confirmToggle}
+                disabled={togglePending}
+              >
                 Confirm
               </Button>
             </DialogActions>

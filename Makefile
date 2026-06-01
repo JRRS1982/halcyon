@@ -1,4 +1,4 @@
-.PHONY: go dev-up dev-down dev-build dev-logs dev-shell dev-db-shell dev-db-seed dev-db-reset dev-db-migrate lintAndFormat dev-clean test test-watch test-coverage test-e2e test-e2e-ui
+.PHONY: go dev-up dev-down dev-build dev-logs dev-shell dev-db-shell migrate-create migrate-deploy dev-db-seed dev-db-reset lintAndFormat dev-clean test test-watch test-coverage test-e2e test-e2e-ui
 
 .DEFAULT_GOAL := go
 
@@ -28,6 +28,15 @@ dev-shell:
 dev-db-shell:
 	docker compose exec db psql -U postgres -d halcyon
 
+# migrate-deploy: apply every pending migration to the local dev DB
+# (`prisma migrate deploy`). Does NOT diff the schema or create files — it only
+# runs migration SQL that already exists. Idempotent. Run this after pulling new
+# migrations from git, or after migrate-create, so the running app matches the
+# schema. Requires the containers to be up (make / make dev-up).
+# Example: make migrate-deploy
+migrate-deploy:
+	docker compose exec app npx prisma migrate deploy
+
 # Seed database with test data
 dev-db-seed:
 	docker compose exec app npx prisma migrate deploy
@@ -38,11 +47,14 @@ dev-db-reset:
 	docker compose exec app npx prisma migrate reset --force
 	docker compose exec app npx tsx prisma/seed.ts
 
-# Create a new migration
-# Usage: make dev-db-migrate name=add_user_settings, the name should start with a verb and include the table name
-dev-db-migrate:
+# migrate-create: author a NEW migration from schema.prisma changes
+# (`prisma migrate dev`). Diffs the schema against the DB, writes a new SQL file
+# under prisma/migrations/, applies it, and regenerates the client. `name` is
+# required and should start with a verb and name the table.
+# Example: make migrate-create name=add_user_settings
+migrate-create:
 	@if [ -z "$(name)" ]; then \
-		echo "Error: name is required. Usage: make dev-db-migrate name=migration_name"; \
+		echo "Error: name is required. Usage: make migrate-create name=add_user_settings"; \
 		exit 1; \
 	fi
 	docker compose exec app npx prisma migrate dev --name $(name)

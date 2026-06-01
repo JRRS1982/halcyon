@@ -9,6 +9,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import styled from "styled-components";
+import { SectionHeading } from "./SectionHeading";
 import {
   createManagedCategory,
   deleteCategory,
@@ -30,15 +31,6 @@ const Shell = styled.section`
   margin: 0 auto;
   padding: 0 ${({ theme }) => theme.spacing["2xl"]}
     ${({ theme }) => theme.spacing["5xl"]};
-`;
-
-const Heading = styled.h2`
-  margin: 0 0 ${({ theme }) => theme.spacing.xs};
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  text-transform: uppercase;
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
-  color: ${({ theme }) => theme.colors.dim};
 `;
 
 const Lead = styled.p`
@@ -389,7 +381,7 @@ export function CategoryManager({
 
   return (
     <Shell>
-      <Heading>Categories</Heading>
+      <SectionHeading>Categories</SectionHeading>
       <Lead>
         Categories group your budget lines and transactions. Rename, re-section,
         merge duplicates, or remove ones you no longer use (history is kept).

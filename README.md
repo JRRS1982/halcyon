@@ -28,9 +28,9 @@ Install dependencies with pnpm, then run the app **in Docker** for local develop
 
 ### Commands — `make` vs `pnpm`
 
-- **`make` for the app + the database** (runs inside Docker, against local Postgres): `make dev-up` / `make dev-down` / `make dev-build`, `make dev-db-migrate name=<verb_table>`, `make dev-db-reset`, `make dev-db-seed`, `make dev-db-shell`.
+- **`make` for the app + the database** (runs inside Docker, against local Postgres): `make dev-up` / `make dev-down` / `make dev-build`, `make migrate-create name=<verb_table>` (author a new migration), `make migrate-deploy` (apply pending migrations), `make dev-db-reset`, `make dev-db-seed`, `make dev-db-shell`.
 - **`pnpm` for stateless checks** (faster, and what CI runs): `pnpm typecheck`, `pnpm check` (lint+format), `pnpm test`, `pnpm build`, `pnpm verify`.
-- **Migrations: always `make dev-db-migrate`, never host `pnpm prisma …`** — see the gotcha below.
+- **Migrations: always `make migrate-create` / `make migrate-deploy`, never host `pnpm prisma …`** — see the gotcha below.
 
 ### Which database am I hitting?
 
@@ -42,7 +42,7 @@ Two databases exist: **local Postgres** (the Docker `db` service) and **producti
 | App on host — `pnpm dev` (Next.js) | `.env.local` → `.env.development` → `.env` | **local** |
 | **Prisma CLI on host — `pnpm prisma …`** | **`.env` only** | **production ⚠️** |
 
-The gotcha: **Next.js reads `.env.local` first** (which we set to the local DB), so `pnpm dev` is local — but the **Prisma CLI reads only `.env`** (it ignores `.env.local`), and `.env` holds the **production** Supabase URLs. So host `pnpm prisma migrate`/seed quietly target **production**. Always run migrations with **`make dev-db-migrate`** (in-container → local).
+The gotcha: **Next.js reads `.env.local` first** (which we set to the local DB), so `pnpm dev` is local — but the **Prisma CLI reads only `.env`** (it ignores `.env.local`), and `.env` holds the **production** Supabase URLs. So host `pnpm prisma migrate`/seed quietly target **production**. Always run migrations with **`make migrate-create` / `make migrate-deploy`** (in-container → local).
 
 So it only hits prod when a tool falls back to `.env`. To make the host app hit production deliberately, comment the local URLs out of `.env.local`. (These files are gitignored — set them from `.env.example`.)
 

@@ -28,7 +28,8 @@ export default async function DashboardPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/sign-in?next=/dashboard");
 
-  const { currency, numberFormat } = await getCurrentUserSettings();
+  const { currency, numberFormat, hiddenCharts } =
+    await getCurrentUserSettings();
 
   const now = currentMonthRange();
   const windowStart = new Date(
@@ -183,6 +184,7 @@ export default async function DashboardPage() {
       cashFlowData={cashFlowData}
       currency={currency}
       numberFormat={numberFormat}
+      hiddenCharts={hiddenCharts}
     />
   );
 }

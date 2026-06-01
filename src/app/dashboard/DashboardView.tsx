@@ -159,13 +159,16 @@ export function DashboardView({
   cashFlowData,
   currency,
   numberFormat,
+  hiddenCharts = [],
 }: {
   balanceData: BalancePoint[];
   expenditureData: ExpenditurePoint[];
   cashFlowData: CashFlowPoint[];
   currency: string;
   numberFormat: NumberFormat;
+  hiddenCharts?: string[];
 }) {
+  const shown = (key: string) => !hiddenCharts.includes(key);
   // Per-category balance series with trailing average, dropping categories that
   // are empty across every month (e.g. no medium-term debt).
   const balancePanels = BALANCE_PANELS.map((p) => ({
@@ -219,52 +222,56 @@ export function DashboardView({
         lead="Trends across your tracked months."
       />
       <Panels>
-        <Panel>
-          <PanelTitle>Income vs expenses</PanelTitle>
-          <PanelLead>
-            Money in versus money out each month — income is your net
-            (take-home) figure, after tax and pension. The gap is your surplus
-            or shortfall, and the dashed line tracks the share of income you
-            kept. Each net point is marked with its change from the month before
-            (green ▲ up, red ▼ down).
-          </PanelLead>
-          {cashFlowData.length > 0 ? (
-            <CashFlowChart
-              data={cashFlowData}
-              currency={currency}
-              numberFormat={numberFormat}
-            />
-          ) : (
-            <EmptyState>
-              Record income and expenses on the Budget page to see your monthly
-              cash flow and savings rate here.
-            </EmptyState>
-          )}
-        </Panel>
-        {expenditureGrid}
-        <Panel>
-          <PanelTitle>Balance over time</PanelTitle>
-          <PanelLead>
-            Assets (green) sit above zero and debts (red) below; the dash
-            pattern tells the categories apart, and the solid black line is your
-            net balance — total assets minus what you owe. Each net point is
-            marked with its change from the month before (green ▲ up, red ▼
-            down).
-          </PanelLead>
-          {balanceData.length > 0 ? (
-            <BalanceTrendChart
-              data={balanceData}
-              currency={currency}
-              numberFormat={numberFormat}
-            />
-          ) : (
-            <EmptyState>
-              Add assets and liabilities on the Balance page to see your balance
-              trend here.
-            </EmptyState>
-          )}
-        </Panel>
-        {balancePanels.length > 0 && (
+        {shown("cashFlow") && (
+          <Panel>
+            <PanelTitle>Income vs expenses</PanelTitle>
+            <PanelLead>
+              Money in versus money out each month — income is your net
+              (take-home) figure, after tax and pension. The gap is your surplus
+              or shortfall, and the dashed line tracks the share of income you
+              kept. Each net point is marked with its change from the month
+              before (green ▲ up, red ▼ down).
+            </PanelLead>
+            {cashFlowData.length > 0 ? (
+              <CashFlowChart
+                data={cashFlowData}
+                currency={currency}
+                numberFormat={numberFormat}
+              />
+            ) : (
+              <EmptyState>
+                Record income and expenses on the Budget page to see your
+                monthly cash flow and savings rate here.
+              </EmptyState>
+            )}
+          </Panel>
+        )}
+        {shown("categorySpending") && expenditureGrid}
+        {shown("balanceTrend") && (
+          <Panel>
+            <PanelTitle>Balance over time</PanelTitle>
+            <PanelLead>
+              Assets (green) sit above zero and debts (red) below; the dash
+              pattern tells the categories apart, and the solid black line is
+              your net balance — total assets minus what you owe. Each net point
+              is marked with its change from the month before (green ▲ up, red ▼
+              down).
+            </PanelLead>
+            {balanceData.length > 0 ? (
+              <BalanceTrendChart
+                data={balanceData}
+                currency={currency}
+                numberFormat={numberFormat}
+              />
+            ) : (
+              <EmptyState>
+                Add assets and liabilities on the Balance page to see your
+                balance trend here.
+              </EmptyState>
+            )}
+          </Panel>
+        )}
+        {shown("balanceCategory") && balancePanels.length > 0 && (
           <CategoryGrid>
             {balancePanels.map((p) => (
               <Panel key={p.label}>

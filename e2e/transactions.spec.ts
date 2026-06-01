@@ -24,13 +24,14 @@ test.describe("transactions journey", () => {
     await page.getByRole("button", { name: "Sign in" }).click();
     await page.waitForURL("/");
 
-    // Enable Transactions in Settings (slide toggle → Save → confirm dialog).
+    // Enable Transactions in Settings: toggling the switch opens a confirm
+    // dialog; Confirm persists it. Skip if already on (shared test DB).
     await page.goto("/settings");
-    await page
-      .locator('input[name="transactionsEnabled"]')
-      .check({ force: true });
-    await page.getByRole("button", { name: "Save" }).click();
-    await page.getByRole("button", { name: "Confirm" }).click();
+    const toggle = page.getByRole("checkbox", { name: "Transactions" });
+    if (!(await toggle.isChecked())) {
+      await toggle.check({ force: true });
+      await page.getByRole("button", { name: "Confirm" }).click();
+    }
     // Nav link appears once the setting is saved + revalidated.
     await expect(
       page.getByRole("link", { name: "Transactions" }),
