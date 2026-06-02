@@ -1,4 +1,4 @@
-import { exportMyData } from "@/app/settings/dataActions";
+import { clearMyData, exportMyData } from "@/app/settings/dataActions";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
 
@@ -63,5 +63,59 @@ describe("exportMyData (integration)", () => {
     expect(
       dump.accounts.every((a: { userId: string }) => a.userId === TEST_USER_ID),
     ).toBe(true);
+  });
+});
+
+describe("clearMyData (integration)", () => {
+  test("removes financial rows but keeps User, settings, and categories", async () => {
+    await seedFinancialData(TEST_USER_ID);
+    // seedUser() (global beforeEach) already created UserSettings for TEST_USER_ID.
+
+    await clearMyData();
+
+    expect(
+      await prisma.transaction.count({ where: { userId: TEST_USER_ID } }),
+    ).toBe(0);
+    expect(
+      await prisma.account.count({ where: { userId: TEST_USER_ID } }),
+    ).toBe(0);
+    expect(
+      await prisma.financialPeriod.count({ where: { userId: TEST_USER_ID } }),
+    ).toBe(0);
+    expect(
+      await prisma.financialItem.count({
+        where: { period: { userId: TEST_USER_ID } },
+      }),
+    ).toBe(0);
+    expect(
+      await prisma.balanceItem.count({
+        where: { period: { userId: TEST_USER_ID } },
+      }),
+    ).toBe(0);
+
+    // Kept:
+    expect(
+      await prisma.user.findUnique({ where: { id: TEST_USER_ID } }),
+    ).not.toBeNull();
+    expect(
+      await prisma.userSettings.findUnique({ where: { userId: TEST_USER_ID } }),
+    ).not.toBeNull();
+    expect(
+      await prisma.category.count({ where: { userId: TEST_USER_ID } }),
+    ).toBe(1);
+  });
+
+  test("does not touch another user's data", async () => {
+    await prisma.user.create({ data: { id: OTHER_USER_ID } });
+    await seedFinancialData(OTHER_USER_ID);
+
+    await clearMyData();
+
+    expect(
+      await prisma.transaction.count({ where: { userId: OTHER_USER_ID } }),
+    ).toBe(1);
+    expect(
+      await prisma.account.count({ where: { userId: OTHER_USER_ID } }),
+    ).toBe(1);
   });
 });

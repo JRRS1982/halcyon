@@ -73,3 +73,13 @@ export async function exportMyData(): Promise<string> {
     transactions,
   });
 }
+
+export async function clearMyData(): Promise<void> {
+  const userId = await requireUserId();
+  await prisma.$transaction(financialDeletes(userId));
+  revalidatePath("/dashboard");
+  revalidatePath("/budget");
+  revalidatePath("/balance");
+  revalidatePath("/transactions");
+  revalidatePath("/settings");
+}
