@@ -20,11 +20,13 @@ export function TransactionsView({
   categories,
   initialPage,
   uncategorizedCount,
+  transfersEnabled,
 }: {
   accounts: Account[];
   categories: LedgerCategory[];
   initialPage: LedgerPage;
   uncategorizedCount: number;
+  transfersEnabled: boolean;
 }) {
   return (
     <Shell>
@@ -37,7 +39,9 @@ export function TransactionsView({
       <Ledger
         initialPage={initialPage}
         categories={categories}
+        accounts={accounts}
         uncategorizedCount={uncategorizedCount}
+        transfersEnabled={transfersEnabled}
       />
     </Shell>
   );

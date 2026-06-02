@@ -13,10 +13,14 @@ import { useEffect, useState, useTransition } from "react";
 import styled from "styled-components";
 import { CategoryCombobox, type NewCategoryInput } from "./CategoryCombobox";
 import {
+  createAccount,
   createCategory,
   loadMoreTransactions,
   setTransactionCategory,
+  setTransactionTransfer,
 } from "./actions";
+
+type LedgerAccount = { id: string; name: string };
 
 const Section = styled.section`
   margin-top: ${({ theme }) => theme.spacing["3xl"]};
@@ -167,13 +171,17 @@ const COLUMNS: { key: SortColumn; label: string; align?: "right" }[] = [
 type LedgerProps = {
   initialPage: LedgerPage;
   categories: LedgerCategory[];
+  accounts: LedgerAccount[];
   uncategorizedCount: number;
+  transfersEnabled: boolean;
 };
 
 export function Ledger({
   initialPage,
   categories: initialCategories,
+  accounts: initialAccounts,
   uncategorizedCount,
+  transfersEnabled,
 }: LedgerProps) {
   const [pending, startTransition] = useTransition();
   const [items, setItems] = useState<LedgerTransaction[]>(initialPage.items);
@@ -185,6 +193,7 @@ export function Ledger({
   const [sortColumn, setSortColumn] = useState<SortColumn>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [categories, setCategories] = useState(initialCategories);
+  const [accounts, setAccounts] = useState(initialAccounts);
 
   // Re-sync from the server when it re-renders this component with fresh props
   // (e.g. after an import calls router.refresh()) — otherwise the initial
@@ -195,7 +204,8 @@ export function Ledger({
     setItems(initialPage.items);
     setNextOffset(initialPage.nextOffset);
     setCategories(initialCategories);
-  }, [initialPage, initialCategories]);
+    setAccounts(initialAccounts);
+  }, [initialPage, initialCategories, initialAccounts]);
 
   // Loads page from `offset`. Replaces the list unless appending more.
   const load = (
@@ -250,19 +260,54 @@ export function Ledger({
     load({ offset: nextOffset }, true);
   };
 
-  // Optimistically reflect an assignment; drop the row if it no longer matches
-  // the "uncategorized only" filter.
+  // Optimistically reflect a category assignment; clears any transfer. Drops the
+  // row if it no longer matches the "uncategorized only" filter.
   const applyAssignment = (transactionId: string, categoryId: string | null) =>
     setItems((prev) =>
       onlyUncategorized && categoryId !== null
         ? prev.filter((t) => t.id !== transactionId)
-        : prev.map((t) => (t.id === transactionId ? { ...t, categoryId } : t)),
+        : prev.map((t) =>
+            t.id === transactionId
+              ? { ...t, categoryId, transferAccountId: null }
+              : t,
+          ),
+    );
+
+  // Optimistically reflect a transfer; clears any category. A transfer is no
+  // longer "uncategorized", so drop it under that filter.
+  const applyTransfer = (transactionId: string, accountId: string) =>
+    setItems((prev) =>
+      onlyUncategorized
+        ? prev.filter((t) => t.id !== transactionId)
+        : prev.map((t) =>
+            t.id === transactionId
+              ? { ...t, transferAccountId: accountId, categoryId: null }
+              : t,
+          ),
     );
 
   const onSelect = (transactionId: string, categoryId: string | null) => {
     applyAssignment(transactionId, categoryId);
     startTransition(async () => {
       await setTransactionCategory({ transactionId, categoryId });
+    });
+  };
+
+  const onTransfer = (transactionId: string, accountId: string) => {
+    applyTransfer(transactionId, accountId);
+    startTransition(async () => {
+      await setTransactionTransfer({ transactionId, accountId });
+    });
+  };
+
+  const onCreateAccountAndTransfer = (transactionId: string, name: string) => {
+    startTransition(async () => {
+      const created = await createAccount({ name });
+      setAccounts((prev) =>
+        [...prev, created].sort((a, b) => a.name.localeCompare(b.name)),
+      );
+      applyTransfer(transactionId, created.id);
+      await setTransactionTransfer({ transactionId, accountId: created.id });
     });
   };
 
@@ -351,10 +396,18 @@ export function Ledger({
                 <Td>
                   <CategoryCombobox
                     categories={categories}
+                    accounts={accounts}
                     value={tx.categoryId}
+                    transferAccountId={tx.transferAccountId}
+                    ownAccountId={tx.accountId}
                     defaultType={tx.amount < 0 ? "EXPENSE" : "INCOME"}
+                    transfersEnabled={transfersEnabled}
                     onSelect={(categoryId) => onSelect(tx.id, categoryId)}
                     onCreate={(input) => onCreateAndAssign(tx.id, input)}
+                    onTransfer={(accountId) => onTransfer(tx.id, accountId)}
+                    onCreateAccount={(name) =>
+                      onCreateAccountAndTransfer(tx.id, name)
+                    }
                   />
                 </Td>
               </tr>

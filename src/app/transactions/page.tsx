@@ -1,5 +1,8 @@
 import { prisma } from "@/lib/prisma";
-import { requireTransactionsEnabled } from "@/lib/settings/server";
+import {
+  getCurrentUserSettings,
+  requireTransactionsEnabled,
+} from "@/lib/settings/server";
 import {
   countUncategorized,
   getOrProvisionCategories,
@@ -13,6 +16,7 @@ import { TransactionsView } from "./TransactionsView";
 // hidden when off — but this server gate is the real boundary.
 export default async function TransactionsPage() {
   const userId = await requireTransactionsEnabled();
+  const { transfersEnabled } = await getCurrentUserSettings();
 
   const [accounts, categories, initialPage, uncategorizedCount] =
     await Promise.all([
@@ -32,6 +36,7 @@ export default async function TransactionsPage() {
       categories={categories}
       initialPage={initialPage}
       uncategorizedCount={uncategorizedCount}
+      transfersEnabled={transfersEnabled}
     />
   );
 }

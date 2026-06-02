@@ -20,6 +20,8 @@ export type LedgerTransaction = {
   amount: number;
   description: string;
   categoryId: string | null;
+  transferAccountId: string | null;
+  accountId: string;
   accountName: string;
 };
 
@@ -146,6 +148,8 @@ function serialize(tx: {
   amount: { toString(): string };
   description: string;
   categoryId: string | null;
+  transferAccountId: string | null;
+  accountId: string;
   account: { name: string };
 }): LedgerTransaction {
   return {
@@ -154,6 +158,8 @@ function serialize(tx: {
     amount: Number(tx.amount),
     description: tx.description,
     categoryId: tx.categoryId,
+    transferAccountId: tx.transferAccountId,
+    accountId: tx.accountId,
     accountName: tx.account.name,
   };
 }
@@ -190,7 +196,9 @@ export async function getTransactionsPage(
     where: {
       userId,
       deletedAt: null,
-      ...(query.onlyUncategorized ? { categoryId: null } : {}),
+      ...(query.onlyUncategorized
+        ? { categoryId: null, transferAccountId: null }
+        : {}),
       ...(search
         ? { description: { contains: search, mode: "insensitive" } }
         : {}),
@@ -204,6 +212,8 @@ export async function getTransactionsPage(
       amount: true,
       description: true,
       categoryId: true,
+      transferAccountId: true,
+      accountId: true,
       account: { select: { name: true } },
     },
   });
