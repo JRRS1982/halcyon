@@ -87,3 +87,17 @@ export async function toggleTransactions(enabled: boolean) {
   });
   revalidatePath("/", "layout");
 }
+
+// Flips the budget Transfers section on/off. Only affects the budget page's
+// rendering and the ledger's Transfer option, so revalidate those.
+export async function toggleTransfers(enabled: boolean) {
+  const userId = await requireUserId();
+  await prisma.userSettings.upsert({
+    where: { userId },
+    update: { transfersEnabled: enabled },
+    create: { userId, transfersEnabled: enabled },
+  });
+  revalidatePath("/budget");
+  revalidatePath("/transactions");
+  revalidatePath("/settings");
+}
