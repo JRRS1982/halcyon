@@ -1,4 +1,4 @@
-.PHONY: go dev-up dev-down dev-build dev-logs dev-shell dev-db-shell migrate-create migrate-deploy dev-db-seed dev-db-reset lintAndFormat dev-clean test test-watch test-coverage test-e2e test-e2e-ui
+.PHONY: go dev-up dev-down dev-build dev-logs dev-shell dev-db-shell migrate-create migrate-deploy dev-db-seed dev-db-reset lintAndFormat dev-clean test test-watch test-coverage e2e-db test-e2e test-e2e-ui
 
 .DEFAULT_GOAL := go
 
@@ -92,12 +92,27 @@ endif
 test-coverage:
 	pnpm test:coverage
 
-# E2E tests
-# Usage: make test-e2e [name=<pattern>]
+# Ensure the local Postgres is up and halcyon_test is migrated, for DB-touching
+# e2e. No-op under CI, which supplies its own Postgres service. halcyon_test +
+# the `test` role are provisioned by docker/postgres-init.sql on first volume
+# init; the migrate deploy here is pinned to halcyon_test (never prod).
+e2e-db:
+ifeq ($(CI),)
+	docker compose up -d db
+	@until docker compose exec -T db pg_isready -U postgres >/dev/null 2>&1; do sleep 1; done
+	DATABASE_URL=postgresql://postgres:postgres@localhost:5432/halcyon_test?schema=public \
+	DIRECT_URL=postgresql://postgres:postgres@localhost:5432/halcyon_test?schema=public \
+	pnpm exec prisma migrate deploy
+endif
+
+# E2E tests (Playwright). Brings the local test DB up first.
+# Usage:
+#   make test-e2e                              # all specs, all browsers (local: chromium)
+#   make test-e2e name="transfers journey"     # only specs/tests matching the grep
 # Call Playwright directly via `pnpm exec`: `pnpm test:e2e -- --grep` would pass
 # a bare `--` to Playwright, which then reads `--grep` as a positional file
 # filter ("No tests found") rather than the grep option.
-test-e2e:
+test-e2e: e2e-db
 ifdef name
 	pnpm exec playwright test --grep "$(name)"
 else

@@ -102,14 +102,33 @@ Run the tests locally:
 
 1. Install browser system deps once: `sudo npx playwright install-deps`.
 2. Install the project deps: `pnpm install`.
-3. Run the tests: `pnpm test:e2e` (or `pnpm test:e2e:ui` for the UI runner).
+3. Install the browsers if missing: `pnpm exec playwright install chromium`.
+4. Run the tests:
+
+   ```bash
+   make test-e2e                            # all specs
+   make test-e2e name="transfers journey"   # only specs/tests matching the grep
+   ```
+
+   `make test-e2e` brings the local Postgres up and migrates `halcyon_test`
+   first (see below), then runs Playwright. To run Playwright directly instead:
+   `pnpm exec playwright test` (or `--grep "<pattern>"`, or `pnpm test:e2e:ui`
+   for the UI runner). Avoid `pnpm test:e2e -- --grep`: the bare `--` reaches
+   Playwright, which reads `--grep` as a positional file filter ("No tests
+   found").
 
 Playwright spins up two webservers automatically:
 
 - a **mock Supabase Auth server** on `localhost:54321` (see [`e2e/_mock/supabase.mjs`](e2e/_mock/supabase.mjs))
 - a **Next.js dev server** on `localhost:3100` (the deliberately-different port lets the test server coexist with a developer's own `pnpm dev` on `:3000`)
 
-No real Supabase project or database is touched during E2E. Coverage and approach are documented in [`docs/AuthFlow.md`](docs/AuthFlow.md#e2e-test-coverage).
+Auth is always mocked (no real Supabase project is touched). **DB-touching
+journeys** (transactions, transfers) do hit a real `halcyon_test` Postgres at
+`localhost:5432`, connecting as `test:test` to match the CI Postgres service.
+The `db` container provisions `halcyon_test` and the `test` role automatically
+on first volume init (see [`docker/postgres-init.sql`](docker/postgres-init.sql)),
+and `make test-e2e` applies migrations to it — so a cold `make test-e2e` works
+end to end. Coverage and approach are documented in [`docs/AuthFlow.md`](docs/AuthFlow.md#e2e-test-coverage).
 
 ### Database Seeding
 

@@ -30,6 +30,10 @@ services:
       - POSTGRES_DB=halcyon
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      # Provisions halcyon_test + the `test` role on first volume init, so
+      # integration (pnpm test:int) and e2e (test:test creds) work out of the
+      # box. Runs only when the data dir is empty — see docker/postgres-init.sql.
+      - ./docker/postgres-init.sql:/docker-entrypoint-initdb.d/01-test.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
