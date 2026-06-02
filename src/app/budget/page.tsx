@@ -8,12 +8,15 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUserSettings } from "@/lib/settings/server";
 import { createClient } from "@/lib/supabase/server";
 import { netActual } from "@/lib/transactions/actual";
+import { getTransfersByAccount } from "@/lib/transactions/server";
+import type { TransferAccountRow } from "@/lib/transactions/transfers";
 import { redirect } from "next/navigation";
 import {
   BudgetSheet,
   type SerializedItem,
   type SerializedPeriod,
 } from "./BudgetSheet";
+import { TransfersPanel } from "./TransfersPanel";
 
 type PageProps = {
   searchParams: { ym?: string };
@@ -56,7 +59,7 @@ export default async function BudgetPage({ searchParams }: PageProps) {
   }
 
   const range = monthRangeFor(year, month);
-  const { currency, numberFormat, transactionsEnabled } =
+  const { currency, numberFormat, transactionsEnabled, transfersEnabled } =
     await getCurrentUserSettings();
 
   // Find — don't create.
@@ -204,20 +207,36 @@ export default async function BudgetPage({ searchParams }: PageProps) {
       where: { userId: user.id, deletedAt: null },
     })) > 0;
 
+  // Transfers section data: per-account net flow for the period, only when both
+  // features are on (transfers are transactions). Empty otherwise.
+  const transferRows: TransferAccountRow[] =
+    transactionsEnabled && transfersEnabled
+      ? await getTransfersByAccount(user.id, range.startDate, range.endDate)
+      : [];
+
   // key on ym forces a fresh component instance per month, so the
   // client's local state (items, periodState, picker) doesn't leak from
   // the previous month.
   return (
-    <BudgetSheet
-      key={formatYm(year, month)}
-      period={serializedPeriod}
-      initialItems={serializedItems}
-      year={year}
-      month={month}
-      currency={currency}
-      numberFormat={numberFormat}
-      hasTemplate={hasTemplate}
-      actualsReadOnly={transactionsEnabled}
-    />
+    <>
+      <BudgetSheet
+        key={formatYm(year, month)}
+        period={serializedPeriod}
+        initialItems={serializedItems}
+        year={year}
+        month={month}
+        currency={currency}
+        numberFormat={numberFormat}
+        hasTemplate={hasTemplate}
+        actualsReadOnly={transactionsEnabled}
+      />
+      {transactionsEnabled && transfersEnabled && (
+        <TransfersPanel
+          rows={transferRows}
+          currency={currency}
+          numberFormat={numberFormat}
+        />
+      )}
+    </>
   );
 }
