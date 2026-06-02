@@ -55,6 +55,7 @@ model UserSettings {
   currency            String   @default("USD")
   numberFormat        String   @default("COMMA_0")
   transactionsEnabled Boolean  @default(false)
+  transfersEnabled    Boolean  @default(false)
   // Dashboard chart keys the user has switched off (empty = all shown).
   hiddenCharts        String[] @default([])
   createdAt           DateTime @default(now())
@@ -263,8 +264,9 @@ model Account {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transactions Transaction[]
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions  Transaction[] @relation("AccountTransactions")
+  transfersFrom Transaction[] @relation("TransferCounterparty")
 
   @@index([userId])
 }
@@ -276,23 +278,29 @@ model Account {
 // aggregate keyed by (userId, categoryId, date-range). categoryId is nullable:
 // uncategorized spend is surfaced, never auto-bucketed. Soft-deleted.
 model Transaction {
-  id          String    @id @default(uuid()) @db.Uuid
-  userId      String    @db.Uuid
-  accountId   String    @db.Uuid
-  categoryId  String?   @db.Uuid
-  date        DateTime  @db.Date
-  amount      Decimal   @db.Decimal(14, 2)
-  description String
-  note        String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
+  id                String    @id @default(uuid()) @db.Uuid
+  userId            String    @db.Uuid
+  accountId         String    @db.Uuid
+  categoryId        String?   @db.Uuid
+  transferAccountId String?   @db.Uuid
+  date              DateTime  @db.Date
+  amount            Decimal   @db.Decimal(14, 2)
+  description       String
+  note              String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  deletedAt         DateTime?
 
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  account  Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  account  Account   @relation("AccountTransactions", fields: [accountId], references: [id], onDelete: Cascade)
   category Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  // The other side of a transfer. App-level guards block deleting an account
+  // still referenced here (accounts are soft-deleted), so onDelete: Restrict is
+  // belt-and-braces defence that is never expected to fire.
+  transferAccount Account? @relation("TransferCounterparty", fields: [transferAccountId], references: [id], onDelete: Restrict)
 
-  // (userId, accountId, date) → pagination + the dedup-fingerprint day lookup.
+  // (userId, accountId, date) → pagination + the dedup-fingerprint day lookup,
+  // and the per-account transfer aggregate (filtered transferAccountId IS NOT NULL).
   // (userId, categoryId, date) → the per-category-per-month actual aggregate.
   @@index([userId, accountId, date])
   @@index([userId, categoryId, date])
