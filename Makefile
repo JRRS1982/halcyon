@@ -1,22 +1,26 @@
-.PHONY: go dev-up dev-down dev-build dev-logs dev-shell dev-db-shell migrate-create migrate-deploy dev-db-seed dev-db-reset lintAndFormat dev-clean test test-watch test-coverage e2e-db test-e2e test-e2e-ui
+.PHONY: go build dev-up dev-down dev-build dev-logs dev-shell dev-db-shell migrate-create migrate-deploy dev-db-seed dev-db-reset lintAndFormat dev-clean test test-watch test-coverage e2e-db test-e2e test-e2e-ui
 
 .DEFAULT_GOAL := go
 
-# `make` (default): a clean, ready-to-use dev environment in one command — stop
-# any running containers, start a fresh set (detached), apply pending migrations,
-# seed test data, then tail logs. Ctrl-C stops following the logs; the containers
-# keep running (use `make dev-down` to stop them). For a bare attached start that
-# does NOT migrate/seed, use `make dev-up`.
-go: dev-down
-	docker compose up -d
+# `make` (default): start the dev environment (attached — logs stream, Ctrl-C
+# stops the containers). The everyday command; assumes the DB is already
+# migrated/seeded. For a from-scratch setup use `make build`.
+go: dev-down dev-up
+
+# `make build`: full from-scratch setup in one command — stop any running
+# containers, rebuild the images, start them (detached), apply pending
+# migrations, seed test data, then tail logs (Ctrl-C stops following; the
+# containers keep running). Use on first run or after Dockerfile/schema changes;
+# `make` is the everyday start.
+build: dev-down
+	docker compose up -d --build
 	@echo "Waiting for Postgres to be ready…"
 	@until docker compose exec -T db pg_isready -U postgres >/dev/null 2>&1; do sleep 1; done
 	$(MAKE) dev-db-seed
 	docker compose logs -f
 
-# Start development environment (attached: logs stream, Ctrl-C stops the
-# containers). Does not migrate or seed — run `make` for the full setup, or
-# `make migrate-deploy` / `make dev-db-seed` separately.
+# Start development environment (attached). Does not migrate or seed — run
+# `make build` for a full setup, or `make migrate-deploy` / `make dev-db-seed`.
 dev-up:
 	docker compose up
 
