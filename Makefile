@@ -94,9 +94,12 @@ test-coverage:
 
 # E2E tests
 # Usage: make test-e2e [name=<pattern>]
+# Call Playwright directly via `pnpm exec`: `pnpm test:e2e -- --grep` would pass
+# a bare `--` to Playwright, which then reads `--grep` as a positional file
+# filter ("No tests found") rather than the grep option.
 test-e2e:
 ifdef name
-	pnpm test:e2e -- --grep "$(name)"
+	pnpm exec playwright test --grep "$(name)"
 else
 	pnpm test:e2e
 endif
