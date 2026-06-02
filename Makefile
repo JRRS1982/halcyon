@@ -2,9 +2,21 @@
 
 .DEFAULT_GOAL := go
 
-go: dev-down dev-up
+# `make` (default): a clean, ready-to-use dev environment in one command — stop
+# any running containers, start a fresh set (detached), apply pending migrations,
+# seed test data, then tail logs. Ctrl-C stops following the logs; the containers
+# keep running (use `make dev-down` to stop them). For a bare attached start that
+# does NOT migrate/seed, use `make dev-up`.
+go: dev-down
+	docker compose up -d
+	@echo "Waiting for Postgres to be ready…"
+	@until docker compose exec -T db pg_isready -U postgres >/dev/null 2>&1; do sleep 1; done
+	$(MAKE) dev-db-seed
+	docker compose logs -f
 
-# Start development environment
+# Start development environment (attached: logs stream, Ctrl-C stops the
+# containers). Does not migrate or seed — run `make` for the full setup, or
+# `make migrate-deploy` / `make dev-db-seed` separately.
 dev-up:
 	docker compose up
 
@@ -37,9 +49,9 @@ dev-db-shell:
 migrate-deploy:
 	docker compose exec app npx prisma migrate deploy
 
-# Seed database with test data
-dev-db-seed:
-	docker compose exec app npx prisma migrate deploy
+# Apply migrations (via migrate-deploy) then seed test data. Requires the
+# containers to be up (started by `make` / `make dev-up`).
+dev-db-seed: migrate-deploy
 	docker compose exec app npx tsx prisma/seed.ts
 
 # Reset and seed database
