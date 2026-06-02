@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useRouter } from "next/navigation";
-import { type FormEvent, useRef, useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import styled from "styled-components";
 import { SectionHeading } from "./SectionHeading";
 import { toggleTransactions } from "./actions";
@@ -216,24 +216,29 @@ export function SettingsForm({
   const router = useRouter();
   const [savePending, startSave] = useTransition();
   const [justSaved, setJustSaved] = useState(false);
+  const [currencyValue, setCurrencyValue] = useState(currency);
+  const [numberFormatValue, setNumberFormatValue] = useState(numberFormat);
 
-  // The transactions toggle persists immediately behind a confirm dialog,
-  // independent of the Format Save button. `enabled` is the displayed state;
-  // committedRef holds the last persisted value to revert to on cancel.
-  const [enabled, setEnabled] = useState(transactionsEnabled);
-  const committedRef = useRef(transactionsEnabled);
-  const [confirming, setConfirming] = useState(false);
-  const [togglePending, startToggle] = useTransition();
-
-  const onSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
+  // Format changes persist immediately on change (no Save button): build the
+  // form data from the current selections and call the action.
+  const persistFormat = (nextCurrency: string, nextNumberFormat: string) => {
+    const formData = new FormData();
+    formData.set("currency", nextCurrency);
+    formData.set("numberFormat", nextNumberFormat);
     setJustSaved(false);
     startSave(async () => {
       await action(formData);
       setJustSaved(true);
     });
   };
+
+  // The transactions toggle persists immediately behind a confirm dialog.
+  // `enabled` is the displayed state;
+  // committedRef holds the last persisted value to revert to on cancel.
+  const [enabled, setEnabled] = useState(transactionsEnabled);
+  const committedRef = useRef(transactionsEnabled);
+  const [confirming, setConfirming] = useState(false);
+  const [togglePending, startToggle] = useTransition();
 
   // Changing the toggle optimistically moves it and opens the dialog; only
   // Confirm persists, Cancel reverts to the last committed value.
@@ -265,43 +270,62 @@ export function SettingsForm({
         title="Settings"
         lead="App-wide preferences for your account."
       />
-      <form onSubmit={onSubmit}>
-        <SectionHeading>Format</SectionHeading>
-        <Field>
-          <FieldLabel>Currency</FieldLabel>
-          <Select name="currency" defaultValue={currency}>
-            {currencyOptions.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <Field>
-          <FieldLabel>Number format</FieldLabel>
-          <Select name="numberFormat" defaultValue={numberFormat}>
-            {numberFormatOptions.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </Select>
-        </Field>
+      <SectionHeading>Format</SectionHeading>
+      <Field>
+        <FieldLabel>Currency</FieldLabel>
+        <Select
+          name="currency"
+          value={currencyValue}
+          disabled={savePending}
+          onChange={(event) => {
+            const next = event.target.value;
+            setCurrencyValue(next);
+            persistFormat(next, numberFormatValue);
+          }}
+        >
+          {currencyOptions.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </Select>
+      </Field>
+      <Field>
+        <FieldLabel>Number format</FieldLabel>
+        <Select
+          name="numberFormat"
+          value={numberFormatValue}
+          disabled={savePending}
+          onChange={(event) => {
+            const next = event.target.value;
+            setNumberFormatValue(next);
+            persistFormat(currencyValue, next);
+          }}
+        >
+          {numberFormatOptions.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </Select>
+      </Field>
+      {(savePending || justSaved) && (
         <Row>
-          <Button type="submit" disabled={savePending}>
-            {savePending ? "Saving…" : "Save"}
-          </Button>
-          {justSaved && !savePending && <SavedNote>Saved</SavedNote>}
+          <SavedNote>{savePending ? "Saving…" : "Saved"}</SavedNote>
         </Row>
-      </form>
+      )}
 
       <SectionHeading>Transactions</SectionHeading>
       <ToggleField>
         <ToggleText>
           <FieldHint>
-            Show the Transactions page and import bank statements. When on, each
-            budget category’s actual is summed from its categorized transactions
-            instead of being typed by hand.
+            Tracking every transaction gives you the deepest understanding of
+            where your money actually goes — but it takes time and effort, and
+            it’s entirely your choice whether that’s worth it. Turn this on to
+            add the Transactions page and import bank statements; each budget
+            category’s actual is then summed from its categorized transactions
+            rather than typed by hand. Leave it off to keep entering actuals
+            yourself.
           </FieldHint>
         </ToggleText>
         <SwitchControl>

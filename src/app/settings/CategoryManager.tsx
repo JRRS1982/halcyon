@@ -1,11 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/Button";
-import {
-  EXPENSE_BUCKETS,
-  INCOME_BUCKETS,
-  sectionOrderIndex,
-} from "@/lib/categories/buckets";
+import { EXPENSE_BUCKETS, INCOME_BUCKETS } from "@/lib/categories/buckets";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import styled from "styled-components";
@@ -171,14 +167,10 @@ function SectionSelect({
   );
 }
 
-// Categories of one type, ordered by section then alphabetically. The section
-// is shown as a faint tag per row rather than a heading.
+// Categories of one type, ordered alphabetically by label. The section is shown
+// as a faint tag per row rather than a heading.
 function rowsFor(cats: ManagedCategory[]) {
-  return [...cats].sort(
-    (a, b) =>
-      sectionOrderIndex(a.bucket) - sectionOrderIndex(b.bucket) ||
-      a.label.localeCompare(b.label),
-  );
+  return [...cats].sort((a, b) => a.label.localeCompare(b.label));
 }
 
 export function CategoryManager({
