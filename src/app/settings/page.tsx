@@ -9,6 +9,7 @@ import {
 } from "@/lib/settings/currency";
 import { getCurrentUserSettings } from "@/lib/settings/server";
 import { getOrProvisionCategories } from "@/lib/transactions/server";
+import { AccountManager, type ManagedAccount } from "./AccountManager";
 import { CategoryManager, type ManagedCategory } from "./CategoryManager";
 import { DashboardSettings } from "./DashboardSettings";
 import { SettingsForm } from "./SettingsForm";
@@ -27,8 +28,14 @@ const NUMBER_FORMAT_LABELS: Record<(typeof NUMBER_FORMATS)[number], string> = {
 
 // Protected by middleware → /sign-in?next=/settings if no session.
 export default async function SettingsPage() {
-  const { userId, currency, numberFormat, transactionsEnabled, hiddenCharts } =
-    await getCurrentUserSettings();
+  const {
+    userId,
+    currency,
+    numberFormat,
+    transactionsEnabled,
+    transfersEnabled,
+    hiddenCharts,
+  } = await getCurrentUserSettings();
   const symbol = symbolFor(currency);
 
   // Provision categories from the budget if none exist yet (idempotent), then
@@ -71,6 +78,39 @@ export default async function SettingsPage() {
     };
   });
 
+  // Accounts with both reference counts, so the manager can block deletion of an
+  // account that still owns transactions or is named as a transfer counterparty.
+  const accountRows = await prisma.account.findMany({
+    where: { userId, deletedAt: null },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true },
+  });
+  const [ownedCounts, counterpartyCounts] = await Promise.all([
+    prisma.transaction.groupBy({
+      by: ["accountId"],
+      where: { userId, deletedAt: null },
+      _count: { _all: true },
+    }),
+    prisma.transaction.groupBy({
+      by: ["transferAccountId"],
+      where: { userId, deletedAt: null, transferAccountId: { not: null } },
+      _count: { _all: true },
+    }),
+  ]);
+  const ownedByAccount: Record<string, number> = {};
+  for (const c of ownedCounts) ownedByAccount[c.accountId] = c._count._all;
+  const counterpartyByAccount: Record<string, number> = {};
+  for (const c of counterpartyCounts) {
+    if (c.transferAccountId)
+      counterpartyByAccount[c.transferAccountId] = c._count._all;
+  }
+  const managedAccounts: ManagedAccount[] = accountRows.map((a) => ({
+    id: a.id,
+    name: a.name,
+    ownedCount: ownedByAccount[a.id] ?? 0,
+    counterpartyCount: counterpartyByAccount[a.id] ?? 0,
+  }));
+
   const currencyOptions = CURRENCY_CODES.map((code) => {
     const meta = CURRENCY_META[code];
     return {
@@ -95,9 +135,11 @@ export default async function SettingsPage() {
         numberFormat={numberFormat}
         numberFormatOptions={numberFormatOptions}
         transactionsEnabled={transactionsEnabled}
+        transfersEnabled={transfersEnabled}
       />
       <DashboardSettings hiddenCharts={hiddenCharts} />
       <CategoryManager categories={managedCategories} />
+      <AccountManager accounts={managedAccounts} />
     </>
   );
 }

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import styled from "styled-components";
 import { SectionHeading } from "./SectionHeading";
-import { toggleTransactions } from "./actions";
+import { toggleTransactions, toggleTransfers } from "./actions";
 
 const Shell = styled.main`
   max-width: 720px;
@@ -205,6 +205,7 @@ export function SettingsForm({
   numberFormat,
   numberFormatOptions,
   transactionsEnabled,
+  transfersEnabled,
 }: {
   action: (formData: FormData) => Promise<void>;
   currency: string;
@@ -212,6 +213,7 @@ export function SettingsForm({
   numberFormat: string;
   numberFormatOptions: SelectOption[];
   transactionsEnabled: boolean;
+  transfersEnabled: boolean;
 }) {
   const router = useRouter();
   const [savePending, startSave] = useTransition();
@@ -262,6 +264,18 @@ export function SettingsForm({
 
   const enabling = enabled && !committedRef.current;
   const disabling = !enabled && committedRef.current;
+
+  // The transfers toggle persists immediately (low-risk; no confirm dialog). It
+  // is subordinate to transactions — only meaningful when transactions is on.
+  const [transfersOn, setTransfersOn] = useState(transfersEnabled);
+  const [transfersPending, startTransfers] = useTransition();
+  const onToggleTransfers = (next: boolean) => {
+    setTransfersOn(next);
+    startTransfers(async () => {
+      await toggleTransfers(next);
+      router.refresh();
+    });
+  };
 
   return (
     <Shell>
@@ -335,6 +349,28 @@ export function SettingsForm({
             checked={enabled}
             disabled={togglePending}
             onChange={(event) => onToggle(event.target.checked)}
+          />
+          <SwitchTrack />
+        </SwitchControl>
+      </ToggleField>
+
+      <ToggleField>
+        <ToggleText>
+          <FieldLabel>Transfers</FieldLabel>
+          <FieldHint>
+            Adds a Transfers section to the budget that totals money moved
+            between your own accounts (e.g. Current → ISA) — kept out of income
+            and expenses. Tag a transaction as a transfer from the Transactions
+            page. Needs Transactions switched on.
+          </FieldHint>
+        </ToggleText>
+        <SwitchControl>
+          <SwitchInput
+            type="checkbox"
+            aria-label="Transfers"
+            checked={transfersOn}
+            disabled={transfersPending || !enabled}
+            onChange={(event) => onToggleTransfers(event.target.checked)}
           />
           <SwitchTrack />
         </SwitchControl>
