@@ -221,13 +221,76 @@ export async function setTransactionCategory(
 
   const result = await prisma.transaction.updateMany({
     where: { id: transactionId, userId, deletedAt: null },
-    data: { categoryId },
+    // Category and transfer are mutually exclusive — assigning (or clearing) a
+    // category always clears any transfer counterparty.
+    data: { categoryId, transferAccountId: null },
   });
   if (result.count === 0) throw new Error("Transaction not found");
 
   revalidatePath("/transactions");
   revalidatePath("/budget");
   revalidatePath("/dashboard");
+}
+
+const setTransferSchema = z.object({
+  transactionId: z.string().uuid(),
+  accountId: z.string().uuid(),
+});
+
+// Tags a transaction as a transfer to/from one of the user's own accounts: sets
+// transferAccountId and clears any category (mutually exclusive). The
+// counterparty must belong to the user, be active, and differ from the
+// transaction's own owning account (a transfer to itself is meaningless).
+export async function setTransactionTransfer(
+  input: z.input<typeof setTransferSchema>,
+): Promise<void> {
+  const userId = await requireTransactionsEnabled();
+  const { transactionId, accountId } = setTransferSchema.parse(input);
+
+  const [account, transaction] = await Promise.all([
+    prisma.account.findFirst({
+      where: { id: accountId, userId, deletedAt: null },
+      select: { id: true },
+    }),
+    prisma.transaction.findFirst({
+      where: { id: transactionId, userId, deletedAt: null },
+      select: { accountId: true },
+    }),
+  ]);
+  if (!account) throw new Error("Account not found");
+  if (!transaction) throw new Error("Transaction not found");
+  if (transaction.accountId === accountId) {
+    throw new Error("A transfer must be to a different account");
+  }
+
+  await prisma.transaction.updateMany({
+    where: { id: transactionId, userId, deletedAt: null },
+    data: { transferAccountId: accountId, categoryId: null },
+  });
+
+  revalidatePath("/transactions");
+  revalidatePath("/budget");
+  revalidatePath("/dashboard");
+}
+
+const createAccountSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+});
+
+// Creates an account inline from the ledger transfer picker (when the user has
+// none yet) and returns it for immediate assignment.
+export async function createAccount(
+  input: z.input<typeof createAccountSchema>,
+): Promise<{ id: string; name: string }> {
+  const userId = await requireTransactionsEnabled();
+  const { name } = createAccountSchema.parse(input);
+  const created = await prisma.account.create({
+    data: { userId, name: cleanLabel(name) },
+    select: { id: true, name: true },
+  });
+  revalidatePath("/transactions");
+  revalidatePath("/settings");
+  return created;
 }
 
 const createCategorySchema = z.object({
