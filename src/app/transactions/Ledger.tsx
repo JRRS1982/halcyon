@@ -9,7 +9,7 @@ import type {
   SortColumn,
   SortDir,
 } from "@/lib/transactions/server";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import styled from "styled-components";
 import { CategoryCombobox, type NewCategoryInput } from "./CategoryCombobox";
 import {
@@ -195,16 +195,41 @@ export function Ledger({
   const [categories, setCategories] = useState(initialCategories);
   const [accounts, setAccounts] = useState(initialAccounts);
 
-  // Re-sync from the server when it re-renders this component with fresh props
-  // (e.g. after an import calls router.refresh()) — otherwise the initial
-  // useState snapshot would hide newly-imported rows until a full reload. The
-  // prop reference only changes on a server refresh/navigation, not on this
-  // component's own state updates, so client interactions aren't clobbered.
+  // Latest client query, mirrored into a ref so the re-sync effect can read it
+  // without depending on (and re-firing for) every filter/search/sort change.
+  const queryRef = useRef({ search, onlyUncategorized, sortColumn, sortDir });
+  queryRef.current = { search, onlyUncategorized, sortColumn, sortDir };
+
+  // Re-sync when the server re-renders this component with fresh props (e.g.
+  // after an import, or after categorising revalidates the route). `initialPage`
+  // is always the server's *unfiltered* first page, so if a client filter /
+  // search / non-default sort is active we re-run that query instead of adopting
+  // initialPage — otherwise a revalidation would flash the full list back in
+  // while the filter is still on. With no active query, adopt initialPage
+  // directly (the import case). The prop reference only changes on a server
+  // refresh/navigation, not on this component's own state updates.
   useEffect(() => {
-    setItems(initialPage.items);
-    setNextOffset(initialPage.nextOffset);
     setCategories(initialCategories);
     setAccounts(initialAccounts);
+
+    const q = queryRef.current;
+    const filtered =
+      q.onlyUncategorized ||
+      q.search.trim() !== "" ||
+      q.sortColumn !== "date" ||
+      q.sortDir !== "desc";
+
+    if (filtered) {
+      startTransition(async () => {
+        const page = await loadMoreTransactions({ offset: 0, ...q });
+        setItems(page.items);
+        setNextOffset(page.nextOffset);
+      });
+      return;
+    }
+
+    setItems(initialPage.items);
+    setNextOffset(initialPage.nextOffset);
   }, [initialPage, initialCategories, initialAccounts]);
 
   // Loads page from `offset`. Replaces the list unless appending more.
