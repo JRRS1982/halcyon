@@ -1,6 +1,6 @@
 # Transfers Feature — Design
 
-**Status:** Draft (awaiting review)
+**Status:** Implemented
 **Date:** 2026-06-02
 **Builds on:** [`2026-05-30-transactions-feature-design.md`](2026-05-30-transactions-feature-design.md)
 
