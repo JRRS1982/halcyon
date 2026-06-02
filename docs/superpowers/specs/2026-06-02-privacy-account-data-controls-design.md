@@ -64,7 +64,7 @@ Matches existing settings components' styling (styled-components, `SectionHeadin
 - `src/app/privacy/page.tsx`, `src/app/terms/page.tsx` — static server components.
   - **Placeholder copy** for the policy/terms body (TODO markers), per decision.
   - **Factual cookies section** (not placeholder): states that Halcyon sets a single strictly-necessary Supabase session cookie (`HttpOnly`, `Secure`, `SameSite=Lax`), uses **no** analytics/tracking/advertising cookies, and shares nothing for marketing — hence no consent banner.
-- Both routes must render **signed-out**, so add `/privacy` and `/terms` to the middleware public-route allowlist (`src/lib/supabase/middleware.ts` / `src/middleware.ts` matcher).
+- Both routes must render **signed-out**. Route protection is an *allowlist* of protected prefixes (`/dashboard`, `/budget`, `/balance`, `/settings` in `src/lib/supabase/middleware.ts`), so `/privacy` and `/terms` are public by default — **no middleware change is required**.
 - `src/components/ui/Footer.tsx` — rendered in `layout.tsx` beneath `children`; links to `/privacy` and `/terms`. This footer is the home of the privacy notice.
 
 ### 5. Documentation
@@ -104,7 +104,6 @@ Decent coverage requested.
 | `src/app/terms/page.tsx` | **new** — terms page (placeholder) |
 | `src/components/ui/Footer.tsx` | **new** — footer with legal links |
 | `src/app/layout.tsx` | render `Footer` |
-| `src/lib/supabase/middleware.ts` / `src/middleware.ts` | allow `/privacy`, `/terms` signed-out |
 | `docs/AuthFlow.md` | new "Account deletion & data erasure" section + code-map rows |
 | `src/__tests__/settings/dataActions.int.test.ts` | **new** — integration tests |
 | `src/__tests__/data/serialize.test.ts` | **new** — unit test |
