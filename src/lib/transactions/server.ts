@@ -4,6 +4,7 @@ import { sectionLabel } from "@/lib/categories/buckets";
 import { categoryKey, cleanLabel } from "@/lib/categories/normalize";
 import { prisma } from "@/lib/prisma";
 import { PAGE_SIZE } from "./pagination";
+import { netTransfersByAccount, type TransferAccountRow } from "./transfers";
 
 export type LedgerCategory = {
   id: string;
@@ -212,9 +213,66 @@ export async function getTransactionsPage(
   return { items, nextOffset: hasMore ? offset + PAGE_SIZE : null };
 }
 
-// Count of uncategorized transactions, for the "needs attention" nudge.
+// Count of uncategorized transactions, for the "needs attention" nudge. A
+// transfer (transferAccountId set) is resolved, not uncategorized.
 export async function countUncategorized(userId: string): Promise<number> {
   return prisma.transaction.count({
-    where: { userId, deletedAt: null, categoryId: null },
+    where: {
+      userId,
+      deletedAt: null,
+      categoryId: null,
+      transferAccountId: null,
+    },
+  });
+}
+
+// Per-account transfer flow for a period: signed net plus counterparty
+// breakdown. Only transfer-tagged rows (transferAccountId set) participate, so
+// income/expense is untouched. The owning account keys each row (see
+// netTransfersByAccount) — the two legs of one transfer never collapse.
+export async function getTransfersByAccount(
+  userId: string,
+  start: Date,
+  end: Date,
+): Promise<TransferAccountRow[]> {
+  const rows = await prisma.transaction.findMany({
+    where: {
+      userId,
+      deletedAt: null,
+      transferAccountId: { not: null },
+      date: { gte: start, lte: end },
+    },
+    select: {
+      amount: true,
+      account: { select: { id: true, name: true } },
+      transferAccount: { select: { id: true, name: true } },
+    },
+  });
+
+  return netTransfersByAccount(
+    rows.flatMap((r) =>
+      r.transferAccount
+        ? [
+            {
+              accountId: r.account.id,
+              accountName: r.account.name,
+              counterpartyId: r.transferAccount.id,
+              counterpartyName: r.transferAccount.name,
+              amount: Number(r.amount),
+            },
+          ]
+        : [],
+    ),
+  );
+}
+
+// Active accounts for the ledger's transfer picker (id + name).
+export async function getLedgerAccounts(
+  userId: string,
+): Promise<{ id: string; name: string }[]> {
+  return prisma.account.findMany({
+    where: { userId, deletedAt: null },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true },
   });
 }
