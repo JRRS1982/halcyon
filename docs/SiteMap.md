@@ -1,138 +1,177 @@
 # Halcyon Sitemap
 
+This sitemap maps Halcyon's page hierarchy and navigation. It distinguishes
+what is **built today** from what is **planned** so the diagram stays an honest
+reflection of the product as it evolves.
+
+- 🟢 **Built** — route exists in `src/app/` and is shipped
+- ⬜ **Planned** — designed or intended, not yet implemented (dashed outline)
+- 🔵 **Hub** — the authenticated navigation surface (the nav bar)
+
 ```mermaid
-flowchart TD
+flowchart LR
+    %% ---- Public surface ----
     A[Home]
+    A --> SI[Sign In]
+    A --> SU[Sign Up]
+    SI --> CB[OAuth Callback]
+    SU --> CB
+    SI --> APP[Authenticated App]
+    SU --> APP
+
     A --> A1[Features]
     A --> A2[Pricing]
     A --> A3[About Us]
+    A --> A4[Contact]
     A --> D[Blog]
-    A --> E[Dashboard]
     A --> F[Terms of Service]
     F --> G[Data Privacy]
-    E --> C1[Balance]
-    C1 --> C1_0[Date Range Selection]
-    C1_0 --> C1_1[Assets]
-    C1_0 --> C1_2[Liabilities]
-    C1_1 & C1_2 --> C1_3[Net Worth]
-    E --> C2[Budget]
-    C2 --> C2_1[Budgeted]
-    C2_1 --> C2_1_0[Date Range Selection]
-    C2_1_0 --> C2_1_1[Income]
-    C2_1_0 --> C2_1_2[Expenses]
-    C2 --> C2_2[Actual]
-    C2_2 --> C2_2_0[Date Range Selection]
-    C2_2_0 --> C2_2_1[Income]
-    C2_2_0 --> C2_2_2[Expenses]
-    E --> C3[Reports]
-    E --> C4[Settings]
     D --> D1[Latest Articles]
     D --> D2[Tags]
     D --> D3[Search]
 
-    style A fill:#4CAF50,stroke:#388E3C,color:white,font-weight:bold
-    style A1 fill:#4CAF50,stroke:#388E3C,color:white,font-weight:bold
-    style A2 fill:#4CAF50,stroke:#388E3C,color:white,font-weight:bold
-    style A3 fill:#4CAF50,stroke:#388E3C,color:white,font-weight:bold
-    style D fill:#4CAF50,stroke:#388E3C,color:white,font-weight:bold
-    style D1 fill:#4CAF50,stroke:#388E3C,color:white,font-weight:bold
-    style D2 fill:#4CAF50,stroke:#388E3C,color:white,font-weight:bold
-    style D3 fill:#4CAF50,stroke:#388E3C,color:white,font-weight:bold
-    style F fill:#4CAF50,stroke:#388E3C,color:white,font-weight:bold
-    style G fill:#4CAF50,stroke:#388E3C,color:white,font-weight:bold
-    style E fill:#2196F3,stroke:#1976D2,color:white
+    %% ---- Authenticated app (behind middleware, linked via nav bar) ----
+    APP --> E[Dashboard]
+    E --> E1[Balance Trend]
+    E --> E2[Cash Flow]
+    E --> E3[Category Expenditure]
+    E --> E4[Balance by Category]
+
+    APP --> C1[Balance]
+    C1 --> C1_0[Period Selection]
+    C1_0 --> C1_1[Assets]
+    C1_0 --> C1_2[Liabilities]
+    C1_1 & C1_2 --> C1_3[Net Worth]
+
+    APP --> C2[Budget]
+    C2 --> C2_0[Period Selection]
+    C2_0 --> C2_1[Income]
+    C2_0 --> C2_2[Expenses]
+    C2_1 & C2_2 --> C2_3[Budgeted vs Actual]
+    C2 --> C2_4[Transfers]
+
+    APP --> TX[Transactions]
+    TX --> TX1[Ledger]
+    TX --> TX2[CSV Import]
+    TX --> TX3[Categorize]
+
+    APP --> C4[Settings]
+    C4 --> S1[Preferences: Currency & Number Format]
+    C4 --> S2[Dashboard Chart Visibility]
+    C4 --> S3[Category Management]
+    C4 --> S4[Transactions Toggle]
+    C4 --> S5[Accounts]
+    C4 --> S6[Notifications]
+    C4 --> S7[Data & Privacy / Export]
+
+    %% ---- Styling ----
+    classDef built fill:#4CAF50,stroke:#388E3C,color:#fff,font-weight:bold;
+    classDef planned fill:#eceff1,stroke:#90a4ae,color:#546e7a,stroke-dasharray:5 5;
+    classDef hub fill:#2196F3,stroke:#1976D2,color:#fff;
+
+    class A,SI,SU,CB built;
+    class APP hub;
+    class E,E1,E2,E3,E4 built;
+    class C1,C1_0,C1_1,C1_2,C1_3 built;
+    class C2,C2_0,C2_1,C2_2,C2_3 built;
+    class TX,TX1,TX2,TX3 built;
+    class C4,S1,S2,S3,S4 built;
+
+    class A1,A2,A3,A4,D,D1,D2,D3,F,G planned;
+    class C2_4,S5,S6,S7 planned;
 ```
 
 ## Key Pages Description
 
-### Home
+Legend: 🟢 Built · ⬜ Planned
 
-Landing page with quick access to key features and links to sign up or sign in
+### Home 🟢
 
-- **Features**: Overview of key product capabilities
-- **Pricing**: Subscription plans and pricing information
-- **About Us**: Company information and mission
+Public landing page with links to sign in / sign up. (Marketing sub-pages below
+are planned; the live home page is currently a minimal entry point.)
 
-### Dashboard
+- ⬜ **Features**: Overview of key product capabilities
+- ⬜ **Pricing**: Subscription plans and pricing information
+- ⬜ **About Us**: Company information and mission
+- ⬜ **Contact**: Contact information
 
-Only accessible to logged-in users
+### Sign In / Sign Up 🟢
 
-- Central hub with a quick financial overview and quick links to key features
+Public authentication pages backed by Supabase Auth.
 
-### Balance
+- Email/password sign-in and registration
+- Google OAuth, completed via the **OAuth Callback** route (`/auth/callback`)
+- Unauthenticated access to app pages redirects here (`/sign-in?next=…`)
 
-Only accessible to logged-in users
+### Authenticated App 🔵
 
-- **Date Selection**: Select a specific date to view and revise historical balances
-- **Assets**: Track all owned assets including bank accounts, investments, and properties
-- **Liabilities**: Monitor all debts, loans, and financial obligations
-- **Net Worth**: Automatic calculation of total assets minus liabilities
+The logged-in surface, linked together by a persistent nav bar. There is no
+`/app` route — this node represents the navigation shell that the pages below
+share. Signing in lands the user on the **Dashboard** by default.
 
-### Budget
+### Dashboard 🟢
 
-Only accessible to logged-in users
+Authenticated (`/dashboard`); the default post-login page and Halcyon's
+reporting/analytics view — a page in its own right (this is what earlier drafts
+called "Reports"). Financial overview rendered as charts:
 
-#### Budgeted
+- **Balance Trend**: Balance over time
+- **Cash Flow**: Income vs. expenses
+- **Category Expenditure**: Spend per category, with budget line
+- **Balance by Category**: Asset/liability composition
 
-- **Date Range Selection**: Select specific time period for actuals
-- **Income**: Plan expected income by source/category/subcategory
-- **Expenses**: Allocate budgeted amounts to spending categories and subcategories
+### Balance 🟢
 
-#### Actual
+Authenticated (`/balance`). Asset/liability tracking per period.
 
-- **Date Range Selection**: Select specific time period for actuals
-- **Income**: Record and view actual income by source/category/subcategory
-- **Expenses**: Record and view actual expenses by category/subcategory
+- **Period Selection**: View and revise balances for a chosen period
+- **Assets**: Bank accounts, investments, property
+- **Liabilities**: Debts, loans, obligations
+- **Net Worth**: Automatic total assets minus liabilities
 
-### Reports
+### Budget 🟢
 
-Only accessible to logged-in users
+Authenticated (`/budget`). A single per-period sheet covering both budgeted and
+actual figures (actuals can be sourced from imported transactions when the
+Transactions feature is enabled).
 
-- Financial reports and analytics from historical data
-- Custom report generation
+- **Period Selection**: Choose the time period
+- **Income**: Plan income by source/category
+- **Expenses**: Allocate budgeted amounts to spending categories
+- **Budgeted vs Actual**: Compare planned figures against actuals
+- ⬜ **Transfers**: Net inter-account transfers section, keyed by account pair,
+  excluded from income/expense/net-worth (planned — depends on Accounts)
 
-### Blog
+### Transactions 🟢
 
-Publicly accessible blog page providing articles and insights on financial topics
+Authenticated (`/transactions`). Feature-gated by the Settings *Transactions*
+toggle.
 
-- **Latest Articles**: Most recent blog posts
-- **Tags**: Discover content through related tags and topics
-- **Search**: Find specific articles or topics
+- **Ledger**: Paginated transaction list
+- **CSV Import**: Upload bank statements with preview + duplicate detection
+- **Categorize**: Assign categories (and, planned, mark as transfers)
 
-### Settings
+### Settings 🟢
 
-Only accessible to logged-in users, including;
+Authenticated (`/settings`); only accessible to logged-in users.
 
-- User preferences
-- Account management
-- Notification settings
-- Data & privacy controls
+- 🟢 **Preferences**: Currency and number-format selection
+- 🟢 **Dashboard Chart Visibility**: Show/hide individual dashboard charts
+- 🟢 **Category Management**: Rename, merge, archive spending/earning categories
+- 🟢 **Transactions Toggle**: Enable/disable the Transactions feature
+- ⬜ **Accounts**: Manage bank accounts and transfer counterparties (planned —
+  underpins the Transfers feature)
+- ⬜ **Notifications**: Notification preferences (planned)
+- ⬜ **Data & Privacy / Export**: Data export and privacy controls (planned)
 
-### Features
+### Blog ⬜
 
-Publicly accessible page providing an overview of the different features of the product, including;
+Publicly accessible blog (planned).
 
-- **Dashboard**: Main user interface with financial overview
-- **Balance**: Track all owned assets including bank accounts, investments, and properties
-- **Budget**: Set and track budgets
-- **Reports**: Financial reports and analytics
+- **Latest Articles**: Most recent posts
+- **Tags**: Discover content by topic
+- **Search**: Find specific articles
 
-### Pricing
+### Terms of Service / Data Privacy ⬜
 
-Publicly accessible page with a comparison of the different subscription plans
-
-### About Us
-
-Publicly accessible page providing company information
-
-### Contact
-
-Publicly accessible page providing contact information
-
-### Terms of Service
-
-Publicly accessible page providing terms of service information
-
-#### Data Privacy
-
-Publicly accessible page providing data privacy information
+Public legal pages (planned).
