@@ -38,14 +38,14 @@ Single test (Make wrappers pass through a name filter):
 - `make test-watch name=<pattern>` — same in watch
 - `make test-e2e name=<pattern>` — Playwright `--grep`
 
-Docker workflow (Make is the primary interface — `make` alone runs `dev-down` then `dev-up`):
+Docker workflow (Make is the primary interface — `make` alone runs `down` then `up`, a bare attached start; `make build` does the full from-scratch setup: rebuild images, start detached, migrate, seed, then tail logs):
 
-- `make dev-up` / `make dev-down` / `make dev-build` / `make dev-logs` / `make dev-shell` / `make dev-clean`
-- `make dev-db-shell` — `psql` into the `halcyon` DB
-- `make dev-db-seed` / `make dev-db-reset` — runs `prisma migrate deploy`/`reset` then `prisma/seed.ts` inside the app container
+- `make up` / `make down` / `make rebuild` / `make logs` / `make shell` / `make clean`
+- `make db-shell` — `psql` into the `halcyon` DB
+- `make db-seed` / `make db-reset` — runs `prisma migrate deploy`/`reset` then `prisma/seed.ts` inside the app container
 - `make migrate-create name=<verb_table>` — `prisma migrate dev --name <name>`; authors a new migration (name required, should start with a verb)
 - `make migrate-deploy` — `prisma migrate deploy`; applies all pending migrations to the local DB (run after pulling/adding migrations so the running app matches the schema)
-- `make lintAndFormat` — `pnpm lint:fix && pnpm format`
+- `make lint-and-format` — `pnpm lint:fix && pnpm format`
 
 There is no longer a self-hosted production setup — `Dockerfile.prod`, `compose.prod.yaml`, the `make prod-*` targets, and `.github/workflows/deploy.yml` were removed when production moved to Vercel.
 

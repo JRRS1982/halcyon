@@ -9,7 +9,7 @@ Please see the [Playbook](docs/Playbook.md) for more information on the project,
 
 ## Deployment
 
-- **Development**: <http://localhost:3000/> (`pnpm dev` or `make dev-up`).
+- **Development**: <http://localhost:3000/> (`pnpm dev` or `make up`).
 - **Production**: <https://halcyon-silk.vercel.app>.
 - **Hosting**: [Vercel](https://vercel.com) runs the Next.js app (App Router server components + route handlers + middleware). [Supabase](https://supabase.com) provides managed Postgres and Auth. See [ADR-001](docs/ADRs/ADR-001-TechStackSelection.md) for the rationale.
 - **Pipeline**: pushes to `master` trigger GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) which runs `biome ci`, `tsc --noEmit`, Jest, and Playwright on Node 22 + pnpm 10. Vercel watches `master` independently and ships the build to production once its own build passes.
@@ -23,12 +23,13 @@ Install dependencies with pnpm, then run the app **in Docker** for local develop
 
 ```bash
   pnpm install      # install dependencies
-  make dev-up       # build + run the app and local Postgres in Docker (http://localhost:3000)
+  make build        # first run: build images, start Docker, migrate + seed (http://localhost:3000)
+  # thereafter:  make            # start the app and local Postgres (attached)
 ```
 
 ### Commands — `make` vs `pnpm`
 
-- **`make` for the app + the database** (runs inside Docker, against local Postgres): `make dev-up` / `make dev-down` / `make dev-build`, `make migrate-create name=<verb_table>` (author a new migration), `make migrate-deploy` (apply pending migrations), `make dev-db-reset`, `make dev-db-seed`, `make dev-db-shell`.
+- **`make` for the app + the database** (runs inside Docker, against local Postgres): `make` / `make build` (first-run setup) / `make up` / `make down` / `make rebuild`, `make migrate-create name=<verb_table>` (author a new migration), `make migrate-deploy` (apply pending migrations), `make db-reset`, `make db-seed`, `make db-shell`.
 - **`pnpm` for stateless checks** (faster, and what CI runs): `pnpm typecheck`, `pnpm check` (lint+format), `pnpm test`, `pnpm build`, `pnpm verify`.
 - **Migrations: always `make migrate-create` / `make migrate-deploy`, never host `pnpm prisma …`** — see the gotcha below.
 
@@ -38,7 +39,7 @@ Two databases exist: **local Postgres** (the Docker `db` service) and **producti
 
 | Command | Reads | Hits |
 | --- | --- | --- |
-| App in Docker — `make dev-up` | `compose.yaml` env (local) | **local** |
+| App in Docker — `make up` | `compose.yaml` env (local) | **local** |
 | App on host — `pnpm dev` (Next.js) | `.env.local` → `.env.development` → `.env` | **local** |
 | **Prisma CLI on host — `pnpm prisma …`** | **`.env` only** | **production ⚠️** |
 
@@ -92,7 +93,7 @@ pnpm test:int
 ```
 
 It needs a Postgres reachable at `localhost:5432` (the `db` container from
-`make dev-up` is fine — the test database `halcyon_test` lives alongside the dev
+`make up` is fine — the test database `halcyon_test` lives alongside the dev
 `halcyon` DB). The command pins `DATABASE_URL` at `halcyon_test` and a guard
 refuses to run against anything else; `globalSetup` applies migrations.
 

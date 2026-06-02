@@ -1,65 +1,65 @@
-.PHONY: go build dev-up dev-down dev-build dev-logs dev-shell dev-db-shell migrate-create migrate-deploy dev-db-seed dev-db-reset lintAndFormat dev-clean test test-watch test-coverage e2e-db test-e2e test-e2e-ui
+.PHONY: go build up down rebuild logs shell db-shell migrate-create migrate-deploy db-seed db-reset lint-and-format clean test test-watch test-coverage e2e-db test-e2e test-e2e-ui
 
 .DEFAULT_GOAL := go
 
 # `make` (default): start the dev environment (attached — logs stream, Ctrl-C
 # stops the containers). The everyday command; assumes the DB is already
 # migrated/seeded. For a from-scratch setup use `make build`.
-go: dev-down dev-up
+go: down up
 
 # `make build`: full from-scratch setup in one command — stop any running
 # containers, rebuild the images, start them (detached), apply pending
 # migrations, seed test data, then tail logs (Ctrl-C stops following; the
 # containers keep running). Use on first run or after Dockerfile/schema changes;
 # `make` is the everyday start.
-build: dev-down
+build: down
 	docker compose up -d --build
 	@echo "Waiting for Postgres to be ready…"
 	@until docker compose exec -T db pg_isready -U postgres >/dev/null 2>&1; do sleep 1; done
-	$(MAKE) dev-db-seed
+	$(MAKE) db-seed
 	docker compose logs -f
 
 # Start development environment (attached). Does not migrate or seed — run
-# `make build` for a full setup, or `make migrate-deploy` / `make dev-db-seed`.
-dev-up:
+# `make build` for a full setup, or `make migrate-deploy` / `make db-seed`.
+up:
 	docker compose up
 
 # Stop development containers
-dev-down:
+down:
 	docker compose down --remove-orphans
 
-# Rebuild development containers
-dev-build:
+# Rebuild the container images from scratch (no cache)
+rebuild:
 	docker compose build --no-cache
 
 # View development logs
-dev-logs:
+logs:
 	docker compose logs -f
 
 # Shell into app container
-dev-shell:
+shell:
 	docker compose exec app sh
 
 # Shell into database
-dev-db-shell:
+db-shell:
 	docker compose exec db psql -U postgres -d halcyon
 
 # migrate-deploy: apply every pending migration to the local dev DB
 # (`prisma migrate deploy`). Does NOT diff the schema or create files — it only
 # runs migration SQL that already exists. Idempotent. Run this after pulling new
 # migrations from git, or after migrate-create, so the running app matches the
-# schema. Requires the containers to be up (make / make dev-up).
+# schema. Requires the containers to be up (make / make up).
 # Example: make migrate-deploy
 migrate-deploy:
 	docker compose exec app npx prisma migrate deploy
 
 # Apply migrations (via migrate-deploy) then seed test data. Requires the
-# containers to be up (started by `make` / `make dev-up`).
-dev-db-seed: migrate-deploy
+# containers to be up (started by `make` / `make up`).
+db-seed: migrate-deploy
 	docker compose exec app npx tsx prisma/seed.ts
 
 # Reset and seed database
-dev-db-reset:
+db-reset:
 	docker compose exec app npx prisma migrate reset --force
 	docker compose exec app npx tsx prisma/seed.ts
 
@@ -75,13 +75,12 @@ migrate-create:
 	fi
 	docker compose exec app npx prisma migrate dev --name $(name)
 
-.PHONY: lintAndFormat
-lintAndFormat:
+lint-and-format:
 	pnpm lint:fix
 	pnpm format
 
 # Remove containers, volumes, and build cache
-dev-clean:
+clean:
 	docker compose down -v --rmi local
 
 # Unit tests
