@@ -182,11 +182,25 @@ export function DashboardView({
   })).filter((p) => p.series.some((s) => s.value !== 0));
 
   // The Fixed / Variable / Discretionary spending panels, shown under Income vs
-  // expenses.
+  // expenses. Build each panel's series, then drop categories that are empty
+  // across every month (no actual AND no budget) — mirroring the balance grid,
+  // so an unused bucket (e.g. Discretionary) doesn't show a flat zero line.
+  const expenditurePanels = CATEGORY_PANELS.map((c) => ({
+    label: c.label,
+    color: c.color,
+    lead: c.lead,
+    data: expenditureData.map((p) => ({
+      month: p.month,
+      actual: p[c.actualKey] as number,
+      budget: p[c.budgetKey] as number,
+      avg: p[c.avgKey] as number,
+    })),
+  })).filter((c) => c.data.some((d) => d.actual !== 0 || d.budget !== 0));
+
   const expenditureGrid =
-    expenditureData.length > 0 ? (
+    expenditurePanels.length > 0 ? (
       <CategoryGrid>
-        {CATEGORY_PANELS.map((c) => (
+        {expenditurePanels.map((c) => (
           <Panel key={c.label}>
             <PanelTitle>{c.label}</PanelTitle>
             <PanelLead>{c.lead}</PanelLead>
@@ -194,12 +208,7 @@ export function DashboardView({
               color={c.color}
               currency={currency}
               numberFormat={numberFormat}
-              data={expenditureData.map((p) => ({
-                month: p.month,
-                actual: p[c.actualKey] as number,
-                budget: p[c.budgetKey] as number,
-                avg: p[c.avgKey] as number,
-              }))}
+              data={c.data}
             />
           </Panel>
         ))}
