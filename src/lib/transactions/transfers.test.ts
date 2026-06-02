@@ -1,4 +1,4 @@
-import { netTransfersByAccount, type TransferLeg } from "./transfers";
+import { type TransferLeg, netTransfersByAccount } from "./transfers";
 
 const leg = (
   accountId: string,

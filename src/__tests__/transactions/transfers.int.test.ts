@@ -109,7 +109,9 @@ describe("setTransactionTransfer / mutual exclusion (integration)", () => {
       transactionId: tx.id,
       categoryId: category.id,
     });
-    after = await prisma.transaction.findUniqueOrThrow({ where: { id: tx.id } });
+    after = await prisma.transaction.findUniqueOrThrow({
+      where: { id: tx.id },
+    });
     expect(after.categoryId).toBe(category.id);
     expect(after.transferAccountId).toBeNull();
   });

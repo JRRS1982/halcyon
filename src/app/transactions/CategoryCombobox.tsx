@@ -334,8 +334,9 @@ export function CategoryCombobox({
                         const t = e.target.value as "EXPENSE" | "INCOME";
                         setNewType(t);
                         setNewBucket(
-                          (t === "EXPENSE" ? EXPENSE_BUCKETS : INCOME_BUCKETS)[0]
-                            .value,
+                          (t === "EXPENSE"
+                            ? EXPENSE_BUCKETS
+                            : INCOME_BUCKETS)[0].value,
                         );
                       }}
                     >
