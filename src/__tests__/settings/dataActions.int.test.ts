@@ -1,4 +1,27 @@
-import { clearMyData, exportMyData } from "@/app/settings/dataActions";
+const mockDeleteUser = jest.fn(async () => ({ data: {}, error: null }));
+
+jest.mock("@/lib/supabase/admin", () => ({
+  createAdminClient: () => ({
+    auth: { admin: { deleteUser: mockDeleteUser } },
+  }),
+}));
+
+jest.mock("@/lib/supabase/server", () => ({
+  createClient: () => ({
+    auth: {
+      getUser: async () => ({
+        data: { user: { id: "00000000-0000-0000-0000-0000000000aa" } },
+      }),
+      signOut: async () => ({ error: null }),
+    },
+  }),
+}));
+
+import {
+  clearMyData,
+  deleteMyAccount,
+  exportMyData,
+} from "@/app/settings/dataActions";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
 
@@ -113,6 +136,64 @@ describe("clearMyData (integration)", () => {
 
     expect(
       await prisma.transaction.count({ where: { userId: OTHER_USER_ID } }),
+    ).toBe(1);
+    expect(
+      await prisma.account.count({ where: { userId: OTHER_USER_ID } }),
+    ).toBe(1);
+  });
+});
+
+describe("deleteMyAccount (integration)", () => {
+  beforeEach(() => mockDeleteUser.mockClear());
+
+  test("hard-deletes all rows, calls auth admin deleteUser, then redirects", async () => {
+    await seedFinancialData(TEST_USER_ID);
+    await prisma.budgetTemplateItem.create({
+      data: { userId: TEST_USER_ID, type: "EXPENSE", label: "Tmpl", budget: 1 },
+    });
+
+    // redirect("/") is mocked to throw `redirect:/`.
+    await expect(deleteMyAccount()).rejects.toThrow("redirect:/");
+
+    expect(mockDeleteUser).toHaveBeenCalledTimes(1);
+    expect(mockDeleteUser).toHaveBeenCalledWith(TEST_USER_ID);
+
+    expect(
+      await prisma.user.findUnique({ where: { id: TEST_USER_ID } }),
+    ).toBeNull();
+    expect(
+      await prisma.userSettings.findUnique({ where: { userId: TEST_USER_ID } }),
+    ).toBeNull();
+    expect(
+      await prisma.category.count({ where: { userId: TEST_USER_ID } }),
+    ).toBe(0);
+    expect(
+      await prisma.transaction.count({ where: { userId: TEST_USER_ID } }),
+    ).toBe(0);
+    expect(
+      await prisma.account.count({ where: { userId: TEST_USER_ID } }),
+    ).toBe(0);
+    expect(
+      await prisma.budgetTemplateItem.count({
+        where: { userId: TEST_USER_ID },
+      }),
+    ).toBe(0);
+  });
+
+  test("does not touch another user's rows", async () => {
+    await prisma.user.create({ data: { id: OTHER_USER_ID } });
+    await seedFinancialData(OTHER_USER_ID);
+
+    await expect(deleteMyAccount()).rejects.toThrow("redirect:/");
+
+    expect(
+      await prisma.user.findUnique({ where: { id: OTHER_USER_ID } }),
+    ).not.toBeNull();
+    expect(
+      await prisma.transaction.count({ where: { userId: OTHER_USER_ID } }),
+    ).toBe(1);
+    expect(
+      await prisma.category.count({ where: { userId: OTHER_USER_ID } }),
     ).toBe(1);
     expect(
       await prisma.account.count({ where: { userId: OTHER_USER_ID } }),
