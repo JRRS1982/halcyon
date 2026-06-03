@@ -83,3 +83,28 @@ export async function clearMyData(): Promise<void> {
   revalidatePath("/transactions");
   revalidatePath("/settings");
 }
+
+export async function deleteMyAccount(): Promise<void> {
+  const userId = await requireUserId();
+
+  // App data first, identity second: if the admin call below failed, we'd have
+  // erased the financial PII rather than orphaning it behind an undeletable
+  // login. Single transaction; user.delete() last so FKs are already cleared.
+  await prisma.$transaction([
+    ...financialDeletes(userId),
+    prisma.category.deleteMany({ where: { userId } }),
+    prisma.userSettings.deleteMany({ where: { userId } }),
+    prisma.user.delete({ where: { id: userId } }),
+  ]);
+
+  // Erase the Supabase identity (email/password/OAuth) — needs the admin client.
+  const admin = createAdminClient();
+  const { error } = await admin.auth.admin.deleteUser(userId);
+  if (error) throw new Error(`Failed to delete auth user: ${error.message}`);
+
+  // A failed sign-out is tolerable here: the account is already deleted and the
+  // session cookie expires on its own, so we don't block the redirect on it.
+  const supabase = createClient();
+  await supabase.auth.signOut();
+  redirect("/");
+}
