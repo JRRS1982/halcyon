@@ -1,11 +1,10 @@
-import { expect, test } from "@playwright/test";
+import { expect, signIn, test } from "./_helpers/fixtures";
 
 // Regression: categorising a row while the "Uncategorized only" filter is on
 // must keep the filtered view — the just-categorised row should drop out and
 // stay out. The bug was that setTransactionCategory's revalidatePath re-rendered
 // the page server-side with the *unfiltered* first page, and the ledger's
 // re-sync effect adopted it wholesale, flashing every categorised row back in.
-const KNOWN_USER = { email: "test@example.com", password: "password123" };
 
 test.describe("ledger uncategorized filter", () => {
   test.beforeEach(({ browserName }) => {
@@ -21,18 +20,12 @@ test.describe("ledger uncategorized filter", () => {
     const descB = `B-${token}`;
     const category = `FiltCat-${token}`;
 
-    await page.goto("/sign-in");
-    await page.fill("input[name='email']", KNOWN_USER.email);
-    await page.fill("input[name='password']", KNOWN_USER.password);
-    await page.getByRole("button", { name: "Sign in" }).click();
-    await page.waitForURL("/");
+    await signIn(page);
 
     await page.goto("/settings");
     const txToggle = page.getByRole("checkbox", { name: "Transactions" });
-    if (!(await txToggle.isChecked())) {
-      await txToggle.check({ force: true });
-      await page.getByRole("button", { name: "Confirm" }).click();
-    }
+    await txToggle.check({ force: true });
+    await page.getByRole("button", { name: "Confirm" }).click();
     await expect(
       page.getByRole("link", { name: "Transactions" }),
     ).toBeVisible();

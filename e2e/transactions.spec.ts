@@ -1,10 +1,9 @@
-import { expect, test } from "@playwright/test";
+import { expect, signIn, test } from "./_helpers/fixtures";
 
 // Signed-in transactions journey: enable the feature, import a CSV, categorise
 // the row, and confirm it surfaces on the budget. This exercises app logic
-// rather than rendering, so it runs on one browser. Unique per-run tokens keep
-// it repeatable against the shared test DB (no dedup collisions).
-const KNOWN_USER = { email: "test@example.com", password: "password123" };
+// rather than rendering, so it runs on one browser. Each test gets a clean DB
+// (see _helpers/fixtures), so the feature always starts disabled.
 
 test.describe("transactions journey", () => {
   test.beforeEach(({ browserName }) => {
@@ -17,21 +16,14 @@ test.describe("transactions journey", () => {
     const description = `Coffee-${token}`;
     const category = `E2ECat-${token}`;
 
-    // Sign in (mock Supabase). The app upserts the profile row on first request.
-    await page.goto("/sign-in");
-    await page.fill("input[name='email']", KNOWN_USER.email);
-    await page.fill("input[name='password']", KNOWN_USER.password);
-    await page.getByRole("button", { name: "Sign in" }).click();
-    await page.waitForURL("/");
+    await signIn(page);
 
     // Enable Transactions in Settings: toggling the switch opens a confirm
-    // dialog; Confirm persists it. Skip if already on (shared test DB).
+    // dialog; Confirm persists it. The clean-DB fixture guarantees it starts off.
     await page.goto("/settings");
     const toggle = page.getByRole("checkbox", { name: "Transactions" });
-    if (!(await toggle.isChecked())) {
-      await toggle.check({ force: true });
-      await page.getByRole("button", { name: "Confirm" }).click();
-    }
+    await toggle.check({ force: true });
+    await page.getByRole("button", { name: "Confirm" }).click();
     // Nav link appears once the setting is saved + revalidated.
     await expect(
       page.getByRole("link", { name: "Transactions" }),

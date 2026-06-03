@@ -1,11 +1,10 @@
-import { expect, test } from "@playwright/test";
+import { expect, signIn, test } from "./_helpers/fixtures";
 
 // Signed-in transfers journey: enable Transactions + Transfers, create a
 // counterparty account in Settings, import a row, tag it as a transfer, and
 // confirm it surfaces in the budget Transfers section (and not as income/
-// expense). App logic rather than rendering, so chromium only. Unique per-run
-// tokens keep it repeatable against the shared test DB.
-const KNOWN_USER = { email: "test@example.com", password: "password123" };
+// expense). App logic rather than rendering, so chromium only. Each test gets
+// a clean DB (see _helpers/fixtures), so both features start disabled.
 
 test.describe("transfers journey", () => {
   test.beforeEach(({ browserName }) => {
@@ -20,29 +19,21 @@ test.describe("transfers journey", () => {
     const counterparty = `ISA-${token}`;
     const description = `Move-${token}`;
 
-    // Sign in (mock Supabase). The app upserts the profile row on first request.
-    await page.goto("/sign-in");
-    await page.fill("input[name='email']", KNOWN_USER.email);
-    await page.fill("input[name='password']", KNOWN_USER.password);
-    await page.getByRole("button", { name: "Sign in" }).click();
-    await page.waitForURL("/");
+    await signIn(page);
 
     // Settings: enable Transactions (toggle opens a confirm dialog) then
-    // Transfers (immediate, no dialog). Skip whichever is already on.
+    // Transfers (immediate, no dialog). The clean-DB fixture guarantees both
+    // start off.
     await page.goto("/settings");
     const txToggle = page.getByRole("checkbox", { name: "Transactions" });
-    if (!(await txToggle.isChecked())) {
-      await txToggle.check({ force: true });
-      await page.getByRole("button", { name: "Confirm" }).click();
-    }
+    await txToggle.check({ force: true });
+    await page.getByRole("button", { name: "Confirm" }).click();
     await expect(
       page.getByRole("link", { name: "Transactions" }),
     ).toBeVisible();
 
     const transfersToggle = page.getByRole("checkbox", { name: "Transfers" });
-    if (!(await transfersToggle.isChecked())) {
-      await transfersToggle.check({ force: true });
-    }
+    await transfersToggle.check({ force: true });
     await expect(transfersToggle).toBeChecked();
 
     // Create the counterparty account in Settings (AccountManager). The Add
