@@ -225,7 +225,7 @@ function transactionsForMonth(
     {
       categoryKey: "groceries",
       day: 19,
-      amount: -(130 - drift),
+      amount: -(130 + drift),
       description: "Supermarket",
     },
     {
