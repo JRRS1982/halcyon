@@ -16,6 +16,12 @@ services:
       # migrations run against PRODUCTION. Pin it to the local db service.
       - DIRECT_URL=postgresql://postgres:postgres@db:5432/halcyon?schema=public
       - NODE_ENV=development
+      # Cloud Supabase auth creds — the only auth instance (no local Supabase).
+      # Compose substitutes these two from the repo-root .env so the seed's
+      # admin-create step (and the dev app) can reach auth. Only these cross in;
+      # the prod DATABASE_URL in .env never does — it's pinned local above.
+      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+      - SUPABASE_SECRET_KEY=${SUPABASE_SECRET_KEY}
     depends_on:
       db:
         condition: service_healthy

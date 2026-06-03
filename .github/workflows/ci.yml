@@ -130,10 +130,14 @@ jobs:
         # also installs the required system libraries.
         run: pnpm exec playwright install --with-deps
 
-      - name: Set up test database
-        run: |
-          pnpm prisma migrate deploy
-          pnpm db:seed
+      # Only apply the schema — do NOT run `pnpm db:seed`. That seed is a
+      # local-dev tool (it provisions a loginable demo user via the cloud
+      # Supabase admin API, which CI has no creds for). The e2e specs manage
+      # their own data: they sign in as the mock auth user, let the app upsert
+      # the User/UserSettings rows on first request, then create accounts,
+      # categories and transactions through the UI per test.
+      - name: Apply migrations to test database
+        run: pnpm prisma migrate deploy
 
       # E2E tests run against a mock Supabase server (e2e/_mock/supabase.mjs)
       # and a Next.js dev server on port 3100, both started by Playwright's
