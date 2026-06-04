@@ -1,5 +1,6 @@
 "use client";
 
+import { ChartLegend } from "@/app/dashboard/ChartLegend";
 import type { CashFlowPoint } from "@/lib/dashboard/series";
 import {
   type NumberFormat,
@@ -44,28 +45,27 @@ export function CashFlowChart({
     return `${sym}${v}`;
   };
 
-  const fmtDelta = (d: number) => {
+  const fmtNet = (n: number) => {
     const sym = symbolFor(currency);
-    const abs = Math.abs(d);
+    const sign = n < 0 ? "-" : "";
+    const abs = Math.abs(n);
     return abs >= 1000
-      ? `${sym}${Math.round(abs / 1000)}k`
-      : `${sym}${Math.round(abs)}`;
+      ? `${sign}${sym}${Math.round(abs / 1000)}k`
+      : `${sign}${sym}${Math.round(abs)}`;
   };
 
-  // Month-on-month change marker above each net point: green ▲ when the surplus
-  // improved on the prior month, red ▼ when it worsened. Skips the first month
-  // and unchanged months.
-  const NetDeltaLabel = (props: {
+  // Net figure marker above each net point: green when the month ran a surplus,
+  // red when it ran a deficit. The exact value stays in the tooltip.
+  const NetLabel = (props: {
     x?: number | string;
     y?: number | string;
     index?: number;
   }) => {
     const { x, y, index } = props;
-    if (x == null || y == null || index == null || index === 0) return <g />;
-    const delta = data[index].net - data[index - 1].net;
-    if (delta === 0) return <g />;
-    const up = delta > 0;
-    const text = `${up ? "▲" : "▼"} ${fmtDelta(delta)}`;
+    if (x == null || y == null || index == null) return <g />;
+    const net = data[index].net;
+    const up = net >= 0;
+    const text = fmtNet(net);
     const cx = Number(x);
     const cy = Number(y) - 10;
     const w = text.length * 6.6 + 10;
@@ -138,7 +138,7 @@ export function CashFlowChart({
             fontSize: 12,
           }}
         />
-        <Legend wrapperStyle={{ fontSize: 12 }} />
+        <Legend wrapperStyle={{ fontSize: 12 }} content={<ChartLegend />} />
         <Bar
           yAxisId="amount"
           dataKey="income"
@@ -161,7 +161,7 @@ export function CashFlowChart({
           stroke={NET_COLOR}
           strokeWidth={2}
           dot={{ r: 2.5, fill: NET_COLOR }}
-          label={NetDeltaLabel}
+          label={NetLabel}
           isAnimationActive={false}
         />
         <Line

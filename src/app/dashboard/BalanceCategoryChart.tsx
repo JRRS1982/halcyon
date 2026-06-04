@@ -1,5 +1,6 @@
 "use client";
 
+import { ChartLegend } from "@/app/dashboard/ChartLegend";
 import type { ValueAvgPoint } from "@/lib/dashboard/series";
 import {
   type NumberFormat,
@@ -67,7 +68,7 @@ export function BalanceCategoryChart({
             fontSize: 12,
           }}
         />
-        <Legend wrapperStyle={{ fontSize: 12 }} />
+        <Legend wrapperStyle={{ fontSize: 12 }} content={<ChartLegend />} />
         <Line
           type="monotone"
           dataKey="value"
