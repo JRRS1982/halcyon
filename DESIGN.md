@@ -1,15 +1,18 @@
 ---
 version: alpha
 name: Halcyon-design-system
-description: Halcyon's design language — a personal-finance app whose primary surface is a real spreadsheet (column headers, row indices, a formula bar, focused-cell selection, dark full-width section bands that group rows). Two faces carry every page — Inter for headlines and body, a system monospace face used uppercase for every label that touches data. No accent colour; positive and negative variance amounts use sign-only muted green and red.
+description: Halcyon's design language — a personal-finance app whose primary surface is a real spreadsheet (column headers, row indices, a formula bar, focused-cell selection, dark full-width section bands that group rows). Two faces carry every page — Inter for headlines and body, a system monospace face used uppercase for every label that touches data. One muted blue accent reserved for interaction and wayfinding; positive and negative variance amounts use sign-only muted green and red.
 
-# Type scale — only five sizes anywhere in the system:
+# Type scale — only six sizes anywhere in the system:
 #   28 → page h1
 #   18 → section heading h2, grand-total amount
 #   14 → cell body, lead, nav brand, formula value
+#   13 → dense data UI — ledger/import tables, popover options, inline notes
 #   11 → ALL mono caps (column headers, section labels, eyebrows, button labels, status pips)
 #   96 → footer wordmark stencil
-# If a new size is needed, prefer adjusting one of these before introducing a sixth.
+# (Chart internals — axis ticks, legends, tooltips — render at 11–12px inside the
+# chart surface and don't count against the scale.)
+# If a new size is needed, prefer adjusting one of these before introducing a seventh.
 
 colors:
   primary: "#000000"
@@ -32,6 +35,7 @@ colors:
   negative: "#B33B3B"
   focus: "#0F1116"
   accent: "#1E5BC6"
+  chart-rate: "#D97706"
 
 typography:
   display-xxl:
@@ -63,6 +67,12 @@ typography:
     fontSize: 14px
     fontWeight: 500
     lineHeight: 1.5
+    letterSpacing: -0.003em
+  body-sm:
+    fontFamily: Inter, system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif
+    fontSize: 13px
+    fontWeight: 400
+    lineHeight: 1.45
     letterSpacing: -0.003em
   amount:
     fontFamily: Inter, system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif
@@ -167,7 +177,7 @@ components:
     backgroundColor: "{colors.canvas}"
     textColor: "{colors.ink}"
     borderColor: "{colors.hairline}"
-    focusBorderColor: "{colors.focus}"
+    focusBorderColor: "{colors.accent}"
     typography: "{typography.body-md}"
     rounded: "{rounded.sm}"
     padding: "{spacing.sm} {spacing.md}"
@@ -413,9 +423,9 @@ Surfaces alternate at the row level, not the page level. A page is `{colors.canv
 **Key Characteristics:**
 
 - A single black `{colors.primary}` CTA pill carries every primary action — Add row, Save changes, Sign in. One per visible viewport.
-- No brand gradient. No accent colour. The dark section bands + black grand-total row are the entire decorative system.
+- No brand gradient. The dark section bands + black grand-total row are the decorative system; the single `{colors.accent}` blue is functional (interaction + wayfinding), never decorative.
 - All-caps mono labels in `{typography.mono-caps}` for everything that names data — column headers, section rows, button labels, eyebrows, status pips, period months, the row-index column.
-- The **type scale has five sizes only** — 96, 28, 18, 14, 11. New sizes are added by adjusting one of the existing tokens; introducing a sixth is a design decision, not a default.
+- The **type scale has six sizes only** — 96, 28, 18, 14, 13, 11 (chart internals may use 11–12px inside the chart surface). New sizes are added by adjusting one of the existing tokens; introducing a seventh is a design decision, not a default.
 - Tabular numerals on every currency amount. Right-aligned in their columns; left-aligned amount cells are forbidden.
 - Positive variance in `{colors.positive}` (`#1F8A4C`); negative in `{colors.negative}` (`#B33B3B`). Sign-only — never as brand colours or button fills.
 - $0 / empty amounts dim to `{colors.dim}` (`#999999`) so they recede from real data.
@@ -426,7 +436,7 @@ Surfaces alternate at the row level, not the page level. A page is `{colors.canv
 ### Brand & Accent
 
 - **Ink** (`{colors.primary}` — `#000000`): The single primary CTA colour. Black pill carries every conversion action: Add row, Save changes, Sign in, Continue with Google. Also the fill of the grand-total row.
-- **Accent** (`{colors.accent}` — `#1E5BC6`): A single muted blue used **sparingly** to highlight identifiers and orient the user — the period date in a page eyebrow (e.g. "Budget · **January 2026**"), an active filter chip, the focused-row marker. Not used as a button fill, never on amounts (those use sign-only positive/negative), and never as a brand-decorative gradient. One accent moment per visible viewport is the upper bound — multiple compete and the orientation value collapses.
+- **Accent** (`{colors.accent}` — `#1E5BC6`): A single muted blue that owns **interaction and wayfinding** — it marks where the user is and what responds to them. Sanctioned uses: inline links, focus rings on form inputs, active filter chips, active nav/toggle states, period identifiers in page eyebrows (e.g. "Budget · **January 2026**"), create/confirm actions *inside popovers* (where the black CTA system doesn't reach), and the Net/derived series in charts. Never on amounts or table data (those use sign-only positive/negative), never as a decorative tint or gradient, and never competing with a black `button-primary` on the same surface — the black pill stays the page's conversion moment; the accent is everything conversational around it.
 
 ### Surface
 
@@ -454,7 +464,7 @@ A deliberately small semantic palette — sign-only, never decorative.
 
 - **Positive** (`{colors.positive}` — `#1F8A4C`): A muted green used **only** for positive variance amounts (under-budget expenses, surplus net income). Never used as a brand tint, button fill, or success banner background. Also the dot colour in `status-pip`.
 - **Negative** (`{colors.negative}` — `#B33B3B`): A muted red used **only** for negative variance amounts and destructive-button text. Never used as a brand tint or hero accent.
-- **Focus** (`{colors.focus}` — `#0F1116`): The 2 px outline ring on the focused sheet cell and the focused state of `text-input`. Matches `{colors.canvas-dark}` so focus reads as "this is where you're committing data".
+- **Focus** (`{colors.focus}` — `#0F1116`): The 2 px outline ring on the focused **sheet cell** only. Matches `{colors.canvas-dark}` so cell focus reads as "this is where you're committing data". Form inputs outside the sheet take their focus ring from `{colors.accent}` instead — interaction belongs to the accent.
 - No explicit warning / info / success colour beyond positive/negative.
 
 ## Typography
@@ -477,12 +487,13 @@ The mono face is **never** used for body copy, never for cell amounts (amounts a
 | `{typography.display-lg}` | 18 px | 500 | 1.3 | -0.012 em | Section headings ("Historic records"). Also the typography of `amount-xl` on the grand-total row. |
 | `{typography.body-md}` | 14 px | 400 | 1.5 | -0.003 em | Default cell body, lead paragraphs, nav brand, formula-bar formula value, period-tab net amount. |
 | `{typography.body-md-strong}` | 14 px | 500 | 1.5 | -0.003 em | Emphasis inside body text. |
+| `{typography.body-sm}` | 13 px | 400 | 1.45 | -0.003 em | Dense data UI — ledger and import-preview tables, popover/combobox options, inline notes. Not for prose. |
 | `{typography.amount}` | 14 px | 400 | 1.5 | 0 | Default cell amount. Tabular numerals. |
 | `{typography.amount-strong}` | 14 px | 500 | 1.5 | 0 | Section-row roll-up totals, subtotal-row values, period-tab net amount. Tabular numerals. |
 | `{typography.amount-xl}` | 18 px | 500 | 1.3 | -0.012 em | Grand-total row amount only. Tabular numerals. |
 | `{typography.mono-caps}` | 11 px | 500 | 1.2 | 0.055 em | Everything mono — column headers, section labels, button labels, eyebrows, status-pip text, period-tab month + status, row-index digits, formula-bar cell ref. |
 
-**Five visual sizes total** (96 / 28 / 18 / 14 / 11). The `amount` variants share size with `body-md`; the `amount-xl` shares size with `display-lg`. New tokens reuse existing sizes by default.
+**Six visual sizes total** (96 / 28 / 18 / 14 / 13 / 11). The `amount` variants share size with `body-md`; the `amount-xl` shares size with `display-lg`; `body-sm` is reserved for dense data UI. Chart internals (axis ticks, legends, tooltips) render at 11–12px inside the chart surface and don't count against the scale. New tokens reuse existing sizes by default.
 
 ### Voice
 
@@ -605,7 +616,7 @@ The default sheet cell renders at ~36 px tall (14 px text + 8 px × 2 padding + 
 
 **`button-destructive`** — the outline button with red text for destructive actions.
 
-- Background `{colors.canvas}`, text `{colors.negative}`, 1 px solid `{colors.hairline}` border, same shape as `button-outline`. Used for: Delete period, Reset budget, Remove category. Always paired with a confirm modal — never one-click destructive.
+- Background `{colors.canvas}`, text `{colors.negative}`, 1 px solid `{colors.hairline}` border, same shape as `button-outline`. Used for: Delete period, Reset budget, Remove category. Never one-click destructive — always paired with a friction beat: a confirm modal, or (for the heaviest account-level actions, per settings → Data & privacy) an inline type-to-confirm panel where the user types the action name before the button arms.
 
 **`status-pip`** — inline status indicator with a coloured dot.
 
@@ -717,6 +728,30 @@ The Budget page is built around a single bordered grid — the **sheet**. Every 
 
 - Background `{colors.canvas-soft}`, 1 px solid `{colors.hairline}` border, padding `{spacing.section}` 80 px, shape `{rounded.sm}` 4 px. Inside: a single mono-caps eyebrow label, a `display-lg` headline, body-md instruction, and a `button-primary` to bootstrap. No illustration imagery.
 
+### Popovers & Comboboxes
+
+**`combobox`** — the search-and-pick popover used to categorise ledger rows (and pick transfer accounts).
+
+- A `{colors.canvas}` panel anchored under its trigger, 1 px solid `{colors.hairline-strong}` border, `{rounded.sm}` corners, and a soft drop shadow (popovers float, so Level 5 applies). Search input on top with a hairline bottom border; an option list below in `{typography.body-sm}` with `{colors.canvas-soft}` hover/keyboard-highlight; an optional create panel at the bottom on `{colors.canvas-soft}`. Create/confirm buttons inside the popover fill with `{colors.accent}` — the one sanctioned accent-filled button, because a black `button-primary` inside a floating panel would compete with the page's primary CTA. Fully keyboard-navigable: arrow keys move the highlight, Enter commits, Escape dismisses.
+
+## Data visualization
+
+Charts (the dashboard) have their own colour grammar — series identity, not value sign — so the "amounts only" rule for green/red is deliberately relaxed *inside chart surfaces only*:
+
+- **`{colors.positive}` green** — series that represent money in / what you own: Income bars, asset lines.
+- **`{colors.negative}` red** — series that represent money out / what you owe: Expense bars, liability lines.
+- **`{colors.accent}` blue** — the derived headline series: Net / surplus lines. The accent's wayfinding job carries over: blue is "the line to read".
+- **`{colors.chart-rate}` amber (`#D97706`)** — rate/percentage series on a secondary axis (savings rate). Always dashed, never filled.
+- **`{colors.body}` near-black** — the net-worth line on the balance trend chart, where it must sit above many coloured series.
+
+Conventions:
+
+- **Dash patterns are series identity, not decoration.** When several series share a colour, the dash pattern is the only differentiator (asset/liability term categories; Budget `5 4` vs 6-month avg `2 3`) — so every legend must render each entry's true colour *and* dash pattern (see `ChartLegend`). A legend with identical icons is a defect.
+- **Value labels** on a headline series render as bordered chips (canvas fill, 1 px series-coloured border, 11px bold) showing the actual value, coloured by sign.
+- **Chart-internal type** — axis ticks, legends, tooltips — runs at 11–12px and doesn't count against the six-size scale.
+- Tooltips carry full-precision amounts; axis ticks abbreviate (`£8k`).
+- No gradients, no area fills, no animation (`isAnimationActive={false}` everywhere) — charts obey the same flat, hairline-grid restraint as the sheet.
+
 ### Examples (illustrative)
 
 These are not new primitives; they are kit-mirror surfaces composed from the primitives above, used to demonstrate the system end-to-end.
@@ -741,17 +776,17 @@ These are not new primitives; they are kit-mirror surfaces composed from the pri
 - Set every label that touches data in `{typography.mono-caps}` — uppercase, mono, 11 px, positive tracking. Column headers, section labels, button labels, eyebrows, period tabs, status pips, row indices.
 - Render every currency amount in Inter with `font-variant-numeric: tabular-nums`, two decimal places, right-aligned within its row.
 - Use `sheet-row-section` (dark band) to group rows visually and `sheet-row-grand` (black band) for the final total. Those two bands plus hairline cell borders are the entire visual hierarchy of the sheet.
-- Apply `{colors.positive}` and `{colors.negative}` to **amounts only** — never to button fills, badge backgrounds, banner tints, or headlines.
-- Apply `{colors.accent}` to **orientation identifiers** — the date in a page eyebrow, an active toolbar filter, the focused-row marker. One accent moment per viewport.
+- Apply `{colors.positive}` and `{colors.negative}` to **amounts only** on page surfaces — never to button fills, badge backgrounds, banner tints, or headlines. (Inside chart surfaces they identify money-in/money-out series — see Data visualization.)
+- Apply `{colors.accent}` to **interaction and wayfinding** — links, input focus rings, active filter/nav states, eyebrow period identifiers, create actions inside popovers, the Net series in charts. Keep it off amounts and table data, and never let it compete with a black `button-primary` on the same surface.
 - Dim $0 or empty amount cells to `{colors.dim}` so they recede from real data.
 - Use `{rounded.sm}` 4 px as the canonical card / button / panel radius across the system. Reach for `{rounded.none}` only on full-bleed edges (sheet section bands, sheet grand-total row, nav-bar bottom border, footer wordmark).
 - Render the giant `halcyon` wordmark at the bottom of every long page in `{typography.display-xxl}` at 96 px, tinted to `{colors.hairline}` so it reads as a stencil — not as a heavy footer title.
 - Pair every destructive button with a `modal` confirm. Money operations need a friction beat.
-- Stay within the five-size type scale (96 / 28 / 18 / 14 / 11). If a sixth size feels necessary, prefer adjusting one of these tokens.
+- Stay within the six-size type scale (96 / 28 / 18 / 14 / 13 / 11). If a seventh size feels necessary, prefer adjusting one of these tokens.
 
 ### Don't
 
-- Don't introduce a brand accent colour. The dark section bands + black grand-total row are the entire decorative system; new accents flatten the brand voice.
+- Don't introduce a second accent colour, and don't use `{colors.accent}` decoratively. The blue is functional — interaction and wayfinding only; the dark section bands + black grand-total row remain the entire decorative system. (`{colors.chart-rate}` amber exists only inside chart surfaces.)
 - Don't set body paragraphs in the mono face. The mono is for labels only; long-form mono reads as a console log.
 - Don't set headlines in all-caps mono. Every all-caps moment belongs to the mono face; every headline belongs to Inter in sentence case.
 - Don't drop a soft drop-shadow on inline cards, sheet rows, or panels. Shadows belong only on overlays (`toast`, `modal`).
