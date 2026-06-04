@@ -29,6 +29,6 @@ COPY . .
 # Generate Prisma client
 RUN npx prisma generate
 
-EXPOSE 3000
+EXPOSE 3210
 
 CMD ["pnpm", "dev"]
