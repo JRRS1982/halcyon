@@ -232,6 +232,62 @@ export async function setTransactionCategory(
   revalidatePath("/dashboard");
 }
 
+const bulkSetCategorySchema = z.object({
+  transactionIds: z.array(z.string().uuid()).min(1).max(500),
+  categoryId: z.string().uuid().nullable(),
+});
+
+// Bulk form of setTransactionCategory: assigns (or clears) a category across
+// many transactions at once. The ownership filter silently skips any id that
+// isn't the signed-in user's. Returns how many rows actually changed.
+export async function bulkSetTransactionCategory(
+  input: z.input<typeof bulkSetCategorySchema>,
+): Promise<{ updated: number }> {
+  const userId = await requireTransactionsEnabled();
+  const { transactionIds, categoryId } = bulkSetCategorySchema.parse(input);
+
+  if (categoryId) {
+    const category = await prisma.category.findFirst({
+      where: { id: categoryId, userId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!category) throw new Error("Category not found");
+  }
+
+  const result = await prisma.transaction.updateMany({
+    where: { id: { in: transactionIds }, userId, deletedAt: null },
+    data: { categoryId, transferAccountId: null },
+  });
+
+  revalidatePath("/transactions");
+  revalidatePath("/budget");
+  revalidatePath("/dashboard");
+  return { updated: result.count };
+}
+
+const bulkDeleteSchema = z.object({
+  transactionIds: z.array(z.string().uuid()).min(1).max(500),
+});
+
+// Soft-deletes transactions in bulk: sets deletedAt so the rows drop out of
+// the ledger and every computed actual. Ownership-scoped like all mutations.
+export async function bulkDeleteTransactions(
+  input: z.input<typeof bulkDeleteSchema>,
+): Promise<{ deleted: number }> {
+  const userId = await requireTransactionsEnabled();
+  const { transactionIds } = bulkDeleteSchema.parse(input);
+
+  const result = await prisma.transaction.updateMany({
+    where: { id: { in: transactionIds }, userId, deletedAt: null },
+    data: { deletedAt: new Date() },
+  });
+
+  revalidatePath("/transactions");
+  revalidatePath("/budget");
+  revalidatePath("/dashboard");
+  return { deleted: result.count };
+}
+
 const setTransferSchema = z.object({
   transactionId: z.string().uuid(),
   accountId: z.string().uuid(),
