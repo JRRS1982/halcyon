@@ -2,7 +2,7 @@
 
 import { EXPENSE_BUCKETS, INCOME_BUCKETS } from "@/lib/categories/buckets";
 import type { LedgerCategory } from "@/lib/transactions/server";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import styled from "styled-components";
 
 const Wrap = styled.div`
@@ -67,7 +67,7 @@ const List = styled.ul`
   overflow-y: auto;
 `;
 
-const Option = styled.li`
+const Option = styled.li<{ $active?: boolean }>`
   padding: ${({ theme }) => theme.spacing.sm}
     ${({ theme }) => theme.spacing.md};
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
@@ -77,6 +77,8 @@ const Option = styled.li`
   display: flex;
   justify-content: space-between;
   gap: ${({ theme }) => theme.spacing.sm};
+  background: ${({ $active, theme }) =>
+    $active ? theme.colors.canvasSoft : "transparent"};
 
   &:hover {
     background: ${({ theme }) => theme.colors.canvasSoft};
@@ -164,9 +166,12 @@ export function CategoryCombobox({
   const [open, setOpen] = useState(false);
   const [panel, setPanel] = useState<"category" | "transfer">("category");
   const [query, setQuery] = useState("");
+  // Index into the keyboard-navigable options below; -1 means none highlighted.
+  const [activeIndex, setActiveIndex] = useState(-1);
   const [newType, setNewType] = useState<"EXPENSE" | "INCOME">(defaultType);
   const [newBucket, setNewBucket] = useState<string>("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const listboxId = useId();
 
   const current = categories.find((c) => c.id === value) ?? null;
   const transferAccount =
@@ -201,10 +206,19 @@ export function CategoryCombobox({
     if (open) inputRef.current?.focus();
   }, [open]);
 
+  // Keep the highlighted option visible as arrow keys move it.
+  useEffect(() => {
+    if (activeIndex < 0) return;
+    document
+      .getElementById(`${listboxId}-opt-${activeIndex}`)
+      ?.scrollIntoView?.({ block: "nearest" });
+  }, [activeIndex, listboxId]);
+
   const close = () => {
     setOpen(false);
     setPanel("category");
     setQuery("");
+    setActiveIndex(-1);
   };
 
   const choose = (categoryId: string | null) => {
@@ -215,6 +229,75 @@ export function CategoryCombobox({
   const chooseAccount = (accountId: string) => {
     onTransfer(accountId);
     close();
+  };
+
+  const openTransferPanel = () => {
+    setPanel("transfer");
+    setQuery("");
+    setActiveIndex(-1);
+  };
+
+  const backToCategories = () => {
+    setPanel("category");
+    setQuery("");
+    setActiveIndex(-1);
+  };
+
+  // Flat list of keyboard-navigable options, in render order. Indices here
+  // must line up with the ids assigned to <Option> elements below.
+  const navOptions: { run: () => void }[] =
+    panel === "category"
+      ? [
+          ...(value !== null ? [{ run: () => choose(null) }] : []),
+          ...(transfersEnabled ? [{ run: openTransferPanel }] : []),
+          ...matches.map((c) => ({ run: () => choose(c.id) })),
+        ]
+      : [
+          { run: backToCategories },
+          ...accountMatches.map((a) => ({ run: () => chooseAccount(a.id) })),
+        ];
+
+  // Index of the first option <Option> rendered for `matches` / the accounts.
+  const staticCount =
+    panel === "category"
+      ? (value !== null ? 1 : 0) + (transfersEnabled ? 1 : 0)
+      : 1;
+
+  const onSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      if (navOptions.length === 0) return;
+      const delta = e.key === "ArrowDown" ? 1 : -1;
+      setActiveIndex((i) => {
+        if (i === -1) return delta === 1 ? 0 : navOptions.length - 1;
+        return (i + delta + navOptions.length) % navOptions.length;
+      });
+      return;
+    }
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const active = navOptions[activeIndex];
+      if (active) {
+        active.run();
+        return;
+      }
+      // No highlight: a typed query commits its first match, otherwise the
+      // popup just closes.
+      if (trimmed && panel === "category" && matches[0]) {
+        choose(matches[0].id);
+        return;
+      }
+      if (trimmed && panel === "transfer" && accountMatches[0]) {
+        chooseAccount(accountMatches[0].id);
+        return;
+      }
+      close();
+      return;
+    }
+    if (e.key === "Escape") {
+      e.preventDefault();
+      close();
+    }
   };
 
   const startCreate = () => {
@@ -269,6 +352,13 @@ export function CategoryCombobox({
           <SearchInput
             ref={inputRef}
             value={query}
+            role="combobox"
+            aria-expanded={open}
+            aria-controls={listboxId}
+            aria-autocomplete="list"
+            aria-activedescendant={
+              activeIndex >= 0 ? `${listboxId}-opt-${activeIndex}` : undefined
+            }
             placeholder={
               panel === "transfer"
                 ? "Search or create an account…"
@@ -276,15 +366,23 @@ export function CategoryCombobox({
             }
             onChange={(e) => {
               setQuery(e.target.value);
+              setActiveIndex(-1);
               if (panel === "category") startCreate();
             }}
+            onKeyDown={onSearchKeyDown}
           />
 
           {panel === "category" ? (
             <>
-              <List>
+              {/* biome-ignore lint/a11y/useSemanticElements: WAI-ARIA combobox pattern; a native <select> cannot host the search/create UI */}
+              <List id={listboxId} role="listbox">
                 {value !== null && (
                   <Option
+                    id={`${listboxId}-opt-0`}
+                    // biome-ignore lint/a11y/useSemanticElements: WAI-ARIA combobox pattern; a native <select> cannot host the search/create UI
+                    role="option"
+                    aria-selected={activeIndex === 0}
+                    $active={activeIndex === 0}
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => choose(null)}
                   >
@@ -293,19 +391,26 @@ export function CategoryCombobox({
                 )}
                 {transfersEnabled && (
                   <Option
+                    id={`${listboxId}-opt-${value !== null ? 1 : 0}`}
+                    // biome-ignore lint/a11y/useSemanticElements: WAI-ARIA combobox pattern; a native <select> cannot host the search/create UI
+                    role="option"
+                    aria-selected={activeIndex === (value !== null ? 1 : 0)}
+                    $active={activeIndex === (value !== null ? 1 : 0)}
                     onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => {
-                      setPanel("transfer");
-                      setQuery("");
-                    }}
+                    onClick={openTransferPanel}
                   >
                     <span>Transfer ▸</span>
                     <OptionMeta>to / from an account</OptionMeta>
                   </Option>
                 )}
-                {matches.map((c) => (
+                {matches.map((c, i) => (
                   <Option
                     key={c.id}
+                    id={`${listboxId}-opt-${staticCount + i}`}
+                    // biome-ignore lint/a11y/useSemanticElements: WAI-ARIA combobox pattern; a native <select> cannot host the search/create UI
+                    role="option"
+                    aria-selected={activeIndex === staticCount + i}
+                    $active={activeIndex === staticCount + i}
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => choose(c.id)}
                   >
@@ -366,19 +471,27 @@ export function CategoryCombobox({
             </>
           ) : (
             <>
-              <List>
+              {/* biome-ignore lint/a11y/useSemanticElements: WAI-ARIA combobox pattern; a native <select> cannot host the search/create UI */}
+              <List id={listboxId} role="listbox">
                 <Option
+                  id={`${listboxId}-opt-0`}
+                  // biome-ignore lint/a11y/useSemanticElements: WAI-ARIA combobox pattern; a native <select> cannot host the search/create UI
+                  role="option"
+                  aria-selected={activeIndex === 0}
+                  $active={activeIndex === 0}
                   onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => {
-                    setPanel("category");
-                    setQuery("");
-                  }}
+                  onClick={backToCategories}
                 >
                   <Muted>◂ Back to categories</Muted>
                 </Option>
-                {accountMatches.map((a) => (
+                {accountMatches.map((a, i) => (
                   <Option
                     key={a.id}
+                    id={`${listboxId}-opt-${1 + i}`}
+                    // biome-ignore lint/a11y/useSemanticElements: WAI-ARIA combobox pattern; a native <select> cannot host the search/create UI
+                    role="option"
+                    aria-selected={activeIndex === 1 + i}
+                    $active={activeIndex === 1 + i}
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => chooseAccount(a.id)}
                   >
