@@ -3,6 +3,7 @@ import styled, { css } from "styled-components";
 export const ToolbarWrapper = styled.div`
   ${({ theme }) => css`
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: ${theme.spacing.sm};
     padding: ${theme.spacing.xs} 0 ${theme.spacing.md};
@@ -13,11 +14,18 @@ export const ToolbarWrapper = styled.div`
 export const ToolbarGroup = styled.div`
   ${({ theme }) => css`
     display: flex;
+    flex-wrap: wrap;
     gap: ${theme.spacing.xs};
     padding-right: ${theme.spacing.md};
     border-right: 1px solid ${theme.colors.hairline};
 
     &:last-of-type {
+      border-right: none;
+    }
+
+    /* Wrapped rows make the vertical group dividers read as clutter. */
+    @media (max-width: 767px) {
+      padding-right: 0;
       border-right: none;
     }
   `}
@@ -41,10 +49,16 @@ export const ToolbarTool = styled.button<{ $active?: boolean }>`
     text-transform: uppercase;
     letter-spacing: ${theme.typography.monoCaps.letterSpacing};
     line-height: 1;
+    white-space: nowrap;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+
+    /* Mobile tap target (DESIGN.md: ≥44px on touch rows). */
+    @media (max-width: 767px) {
+      height: 44px;
+    }
 
     &:hover:not(:disabled) {
       border-color: ${$active ? theme.colors.primary : theme.colors.ink};
