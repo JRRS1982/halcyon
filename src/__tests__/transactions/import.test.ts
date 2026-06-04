@@ -111,3 +111,40 @@ describe("guessMapping", () => {
     expect(["DMY", "MDY", "YMD"]).toContain(guess.dateFormat);
   });
 });
+
+describe("mapRows extra columns", () => {
+  const rows = [
+    ["date", "description", "amount", "Type", "Reference"],
+    ["2026-03-14", "Tesco", "-50", "DD", "000123"],
+    ["2026-03-15", "Salary", "2000", "", "  "],
+  ];
+
+  test("keeps chosen columns keyed by their header label", () => {
+    const mapped = mapRows(rows, { ...mapping, extraColumns: [3, 4] });
+    expect(mapped[0].extra).toEqual({ Type: "DD", Reference: "000123" });
+  });
+
+  test("blank values are dropped; all-blank rows get null extra", () => {
+    const mapped = mapRows(rows, { ...mapping, extraColumns: [3, 4] });
+    expect(mapped[1].extra).toBeNull();
+  });
+
+  test("no extraColumns means extra is null", () => {
+    const mapped = mapRows(rows, mapping);
+    expect(mapped[0].extra).toBeNull();
+  });
+
+  test("headerless files key by column number", () => {
+    const mapped = mapRows([["2026-03-14", "Tesco", "-50", "DD"]], {
+      ...mapping,
+      hasHeader: false,
+      extraColumns: [3],
+    });
+    expect(mapped[0].extra).toEqual({ "Column 4": "DD" });
+  });
+
+  test("core mapped columns are never duplicated into extra", () => {
+    const mapped = mapRows(rows, { ...mapping, extraColumns: [0, 1, 2, 3] });
+    expect(mapped[0].extra).toEqual({ Type: "DD" });
+  });
+});

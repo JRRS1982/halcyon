@@ -20,6 +20,7 @@ const mappingSchema = z.object({
   descriptionColumn: z.number().int().min(0),
   dateFormat: z.enum(["DMY", "MDY", "YMD"]),
   hasHeader: z.boolean(),
+  extraColumns: z.array(z.number().int().min(0)).max(20).optional(),
 });
 
 const importSchema = z.object({
@@ -179,6 +180,8 @@ export async function commitImport(input: CommitInput): Promise<ImportResult> {
         date: row.date as Date,
         amount: row.amount as number,
         description: row.description,
+        // Kept CSV columns, keyed by header label (undefined leaves NULL).
+        extra: row.extra ?? undefined,
       })),
     });
   }
@@ -230,6 +233,28 @@ export async function setTransactionCategory(
   revalidatePath("/transactions");
   revalidatePath("/budget");
   revalidatePath("/dashboard");
+}
+
+const setNoteSchema = z.object({
+  transactionId: z.string().uuid(),
+  note: z.string().trim().max(2000),
+});
+
+// Sets (or clears, when empty) a transaction's free-text note. Notes are
+// human-written annotations — import metadata lives in `extra`.
+export async function setTransactionNote(
+  input: z.input<typeof setNoteSchema>,
+): Promise<void> {
+  const userId = await requireTransactionsEnabled();
+  const { transactionId, note } = setNoteSchema.parse(input);
+
+  const result = await prisma.transaction.updateMany({
+    where: { id: transactionId, userId, deletedAt: null },
+    data: { note: note === "" ? null : note },
+  });
+  if (result.count === 0) throw new Error("Transaction not found");
+
+  revalidatePath("/transactions");
 }
 
 const bulkSetCategorySchema = z.object({

@@ -9,7 +9,7 @@ import type {
   SortColumn,
   SortDir,
 } from "@/lib/transactions/server";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { Fragment, useEffect, useRef, useState, useTransition } from "react";
 import styled from "styled-components";
 import { CategoryCombobox, type NewCategoryInput } from "./CategoryCombobox";
 import {
@@ -19,6 +19,7 @@ import {
   createCategory,
   loadMoreTransactions,
   setTransactionCategory,
+  setTransactionNote,
   setTransactionTransfer,
 } from "./actions";
 
@@ -169,6 +170,79 @@ const ThCheck = styled.th`
   border-bottom: 1px solid ${({ theme }) => theme.colors.hairline};
 `;
 
+// Toggles the per-transaction detail panel. Accent when there's something
+// saved to see (interaction/wayfinding per DESIGN.md), dim otherwise.
+const NoteToggle = styled.button<{ $has: boolean }>`
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: ${({ theme }) => theme.typography.monoCaps.family};
+  font-size: ${({ theme }) => theme.typography.monoCaps.size};
+  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
+  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
+  text-transform: uppercase;
+  color: ${({ $has, theme }) =>
+    $has ? theme.colors.accent : theme.colors.dim};
+`;
+
+const DetailTd = styled.td`
+  padding: ${({ theme }) => theme.spacing.md};
+  border-bottom: 1px solid ${({ theme }) => theme.colors.hairline};
+  background: ${({ theme }) => theme.colors.canvasSoft};
+`;
+
+const DetailPanel = styled.div`
+  display: grid;
+  gap: ${({ theme }) => theme.spacing.sm};
+`;
+
+const ExtraList = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: ${({ theme }) => theme.spacing.lg};
+`;
+
+const ExtraPair = styled.span`
+  font-family: ${({ theme }) => theme.typography.bodyMd.family};
+  font-size: 13px;
+  color: ${({ theme }) => theme.colors.ink};
+`;
+
+const ExtraKey = styled.span`
+  font-family: ${({ theme }) => theme.typography.monoCaps.family};
+  font-size: ${({ theme }) => theme.typography.monoCaps.size};
+  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
+  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
+  text-transform: uppercase;
+  color: ${({ theme }) => theme.colors.dim};
+  margin-right: ${({ theme }) => theme.spacing.xs};
+`;
+
+const NoteRow = styled.div`
+  display: flex;
+  gap: ${({ theme }) => theme.spacing.sm};
+  align-items: flex-start;
+`;
+
+const NoteArea = styled.textarea`
+  flex: 1;
+  resize: vertical;
+  min-height: 36px;
+  padding: ${({ theme }) => theme.spacing.sm}
+    ${({ theme }) => theme.spacing.md};
+  border: 1px solid ${({ theme }) => theme.colors.hairline};
+  border-radius: ${({ theme }) => theme.rounded.sm};
+  font-family: ${({ theme }) => theme.typography.bodyMd.family};
+  font-size: 13px;
+
+  &:focus {
+    outline: 2px solid ${({ theme }) => theme.colors.accent};
+    outline-offset: -1px;
+  }
+`;
+
 // Appears between the controls and the table while rows are selected.
 const BulkBar = styled.section`
   display: flex;
@@ -316,6 +390,9 @@ export function Ledger({
   const [accounts, setAccounts] = useState(initialAccounts);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // Which row's detail panel (kept import columns + editable note) is open.
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [noteDraft, setNoteDraft] = useState("");
 
   // Latest client query, mirrored into a ref so the re-sync effect can read it
   // without depending on (and re-firing for) every filter/search/sort change.
@@ -520,6 +597,28 @@ export function Ledger({
     });
   };
 
+  const toggleExpanded = (tx: LedgerTransaction) => {
+    if (expandedId === tx.id) {
+      setExpandedId(null);
+      return;
+    }
+    setExpandedId(tx.id);
+    setNoteDraft(tx.note ?? "");
+  };
+
+  const saveNote = (transactionId: string) => {
+    const note = noteDraft.trim();
+    setItems((prev) =>
+      prev.map((t) =>
+        t.id === transactionId ? { ...t, note: note || null } : t,
+      ),
+    );
+    setExpandedId(null);
+    startTransition(async () => {
+      await setTransactionNote({ transactionId, note });
+    });
+  };
+
   const onBulkDelete = () => {
     const ids = Array.from(selected);
     setItems((prev) => prev.filter((t) => !selected.has(t.id)));
@@ -613,43 +712,94 @@ export function Ledger({
                   {sortMark(col.key)}
                 </Th>
               ))}
+              <ThCheck aria-label="Notes" />
             </tr>
           </thead>
           <tbody>
             {items.map((tx) => (
-              <tr key={tx.id}>
-                <Td>
-                  <input
-                    type="checkbox"
-                    checked={selected.has(tx.id)}
-                    onChange={() => toggleRow(tx.id)}
-                    aria-label={`Select ${tx.description}`}
-                  />
-                </Td>
-                <Td>{tx.date.slice(0, 10)}</Td>
-                <Td>{tx.description}</Td>
-                <Td>{tx.accountName}</Td>
-                <Amount $negative={tx.amount < 0}>
-                  {tx.amount.toFixed(2)}
-                </Amount>
-                <Td>
-                  <CategoryCombobox
-                    categories={categories}
-                    accounts={accounts}
-                    value={tx.categoryId}
-                    transferAccountId={tx.transferAccountId}
-                    ownAccountId={tx.accountId}
-                    defaultType={tx.amount < 0 ? "EXPENSE" : "INCOME"}
-                    transfersEnabled={transfersEnabled}
-                    onSelect={(categoryId) => onSelect(tx.id, categoryId)}
-                    onCreate={(input) => onCreateAndAssign(tx.id, input)}
-                    onTransfer={(accountId) => onTransfer(tx.id, accountId)}
-                    onCreateAccount={(name) =>
-                      onCreateAccountAndTransfer(tx.id, name)
-                    }
-                  />
-                </Td>
-              </tr>
+              <Fragment key={tx.id}>
+                <tr>
+                  <Td>
+                    <input
+                      type="checkbox"
+                      checked={selected.has(tx.id)}
+                      onChange={() => toggleRow(tx.id)}
+                      aria-label={`Select ${tx.description}`}
+                    />
+                  </Td>
+                  <Td>{tx.date.slice(0, 10)}</Td>
+                  <Td>{tx.description}</Td>
+                  <Td>{tx.accountName}</Td>
+                  <Amount $negative={tx.amount < 0}>
+                    {tx.amount.toFixed(2)}
+                  </Amount>
+                  <Td>
+                    <CategoryCombobox
+                      categories={categories}
+                      accounts={accounts}
+                      value={tx.categoryId}
+                      transferAccountId={tx.transferAccountId}
+                      ownAccountId={tx.accountId}
+                      defaultType={tx.amount < 0 ? "EXPENSE" : "INCOME"}
+                      transfersEnabled={transfersEnabled}
+                      onSelect={(categoryId) => onSelect(tx.id, categoryId)}
+                      onCreate={(input) => onCreateAndAssign(tx.id, input)}
+                      onTransfer={(accountId) => onTransfer(tx.id, accountId)}
+                      onCreateAccount={(name) =>
+                        onCreateAccountAndTransfer(tx.id, name)
+                      }
+                    />
+                  </Td>
+                  <Td>
+                    <NoteToggle
+                      type="button"
+                      $has={Boolean(tx.note || tx.extra)}
+                      aria-expanded={expandedId === tx.id}
+                      onClick={() => toggleExpanded(tx)}
+                    >
+                      {tx.note ? "Note ●" : tx.extra ? "Details" : "+ Note"}
+                    </NoteToggle>
+                  </Td>
+                </tr>
+                {expandedId === tx.id && (
+                  <tr>
+                    <DetailTd colSpan={7}>
+                      <DetailPanel>
+                        {tx.extra && (
+                          <ExtraList>
+                            {Object.entries(tx.extra).map(([key, value]) => (
+                              <ExtraPair key={key}>
+                                <ExtraKey>{key}</ExtraKey>
+                                {value}
+                              </ExtraPair>
+                            ))}
+                          </ExtraList>
+                        )}
+                        <NoteRow>
+                          <NoteArea
+                            value={noteDraft}
+                            onChange={(e) => setNoteDraft(e.target.value)}
+                            placeholder="Add a note…"
+                            aria-label={`Note for ${tx.description}`}
+                          />
+                          <GhostButton
+                            type="button"
+                            onClick={() => saveNote(tx.id)}
+                          >
+                            Save
+                          </GhostButton>
+                          <GhostButton
+                            type="button"
+                            onClick={() => setExpandedId(null)}
+                          >
+                            Cancel
+                          </GhostButton>
+                        </NoteRow>
+                      </DetailPanel>
+                    </DetailTd>
+                  </tr>
+                )}
+              </Fragment>
             ))}
           </tbody>
         </Table>
