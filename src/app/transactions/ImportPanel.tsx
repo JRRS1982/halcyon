@@ -164,6 +164,13 @@ const Note = styled.p`
   color: ${({ theme }) => theme.colors.body};
 `;
 
+const KeepRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: ${({ theme }) => theme.spacing.lg};
+  margin: ${({ theme }) => theme.spacing.sm} 0;
+`;
+
 const Overlay = styled.div`
   position: fixed;
   inset: 0;
@@ -180,6 +187,7 @@ const Dialog = styled.dialog`
   gap: ${({ theme }) => theme.spacing.lg};
   width: 100%;
   max-width: 460px;
+  margin: auto;
   padding: ${({ theme }) => theme.spacing["2xl"]};
   background: ${({ theme }) => theme.colors.canvas};
   border: none;
@@ -294,6 +302,18 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
 
   const patchMapping = (patch: Partial<ColumnMapping>) =>
     setMapping((current) => (current ? { ...current, ...patch } : current));
+
+  const toggleExtraColumn = (index: number) =>
+    setMapping((current) => {
+      if (!current) return current;
+      const kept = new Set(current.extraColumns ?? []);
+      if (kept.has(index)) kept.delete(index);
+      else kept.add(index);
+      return {
+        ...current,
+        extraColumns: Array.from(kept).sort((a, b) => a - b),
+      };
+    });
 
   const accountArgs = () => ({
     accountId: accountChoice === NEW_ACCOUNT ? null : accountChoice,
@@ -459,6 +479,40 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
               </Select>
             </Field>
           </MapGrid>
+
+          {columnOptions.some(
+            (i) =>
+              i !== mapping.dateColumn &&
+              i !== mapping.descriptionColumn &&
+              i !== mapping.amountColumn,
+          ) && (
+            <div>
+              <Label>Also keep</Label>
+              <KeepRow>
+                {columnOptions
+                  .filter(
+                    (i) =>
+                      i !== mapping.dateColumn &&
+                      i !== mapping.descriptionColumn &&
+                      i !== mapping.amountColumn,
+                  )
+                  .map((i) => (
+                    <CheckRow key={i}>
+                      <input
+                        type="checkbox"
+                        checked={mapping.extraColumns?.includes(i) ?? false}
+                        onChange={() => toggleExtraColumn(i)}
+                      />
+                      {columnLabel(rows, mapping.hasHeader, i)}
+                    </CheckRow>
+                  ))}
+              </KeepRow>
+              <Note>
+                Ticked columns are saved with each transaction and shown in the
+                ledger — useful for bank reference or type codes.
+              </Note>
+            </div>
+          )}
 
           <DestinationCard>
             <Label>Import into</Label>

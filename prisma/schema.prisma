@@ -287,6 +287,10 @@ model Transaction {
   amount            Decimal   @db.Decimal(14, 2)
   description       String
   note              String?
+  // Extra CSV columns the user chose to keep at import time, keyed by the
+  // column's header label (e.g. {"Type": "DD", "Reference": "000123"}).
+  // Machine-kept import metadata — `note` stays human-written.
+  extra             Json?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
   deletedAt         DateTime?

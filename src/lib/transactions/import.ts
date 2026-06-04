@@ -13,6 +13,9 @@ export type ColumnMapping = {
   descriptionColumn: number;
   dateFormat: DateFormat;
   hasHeader: boolean;
+  // Unmapped columns the user chose to keep. Their values land in
+  // Transaction.extra keyed by the column's header label.
+  extraColumns?: number[];
 };
 
 export type MappedRow = {
@@ -21,6 +24,7 @@ export type MappedRow = {
   date: Date | null;
   amount: number | null;
   description: string;
+  extra: Record<string, string> | null;
   errors: string[];
 };
 
@@ -63,6 +67,20 @@ export function guessMapping(headers: string[]): ColumnMapping {
 export function mapRows(rows: string[][], mapping: ColumnMapping): MappedRow[] {
   const dataRows = mapping.hasHeader ? rows.slice(1) : rows;
 
+  // Columns to keep verbatim, excluding the core mapped three, keyed by header
+  // label (or position for headerless files).
+  const core = [
+    mapping.dateColumn,
+    mapping.amountColumn,
+    mapping.descriptionColumn,
+  ];
+  const keptColumns = (mapping.extraColumns ?? [])
+    .filter((i) => !core.includes(i))
+    .map((i) => ({
+      index: i,
+      key: (mapping.hasHeader ? rows[0]?.[i]?.trim() : "") || `Column ${i + 1}`,
+    }));
+
   return dataRows.map((raw, index) => {
     const errors: string[] = [];
 
@@ -74,6 +92,14 @@ export function mapRows(rows: string[][], mapping: ColumnMapping): MappedRow[] {
 
     const description = (raw[mapping.descriptionColumn] ?? "").trim();
 
-    return { index, raw, date, amount, description, errors };
+    let extra: Record<string, string> | null = null;
+    for (const col of keptColumns) {
+      const value = (raw[col.index] ?? "").trim();
+      if (!value) continue;
+      extra = extra ?? {};
+      extra[col.key] = value;
+    }
+
+    return { index, raw, date, amount, description, extra, errors };
   });
 }

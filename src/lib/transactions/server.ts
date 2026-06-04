@@ -23,6 +23,9 @@ export type LedgerTransaction = {
   transferAccountId: string | null;
   accountId: string;
   accountName: string;
+  note: string | null;
+  // Kept CSV columns from import, keyed by header label.
+  extra: Record<string, string> | null;
 };
 
 export type SortColumn =
@@ -151,6 +154,8 @@ function serialize(tx: {
   transferAccountId: string | null;
   accountId: string;
   account: { name: string };
+  note: string | null;
+  extra: unknown;
 }): LedgerTransaction {
   return {
     id: tx.id,
@@ -161,6 +166,9 @@ function serialize(tx: {
     transferAccountId: tx.transferAccountId,
     accountId: tx.accountId,
     accountName: tx.account.name,
+    note: tx.note,
+    // `extra` is only ever written as a string→string object (see import).
+    extra: (tx.extra as Record<string, string> | null) ?? null,
   };
 }
 
@@ -215,6 +223,8 @@ export async function getTransactionsPage(
       transferAccountId: true,
       accountId: true,
       account: { select: { name: true } },
+      note: true,
+      extra: true,
     },
   });
 
