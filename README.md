@@ -9,7 +9,7 @@ Please see the [Playbook](docs/Playbook.md) for more information on the project,
 
 ## Deployment
 
-- **Development**: <http://localhost:3000/> (`pnpm dev` or `make up`).
+- **Development**: <http://localhost:3210/> (`pnpm dev` or `make up`).
 - **Production**: <https://halcyon-silk.vercel.app>.
 - **Hosting**: [Vercel](https://vercel.com) runs the Next.js app (App Router server components + route handlers + middleware). [Supabase](https://supabase.com) provides managed Postgres and Auth. See [ADR-001](docs/ADRs/ADR-001-TechStackSelection.md) for the rationale.
 - **Pipeline**: pushes to `master` trigger GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) which runs `biome ci`, `tsc --noEmit`, Jest, and Playwright on Node 22 + pnpm 10. Vercel watches `master` independently and ships the build to production once its own build passes.
@@ -23,7 +23,7 @@ Install dependencies with pnpm, then run the app **in Docker** for local develop
 
 ```bash
   pnpm install      # install dependencies
-  make build        # first run: build images, start Docker, migrate + seed (http://localhost:3000)
+  make build        # first run: build images, start Docker, migrate + seed (http://localhost:3210)
   # thereafter:  make            # start the app and local Postgres (attached)
 ```
 
@@ -121,7 +121,7 @@ Run the tests locally:
 Playwright spins up two webservers automatically:
 
 - a **mock Supabase Auth server** on `localhost:54321` (see [`e2e/_mock/supabase.mjs`](e2e/_mock/supabase.mjs))
-- a **Next.js dev server** on `localhost:3100` (the deliberately-different port lets the test server coexist with a developer's own `pnpm dev` on `:3000`)
+- a **Next.js dev server** on `localhost:3100` (the deliberately-different port lets the test server coexist with a developer's own `pnpm dev` on `:3210`)
 
 Auth is always mocked (no real Supabase project is touched). **DB-touching
 journeys** (transactions, transfers) do hit a real `halcyon_test` Postgres at
