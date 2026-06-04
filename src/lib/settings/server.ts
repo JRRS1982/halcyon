@@ -21,7 +21,7 @@ export async function getCurrentUserSettings(): Promise<{
   transfersEnabled: boolean;
   hiddenCharts: string[];
 }> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

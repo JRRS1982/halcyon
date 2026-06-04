@@ -1,7 +1,10 @@
 import { updateSession } from "@/lib/supabase/middleware";
 import type { NextRequest } from "next/server";
 
-export const middleware = (request: NextRequest) => updateSession(request);
+// Next 16 renamed middleware to proxy (src/proxy.ts, `proxy` export). This is
+// the route-protection boundary: it refreshes the Supabase session and
+// redirects unauthenticated requests — see docs/AuthFlow.md.
+export const proxy = (request: NextRequest) => updateSession(request);
 
 export const config = {
   // Run on every request except Next internals and static assets.

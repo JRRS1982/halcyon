@@ -23,7 +23,7 @@ export const signIn = async (formData: FormData) => {
     redirect(`/sign-in?error=${encodeURIComponent(message)}`);
   }
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword(parsed.data);
 
   if (error) {

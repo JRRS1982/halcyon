@@ -19,7 +19,7 @@ import {
 import { TransfersPanel } from "./TransfersPanel";
 
 type PageProps = {
-  searchParams: { ym?: string };
+  searchParams: Promise<{ ym?: string }>;
 };
 
 // Route logic:
@@ -31,8 +31,9 @@ type PageProps = {
 // row is only created when the user adds their first item (see
 // BudgetSheet.onAddRow). This avoids leaving an empty FinancialPeriod row
 // every time someone rotates through a month they don't end up using.
-export default async function BudgetPage({ searchParams }: PageProps) {
-  const supabase = createClient();
+export default async function BudgetPage(props: PageProps) {
+  const searchParams = await props.searchParams;
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

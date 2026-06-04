@@ -2,10 +2,11 @@ import { signInWithGoogle } from "../auth/oauth-actions";
 import { signIn } from "./actions";
 
 type Props = {
-  searchParams: { error?: string; next?: string };
+  searchParams: Promise<{ error?: string; next?: string }>;
 };
 
-export default function SignInPage({ searchParams }: Props) {
+export default async function SignInPage(props: Props) {
+  const searchParams = await props.searchParams;
   const next = searchParams.next ?? "/";
 
   return (

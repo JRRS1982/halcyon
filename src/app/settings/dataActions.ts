@@ -8,7 +8,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 async function requireUserId(): Promise<string> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -104,7 +104,7 @@ export async function deleteMyAccount(): Promise<void> {
 
   // A failed sign-out is tolerable here: the account is already deleted and the
   // session cookie expires on its own, so we don't block the redirect on it.
-  const supabase = createClient();
+  const supabase = await createClient();
   await supabase.auth.signOut();
   redirect("/");
 }

@@ -9,8 +9,8 @@ import { redirect } from "next/navigation";
 // Supabase, which redirects back to our /auth/callback with a one-time code
 // that the existing callback route exchanges for a session.
 export const signInWithGoogle = async () => {
-  const origin = headers().get("origin");
-  const supabase = createClient();
+  const origin = (await headers()).get("origin");
+  const supabase = await createClient();
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",

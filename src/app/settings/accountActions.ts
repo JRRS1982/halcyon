@@ -10,7 +10,7 @@ import { z } from "zod";
 // Accounts are managed in Settings and exist independently of the transactions
 // feature toggle, so these gate on auth only.
 async function requireUserId(): Promise<string> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

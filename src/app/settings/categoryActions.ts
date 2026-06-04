@@ -12,7 +12,7 @@ import { z } from "zod";
 // Categories are managed in Settings and exist regardless of the transactions
 // feature, so these gate on auth only (not requireTransactionsEnabled).
 async function requireUserId(): Promise<string> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
