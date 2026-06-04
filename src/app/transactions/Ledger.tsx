@@ -13,6 +13,8 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import styled from "styled-components";
 import { CategoryCombobox, type NewCategoryInput } from "./CategoryCombobox";
 import {
+  bulkDeleteTransactions,
+  bulkSetTransactionCategory,
   createAccount,
   createCategory,
   loadMoreTransactions,
@@ -160,6 +162,124 @@ const Empty = styled.p`
   color: ${({ theme }) => theme.colors.body};
 `;
 
+// Checkbox column header — unlike the data columns it doesn't sort.
+const ThCheck = styled.th`
+  width: 28px;
+  padding: ${({ theme }) => theme.spacing.sm};
+  border-bottom: 1px solid ${({ theme }) => theme.colors.hairline};
+`;
+
+// Appears between the controls and the table while rows are selected.
+const BulkBar = styled.section`
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: ${({ theme }) => theme.spacing.md};
+  padding: ${({ theme }) => theme.spacing.sm}
+    ${({ theme }) => theme.spacing.md};
+  border: 1px solid ${({ theme }) => theme.colors.hairlineStrong};
+  border-radius: ${({ theme }) => theme.rounded.sm};
+  background: ${({ theme }) => theme.colors.canvasSoft};
+`;
+
+const BulkCount = styled.span`
+  font-family: ${({ theme }) => theme.typography.monoCaps.family};
+  font-size: ${({ theme }) => theme.typography.monoCaps.size};
+  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
+  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
+  text-transform: uppercase;
+  color: ${({ theme }) => theme.colors.body};
+`;
+
+const BulkSelect = styled.select`
+  padding: ${({ theme }) => theme.spacing.sm}
+    ${({ theme }) => theme.spacing.md};
+  border: 1px solid ${({ theme }) => theme.colors.hairline};
+  border-radius: ${({ theme }) => theme.rounded.sm};
+  background: ${({ theme }) => theme.colors.canvas};
+  font-family: ${({ theme }) => theme.typography.bodyMd.family};
+  font-size: 13px;
+`;
+
+// Destructive per DESIGN.md: outline with red text, never one-click.
+const DangerButton = styled.button`
+  padding: ${({ theme }) => theme.spacing.sm}
+    ${({ theme }) => theme.spacing.lg};
+  border: 1px solid ${({ theme }) => theme.colors.hairline};
+  border-radius: ${({ theme }) => theme.rounded.sm};
+  background: ${({ theme }) => theme.colors.canvas};
+  color: ${({ theme }) => theme.colors.negative};
+  font-family: ${({ theme }) => theme.typography.monoCaps.family};
+  font-size: ${({ theme }) => theme.typography.monoCaps.size};
+  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
+  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
+  text-transform: uppercase;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
+
+const GhostButton = styled.button`
+  padding: ${({ theme }) => theme.spacing.sm}
+    ${({ theme }) => theme.spacing.lg};
+  border: 1px solid ${({ theme }) => theme.colors.hairlineStrong};
+  border-radius: ${({ theme }) => theme.rounded.sm};
+  background: ${({ theme }) => theme.colors.canvas};
+  color: ${({ theme }) => theme.colors.ink};
+  font-family: ${({ theme }) => theme.typography.bodyMd.family};
+  font-size: ${({ theme }) => theme.typography.bodyMd.size};
+  cursor: pointer;
+`;
+
+const Overlay = styled.div`
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: ${({ theme }) => theme.spacing["2xl"]};
+  background: rgba(15, 17, 22, 0.5);
+`;
+
+const Dialog = styled.dialog`
+  display: grid;
+  gap: ${({ theme }) => theme.spacing.lg};
+  width: 100%;
+  max-width: 480px;
+  margin: auto;
+  padding: ${({ theme }) => theme.spacing["2xl"]};
+  background: ${({ theme }) => theme.colors.canvas};
+  border: none;
+  border-radius: ${({ theme }) => theme.rounded.sm};
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+`;
+
+const DialogTitle = styled.h3`
+  margin: 0;
+  font-family: ${({ theme }) => theme.typography.monoCaps.family};
+  font-size: ${({ theme }) => theme.typography.monoCaps.size};
+  text-transform: uppercase;
+  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
+  color: ${({ theme }) => theme.colors.dim};
+`;
+
+const DialogText = styled.p`
+  margin: 0;
+  font-family: ${({ theme }) => theme.typography.bodyMd.family};
+  font-size: ${({ theme }) => theme.typography.bodyMd.size};
+  color: ${({ theme }) => theme.colors.body};
+`;
+
+const DialogActions = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  gap: ${({ theme }) => theme.spacing.md};
+`;
+
 const COLUMNS: { key: SortColumn; label: string; align?: "right" }[] = [
   { key: "date", label: "Date" },
   { key: "description", label: "Description" },
@@ -194,6 +314,8 @@ export function Ledger({
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [categories, setCategories] = useState(initialCategories);
   const [accounts, setAccounts] = useState(initialAccounts);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   // Latest client query, mirrored into a ref so the re-sync effect can read it
   // without depending on (and re-firing for) every filter/search/sort change.
@@ -251,6 +373,8 @@ export function Ledger({
       sortDir,
       ...over,
     };
+    // A fresh page invalidates the current selection; appending keeps it.
+    if (!append) setSelected(new Set());
     startTransition(async () => {
       const page = await loadMoreTransactions(query);
       setItems((prev) => (append ? [...prev, ...page.items] : page.items));
@@ -359,6 +483,53 @@ export function Ledger({
   const sortMark = (key: SortColumn) =>
     sortColumn === key ? (sortDir === "desc" ? " ↓" : " ↑") : "";
 
+  const allOnPageSelected =
+    items.length > 0 && items.every((t) => selected.has(t.id));
+
+  const toggleRow = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const toggleAllOnPage = () =>
+    setSelected(
+      allOnPageSelected ? new Set() : new Set(items.map((t) => t.id)),
+    );
+
+  // Applies a category to every selected row, optimistically, then commits in
+  // one server round-trip. Mirrors the single-row behaviour under the
+  // "uncategorized only" filter: newly categorised rows leave the list.
+  const onBulkCategorise = (value: string) => {
+    const categoryId = value === "__clear__" ? null : value;
+    const ids = Array.from(selected);
+    setItems((prev) =>
+      onlyUncategorized && categoryId !== null
+        ? prev.filter((t) => !selected.has(t.id))
+        : prev.map((t) =>
+            selected.has(t.id)
+              ? { ...t, categoryId, transferAccountId: null }
+              : t,
+          ),
+    );
+    setSelected(new Set());
+    startTransition(async () => {
+      await bulkSetTransactionCategory({ transactionIds: ids, categoryId });
+    });
+  };
+
+  const onBulkDelete = () => {
+    const ids = Array.from(selected);
+    setItems((prev) => prev.filter((t) => !selected.has(t.id)));
+    setSelected(new Set());
+    setConfirmDelete(false);
+    startTransition(async () => {
+      await bulkDeleteTransactions({ transactionIds: ids });
+    });
+  };
+
   return (
     <Section>
       <Head>
@@ -387,6 +558,33 @@ export function Ledger({
         />
       </Controls>
 
+      {selected.size > 0 && (
+        <BulkBar aria-label="Bulk actions">
+          <BulkCount>{selected.size} selected</BulkCount>
+          <BulkSelect
+            value=""
+            onChange={(e) => onBulkCategorise(e.target.value)}
+            aria-label="Set category for selected transactions"
+          >
+            <option value="" disabled>
+              Set category…
+            </option>
+            <option value="__clear__">— Uncategorized —</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.label} · {c.section}
+              </option>
+            ))}
+          </BulkSelect>
+          <DangerButton type="button" onClick={() => setConfirmDelete(true)}>
+            Delete…
+          </DangerButton>
+          <GhostButton type="button" onClick={() => setSelected(new Set())}>
+            Clear selection
+          </GhostButton>
+        </BulkBar>
+      )}
+
       {items.length === 0 ? (
         <Empty>
           {onlyUncategorized || search
@@ -397,6 +595,14 @@ export function Ledger({
         <Table>
           <thead>
             <tr>
+              <ThCheck>
+                <input
+                  type="checkbox"
+                  checked={allOnPageSelected}
+                  onChange={toggleAllOnPage}
+                  aria-label="Select all transactions on this page"
+                />
+              </ThCheck>
               {COLUMNS.map((col) => (
                 <Th
                   key={col.key}
@@ -412,6 +618,14 @@ export function Ledger({
           <tbody>
             {items.map((tx) => (
               <tr key={tx.id}>
+                <Td>
+                  <input
+                    type="checkbox"
+                    checked={selected.has(tx.id)}
+                    onChange={() => toggleRow(tx.id)}
+                    aria-label={`Select ${tx.description}`}
+                  />
+                </Td>
                 <Td>{tx.date.slice(0, 10)}</Td>
                 <Td>{tx.description}</Td>
                 <Td>{tx.accountName}</Td>
@@ -447,6 +661,36 @@ export function Ledger({
             {pending ? "Loading…" : "Load more"}
           </Button>
         </div>
+      )}
+
+      {confirmDelete && (
+        <Overlay
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setConfirmDelete(false);
+          }}
+        >
+          <Dialog open aria-label="Confirm delete">
+            <DialogTitle>Delete {selected.size} transaction(s)?</DialogTitle>
+            <DialogText>
+              Deleting imported transactions leaves your records incomplete —
+              totals, budget actuals and averages will no longer match your bank
+              statements. If these rows are miscategorised or noise, consider
+              categorising them (or tagging them as transfers) instead, so your
+              history stays accurate.
+            </DialogText>
+            <DialogActions>
+              <GhostButton
+                type="button"
+                onClick={() => setConfirmDelete(false)}
+              >
+                Keep them
+              </GhostButton>
+              <DangerButton type="button" onClick={onBulkDelete}>
+                Delete {selected.size} transaction(s)
+              </DangerButton>
+            </DialogActions>
+          </Dialog>
+        </Overlay>
       )}
     </Section>
   );
