@@ -136,6 +136,27 @@ const Summary = styled.p`
   color: ${({ theme }) => theme.colors.body};
 `;
 
+// The destination account gets its own card, set apart from the column
+// mapping, so statements don't land in the wrong account by default.
+const DestinationCard = styled.div`
+  display: grid;
+  gap: ${({ theme }) => theme.spacing.sm};
+  padding: ${({ theme }) => theme.spacing.lg};
+  border: 1px solid ${({ theme }) => theme.colors.hairlineStrong};
+  border-radius: ${({ theme }) => theme.rounded.sm};
+  background: ${({ theme }) => theme.colors.canvasSoft};
+`;
+
+const DestinationLine = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: ${({ theme }) => theme.spacing.md};
+
+  > * {
+    flex: 0 1 320px;
+  }
+`;
+
 const Note = styled.p`
   margin: 0;
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
@@ -338,6 +359,12 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
   );
   const accountReady =
     accountChoice !== NEW_ACCOUNT || newAccountName.trim().length > 0;
+  // Spelled out wherever the import is described, so a wrong default account
+  // gets noticed before committing.
+  const destinationName =
+    accountChoice === NEW_ACCOUNT
+      ? newAccountName.trim() || "a new account"
+      : (accounts.find((a) => a.id === accountChoice)?.name ?? "");
 
   return (
     <Panel>
@@ -431,9 +458,11 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
                 ))}
               </Select>
             </Field>
+          </MapGrid>
 
-            <Field>
-              <Label>Account</Label>
+          <DestinationCard>
+            <Label>Import into</Label>
+            <DestinationLine>
               <Select
                 value={accountChoice}
                 onChange={(e) => setAccountChoice(e.target.value)}
@@ -445,19 +474,16 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
                 ))}
                 <option value={NEW_ACCOUNT}>+ New account…</option>
               </Select>
-            </Field>
-
-            {accountChoice === NEW_ACCOUNT && (
-              <Field>
-                <Label>New account name</Label>
+              {accountChoice === NEW_ACCOUNT && (
                 <Input
                   value={newAccountName}
                   onChange={(e) => setNewAccountName(e.target.value)}
                   placeholder="e.g. Current account"
+                  aria-label="New account name"
                 />
-              </Field>
-            )}
-          </MapGrid>
+              )}
+            </DestinationLine>
+          </DestinationCard>
 
           <div>
             <Label>Preview</Label>
@@ -489,7 +515,8 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
               </tbody>
             </Table>
             <Summary>
-              {validCount} ready to import
+              {validCount} ready to import into{" "}
+              <strong>{destinationName}</strong>
               {errorCount > 0 ? `, ${errorCount} with errors (skipped)` : ""}.
             </Summary>
           </div>
@@ -500,7 +527,9 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
               onClick={onImport}
               disabled={pending || validCount === 0 || !accountReady}
             >
-              {pending ? "Importing…" : `Import ${validCount} transactions`}
+              {pending
+                ? "Importing…"
+                : `Import ${validCount} transactions into ${destinationName}`}
             </Button>
           </div>
         </>
@@ -527,8 +556,8 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
             <DialogTitle>Possible duplicates</DialogTitle>
             <Note>
               {confirm.duplicates.length} row(s) look like transactions already
-              imported into this account. Ticked rows will be skipped — untick
-              any that are genuinely separate.
+              imported into <strong>{destinationName}</strong>. Ticked rows will
+              be skipped — untick any that are genuinely separate.
             </Note>
             <DupList>
               {confirm.duplicates.map((d) => (
