@@ -15,14 +15,15 @@ import {
 } from "./BalanceSheet";
 
 type PageProps = {
-  searchParams: { ym?: string };
+  searchParams: Promise<{ ym?: string }>;
 };
 
 // /balance shares the FinancialPeriod row with /budget for a given month
 // (?ym=YYYY-MM). The period is "virtual" (id="") until either page creates
 // its first item — at which point both pages see the real row.
-export default async function BalancePage({ searchParams }: PageProps) {
-  const supabase = createClient();
+export default async function BalancePage(props: PageProps) {
+  const searchParams = await props.searchParams;
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

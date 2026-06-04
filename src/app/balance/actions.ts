@@ -29,7 +29,7 @@ import { ensurePeriodForMonth } from "../budget/actions";
 // auth independently. Middleware also guards /balance but we never trust a
 // single layer.
 async function requireUserId(): Promise<string> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

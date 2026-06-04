@@ -2,10 +2,11 @@ import { signInWithGoogle } from "../auth/oauth-actions";
 import { signUp } from "./actions";
 
 type Props = {
-  searchParams: { error?: string; success?: string };
+  searchParams: Promise<{ error?: string; success?: string }>;
 };
 
-export default function SignUpPage({ searchParams }: Props) {
+export default async function SignUpPage(props: Props) {
+  const searchParams = await props.searchParams;
   return (
     <main style={{ maxWidth: 360, margin: "4rem auto", padding: "0 1rem" }}>
       <h1>Create account</h1>

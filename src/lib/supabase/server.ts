@@ -3,8 +3,9 @@ import { cookies } from "next/headers";
 
 // Server Supabase client. Use in server components, route handlers, and
 // server actions. Reads/writes the session cookies on the current request.
-export const createClient = () => {
-  const cookieStore = cookies();
+// Async because Next 15+ makes cookies() a Promise.
+export const createClient = async () => {
+  const cookieStore = await cookies();
 
   return createServerClient(
     // biome-ignore lint/style/noNonNullAssertion: validated at app startup

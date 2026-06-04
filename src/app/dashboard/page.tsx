@@ -22,7 +22,7 @@ type Cat = "FIXED" | "VARIABLE" | "DISCRETIONARY";
 // series each dashboard chart needs: monthly cash flow, balance buckets, and
 // per-category expenditure (actual/budget/average).
 export default async function DashboardPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

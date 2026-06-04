@@ -25,7 +25,7 @@ import { redirect } from "next/navigation";
 // guards /budget, but every action enforces auth independently — never trust
 // a single layer.
 async function requireUserId(): Promise<string> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

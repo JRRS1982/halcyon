@@ -17,8 +17,8 @@ export const signUp = async (formData: FormData) => {
     redirect(`/sign-up?error=${encodeURIComponent(message)}`);
   }
 
-  const origin = headers().get("origin");
-  const supabase = createClient();
+  const origin = (await headers()).get("origin");
+  const supabase = await createClient();
 
   const { error } = await supabase.auth.signUp({
     ...parsed.data,
