@@ -35,13 +35,44 @@ describe("DataPrivacy", () => {
     ).toBeInTheDocument();
   });
 
-  test("delete button is disabled until the user types DELETE", () => {
+  test("clear opens an in-app warning with confirm + cancel (no native confirm)", () => {
     renderit();
-    const del = screen.getByRole("button", { name: /delete my account/i });
-    expect(del).toBeDisabled();
-    fireEvent.change(screen.getByPlaceholderText(/type DELETE/i), {
-      target: { value: "DELETE" },
-    });
-    expect(del).toBeEnabled();
+    // No confirmation panel until the user starts the flow.
+    expect(
+      screen.queryByText(/delete all financial records/i),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /clear my data/i }));
+
+    expect(
+      screen.getByText(/delete all financial records/i),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /cancel/i })).toBeInTheDocument();
+
+    // Cancelling dismisses the warning.
+    fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
+    expect(
+      screen.queryByText(/delete all financial records/i),
+    ).not.toBeInTheDocument();
+  });
+
+  test("delete requires a confirmation step, then typing DELETE", () => {
+    renderit();
+    // The confirm field is hidden until the user opens the confirmation step.
+    expect(
+      screen.queryByPlaceholderText(/type DELETE/i),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /delete my account/i }));
+
+    const input = screen.getByPlaceholderText(/type DELETE/i);
+    expect(input).toBeInTheDocument();
+
+    // With the step open, the confirm button is the only "Delete my account"
+    // button, and it's disabled until DELETE is typed exactly.
+    const confirm = screen.getByRole("button", { name: /delete my account/i });
+    expect(confirm).toBeDisabled();
+    fireEvent.change(input, { target: { value: "DELETE" } });
+    expect(confirm).toBeEnabled();
   });
 });
