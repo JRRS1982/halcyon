@@ -12,6 +12,7 @@ import {
 import {
   Toolbar,
   ToolbarGroup,
+  ToolbarPeriodLabel,
   ToolbarSpacer,
   ToolbarTool,
 } from "@/components/sheet/Toolbar";
@@ -1265,7 +1266,7 @@ export function BudgetSheet({
             <ToolbarTool onClick={onToday} disabled={isOnCurrentMonth}>
               Today
             </ToolbarTool>
-            <ToolbarTool
+            <ToolbarPeriodLabel
               onClick={() => {
                 setPickerYear(periodYear);
                 setPickerOpen((o) => !o);
@@ -1273,7 +1274,7 @@ export function BudgetSheet({
               aria-expanded={pickerOpen}
             >
               {periodState.label} ▾
-            </ToolbarTool>
+            </ToolbarPeriodLabel>
             <ToolbarTool onClick={onNextMonth} aria-label="Next month">
               ▶
             </ToolbarTool>
