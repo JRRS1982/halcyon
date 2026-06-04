@@ -12,6 +12,7 @@ import { getOrProvisionCategories } from "@/lib/transactions/server";
 import { AccountManager, type ManagedAccount } from "./AccountManager";
 import { CategoryManager, type ManagedCategory } from "./CategoryManager";
 import { DashboardSettings } from "./DashboardSettings";
+import { DataPrivacy } from "./DataPrivacy";
 import { SettingsForm } from "./SettingsForm";
 import { updateSettings } from "./actions";
 
@@ -140,6 +141,7 @@ export default async function SettingsPage() {
       <DashboardSettings hiddenCharts={hiddenCharts} />
       <CategoryManager categories={managedCategories} />
       <AccountManager accounts={managedAccounts} />
+      <DataPrivacy />
     </>
   );
 }

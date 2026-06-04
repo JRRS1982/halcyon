@@ -1,3 +1,4 @@
+import { Footer } from "@/components/ui/Footer";
 import { NavBar } from "@/components/ui/NavBar";
 import { isTransactionsEnabled } from "@/lib/settings/server";
 import { StyledComponentsRegistry } from "@/lib/styled";
@@ -31,7 +32,8 @@ export default async function RootLayout({
       <body className={inter.className}>
         <StyledComponentsRegistry>
           <NavBar signedIn={!!user} transactionsEnabled={transactionsEnabled} />
-          <div className="min-h-screen">{children}</div>
+          <div className="app-content">{children}</div>
+          <Footer />
         </StyledComponentsRegistry>
       </body>
     </html>

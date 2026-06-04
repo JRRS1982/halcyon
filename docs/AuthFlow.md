@@ -158,6 +158,8 @@ sequenceDiagram
 | OAuth / magic-link / email-confirmation callback | [`src/app/auth/callback/route.ts`](../src/app/auth/callback/route.ts) |
 | Sign-out server action | [`src/app/actions.ts`](../src/app/actions.ts) |
 | Profile-row trigger + RLS policies | [`prisma/migrations/20260522130000_supabase_auth_integration/migration.sql`](../prisma/migrations/20260522130000_supabase_auth_integration/migration.sql) |
+| Account-data server actions (export / clear / delete) | [`src/app/settings/dataActions.ts`](../src/app/settings/dataActions.ts) |
+| Service-role admin client (account erasure) | [`src/lib/supabase/admin.ts`](../src/lib/supabase/admin.ts) |
 
 ## Google OAuth setup
 
@@ -208,8 +210,41 @@ Tests run against a **mock Supabase Auth server** at [`e2e/_mock/supabase.mjs`](
 pnpm test:e2e
 ```
 
+## Account deletion & data erasure
+
+Halcyon's "identity-in-`auth`, profile-in-`public`" split (see top of this doc) means a user's data lives in two places, so erasure has two halves:
+
+- **App data** — every Prisma row (financial tables, `Category`, `UserSettings`, the `public."User"` profile) is deleted in one `prisma.$transaction`, in FK-safe order. Transactions are deleted before accounts because `Transaction.transferAccount` is `onDelete: Restrict`.
+- **Identity** — the `auth.users` record (email, password hash, OAuth identities) is deleted via Supabase's **Admin API** (`auth.admin.deleteUser`). The request-scoped client (publishable key) is not permitted to do this, so a dedicated server-only **service-role client** (`src/lib/supabase/admin.ts`, using `SUPABASE_SECRET_KEY`) performs it. The secret key bypasses RLS and never reaches the browser.
+
+App data is deleted first, then the identity: a failure mid-way leaves the privacy-critical financial data erased rather than orphaned behind an undeletable login. **Recovery from a partial failure:** if `auth.admin.deleteUser` fails *after* the Prisma transaction has committed, the user's app data is gone but their login still exists (a "zombie" session with no `public."User"` row). To finish the erasure, delete that user manually in the Supabase dashboard (Authentication → Users). The sign-out is best-effort for the same reason — a failed sign-out only leaves a cookie that expires on its own.
+
+Two lighter operations live alongside it (both in `src/app/settings/dataActions.ts`):
+
+- **`clearMyData`** — deletes only the financial rows; keeps the login, `UserSettings`, and `Category`.
+- **`exportMyData`** — returns a single JSON document of every user-owned row (GDPR data portability); `Decimal` values are serialised as strings.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as User (browser)
+    participant App as Next.js (server action)
+    participant DB as Postgres (Supabase)
+    participant Admin as Supabase Admin API
+    participant SAuth as Supabase Auth
+
+    User->>App: deleteMyAccount()
+    App->>DB: $transaction: delete financial rows,<br/>Category, UserSettings, User<br/>(FK-safe order)
+    DB-->>App: ok
+    App->>Admin: auth.admin.deleteUser(userId)<br/>(service-role secret key)
+    Admin->>DB: DELETE FROM auth.users WHERE id = ?
+    Admin-->>App: ok
+    App->>SAuth: supabase.auth.signOut()
+    SAuth-->>App: cookie cleared
+    App-->>User: 307 → /
+```
+
 ## Known gaps / next iterations
 
-- **MFA, password reset UI, more OAuth providers** — all small Supabase dashboard toggles + small UI additions.
-- **No "delete account" flow** — Supabase Admin API supports it (`auth.admin.deleteUser`) but needs `SUPABASE_SECRET_KEY` and a server-only handler.
+- **Password reset UI, MFA, more OAuth providers** — small Supabase dashboard toggles + UI additions. (Delete-account is now implemented — see "Account deletion & data erasure" above.)
 - **Real OAuth round-trip not E2E tested**. The mock returns a canned redirect; a true Google flow would need a real Google test account and is more brittle than it's worth.

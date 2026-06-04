@@ -1,0 +1,202 @@
+const mockDeleteUser = jest.fn(async () => ({ data: {}, error: null }));
+
+jest.mock("@/lib/supabase/admin", () => ({
+  createAdminClient: () => ({
+    auth: { admin: { deleteUser: mockDeleteUser } },
+  }),
+}));
+
+jest.mock("@/lib/supabase/server", () => ({
+  createClient: () => ({
+    auth: {
+      getUser: async () => ({
+        data: { user: { id: "00000000-0000-0000-0000-0000000000aa" } },
+      }),
+      signOut: async () => ({ error: null }),
+    },
+  }),
+}));
+
+import {
+  clearMyData,
+  deleteMyAccount,
+  exportMyData,
+} from "@/app/settings/dataActions";
+import { prisma } from "@/lib/prisma";
+import { TEST_USER_ID } from "../../../test/integration/helpers";
+
+// A second user, to prove every action is scoped by userId.
+const OTHER_USER_ID = "00000000-0000-0000-0000-0000000000bb";
+
+async function seedFinancialData(userId: string) {
+  const account = await prisma.account.create({
+    data: { userId, name: "Current" },
+  });
+  const category = await prisma.category.create({
+    data: { userId, type: "EXPENSE", category: "VARIABLE", label: "Food" },
+  });
+  const period = await prisma.financialPeriod.create({
+    data: {
+      userId,
+      startDate: new Date("2026-03-01"),
+      endDate: new Date("2026-03-31"),
+      label: "Mar 2026",
+    },
+  });
+  await prisma.financialItem.create({
+    data: { periodId: period.id, type: "EXPENSE", label: "Rent", budget: 1000 },
+  });
+  await prisma.balanceItem.create({
+    data: {
+      periodId: period.id,
+      type: "ASSET",
+      category: "CURRENT",
+      label: "Cash",
+      value: 500,
+    },
+  });
+  await prisma.transaction.create({
+    data: {
+      userId,
+      accountId: account.id,
+      categoryId: category.id,
+      date: new Date("2026-03-02"),
+      amount: -25.5,
+      description: "Groceries",
+    },
+  });
+}
+
+describe("exportMyData (integration)", () => {
+  test("includes every user-owned table, scoped to the caller", async () => {
+    await seedFinancialData(TEST_USER_ID);
+    await prisma.user.create({ data: { id: OTHER_USER_ID } });
+    await seedFinancialData(OTHER_USER_ID);
+
+    const dump = JSON.parse(await exportMyData());
+
+    expect(dump.user.id).toBe(TEST_USER_ID);
+    expect(dump.accounts).toHaveLength(1);
+    expect(dump.categories).toHaveLength(1);
+    expect(dump.periods).toHaveLength(1);
+    expect(dump.financialItems).toHaveLength(1);
+    expect(dump.balanceItems).toHaveLength(1);
+    expect(dump.transactions).toHaveLength(1);
+    expect(dump.transactions[0].amount).toBe("-25.5");
+    expect(
+      dump.accounts.every((a: { userId: string }) => a.userId === TEST_USER_ID),
+    ).toBe(true);
+  });
+});
+
+describe("clearMyData (integration)", () => {
+  test("removes financial rows but keeps User, settings, and categories", async () => {
+    await seedFinancialData(TEST_USER_ID);
+    // seedUser() (global beforeEach) already created UserSettings for TEST_USER_ID.
+
+    await clearMyData();
+
+    expect(
+      await prisma.transaction.count({ where: { userId: TEST_USER_ID } }),
+    ).toBe(0);
+    expect(
+      await prisma.account.count({ where: { userId: TEST_USER_ID } }),
+    ).toBe(0);
+    expect(
+      await prisma.financialPeriod.count({ where: { userId: TEST_USER_ID } }),
+    ).toBe(0);
+    expect(
+      await prisma.financialItem.count({
+        where: { period: { userId: TEST_USER_ID } },
+      }),
+    ).toBe(0);
+    expect(
+      await prisma.balanceItem.count({
+        where: { period: { userId: TEST_USER_ID } },
+      }),
+    ).toBe(0);
+
+    // Kept:
+    expect(
+      await prisma.user.findUnique({ where: { id: TEST_USER_ID } }),
+    ).not.toBeNull();
+    expect(
+      await prisma.userSettings.findUnique({ where: { userId: TEST_USER_ID } }),
+    ).not.toBeNull();
+    expect(
+      await prisma.category.count({ where: { userId: TEST_USER_ID } }),
+    ).toBe(1);
+  });
+
+  test("does not touch another user's data", async () => {
+    await prisma.user.create({ data: { id: OTHER_USER_ID } });
+    await seedFinancialData(OTHER_USER_ID);
+
+    await clearMyData();
+
+    expect(
+      await prisma.transaction.count({ where: { userId: OTHER_USER_ID } }),
+    ).toBe(1);
+    expect(
+      await prisma.account.count({ where: { userId: OTHER_USER_ID } }),
+    ).toBe(1);
+  });
+});
+
+describe("deleteMyAccount (integration)", () => {
+  beforeEach(() => mockDeleteUser.mockClear());
+
+  test("hard-deletes all rows, calls auth admin deleteUser, then redirects", async () => {
+    await seedFinancialData(TEST_USER_ID);
+    await prisma.budgetTemplateItem.create({
+      data: { userId: TEST_USER_ID, type: "EXPENSE", label: "Tmpl", budget: 1 },
+    });
+
+    // redirect("/") is mocked to throw `redirect:/`.
+    await expect(deleteMyAccount()).rejects.toThrow("redirect:/");
+
+    expect(mockDeleteUser).toHaveBeenCalledTimes(1);
+    expect(mockDeleteUser).toHaveBeenCalledWith(TEST_USER_ID);
+
+    expect(
+      await prisma.user.findUnique({ where: { id: TEST_USER_ID } }),
+    ).toBeNull();
+    expect(
+      await prisma.userSettings.findUnique({ where: { userId: TEST_USER_ID } }),
+    ).toBeNull();
+    expect(
+      await prisma.category.count({ where: { userId: TEST_USER_ID } }),
+    ).toBe(0);
+    expect(
+      await prisma.transaction.count({ where: { userId: TEST_USER_ID } }),
+    ).toBe(0);
+    expect(
+      await prisma.account.count({ where: { userId: TEST_USER_ID } }),
+    ).toBe(0);
+    expect(
+      await prisma.budgetTemplateItem.count({
+        where: { userId: TEST_USER_ID },
+      }),
+    ).toBe(0);
+  });
+
+  test("does not touch another user's rows", async () => {
+    await prisma.user.create({ data: { id: OTHER_USER_ID } });
+    await seedFinancialData(OTHER_USER_ID);
+
+    await expect(deleteMyAccount()).rejects.toThrow("redirect:/");
+
+    expect(
+      await prisma.user.findUnique({ where: { id: OTHER_USER_ID } }),
+    ).not.toBeNull();
+    expect(
+      await prisma.transaction.count({ where: { userId: OTHER_USER_ID } }),
+    ).toBe(1);
+    expect(
+      await prisma.category.count({ where: { userId: OTHER_USER_ID } }),
+    ).toBe(1);
+    expect(
+      await prisma.account.count({ where: { userId: OTHER_USER_ID } }),
+    ).toBe(1);
+  });
+});

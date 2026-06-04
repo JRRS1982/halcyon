@@ -1,0 +1,110 @@
+"use server";
+
+import { serializeExport } from "@/lib/data/serialize";
+import { prisma } from "@/lib/prisma";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+
+async function requireUserId(): Promise<string> {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/sign-in?next=/settings");
+  return user.id;
+}
+
+// Deletes every FINANCIAL row for a user, in FK-safe order. Transactions go
+// first because Transaction.transferAccount is onDelete: Restrict — an account
+// can't be removed while a transfer still points at it. Does NOT touch User,
+// UserSettings, or Category. Returns the ops for a single $transaction.
+function financialDeletes(userId: string) {
+  return [
+    prisma.transaction.deleteMany({ where: { userId } }),
+    prisma.financialItem.deleteMany({ where: { period: { userId } } }),
+    prisma.balanceItem.deleteMany({ where: { period: { userId } } }),
+    prisma.financialPeriod.deleteMany({ where: { userId } }),
+    prisma.account.deleteMany({ where: { userId } }),
+    prisma.budgetTemplateItem.deleteMany({ where: { userId } }),
+    prisma.balanceTemplateItem.deleteMany({ where: { userId } }),
+  ];
+}
+
+export async function exportMyData(): Promise<string> {
+  const userId = await requireUserId();
+  const [
+    user,
+    settings,
+    categories,
+    accounts,
+    periods,
+    financialItems,
+    balanceItems,
+    budgetTemplateItems,
+    balanceTemplateItems,
+    transactions,
+  ] = await Promise.all([
+    prisma.user.findUnique({ where: { id: userId } }),
+    prisma.userSettings.findUnique({ where: { userId } }),
+    prisma.category.findMany({ where: { userId } }),
+    prisma.account.findMany({ where: { userId } }),
+    prisma.financialPeriod.findMany({ where: { userId } }),
+    prisma.financialItem.findMany({ where: { period: { userId } } }),
+    prisma.balanceItem.findMany({ where: { period: { userId } } }),
+    prisma.budgetTemplateItem.findMany({ where: { userId } }),
+    prisma.balanceTemplateItem.findMany({ where: { userId } }),
+    prisma.transaction.findMany({ where: { userId } }),
+  ]);
+
+  return serializeExport({
+    exportedAt: new Date().toISOString(),
+    schemaVersion: 1,
+    user,
+    settings,
+    categories,
+    accounts,
+    periods,
+    financialItems,
+    balanceItems,
+    budgetTemplateItems,
+    balanceTemplateItems,
+    transactions,
+  });
+}
+
+export async function clearMyData(): Promise<void> {
+  const userId = await requireUserId();
+  await prisma.$transaction(financialDeletes(userId));
+  revalidatePath("/dashboard");
+  revalidatePath("/budget");
+  revalidatePath("/balance");
+  revalidatePath("/transactions");
+  revalidatePath("/settings");
+}
+
+export async function deleteMyAccount(): Promise<void> {
+  const userId = await requireUserId();
+
+  // App data first, identity second: if the admin call below failed, we'd have
+  // erased the financial PII rather than orphaning it behind an undeletable
+  // login. Single transaction; user.delete() last so FKs are already cleared.
+  await prisma.$transaction([
+    ...financialDeletes(userId),
+    prisma.category.deleteMany({ where: { userId } }),
+    prisma.userSettings.deleteMany({ where: { userId } }),
+    prisma.user.delete({ where: { id: userId } }),
+  ]);
+
+  // Erase the Supabase identity (email/password/OAuth) — needs the admin client.
+  const admin = createAdminClient();
+  const { error } = await admin.auth.admin.deleteUser(userId);
+  if (error) throw new Error(`Failed to delete auth user: ${error.message}`);
+
+  // A failed sign-out is tolerable here: the account is already deleted and the
+  // session cookie expires on its own, so we don't block the redirect on it.
+  const supabase = createClient();
+  await supabase.auth.signOut();
+  redirect("/");
+}
