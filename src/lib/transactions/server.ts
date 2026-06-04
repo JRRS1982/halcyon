@@ -46,7 +46,8 @@ export type LedgerQuery = {
 
 export type LedgerPage = {
   items: LedgerTransaction[];
-  nextOffset: number | null;
+  // Total matching rows (all pages) for the same filters.
+  total: number;
 };
 
 // Returns the user's categories, lazily provisioning them from existing budget
@@ -190,9 +191,9 @@ function orderByFor(column: SortColumn, dir: SortDir) {
   }
 }
 
-// One page of the ledger. Supports a description phrase search, an optional
-// "uncategorized only" filter, and sorting by any column. `nextOffset` is the
-// skip value for the next page, or null when the last page has been reached.
+// One page of the ledger plus the total row count for the same filters, so
+// the UI can render numbered pages. Supports a description phrase search, an
+// optional "uncategorized only" filter, and sorting by any column.
 export async function getTransactionsPage(
   userId: string,
   query: LedgerQuery = {},
@@ -200,37 +201,40 @@ export async function getTransactionsPage(
   const offset = query.offset ?? 0;
   const search = query.search?.trim();
 
-  const rows = await prisma.transaction.findMany({
-    where: {
-      userId,
-      deletedAt: null,
-      ...(query.onlyUncategorized
-        ? { categoryId: null, transferAccountId: null }
-        : {}),
-      ...(search
-        ? { description: { contains: search, mode: "insensitive" } }
-        : {}),
-    },
-    orderBy: orderByFor(query.sortColumn ?? "date", query.sortDir ?? "desc"),
-    skip: offset,
-    take: PAGE_SIZE + 1,
-    select: {
-      id: true,
-      date: true,
-      amount: true,
-      description: true,
-      categoryId: true,
-      transferAccountId: true,
-      accountId: true,
-      account: { select: { name: true } },
-      note: true,
-      extra: true,
-    },
-  });
+  const where = {
+    userId,
+    deletedAt: null,
+    ...(query.onlyUncategorized
+      ? { categoryId: null, transferAccountId: null }
+      : {}),
+    ...(search
+      ? { description: { contains: search, mode: "insensitive" as const } }
+      : {}),
+  };
 
-  const hasMore = rows.length > PAGE_SIZE;
-  const items = rows.slice(0, PAGE_SIZE).map(serialize);
-  return { items, nextOffset: hasMore ? offset + PAGE_SIZE : null };
+  const [rows, total] = await Promise.all([
+    prisma.transaction.findMany({
+      where,
+      orderBy: orderByFor(query.sortColumn ?? "date", query.sortDir ?? "desc"),
+      skip: offset,
+      take: PAGE_SIZE,
+      select: {
+        id: true,
+        date: true,
+        amount: true,
+        description: true,
+        categoryId: true,
+        transferAccountId: true,
+        accountId: true,
+        account: { select: { name: true } },
+        note: true,
+        extra: true,
+      },
+    }),
+    prisma.transaction.count({ where }),
+  ]);
+
+  return { items: rows.map(serialize), total };
 }
 
 // Count of uncategorized transactions, for the "needs attention" nudge. A

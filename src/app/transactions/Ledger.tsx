@@ -1,7 +1,11 @@
 "use client";
 
-import { Button } from "@/components/ui/Button";
 import { useDebouncedCallback } from "@/lib/hooks/useDebouncedCallback";
+import {
+  type LedgerUrlQuery,
+  pageCount,
+  pageWindow,
+} from "@/lib/transactions/pagination";
 import type {
   LedgerCategory,
   LedgerPage,
@@ -9,7 +13,8 @@ import type {
   SortColumn,
   SortDir,
 } from "@/lib/transactions/server";
-import { Fragment, useEffect, useRef, useState, useTransition } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Fragment, useEffect, useState, useTransition } from "react";
 import styled from "styled-components";
 import { CategoryCombobox, type NewCategoryInput } from "./CategoryCombobox";
 import {
@@ -17,7 +22,6 @@ import {
   bulkSetTransactionCategory,
   createAccount,
   createCategory,
-  loadMoreTransactions,
   setTransactionCategory,
   setTransactionNote,
   setTransactionTransfer,
@@ -226,6 +230,54 @@ const NoteRow = styled.div`
   align-items: flex-start;
 `;
 
+const DetailHint = styled.p`
+  margin: 0;
+  font-family: ${({ theme }) => theme.typography.bodyMd.family};
+  font-size: 13px;
+  color: ${({ theme }) => theme.colors.dim};
+`;
+
+const Pagination = styled.nav`
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: ${({ theme }) => theme.spacing.xs};
+`;
+
+const PageButton = styled.button<{ $current?: boolean }>`
+  min-width: 30px;
+  height: 30px;
+  padding: 0 ${({ theme }) => theme.spacing.sm};
+  background: ${({ $current, theme }) =>
+    $current ? theme.colors.primary : theme.colors.canvas};
+  color: ${({ $current, theme }) =>
+    $current ? theme.colors.onPrimary : theme.colors.ink};
+  border: 1px solid
+    ${({ $current, theme }) =>
+      $current ? theme.colors.primary : theme.colors.hairline};
+  border-radius: ${({ theme }) => theme.rounded.sm};
+  font-family: ${({ theme }) => theme.typography.monoCaps.family};
+  font-size: ${({ theme }) => theme.typography.monoCaps.size};
+  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    border-color: ${({ theme }) => theme.colors.ink};
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
+
+const PageGap = styled.span`
+  padding: 0 ${({ theme }) => theme.spacing.xs};
+  color: ${({ theme }) => theme.colors.dim};
+  font-family: ${({ theme }) => theme.typography.monoCaps.family};
+  font-size: ${({ theme }) => theme.typography.monoCaps.size};
+`;
+
 const NoteArea = styled.textarea`
   flex: 1;
   resize: vertical;
@@ -363,7 +415,9 @@ const COLUMNS: { key: SortColumn; label: string; align?: "right" }[] = [
 ];
 
 type LedgerProps = {
-  initialPage: LedgerPage;
+  page: LedgerPage;
+  // The URL-derived query this page was rendered for.
+  query: LedgerUrlQuery;
   categories: LedgerCategory[];
   accounts: LedgerAccount[];
   uncategorizedCount: number;
@@ -371,21 +425,23 @@ type LedgerProps = {
 };
 
 export function Ledger({
-  initialPage,
+  page,
+  query,
   categories: initialCategories,
   accounts: initialAccounts,
   uncategorizedCount,
   transfersEnabled,
 }: LedgerProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [pending, startTransition] = useTransition();
-  const [items, setItems] = useState<LedgerTransaction[]>(initialPage.items);
-  const [nextOffset, setNextOffset] = useState<number | null>(
-    initialPage.nextOffset,
-  );
-  const [onlyUncategorized, setOnlyUncategorized] = useState(false);
-  const [search, setSearch] = useState("");
-  const [sortColumn, setSortColumn] = useState<SortColumn>("date");
-  const [sortDir, setSortDir] = useState<SortDir>("desc");
+  // Local mirror of the server-rendered rows so mutations can apply
+  // optimistically; re-adopted whenever the server re-renders the page.
+  const [items, setItems] = useState<LedgerTransaction[]>(page.items);
+  const [search, setSearch] = useState(query.search);
+  // Optimistic mirror of the URL filter so the switch flips instantly while
+  // the navigation round-trips.
+  const [uncatChecked, setUncatChecked] = useState(query.onlyUncategorized);
   const [categories, setCategories] = useState(initialCategories);
   const [accounts, setAccounts] = useState(initialAccounts);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -394,73 +450,54 @@ export function Ledger({
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
 
-  // Latest client query, mirrored into a ref so the re-sync effect can read it
-  // without depending on (and re-firing for) every filter/search/sort change.
-  const queryRef = useRef({ search, onlyUncategorized, sortColumn, sortDir });
-  queryRef.current = { search, onlyUncategorized, sortColumn, sortDir };
+  const { onlyUncategorized, sortColumn, sortDir } = query;
 
-  // Re-sync when the server re-renders this component with fresh props (e.g.
-  // after an import, or after categorising revalidates the route). `initialPage`
-  // is always the server's *unfiltered* first page, so if a client filter /
-  // search / non-default sort is active we re-run that query instead of adopting
-  // initialPage — otherwise a revalidation would flash the full list back in
-  // while the filter is still on. With no active query, adopt initialPage
-  // directly (the import case). The prop reference only changes on a server
-  // refresh/navigation, not on this component's own state updates.
+  // Adopt fresh server data whenever the rendered page changes — a URL
+  // navigation, or a revalidation after a mutation. Stale row selections are
+  // dropped with it.
+  useEffect(() => {
+    setItems(page.items);
+    setSelected(new Set());
+  }, [page]);
+
   useEffect(() => {
     setCategories(initialCategories);
     setAccounts(initialAccounts);
+  }, [initialCategories, initialAccounts]);
 
-    const q = queryRef.current;
-    const filtered =
-      q.onlyUncategorized ||
-      q.search.trim() !== "" ||
-      q.sortColumn !== "date" ||
-      q.sortDir !== "desc";
+  // Keep the search box and filter switch in step with the URL (e.g.
+  // back/forward navigation).
+  useEffect(() => {
+    setSearch(query.search);
+  }, [query.search]);
 
-    if (filtered) {
-      startTransition(async () => {
-        const page = await loadMoreTransactions({ offset: 0, ...q });
-        setItems(page.items);
-        setNextOffset(page.nextOffset);
-      });
-      return;
-    }
+  useEffect(() => {
+    setUncatChecked(query.onlyUncategorized);
+  }, [query.onlyUncategorized]);
 
-    setItems(initialPage.items);
-    setNextOffset(initialPage.nextOffset);
-  }, [initialPage, initialCategories, initialAccounts]);
-
-  // Loads page from `offset`. Replaces the list unless appending more.
-  const load = (
-    over: {
-      offset?: number;
-      search?: string;
-      onlyUncategorized?: boolean;
-      sortColumn?: SortColumn;
-      sortDir?: SortDir;
-    },
-    append: boolean,
+  // The whole ledger query lives in the URL, so the server renders exactly the
+  // requested page and back/forward + shareable links work. Filter and sort
+  // changes replace the history entry (and reset to page 1); page navigation
+  // pushes so the back button steps through pages.
+  const updateParams = (
+    patch: Record<string, string | null>,
+    mode: "push" | "replace",
   ) => {
-    const query = {
-      offset: 0,
-      search,
-      onlyUncategorized,
-      sortColumn,
-      sortDir,
-      ...over,
-    };
-    // A fresh page invalidates the current selection; appending keeps it.
-    if (!append) setSelected(new Set());
-    startTransition(async () => {
-      const page = await loadMoreTransactions(query);
-      setItems((prev) => (append ? [...prev, ...page.items] : page.items));
-      setNextOffset(page.nextOffset);
+    const params = new URLSearchParams(searchParams.toString());
+    for (const [key, value] of Object.entries(patch)) {
+      if (value === null || value === "") params.delete(key);
+      else params.set(key, value);
+    }
+    const qs = params.toString();
+    startTransition(() => {
+      router[mode](qs ? `/transactions?${qs}` : "/transactions", {
+        scroll: false,
+      });
     });
   };
 
   const runSearch = useDebouncedCallback((value: string) => {
-    load({ offset: 0, search: value }, false);
+    updateParams({ q: value.trim() || null, page: null }, "replace");
   }, 300);
 
   const onSearch = (value: string) => {
@@ -469,22 +506,25 @@ export function Ledger({
   };
 
   const onToggleUncategorized = (checked: boolean) => {
-    setOnlyUncategorized(checked);
-    load({ offset: 0, onlyUncategorized: checked }, false);
+    setUncatChecked(checked);
+    updateParams({ uncat: checked ? "1" : null, page: null }, "replace");
   };
 
   const onSort = (key: SortColumn) => {
     const dir: SortDir =
       sortColumn === key && sortDir === "desc" ? "asc" : "desc";
-    setSortColumn(key);
-    setSortDir(dir);
-    load({ offset: 0, sortColumn: key, sortDir: dir }, false);
+    // The default order (date desc) keeps a clean URL.
+    if (key === "date" && dir === "desc") {
+      updateParams({ sort: null, dir: null, page: null }, "replace");
+    } else {
+      updateParams({ sort: key, dir, page: null }, "replace");
+    }
   };
 
-  const onLoadMore = () => {
-    if (nextOffset === null) return;
-    load({ offset: nextOffset }, true);
-  };
+  const totalPages = pageCount(page.total);
+
+  const goToPage = (n: number) =>
+    updateParams({ page: n <= 1 ? null : String(n) }, "push");
 
   // Optimistically reflect a category assignment; clears any transfer. Drops the
   // row if it no longer matches the "uncategorized only" filter.
@@ -644,7 +684,7 @@ export function Ledger({
         <Toggle>
           <SwitchInput
             type="checkbox"
-            checked={onlyUncategorized}
+            checked={uncatChecked}
             onChange={(e) => onToggleUncategorized(e.target.checked)}
           />
           <SwitchTrack />
@@ -765,15 +805,26 @@ export function Ledger({
                   <tr>
                     <DetailTd colSpan={7}>
                       <DetailPanel>
-                        {tx.extra && (
-                          <ExtraList>
-                            {Object.entries(tx.extra).map(([key, value]) => (
-                              <ExtraPair key={key}>
-                                <ExtraKey>{key}</ExtraKey>
-                                {value}
-                              </ExtraPair>
-                            ))}
-                          </ExtraList>
+                        {tx.extra ? (
+                          <>
+                            <ExtraList>
+                              {Object.entries(tx.extra).map(([key, value]) => (
+                                <ExtraPair key={key}>
+                                  <ExtraKey>{key}</ExtraKey>
+                                  {value}
+                                </ExtraPair>
+                              ))}
+                            </ExtraList>
+                            <DetailHint>
+                              Showing only the columns ticked under “Also keep”
+                              when this statement was imported.
+                            </DetailHint>
+                          </>
+                        ) : (
+                          <DetailHint>
+                            No kept import columns — tick columns under “Also
+                            keep” when importing to store them here.
+                          </DetailHint>
                         )}
                         <NoteRow>
                           <NoteArea
@@ -805,12 +856,42 @@ export function Ledger({
         </Table>
       )}
 
-      {nextOffset !== null && (
-        <div>
-          <Button type="button" onClick={onLoadMore} disabled={pending}>
-            {pending ? "Loading…" : "Load more"}
-          </Button>
-        </div>
+      {totalPages > 1 && (
+        <Pagination aria-label="Ledger pages">
+          <PageButton
+            type="button"
+            disabled={query.page <= 1 || pending}
+            onClick={() => goToPage(query.page - 1)}
+            aria-label="Previous page"
+          >
+            ◀
+          </PageButton>
+          {pageWindow(query.page, totalPages).map((item, i) =>
+            item === "gap" ? (
+              // biome-ignore lint/suspicious/noArrayIndexKey: gaps have no identity beyond position
+              <PageGap key={`gap-${i}`}>…</PageGap>
+            ) : (
+              <PageButton
+                key={item}
+                type="button"
+                $current={item === query.page}
+                aria-current={item === query.page ? "page" : undefined}
+                disabled={pending}
+                onClick={() => goToPage(item)}
+              >
+                {item}
+              </PageButton>
+            ),
+          )}
+          <PageButton
+            type="button"
+            disabled={query.page >= totalPages || pending}
+            onClick={() => goToPage(query.page + 1)}
+            aria-label="Next page"
+          >
+            ▶
+          </PageButton>
+        </Pagination>
       )}
 
       {confirmDelete && (

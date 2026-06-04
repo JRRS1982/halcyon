@@ -1,61 +1,91 @@
 import {
   PAGE_SIZE,
-  decodeCursor,
-  encodeCursor,
-  sliceForCursor,
+  pageCount,
+  pageWindow,
+  parseLedgerSearchParams,
 } from "@/lib/transactions/pagination";
 
-const row = (id: string, iso: string) => ({ id, date: new Date(iso) });
-
-describe("cursor encoding", () => {
-  test("encode → decode round-trips date and id", () => {
-    const cursor = encodeCursor({
-      id: "tx-1",
-      date: new Date("2026-03-14T00:00:00Z"),
+describe("parseLedgerSearchParams", () => {
+  test("defaults when no params are present", () => {
+    expect(parseLedgerSearchParams({})).toEqual({
+      page: 1,
+      search: "",
+      onlyUncategorized: false,
+      sortColumn: "date",
+      sortDir: "desc",
     });
-    const decoded = decodeCursor(cursor);
-    expect(decoded?.id).toBe("tx-1");
-    expect(decoded?.date.toISOString()).toBe("2026-03-14T00:00:00.000Z");
   });
 
-  test("decode returns null for malformed cursors", () => {
-    expect(decodeCursor("garbage")).toBeNull();
-    expect(decodeCursor("")).toBeNull();
+  test("parses a full query string", () => {
+    expect(
+      parseLedgerSearchParams({
+        page: "3",
+        q: "tesco",
+        uncat: "1",
+        sort: "amount",
+        dir: "asc",
+      }),
+    ).toEqual({
+      page: 3,
+      search: "tesco",
+      onlyUncategorized: true,
+      sortColumn: "amount",
+      sortDir: "asc",
+    });
+  });
+
+  test("malformed values fall back to defaults", () => {
+    const parsed = parseLedgerSearchParams({
+      page: "banana",
+      sort: "evil",
+      dir: "sideways",
+      uncat: "yes",
+    });
+    expect(parsed.page).toBe(1);
+    expect(parsed.sortColumn).toBe("date");
+    expect(parsed.sortDir).toBe("desc");
+    expect(parsed.onlyUncategorized).toBe(false);
+  });
+
+  test("negative and zero pages clamp to 1; arrays take the first value", () => {
+    expect(parseLedgerSearchParams({ page: "0" }).page).toBe(1);
+    expect(parseLedgerSearchParams({ page: "-4" }).page).toBe(1);
+    expect(parseLedgerSearchParams({ page: ["2", "9"] }).page).toBe(2);
+  });
+
+  test("over-long search input is truncated", () => {
+    const parsed = parseLedgerSearchParams({ q: "x".repeat(500) });
+    expect(parsed.search).toHaveLength(200);
   });
 });
 
-describe("sliceForCursor", () => {
-  test("returns all rows and no next cursor when below the limit", () => {
-    const rows = [
-      row("a", "2026-03-03T00:00:00Z"),
-      row("b", "2026-03-02T00:00:00Z"),
-    ];
-    const page = sliceForCursor(rows, 5);
-    expect(page.items).toHaveLength(2);
-    expect(page.nextCursor).toBeNull();
+describe("pageCount", () => {
+  test("rounds up and never returns zero", () => {
+    expect(pageCount(0)).toBe(1);
+    expect(pageCount(1)).toBe(1);
+    expect(pageCount(PAGE_SIZE)).toBe(1);
+    expect(pageCount(PAGE_SIZE + 1)).toBe(2);
+    expect(pageCount(PAGE_SIZE * 4)).toBe(4);
+  });
+});
+
+describe("pageWindow", () => {
+  test("short ranges render every page", () => {
+    expect(pageWindow(1, 1)).toEqual([1]);
+    expect(pageWindow(3, 7)).toEqual([1, 2, 3, 4, 5, 6, 7]);
   });
 
-  test("trims the probe row and emits a next cursor when there are more", () => {
-    // limit 2, but 3 rows fetched (limit + 1 probe) → more pages exist
-    const rows = [
-      row("a", "2026-03-03T00:00:00Z"),
-      row("b", "2026-03-02T00:00:00Z"),
-      row("c", "2026-03-01T00:00:00Z"),
-    ];
-    const page = sliceForCursor(rows, 2);
-    expect(page.items.map((r) => r.id)).toEqual(["a", "b"]);
-    expect(decodeCursor(page.nextCursor as string)?.id).toBe("b");
+  test("collapses long runs into gaps around the current page", () => {
+    expect(pageWindow(6, 12)).toEqual([1, "gap", 5, 6, 7, "gap", 12]);
   });
 
-  test("exactly limit rows means no next page", () => {
-    const rows = [
-      row("a", "2026-03-03T00:00:00Z"),
-      row("b", "2026-03-02T00:00:00Z"),
-    ];
-    expect(sliceForCursor(rows, 2).nextCursor).toBeNull();
+  test("no gap at the edges when current is near them", () => {
+    expect(pageWindow(1, 12)).toEqual([1, 2, "gap", 12]);
+    expect(pageWindow(12, 12)).toEqual([1, "gap", 11, 12]);
   });
 
-  test("exposes a default page size", () => {
-    expect(PAGE_SIZE).toBeGreaterThan(0);
+  test("a single-page gap renders the page itself, not an ellipsis", () => {
+    // pages 1..8 with current 4 → 1 [2 gap would be exactly page 2] 3 4 5 ... 8
+    expect(pageWindow(4, 8)).toEqual([1, 2, 3, 4, 5, "gap", 8]);
   });
 });
