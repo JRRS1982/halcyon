@@ -1,5 +1,6 @@
 "use client";
 
+import { ChartLegend } from "@/app/dashboard/ChartLegend";
 import {
   type NumberFormat,
   formatAmount,
@@ -75,7 +76,7 @@ export function CategoryExpenditureChart({
             fontSize: 12,
           }}
         />
-        <Legend wrapperStyle={{ fontSize: 12 }} />
+        <Legend wrapperStyle={{ fontSize: 12 }} content={<ChartLegend />} />
         <Line
           type="monotone"
           dataKey="actual"
