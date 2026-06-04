@@ -102,7 +102,7 @@ describe("ledger queries (integration)", () => {
       "Shell garage",
       "Greggs",
     ]);
-    expect(page.nextOffset).toBeNull();
+    expect(page.total).toBe(3);
     expect(await countUncategorized(TEST_USER_ID)).toBe(2);
   });
 

@@ -508,8 +508,9 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
                   ))}
               </KeepRow>
               <Note>
-                Ticked columns are saved with each transaction and shown in the
-                ledger — useful for bank reference or type codes.
+                Only the columns you tick here are saved — they appear under
+                each transaction's Details in the ledger (useful for bank
+                reference or type codes). Unticked columns are discarded.
               </Note>
             </div>
           )}

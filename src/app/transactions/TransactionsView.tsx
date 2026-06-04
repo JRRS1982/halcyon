@@ -1,6 +1,7 @@
 "use client";
 
 import { PageHeader } from "@/components/ui/PageHeader";
+import type { LedgerUrlQuery } from "@/lib/transactions/pagination";
 import type { LedgerCategory, LedgerPage } from "@/lib/transactions/server";
 import styled from "styled-components";
 import { ImportPanel } from "./ImportPanel";
@@ -18,13 +19,15 @@ const Shell = styled.main`
 export function TransactionsView({
   accounts,
   categories,
-  initialPage,
+  page,
+  query,
   uncategorizedCount,
   transfersEnabled,
 }: {
   accounts: Account[];
   categories: LedgerCategory[];
-  initialPage: LedgerPage;
+  page: LedgerPage;
+  query: LedgerUrlQuery;
   uncategorizedCount: number;
   transfersEnabled: boolean;
 }) {
@@ -37,7 +40,8 @@ export function TransactionsView({
       />
       <ImportPanel accounts={accounts} />
       <Ledger
-        initialPage={initialPage}
+        page={page}
+        query={query}
         categories={categories}
         accounts={accounts}
         uncategorizedCount={uncategorizedCount}

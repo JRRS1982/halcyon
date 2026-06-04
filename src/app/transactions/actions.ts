@@ -6,11 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireTransactionsEnabled } from "@/lib/settings/server";
 import { transactionFingerprint } from "@/lib/transactions/dedupe";
 import { type ColumnMapping, mapRows } from "@/lib/transactions/import";
-import {
-  type LedgerCategory,
-  type LedgerPage,
-  getTransactionsPage,
-} from "@/lib/transactions/server";
+import type { LedgerCategory } from "@/lib/transactions/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -403,23 +399,4 @@ export async function createCategory(
     type: created.type,
     section: sectionLabel(category ?? incomeCategory),
   };
-}
-
-const loadMoreSchema = z.object({
-  offset: z.number().int().min(0),
-  search: z.string().optional(),
-  onlyUncategorized: z.boolean(),
-  sortColumn: z
-    .enum(["date", "description", "amount", "account", "category"])
-    .optional(),
-  sortDir: z.enum(["asc", "desc"]).optional(),
-});
-
-// Fetches a page of the ledger for the table (filter / search / sort / paging).
-export async function loadMoreTransactions(
-  input: z.input<typeof loadMoreSchema>,
-): Promise<LedgerPage> {
-  const userId = await requireTransactionsEnabled();
-  const query = loadMoreSchema.parse(input);
-  return getTransactionsPage(userId, query);
 }
