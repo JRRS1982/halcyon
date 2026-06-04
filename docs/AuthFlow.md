@@ -185,8 +185,8 @@ For the button to actually work, two pieces of configuration are required outsid
 
 Supabase needs to know which post-auth URLs are allowed to receive the session. **Authentication → URL Configuration**:
 
-- **Site URL**: `http://localhost:3000` for dev; change to your Vercel URL for prod.
-- **Redirect URLs**: add both `http://localhost:3000/auth/callback` and your production `https://<vercel-app>/auth/callback`.
+- **Site URL**: `http://localhost:3210` for dev; change to your Vercel URL for prod.
+- **Redirect URLs**: add both `http://localhost:3210/auth/callback` and your production `https://<vercel-app>/auth/callback`.
 
 Once those are in place, the button works without any further code changes.
 
@@ -202,7 +202,7 @@ Once those are in place, the button works without any further code changes.
 
 Tests run against a **mock Supabase Auth server** at [`e2e/_mock/supabase.mjs`](../e2e/_mock/supabase.mjs) — a small Node HTTP server implementing just enough of `/auth/v1/*` to drive the flow end-to-end without touching the real Supabase project. It's in-memory, pre-seeded with one user (`test@example.com` / `password123`), and reset on every Playwright run.
 
-`playwright.config.ts` starts the mock + a dedicated Next.js dev server on port `3100` (so it can run alongside the developer's own `pnpm dev` on `3000`) with env vars pointing at the mock.
+`playwright.config.ts` starts the mock + a dedicated Next.js dev server on port `3100` (so it can run alongside the developer's own `pnpm dev` on `3210`) with env vars pointing at the mock.
 
 ```
 pnpm test:e2e

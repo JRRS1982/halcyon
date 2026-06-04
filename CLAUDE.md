@@ -21,14 +21,14 @@ The codebase is currently an early-stage scaffold (per `docs/Playbook.md` phase 
 
 Local (pnpm):
 
-- `pnpm dev` — Next dev server on :3000
+- `pnpm dev` — Next dev server on :3210
 - `pnpm build` / `pnpm start` — production build / run
 - `pnpm lint` / `pnpm lint:fix` / `pnpm format` — Biome (lint = `biome check .`, covers both lint and format check)
 - `pnpm check` — `biome ci .` (stricter; what CI runs)
 - `pnpm typecheck` — `tsc --noEmit`
 - `pnpm verify` — `typecheck && check && test` (full local pre-flight)
 - `pnpm test` / `pnpm test:watch` / `pnpm test:coverage` — Jest
-- `pnpm test:e2e` / `pnpm test:e2e:ui` — Playwright. Spins up a mock Supabase Auth server (`e2e/_mock/supabase.mjs` on `:54321`) and a dedicated Next.js dev server on `:3100`, so it coexists with your own `pnpm dev` on `:3000`. Needs `sudo npx playwright install-deps` once. No real DB touched.
+- `pnpm test:e2e` / `pnpm test:e2e:ui` — Playwright. Spins up a mock Supabase Auth server (`e2e/_mock/supabase.mjs` on `:54321`) and a dedicated Next.js dev server on `:3100`, so it coexists with your own `pnpm dev` on `:3210`. Needs `sudo npx playwright install-deps` once. No real DB touched.
 - `pnpm db:seed` / `pnpm db:reset` — Prisma seed / reset+seed
 - `postinstall` runs `prisma generate && simple-git-hooks` (installs the `pre-push: pnpm check` hook)
 
