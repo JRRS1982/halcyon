@@ -56,3 +56,11 @@ export const ToolbarTool = styled.button<{ $active?: boolean }>`
     }
   `}
 `;
+
+// Period chip ("June 2026 ▾") sized to the longest month label so the
+// prev/next arrows don't shift as the user navigates between months.
+// 16ch covers "September 2026 ▾" in the mono face; 26px covers the chip's
+// horizontal padding (2 × 12px) and borders.
+export const ToolbarPeriodLabel = styled(ToolbarTool)`
+  min-width: calc(16ch + 26px);
+`;
