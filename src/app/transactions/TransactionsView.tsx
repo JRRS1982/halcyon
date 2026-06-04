@@ -37,8 +37,8 @@ export function TransactionsView({
         eyebrow="Money in & out"
         title="Transactions"
         lead="Import bank statements and categorize spending against your budget."
+        actions={<ImportPanel accounts={accounts} />}
       />
-      <ImportPanel accounts={accounts} />
       <Ledger
         page={page}
         query={query}

@@ -9,7 +9,14 @@ import {
   mapRows,
 } from "@/lib/transactions/import";
 import { useRouter } from "next/navigation";
-import { type ChangeEvent, useMemo, useState, useTransition } from "react";
+import {
+  type ChangeEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+} from "react";
 import styled from "styled-components";
 import {
   type ImportPreview,
@@ -20,8 +27,9 @@ import {
 
 type Account = { id: string; name: string };
 
-const Panel = styled.section`
-  margin-top: ${({ theme }) => theme.spacing["3xl"]};
+// The modal body: everything between the title and the action row stacks with
+// the same rhythm the old inline panel used.
+const ModalBody = styled.div`
   display: grid;
   gap: ${({ theme }) => theme.spacing.xl};
 `;
@@ -49,16 +57,22 @@ const HiddenFile = styled.input`
   opacity: 0;
 `;
 
+// The page's single primary CTA: picking a file opens the import modal.
 const FileButton = styled.span`
   display: inline-flex;
   align-items: center;
   padding: ${({ theme }) => theme.spacing.sm}
     ${({ theme }) => theme.spacing.lg};
-  border: 1px solid ${({ theme }) => theme.colors.hairlineStrong};
+  border: 1px solid ${({ theme }) => theme.colors.primary};
   border-radius: ${({ theme }) => theme.rounded.sm};
-  font-family: ${({ theme }) => theme.typography.bodyMd.family};
-  font-size: ${({ theme }) => theme.typography.bodyMd.size};
-  color: ${({ theme }) => theme.colors.ink};
+  background: ${({ theme }) => theme.colors.primary};
+  color: ${({ theme }) => theme.colors.onPrimary};
+  font-family: ${({ theme }) => theme.typography.monoCaps.family};
+  font-size: ${({ theme }) => theme.typography.monoCaps.size};
+  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
+  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
+  text-transform: uppercase;
+  white-space: nowrap;
 `;
 
 const FileName = styled.span`
@@ -195,6 +209,41 @@ const Dialog = styled.dialog`
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
 `;
 
+// The import flow is a task, not page furniture — it gets a wide working
+// modal (the preview table needs more room than a confirm dialog).
+const ImportDialog = styled(Dialog)`
+  max-width: 720px;
+  max-height: 88vh;
+  overflow-y: auto;
+`;
+
+// The duplicates confirm stacks above the import modal.
+const ConfirmOverlay = styled(Overlay)`
+  z-index: 60;
+`;
+
+const PreviewScroll = styled.div`
+  max-height: 240px;
+  overflow: auto;
+`;
+
+// Post-import confirmation, anchored bottom-right per DESIGN.md's toast spec.
+const Toast = styled.div`
+  position: fixed;
+  right: ${({ theme }) => theme.spacing["2xl"]};
+  bottom: ${({ theme }) => theme.spacing["2xl"]};
+  z-index: 70;
+  padding: ${({ theme }) => theme.spacing.md}
+    ${({ theme }) => theme.spacing.lg};
+  background: ${({ theme }) => theme.colors.canvas};
+  border: 1px solid ${({ theme }) => theme.colors.hairline};
+  border-radius: ${({ theme }) => theme.rounded.sm};
+  box-shadow: rgba(15, 17, 22, 0.08) 0px 4px 12px 0px;
+  font-family: ${({ theme }) => theme.typography.bodyMd.family};
+  font-size: ${({ theme }) => theme.typography.bodyMd.size};
+  color: ${({ theme }) => theme.colors.ink};
+`;
+
 const DialogTitle = styled.h2`
   margin: 0;
   font-family: ${({ theme }) => theme.typography.monoCaps.family};
@@ -254,6 +303,9 @@ function columnLabel(
 export function ImportPanel({ accounts }: { accounts: Account[] }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  // The import flow runs in a modal: picking a file opens it, finishing (or
+  // cancelling) closes it and leaves just the ledger.
+  const [open, setOpen] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const [rows, setRows] = useState<string[][]>([]);
   const [mapping, setMapping] = useState<ColumnMapping | null>(null);
@@ -283,6 +335,8 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
 
   const onFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
+    // Allow re-picking the same file after a cancel.
+    event.target.value = "";
     setResult(null);
     setError(null);
     if (!file) return;
@@ -293,12 +347,46 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
       setRows([]);
       setMapping(null);
       setError("That file has no rows.");
+      setOpen(true);
       return;
     }
     setFileName(file.name);
     setRows(parsed);
     setMapping(guessMapping(parsed[0]));
+    setOpen(true);
   };
+
+  const closeModal = useCallback(() => {
+    setOpen(false);
+    setConfirm(null);
+    setFileName(null);
+    setRows([]);
+    setMapping(null);
+    setError(null);
+  }, []);
+
+  // Escape closes the topmost layer: the duplicates confirm first, then the
+  // import modal itself.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setConfirm((c) => {
+        if (c) return null;
+        closeModal();
+        return null;
+      });
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, closeModal]);
+
+  // The success toast announces the result, then gets out of the way.
+  useEffect(() => {
+    if (!result) return;
+    const timer = setTimeout(() => setResult(null), 6000);
+    return () => clearTimeout(timer);
+  }, [result]);
 
   const patchMapping = (patch: Partial<ColumnMapping>) =>
     setMapping((current) => (current ? { ...current, ...patch } : current));
@@ -328,7 +416,9 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
       mapping,
       skipIndexes,
     });
-    setConfirm(null);
+    // The task is done: close the whole modal flow and let the toast +
+    // refreshed ledger carry the result.
+    closeModal();
     setResult(res);
     router.refresh();
   };
@@ -387,222 +477,248 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
       : (accounts.find((a) => a.id === accountChoice)?.name ?? "");
 
   return (
-    <Panel>
-      <div>
-        <Label>Import a statement</Label>
-        <div style={{ marginTop: 8 }}>
-          <FileRow>
-            <HiddenFile type="file" accept=".csv,text/csv" onChange={onFile} />
-            <FileButton>Choose CSV…</FileButton>
+    <>
+      <FileRow>
+        <HiddenFile type="file" accept=".csv,text/csv" onChange={onFile} />
+        <FileButton>Import statement…</FileButton>
+      </FileRow>
+
+      {open && (
+        <Overlay
+          onClick={(e) => {
+            if (e.target === e.currentTarget) closeModal();
+          }}
+        >
+          <ImportDialog open aria-label="Import a statement">
+            <DialogTitle>Import a statement</DialogTitle>
             {fileName && <FileName>{fileName}</FileName>}
-          </FileRow>
-        </div>
-      </div>
+            {error && <Note>{error}</Note>}
 
-      {mapping && (
-        <>
-          <CheckRow>
-            <input
-              type="checkbox"
-              checked={mapping.hasHeader}
-              onChange={(e) => patchMapping({ hasHeader: e.target.checked })}
-            />
-            First row is a header
-          </CheckRow>
+            {mapping && (
+              <ModalBody>
+                <CheckRow>
+                  <input
+                    type="checkbox"
+                    checked={mapping.hasHeader}
+                    onChange={(e) =>
+                      patchMapping({ hasHeader: e.target.checked })
+                    }
+                  />
+                  First row is a header
+                </CheckRow>
 
-          <MapGrid>
-            <Field>
-              <Label>Date column</Label>
-              <Select
-                value={mapping.dateColumn}
-                onChange={(e) =>
-                  patchMapping({ dateColumn: Number(e.target.value) })
-                }
-              >
-                {columnOptions.map((i) => (
-                  <option key={i} value={i}>
-                    {columnLabel(rows, mapping.hasHeader, i)}
-                  </option>
-                ))}
-              </Select>
-            </Field>
+                <MapGrid>
+                  <Field>
+                    <Label>Date column</Label>
+                    <Select
+                      value={mapping.dateColumn}
+                      onChange={(e) =>
+                        patchMapping({ dateColumn: Number(e.target.value) })
+                      }
+                    >
+                      {columnOptions.map((i) => (
+                        <option key={i} value={i}>
+                          {columnLabel(rows, mapping.hasHeader, i)}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
 
-            <Field>
-              <Label>Description column</Label>
-              <Select
-                value={mapping.descriptionColumn}
-                onChange={(e) =>
-                  patchMapping({ descriptionColumn: Number(e.target.value) })
-                }
-              >
-                {columnOptions.map((i) => (
-                  <option key={i} value={i}>
-                    {columnLabel(rows, mapping.hasHeader, i)}
-                  </option>
-                ))}
-              </Select>
-            </Field>
+                  <Field>
+                    <Label>Description column</Label>
+                    <Select
+                      value={mapping.descriptionColumn}
+                      onChange={(e) =>
+                        patchMapping({
+                          descriptionColumn: Number(e.target.value),
+                        })
+                      }
+                    >
+                      {columnOptions.map((i) => (
+                        <option key={i} value={i}>
+                          {columnLabel(rows, mapping.hasHeader, i)}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
 
-            <Field>
-              <Label>Amount column</Label>
-              <Select
-                value={mapping.amountColumn}
-                onChange={(e) =>
-                  patchMapping({ amountColumn: Number(e.target.value) })
-                }
-              >
-                {columnOptions.map((i) => (
-                  <option key={i} value={i}>
-                    {columnLabel(rows, mapping.hasHeader, i)}
-                  </option>
-                ))}
-              </Select>
-            </Field>
+                  <Field>
+                    <Label>Amount column</Label>
+                    <Select
+                      value={mapping.amountColumn}
+                      onChange={(e) =>
+                        patchMapping({ amountColumn: Number(e.target.value) })
+                      }
+                    >
+                      {columnOptions.map((i) => (
+                        <option key={i} value={i}>
+                          {columnLabel(rows, mapping.hasHeader, i)}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
 
-            <Field>
-              <Label>Date format</Label>
-              <Select
-                value={mapping.dateFormat}
-                onChange={(e) =>
-                  patchMapping({ dateFormat: e.target.value as DateFormat })
-                }
-              >
-                {DATE_FORMATS.map((fmt) => (
-                  <option key={fmt} value={fmt}>
-                    {fmt === "DMY"
-                      ? "Day / Month / Year"
-                      : fmt === "MDY"
-                        ? "Month / Day / Year"
-                        : "Year / Month / Day"}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-          </MapGrid>
+                  <Field>
+                    <Label>Date format</Label>
+                    <Select
+                      value={mapping.dateFormat}
+                      onChange={(e) =>
+                        patchMapping({
+                          dateFormat: e.target.value as DateFormat,
+                        })
+                      }
+                    >
+                      {DATE_FORMATS.map((fmt) => (
+                        <option key={fmt} value={fmt}>
+                          {fmt === "DMY"
+                            ? "Day / Month / Year"
+                            : fmt === "MDY"
+                              ? "Month / Day / Year"
+                              : "Year / Month / Day"}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                </MapGrid>
 
-          {columnOptions.some(
-            (i) =>
-              i !== mapping.dateColumn &&
-              i !== mapping.descriptionColumn &&
-              i !== mapping.amountColumn,
-          ) && (
-            <div>
-              <Label>Also keep</Label>
-              <KeepRow>
-                {columnOptions
-                  .filter(
-                    (i) =>
-                      i !== mapping.dateColumn &&
-                      i !== mapping.descriptionColumn &&
-                      i !== mapping.amountColumn,
-                  )
-                  .map((i) => (
-                    <CheckRow key={i}>
-                      <input
-                        type="checkbox"
-                        checked={mapping.extraColumns?.includes(i) ?? false}
-                        onChange={() => toggleExtraColumn(i)}
+                {columnOptions.some(
+                  (i) =>
+                    i !== mapping.dateColumn &&
+                    i !== mapping.descriptionColumn &&
+                    i !== mapping.amountColumn,
+                ) && (
+                  <div>
+                    <Label>Also keep</Label>
+                    <KeepRow>
+                      {columnOptions
+                        .filter(
+                          (i) =>
+                            i !== mapping.dateColumn &&
+                            i !== mapping.descriptionColumn &&
+                            i !== mapping.amountColumn,
+                        )
+                        .map((i) => (
+                          <CheckRow key={i}>
+                            <input
+                              type="checkbox"
+                              checked={
+                                mapping.extraColumns?.includes(i) ?? false
+                              }
+                              onChange={() => toggleExtraColumn(i)}
+                            />
+                            {columnLabel(rows, mapping.hasHeader, i)}
+                          </CheckRow>
+                        ))}
+                    </KeepRow>
+                    <Note>
+                      Only the columns you tick here are saved — they appear
+                      under each transaction's Details in the ledger (useful for
+                      bank reference or type codes). Unticked columns are
+                      discarded.
+                    </Note>
+                  </div>
+                )}
+
+                <DestinationCard>
+                  <Label>Import into</Label>
+                  <DestinationLine>
+                    <Select
+                      value={accountChoice}
+                      onChange={(e) => setAccountChoice(e.target.value)}
+                    >
+                      {accounts.map((account) => (
+                        <option key={account.id} value={account.id}>
+                          {account.name}
+                        </option>
+                      ))}
+                      <option value={NEW_ACCOUNT}>+ New account…</option>
+                    </Select>
+                    {accountChoice === NEW_ACCOUNT && (
+                      <Input
+                        value={newAccountName}
+                        onChange={(e) => setNewAccountName(e.target.value)}
+                        placeholder="e.g. Current account"
+                        aria-label="New account name"
                       />
-                      {columnLabel(rows, mapping.hasHeader, i)}
-                    </CheckRow>
-                  ))}
-              </KeepRow>
-              <Note>
-                Only the columns you tick here are saved — they appear under
-                each transaction's Details in the ledger (useful for bank
-                reference or type codes). Unticked columns are discarded.
-              </Note>
-            </div>
-          )}
+                    )}
+                  </DestinationLine>
+                </DestinationCard>
 
-          <DestinationCard>
-            <Label>Import into</Label>
-            <DestinationLine>
-              <Select
-                value={accountChoice}
-                onChange={(e) => setAccountChoice(e.target.value)}
-              >
-                {accounts.map((account) => (
-                  <option key={account.id} value={account.id}>
-                    {account.name}
-                  </option>
-                ))}
-                <option value={NEW_ACCOUNT}>+ New account…</option>
-              </Select>
-              {accountChoice === NEW_ACCOUNT && (
-                <Input
-                  value={newAccountName}
-                  onChange={(e) => setNewAccountName(e.target.value)}
-                  placeholder="e.g. Current account"
-                  aria-label="New account name"
-                />
-              )}
-            </DestinationLine>
-          </DestinationCard>
+                <div>
+                  <Label>Preview</Label>
+                  <PreviewScroll>
+                    <Table>
+                      <thead>
+                        <tr>
+                          <Th>Date</Th>
+                          <Th>Description</Th>
+                          <Th>Amount</Th>
+                          <Th>Status</Th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {preview.slice(0, PREVIEW_LIMIT).map((row) => {
+                          const bad = row.errors.length > 0;
+                          return (
+                            <tr key={row.index}>
+                              <Td $bad={bad}>
+                                {row.date
+                                  ? row.date.toISOString().slice(0, 10)
+                                  : "—"}
+                              </Td>
+                              <Td $bad={bad}>{row.description || "—"}</Td>
+                              <Td $bad={bad}>{row.amount ?? "—"}</Td>
+                              <Td $bad={bad}>
+                                {bad ? row.errors.join(", ") : "Ready"}
+                              </Td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </Table>
+                  </PreviewScroll>
+                  <Summary>
+                    {validCount} ready to import into{" "}
+                    <strong>{destinationName}</strong>
+                    {errorCount > 0
+                      ? `, ${errorCount} with errors (skipped)`
+                      : ""}
+                    .
+                  </Summary>
+                </div>
 
-          <div>
-            <Label>Preview</Label>
-            <Table>
-              <thead>
-                <tr>
-                  <Th>Date</Th>
-                  <Th>Description</Th>
-                  <Th>Amount</Th>
-                  <Th>Status</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {preview.slice(0, PREVIEW_LIMIT).map((row) => {
-                  const bad = row.errors.length > 0;
-                  return (
-                    <tr key={row.index}>
-                      <Td $bad={bad}>
-                        {row.date ? row.date.toISOString().slice(0, 10) : "—"}
-                      </Td>
-                      <Td $bad={bad}>{row.description || "—"}</Td>
-                      <Td $bad={bad}>{row.amount ?? "—"}</Td>
-                      <Td $bad={bad}>
-                        {bad ? row.errors.join(", ") : "Ready"}
-                      </Td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </Table>
-            <Summary>
-              {validCount} ready to import into{" "}
-              <strong>{destinationName}</strong>
-              {errorCount > 0 ? `, ${errorCount} with errors (skipped)` : ""}.
-            </Summary>
-          </div>
-
-          <div>
-            <Button
-              type="button"
-              onClick={onImport}
-              disabled={pending || validCount === 0 || !accountReady}
-            >
-              {pending
-                ? "Importing…"
-                : `Import ${validCount} transactions into ${destinationName}`}
-            </Button>
-          </div>
-        </>
+                <DialogActions>
+                  <GhostButton type="button" onClick={closeModal}>
+                    Cancel
+                  </GhostButton>
+                  <Button
+                    type="button"
+                    onClick={onImport}
+                    disabled={pending || validCount === 0 || !accountReady}
+                  >
+                    {pending
+                      ? "Importing…"
+                      : `Import ${validCount} transactions into ${destinationName}`}
+                  </Button>
+                </DialogActions>
+              </ModalBody>
+            )}
+          </ImportDialog>
+        </Overlay>
       )}
 
       {result && (
-        <Note>
+        <Toast aria-live="polite">
           Imported {result.imported} into {result.accountName}
           {result.duplicates > 0
             ? `, skipped ${result.duplicates} duplicate(s)`
             : ""}
           {result.invalid > 0 ? `, ${result.invalid} invalid` : ""}.
-        </Note>
+        </Toast>
       )}
-      {error && <Note>{error}</Note>}
 
       {confirm && (
-        <Overlay
+        <ConfirmOverlay
           onClick={(e) => {
             if (e.target === e.currentTarget) setConfirm(null);
           }}
@@ -640,8 +756,8 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
               </Button>
             </DialogActions>
           </Dialog>
-        </Overlay>
+        </ConfirmOverlay>
       )}
-    </Panel>
+    </>
   );
 }
