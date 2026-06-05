@@ -46,6 +46,7 @@ model User {
   categories           Category[]
   accounts             Account[]
   transactions         Transaction[]
+  importBatches        ImportBatch[]
 }
 
 // Per-user app preferences. Lazily upserted on first read — there is no
@@ -267,8 +268,28 @@ model Account {
   user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions  Transaction[] @relation("AccountTransactions")
   transfersFrom Transaction[] @relation("TransferCounterparty")
+  importBatches ImportBatch[]
 
   @@index([userId])
+}
+
+// One CSV import run. Groups the transactions it created so the whole import
+// can be reversed: the batch's live transactions are soft-deleted and the
+// batch is stamped reversedAt (which retires it from the reversal dropdown).
+// Imports made before this model existed have no batch and can't be reversed.
+model ImportBatch {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @db.Uuid
+  accountId  String    @db.Uuid
+  fileName   String?
+  createdAt  DateTime  @default(now())
+  reversedAt DateTime?
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account      Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@index([userId, createdAt])
 }
 
 // An imported (or hand-entered) bank transaction. `amount` is stored SIGNED;
@@ -283,6 +304,9 @@ model Transaction {
   accountId         String    @db.Uuid
   categoryId        String?   @db.Uuid
   transferAccountId String?   @db.Uuid
+  // The import run that created this row; null for pre-batch imports and
+  // anything not created by a CSV import.
+  importBatchId     String?   @db.Uuid
   date              DateTime  @db.Date
   amount            Decimal   @db.Decimal(14, 2)
   description       String
@@ -302,10 +326,13 @@ model Transaction {
   // still referenced here (accounts are soft-deleted), so onDelete: Restrict is
   // belt-and-braces defence that is never expected to fire.
   transferAccount Account? @relation("TransferCounterparty", fields: [transferAccountId], references: [id], onDelete: Restrict)
+  importBatch     ImportBatch? @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
 
   // (userId, accountId, date) → pagination + the dedup-fingerprint day lookup,
   // and the per-account transfer aggregate (filtered transferAccountId IS NOT NULL).
   // (userId, categoryId, date) → the per-category-per-month actual aggregate.
+  // (importBatchId) → the reverse-import bulk update + live batch counts.
   @@index([userId, accountId, date])
   @@index([userId, categoryId, date])
+  @@index([importBatchId])
 }

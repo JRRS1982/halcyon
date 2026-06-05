@@ -32,6 +32,8 @@ const commitSchema = importSchema.extend({
   // Data-row indexes the user chose NOT to import (flagged duplicates they
   // confirmed are true re-uploads).
   skipIndexes: z.array(z.number().int()).default([]),
+  // Shown in the reverse-import picker to identify the batch.
+  fileName: z.string().trim().max(200).nullable().optional(),
 });
 
 export type CommitInput = z.input<typeof commitSchema>;
@@ -159,7 +161,7 @@ export async function previewImport(
 // except the ones the user chose to skip (confirmed duplicates).
 export async function commitImport(input: CommitInput): Promise<ImportResult> {
   const userId = await requireTransactionsEnabled();
-  const { accountId, newAccountName, rows, mapping, skipIndexes } =
+  const { accountId, newAccountName, rows, mapping, skipIndexes, fileName } =
     commitSchema.parse(input);
 
   const account = await resolveAccount(userId, accountId, newAccountName);
@@ -169,10 +171,16 @@ export async function commitImport(input: CommitInput): Promise<ImportResult> {
   const toInsert = valid.filter((row) => !skip.has(row.index));
 
   if (toInsert.length > 0) {
+    // The batch groups this run's rows so the whole import can be reversed.
+    const batch = await prisma.importBatch.create({
+      data: { userId, accountId: account.id, fileName: fileName ?? null },
+      select: { id: true },
+    });
     await prisma.transaction.createMany({
       data: toInsert.map((row) => ({
         userId,
         accountId: account.id,
+        importBatchId: batch.id,
         date: row.date as Date,
         amount: row.amount as number,
         description: row.description,
@@ -194,6 +202,88 @@ export async function commitImport(input: CommitInput): Promise<ImportResult> {
     invalid: invalidCount,
     accountName: account.name,
   };
+}
+
+// A reversible import run, for the reverse-import picker.
+export type ImportBatchSummary = {
+  id: string;
+  createdAt: string;
+  fileName: string | null;
+  accountName: string;
+  // Live (not individually deleted) transactions still in the batch.
+  count: number;
+};
+
+// Recent imports that can still be reversed: not already reversed, and with at
+// least one live transaction left to remove.
+export async function listImportBatches(): Promise<ImportBatchSummary[]> {
+  const userId = await requireTransactionsEnabled();
+
+  const batches = await prisma.importBatch.findMany({
+    where: { userId, reversedAt: null },
+    orderBy: { createdAt: "desc" },
+    take: 20,
+    select: {
+      id: true,
+      createdAt: true,
+      fileName: true,
+      account: { select: { name: true } },
+    },
+  });
+  if (batches.length === 0) return [];
+
+  const counts = await prisma.transaction.groupBy({
+    by: ["importBatchId"],
+    where: {
+      userId,
+      deletedAt: null,
+      importBatchId: { in: batches.map((b) => b.id) },
+    },
+    _count: { _all: true },
+  });
+  const countFor = new Map(counts.map((c) => [c.importBatchId, c._count._all]));
+
+  return batches
+    .map((b) => ({
+      id: b.id,
+      createdAt: b.createdAt.toISOString(),
+      fileName: b.fileName,
+      accountName: b.account.name,
+      count: countFor.get(b.id) ?? 0,
+    }))
+    .filter((b) => b.count > 0);
+}
+
+const reverseSchema = z.object({ batchId: z.string().uuid() });
+
+// Reverses one import: soft-deletes the batch's live transactions and stamps
+// the batch reversedAt so it leaves the picker. Ownership-scoped throughout.
+export async function reverseImport(
+  input: z.input<typeof reverseSchema>,
+): Promise<{ reversed: number; accountName: string }> {
+  const userId = await requireTransactionsEnabled();
+  const { batchId } = reverseSchema.parse(input);
+
+  const batch = await prisma.importBatch.findFirst({
+    where: { id: batchId, userId, reversedAt: null },
+    select: { id: true, account: { select: { name: true } } },
+  });
+  if (!batch) throw new Error("Import not found");
+
+  const result = await prisma.transaction.updateMany({
+    where: { importBatchId: batchId, userId, deletedAt: null },
+    data: { deletedAt: new Date() },
+  });
+  await prisma.importBatch.update({
+    where: { id: batchId },
+    data: { reversedAt: new Date() },
+  });
+
+  revalidatePath("/transactions");
+  revalidatePath("/budget");
+  revalidatePath("/dashboard");
+
+  return { reversed: result.count, accountName: batch.account.name };
 }
 
 const setCategorySchema = z.object({

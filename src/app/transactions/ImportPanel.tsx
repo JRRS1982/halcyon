@@ -415,6 +415,7 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
       rows,
       mapping,
       skipIndexes,
+      fileName,
     });
     // The task is done: close the whole modal flow and let the toast +
     // refreshed ledger carry the result.
