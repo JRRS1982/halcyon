@@ -39,12 +39,12 @@ describe("dedupeLabels", () => {
 
   test("canonical label is the most frequent cleaned form", () => {
     const groups = dedupeLabels(["Groceries", "groceries", "groceries"]);
-    expect(groups[0].label).toBe("groceries");
+    expect(groups[0]?.label).toBe("groceries");
   });
 
   test("ties on frequency fall back to first appearance", () => {
     const groups = dedupeLabels(["Groceries", "groceries"]);
-    expect(groups[0].label).toBe("Groceries");
+    expect(groups[0]?.label).toBe("Groceries");
   });
 
   test("preserves first-appearance order of distinct keys", () => {

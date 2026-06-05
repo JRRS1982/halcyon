@@ -50,9 +50,9 @@ describe("getTransfersByAccount (integration)", () => {
     );
 
     const byName = Object.fromEntries(rows.map((r) => [r.accountName, r]));
-    expect(byName.Current.net).toBe(-500);
-    expect(byName.ISA.net).toBe(500);
-    expect(byName.Current.counterparties).toEqual([
+    expect(byName.Current?.net).toBe(-500);
+    expect(byName.ISA?.net).toBe(500);
+    expect(byName.Current?.counterparties).toEqual([
       { accountId: isa.id, accountName: "ISA", net: -500 },
     ]);
   });

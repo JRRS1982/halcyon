@@ -115,8 +115,7 @@ export async function getOrProvisionCategories(
   const groupList = Array.from(groups.values());
 
   const created: LedgerCategory[] = [];
-  for (let i = 0; i < groupList.length; i++) {
-    const group = groupList[i];
+  for (const [i, group] of groupList.entries()) {
     const category = await prisma.category.create({
       data: {
         userId,

@@ -63,7 +63,9 @@ export function CashFlowChart({
   }) => {
     const { x, y, index } = props;
     if (x == null || y == null || index == null) return <g />;
-    const net = data[index].net;
+    const point = data[index];
+    if (!point) return <g />;
+    const net = point.net;
     const up = net >= 0;
     const text = fmtNet(net);
     const cx = Number(x);

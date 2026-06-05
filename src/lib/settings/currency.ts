@@ -79,7 +79,7 @@ export function isNumberFormat(value: unknown): value is NumberFormat {
 function formatDigits(n: number, fmt: NumberFormat): string {
   const spec = NUMBER_FORMAT_SPEC[fmt];
   const fixed = n.toFixed(spec.decimals);
-  const [intPart, fracPart] = fixed.split(".");
+  const [intPart = "", fracPart] = fixed.split(".");
   const grouped = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, spec.thousands);
   return fracPart ? `${grouped}${spec.decimal}${fracPart}` : grouped;
 }
@@ -102,8 +102,8 @@ export function formatNumber(
 
 // A char counts as "significant" for caret tracking if it survives regrouping:
 // a digit or the decimal separator (group separators are inserted/removed).
-function isSignificant(ch: string, decimal: string): boolean {
-  return /\d/.test(ch) || ch === decimal;
+function isSignificant(ch: string | undefined, decimal: string): boolean {
+  return ch !== undefined && (/\d/.test(ch) || ch === decimal);
 }
 
 // Regroup a partially-typed string: strip existing thousands separators, keep
