@@ -363,6 +363,7 @@ components:
     scrim: "rgba(15, 17, 22, 0.5)"
     maxWidthConfirm: 480px
     maxWidthForm: 640px
+    maxWidthTask: 720px # working modals with embedded tables (statement import)
 
   empty-state:
     description: "Placeholder shown when a list / sheet has no rows yet."
@@ -722,7 +723,7 @@ The Budget page is built around a single bordered grid — the **sheet**. Every 
 
 **`modal`** — confirm dialog and form drawer.
 
-- Background `{colors.canvas}`, 1 px solid `{colors.hairline}` border, padding `{spacing.3xl}` 32 px, shape `{rounded.sm}` 4 px. Anchored to viewport centre with an `rgba(15, 17, 22, 0.5)` scrim behind. Width caps at 480 px for confirms, 640 px for forms.
+- Background `{colors.canvas}`, 1 px solid `{colors.hairline}` border, padding `{spacing.3xl}` 32 px, shape `{rounded.sm}` 4 px. Anchored to viewport centre with an `rgba(15, 17, 22, 0.5)` scrim behind. Width caps at 480 px for confirms, 640 px for forms, 720 px for working "task" modals that embed a data table (the statement import).
 
 **`empty-state`** — the placeholder shown when a sheet or list has no rows yet.
 
