@@ -22,8 +22,8 @@ describe("netTransfersByAccount", () => {
       leg("isa", "ISA", "cur", "Current", 500),
     ]);
     const byId = Object.fromEntries(rows.map((r) => [r.accountId, r]));
-    expect(byId.cur.net).toBe(-700);
-    expect(byId.isa.net).toBe(500);
+    expect(byId.cur?.net).toBe(-700);
+    expect(byId.isa?.net).toBe(500);
   });
 
   it("does NOT collapse the two legs of one transfer (different accounts)", () => {
@@ -55,6 +55,6 @@ describe("netTransfersByAccount", () => {
       leg("a", "Alpha", "b", "Beta", -100),
     ]);
     expect(rows.map((r) => r.accountName)).toEqual(["Alpha", "Beta"]);
-    expect(Object.is(rows[0].net, -100)).toBe(true);
+    expect(Object.is(rows[0]?.net, -100)).toBe(true);
   });
 });

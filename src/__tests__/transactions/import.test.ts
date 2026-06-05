@@ -23,13 +23,13 @@ describe("mapRows", () => {
       amount: -50,
       errors: [],
     });
-    expect(mapped[0].date?.toISOString()).toBe("2026-03-14T00:00:00.000Z");
+    expect(mapped[0]?.date?.toISOString()).toBe("2026-03-14T00:00:00.000Z");
   });
 
   test("includes the first row when hasHeader is false", () => {
     const mapped = mapRows(rows, { ...mapping, hasHeader: false });
     expect(mapped).toHaveLength(3);
-    expect(mapped[0].errors).toContain("Invalid date");
+    expect(mapped[0]?.errors).toContain("Invalid date");
   });
 
   test("flags an unparseable date", () => {
@@ -40,8 +40,8 @@ describe("mapRows", () => {
       ],
       mapping,
     );
-    expect(mapped[0].errors).toContain("Invalid date");
-    expect(mapped[0].date).toBeNull();
+    expect(mapped[0]?.errors).toContain("Invalid date");
+    expect(mapped[0]?.date).toBeNull();
   });
 
   test("flags an unparseable amount", () => {
@@ -52,8 +52,8 @@ describe("mapRows", () => {
       ],
       mapping,
     );
-    expect(mapped[0].errors).toContain("Invalid amount");
-    expect(mapped[0].amount).toBeNull();
+    expect(mapped[0]?.errors).toContain("Invalid amount");
+    expect(mapped[0]?.amount).toBeNull();
   });
 
   test("trims the description and tolerates a missing column", () => {
@@ -64,8 +64,8 @@ describe("mapRows", () => {
       ],
       mapping,
     );
-    expect(mapped[0].description).toBe("Tesco");
-    expect(mapped[0].errors).toContain("Invalid amount");
+    expect(mapped[0]?.description).toBe("Tesco");
+    expect(mapped[0]?.errors).toContain("Invalid amount");
   });
 
   test("carries the original row and its data index", () => {
@@ -121,17 +121,17 @@ describe("mapRows extra columns", () => {
 
   test("keeps chosen columns keyed by their header label", () => {
     const mapped = mapRows(rows, { ...mapping, extraColumns: [3, 4] });
-    expect(mapped[0].extra).toEqual({ Type: "DD", Reference: "000123" });
+    expect(mapped[0]?.extra).toEqual({ Type: "DD", Reference: "000123" });
   });
 
   test("blank values are dropped; all-blank rows get null extra", () => {
     const mapped = mapRows(rows, { ...mapping, extraColumns: [3, 4] });
-    expect(mapped[1].extra).toBeNull();
+    expect(mapped[1]?.extra).toBeNull();
   });
 
   test("no extraColumns means extra is null", () => {
     const mapped = mapRows(rows, mapping);
-    expect(mapped[0].extra).toBeNull();
+    expect(mapped[0]?.extra).toBeNull();
   });
 
   test("headerless files key by column number", () => {
@@ -140,11 +140,11 @@ describe("mapRows extra columns", () => {
       hasHeader: false,
       extraColumns: [3],
     });
-    expect(mapped[0].extra).toEqual({ "Column 4": "DD" });
+    expect(mapped[0]?.extra).toEqual({ "Column 4": "DD" });
   });
 
   test("core mapped columns are never duplicated into extra", () => {
     const mapped = mapRows(rows, { ...mapping, extraColumns: [0, 1, 2, 3] });
-    expect(mapped[0].extra).toEqual({ Type: "DD" });
+    expect(mapped[0]?.extra).toEqual({ Type: "DD" });
   });
 });

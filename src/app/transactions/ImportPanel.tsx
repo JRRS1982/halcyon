@@ -343,7 +343,8 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
 
     const text = await file.text();
     const parsed = parseCsv(text);
-    if (parsed.length === 0) {
+    const [headerRow] = parsed;
+    if (!headerRow) {
       setRows([]);
       setMapping(null);
       setError("That file has no rows.");
@@ -352,7 +353,7 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
     }
     setFileName(file.name);
     setRows(parsed);
-    setMapping(guessMapping(parsed[0]));
+    setMapping(guessMapping(headerRow));
     setOpen(true);
   };
 

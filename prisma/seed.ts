@@ -159,7 +159,16 @@ async function seedCategories(userId: string) {
         },
       }),
     ),
-  ).then((rows) => new Map(CATEGORY_PLAN.map((c, i) => [c.key, rows[i]])));
+  ).then(
+    (rows) =>
+      new Map(
+        CATEGORY_PLAN.map((c, i) => {
+          const row = rows[i];
+          if (!row) throw new Error(`Missing created category for ${c.key}`);
+          return [c.key, row] as const;
+        }),
+      ),
+  );
 }
 
 async function seedAccounts(userId: string) {
@@ -178,10 +187,12 @@ async function seedAccounts(userId: string) {
 
 // The MONTHS calendar months ending with the current one, oldest first.
 function monthWindow(now: Date) {
-  const ranges = [monthRangeFor(now.getUTCFullYear(), now.getUTCMonth())];
+  let oldest = monthRangeFor(now.getUTCFullYear(), now.getUTCMonth());
+  const ranges = [oldest];
   for (let i = 1; i < MONTHS; i++) {
-    const prev = previousMonth(ranges[0].startDate);
-    ranges.unshift(monthRangeFor(prev.year, prev.month));
+    const prev = previousMonth(oldest.startDate);
+    oldest = monthRangeFor(prev.year, prev.month);
+    ranges.unshift(oldest);
   }
   return ranges;
 }
@@ -284,8 +295,7 @@ async function seedTransactions(
   );
   const byMonth = new Map<string, { categoryKey: string; amount: number }[]>();
 
-  for (let monthIndex = 0; monthIndex < window.length; monthIndex++) {
-    const range = window[monthIndex];
+  for (const [monthIndex, range] of window.entries()) {
     const year = range.startDate.getUTCFullYear();
     const month = range.startDate.getUTCMonth();
     const planned = transactionsForMonth(year, month, monthIndex);
@@ -381,8 +391,7 @@ async function seedBalanceItems(
   _userId: string,
   opts: { periods: { id: string }[] },
 ) {
-  for (let i = 0; i < opts.periods.length; i++) {
-    const period = opts.periods[i];
+  for (const [i, period] of opts.periods.entries()) {
     const rows = [
       {
         type: "ASSET" as const,
@@ -448,8 +457,11 @@ const main = async () => {
 
   const now = new Date();
   const window = monthWindow(now);
-  const from = window[0].startDate;
-  const to = window[window.length - 1].startDate;
+  const first = window[0];
+  const last = window[window.length - 1];
+  if (!first || !last) throw new Error("Month window is empty");
+  const from = first.startDate;
+  const to = last.startDate;
 
   const categories = await seedCategories(userId);
   const accounts = await seedAccounts(userId);

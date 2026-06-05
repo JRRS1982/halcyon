@@ -37,13 +37,13 @@ describe("import batches (integration)", () => {
       where: { userId: TEST_USER_ID },
     });
     expect(batches).toHaveLength(1);
-    expect(batches[0].fileName).toBe("statement.csv");
+    expect(batches[0]?.fileName).toBe("statement.csv");
 
     const txns = await prisma.transaction.findMany({
       where: { userId: TEST_USER_ID },
     });
     expect(txns).toHaveLength(2);
-    expect(txns.every((t) => t.importBatchId === batches[0].id)).toBe(true);
+    expect(txns.every((t) => t.importBatchId === batches[0]?.id)).toBe(true);
   });
 
   test("listImportBatches reports live counts, newest first", async () => {
@@ -53,17 +53,18 @@ describe("import batches (integration)", () => {
     const list = await listImportBatches();
 
     expect(list).toHaveLength(2);
-    expect(list[0].fileName).toBe("second.csv");
-    expect(list[0].count).toBe(1);
-    expect(list[1].fileName).toBe("first.csv");
-    expect(list[1].count).toBe(2);
-    expect(list[0].accountName).toBe("Current");
+    expect(list[0]?.fileName).toBe("second.csv");
+    expect(list[0]?.count).toBe(1);
+    expect(list[1]?.fileName).toBe("first.csv");
+    expect(list[1]?.count).toBe(2);
+    expect(list[0]?.accountName).toBe("Current");
   });
 
   test("reverseImport soft-deletes only the chosen batch and retires it", async () => {
     await runImport(["Tesco", "Shell"], "first.csv");
     await runImport(["Greggs"], "second.csv");
     const [latest] = await listImportBatches();
+    if (!latest) throw new Error("Expected a batch to reverse");
 
     const res = await reverseImport({ batchId: latest.id });
 
@@ -76,7 +77,7 @@ describe("import batches (integration)", () => {
     // The reversed batch leaves the picker; the other remains.
     const list = await listImportBatches();
     expect(list).toHaveLength(1);
-    expect(list[0].fileName).toBe("first.csv");
+    expect(list[0]?.fileName).toBe("first.csv");
 
     // A second reversal of the same batch is rejected.
     await expect(reverseImport({ batchId: latest.id })).rejects.toThrow(
@@ -92,7 +93,7 @@ describe("import batches (integration)", () => {
     });
 
     let list = await listImportBatches();
-    expect(list[0].count).toBe(1);
+    expect(list[0]?.count).toBe(1);
 
     await prisma.transaction.updateMany({
       where: { userId: TEST_USER_ID },

@@ -67,7 +67,7 @@ describe("commitImport extra columns (integration)", () => {
       where: { userId: TEST_USER_ID },
       orderBy: { date: "asc" },
     });
-    expect(rows[0].extra).toEqual({ Type: "DD", Reference: "000123" });
-    expect(rows[1].extra).toBeNull();
+    expect(rows[0]?.extra).toEqual({ Type: "DD", Reference: "000123" });
+    expect(rows[1]?.extra).toBeNull();
   });
 });

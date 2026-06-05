@@ -70,10 +70,12 @@ export function computeMove<T extends Movable>(
     });
 
   if (direction === "up") {
-    if (p > 0) return swap(bucketRows[p], bucketRows[p - 1]);
+    const above = bucketRows[p - 1];
+    if (above) return swap(target, above);
     if (b <= 0) return null;
     // Move to the end of the previous bucket.
     const dest = BUCKET_ORDER[b - 1];
+    if (!dest) return null;
     const destMax = Math.max(
       0,
       ...items
@@ -88,10 +90,12 @@ export function computeMove<T extends Movable>(
   }
 
   // direction === "down"
-  if (p < bucketRows.length - 1) return swap(bucketRows[p], bucketRows[p + 1]);
+  const below = bucketRows[p + 1];
+  if (below) return swap(target, below);
   if (b >= BUCKET_ORDER.length - 1) return null;
   // Move to the start of the next bucket.
   const dest = BUCKET_ORDER[b + 1];
+  if (!dest) return null;
   const destMin = Math.min(
     0,
     ...items

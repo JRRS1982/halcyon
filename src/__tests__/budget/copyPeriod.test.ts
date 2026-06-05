@@ -30,8 +30,8 @@ describe("buildCopiedItems", () => {
 
   test("resets actuals to 0 but carries budgets over", () => {
     const copied = buildCopiedItems([src("a", { budget: 250 })], seqIds());
-    expect(copied[0].budget).toBe(250);
-    expect(copied[0].actual).toBe(0);
+    expect(copied[0]?.budget).toBe(250);
+    expect(copied[0]?.actual).toBe(0);
   });
 
   test("keeps type, category, incomeCategory, label and sortOrder", () => {

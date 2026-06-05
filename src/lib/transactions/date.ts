@@ -16,14 +16,17 @@ export function parseDate(raw: string, format: DateFormat): Date | null {
   if (parts.length !== 3 || !parts.every((part) => /^\d+$/.test(part))) {
     return null;
   }
-  const nums = parts.map((part) => Number.parseInt(part, 10));
+  const [first, second, third] = parts.map((part) => Number.parseInt(part, 10));
+  if (first === undefined || second === undefined || third === undefined) {
+    return null;
+  }
 
   let day: number;
   let month: number;
   let year: number;
-  if (format === "DMY") [day, month, year] = nums;
-  else if (format === "MDY") [month, day, year] = nums;
-  else [year, month, day] = nums;
+  if (format === "DMY") [day, month, year] = [first, second, third];
+  else if (format === "MDY") [month, day, year] = [first, second, third];
+  else [year, month, day] = [first, second, third];
 
   if (year < 100) year += 2000;
   if (month < 1 || month > 12 || day < 1 || day > 31) return null;

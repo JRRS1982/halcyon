@@ -128,6 +128,7 @@ describe("bulkDeleteTransactions (integration)", () => {
   test("soft-deletes selected rows only", async () => {
     const { mine } = await seed();
     const [first, second] = mine;
+    if (!first || !second) throw new Error("Expected two seeded transactions");
 
     const res = await bulkDeleteTransactions({
       transactionIds: [first.id, second.id],
