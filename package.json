@@ -33,7 +33,7 @@
     "@reduxjs/toolkit": "^2.0.0",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.46.1",
-    "next": "^16.1.5",
+    "next": "^16.2.6",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-redux": "^9.0.0",
