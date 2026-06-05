@@ -9,6 +9,7 @@ Halcyon is a personal finance web app built as a learning project. The build pro
 Companion AI context lives in `.ai/`:
 
 - `.ai/code-style.md` — coding conventions (early returns, self-documenting code, minimal dependencies)
+- `.ai/typescript.md` — TypeScript practices (derive types from zod/Prisma, `satisfies` over `as`, no enums, discriminated unions)
 - `.ai/review-guidelines.md` — review checklist (security-sensitive code, hard-coded secrets, dependency justification)
 
 ## Stack
