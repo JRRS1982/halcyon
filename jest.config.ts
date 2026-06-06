@@ -20,6 +20,12 @@ const config: Config = {
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
   },
+  // Jest 30's haste map scans build output; .next/standalone carries a copy of
+  // package.json which collides with the root one.
+  modulePathIgnorePatterns: [
+    "<rootDir>/.next/",
+    "<rootDir>/.claude/worktrees/",
+  ],
   coveragePathIgnorePatterns: [
     "<rootDir>/node_modules/",
     "<rootDir>/e2e/",
