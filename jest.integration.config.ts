@@ -1,5 +1,7 @@
 import type { Config } from "jest";
-import nextJest from "next/jest";
+// The explicit .js extension matters: on Node >=22.18 jest 30 loads this file
+// with native type stripping + ESM resolution, where bare "next/jest" fails.
+import nextJest from "next/jest.js";
 
 // Integration tests run the real server actions against a real Postgres
 // (halcyon_test), with only the Supabase auth boundary mocked. Run via

@@ -1,5 +1,7 @@
 import type { Config } from "jest";
-import nextJest from "next/jest";
+// The explicit .js extension matters: on Node >=22.18 jest 30 loads this file
+// with native type stripping + ESM resolution, where bare "next/jest" fails.
+import nextJest from "next/jest.js";
 
 const createJestConfig = nextJest({
   dir: "./",
@@ -20,6 +22,12 @@ const config: Config = {
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
   },
+  // Jest 30's haste map scans build output; .next/standalone carries a copy of
+  // package.json which collides with the root one.
+  modulePathIgnorePatterns: [
+    "<rootDir>/.next/",
+    "<rootDir>/.claude/worktrees/",
+  ],
   coveragePathIgnorePatterns: [
     "<rootDir>/node_modules/",
     "<rootDir>/e2e/",
