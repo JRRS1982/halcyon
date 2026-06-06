@@ -68,6 +68,7 @@ There is no longer a self-hosted production setup — `Dockerfile.prod`, `compos
   - `integration-tests` — `pnpm test:int` against a Postgres service (`postgres/postgres`, `halcyon_test`)
   - `e2e-tests` — `playwright install --with-deps chromium`, `pnpm test:e2e`, backed by a Postgres service (`test/test`, `halcyon_test`) + the mock Supabase auth server
   - `migrate-prod` — on push to `master` only, gated on the three above; runs `prisma migrate deploy` against production Supabase (`PROD_DIRECT_URL` secret). Vercel waits for this workflow before deploying, so code never goes live against an un-migrated schema. Rollback is one-click in the Vercel dashboard.
+- **Merging PRs**: the repo is private on the GitHub Free plan, so there is no branch protection — nothing forces CI to pass before merge, and `gh pr merge --auto` merges *immediately* (auto-merge only waits when checks are required). Always wait for green checks before merging: `gh pr checks <n> --watch`, then `gh pr merge <n> --merge --delete-branch`. Never use `--auto`.
 
 ## Code style (from .ai/code-style.md)
 

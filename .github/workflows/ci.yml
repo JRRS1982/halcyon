@@ -35,7 +35,10 @@ jobs:
         run: pnpm typecheck
 
       - name: Run unit tests with coverage
+        # pipefail is required: without it the step's exit code is tee's
+        # (always 0), so a jest failure would pass CI silently.
         run: |
+          set -o pipefail
           pnpm test:coverage | tee coverage-output.txt
           echo "## Test Coverage" >> $GITHUB_STEP_SUMMARY
           tail -n 10 coverage-output.txt >> $GITHUB_STEP_SUMMARY
