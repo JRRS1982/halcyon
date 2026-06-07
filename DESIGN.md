@@ -3,16 +3,15 @@ version: alpha
 name: Halcyon-design-system
 description: Halcyon's design language — a personal-finance app whose primary surface is a real spreadsheet (column headers, row indices, a formula bar, focused-cell selection, dark full-width section bands that group rows). Two faces carry every page — Inter for headlines and body, a system monospace face used uppercase for every label that touches data. One muted blue accent reserved for interaction and wayfinding; positive and negative variance amounts use sign-only muted green and red.
 
-# Type scale — only six sizes anywhere in the system:
+# Type scale — only five sizes anywhere in the system:
 #   28 → page h1
 #   18 → section heading h2, grand-total amount
 #   14 → cell body, lead, nav brand, formula value
 #   13 → dense data UI — ledger/import tables, popover options, inline notes
 #   11 → ALL mono caps (column headers, section labels, eyebrows, button labels, status pips)
-#   96 → footer wordmark stencil
 # (Chart internals — axis ticks, legends, tooltips — render at 11–12px inside the
 # chart surface and don't count against the scale.)
-# If a new size is needed, prefer adjusting one of these before introducing a seventh.
+# If a new size is needed, prefer adjusting one of these before introducing a sixth.
 
 colors:
   primary: "#000000"
@@ -38,12 +37,6 @@ colors:
   chart-rate: "#D97706"
 
 typography:
-  display-xxl:
-    fontFamily: Inter, system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif
-    fontSize: 96px
-    fontWeight: 500
-    lineHeight: 1
-    letterSpacing: -0.04em
   display-xl:
     fontFamily: Inter, system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif
     fontSize: 28px
@@ -381,15 +374,10 @@ components:
     typography: "{typography.body-md}"
     padding: "{spacing.section} {spacing.3xl}"
 
-  wordmark-footer:
-    description: "Giant lowercase 'halcyon' tinted to hairline grey at the bottom of long pages. Faint stencil signature."
-    typography: "{typography.display-xxl}"
-    color: "{colors.hairline}"
-    padding: "{spacing.4xl} 0 {spacing.3xl}"
 
   # ─── Examples (illustrative) — kit-mirror surfaces composed from primitives above ───
   ex-budget-page:
-    description: "The Budget page top-to-bottom: nav-bar → page header → toolbar → formula-bar → sheet (head, section, items, totals, grand) → period-tabs → wordmark-footer."
+    description: "The Budget page top-to-bottom: nav-bar → page header → toolbar → formula-bar → sheet (head, section, items, totals, grand) → period-tabs."
     pageMaxWidth: 1240px
     pagePadding: "{spacing.3xl} {spacing.2xl} {spacing.5xl}"
 
@@ -426,11 +414,10 @@ Surfaces alternate at the row level, not the page level. A page is `{colors.canv
 - A single black `{colors.primary}` CTA pill carries every primary action — Add row, Save changes, Sign in. One per visible viewport.
 - No brand gradient. The dark section bands + black grand-total row are the decorative system; the single `{colors.accent}` blue is functional (interaction + wayfinding), never decorative.
 - All-caps mono labels in `{typography.mono-caps}` for everything that names data — column headers, section rows, button labels, eyebrows, status pips, period months, the row-index column.
-- The **type scale has six sizes only** — 96, 28, 18, 14, 13, 11 (chart internals may use 11–12px inside the chart surface). New sizes are added by adjusting one of the existing tokens; introducing a seventh is a design decision, not a default.
+- The **type scale has five sizes only** — 28, 18, 14, 13, 11 (chart internals may use 11–12px inside the chart surface). New sizes are added by adjusting one of the existing tokens; introducing a sixth is a design decision, not a default.
 - Tabular numerals on every currency amount. Right-aligned in their columns; left-aligned amount cells are forbidden.
 - Positive variance in `{colors.positive}` (`#1F8A4C`); negative in `{colors.negative}` (`#B33B3B`). Sign-only — never as brand colours or button fills.
 - $0 / empty amounts dim to `{colors.dim}` (`#999999`) so they recede from real data.
-- A `halcyon` wordmark at the very bottom of every long page in `{typography.display-xxl}` at 96 px, tinted to `{colors.hairline}` so it reads as a faint stencil signature.
 
 ## Colors
 
@@ -474,7 +461,7 @@ A deliberately small semantic palette — sign-only, never decorative.
 
 Two families carry the entire system:
 
-1. **Inter** for every headline, lead paragraph, body, cell amount, and inline link. Weights 400 / 500 / 600. Already loaded via `next/font/google` in `src/app/layout.tsx`. Tight negative letter-spacing on display sizes (`-0.04em` at 96 px wordmark, `-0.02em` at 28 px page h1, `-0.003em` at 14 px body) gives the face its slightly-condensed feel.
+1. **Inter** for every headline, lead paragraph, body, cell amount, and inline link. Weights 400 / 500 / 600. Already loaded via `next/font/google` in `src/app/layout.tsx`. Tight negative letter-spacing on display sizes (`-0.02em` at 28 px page h1, `-0.003em` at 14 px body) gives the face its slightly-condensed feel.
 2. **System monospace** (`ui-monospace, SF Mono, Menlo, Consolas, monospace`) used uppercase for every label that touches data. Weight 500 at 11 px; positive letter-spacing (`0.055em`). The mono carries the brand's technical voice — every label that says "BUDGET", "CATEGORY", "INCOME", "JAN 2025", "LOCKED", "FX" is set in this face.
 
 The mono face is **never** used for body copy, never for cell amounts (amounts are Inter with `tabular-nums`), and never for headlines.
@@ -483,7 +470,6 @@ The mono face is **never** used for body copy, never for cell amounts (amounts a
 
 | Token | Size | Weight | Line Height | Letter Spacing | Use |
 |---|---|---|---|---|---|
-| `{typography.display-xxl}` | 96 px | 500 | 1 | -0.04 em | The footer wordmark stencil only. |
 | `{typography.display-xl}` | 28 px | 500 | 1.1 | -0.02 em | Page headlines ("Budget overview"). |
 | `{typography.display-lg}` | 18 px | 500 | 1.3 | -0.012 em | Section headings ("Historic records"). Also the typography of `amount-xl` on the grand-total row. |
 | `{typography.body-md}` | 14 px | 400 | 1.5 | -0.003 em | Default cell body, lead paragraphs, nav brand, formula-bar formula value, period-tab net amount. |
@@ -494,7 +480,7 @@ The mono face is **never** used for body copy, never for cell amounts (amounts a
 | `{typography.amount-xl}` | 18 px | 500 | 1.3 | -0.012 em | Grand-total row amount only. Tabular numerals. |
 | `{typography.mono-caps}` | 11 px | 500 | 1.2 | 0.055 em | Everything mono — column headers, section labels, button labels, eyebrows, status-pip text, period-tab month + status, row-index digits, formula-bar cell ref. |
 
-**Six visual sizes total** (96 / 28 / 18 / 14 / 13 / 11). The `amount` variants share size with `body-md`; the `amount-xl` shares size with `display-lg`; `body-sm` is reserved for dense data UI. Chart internals (axis ticks, legends, tooltips) render at 11–12px inside the chart surface and don't count against the scale. New tokens reuse existing sizes by default.
+**Five visual sizes total** (28 / 18 / 14 / 13 / 11). The `amount` variants share size with `body-md`; the `amount-xl` shares size with `display-lg`; `body-sm` is reserved for dense data UI. Chart internals (axis ticks, legends, tooltips) render at 11–12px inside the chart surface and don't count against the scale. New tokens reuse existing sizes by default.
 
 ### Voice
 
@@ -551,7 +537,6 @@ The default sheet cell renders at ~36 px tall (14 px text + 8 px × 2 padding + 
 - **Toolbar**: at desktop, groups sit inline left-to-right. At mobile, the toolbar enables horizontal scroll; groups stay grouped but the row can pan.
 - **Sheet**: at desktop, all six columns visible. At mobile, the row-index + category columns are sticky-left; amount columns scroll horizontally inside the sheet's rounded container.
 - **Period tabs**: 5-up at desktop, 3-up at tablet, 1-up at mobile. Card chrome stays identical.
-- **Footer wordmark**: scales fluidly — the giant `halcyon` wordmark stays edge-to-edge regardless of viewport. On mobile it drops to ~60 px font size to avoid clipping.
 
 ## Elevation & Depth
 
@@ -576,7 +561,7 @@ The default sheet cell renders at ~36 px tall (14 px text + 8 px × 2 padding + 
 
 | Token | Value | Use |
 |---|---|---|
-| `{rounded.none}` | 0 px | Sheet section bands, sheet grand-total row, page edges, footer wordmark. |
+| `{rounded.none}` | 0 px | Sheet section bands, sheet grand-total row, page edges. |
 | `{rounded.sm}` | 4 px | The canonical radius — buttons, badges, cards, the sheet container (corners only), period-tab rail, text inputs, modals, toasts, status pips. |
 | `{rounded.full}` | 9999 px | **Not used.** Halcyon does not ship pill-shaped CTAs, floating chat orbs, or avatar circles. Reserved for future status-dot or notification-dot use. |
 
@@ -597,13 +582,9 @@ The default sheet cell renders at ~36 px tall (14 px text + 8 px × 2 padding + 
 
 - Text `{colors.body}` for inactive, `{colors.ink}` for active, set in `{typography.mono-caps}`. Links separate with `{spacing.2xl}` 24 px between siblings. Active state has no underline — colour change only.
 
-**`footer`** — the bottom block before the wordmark.
+**`footer`** — the page's bottom block.
 
 - Background `{colors.canvas}`, text `{colors.body}`, padding `{spacing.section} {spacing.3xl}`. Mono-caps eyebrow column titles, body-md link rows.
-
-**`wordmark-footer`** — the giant `halcyon` wordmark at the bottom of long pages.
-
-- Background `{colors.canvas}`, wordmark colour `{colors.hairline}` (faint stencil tint), set in `{typography.display-xxl}` at 96 px. Edge-to-edge, square corners. Acts as the final page sign-off.
 
 ### Buttons
 
@@ -749,7 +730,7 @@ Conventions:
 
 - **Dash patterns are series identity, not decoration.** When several series share a colour, the dash pattern is the only differentiator (asset/liability term categories; Budget `5 4` vs 6-month avg `2 3`) — so every legend must render each entry's true colour *and* dash pattern (see `ChartLegend`). A legend with identical icons is a defect.
 - **Value labels** on a headline series render as bordered chips (canvas fill, 1 px series-coloured border, 11px bold) showing the actual value, coloured by sign.
-- **Chart-internal type** — axis ticks, legends, tooltips — runs at 11–12px and doesn't count against the six-size scale.
+- **Chart-internal type** — axis ticks, legends, tooltips — runs at 11–12px and doesn't count against the five-size scale.
 - Tooltips carry full-precision amounts; axis ticks abbreviate (`£8k`).
 - No gradients, no area fills, no animation (`isAnimationActive={false}` everywhere) — charts obey the same flat, hairline-grid restraint as the sheet.
 
@@ -759,7 +740,7 @@ These are not new primitives; they are kit-mirror surfaces composed from the pri
 
 **`ex-budget-page`** — the Budget page top-to-bottom.
 
-- `nav-bar` → page header (eyebrow + `display-xl` headline + lead + action cluster with `status-pip` + `button-outline` + `button-primary`) → `toolbar` → `formula-bar` → `sheet` (head row → section → items with `indent-1`/`indent-2` → subtotal → section → items → subtotal → grand) → `period-tab` rail → `wordmark-footer`. Page maxWidth 1240 px, padding `{spacing.3xl} {spacing.2xl} {spacing.5xl}`.
+- `nav-bar` → page header (eyebrow + `display-xl` headline + lead + action cluster with `status-pip` + `button-outline` + `button-primary`) → `toolbar` → `formula-bar` → `sheet` (head row → section → items with `indent-1`/`indent-2` → subtotal → section → items → subtotal → grand) → `period-tab` rail. Page maxWidth 1240 px, padding `{spacing.3xl} {spacing.2xl} {spacing.5xl}`.
 
 **`ex-auth-form-card`** — the sign-in / sign-up card on `/sign-in` and `/sign-up`.
 
@@ -780,10 +761,9 @@ These are not new primitives; they are kit-mirror surfaces composed from the pri
 - Apply `{colors.positive}` and `{colors.negative}` to **amounts only** on page surfaces — never to button fills, badge backgrounds, banner tints, or headlines. (Inside chart surfaces they identify money-in/money-out series — see Data visualization.)
 - Apply `{colors.accent}` to **interaction and wayfinding** — links, input focus rings, active filter/nav states, eyebrow period identifiers, create actions inside popovers, the Net series in charts. Keep it off amounts and table data, and never let it compete with a black `button-primary` on the same surface.
 - Dim $0 or empty amount cells to `{colors.dim}` so they recede from real data.
-- Use `{rounded.sm}` 4 px as the canonical card / button / panel radius across the system. Reach for `{rounded.none}` only on full-bleed edges (sheet section bands, sheet grand-total row, nav-bar bottom border, footer wordmark).
-- Render the giant `halcyon` wordmark at the bottom of every long page in `{typography.display-xxl}` at 96 px, tinted to `{colors.hairline}` so it reads as a stencil — not as a heavy footer title.
+- Use `{rounded.sm}` 4 px as the canonical card / button / panel radius across the system. Reach for `{rounded.none}` only on full-bleed edges (sheet section bands, sheet grand-total row, nav-bar bottom border).
 - Pair every destructive button with a `modal` confirm. Money operations need a friction beat.
-- Stay within the six-size type scale (96 / 28 / 18 / 14 / 13 / 11). If a seventh size feels necessary, prefer adjusting one of these tokens.
+- Stay within the five-size type scale (28 / 18 / 14 / 13 / 11). If a sixth size feels necessary, prefer adjusting one of these tokens.
 
 ### Don't
 
@@ -797,5 +777,4 @@ These are not new primitives; they are kit-mirror surfaces composed from the pri
 - Don't omit decimals on a displayed currency amount. `$8,500.00`, not `$8,500`. Missing zeros read as estimation.
 - Don't bold a $0 cell to look like data. Dim it.
 - Don't fill the row-index column with anything other than the row's index number. No icons, no checkboxes, no drag handles — that column is for navigation reference only.
-- Don't tint the `halcyon` wordmark anything other than `{colors.hairline}`. The point is that it nearly disappears into the canvas.
 - Don't introduce more than one `sheet-row-grand` per sheet. Two grand-totals on one page reads as confusion about which is the actual total.

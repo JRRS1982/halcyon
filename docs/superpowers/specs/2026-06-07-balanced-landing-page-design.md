@@ -25,7 +25,7 @@ The repo is named *halcyon*, but the product ships publicly as **Balanced Money*
 
 ## 3. Positioning & voice
 
-- **Product name:** Balanced (short) / **Balanced Money** (full, used in footer). Wordmark reads `balanced`.
+- **Product name:** **Balanced Money** (used in nav brand, footer, and page title). "Balanced" may appear as a short form only inside running prose where the full name reads clunky. No wordmark stencil (removed — see §4.8 / §9.5).
 - **One-liner:** *Personal finance, made clear.*
 - **Pitch:** Balanced replaces the spreadsheet you've been meaning to keep, giving structure and gentle guidance to track what you have, understand where it goes, and learn how you really spend.
 - **Design system:** strictly follows `DESIGN.md` — Inter sentence-case headlines, uppercase `mono-caps` for every data-touching label, a single black CTA pill per viewport, hairline borders (no shadows on inline surfaces), `canvas-dark` bands for emphasis, accent blue reserved for interaction/wayfinding (kept off marketing prose), and the giant faint `halcyon`→`balanced` wordmark sign-off. Six-size type scale only.
@@ -35,7 +35,7 @@ The repo is named *halcyon*, but the product ships publicly as **Balanced Money*
 Page container: max-width 1240px, `DESIGN.md` page padding. Section rhythm uses the established spacing tokens. Final copy below is approved (from mockup A4) — treat as the source copy.
 
 ### 4.1 Nav (sticky, 56px, hairline bottom)
-- Brand **Balanced** (left).
+- Brand **Balanced Money** (left).
 - Centre `mono-caps` anchor links: **How it works · Features · Details** (homepage only — see §9 nav notes).
 - Right: **Sign in** (`mono-caps` link) + **Get started** black pill → `/sign-up`.
 
@@ -103,9 +103,9 @@ Page container: max-width 1240px, `DESIGN.md` page padding. Section rhythm uses 
 - *Create a free account and let Balanced give your money the structure it's been missing — and guide you to what matters.*
 - **Get started** pill (inverted: white fill, ink text on the dark band) → `/sign-up`.
 
-### 4.8 Footer + wordmark
+### 4.8 Footer
 - Footer columns: **Product** (How it works / Features / Details anchors) · **Legal** (Terms of Service `/terms`, Data Privacy `/privacy`). Brand block: **Balanced Money** + "Personal finance, made clear. Track what you have, understand where it goes."
-- Giant `balanced` wordmark, tinted `hairline`, square corners — the page sign-off.
+- **No wordmark stencil.** The giant faint wordmark is removed from the page (and from `DESIGN.md` — see §9.5). The footer block is the page's final element.
 
 ## 5. Screenshots
 
@@ -122,7 +122,7 @@ Every element maps to an existing `DESIGN.md` token/component:
 - Buttons → `button-primary` (black pill) + `button-outline`; on the dark CTA band the primary inverts to white-fill/ink-text (sanctioned inversion for a dark surface — the only place this occurs).
 - Surfaces → `canvas` page, `canvas-soft` for the details band, `canvas-dark` for the tree merge node + CTA band. Dividers → `hairline` / `hairline-strong`.
 - Accent blue → only the "Transactions on" badge border + (existing) inline link/focus behaviour. Kept off all marketing prose and amounts.
-- Wordmark → `wordmark-footer` (`display-xxl`, `hairline` tint), text changed to `balanced`.
+- No wordmark — the `wordmark-footer` / `display-xxl` treatment is being removed from the system (see §9.5).
 
 ## 7. Components & files (Next.js App Router + styled-components)
 
@@ -137,17 +137,22 @@ Every element maps to an existing `DESIGN.md` token/component:
 
 - **Public route:** `/` is public (middleware must not gate it).
 - **Signed-out:** full marketing page as specified.
-- **Signed-in:** keep the marketing page public, but the hero primary CTA swaps **Get started → Go to dashboard** (`/dashboard`), and the shared nav shows its signed-in app links (existing `NavBar` behaviour). No redirect. *(Decision — see §9.)*
+- **Signed-in:** redirect `/` → `/dashboard`. The marketing page is for prospects; signed-in users have full nav and don't need it. Also remove the now-redundant **Home** item from the signed-in `NavBar` list (it would only point at a redirect).
 - **Responsive:** follows `DESIGN.md` breakpoints. Hero/showcase/footer grids collapse to single column on mobile; the tree fork/merge connectors hide and branch cards stack; detail grid goes 1-up. Touch targets ≥44px on mobile.
 - **Accessibility:** semantic landmarks (`nav`/`main`/`section`/`footer`), one `h1`, logical heading order, alt text on every screenshot, anchor links with visible focus. Follow `docs/AccessibilityStandards.md`.
 
-## 9. Decisions to confirm (recommended defaults shown)
+## 9. Decisions (resolved)
 
-1. **Brand name string across the app.** The landing nav is the globally-rendered `NavBar`, which currently reads "Halcyon". *Recommend:* rename the user-facing brand string to **Balanced** in `NavBar` + page `<title>`/metadata as part of this work (repo name stays "halcyon"). Confirm scope.
-2. **Marketing nav vs shared nav.** *Recommend:* extend the shared `NavBar` signed-out state to show the **Get started** pill everywhere and the section anchor links **only on `/`** (anchors are homepage-specific). Alternative: a dedicated marketing header on `/` only.
-3. **Signed-in homepage behaviour.** *Recommend:* the CTA-swap described in §8 (no redirect). Alternative: redirect signed-in users straight to `/dashboard`.
-4. **Screenshot capture.** *Recommend:* Playwright-scripted capture against seeded data into `public/marketing/`; manual acceptable to start.
-5. **Wordmark text.** *Recommend:* `balanced`. Alternatives: `balanced money` / `balanced.money`.
+1. **Brand name string across the app — RESOLVED.** Rename the user-facing brand string to **Balanced Money** in `NavBar` + page `<title>`/metadata (repo name stays "halcyon").
+2. **Marketing nav vs shared nav — RESOLVED.** Extend the shared `NavBar`: show the **Get started** pill in the signed-out state, and the section anchor links **only on `/`** (anchors are homepage-specific).
+3. **Signed-in homepage behaviour — RESOLVED.** Redirect signed-in `/` → `/dashboard`; remove the redundant **Home** item from the signed-in `NavBar` list.
+4. **Screenshot capture — RESOLVED.** Playwright-scripted capture against seeded data into `public/marketing/` (manual acceptable as a first pass).
+5. **Wordmark — RESOLVED (removed).** The wordmark stencil is removed from the landing page **and** from `DESIGN.md`. Cleanup of `DESIGN.md` (and the coupled `theme.ts`) is required:
+   - Remove the `wordmark-footer` component block, the `ex-budget-page` reference to it, the Overview characteristic bullet, the Decorative-Depth "Wordmark stencil" entry, the Shapes/border-radius "footer wordmark" mention, the footer-section `wordmark-footer` description, and the Do/Don't lines about the wordmark.
+   - The now-orphaned 96px `display-xxl` size is removed too — see §9a (resolved). All of this is **already applied on this branch**.
+
+### 9a. Sub-decision: the 96px `display-xxl` size — RESOLVED (option B)
+Drop 96px entirely → a **five-size scale** (28 / 18 / 14 / 13 / 11). **Already applied on this branch:** the wordmark and the 96px `display-xxl` token have been removed from `DESIGN.md` (all ~10 references, including "six sizes"→"five sizes"), and `display-xxl` removed from `src/lib/theme.ts` (it had no other consumers; typecheck passes). The landing page therefore has no wordmark and uses the five-size scale.
 
 ## 10. Testing
 

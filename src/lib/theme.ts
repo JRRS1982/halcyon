@@ -30,14 +30,6 @@ export const theme = {
 
   // Five sizes only. See DESIGN.md → Typography → Hierarchy.
   typography: {
-    displayXxl: {
-      family:
-        "Inter, system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif",
-      size: "96px",
-      weight: 500,
-      lineHeight: 1,
-      letterSpacing: "-0.04em",
-    },
     displayXl: {
       family:
         "Inter, system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif",
