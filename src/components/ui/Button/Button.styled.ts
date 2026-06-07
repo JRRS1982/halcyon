@@ -43,6 +43,9 @@ export const StyledButton = styled.button<{ $variant: ButtonVariant }>`
 
     border-radius: ${theme.rounded.sm};
     padding: ${theme.spacing.sm} ${theme.spacing.lg};
+    /* A button label never wraps — wrapping changes the button's height when
+       flex containers squeeze it (e.g. the nav bar on narrow screens). */
+    white-space: nowrap;
     cursor: pointer;
     transition: opacity 100ms, border-color 100ms;
   `}
