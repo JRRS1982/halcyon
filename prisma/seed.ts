@@ -3,8 +3,12 @@ import { createClient } from "@supabase/supabase-js";
 import { monthRangeFor, previousMonth } from "../src/lib/budget/period";
 import { netActual } from "../src/lib/transactions/actual";
 
-// Seed local development with a fully loginable demo user plus six months of
-// coherent data, so the transactions list and every dashboard chart populate.
+// Seed local development with a fully loginable demo user plus eighteen months
+// of coherent data, so the transactions list and every dashboard chart populate.
+// Money flows like a real household: salary lands in the Current Account, a
+// standing order funds the Joint Account (which pays the bills), and monthly
+// contributions transfer to an ISA and SIPP — both legs of every transfer are
+// seeded, so the budget Transfers section populates too.
 //
 // The split (see docs/AuthFlow.md): there is no local Supabase Auth — the only
 // `auth.users` is the cloud project. So the demo *user* is created in cloud
@@ -18,7 +22,7 @@ import { netActual } from "../src/lib/transactions/actual";
 
 const DEMO_EMAIL = "demo@halcyon.local";
 const DEMO_PASSWORD = "halcyon-demo";
-const MONTHS = 6;
+const MONTHS = 18;
 const LOCAL_DB_HOSTS = ["db", "localhost", "127.0.0.1"];
 
 const prisma = new PrismaClient({
@@ -171,17 +175,23 @@ async function seedCategories(userId: string) {
   );
 }
 
+// Salary lands in `current`; `joint` pays the household bills; `isa` and
+// `sipp` only ever receive transfer legs (cash contributions, no holdings).
 async function seedAccounts(userId: string) {
-  const [current, savings] = await Promise.all([
+  const [current, joint, isa, sipp] = await Promise.all([
     prisma.account.create({
       data: { userId, name: "Current Account", type: "CHECKING" },
     }),
     prisma.account.create({
-      data: { userId, name: "Savings", type: "SAVINGS" },
+      data: { userId, name: "Joint Account", type: "JOINT" },
     }),
+    prisma.account.create({ data: { userId, name: "ISA", type: "ISA" } }),
+    prisma.account.create({ data: { userId, name: "SIPP", type: "PENSION" } }),
   ]);
-  return { current, savings };
+  return { current, joint, isa, sipp };
 }
+
+type AccountKey = keyof Awaited<ReturnType<typeof seedAccounts>>;
 
 // ─── Time window ──────────────────────────────────────────────────────────
 
@@ -201,77 +211,108 @@ function monthWindow(now: Date) {
 
 // The per-category transactions for a single month. monthIndex (0 = oldest)
 // drives a small deterministic drift so spending isn't identical every month.
+// Household bills come out of the Joint Account (funded by a monthly transfer
+// from Current); personal spend stays on the Current Account.
 function transactionsForMonth(
   year: number,
   month: number,
   monthIndex: number,
-): { categoryKey: string; day: number; amount: number; description: string }[] {
+): {
+  categoryKey: string;
+  accountKey: AccountKey;
+  day: number;
+  amount: number;
+  description: string;
+}[] {
   const drift = monthIndex * 5;
   return [
     {
       categoryKey: "salary",
+      accountKey: "current",
       day: 25,
       amount: 3000,
       description: "Monthly salary",
     },
-    { categoryKey: "rent", day: 1, amount: -1200, description: "Rent" },
+    {
+      categoryKey: "rent",
+      accountKey: "joint",
+      day: 1,
+      amount: -1200,
+      description: "Rent",
+    },
     {
       categoryKey: "councilTax",
+      accountKey: "joint",
       day: 5,
       amount: -180,
       description: "Council tax",
     },
     {
       categoryKey: "groceries",
+      accountKey: "joint",
       day: 3,
       amount: -(110 + drift),
       description: "Supermarket",
     },
     {
       categoryKey: "groceries",
+      accountKey: "joint",
       day: 11,
       amount: -95,
       description: "Supermarket",
     },
     {
       categoryKey: "groceries",
+      accountKey: "joint",
       day: 19,
       amount: -(130 + drift),
       description: "Supermarket",
     },
     {
       categoryKey: "groceries",
+      accountKey: "joint",
       day: 27,
       amount: -85,
       description: "Corner shop",
     },
     {
       categoryKey: "fuel",
+      accountKey: "current",
       day: 8,
       amount: -(60 + drift),
       description: "Petrol station",
     },
     {
       categoryKey: "fuel",
+      accountKey: "current",
       day: 22,
       amount: -55,
       description: "Petrol station",
     },
     {
       categoryKey: "dining",
+      accountKey: "current",
       day: 14,
       amount: -(75 + drift),
       description: "Restaurant",
     },
-    { categoryKey: "dining", day: 28, amount: -48, description: "Takeaway" },
+    {
+      categoryKey: "dining",
+      accountKey: "current",
+      day: 28,
+      amount: -48,
+      description: "Takeaway",
+    },
     {
       categoryKey: "entertainment",
+      accountKey: "current",
       day: 17,
       amount: -(45 + drift),
       description: "Cinema",
     },
     {
       categoryKey: "entertainment",
+      accountKey: "current",
       day: 6,
       amount: -30,
       description: "Streaming",
@@ -279,14 +320,28 @@ function transactionsForMonth(
   ];
 }
 
+// Monthly standing orders out of the Current Account, paid the day after
+// salary. Each is seeded as TWO transaction rows — one leg per account, each
+// tagged with the counterparty via transferAccountId (no categoryId), so they
+// are off-budget and surface only in the budget Transfers section. The Joint
+// transfer covers the bills above (max joint outgoings ≈ £1,970 at peak drift).
+const TRANSFER_PLAN: { from: AccountKey; to: AccountKey; amount: number }[] = [
+  { from: "current", to: "joint", amount: 2000 },
+  { from: "current", to: "isa", amount: 200 },
+  { from: "current", to: "sipp", amount: 150 },
+];
+const TRANSFER_DAY = 26;
+
 // Creates every transaction across [from, to] for the given accounts/categories
 // and returns them grouped by `YYYY-M` month key for later actual-derivation.
+// Transfer legs are seeded alongside but kept OUT of the returned map — they
+// are off-budget by design and must never feed a category actual.
 async function seedTransactions(
   userId: string,
   opts: {
     from: Date;
     to: Date;
-    accounts: { current: { id: string } };
+    accounts: Record<AccountKey, { id: string; name: string }>;
     categories: Map<string, { id: string }>;
   },
 ) {
@@ -308,12 +363,34 @@ async function seedTransactions(
     await prisma.transaction.createMany({
       data: planned.map((p) => ({
         userId,
-        accountId: opts.accounts.current.id,
+        accountId: opts.accounts[p.accountKey].id,
         categoryId: categoryIdFor(opts.categories, p.categoryKey),
         date: new Date(Date.UTC(year, month, p.day)),
         amount: p.amount,
         description: p.description,
       })),
+    });
+
+    const transferDate = new Date(Date.UTC(year, month, TRANSFER_DAY));
+    await prisma.transaction.createMany({
+      data: TRANSFER_PLAN.flatMap((t) => [
+        {
+          userId,
+          accountId: opts.accounts[t.from].id,
+          transferAccountId: opts.accounts[t.to].id,
+          date: transferDate,
+          amount: -t.amount,
+          description: `Transfer to ${opts.accounts[t.to].name}`,
+        },
+        {
+          userId,
+          accountId: opts.accounts[t.to].id,
+          transferAccountId: opts.accounts[t.from].id,
+          date: transferDate,
+          amount: t.amount,
+          description: `Transfer from ${opts.accounts[t.from].name}`,
+        },
+      ]),
     });
   }
   return byMonth;
@@ -391,19 +468,33 @@ async function seedBalanceItems(
   _userId: string,
   opts: { periods: { id: string }[] },
 ) {
+  // ISA/SIPP step up by exactly the monthly contribution (cash in, no
+  // simulated investment growth — the app models flows, not holdings).
   for (const [i, period] of opts.periods.entries()) {
     const rows = [
       {
         type: "ASSET" as const,
         category: "CURRENT" as const,
         label: "Current Account",
-        value: 2000 + i * 200,
+        value: 1800 + i * 80,
+      },
+      {
+        type: "ASSET" as const,
+        category: "CURRENT" as const,
+        label: "Joint Account",
+        value: 500 + i * 30,
+      },
+      {
+        type: "ASSET" as const,
+        category: "MEDIUM_TERM" as const,
+        label: "ISA",
+        value: 4000 + i * 200,
       },
       {
         type: "ASSET" as const,
         category: "LONG_TERM" as const,
-        label: "Savings",
-        value: 8000 + i * 500,
+        label: "SIPP",
+        value: 20000 + i * 150,
       },
       {
         type: "LIABILITY" as const,
@@ -452,7 +543,12 @@ const main = async () => {
     },
   });
   await prisma.userSettings.create({
-    data: { userId, currency: "GBP", transactionsEnabled: true },
+    data: {
+      userId,
+      currency: "GBP",
+      transactionsEnabled: true,
+      transfersEnabled: true,
+    },
   });
 
   const now = new Date();
