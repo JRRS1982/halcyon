@@ -252,7 +252,7 @@ components:
     borderBottom: "1px solid {colors.hairline}"
 
   sheet-cell-amount:
-    description: "Cells in the Budget / Actual / Variance / % columns. Always right-aligned, always tabular numerals."
+    description: "Cells in the Budget / Actual / Difference / Spent columns. Always right-aligned, always tabular numerals."
     typography: "{typography.amount}"
     align: right
 
@@ -269,7 +269,7 @@ components:
     fontWeight: 500
 
   sheet-row-head:
-    description: "Column header row — Category · Budget · Actual · Variance · %. Mono-caps labels on canvas-soft, with a stronger hairline below."
+    description: "Column header row — Category · Budget · Actual · Difference · Spent. Mono-caps labels on canvas-soft, with a stronger hairline below."
     backgroundColor: "{colors.canvas-soft}"
     textColor: "{colors.body}"
     typography: "{typography.mono-caps}"
@@ -504,7 +504,7 @@ The mono face is **never** used for body copy, never for cell amounts (amounts a
 ### Grid & Container
 
 - **Max width**: 1240 px desktop container; nothing renders above that. Content centres with horizontal gutters of `{spacing.2xl}` 24 px on desktop, `{spacing.lg}` 16 px on mobile.
-- **Sheet column template**: category (flex) · Budget 150 px · Actual 150 px · Variance 150 px · % 90 px. On mobile, fixed-width amount columns drop to 110 px each and the % column collapses behind a horizontal scroll. (An earlier draft included a 40 px row-index column; removed because spreadsheet-style row numbers added visual noise without earning their column.)
+- **Sheet column template**: category (flex) · Budget 150 px · Actual 150 px · Difference 150 px · Spent 90 px. On mobile, fixed-width amount columns drop to 110 px each and the Spent column collapses behind a horizontal scroll. (An earlier draft included a 40 px row-index column; removed because spreadsheet-style row numbers added visual noise without earning their column.)
 - **Auth form max-width**: 360 px (per `ex-auth-form-card`).
 - **Page header**: headline + lead on the left, action cluster + status-pip on the right. Stacks on mobile.
 
@@ -616,7 +616,7 @@ The Budget page is built around a single bordered grid — the **sheet**. Every 
 
 - Background `{colors.canvas}`, text `{colors.ink}`, set in `{typography.body-md}`, padding `{spacing.sm} {spacing.md}` (10 px 14 px), right + bottom borders `{colors.hairline}` 1 px. The right border is omitted on the last column.
 
-**`sheet-cell-amount`** — cells in the Budget / Actual / Variance / % columns.
+**`sheet-cell-amount`** — cells in the Budget / Actual / Difference / Spent columns.
 
 - Set in `{typography.amount}` (Inter, tabular numerals), justified right. Amount cells **never** left-align. Subtotal-row amounts use `{typography.amount-strong}`; grand-total uses `{typography.amount-xl}`.
 
@@ -630,7 +630,7 @@ The Budget page is built around a single bordered grid — the **sheet**. Every 
 
 **`sheet-row-head`** — the column header row.
 
-- Background `{colors.canvas-soft}`, text `{colors.body}` in `{typography.mono-caps}`, bottom border `{colors.hairline-strong}` 1 px. Labels: Category · Budget · Actual · Variance · %.
+- Background `{colors.canvas-soft}`, text `{colors.body}` in `{typography.mono-caps}`, bottom border `{colors.hairline-strong}` 1 px. Labels: Category · Budget · Actual · Difference · Spent.
 
 **`sheet-row-section`** — a section group header (Income, Expenses).
 
