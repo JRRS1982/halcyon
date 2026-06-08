@@ -9,15 +9,15 @@ import {
   TotalsRow,
 } from "./SheetRow.styled";
 
-// Column header row — Category · Budget · Actual · Variance · %.
+// Column header row — Category · Budget · Actual · Difference · Spent.
 export function SheetHeadRow() {
   return (
     <HeadRow>
       <SheetCell>Category</SheetCell>
       <SheetCell align="right">Budget</SheetCell>
       <SheetCell align="right">Actual</SheetCell>
-      <SheetCell align="right">Variance</SheetCell>
-      <SheetCell align="right">%</SheetCell>
+      <SheetCell align="right">Difference</SheetCell>
+      <SheetCell align="right">Spent</SheetCell>
     </HeadRow>
   );
 }

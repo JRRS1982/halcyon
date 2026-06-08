@@ -23,6 +23,9 @@
 # Visual companion mockups (brainstorming skill)
 .superpowers/
 
+# Playwright auth session state (written by capture-shots.mjs — never commit)
+/.auth/
+
 # Claude Code worktrees (transient; the rest of .claude/ stays committable)
 .claude/worktrees/
 
