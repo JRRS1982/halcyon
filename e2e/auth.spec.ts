@@ -83,14 +83,16 @@ test.describe("sign-in", () => {
     await context.clearCookies();
   });
 
-  test("happy path lands on home, signed in", async ({ page }) => {
+  test("happy path lands signed in on the dashboard", async ({ page }) => {
     await page.goto("/sign-in");
     await page.fill("input[name='email']", KNOWN_USER.email);
     await page.fill("input[name='password']", KNOWN_USER.password);
     await page.getByRole("button", { name: "Sign in" }).click();
-    await page.waitForURL("/");
-    await expect(page.getByText(/Signed in as/)).toBeVisible();
-    await expect(page.getByText(KNOWN_USER.email)).toBeVisible();
+    // Sign-in redirects to "/", which now bounces a signed-in user to /dashboard.
+    await page.waitForURL("**/dashboard");
+    await expect(
+      page.getByRole("heading", { name: "Dashboard" }),
+    ).toBeVisible();
   });
 
   test("wrong password shows an error", async ({ page }) => {
@@ -130,7 +132,7 @@ test.describe("sign-out", () => {
     await page.fill("input[name='email']", KNOWN_USER.email);
     await page.fill("input[name='password']", KNOWN_USER.password);
     await page.getByRole("button", { name: "Sign in" }).click();
-    await page.waitForURL("/");
+    await page.waitForURL("**/dashboard");
 
     // Sign out.
     await page.getByRole("button", { name: "Sign out" }).click();
