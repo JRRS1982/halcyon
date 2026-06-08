@@ -1,5 +1,5 @@
 import { SectionHeading } from "@/components/marketing/SectionHeading";
-import { Cell, Grid, Key, Section, Text } from "./DetailGrid.styled";
+import { Cell, Grid, Inner, Key, Section, Text } from "./DetailGrid.styled";
 
 const DETAILS: { key: string; text: string }[] = [
   {
@@ -31,19 +31,21 @@ const DETAILS: { key: string; text: string }[] = [
 export function DetailGrid() {
   return (
     <Section id="details">
-      <SectionHeading
-        eyebrow="The details"
-        title="It's the small things that make it tick."
-        lead='The thoughtful touches that turn "a place to type numbers" into something that actually tells the truth about your money.'
-      />
-      <Grid>
-        {DETAILS.map((d) => (
-          <Cell key={d.key}>
-            <Key>{d.key}</Key>
-            <Text>{d.text}</Text>
-          </Cell>
-        ))}
-      </Grid>
+      <Inner>
+        <SectionHeading
+          eyebrow="The details"
+          title="It's the small things that make it tick."
+          lead='The thoughtful touches that turn "a place to type numbers" into something that actually tells the truth about your money.'
+        />
+        <Grid>
+          {DETAILS.map((d) => (
+            <Cell key={d.key}>
+              <Key>{d.key}</Key>
+              <Text>{d.text}</Text>
+            </Cell>
+          ))}
+        </Grid>
+      </Inner>
     </Section>
   );
 }

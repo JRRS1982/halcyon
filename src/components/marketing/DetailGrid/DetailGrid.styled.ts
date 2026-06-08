@@ -1,5 +1,15 @@
 import styled, { css } from "styled-components";
 
+export const Inner = styled.div`
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 0 ${({ theme }) => theme.spacing["2xl"]};
+
+  @media (max-width: 760px) {
+    padding: 0 ${({ theme }) => theme.spacing.lg};
+  }
+`;
+
 export const Section = styled.section`
   ${({ theme }) => css`
     background: ${theme.colors.canvasSoft};

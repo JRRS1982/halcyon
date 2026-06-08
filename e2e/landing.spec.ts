@@ -33,4 +33,34 @@ test.describe("Landing page", () => {
     await expect(page).toHaveURL(/#how/);
     await expect(page.locator("#how")).toBeVisible();
   });
+
+  test("Sign in navigates to sign-in", async ({ page }) => {
+    await page.goto("/");
+    await page
+      .getByRole("link", { name: /^sign in$/i })
+      .first()
+      .click();
+    await expect(page).toHaveURL(/\/sign-in/);
+  });
+
+  test("Features and Details anchors resolve", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("link", { name: /^features$/i }).click();
+    await expect(page.locator("#features")).toBeVisible();
+    await page.getByRole("link", { name: /^details$/i }).click();
+    await expect(page.locator("#details")).toBeVisible();
+  });
+
+  test("renders without horizontal overflow on a mobile viewport", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 375, height: 800 });
+    await page.goto("/");
+    const overflow = await page.evaluate(
+      () =>
+        document.documentElement.scrollWidth -
+        document.documentElement.clientWidth,
+    );
+    expect(overflow).toBeLessThanOrEqual(1);
+  });
 });

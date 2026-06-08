@@ -10,6 +10,9 @@ export const Bar = styled.nav`
     padding: 0 ${theme.spacing["2xl"]};
     gap: ${theme.spacing["2xl"]};
     background: ${theme.colors.canvas};
+    position: sticky;
+    top: 0;
+    z-index: 10;
   `}
 `;
 
