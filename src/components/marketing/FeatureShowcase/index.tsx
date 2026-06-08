@@ -10,7 +10,7 @@ import {
   Title,
 } from "./FeatureShowcase.styled";
 
-type Bullet = { key: string; text: string };
+type BulletItem = { key: string; text: string };
 
 type Shot = { src?: string; alt: string; label: string; caption?: string };
 
@@ -20,7 +20,7 @@ type FeatureShowcaseProps = {
   body: string;
   shot: Shot;
   imageSide: "left" | "right";
-  bullets?: Bullet[];
+  bullets?: BulletItem[];
 };
 
 export function FeatureShowcase({
