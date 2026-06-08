@@ -48,3 +48,30 @@ export const NavLink = styled(Link)<{ $active: boolean }>`
 export const Spacer = styled.div`
   flex: 1;
 `;
+
+export const RightGroup = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.lg};
+`;
+
+export const PillLink = styled(Link)`
+  ${({ theme }) => css`
+    font-family: ${theme.typography.monoCaps.family};
+    font-size: ${theme.typography.monoCaps.size};
+    font-weight: ${theme.typography.monoCaps.weight};
+    text-transform: uppercase;
+    letter-spacing: ${theme.typography.monoCaps.letterSpacing};
+    background: ${theme.colors.primary};
+    color: ${theme.colors.onPrimary};
+    border-radius: ${theme.rounded.sm};
+    padding: ${theme.spacing.sm} ${theme.spacing.lg};
+    white-space: nowrap;
+    text-decoration: none;
+    transition: opacity 100ms;
+
+    &:hover {
+      opacity: 0.85;
+    }
+  `}
+`;

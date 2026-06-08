@@ -3,7 +3,15 @@
 import { signOut } from "@/app/actions";
 import { Button } from "@/components/ui/Button";
 import { usePathname } from "next/navigation";
-import { Bar, Brand, Links, NavLink, Spacer } from "./NavBar.styled";
+import {
+  Bar,
+  Brand,
+  Links,
+  NavLink,
+  PillLink,
+  RightGroup,
+  Spacer,
+} from "./NavBar.styled";
 
 type NavBarProps = {
   signedIn: boolean;
@@ -12,24 +20,28 @@ type NavBarProps = {
 
 type NavItem = { href: string; label: string };
 
-// Links visible to signed-in users only. Signed-out users see just the brand
-// + the Sign in pill on the right. Transactions is opt-in (slotted in before
-// Settings) and only appears when the user has enabled the feature.
+// Signed-in app links. "Home" is intentionally absent: signed-in users are
+// redirected away from "/" to "/dashboard", so a Home tab would only point at
+// a redirect. Transactions is opt-in and slots in before Settings.
 const SIGNED_IN_ITEMS: NavItem[] = [
-  { href: "/", label: "Home" },
   { href: "/dashboard", label: "Dashboard" },
   { href: "/budget", label: "Budget" },
   { href: "/balance", label: "Balance" },
   { href: "/settings", label: "Settings" },
 ];
 
-const TRANSACTIONS_ITEM: NavItem = {
-  href: "/transactions",
-  label: "Transactions",
-};
+const TRANSACTIONS_ITEM: NavItem = { href: "/transactions", label: "Transactions" };
+
+// Homepage-only in-page anchors (the sections only exist on "/").
+const MARKETING_ITEMS: NavItem[] = [
+  { href: "#how", label: "How it works" },
+  { href: "#features", label: "Features" },
+  { href: "#details", label: "Details" },
+];
 
 export function NavBar({ signedIn, transactionsEnabled }: NavBarProps) {
   const pathname = usePathname();
+  const isHome = pathname === "/";
 
   const items = transactionsEnabled
     ? [
@@ -41,29 +53,39 @@ export function NavBar({ signedIn, transactionsEnabled }: NavBarProps) {
 
   return (
     <Bar>
-      <Brand href="/">Halcyon</Brand>
-      {signedIn && (
+      <Brand href="/">Balanced Money</Brand>
+
+      {signedIn ? (
         <Links>
           {items.map((item) => (
-            <NavLink
-              key={item.href}
-              href={item.href}
-              $active={pathname === item.href}
-            >
+            <NavLink key={item.href} href={item.href} $active={pathname === item.href}>
               {item.label}
             </NavLink>
           ))}
         </Links>
-      )}
+      ) : isHome ? (
+        <Links>
+          {MARKETING_ITEMS.map((item) => (
+            <NavLink key={item.href} href={item.href} $active={false}>
+              {item.label}
+            </NavLink>
+          ))}
+        </Links>
+      ) : null}
+
       <Spacer />
+
       {signedIn ? (
         <form action={signOut}>
           <Button type="submit">Sign out</Button>
         </form>
       ) : (
-        <NavLink href="/sign-in" $active={pathname === "/sign-in"}>
-          Sign in
-        </NavLink>
+        <RightGroup>
+          <NavLink href="/sign-in" $active={pathname === "/sign-in"}>
+            Sign in
+          </NavLink>
+          <PillLink href="/sign-up">Get started</PillLink>
+        </RightGroup>
       )}
     </Bar>
   );
