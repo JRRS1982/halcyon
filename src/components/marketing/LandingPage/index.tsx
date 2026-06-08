@@ -1,3 +1,5 @@
+"use client";
+
 import { CtaBand } from "@/components/marketing/CtaBand";
 import { DetailGrid } from "@/components/marketing/DetailGrid";
 import { FeatureShowcase } from "@/components/marketing/FeatureShowcase";
