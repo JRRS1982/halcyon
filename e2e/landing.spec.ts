@@ -29,7 +29,11 @@ test.describe("Landing page", () => {
 
   test("nav anchor scrolls to How it works", async ({ page }) => {
     await page.goto("/");
-    await page.getByRole("link", { name: /how it works/i }).click();
+    // "How it works" appears in both the nav and the footer; scope to the nav.
+    await page
+      .getByRole("navigation")
+      .getByRole("link", { name: /how it works/i })
+      .click();
     await expect(page).toHaveURL(/#how/);
     await expect(page.locator("#how")).toBeVisible();
   });
@@ -45,9 +49,11 @@ test.describe("Landing page", () => {
 
   test("Features and Details anchors resolve", async ({ page }) => {
     await page.goto("/");
-    await page.getByRole("link", { name: /^features$/i }).click();
+    // These labels appear in both the nav and the footer; scope to the nav.
+    const nav = page.getByRole("navigation");
+    await nav.getByRole("link", { name: /^features$/i }).click();
     await expect(page.locator("#features")).toBeVisible();
-    await page.getByRole("link", { name: /^details$/i }).click();
+    await nav.getByRole("link", { name: /^details$/i }).click();
     await expect(page.locator("#details")).toBeVisible();
   });
 

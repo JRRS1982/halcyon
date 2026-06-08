@@ -12,11 +12,11 @@ test.describe("unauthenticated", () => {
 
   test("home shows the sign-in / sign-up links", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByText(/Not signed in/)).toBeVisible();
-    await expect(page.getByRole("link", { name: "Sign in" })).toBeVisible();
-    await expect(
-      page.getByRole("link", { name: "create an account" }),
-    ).toBeVisible();
+    // The unauthenticated home is the marketing landing page; the nav offers
+    // both a Sign in link (→ /sign-in) and a Get started pill (→ /sign-up).
+    const nav = page.getByRole("navigation");
+    await expect(nav.getByRole("link", { name: /sign in/i })).toBeVisible();
+    await expect(nav.getByRole("link", { name: /get started/i })).toBeVisible();
   });
 
   test("/dashboard redirects to /sign-in?next=/dashboard", async ({ page }) => {

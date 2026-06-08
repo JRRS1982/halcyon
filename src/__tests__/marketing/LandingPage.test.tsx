@@ -46,4 +46,15 @@ describe("LandingPage", () => {
     const { container } = renderit();
     expect(container.querySelector("#features")).toBeInTheDocument();
   });
+
+  test("the footer is a sibling of main, not nested inside it", () => {
+    // A <footer> nested inside <main> loses its contentinfo landmark role,
+    // which breaks footer-scoped queries (and accessibility). Keep it outside.
+    const { container } = renderit();
+    const main = container.querySelector("main");
+    const footer = container.querySelector("footer");
+    expect(main).toBeInTheDocument();
+    expect(footer).toBeInTheDocument();
+    expect(main?.contains(footer ?? null)).toBe(false);
+  });
 });
