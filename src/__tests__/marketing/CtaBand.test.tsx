@@ -14,7 +14,12 @@ const renderit = () =>
 describe("CtaBand", () => {
   test("renders the closing headline and a Get started link to sign-up", () => {
     renderit();
-    expect(screen.getByRole("heading", { name: /put the spreadsheet down/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /get started/i })).toHaveAttribute("href", "/sign-up");
+    expect(
+      screen.getByRole("heading", { name: /put the spreadsheet down/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /get started/i })).toHaveAttribute(
+      "href",
+      "/sign-up",
+    );
   });
 });

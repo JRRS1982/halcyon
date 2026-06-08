@@ -19,8 +19,12 @@ describe("HowItWorks", () => {
 
   test("renders both paths and the converge step", () => {
     renderit();
-    expect(screen.getByText(/let your statements do the work/i)).toBeInTheDocument();
-    expect(screen.getByText(/type the figures in yourself/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/let your statements do the work/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/type the figures in yourself/i),
+    ).toBeInTheDocument();
     expect(screen.getByText(/see where you stand/i)).toBeInTheDocument();
   });
 });

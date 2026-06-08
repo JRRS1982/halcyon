@@ -19,9 +19,9 @@ export function Hero() {
           <Title>Make sense of your money.</Title>
           <Lead>
             Balanced takes the place of the messy spreadsheet you&apos;ve been
-            meaning to keep. It gives you the structure — and the gentle guidance
-            — to track what you have, understand where it goes, and learn how you
-            really spend.
+            meaning to keep. It gives you the structure — and the gentle
+            guidance — to track what you have, understand where it goes, and
+            learn how you really spend.
           </Lead>
           <CtaRow>
             <PrimaryLink href="/sign-up">Get started</PrimaryLink>

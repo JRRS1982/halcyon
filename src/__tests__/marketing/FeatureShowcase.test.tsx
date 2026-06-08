@@ -22,7 +22,9 @@ describe("FeatureShowcase", () => {
   test("renders eyebrow, title, body", () => {
     renderit({ ...baseProps, imageSide: "left" });
     expect(screen.getByText("Budget")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Budget headline" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Budget headline" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("Budget body copy.")).toBeInTheDocument();
   });
 
@@ -41,6 +43,8 @@ describe("FeatureShowcase", () => {
     const row = container.querySelector("section");
     const firstChild = row?.firstElementChild as HTMLElement;
     // copy column contains the heading
-    expect(within(firstChild).getByRole("heading", { name: "Budget headline" })).toBeInTheDocument();
+    expect(
+      within(firstChild).getByRole("heading", { name: "Budget headline" }),
+    ).toBeInTheDocument();
   });
 });

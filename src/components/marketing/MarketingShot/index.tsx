@@ -12,11 +12,22 @@ type MarketingShotProps = {
   caption?: string;
 };
 
-export function MarketingShot({ src, alt, label, caption }: MarketingShotProps) {
+export function MarketingShot({
+  src,
+  alt,
+  label,
+  caption,
+}: MarketingShotProps) {
   return (
     <Frame>
       {src ? (
-        <Image src={src} alt={alt} fill sizes="(max-width: 760px) 100vw, 50vw" style={{ objectFit: "cover" }} />
+        <Image
+          src={src}
+          alt={alt}
+          fill
+          sizes="(max-width: 760px) 100vw, 50vw"
+          style={{ objectFit: "cover" }}
+        />
       ) : (
         <Placeholder>
           <Label>{label}</Label>

@@ -30,7 +30,10 @@ const SIGNED_IN_ITEMS: NavItem[] = [
   { href: "/settings", label: "Settings" },
 ];
 
-const TRANSACTIONS_ITEM: NavItem = { href: "/transactions", label: "Transactions" };
+const TRANSACTIONS_ITEM: NavItem = {
+  href: "/transactions",
+  label: "Transactions",
+};
 
 // Homepage-only in-page anchors (the sections only exist on "/").
 const MARKETING_ITEMS: NavItem[] = [
@@ -58,7 +61,11 @@ export function NavBar({ signedIn, transactionsEnabled }: NavBarProps) {
       {signedIn ? (
         <Links>
           {items.map((item) => (
-            <NavLink key={item.href} href={item.href} $active={pathname === item.href}>
+            <NavLink
+              key={item.href}
+              href={item.href}
+              $active={pathname === item.href}
+            >
               {item.label}
             </NavLink>
           ))}

@@ -43,7 +43,8 @@ export function LandingPage() {
           shot={{
             label: "Balance",
             alt: "The Balanced balance sheet showing assets and liabilities by term",
-            caption: "Assets & liabilities by short / medium / long term → net worth",
+            caption:
+              "Assets & liabilities by short / medium / long term → net worth",
           }}
         />
         <FeatureShowcase
@@ -52,15 +53,28 @@ export function LandingPage() {
           title="Turn a bank statement into understanding."
           body="This is where Balanced earns its keep. Switch transactions on, drop in a statement, and a wall of cryptic bank rows becomes a clear, categorised picture of your month — and from there, every chart, budget and balance fills itself in."
           bullets={[
-            { key: "Import", text: "Drop in a CSV statement and Balanced maps the columns for you." },
-            { key: "Auto-sort", text: "Each transaction lands in the right category, ready to review." },
-            { key: "Bulk edits", text: "Re-categorise or clear dozens of rows in one go — no row-by-row slog." },
-            { key: "Safe by default", text: "Duplicate-aware on import, and any import can be reversed in one click." },
+            {
+              key: "Import",
+              text: "Drop in a CSV statement and Balanced maps the columns for you.",
+            },
+            {
+              key: "Auto-sort",
+              text: "Each transaction lands in the right category, ready to review.",
+            },
+            {
+              key: "Bulk edits",
+              text: "Re-categorise or clear dozens of rows in one go — no row-by-row slog.",
+            },
+            {
+              key: "Safe by default",
+              text: "Duplicate-aware on import, and any import can be reversed in one click.",
+            },
           ]}
           shot={{
             label: "Transactions",
             alt: "The Balanced transactions ledger with an imported statement sorted into categories",
-            caption: "An imported statement, sorted into categories in the ledger",
+            caption:
+              "An imported statement, sorted into categories in the ledger",
           }}
         />
       </Container>

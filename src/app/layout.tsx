@@ -11,7 +11,8 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Balanced Money",
-  description: "Personal finance, made clear. Track what you have, understand where it goes.",
+  description:
+    "Personal finance, made clear. Track what you have, understand where it goes.",
 };
 
 export default async function RootLayout({

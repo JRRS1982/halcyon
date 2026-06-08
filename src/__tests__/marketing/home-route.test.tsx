@@ -9,7 +9,9 @@ jest.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({ auth: { getUser } }),
 }));
 const redirect = jest.fn();
-jest.mock("next/navigation", () => ({ redirect: (url: string) => redirect(url) }));
+jest.mock("next/navigation", () => ({
+  redirect: (url: string) => redirect(url),
+}));
 
 describe("Home route", () => {
   beforeEach(() => {
@@ -20,8 +22,12 @@ describe("Home route", () => {
   test("renders the landing page for signed-out visitors", async () => {
     getUser.mockResolvedValue({ data: { user: null } });
     const ui = await Home();
-    const { getByRole } = render(<ThemeProvider theme={theme}>{ui}</ThemeProvider>);
-    expect(getByRole("heading", { level: 1, name: /make sense of your money/i })).toBeInTheDocument();
+    const { getByRole } = render(
+      <ThemeProvider theme={theme}>{ui}</ThemeProvider>,
+    );
+    expect(
+      getByRole("heading", { level: 1, name: /make sense of your money/i }),
+    ).toBeInTheDocument();
     expect(redirect).not.toHaveBeenCalled();
   });
 

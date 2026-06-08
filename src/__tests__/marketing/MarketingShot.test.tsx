@@ -20,7 +20,13 @@ describe("MarketingShot", () => {
   });
 
   test("renders an image with alt text when src is given", () => {
-    renderit({ src: "/marketing/dashboard.png", label: "Dashboard", alt: "Balanced dashboard" });
-    expect(screen.getByRole("img", { name: "Balanced dashboard" })).toBeInTheDocument();
+    renderit({
+      src: "/marketing/dashboard.png",
+      label: "Dashboard",
+      alt: "Balanced dashboard",
+    });
+    expect(
+      screen.getByRole("img", { name: "Balanced dashboard" }),
+    ).toBeInTheDocument();
   });
 });

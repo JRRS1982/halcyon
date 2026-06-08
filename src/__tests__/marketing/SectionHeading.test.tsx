@@ -15,7 +15,9 @@ describe("SectionHeading", () => {
   test("renders eyebrow, title and optional lead", () => {
     renderit({ eyebrow: "Features", title: "Big claim", lead: "Some lead." });
     expect(screen.getByText("Features")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Big claim" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Big claim" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("Some lead.")).toBeInTheDocument();
   });
 
