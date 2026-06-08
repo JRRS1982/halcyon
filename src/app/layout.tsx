@@ -10,8 +10,8 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Halcyon",
-  description: "Take control of your financial future.",
+  title: "Balanced Money",
+  description: "Personal finance, made clear. Track what you have, understand where it goes.",
 };
 
 export default async function RootLayout({
