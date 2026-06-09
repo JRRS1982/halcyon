@@ -8,7 +8,7 @@
 //      then sign in as the demo user in the opened browser and close it.
 //
 // Run:  node scripts/capture-shots.mjs
-import { chromium } from "playwright";
+import { chromium } from "@playwright/test";
 
 const BASE = process.env.CAPTURE_BASE_URL ?? "http://localhost:3210";
 const shots = [
@@ -28,6 +28,11 @@ const page = await context.newPage();
 
 for (const shot of shots) {
   await page.goto(`${BASE}${shot.path}`, { waitUntil: "networkidle" });
+  // Hide the Next.js dev-tools indicator (the floating corner button) so it
+  // never bleeds into a marketing shot when capturing against `next dev`.
+  await page.addStyleTag({
+    content: "nextjs-portal { display: none !important; }",
+  });
   await page.waitForTimeout(800); // let charts settle
   await page.screenshot({ path: `public/marketing/${shot.file}` });
   console.log(`captured ${shot.file}`);

@@ -31,6 +31,7 @@ export function LandingPage() {
             title="Budget — then learn how you really spend."
             body="Set a budget for each category, then watch your categorised spending fill in beside it. The gap between the plan and the reality is the lesson: Balanced makes it impossible to ignore where your money is actually going."
             shot={{
+              src: "/marketing/budget.png",
               label: "Budget",
               alt: "The Balanced budget sheet showing budgeted vs actual by category",
               caption:
@@ -43,6 +44,7 @@ export function LandingPage() {
             title="Wealthy, or just spending?"
             body="Your bank balance lies. Big pension contributions can leave you feeling broke while your net worth quietly climbs; a month of treats can feel rich while your assets go nowhere. Balanced sorts what you own and owe across short, medium and long-term horizons — so you can see whether you're truly getting ahead, and think past this month."
             shot={{
+              src: "/marketing/balance.png",
               label: "Balance",
               alt: "The Balanced balance sheet showing assets and liabilities by term",
               caption:
@@ -73,6 +75,7 @@ export function LandingPage() {
               },
             ]}
             shot={{
+              src: "/marketing/transactions.png",
               label: "Transactions",
               alt: "The Balanced transactions ledger with an imported statement sorted into categories",
               caption:
