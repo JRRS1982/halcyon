@@ -1,6 +1,7 @@
 "use server";
 
 import { serializeExport } from "@/lib/data/serialize";
+import { log } from "@/lib/log";
 import { prisma } from "@/lib/prisma";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -100,7 +101,15 @@ export async function deleteMyAccount(): Promise<void> {
   // Erase the Supabase identity (email/password/OAuth) — needs the admin client.
   const admin = createAdminClient();
   const { error } = await admin.auth.admin.deleteUser(userId);
-  if (error) throw new Error(`Failed to delete auth user: ${error.message}`);
+  if (error) {
+    // The financial rows are already gone, so a failure here leaves an auth
+    // identity with no app data behind it — worth a durable trace.
+    log.error("Account deletion left an orphaned auth identity", {
+      userId,
+      err: error,
+    });
+    throw new Error(`Failed to delete auth user: ${error.message}`);
+  }
 
   // A failed sign-out is tolerable here: the account is already deleted and the
   // session cookie expires on its own, so we don't block the redirect on it.

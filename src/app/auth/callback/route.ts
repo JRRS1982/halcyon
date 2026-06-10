@@ -1,3 +1,4 @@
+import { log } from "@/lib/log";
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
@@ -19,6 +20,7 @@ export const GET = async (request: Request) => {
   const { error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error) {
+    log.error("Auth code exchange failed", { err: error });
     return NextResponse.redirect(
       `${origin}/sign-in?error=${encodeURIComponent(error.message)}`,
     );
