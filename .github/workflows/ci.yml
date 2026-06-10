@@ -43,6 +43,33 @@ jobs:
           echo "## Test Coverage" >> $GITHUB_STEP_SUMMARY
           tail -n 10 coverage-output.txt >> $GITHUB_STEP_SUMMARY
 
+  security-audit:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Fail the build only on high/critical advisories. Low/moderate
+      # transitive issues are reported in the log but don't block a merge.
+      # Dependabot (.github/dependabot.yml) handles routine version bumps.
+      - name: Audit dependencies
+        run: pnpm audit --audit-level high
+
   integration-tests:
     runs-on: ubuntu-latest
 
