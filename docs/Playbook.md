@@ -47,15 +47,15 @@ Lay the technical groundwork for a reliable, scalable, and testable platform. Wh
 - [x] CI pipeline (Code test coverage logging, for PR and main branch)
 - [x] CD pipeline (blue-green deployment strategy) — Vercel performs atomic deploys: the new build only becomes live after it succeeds, and the previous build is retained for instant rollback
 - [x] *CD pipeline (Automated deployment and method to rollback changes) — Vercel's Git integration auto-deploys `master` once CI passes; one-click rollback from the Vercel dashboard
-- [ ] *Checkpoint: Before moving onto feature development, ensure the foundations are in place to support the iterative and ongoing development of features.
+- [x] *Checkpoint: Before moving onto feature development, ensure the foundations are in place to support the iterative and ongoing development of features.
 
 ## 4. Develop MVP Features
 
 Build functionality in small, releasable vertical feature slices. When writing epics, tie everything to value delivery, i.e. "The user can save a product to their shopping basket".
 
-- [ ] *Backend services, endpoints, and business logic
-- [ ] *Frontend components, state management, and routing
-- [ ] *Authentication and user management (roles, sessions)
+- [x] *Backend services, endpoints, and business logic — server actions + route handlers across budget, balance, transactions, settings, auth
+- [x] *Frontend components, state management, and routing — App Router pages + ~60 components (state is server-driven + local React state; Redux Toolkit installed but not yet wired)
+- [x] *Authentication and user management (roles, sessions) — Supabase Auth (email/password + Google OAuth), sessions via `@supabase/ssr`, middleware route protection
 - [ ] Security scanning and dependency management (Snyk, dependabot, etc.)
 - [ ] Performance testing and optimization during development (Lighthouse, WebPageTest, etc.)
 

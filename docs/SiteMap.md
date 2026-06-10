@@ -69,16 +69,16 @@ flowchart LR
     classDef planned fill:#eceff1,stroke:#90a4ae,color:#546e7a,stroke-dasharray:5 5;
     classDef hub fill:#2196F3,stroke:#1976D2,color:#fff;
 
-    class A,SI,SU,CB built;
+    class A,SI,SU,CB,F,G built;
     class APP hub;
     class E,E1,E2,E3,E4 built;
     class C1,C1_0,C1_1,C1_2,C1_3 built;
-    class C2,C2_0,C2_1,C2_2,C2_3 built;
+    class C2,C2_0,C2_1,C2_2,C2_3,C2_4 built;
     class TX,TX1,TX2,TX3 built;
-    class C4,S1,S2,S3,S4 built;
+    class C4,S1,S2,S3,S4,S5,S7 built;
 
-    class A1,A2,A3,A4,D,D1,D2,D3,F,G planned;
-    class C2_4,S5,S6,S7 planned;
+    class A1,A2,A3,A4,D,D1,D2,D3 planned;
+    class S6 planned;
 ```
 
 ## Key Pages Description
@@ -87,8 +87,9 @@ Legend: 🟢 Built · ⬜ Planned
 
 ### Home 🟢
 
-Public landing page with links to sign in / sign up. (Marketing sub-pages below
-are planned; the live home page is currently a minimal entry point.)
+Public marketing landing page (hero, feature showcase, how-it-works, CTA band)
+with links to sign in / sign up. The separate marketing sub-pages below
+(Features, Pricing, About, Contact) are still planned.
 
 - ⬜ **Features**: Overview of key product capabilities
 - ⬜ **Pricing**: Subscription plans and pricing information
@@ -139,8 +140,8 @@ Transactions feature is enabled).
 - **Income**: Plan income by source/category
 - **Expenses**: Allocate budgeted amounts to spending categories
 - **Budgeted vs Actual**: Compare planned figures against actuals
-- ⬜ **Transfers**: Net inter-account transfers section, keyed by account pair,
-  excluded from income/expense/net-worth (planned — depends on Accounts)
+- 🟢 **Transfers**: Net inter-account transfers section, keyed by account pair,
+  excluded from income/expense/net-worth (gated by the Settings *Transfers* toggle)
 
 ### Transactions 🟢
 
@@ -149,7 +150,7 @@ toggle.
 
 - **Ledger**: Paginated transaction list
 - **CSV Import**: Upload bank statements with preview + duplicate detection
-- **Categorize**: Assign categories (and, planned, mark as transfers)
+- **Categorize**: Assign categories to transactions (inter-account transfers are netted out in the Budget view)
 
 ### Settings 🟢
 
@@ -159,10 +160,9 @@ Authenticated (`/settings`); only accessible to logged-in users.
 - 🟢 **Dashboard Chart Visibility**: Show/hide individual dashboard charts
 - 🟢 **Category Management**: Rename, merge, archive spending/earning categories
 - 🟢 **Transactions Toggle**: Enable/disable the Transactions feature
-- ⬜ **Accounts**: Manage bank accounts and transfer counterparties (planned —
-  underpins the Transfers feature)
+- 🟢 **Accounts**: Manage bank accounts and transfer counterparties
 - ⬜ **Notifications**: Notification preferences (planned)
-- ⬜ **Data & Privacy / Export**: Data export and privacy controls (planned)
+- 🟢 **Data & Privacy / Export**: JSON data export, clear-data, and account deletion
 
 ### Blog ⬜
 
@@ -172,6 +172,6 @@ Publicly accessible blog (planned).
 - **Tags**: Discover content by topic
 - **Search**: Find specific articles
 
-### Terms of Service / Data Privacy ⬜
+### Terms of Service / Data Privacy 🟢
 
-Public legal pages (planned).
+Public legal pages, served at `/terms` and `/privacy`.
