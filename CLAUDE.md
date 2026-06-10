@@ -14,9 +14,19 @@ Companion AI context lives in `.ai/`:
 
 ## Stack
 
-Full-stack Next.js 14 (App Router) on TypeScript, hosted on **Vercel**. Postgres via **Supabase** (managed) with Prisma as the ORM. **Supabase Auth** (via `@supabase/ssr`) for authentication. Redux Toolkit for client state, styled-components for styling, zod for runtime validation. Biome handles both lint and format (no ESLint/Prettier). Jest + React Testing Library for unit; Playwright for E2E. pnpm is the package manager. See `docs/ADRs/ADR-001-TechStackSelection.md` for rationale.
+Full-stack Next.js 16 (App Router, React 19) on TypeScript, hosted on **Vercel**. Postgres via **Supabase** (managed) with Prisma as the ORM. **Supabase Auth** (via `@supabase/ssr`) for authentication. styled-components for styling, zod for runtime validation. Redux Toolkit is installed but not yet wired — client state is currently server-driven plus local React state. Biome handles both lint and format (no ESLint/Prettier). Jest + React Testing Library for unit; Playwright for E2E. pnpm is the package manager. See `docs/ADRs/ADR-001-TechStackSelection.md` for rationale.
 
-The codebase is currently an early-stage scaffold (per `docs/Playbook.md` phase 3 "Build Foundation"). `src/app/` has only `layout.tsx` + `page.tsx` + `globals.css`; `src/components/` and `src/lib/` are empty; the only Prisma model is `User`, and several of its fields (`password`, `failedLoginAttempts`, `accountLockedAt`, `passwordChangedAt`) predate the move to Supabase Auth and are pending removal — Supabase's `auth.users` owns them now. ADR-001/002 describe the intended architecture, not all currently-implemented code.
+The app is well past scaffold stage — the core features are built, shipped to production, and tested. **Feature map** — each feature lives under `src/app/<feature>/` (route + `page.tsx` + colocated `actions.ts` server actions), with pure logic in `src/lib/<feature>/`:
+
+- `dashboard/` — reporting charts (balance trend, cash flow, category expenditure, balance-by-category); `src/lib/dashboard/`
+- `budget/` — per-period income/expense sheet (budgeted vs actual) plus a transfers panel; `src/lib/budget/`
+- `balance/` — per-period assets/liabilities/net-worth sheet; `src/lib/balance/`
+- `transactions/` — ledger, CSV import (dedupe + reversible batches), categorize; feature-gated by a Settings toggle; `src/lib/transactions/`
+- `settings/` — preferences, chart visibility, category management, account management, transactions/transfers toggles, and data export / account deletion (`DataPrivacy`); `src/lib/settings/`
+- `sign-in/`, `sign-up/`, `auth/callback/` — Supabase Auth pages + OAuth callback; shared UI in `src/components/auth/`
+- marketing landing page (`page.tsx` → `src/components/marketing/`), plus `privacy/` and `terms/` public pages
+
+Shared UI primitives are in `src/components/ui/` (Button, Card, NavBar, …) and the spreadsheet-style grid in `src/components/sheet/`. The Prisma schema has 11 models (User, UserSettings, FinancialPeriod, FinancialItem, BalanceItem, BudgetTemplateItem, BalanceTemplateItem, Category, Account, ImportBatch, Transaction) — documented in `docs/DataModels/DataModels.md`. ADR-001/002 describe the intended architecture; the feature map above is what's actually built.
 
 ## Common commands
 
