@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-02
 **Status:** Approved (brainstorm), pending implementation plan
-**Related:** [ADR-002 (Security Architecture)](../../ADRs/ADR-002-SecurityArchitecture.md), [AuthFlow.md](../../AuthFlow.md)
+**Related:** [ADR-002 (Security Architecture)](../../ADRs/ADR-002-SecurityArchitecture.md), [auth.md](../../features/auth.md)
 
 ## Why
 

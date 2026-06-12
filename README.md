@@ -56,7 +56,7 @@ I have done my best, with the support of AI to put a comprehensive set of docume
 - [Data Models](docs/DataModels/DataModels.md)
 - [Architecture Decision Records (ADRs)](docs/ADRs/)
 - [Security Architecture](docs/ADRs/ADR-002-SecurityArchitecture.md)
-- [Auth Flow (sequence diagrams)](docs/AuthFlow.md)
+- [Auth Flow (sequence diagrams)](docs/features/auth.md)
 - [User Personas](docs/UserPersonas.md)
 - [User Journeys](docs/UserJourneys/UserJourney.md)
 - [Stakeholder Mapping](docs/StakeholderMapping.md)
@@ -129,7 +129,7 @@ journeys** (transactions, transfers) do hit a real `halcyon_test` Postgres at
 The `db` container provisions `halcyon_test` and the `test` role automatically
 on first volume init (see [`docker/postgres-init.sql`](docker/postgres-init.sql)),
 and `make test-e2e` applies migrations to it — so a cold `make test-e2e` works
-end to end. Coverage and approach are documented in [`docs/AuthFlow.md`](docs/AuthFlow.md#e2e-test-coverage).
+end to end. Coverage and approach are documented in [`docs/features/auth.md`](docs/features/auth.md#e2e-test-coverage).
 
 ### Database Seeding
 

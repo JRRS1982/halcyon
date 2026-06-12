@@ -11,7 +11,7 @@ It has been really helpful to plan this in advance of coding the project. It wil
 
 ## Auth boundary
 
-> The end-to-end sequence (sign-up, sign-in, sign-out, authenticated request) is documented in [docs/AuthFlow.md](../AuthFlow.md) with Mermaid diagrams.
+> The end-to-end sequence (sign-up, sign-in, sign-out, authenticated request) is documented in [docs/features/auth.md](../features/auth.md) with Mermaid diagrams.
 
 Supabase Auth lives in the Postgres `auth` schema (managed by Supabase, not in our migrations). Relevant facts:
 

@@ -2,11 +2,11 @@
 
 This document explains *what kind* of authentication Halcyon uses, where each piece of state lives, and what happens on the wire during sign-up, sign-in, and sign-out.
 
-See also: [ADR-001 (Tech Stack)](ADRs/ADR-001-TechStackSelection.md), [ADR-002 (Security)](ADRs/ADR-002-SecurityArchitecture.md), [Data Models](DataModels/DataModels.md).
+See also: [ADR-001 (Tech Stack)](../ADRs/ADR-001-TechStackSelection.md), [ADR-002 (Security)](../ADRs/ADR-002-SecurityArchitecture.md), [Data Models](../DataModels/DataModels.md).
 
 ## What kind of auth is this?
 
-**Email/password + OAuth (planned) via [Supabase Auth](https://supabase.com/docs/guides/auth)**, integrated into Next.js using the [`@supabase/ssr`](https://supabase.com/docs/guides/auth/server-side/nextjs) helpers.
+**Email/password + Google OAuth via [Supabase Auth](https://supabase.com/docs/guides/auth)**, integrated into Next.js using the [`@supabase/ssr`](https://supabase.com/docs/guides/auth/server-side/nextjs) helpers. Google sign-in is live (provider enabled in the Supabase dashboard — see [Google OAuth setup](#google-oauth-setup)).
 
 The pattern is the **"identity-in-`auth`, profile-in-`public`"** pattern — the canonical way to use Supabase Auth from a relational app. Three concrete consequences:
 
@@ -149,17 +149,17 @@ sequenceDiagram
 
 | Concern | File |
 |---|---|
-| Browser-side Supabase client | [`src/lib/supabase/client.ts`](../src/lib/supabase/client.ts) |
-| Server-side Supabase client (cookies via `next/headers`) | [`src/lib/supabase/server.ts`](../src/lib/supabase/server.ts) |
-| Middleware Supabase client + session refresh helper | [`src/lib/supabase/middleware.ts`](../src/lib/supabase/middleware.ts) |
-| Next.js middleware entry point | [`src/middleware.ts`](../src/middleware.ts) |
-| Sign-in page + server action | [`src/app/sign-in/`](../src/app/sign-in/) |
-| Sign-up page + server action | [`src/app/sign-up/`](../src/app/sign-up/) |
-| OAuth / magic-link / email-confirmation callback | [`src/app/auth/callback/route.ts`](../src/app/auth/callback/route.ts) |
-| Sign-out server action | [`src/app/actions.ts`](../src/app/actions.ts) |
-| Profile-row trigger + RLS policies | [`prisma/migrations/20260522130000_supabase_auth_integration/migration.sql`](../prisma/migrations/20260522130000_supabase_auth_integration/migration.sql) |
-| Account-data server actions (export / clear / delete) | [`src/app/settings/dataActions.ts`](../src/app/settings/dataActions.ts) |
-| Service-role admin client (account erasure) | [`src/lib/supabase/admin.ts`](../src/lib/supabase/admin.ts) |
+| Browser-side Supabase client | [`src/lib/supabase/client.ts`](../../src/lib/supabase/client.ts) |
+| Server-side Supabase client (cookies via `next/headers`) | [`src/lib/supabase/server.ts`](../../src/lib/supabase/server.ts) |
+| Middleware Supabase client + session refresh helper | [`src/lib/supabase/middleware.ts`](../../src/lib/supabase/middleware.ts) |
+| Next.js middleware entry point (`proxy` export) | [`src/proxy.ts`](../../src/proxy.ts) |
+| Sign-in page + server action | [`src/app/sign-in/`](../../src/app/sign-in/) |
+| Sign-up page + server action | [`src/app/sign-up/`](../../src/app/sign-up/) |
+| OAuth / magic-link / email-confirmation callback | [`src/app/auth/callback/route.ts`](../../src/app/auth/callback/route.ts) |
+| Sign-out server action | [`src/app/actions.ts`](../../src/app/actions.ts) |
+| Profile-row trigger + RLS policies | [`prisma/migrations/20260522130000_supabase_auth_integration/migration.sql`](../../prisma/migrations/20260522130000_supabase_auth_integration/migration.sql) |
+| Account-data server actions (export / clear / delete) | [`src/app/settings/dataActions.ts`](../../src/app/settings/dataActions.ts) |
+| Service-role admin client (account erasure) | [`src/lib/supabase/admin.ts`](../../src/lib/supabase/admin.ts) |
 
 ## Google OAuth setup
 
@@ -194,7 +194,7 @@ Once those are in place, the button works without any further code changes.
 
 ## E2E test coverage
 
-[`e2e/auth.spec.ts`](../e2e/auth.spec.ts) covers:
+[`e2e/auth.spec.ts`](../../e2e/auth.spec.ts) covers:
 
 - Unauth state: home shows sign-in link; `/dashboard` redirects to `/sign-in?next=/dashboard`.
 - Sign-up: zod rejects invalid email + short password (both server-side errors via redirect); happy path shows the "check your email" message.
@@ -202,7 +202,7 @@ Once those are in place, the button works without any further code changes.
 - Sign-out: cookie clears; `/dashboard` becomes inaccessible again.
 - Google button: present on both sign-in and sign-up pages (the real OAuth round-trip is not E2E-tested — would require a fake Google).
 
-Tests run against a **mock Supabase Auth server** at [`e2e/_mock/supabase.mjs`](../e2e/_mock/supabase.mjs) — a small Node HTTP server implementing just enough of `/auth/v1/*` to drive the flow end-to-end without touching the real Supabase project. It's in-memory, pre-seeded with one user (`test@example.com` / `password123`), and reset on every Playwright run.
+Tests run against a **mock Supabase Auth server** at [`e2e/_mock/supabase.mjs`](../../e2e/_mock/supabase.mjs) — a small Node HTTP server implementing just enough of `/auth/v1/*` to drive the flow end-to-end without touching the real Supabase project. It's in-memory, pre-seeded with one user (`test@example.com` / `password123`), and reset on every Playwright run.
 
 `playwright.config.ts` starts the mock + a dedicated Next.js dev server on port `3100` (so it can run alongside the developer's own `pnpm dev` on `3210`) with env vars pointing at the mock.
 

@@ -5,7 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 // component. The `server-only` import above makes an accidental client import
 // a build-time error rather than a silent key leak.
 //
-// Halcyon splits user data across two stores (see docs/AuthFlow.md):
+// Halcyon splits user data across two stores (see docs/features/auth.md):
 //   • identity → Supabase-managed `auth.users` (email, password hash, OAuth)
 //   • profile  → our `public."User"` + the financial tables (Prisma)
 //

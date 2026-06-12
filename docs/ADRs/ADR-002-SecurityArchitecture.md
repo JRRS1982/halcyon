@@ -10,7 +10,7 @@
 
 This is a personal finance application handling sensitive user data (income, expenses, budgets). Users authenticate via email/password or OAuth providers. The app stores financial documents and personal information, making it a target for account takeover, data breaches, and unauthorized access. We need a security architecture that protects user data while maintaining usability.
 
-> See [docs/AuthFlow.md](../AuthFlow.md) for the on-the-wire sequence diagrams (sign-up, sign-in, authenticated request, sign-out) and the file-by-file code map.
+> See [docs/features/auth.md](../features/auth.md) for the on-the-wire sequence diagrams (sign-up, sign-in, authenticated request, sign-out) and the file-by-file code map.
 
 The original (Nov 2025) design used NextAuth.js + bcrypt against a self-hosted Postgres. In May 2026 the platform moved to Vercel + Supabase, which shifts where several security primitives live: password handling, session management, and email verification are now Supabase's responsibility, while application-level authorization (`userId` filtering, RLS) remains ours.
 

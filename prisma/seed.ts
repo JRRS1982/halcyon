@@ -10,7 +10,7 @@ import { netActual } from "../src/lib/transactions/actual";
 // contributions transfer to an ISA and SIPP — both legs of every transfer are
 // seeded, so the budget Transfers section populates too.
 //
-// The split (see docs/AuthFlow.md): there is no local Supabase Auth — the only
+// The split (see docs/features/auth.md): there is no local Supabase Auth — the only
 // `auth.users` is the cloud project. So the demo *user* is created in cloud
 // auth (idempotently) via the admin API, while all financial data is written to
 // whatever `DATABASE_URL` points at. The guard below refuses to run unless that
