@@ -1,3 +1,4 @@
+import { PrismaPg } from "@prisma/adapter-pg";
 import { type IncomeCategory, PrismaClient, UserStatus } from "@prisma/client";
 import { createClient } from "@supabase/supabase-js";
 import { monthRangeFor, previousMonth } from "../src/lib/budget/period";
@@ -25,9 +26,8 @@ const DEMO_PASSWORD = "halcyon-demo";
 const MONTHS = 18;
 const LOCAL_DB_HOSTS = ["db", "localhost", "127.0.0.1"];
 
-const prisma = new PrismaClient({
-  datasources: { db: { url: process.env.DATABASE_URL } },
-});
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+const prisma = new PrismaClient({ adapter });
 
 // ─── Guards ─────────────────────────────────────────────────────────────────
 

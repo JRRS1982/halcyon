@@ -1,3 +1,4 @@
+import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 
 // Singleton — Next.js dev hot-reload would otherwise create a new PrismaClient
@@ -8,9 +9,15 @@ declare global {
   var prismaClient: PrismaClient | undefined;
 }
 
+// Prisma 7 connects through a node-postgres driver adapter rather than a bundled
+// engine. The adapter reads the pooled runtime URL (`DATABASE_URL`); migrations
+// use `DIRECT_URL` via prisma.config.ts.
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+
 export const prisma =
   globalThis.prismaClient ??
   new PrismaClient({
+    adapter,
     log: process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"],
   });
 

@@ -1,4 +1,5 @@
 import { type Page, test as base } from "@playwright/test";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 
 // Custom Playwright fixtures that give each data-touching e2e test a clean
@@ -47,9 +48,8 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
     // biome-ignore lint/correctness/noEmptyPattern: Playwright fixtures require the destructured first arg
     async ({}, use) => {
       assertTestDatabase(TEST_DB_URL);
-      const prisma = new PrismaClient({
-        datasources: { db: { url: TEST_DB_URL } },
-      });
+      const adapter = new PrismaPg({ connectionString: TEST_DB_URL });
+      const prisma = new PrismaClient({ adapter });
       await use(prisma);
       await prisma.$disconnect();
     },
