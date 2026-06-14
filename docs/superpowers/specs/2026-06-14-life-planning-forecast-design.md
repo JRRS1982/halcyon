@@ -129,9 +129,9 @@ Both paths are first-class. A new plan **starts empty**; the user either:
 | Signal | Wrapper |
 |---|---|
 | category = PROPERTY | PROPERTY |
-| label matches /pension|sipp/i | PENSION |
+| label matches /pension\|sipp/i | PENSION |
 | label matches /isa/i | ISA |
-| label matches /cash|current|savings/i | CASH |
+| label matches /cash\|current\|savings/i | CASH |
 | otherwise | GIA (taxable) |
 
 The guessed wrapper also **suggests** a starting return for the new asset (e.g. CASH ≈ 1%, equity
