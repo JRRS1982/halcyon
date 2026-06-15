@@ -1,0 +1,295 @@
+// src/lib/plan/project.test.ts
+import { project } from "./project";
+import type { PlanInput } from "./types";
+
+const base = (over: Partial<PlanInput> = {}): PlanInput => ({
+  currentAge: 40,
+  startYear: 2026,
+  retirementAge: 65,
+  planToAge: 41,
+  inflationPct: 0,
+  defaultReturnPct: 0,
+  taxRatePct: 0,
+  assets: [],
+  liabilities: [],
+  incomes: [],
+  expenses: [],
+  events: [],
+  ...over,
+});
+
+const wrapperTotal = (
+  y: { assets: { wrapper: string; value: number }[] },
+  w: string,
+): number =>
+  y.assets.filter((a) => a.wrapper === w).reduce((s, a) => s + a.value, 0);
+
+describe("project", () => {
+  it("emits one row per year with calendar years", () => {
+    const p = project(base({ currentAge: 40, planToAge: 42 }));
+    expect(p.years.map((y) => y.age)).toEqual([40, 41, 42]);
+    expect(p.years.map((y) => y.year)).toEqual([2026, 2027, 2028]);
+  });
+
+  it("grows an untouched asset by default return; per-asset override wins", () => {
+    const p = project(
+      base({
+        planToAge: 40,
+        defaultReturnPct: 10,
+        assets: [
+          {
+            id: "a",
+            label: "GIA",
+            wrapper: "GIA",
+            openingValue: 10000,
+            drawdownPriority: 1,
+          },
+          {
+            id: "b",
+            label: "SIPP",
+            wrapper: "PENSION",
+            openingValue: 10000,
+            expectedReturnPct: 0,
+            drawdownPriority: 2,
+          },
+        ],
+      }),
+    );
+    expect(wrapperTotal(p.years[0]!, "GIA")).toBe(11000);
+    expect(wrapperTotal(p.years[0]!, "PENSION")).toBe(10000);
+  });
+
+  it("leftover surplus sits in the CASH buffer, not the pension", () => {
+    const p = project(
+      base({
+        planToAge: 40,
+        incomes: [
+          {
+            id: "s",
+            label: "Salary",
+            kind: "SALARY",
+            annualAmount: 50000,
+            growth: { kind: "NONE" },
+            taxable: true,
+          },
+        ],
+        expenses: [
+          {
+            id: "e",
+            label: "Living",
+            annualAmount: 30000,
+            inflationLinked: false,
+          },
+        ],
+        taxRatePct: 20,
+        assets: [
+          {
+            id: "cash",
+            label: "Cash",
+            wrapper: "CASH",
+            openingValue: 0,
+            drawdownPriority: 0,
+          },
+          {
+            id: "sipp",
+            label: "SIPP",
+            wrapper: "PENSION",
+            openingValue: 0,
+            drawdownPriority: 5,
+          },
+        ],
+      }),
+    );
+    expect(p.years[0]!.surplus).toBe(10000);
+    expect(wrapperTotal(p.years[0]!, "CASH")).toBe(10000);
+    expect(wrapperTotal(p.years[0]!, "PENSION")).toBe(0);
+  });
+
+  it("applies a per-asset contribution into its pot and records it", () => {
+    const p = project(
+      base({
+        planToAge: 40,
+        retirementAge: 65,
+        incomes: [
+          {
+            id: "s",
+            label: "Salary",
+            kind: "SALARY",
+            annualAmount: 40000,
+            growth: { kind: "NONE" },
+            taxable: false,
+          },
+        ],
+        assets: [
+          {
+            id: "cash",
+            label: "Cash",
+            wrapper: "CASH",
+            openingValue: 0,
+            drawdownPriority: 0,
+          },
+          {
+            id: "sipp",
+            label: "SIPP",
+            wrapper: "PENSION",
+            openingValue: 0,
+            annualContribution: 6000,
+            drawdownPriority: 5,
+          },
+        ],
+      }),
+    );
+    expect(p.years[0]!.contributions).toBe(6000);
+    expect(wrapperTotal(p.years[0]!, "PENSION")).toBe(6000);
+    expect(p.years[0]!.assets.find((a) => a.id === "sipp")?.contributed).toBe(
+      6000,
+    );
+    expect(wrapperTotal(p.years[0]!, "CASH")).toBe(34000);
+  });
+
+  it("funds a deficit from the cash buffer and flags shortfall when exhausted", () => {
+    const p = project(
+      base({
+        planToAge: 40,
+        expenses: [
+          {
+            id: "e",
+            label: "Living",
+            annualAmount: 30000,
+            inflationLinked: false,
+          },
+        ],
+        assets: [
+          {
+            id: "cash",
+            label: "Cash",
+            wrapper: "CASH",
+            openingValue: 20000,
+            drawdownPriority: 0,
+          },
+        ],
+      }),
+    );
+    expect(p.years[0]!.withdrawals).toBe(20000);
+    expect(p.years[0]!.shortfall).toBe(true);
+    expect(wrapperTotal(p.years[0]!, "CASH")).toBe(0);
+  });
+
+  it("taxes a pension drawdown (gross-up) and records it on the asset", () => {
+    const p = project(
+      base({
+        planToAge: 40,
+        taxRatePct: 20,
+        expenses: [
+          {
+            id: "e",
+            label: "Living",
+            annualAmount: 8000,
+            inflationLinked: false,
+          },
+        ],
+        assets: [
+          {
+            id: "sipp",
+            label: "SIPP",
+            wrapper: "PENSION",
+            openingValue: 50000,
+            drawdownPriority: 0,
+          },
+        ],
+      }),
+    );
+    expect(p.years[0]!.withdrawals).toBe(10000);
+    expect(p.years[0]!.tax).toBe(2000);
+    expect(p.years[0]!.assets.find((a) => a.id === "sipp")?.withdrawn).toBe(
+      10000,
+    );
+  });
+
+  it("captures income by kind", () => {
+    const p = project(
+      base({
+        planToAge: 40,
+        incomes: [
+          {
+            id: "s",
+            label: "Salary",
+            kind: "SALARY",
+            annualAmount: 40000,
+            growth: { kind: "NONE" },
+            taxable: true,
+          },
+        ],
+        statePension: { startAge: 40, annualAmount: 11000 },
+        assets: [
+          {
+            id: "cash",
+            label: "Cash",
+            wrapper: "CASH",
+            openingValue: 0,
+            drawdownPriority: 0,
+          },
+        ],
+      }),
+    );
+    expect(p.years[0]!.incomeByKind.SALARY).toBe(40000);
+    expect(p.years[0]!.incomeByKind.STATE_PENSION).toBe(11000);
+  });
+
+  it("reduces net worth by an outstanding liability", () => {
+    const p = project(
+      base({
+        planToAge: 40,
+        assets: [
+          {
+            id: "cash",
+            label: "Cash",
+            wrapper: "CASH",
+            openingValue: 100000,
+            drawdownPriority: 0,
+          },
+        ],
+        liabilities: [
+          {
+            id: "m",
+            label: "Mortgage",
+            openingBalance: 60000,
+            interestPct: 0,
+            monthlyRepayment: 0,
+          },
+        ],
+      }),
+    );
+    expect(p.years[0]!.liabilitiesTotal).toBe(60000);
+    expect(p.years[0]!.netWorth).toBe(40000);
+  });
+
+  it("applies a one-off inflow event the year it lands", () => {
+    const p = project(
+      base({
+        currentAge: 40,
+        planToAge: 41,
+        assets: [
+          {
+            id: "cash",
+            label: "Cash",
+            wrapper: "CASH",
+            openingValue: 0,
+            drawdownPriority: 0,
+          },
+        ],
+        events: [
+          {
+            id: "inh",
+            label: "Inheritance",
+            age: 41,
+            direction: "INFLOW",
+            amount: 50000,
+          },
+        ],
+      }),
+    );
+    expect(wrapperTotal(p.years[0]!, "CASH")).toBe(0);
+    expect(wrapperTotal(p.years[1]!, "CASH")).toBe(50000);
+  });
+});
