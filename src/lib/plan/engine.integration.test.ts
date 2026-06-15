@@ -105,7 +105,10 @@ describe("plan engine — realistic integration", () => {
   });
   it("grows the SIPP via contributions while working", () => {
     const { years } = project(plan);
-    const sipp = assetOf(atAge(years, 55), "sipp");
+    // Check age 50 (first year, before university costs make cashflow negative at 52–57).
+    // Contributions are funded only from operating cash flow, so they are 0 when
+    // net cashflow before contributions is negative (correct behaviour post-fix).
+    const sipp = assetOf(atAge(years, 50), "sipp");
     expect(sipp.contributed).toBeGreaterThan(0);
     expect(sipp.value).toBeGreaterThan(200000);
   });

@@ -417,3 +417,97 @@ describe("earliestSustainableRetirementAge", () => {
     expect(project(input).verdict.earliestSustainableRetirementAge).toBe(60);
   });
 });
+
+describe("contribution funding (no leak)", () => {
+  it("does not fund a contribution by liquidating a taxable pot", () => {
+    const p = project(
+      base({
+        planToAge: 40,
+        taxRatePct: 40,
+        assets: [
+          {
+            id: "sipp",
+            label: "SIPP",
+            wrapper: "PENSION",
+            openingValue: 0,
+            annualContribution: 10000,
+            drawdownPriority: 0,
+          },
+          {
+            id: "gia",
+            label: "GIA",
+            wrapper: "GIA",
+            openingValue: 100000,
+            drawdownPriority: 1,
+          },
+        ],
+      }),
+    );
+    expect(at(p, 0).tax).toBe(0);
+    expect(at(p, 0).withdrawals).toBe(0);
+    expect(at(p, 0).contributions).toBe(0);
+    expect(wrapperTotal(at(p, 0), "GIA")).toBe(100000);
+  });
+
+  it("scales contributions down to the cash flow available", () => {
+    const p = project(
+      base({
+        planToAge: 40,
+        taxRatePct: 0,
+        incomes: [
+          {
+            id: "s",
+            label: "Salary",
+            kind: "SALARY",
+            annualAmount: 5000,
+            growth: { kind: "NONE" },
+            taxable: false,
+          },
+        ],
+        assets: [
+          {
+            id: "cash",
+            label: "Cash",
+            wrapper: "CASH",
+            openingValue: 0,
+            drawdownPriority: 0,
+          },
+          {
+            id: "sipp",
+            label: "SIPP",
+            wrapper: "PENSION",
+            openingValue: 0,
+            annualContribution: 8000,
+            drawdownPriority: 5,
+          },
+        ],
+      }),
+    );
+    expect(at(p, 0).contributions).toBe(5000);
+    expect(wrapperTotal(at(p, 0), "PENSION")).toBe(5000);
+    expect(wrapperTotal(at(p, 0), "CASH")).toBe(0);
+  });
+});
+
+describe("no-asset cash home", () => {
+  it("does not lose surplus when the plan has no assets", () => {
+    const p = project(
+      base({
+        currentAge: 40,
+        planToAge: 41,
+        assets: [],
+        events: [
+          {
+            id: "inh",
+            label: "Inheritance",
+            age: 41,
+            direction: "INFLOW",
+            amount: 50000,
+          },
+        ],
+      }),
+    );
+    expect(at(p, 1).netWorth).toBe(50000);
+    expect(wrapperTotal(at(p, 1), "CASH")).toBe(50000);
+  });
+});

@@ -5,6 +5,7 @@ import { liabilityStep } from "./liabilities";
 import { activeExpenses, activeIncome } from "./streams";
 import { incomeTax } from "./tax";
 import type {
+  AssetInput,
   IncomeInput,
   PlanInput,
   PlanProjection,
@@ -12,9 +13,23 @@ import type {
 } from "./types";
 import { summarise } from "./verdict";
 
+const SYNTHETIC_CASH: AssetInput[] = [
+  {
+    id: "cash",
+    label: "Cash",
+    wrapper: "CASH",
+    openingValue: 0,
+    drawdownPriority: 0,
+  },
+];
+
 const projectYears = (input: PlanInput): YearProjection[] => {
+  // A plan with no assets gets an implicit cash account so inflows/surplus are
+  // never silently lost.
+  const runAssets = input.assets.length > 0 ? input.assets : SYNTHETIC_CASH;
+
   const assetBal: Record<string, number> = {};
-  for (const a of input.assets) assetBal[a.id] = a.openingValue;
+  for (const a of runAssets) assetBal[a.id] = a.openingValue;
   const liabBal: Record<string, number> = {};
   for (const l of input.liabilities) liabBal[l.id] = l.openingBalance;
 
@@ -43,29 +58,45 @@ const projectYears = (input: PlanInput): YearProjection[] => {
     const liab = liabilityStep(input.liabilities, liabBal, age);
     Object.assign(liabBal, liab.balances);
 
-    const contributedByAsset: Record<string, number> = {};
-    let contributions = 0;
-    for (const a of input.assets) {
-      const endAge = a.contributionEndAge ?? input.retirementAge;
-      if (!a.annualContribution || age >= endAge) continue;
-      const c = amountThisYear(
-        a.annualContribution,
-        input.inflationPct,
-        yearsElapsed,
-      );
-      assetBal[a.id] = (assetBal[a.id] ?? 0) + c;
-      contributedByAsset[a.id] = c;
-      contributions += c;
-    }
-
     const eventsNet = sum(
       input.events
         .filter((e) => e.age === age)
         .map((e) => (e.direction === "INFLOW" ? e.amount : -e.amount)),
     );
 
-    const cashflow =
-      netIncome - expenses.total - liab.repaid - contributions + eventsNet;
+    // Contributions are funded only from the year's operating cash flow; they
+    // never force a (taxable) drawdown. If cash flow can't cover the full
+    // requested amount, contributions scale down proportionally.
+    const preContribCashflow =
+      netIncome - expenses.total - liab.repaid + eventsNet;
+    const requested = runAssets
+      .map((a) => {
+        const endAge = a.contributionEndAge ?? input.retirementAge;
+        const amount =
+          a.annualContribution && age < endAge
+            ? amountThisYear(
+                a.annualContribution,
+                input.inflationPct,
+                yearsElapsed,
+              )
+            : 0;
+        return { id: a.id, amount };
+      })
+      .filter((r) => r.amount > 0);
+    const requestedTotal = sum(requested.map((r) => r.amount));
+    const contribBudget = Math.max(0, preContribCashflow);
+    const factor =
+      requestedTotal > 0 ? Math.min(1, contribBudget / requestedTotal) : 0;
+
+    const contributedByAsset: Record<string, number> = {};
+    for (const r of requested) {
+      const funded = r.amount * factor;
+      assetBal[r.id] = (assetBal[r.id] ?? 0) + funded;
+      contributedByAsset[r.id] = funded;
+    }
+    const contributions = requestedTotal * factor;
+
+    const cashflow = preContribCashflow - contributions;
 
     let withdrawalTax = 0;
     let withdrawals = 0;
@@ -73,11 +104,11 @@ const projectYears = (input: PlanInput): YearProjection[] => {
     const withdrawnByAsset: Record<string, number> = {};
 
     if (cashflow >= 0) {
-      const targetId = contributionTargetId(input.assets);
+      const targetId = contributionTargetId(runAssets);
       if (targetId) assetBal[targetId] = (assetBal[targetId] ?? 0) + cashflow;
     } else {
       const fund = fundDeficit(
-        input.assets,
+        runAssets,
         assetBal,
         -cashflow,
         input.taxRatePct,
@@ -91,14 +122,14 @@ const projectYears = (input: PlanInput): YearProjection[] => {
 
     const yearTax = incTax + withdrawalTax;
 
-    for (const a of input.assets) {
+    for (const a of runAssets) {
       assetBal[a.id] = grow(
         assetBal[a.id] ?? 0,
         a.expectedReturnPct ?? input.defaultReturnPct,
       );
     }
 
-    const assets = input.assets.map((a) => ({
+    const assets = runAssets.map((a) => ({
       id: a.id,
       label: a.label,
       wrapper: a.wrapper,
