@@ -4,7 +4,12 @@ import { amountThisYear, grow, round, sum } from "./helpers";
 import { liabilityStep } from "./liabilities";
 import { activeExpenses, activeIncome } from "./streams";
 import { incomeTax } from "./tax";
-import type { PlanInput, PlanProjection, YearProjection } from "./types";
+import type {
+  IncomeInput,
+  PlanInput,
+  PlanProjection,
+  YearProjection,
+} from "./types";
 import { summarise } from "./verdict";
 
 const projectYears = (input: PlanInput): YearProjection[] => {
@@ -140,10 +145,41 @@ const projectYears = (input: PlanInput): YearProjection[] => {
   return years;
 };
 
+const EMPLOYMENT: IncomeInput["kind"][] = ["SALARY", "SELF_EMPLOYMENT"];
+
+// Re-runs the projection with employment income ending at each candidate age,
+// from currentAge to planToAge, returning the earliest age that keeps the plan
+// feasible (or null). Uses projectYears directly, so it never recurses.
+export const earliestSustainableRetirementAge = (
+  input: PlanInput,
+): number | null => {
+  for (
+    let candidate = input.currentAge;
+    candidate <= input.planToAge;
+    candidate++
+  ) {
+    const incomes = input.incomes.map((i) =>
+      EMPLOYMENT.includes(i.kind)
+        ? { ...i, endAge: Math.min(i.endAge ?? candidate, candidate) }
+        : i,
+    );
+    if (
+      summarise(projectYears({ ...input, retirementAge: candidate, incomes }))
+        .feasible
+    ) {
+      return candidate;
+    }
+  }
+  return null;
+};
+
 export const project = (input: PlanInput): PlanProjection => {
   const years = projectYears(input);
   return {
     years,
-    verdict: { ...summarise(years), earliestSustainableRetirementAge: null },
+    verdict: {
+      ...summarise(years),
+      earliestSustainableRetirementAge: earliestSustainableRetirementAge(input),
+    },
   };
 };

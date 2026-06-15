@@ -1,5 +1,5 @@
 // src/lib/plan/project.test.ts
-import { project } from "./project";
+import { earliestSustainableRetirementAge, project } from "./project";
 import type { PlanInput, PlanProjection, YearProjection } from "./types";
 
 const at = (p: PlanProjection, i: number): YearProjection => {
@@ -295,5 +295,125 @@ describe("project", () => {
     );
     expect(wrapperTotal(at(p, 0), "CASH")).toBe(0);
     expect(wrapperTotal(at(p, 1), "CASH")).toBe(50000);
+  });
+});
+
+describe("earliestSustainableRetirementAge", () => {
+  it("finds the earliest age at which stopping salary keeps the plan feasible", () => {
+    const input = base({
+      currentAge: 60,
+      planToAge: 65,
+      retirementAge: 65,
+      taxRatePct: 0,
+      incomes: [
+        {
+          id: "s",
+          label: "Salary",
+          kind: "SALARY",
+          annualAmount: 40000,
+          growth: { kind: "NONE" },
+          taxable: false,
+        },
+      ],
+      expenses: [
+        {
+          id: "e",
+          label: "Living",
+          annualAmount: 20000,
+          inflationLinked: false,
+        },
+      ],
+      assets: [
+        {
+          id: "cash",
+          label: "Cash",
+          wrapper: "CASH",
+          openingValue: 40000,
+          drawdownPriority: 0,
+        },
+      ],
+    });
+    const age = earliestSustainableRetirementAge(input);
+    expect(age).not.toBeNull();
+    expect(age).toBeGreaterThanOrEqual(60);
+    expect(age).toBeLessThanOrEqual(65);
+  });
+
+  it("returns currentAge when already feasible with no work", () => {
+    const input = base({
+      currentAge: 60,
+      planToAge: 62,
+      taxRatePct: 0,
+      expenses: [
+        {
+          id: "e",
+          label: "Living",
+          annualAmount: 10000,
+          inflationLinked: false,
+        },
+      ],
+      assets: [
+        {
+          id: "cash",
+          label: "Cash",
+          wrapper: "CASH",
+          openingValue: 1000000,
+          drawdownPriority: 0,
+        },
+      ],
+    });
+    expect(earliestSustainableRetirementAge(input)).toBe(60);
+  });
+
+  it("returns null when no retirement age in range is feasible", () => {
+    const input = base({
+      currentAge: 60,
+      planToAge: 90,
+      taxRatePct: 0,
+      expenses: [
+        {
+          id: "e",
+          label: "Living",
+          annualAmount: 50000,
+          inflationLinked: false,
+        },
+      ],
+      assets: [
+        {
+          id: "cash",
+          label: "Cash",
+          wrapper: "CASH",
+          openingValue: 1000,
+          drawdownPriority: 0,
+        },
+      ],
+    });
+    expect(earliestSustainableRetirementAge(input)).toBeNull();
+  });
+
+  it("is wired into project()'s verdict", () => {
+    const input = base({
+      currentAge: 60,
+      planToAge: 62,
+      taxRatePct: 0,
+      expenses: [
+        {
+          id: "e",
+          label: "Living",
+          annualAmount: 10000,
+          inflationLinked: false,
+        },
+      ],
+      assets: [
+        {
+          id: "cash",
+          label: "Cash",
+          wrapper: "CASH",
+          openingValue: 1000000,
+          drawdownPriority: 0,
+        },
+      ],
+    });
+    expect(project(input).verdict.earliestSustainableRetirementAge).toBe(60);
   });
 });
