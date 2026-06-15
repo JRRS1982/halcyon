@@ -16,10 +16,10 @@ It answers one core question:
 
 The user builds a **Plan** — opening assets/liabilities, income and expense streams, and one-off
 events, plus global assumptions — and the app projects it **year-by-year across their whole life**,
-rendering a Voyant-style stacked cashflow chart and a net-worth view, with the year money runs short
-flagged in **red**. Sliders (return, inflation, retirement age) recompute the projection live.
+rendering a stacked cash flow chart and a net-worth view, with the year money runs short
+flagged in **red**. Sliders (default return, inflation, retirement age) recompute the projection live.
 
-This is the **largest feature in the app**. It marries historic tracking with future planning.
+This will be one of the largest features in the app. It marries historic tracking with future planning and will contains significant computational complexity and configuration.
 
 ## 2. Scope
 
@@ -95,13 +95,15 @@ The single modelling decision that drives everything. For each projected year (f
 2. tax            = TaxFn(taxContext)            ← swappable seam (stub in v1)
 3. net income     = gross income − tax
 4. outgoings      = Σ active expense streams (inflation-linked) + liability repayments
-5. surplus        = net income − outgoings        (may be negative)
-6a. surplus > 0   → contribute to assets (per-asset regular contributions, then a default destination)
-6b. surplus < 0   → withdraw from assets in drawdownPriority order
-                    └─ when drawable assets hit £0 and surplus is still negative ⇒ SHORTFALL (red)
-7. grow assets    = each asset × its expected return; liabilities accrue interest, reduce by repayment
-8. apply events   = one-off inflows/outflows landing this age (e.g. inheritance, house deposit)
-9. record         = a YearProjection row (see §8)
+5.  surplus       = net income − outgoings        (may be negative)
+6.  contributions = Σ active per-asset contributions (default: stop at retirement) → added to their pots
+7.  events        = one-off inflows/outflows landing this age (inheritance, house deposit, …)
+8.  cash movement = surplus − contributions + events
+      ≥ 0 → accumulates in the CASH account (the buffer where surplus sits)
+      < 0 → withdraw the shortfall from assets in drawdownPriority order (CASH buffer drawn first)
+            └─ when drawable assets hit £0 and still short ⇒ SHORTFALL (red)
+9.  grow          = each asset × its expected return; liabilities accrue interest, reduce by repayment
+10. record        = a YearProjection row (see §8)
 ```
 
 **Savings is *derived*** (income − tax − outgoings), not a primary input — truthful, and how Voyant
@@ -111,36 +113,33 @@ contribution multiplier.
 **Default drawdown order** (v1, simplistic): `CASH → GIA → ISA → PENSION` (pension last for tax/IHT
 reasons). Overridable per asset via `drawdownPriority`. Tax-optimised ordering is deferred.
 
-**Default contribution destination** (v1): honour explicit per-asset `monthlyContribution` first, then
-route remaining surplus to the highest-priority accumulation asset. Allowance caps (ISA/pension
-annual allowance) are deferred to Phase 4.
+**Where surplus sits & contributions** (v1): explicit per-asset regular contributions are funded from
+income and added to their pots (default: contributions **stop at retirement**; an end age can be set).
+The **leftover accumulates in the CASH account — the buffer**, and lean years draw that buffer down
+first (drawdown order above). Surplus is **not** auto-routed into pensions/ISAs — moving money into a
+wrapper is a deliberate contribution, exactly as a real person decides. Contribution **allowance caps**
+(ISA £20k, pension annual allowance) are deferred to Phase 4.
 
 ## 6. Seeding from app data vs manual
 
 Both paths are first-class. A new plan **starts empty**; the user either:
 
 - **"Import from my balance sheet"** — copy the latest non-deleted period's `BalanceItem`s into
-  `PlanAsset`/`PlanLiability` (value + provenance; wrapper guessed, see below), and optionally pull
-  `FinancialItem` income/expense baselines into `PlanIncome`/`PlanExpense`; **or**
+  `PlanAsset`/`PlanLiability` (value + provenance), and optionally pull `FinancialItem` income/expense
+  baselines into `PlanIncome`/`PlanExpense`; **or**
 - **Add everything manually** — the default offered for users who want a clean what-if.
 
-**Wrapper guess heuristic** when seeding an asset from a `BalanceItem` (user can correct after):
+**Wrapper is user-specified, never guessed.** A seeded `PlanAsset` gets `wrapper = OTHER` and is flagged
+for the user to set the correct type (PENSION/ISA/GIA/CASH/PROPERTY/…). No label-based guessing — the
+type drives tax treatment, so it must be deliberate. (`BalanceItem` carries no wrapper today; persisting
+a type on balance-sheet items is a possible future enhancement to the Balance feature, out of scope
+here.) `expectedReturnPct` is left unset, inheriting `defaultReturnPct` until the user overrides it.
 
-| Signal | Wrapper |
-|---|---|
-| category = PROPERTY | PROPERTY |
-| label matches /pension\|sipp/i | PENSION |
-| label matches /isa/i | ISA |
-| label matches /cash\|current\|savings/i | CASH |
-| otherwise | GIA (taxable) |
-
-The guessed wrapper also **suggests** a starting return for the new asset (e.g. CASH ≈ 1%, equity
-wrappers ≈ 5%), pre-filling `expectedReturnPct` — always editable, and falling back to the plan's
-`defaultReturnPct` if cleared.
-
-**Income/expense seed:** latest period's `FinancialItem`s, `annualAmount = monthly × 12` (or averaged
-actuals where the transactions feature is on). Income `kind` derived from `incomeCategory`
-(`SALARY→SALARY`, `PENSIONS→DB_PENSION`, else `OTHER`); expense `category` carried from the bucket.
+**Income/expense seed** comes from the latest period's `FinancialItem`s, `annualAmount = monthly × 12`.
+**Default source is the budget figures**; a per-plan **setting** can switch the source to an **average
+of recent actuals** (only meaningful where the transactions feature is on). Income `kind` derived from
+`incomeCategory` (`SALARY→SALARY`, `PENSIONS→DB_PENSION`, else `OTHER`); expense `category` carried
+from the bucket.
 
 ## 7. Engine contract (Phase 0 — pure, headless, TDD)
 
@@ -154,6 +153,7 @@ type Growth  = { kind: "INFLATION" } | { kind: "FIXED"; pct: number } | { kind: 
 
 interface PlanInput {
   currentAge: number;            // derived from dateOfBirth at call time
+  startYear: number;             // calendar year of currentAge (for YearProjection.year)
   retirementAge: number;
   planToAge: number;             // e.g. 95
   inflationPct: number;          // e.g. 2.5
@@ -164,15 +164,16 @@ interface PlanInput {
   incomes: IncomeInput[];
   expenses: ExpenseInput[];
   events: EventInput[];
-  tax: TaxFn;                    // the seam (§9)
+  taxRatePct: number;            // v1 blended tax rate (§9); a pluggable TaxFn arrives in Phase 4
 }
 
 interface AssetInput {
   id: string; label: string; wrapper: Wrapper;
   openingValue: number;
   expectedReturnPct?: number;    // undefined ⇒ plan defaultReturnPct
-  monthlyContribution?: number;
-  drawdownPriority: number;
+  annualContribution?: number;   // regular paying-in, inflation-grown; default 0
+  contributionEndAge?: number;   // default = retirementAge (stop paying in when earning stops)
+  drawdownPriority: number;      // ascending = drawn first (CASH buffer first)
 }
 interface LiabilityInput {
   id: string; label: string;
@@ -193,14 +194,26 @@ interface EventInput {
   direction: "INFLOW" | "OUTFLOW"; amount: number;
 }
 
+interface AssetBalance {
+  id: string; label: string; wrapper: Wrapper;
+  value: number;        // closing balance
+  contributed: number;  // paid into this asset this year
+  withdrawn: number;    // drawn out of this asset this year (e.g. "SIPP drawdown")
+}
+interface LiabilityBalance { id: string; label: string; value: number; }
+
 interface YearProjection {
   age: number; year: number;
-  grossIncome: number; tax: number; netIncome: number;
+  grossIncome: number;
+  incomeByKind: Record<IncomeKind, number>; // income streams by source kind (for the cashflow chart)
+  tax: number; netIncome: number;
   expensesByCategory: Record<string, number>; totalExpenses: number;
   liabilityRepayments: number;
   surplus: number; contributions: number; withdrawals: number;
-  assetsByWrapper: Record<Wrapper, number>;   // closing balances
-  liabilitiesTotal: number; netWorth: number;
+  assets: AssetBalance[];          // per-individual-asset closing balances (positive stack)
+  liabilities: LiabilityBalance[]; // per-liability closing balances (negative stack, below £0)
+  liabilitiesTotal: number;        // = Σ liabilities[].value (convenience)
+  netWorth: number;                // = Σ assets[].value − liabilitiesTotal
   shortfall: boolean;
 }
 
@@ -223,6 +236,13 @@ function project(input: PlanInput): PlanProjection;
 All money is plain `number` (pounds) inside the engine, **rounded to whole pounds in outputs** (decimal
 precision is meaningless over a multi-decade projection); `Decimal` ↔ `number` conversion happens at
 the persistence boundary (§8).
+
+**Net-worth chart (display, Phase 1/2).** A stacked **bar per year**: each asset a coloured segment
+stacked **positive** (above £0), each liability stacked **negative** (below £0); the net-worth line =
+top − bottom. The engine emits per-individual-asset balances, but the chart **defaults to grouping by
+asset type (wrapper)** — clearer, shows tangible per-type growth — with a **toggle/setting to expand to
+per-individual-asset**. Default display is **today's money** (engine values divided by
+`(1 + inflation)^yearsElapsed` at the boundary); a future-£ (nominal) toggle is a later nicety.
 
 ## 8. Data model (Phase 1 — Prisma)
 
@@ -248,6 +268,7 @@ model Plan {
   // The UI *suggests* a starting return per wrapper at asset-creation (cash low, equities higher),
   // but that is a UX convenience — not a stored resolution layer.
   defaultReturnPct Decimal @default(5) @db.Decimal(5, 2)
+  blendedTaxRatePct Decimal @default(20) @db.Decimal(5, 2)  // v1 tax (§9); real UK tax in Phase 4
   statePensionAge Int?
   statePensionAnnual Decimal? @db.Decimal(12, 2)
   isPrimary       Boolean  @default(true)
@@ -272,8 +293,9 @@ model PlanAsset {
   wrapper           PlanAssetWrapper
   openingValue      Decimal @default(0) @db.Decimal(14, 2)
   expectedReturnPct Decimal? @db.Decimal(5, 2)   // null ⇒ plan.defaultReturnPct
-  monthlyContribution Decimal @default(0) @db.Decimal(12, 2)
-  drawdownPriority  Int     @default(0)
+  annualContribution Decimal @default(0) @db.Decimal(12, 2) // regular paying-in (inflation-grown)
+  contributionEndAge Int?                          // default = plan.retirementAge
+  drawdownPriority  Int     @default(0)             // ascending = drawn first (CASH buffer first)
   sourceBalanceItemId String? @db.Uuid           // provenance when seeded; not a live FK
   sortOrder         Int     @default(0)
   createdAt         DateTime @default(now())
@@ -366,29 +388,32 @@ enum GrowthKind { INFLATION FIXED NONE }
 `User` gains `plans Plan[]`. Migrations authored **inside the container** only
 (`make migrate-create name=add_plan_models`), per the local-vs-prod DB trap in CLAUDE.md.
 
-## 9. Tax seam
+## 9. Tax (v1 blended rate → pluggable in Phase 4)
 
-The engine takes a `TaxFn` so tax depth can grow without touching the projection loop:
+**v1** computes tax inline from a single blended rate (`PlanInput.taxRatePct`), applied to:
+
+- **taxable income streams** (salary, state/DB pension, rental — those marked `taxable`), and
+- **taxable drawdowns** — withdrawals from **PENSION** and **GIA** pots. **ISA and CASH withdrawals are
+  tax-free.**
+
+Because a taxable withdrawal must fund both the spending need *and* the tax on itself, the funding step
+**grosses up**: to net `£N` from a taxable pot at rate `r`, it withdraws `N / (1 − r)` and books
+`N·r / (1 − r)` as tax. Flat-rate gross-up is exact in closed form — no iteration.
 
 ```ts
-interface TaxContext {
-  age: number;
-  taxableIncomeByKind: Partial<Record<IncomeKind, number>>;
-  pensionWithdrawal: number;     // for Phase 4: 25% tax-free, rest at marginal
-  isaWithdrawal: number;         // tax-free
-  giaWithdrawal: number;         // CGT considerations (Phase 4)
-  retired: boolean;
-}
-type TaxFn = (ctx: TaxContext) => number;   // returns total tax for the year
+incomeTax     = round(taxRatePct/100 × Σ taxable income streams)
+withdrawalTax = Σ over taxable-pot draws of (gross − net)   // gross = need / (1 − r)
+yearTax       = incomeTax + withdrawalTax
 ```
 
-- **Phase 0 / v1:** `blendedRateTax` — a single effective rate (a plan-level or constant %) applied to
-  taxable income. Crude but lets the engine and charts be correct end-to-end.
-- **Phase 4:** `ukSimplifiedTax` — income-tax bands, personal allowance (+ taper), pension tax relief,
-  25% tax-free lump sum, state-pension interaction; NI/dividend/CGT approximated. Swapped in with **no
-  engine change**, only a new `TaxFn` implementation + tests.
+Crude, but the retirement answer is no longer artificially tax-free.
 
-## 10. Open questions / decisions to confirm at review
+**Phase 4** introduces a pluggable `TaxFn(ctx) → tax` (real UK bands, personal allowance + taper,
+pension tax relief, 25% tax-free lump sum, state-pension interaction; NI/dividend/CGT approximated).
+Real bands make the gross-up iterative — that complexity is deliberately deferred. The Phase-0 engine
+keeps all tax in one place so the swap is contained.
+
+## 10. Decisions (all resolved at review)
 
 1. **Range band (uncertainty):** **Confirmed** — v1 ships a single deterministic line. The cheap
    optimistic/pessimistic band (return ± delta) is a later phase; Monte-Carlo deferred indefinitely.
@@ -406,6 +431,17 @@ type TaxFn = (ctx: TaxContext) => number;   // returns total tax for the year
 5. **Engine money type** — plain `number` inside the engine, **rounded to whole pounds** in outputs
    (sub-penny precision is meaningless over a multi-decade projection); `Decimal` only at the DB
    boundary. **Confirmed.**
+6. **Surplus & cash buffer** — leftover after contributions sits in the **CASH account**; lean years
+   drain it first. Surplus is never auto-routed into pensions/ISAs. **Confirmed.**
+7. **Contributions first-class in v1** — per-asset `annualContribution`, inflation-grown, stopping at
+   retirement by default (`contributionEndAge`). Pots grow from deliberate paying-in + returns.
+   **Confirmed.**
+8. **Tax** — v1 blended rate on taxable income **and** pension/GIA drawdown (ISA/cash tax-free),
+   grossed up; pluggable real UK tax in Phase 4 (§9). **Confirmed.**
+9. **Chart output** — engine emits per-individual-asset balances with per-asset
+   `contributed`/`withdrawn` plus `incomeByKind`; the net-worth chart groups by wrapper by default
+   (toggle to per-asset), debt below £0, today's-money default. Seeding: wrapper **user-set** (no
+   guessing); income/expense from **budget by default** (setting for averaged actuals). **Confirmed.**
 
 ## 11. Testing & architecture notes
 
@@ -417,3 +453,20 @@ type TaxFn = (ctx: TaxContext) => number;   // returns total tax for the year
 - Charts are server-rendered first (Phase 1); client-side recompute arrives in Phase 3 by importing the
   *same* pure engine — no logic duplication.
 - New models need both the `userId` Prisma filter **and** an RLS policy (ADR-002).
+
+### Performance & data access
+
+The deterministic projection is **CPU-trivial** (a ~50-year loop over a handful of rows; the verdict
+solver re-runs it ~50× — still microseconds). The only genuinely heavy thing (Monte-Carlo) is deferred.
+So performance is about data access and *where* compute runs:
+
+- **One query per plan.** Load the plan + all children in a single Prisma `include` (assets,
+  liabilities, incomes, expenses, events) — no N+1. Child tables are `@@index([planId])`.
+- **The projection is derived, never persisted.** Store the Plan inputs; recompute the year-by-year
+  output on demand. Cheaper than storing it, and no cache-invalidation.
+- **Sliders recompute client-side — zero DB, zero network.** Because the engine is pure TS, the browser
+  re-runs it on the already-loaded plan data on every drag (Phase 3). This is the headline optimisation
+  and the main reason the engine is pure and isolated.
+- **Server renders the first projection once** (the single `include` query in a server component);
+  later edits write only the changed row and the client recomputes.
+- **If Monte-Carlo ever lands**, run it in a Web Worker so it never blocks a request.
