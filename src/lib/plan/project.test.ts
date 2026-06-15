@@ -1,6 +1,12 @@
 // src/lib/plan/project.test.ts
 import { project } from "./project";
-import type { PlanInput } from "./types";
+import type { PlanInput, PlanProjection, YearProjection } from "./types";
+
+const at = (p: PlanProjection, i: number): YearProjection => {
+  const y = p.years[i];
+  if (!y) throw new Error(`no projection year at index ${i}`);
+  return y;
+};
 
 const base = (over: Partial<PlanInput> = {}): PlanInput => ({
   currentAge: 40,
@@ -55,8 +61,8 @@ describe("project", () => {
         ],
       }),
     );
-    expect(wrapperTotal(p.years[0]!, "GIA")).toBe(11000);
-    expect(wrapperTotal(p.years[0]!, "PENSION")).toBe(10000);
+    expect(wrapperTotal(at(p, 0), "GIA")).toBe(11000);
+    expect(wrapperTotal(at(p, 0), "PENSION")).toBe(10000);
   });
 
   it("leftover surplus sits in the CASH buffer, not the pension", () => {
@@ -100,9 +106,9 @@ describe("project", () => {
         ],
       }),
     );
-    expect(p.years[0]!.surplus).toBe(10000);
-    expect(wrapperTotal(p.years[0]!, "CASH")).toBe(10000);
-    expect(wrapperTotal(p.years[0]!, "PENSION")).toBe(0);
+    expect(at(p, 0).surplus).toBe(10000);
+    expect(wrapperTotal(at(p, 0), "CASH")).toBe(10000);
+    expect(wrapperTotal(at(p, 0), "PENSION")).toBe(0);
   });
 
   it("applies a per-asset contribution into its pot and records it", () => {
@@ -139,12 +145,12 @@ describe("project", () => {
         ],
       }),
     );
-    expect(p.years[0]!.contributions).toBe(6000);
-    expect(wrapperTotal(p.years[0]!, "PENSION")).toBe(6000);
-    expect(p.years[0]!.assets.find((a) => a.id === "sipp")?.contributed).toBe(
+    expect(at(p, 0).contributions).toBe(6000);
+    expect(wrapperTotal(at(p, 0), "PENSION")).toBe(6000);
+    expect(at(p, 0).assets.find((a) => a.id === "sipp")?.contributed).toBe(
       6000,
     );
-    expect(wrapperTotal(p.years[0]!, "CASH")).toBe(34000);
+    expect(wrapperTotal(at(p, 0), "CASH")).toBe(34000);
   });
 
   it("funds a deficit from the cash buffer and flags shortfall when exhausted", () => {
@@ -170,9 +176,9 @@ describe("project", () => {
         ],
       }),
     );
-    expect(p.years[0]!.withdrawals).toBe(20000);
-    expect(p.years[0]!.shortfall).toBe(true);
-    expect(wrapperTotal(p.years[0]!, "CASH")).toBe(0);
+    expect(at(p, 0).withdrawals).toBe(20000);
+    expect(at(p, 0).shortfall).toBe(true);
+    expect(wrapperTotal(at(p, 0), "CASH")).toBe(0);
   });
 
   it("taxes a pension drawdown (gross-up) and records it on the asset", () => {
@@ -199,11 +205,9 @@ describe("project", () => {
         ],
       }),
     );
-    expect(p.years[0]!.withdrawals).toBe(10000);
-    expect(p.years[0]!.tax).toBe(2000);
-    expect(p.years[0]!.assets.find((a) => a.id === "sipp")?.withdrawn).toBe(
-      10000,
-    );
+    expect(at(p, 0).withdrawals).toBe(10000);
+    expect(at(p, 0).tax).toBe(2000);
+    expect(at(p, 0).assets.find((a) => a.id === "sipp")?.withdrawn).toBe(10000);
   });
 
   it("captures income by kind", () => {
@@ -232,8 +236,8 @@ describe("project", () => {
         ],
       }),
     );
-    expect(p.years[0]!.incomeByKind.SALARY).toBe(40000);
-    expect(p.years[0]!.incomeByKind.STATE_PENSION).toBe(11000);
+    expect(at(p, 0).incomeByKind.SALARY).toBe(40000);
+    expect(at(p, 0).incomeByKind.STATE_PENSION).toBe(11000);
   });
 
   it("reduces net worth by an outstanding liability", () => {
@@ -260,8 +264,8 @@ describe("project", () => {
         ],
       }),
     );
-    expect(p.years[0]!.liabilitiesTotal).toBe(60000);
-    expect(p.years[0]!.netWorth).toBe(40000);
+    expect(at(p, 0).liabilitiesTotal).toBe(60000);
+    expect(at(p, 0).netWorth).toBe(40000);
   });
 
   it("applies a one-off inflow event the year it lands", () => {
@@ -289,7 +293,7 @@ describe("project", () => {
         ],
       }),
     );
-    expect(wrapperTotal(p.years[0]!, "CASH")).toBe(0);
-    expect(wrapperTotal(p.years[1]!, "CASH")).toBe(50000);
+    expect(wrapperTotal(at(p, 0), "CASH")).toBe(0);
+    expect(wrapperTotal(at(p, 1), "CASH")).toBe(50000);
   });
 });
