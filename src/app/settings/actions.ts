@@ -101,3 +101,15 @@ export async function toggleTransfers(enabled: boolean) {
   revalidatePath("/transactions");
   revalidatePath("/settings");
 }
+
+// Shows/hides the Plan link in the nav. Nav is rendered in the layout, so
+// revalidate the whole layout.
+export async function togglePlanVisible(enabled: boolean) {
+  const userId = await requireUserId();
+  await prisma.userSettings.upsert({
+    where: { userId },
+    update: { planVisible: enabled },
+    create: { userId, planVisible: enabled },
+  });
+  revalidatePath("/", "layout");
+}
