@@ -27,6 +27,7 @@ const SIGNED_IN_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/budget", label: "Budget" },
   { href: "/balance", label: "Balance" },
+  { href: "/plan", label: "Plan" },
   { href: "/settings", label: "Settings" },
 ];
 
