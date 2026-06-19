@@ -1,0 +1,103 @@
+// src/lib/plan/toPlanInput.test.ts
+import { project } from "@/lib/plan";
+import {
+  type PlanWithChildren,
+  toPlanInput,
+  toTodaysMoney,
+} from "./toPlanInput";
+
+const d = (n: number) =>
+  ({
+    toString: () => String(n),
+  }) as unknown as PlanWithChildren["inflationPct"];
+
+const basePlan = (over: Partial<PlanWithChildren> = {}): PlanWithChildren => ({
+  id: "p1",
+  userId: "u1",
+  name: "My plan",
+  dateOfBirth: new Date("1986-06-01"),
+  retirementAge: 65,
+  planToAge: 90,
+  inflationPct: d(2.5),
+  defaultReturnPct: d(5),
+  blendedTaxRatePct: d(20),
+  statePensionAge: 67,
+  statePensionAnnual: d(11000),
+  isPrimary: true,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  deletedAt: null,
+  assets: [],
+  liabilities: [],
+  incomes: [],
+  expenses: [],
+  events: [],
+  ...over,
+});
+
+describe("toPlanInput", () => {
+  it("derives currentAge and startYear from dateOfBirth and asOfYear", () => {
+    const input = toPlanInput(basePlan(), 2026);
+    expect(input.currentAge).toBe(40); // 2026 - 1986
+    expect(input.startYear).toBe(2026);
+    expect(input.taxRatePct).toBe(20);
+    expect(input.statePension).toEqual({ startAge: 67, annualAmount: 11000 });
+  });
+
+  it("omits statePension when age or amount is missing", () => {
+    const input = toPlanInput(basePlan({ statePensionAge: null }), 2026);
+    expect(input.statePension).toBeUndefined();
+  });
+
+  it("maps an asset, leaving expectedReturnPct undefined when null", () => {
+    const input = toPlanInput(
+      basePlan({
+        assets: [
+          {
+            id: "a1",
+            planId: "p1",
+            label: "SIPP",
+            wrapper: "PENSION",
+            openingValue: d(100000),
+            expectedReturnPct: null,
+            annualContribution: d(6000),
+            contributionEndAge: null,
+            drawdownPriority: 2,
+            sourceBalanceItemId: null,
+            sortOrder: 0,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            deletedAt: null,
+          },
+        ],
+      }),
+      2026,
+    );
+    expect(input.assets[0]).toMatchObject({
+      id: "a1",
+      label: "SIPP",
+      wrapper: "PENSION",
+      openingValue: 100000,
+      annualContribution: 6000,
+      drawdownPriority: 2,
+    });
+    expect(input.assets[0]?.expectedReturnPct).toBeUndefined();
+  });
+
+  it("the mapped plan runs through the engine", () => {
+    const out = project(toPlanInput(basePlan(), 2026));
+    expect(out.years[0]?.age).toBe(40);
+    expect(out.years.at(-1)?.age).toBe(90);
+  });
+});
+
+describe("toTodaysMoney", () => {
+  it("deflates money by inflation over elapsed years", () => {
+    const out = project(toPlanInput(basePlan({ planToAge: 41 }), 2026));
+    const real = toTodaysMoney(out, 10, 40); // 10% inflation
+    // age 41 is 1 year out → divide by 1.1
+    const nominal41 = out.years.find((y) => y.age === 41);
+    const real41 = real.years.find((y) => y.age === 41);
+    expect(real41?.netWorth).toBeCloseTo((nominal41?.netWorth ?? 0) / 1.1, 0);
+  });
+});
