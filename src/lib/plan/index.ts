@@ -7,6 +7,7 @@ export type {
   AssetInput,
   EventInput,
   ExpenseInput,
+  Growth,
   IncomeInput,
   IncomeKind,
   LiabilityBalance,
