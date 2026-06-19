@@ -49,7 +49,7 @@ describe("createPlan (integration)", () => {
     await createPlan({ dateOfBirth: "1986-06-01", retirementAge: 65 });
     await createPlan({ dateOfBirth: "1990-01-01", retirementAge: 60 });
     const count = await prisma.plan.count({
-      where: { userId: TEST_USER_ID, deletedAt: null },
+      where: { userId: TEST_USER_ID, isPrimary: true, deletedAt: null },
     });
     expect(count).toBe(1);
   });

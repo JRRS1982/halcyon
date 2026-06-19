@@ -48,60 +48,64 @@ export async function createPlan(input: {
   const userId = await requireUserId();
   const { dateOfBirth, retirementAge } = createPlanSchema.parse(input);
 
-  // One primary plan per user (v1).
-  const existing = await prisma.plan.findFirst({
-    where: { userId, isPrimary: true, deletedAt: null },
-    select: { id: true },
-  });
-  if (existing) {
-    revalidatePath("/plan");
-    return;
-  }
+  // One primary plan per user (v1). Guard + create are atomic to prevent double-create races.
+  await prisma.$transaction(async (tx) => {
+    const existing = await tx.plan.findFirst({
+      where: { userId, isPrimary: true, deletedAt: null },
+      select: { id: true },
+    });
+    if (existing) return;
 
-  // Seed from the most recent non-deleted month period (balance + budget share it).
-  const period = await prisma.financialPeriod.findFirst({
-    where: { userId, granularity: "MONTH", deletedAt: null },
-    orderBy: { startDate: "desc" },
-    include: {
-      balanceItems: { where: { deletedAt: null } },
-      items: { where: { deletedAt: null } },
-    },
-  });
+    // Seed from the most recent non-deleted month period (balance + budget share it).
+    const period = await tx.financialPeriod.findFirst({
+      where: { userId, granularity: "MONTH", deletedAt: null },
+      orderBy: { startDate: "desc" },
+      include: {
+        balanceItems: { where: { deletedAt: null } },
+        items: { where: { deletedAt: null } },
+      },
+    });
 
-  const balanceItems: SeedBalanceItem[] = (period?.balanceItems ?? []).map(
-    (b) => ({
-      id: b.id,
-      type: b.type,
-      category: b.category,
-      label: b.label,
-      value: Number(b.value),
-    }),
-  );
-  const financialItems: SeedFinancialItem[] = (period?.items ?? []).map(
-    (f) => ({
-      type: f.type,
-      incomeCategory: f.incomeCategory,
-      category: f.category,
-      label: f.label,
-      budget: Number(f.budget),
-      sourceCategoryId: f.categoryId,
-    }),
-  );
+    const balanceItems: SeedBalanceItem[] = (period?.balanceItems ?? []).map(
+      (b) => ({
+        id: b.id,
+        type: b.type,
+        category: b.category,
+        label: b.label,
+        value: Number(b.value),
+      }),
+    );
+    const financialItems: SeedFinancialItem[] = (period?.items ?? []).map(
+      (f) => ({
+        type: f.type,
+        incomeCategory: f.incomeCategory,
+        category: f.category,
+        label: f.label,
+        budget: Number(f.budget),
+        sourceCategoryId: f.categoryId,
+      }),
+    );
 
-  const seeded = seedPlanChildren(balanceItems, financialItems, retirementAge);
-
-  await prisma.plan.create({
-    data: {
-      userId,
-      dateOfBirth: new Date(dateOfBirth),
+    const seeded = seedPlanChildren(
+      balanceItems,
+      financialItems,
       retirementAge,
-      statePensionAge: 67,
-      statePensionAnnual: 11500,
-      assets: { create: seeded.assets },
-      liabilities: { create: seeded.liabilities },
-      incomes: { create: seeded.incomes },
-      expenses: { create: seeded.expenses },
-    },
+    );
+
+    await tx.plan.create({
+      data: {
+        userId,
+        dateOfBirth: new Date(dateOfBirth),
+        retirementAge,
+        statePensionAge: 67,
+        // UK full new State Pension (approx 2024/25); user edits this in Phase 1b.
+        statePensionAnnual: 11500,
+        assets: { create: seeded.assets },
+        liabilities: { create: seeded.liabilities },
+        incomes: { create: seeded.incomes },
+        expenses: { create: seeded.expenses },
+      },
+    });
   });
 
   revalidatePath("/plan");
