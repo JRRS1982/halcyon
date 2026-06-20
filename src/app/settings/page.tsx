@@ -35,6 +35,7 @@ export default async function SettingsPage() {
     numberFormat,
     transactionsEnabled,
     transfersEnabled,
+    planVisible,
     hiddenCharts,
   } = await getCurrentUserSettings();
   const symbol = symbolFor(currency);
@@ -137,6 +138,7 @@ export default async function SettingsPage() {
         numberFormatOptions={numberFormatOptions}
         transactionsEnabled={transactionsEnabled}
         transfersEnabled={transfersEnabled}
+        planVisible={planVisible}
       />
       <DashboardSettings hiddenCharts={hiddenCharts} />
       <CategoryManager categories={managedCategories} />

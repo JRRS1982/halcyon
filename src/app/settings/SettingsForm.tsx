@@ -6,7 +6,11 @@ import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import styled from "styled-components";
 import { SectionHeading } from "./SectionHeading";
-import { toggleTransactions, toggleTransfers } from "./actions";
+import {
+  togglePlanVisible,
+  toggleTransactions,
+  toggleTransfers,
+} from "./actions";
 
 const Shell = styled.main`
   max-width: 720px;
@@ -206,6 +210,7 @@ export function SettingsForm({
   numberFormatOptions,
   transactionsEnabled,
   transfersEnabled,
+  planVisible,
 }: {
   action: (formData: FormData) => Promise<void>;
   currency: string;
@@ -214,6 +219,7 @@ export function SettingsForm({
   numberFormatOptions: SelectOption[];
   transactionsEnabled: boolean;
   transfersEnabled: boolean;
+  planVisible: boolean;
 }) {
   const router = useRouter();
   const [savePending, startSave] = useTransition();
@@ -273,6 +279,17 @@ export function SettingsForm({
     setTransfersOn(next);
     startTransfers(async () => {
       await toggleTransfers(next);
+      router.refresh();
+    });
+  };
+
+  // The plan visibility toggle persists immediately (benign; no confirm dialog).
+  const [planOn, setPlanOn] = useState(planVisible);
+  const [planPending, startPlan] = useTransition();
+  const onTogglePlan = (next: boolean) => {
+    setPlanOn(next);
+    startPlan(async () => {
+      await togglePlanVisible(next);
       router.refresh();
     });
   };
@@ -371,6 +388,27 @@ export function SettingsForm({
             checked={transfersOn}
             disabled={transfersPending || !enabled}
             onChange={(event) => onToggleTransfers(event.target.checked)}
+          />
+          <SwitchTrack />
+        </SwitchControl>
+      </ToggleField>
+
+      <SectionHeading>Plan</SectionHeading>
+      <ToggleField>
+        <ToggleText>
+          <FieldLabel>Show Plan in nav</FieldLabel>
+          <FieldHint>
+            Hide the Plan tab from the navigation. Your plan and its data are
+            kept.
+          </FieldHint>
+        </ToggleText>
+        <SwitchControl>
+          <SwitchInput
+            type="checkbox"
+            aria-label="Show Plan in nav"
+            checked={planOn}
+            disabled={planPending}
+            onChange={(event) => onTogglePlan(event.target.checked)}
           />
           <SwitchTrack />
         </SwitchControl>

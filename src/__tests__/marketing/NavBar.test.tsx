@@ -10,10 +10,14 @@ jest.mock("next/navigation", () => ({
 }));
 jest.mock("@/app/actions", () => ({ signOut: jest.fn() }));
 
-const renderit = (props: { signedIn: boolean; transactionsEnabled: boolean }) =>
+const renderit = (props: {
+  signedIn: boolean;
+  transactionsEnabled: boolean;
+  planVisible?: boolean;
+}) =>
   render(
     <ThemeProvider theme={theme}>
-      <NavBar {...props} />
+      <NavBar planVisible={props.planVisible ?? false} {...props} />
     </ThemeProvider>,
   );
 

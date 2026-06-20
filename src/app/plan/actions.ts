@@ -1,6 +1,14 @@
 "use server";
 
 import {
+  type UpdatePlanAssetInput,
+  type UpdatePlanAssumptionsInput,
+  type UpdatePlanLiabilityInput,
+  updatePlanAssetSchema,
+  updatePlanAssumptionsSchema,
+  updatePlanLiabilitySchema,
+} from "@/lib/plan/schemas";
+import {
   type SeedBalanceItem,
   type SeedFinancialItem,
   seedPlanChildren,
@@ -108,5 +116,74 @@ export async function createPlan(input: {
     });
   });
 
+  revalidatePath("/plan");
+}
+
+export async function updatePlanAssumptions(
+  input: UpdatePlanAssumptionsInput,
+): Promise<void> {
+  const userId = await requireUserId();
+  const p = updatePlanAssumptionsSchema.parse(input);
+  const res = await prisma.plan.updateMany({
+    where: { id: p.planId, userId, deletedAt: null },
+    data: {
+      dateOfBirth: new Date(p.dateOfBirth),
+      retirementAge: p.retirementAge,
+      planToAge: p.planToAge,
+      inflationPct: p.inflationPct,
+      defaultReturnPct: p.defaultReturnPct,
+      blendedTaxRatePct: p.blendedTaxRatePct,
+      statePensionAge: p.statePensionAge,
+      statePensionAnnual: p.statePensionAnnual,
+    },
+  });
+  if (res.count === 0) throw new Error("Plan not found");
+  revalidatePath("/plan");
+}
+
+export async function updatePlanAsset(
+  input: UpdatePlanAssetInput,
+): Promise<void> {
+  const userId = await requireUserId();
+  const p = updatePlanAssetSchema.parse(input);
+  const res = await prisma.planAsset.updateMany({
+    where: {
+      id: p.assetId,
+      deletedAt: null,
+      plan: { userId, deletedAt: null },
+    },
+    data: {
+      label: p.label,
+      wrapper: p.wrapper,
+      openingValue: p.openingValue,
+      expectedReturnPct: p.expectedReturnPct,
+      annualContribution: p.annualContribution,
+      drawdownPriority: p.drawdownPriority,
+    },
+  });
+  if (res.count === 0) throw new Error("Asset not found");
+  revalidatePath("/plan");
+}
+
+export async function updatePlanLiability(
+  input: UpdatePlanLiabilityInput,
+): Promise<void> {
+  const userId = await requireUserId();
+  const p = updatePlanLiabilitySchema.parse(input);
+  const res = await prisma.planLiability.updateMany({
+    where: {
+      id: p.liabilityId,
+      deletedAt: null,
+      plan: { userId, deletedAt: null },
+    },
+    data: {
+      label: p.label,
+      openingBalance: p.openingBalance,
+      interestPct: p.interestPct,
+      monthlyRepayment: p.monthlyRepayment,
+      endAge: p.endAge,
+    },
+  });
+  if (res.count === 0) throw new Error("Liability not found");
   revalidatePath("/plan");
 }

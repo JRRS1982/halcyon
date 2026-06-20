@@ -16,20 +16,22 @@ import {
 type NavBarProps = {
   signedIn: boolean;
   transactionsEnabled: boolean;
+  planVisible: boolean;
 };
 
 type NavItem = { href: string; label: string };
 
 // Signed-in app links. "Home" is intentionally absent: signed-in users are
 // redirected away from "/" to "/dashboard", so a Home tab would only point at
-// a redirect. Transactions is opt-in and slots in before Settings.
+// a redirect. Plan and Transactions are opt-in and slot in before Settings.
 const SIGNED_IN_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/budget", label: "Budget" },
   { href: "/balance", label: "Balance" },
-  { href: "/plan", label: "Plan" },
   { href: "/settings", label: "Settings" },
 ];
+
+const PLAN_ITEM: NavItem = { href: "/plan", label: "Plan" };
 
 const TRANSACTIONS_ITEM: NavItem = {
   href: "/transactions",
@@ -43,17 +45,18 @@ const MARKETING_ITEMS: NavItem[] = [
   { href: "#details", label: "Details" },
 ];
 
-export function NavBar({ signedIn, transactionsEnabled }: NavBarProps) {
+export function NavBar({
+  signedIn,
+  transactionsEnabled,
+  planVisible,
+}: NavBarProps) {
   const pathname = usePathname();
   const isHome = pathname === "/";
 
-  const items = transactionsEnabled
-    ? [
-        ...SIGNED_IN_ITEMS.slice(0, -1),
-        TRANSACTIONS_ITEM,
-        ...SIGNED_IN_ITEMS.slice(-1),
-      ]
-    : SIGNED_IN_ITEMS;
+  const middle: NavItem[] = [...SIGNED_IN_ITEMS.slice(0, -1)]; // Dashboard, Budget, Balance
+  if (planVisible) middle.push(PLAN_ITEM);
+  if (transactionsEnabled) middle.push(TRANSACTIONS_ITEM);
+  const items: NavItem[] = [...middle, ...SIGNED_IN_ITEMS.slice(-1)]; // + Settings
 
   return (
     <Bar>

@@ -19,6 +19,7 @@ export async function getCurrentUserSettings(): Promise<{
   numberFormat: NumberFormat;
   transactionsEnabled: boolean;
   transfersEnabled: boolean;
+  planVisible: boolean;
   hiddenCharts: string[];
 }> {
   const supabase = await createClient();
@@ -54,6 +55,7 @@ export async function getCurrentUserSettings(): Promise<{
       : DEFAULT_NUMBER_FORMAT,
     transactionsEnabled: row.transactionsEnabled,
     transfersEnabled: row.transfersEnabled,
+    planVisible: row.planVisible,
     hiddenCharts: row.hiddenCharts,
   };
 }
@@ -79,4 +81,15 @@ export async function isTransactionsEnabled(userId: string): Promise<boolean> {
     select: { transactionsEnabled: true },
   });
   return row?.transactionsEnabled ?? false;
+}
+
+// Whether the signed-in user has the Plan nav link visible. Used by the root
+// layout to decide whether to show the Plan nav link. Defaults true (the Plan
+// feature is on by default). Returns true when there's no settings row yet.
+export async function isPlanVisible(userId: string): Promise<boolean> {
+  const row = await prisma.userSettings.findUnique({
+    where: { userId },
+    select: { planVisible: true },
+  });
+  return row?.planVisible ?? true;
 }
