@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { CreatePlanForm } from "./CreatePlanForm";
 import { PlanView } from "./PlanView";
 import { getPrimaryPlan } from "./actions";
+import type { SerializedPlan } from "./serialized";
 
 export default async function PlanPage() {
   const supabase = await createClient();
@@ -30,10 +31,46 @@ export default async function PlanPage() {
     input.currentAge,
   );
 
+  const serialized: SerializedPlan = {
+    assumptions: {
+      id: plan.id,
+      dateOfBirth: plan.dateOfBirth.toISOString().slice(0, 10),
+      retirementAge: plan.retirementAge,
+      planToAge: plan.planToAge,
+      inflationPct: Number(plan.inflationPct),
+      defaultReturnPct: Number(plan.defaultReturnPct),
+      blendedTaxRatePct: Number(plan.blendedTaxRatePct),
+      statePensionAge: plan.statePensionAge,
+      statePensionAnnual:
+        plan.statePensionAnnual === null
+          ? null
+          : Number(plan.statePensionAnnual),
+    },
+    assets: plan.assets.map((a) => ({
+      id: a.id,
+      label: a.label,
+      wrapper: a.wrapper,
+      openingValue: Number(a.openingValue),
+      expectedReturnPct:
+        a.expectedReturnPct === null ? null : Number(a.expectedReturnPct),
+      annualContribution: Number(a.annualContribution),
+      drawdownPriority: a.drawdownPriority,
+    })),
+    liabilities: plan.liabilities.map((l) => ({
+      id: l.id,
+      label: l.label,
+      openingBalance: Number(l.openingBalance),
+      interestPct: Number(l.interestPct),
+      monthlyRepayment: Number(l.monthlyRepayment),
+      endAge: l.endAge,
+    })),
+  };
+
   return (
     <PlanView
       years={projection.years}
       verdict={projection.verdict}
+      plan={serialized}
       currency={currency}
       numberFormat={numberFormat}
     />
