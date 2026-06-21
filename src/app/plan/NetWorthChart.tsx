@@ -3,11 +3,7 @@
 
 import type { YearProjection } from "@/lib/plan";
 import { toNetWorthChartData, wrappersPresent } from "@/lib/plan/chartData";
-import {
-  type NumberFormat,
-  formatAmount,
-  symbolFor,
-} from "@/lib/settings/currency";
+import { type NumberFormat, formatAmount } from "@/lib/settings/currency";
 import {
   Bar,
   CartesianGrid,
@@ -21,6 +17,7 @@ import {
   YAxis,
 } from "recharts";
 import { useTheme } from "styled-components";
+import { makeAmountTick } from "./chartFormat";
 import { DEBT_COLOUR, NET_WORTH_COLOUR, WRAPPER_COLOURS } from "./colours";
 
 export function NetWorthChart({
@@ -36,14 +33,7 @@ export function NetWorthChart({
   const data = toNetWorthChartData(years);
   const wrappers = wrappersPresent(data);
 
-  const amountTick = (v: number) => {
-    const sym = symbolFor(currency);
-    const abs = Math.abs(v);
-    const sign = v < 0 ? "-" : "";
-    return abs >= 1000
-      ? `${sign}${sym}${Math.round(abs / 1000)}k`
-      : `${sign}${sym}${abs}`;
-  };
+  const amountTick = makeAmountTick(currency);
 
   return (
     <ResponsiveContainer width="100%" height={360}>
