@@ -1,6 +1,7 @@
 // src/app/plan/LiabilitiesTable.tsx
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import styled from "styled-components";
 import { NumberCell, TextCell } from "./EditableCell";
@@ -34,10 +35,12 @@ const Err = styled.p`
 `;
 
 function LiabilityRow({ liability }: { liability: SerializedPlanLiability }) {
+  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
 
   // `liability` is the committed server value; each cell sends the one field it
-  // changed, spread over the latest value. Rethrows so the cell reverts on fail.
+  // changed, spread over the latest. On success we refresh the route so the
+  // chart + verdict re-render; rethrows so the cell reverts on failure.
   const save = async (next: SerializedPlanLiability) => {
     setError(null);
     try {
@@ -49,6 +52,7 @@ function LiabilityRow({ liability }: { liability: SerializedPlanLiability }) {
         monthlyRepayment: next.monthlyRepayment,
         endAge: next.endAge,
       });
+      router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not save");
       throw e;

@@ -1,6 +1,7 @@
 // src/app/plan/AssumptionsPanel.tsx
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import styled from "styled-components";
 import { NumberCell, TextCell } from "./EditableCell";
@@ -40,10 +41,12 @@ const Err = styled.p`
 export function AssumptionsPanel({
   assumptions,
 }: { assumptions: SerializedPlanAssumptions }) {
+  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
 
   // `assumptions` is the committed server value; each field sends the one value
-  // it changed, spread over the latest. Rethrows so the cell reverts on fail.
+  // it changed, spread over the latest. On success we refresh the route so the
+  // chart + verdict re-render; rethrows so the cell reverts on failure.
   const save = async (next: SerializedPlanAssumptions) => {
     setError(null);
     try {
@@ -58,6 +61,7 @@ export function AssumptionsPanel({
         statePensionAge: next.statePensionAge,
         statePensionAnnual: next.statePensionAnnual,
       });
+      router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not save");
       throw e;

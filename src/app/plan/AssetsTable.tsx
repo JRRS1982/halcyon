@@ -2,6 +2,7 @@
 "use client";
 
 import { WRAPPERS } from "@/lib/plan";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import styled from "styled-components";
 import { NumberCell, SelectCell, TextCell } from "./EditableCell";
@@ -35,11 +36,13 @@ const Err = styled.p`
 `;
 
 function AssetRow({ asset }: { asset: SerializedPlanAsset }) {
+  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
 
-  // `asset` is the committed server value (refreshed after each revalidate);
-  // each cell sends the one field it changed, spread over the latest asset.
-  // Rethrows on failure so the cell reverts its input to the persisted value.
+  // `asset` is the committed server value (refreshed after each save); each cell
+  // sends the one field it changed, spread over the latest asset. On success we
+  // refresh the route so the server re-runs the engine and the chart + verdict
+  // update; rethrows on failure so the cell reverts to the persisted value.
   const save = async (next: SerializedPlanAsset) => {
     setError(null);
     try {
@@ -52,6 +55,7 @@ function AssetRow({ asset }: { asset: SerializedPlanAsset }) {
         annualContribution: next.annualContribution,
         drawdownPriority: next.drawdownPriority,
       });
+      router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not save");
       throw e;
