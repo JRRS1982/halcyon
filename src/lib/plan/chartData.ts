@@ -135,3 +135,31 @@ export function cashFlowKeysPresent(rows: CashFlowDatum[]): {
     outflow: OUTFLOW_KEYS.filter((k) => rows.some((r) => (r[k] ?? 0) !== 0)),
   };
 }
+
+// ── Liquid-assets chart ────────────────────────────────────────────────────
+// Drawdownable pots only — the wrappers the engine actually draws down.
+// PROPERTY (illiquid) and DB_PENSION (an income stream, not a pot) are excluded.
+
+export const LIQUID_WRAPPERS: Wrapper[] = ["PENSION", "ISA", "GIA", "CASH"];
+
+export type LiquidAssetsDatum = { age: number; total: number } & Partial<
+  Record<Wrapper, number>
+>;
+
+export function toLiquidAssetsChartData(
+  years: YearProjection[],
+): LiquidAssetsDatum[] {
+  return years.map((y) => {
+    const row: LiquidAssetsDatum = { age: y.age, total: 0 };
+    for (const a of y.assets) {
+      if (!LIQUID_WRAPPERS.includes(a.wrapper)) continue;
+      row[a.wrapper] = (row[a.wrapper] ?? 0) + a.value;
+      row.total += a.value;
+    }
+    return row;
+  });
+}
+
+export function liquidWrappersPresent(rows: LiquidAssetsDatum[]): Wrapper[] {
+  return LIQUID_WRAPPERS.filter((w) => rows.some((r) => (r[w] ?? 0) !== 0));
+}
