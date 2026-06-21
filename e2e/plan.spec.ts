@@ -99,5 +99,30 @@ test("plan: create, edit assumptions/assets, and the data-loss guard holds", asy
   await expect(retirementAge).toHaveValue("60");
   await expect(page.getByRole("heading", { name: "Your plan" })).toBeVisible();
 
+  // View switcher: Net worth (default) → Cash flow → Liquid assets.
+  // Seeded plan has a SALARY income (cash-flow income bar) and a PENSION pot
+  // (after the wrapper edit above), so each view has a distinctive legend entry.
+  await expect(
+    page.getByRole("button", { name: "Net worth" }),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: "Cash flow" }).click();
+  await expect(page.locator(".recharts-legend-wrapper")).toContainText(
+    "SALARY",
+  );
+  await page.screenshot({
+    path: "test-results/plan-2b-cashflow.png",
+    fullPage: true,
+  });
+
+  await page.getByRole("button", { name: "Liquid assets" }).click();
+  await expect(page.locator(".recharts-legend-wrapper")).toContainText(
+    "PENSION",
+  );
+  await page.screenshot({
+    path: "test-results/plan-2b-liquid.png",
+    fullPage: true,
+  });
+
   await page.screenshot({ path: "test-results/plan-1b.png", fullPage: true });
 });
