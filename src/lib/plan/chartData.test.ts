@@ -1,5 +1,10 @@
 import type { YearProjection } from "@/lib/plan";
-import { toNetWorthChartData, wrappersPresent } from "./chartData";
+import {
+  toNetWorthChartData,
+  wrappersPresent,
+  toCashFlowChartData,
+  cashFlowKeysPresent,
+} from "./chartData";
 
 const year = (
   over: Partial<YearProjection> & { age: number },
@@ -77,5 +82,69 @@ describe("toNetWorthChartData", () => {
       }),
     ]);
     expect(wrappersPresent(rows)).toEqual(["CASH"]);
+  });
+});
+
+describe("toCashFlowChartData", () => {
+  it("puts income kinds + withdrawals positive and expenses/tax/repay/contrib negative", () => {
+    const rows = toCashFlowChartData([
+      year({
+        age: 70,
+        incomeByKind: { STATE_PENSION: 9000 },
+        withdrawals: 20000,
+        expensesByCategory: { FIXED: 18000, DISCRETIONARY: 4000 },
+        tax: 3000,
+        liabilityRepayments: 0,
+        contributions: 0,
+      }),
+    ]);
+    expect(rows[0]).toMatchObject({
+      age: 70,
+      STATE_PENSION: 9000,
+      WITHDRAWAL: 20000,
+      FIXED: -18000,
+      DISCRETIONARY: -4000,
+      TAX: -3000,
+      shortfall: false,
+    });
+  });
+
+  it("computes net as the algebraic sum of the drawn segments (in − out)", () => {
+    const rows = toCashFlowChartData([
+      year({
+        age: 40,
+        incomeByKind: { SALARY: 50000 },
+        withdrawals: 0,
+        expensesByCategory: { FIXED: 20000 },
+        tax: 8000,
+        liabilityRepayments: 6000,
+        contributions: 5000,
+      }),
+    ]);
+    // 50000 − (20000 + 8000 + 6000 + 5000) = 11000
+    expect(rows[0]).toMatchObject({ net: 11000 });
+  });
+
+  it("carries the shortfall flag through", () => {
+    const rows = toCashFlowChartData([year({ age: 90, shortfall: true })]);
+    expect(rows[0]).toMatchObject({ shortfall: true });
+  });
+
+  it("cashFlowKeysPresent returns only non-zero keys in canonical order", () => {
+    const rows = toCashFlowChartData([
+      year({
+        age: 65,
+        incomeByKind: { SALARY: 0, STATE_PENSION: 9000 },
+        withdrawals: 12000,
+        expensesByCategory: { FIXED: 15000 },
+        tax: 2000,
+        liabilityRepayments: 0,
+        contributions: 0,
+      }),
+    ]);
+    expect(cashFlowKeysPresent(rows)).toEqual({
+      income: ["STATE_PENSION", "WITHDRAWAL"],
+      outflow: ["FIXED", "TAX"],
+    });
   });
 });

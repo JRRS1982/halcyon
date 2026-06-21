@@ -6,6 +6,7 @@ export type {
   AssetBalance,
   AssetInput,
   EventInput,
+  ExpenseCategory,
   ExpenseInput,
   Growth,
   IncomeInput,
