@@ -1,9 +1,11 @@
 // src/app/plan/AssetsTable.tsx
 "use client";
 
-import { WRAPPERS, type Wrapper } from "@/lib/plan";
-import { useState, useTransition } from "react";
+import { WRAPPERS } from "@/lib/plan";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import styled from "styled-components";
+import { NumberCell, SelectCell, TextCell } from "./EditableCell";
 import { updatePlanAsset } from "./actions";
 import type { SerializedPlanAsset } from "./serialized";
 
@@ -27,20 +29,6 @@ const Table = styled.table`
   th, td { text-align: left; padding: ${({ theme }) => theme.spacing.xs}; font-size: 13px; }
   th { color: ${({ theme }) => theme.colors.dim}; font-weight: 500; }
 `;
-const Cell = styled.input`
-  width: 100%;
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  padding: ${({ theme }) => theme.spacing.xs};
-  font-size: 13px;
-`;
-const Sel = styled.select`
-  width: 100%;
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  padding: ${({ theme }) => theme.spacing.xs};
-  font-size: 13px;
-`;
 const Err = styled.p`
   color: ${({ theme }) => theme.colors.negative};
   font-size: 13px;
@@ -48,106 +36,81 @@ const Err = styled.p`
 `;
 
 function AssetRow({ asset }: { asset: SerializedPlanAsset }) {
-  const [row, setRow] = useState(asset);
-  const [, startTransition] = useTransition();
+  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
 
-  const save = (next: SerializedPlanAsset) => {
-    startTransition(async () => {
-      try {
-        setError(null);
-        await updatePlanAsset({
-          assetId: next.id,
-          label: next.label,
-          wrapper: next.wrapper,
-          openingValue: next.openingValue,
-          expectedReturnPct: next.expectedReturnPct,
-          annualContribution: next.annualContribution,
-          drawdownPriority: next.drawdownPriority,
-        });
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Could not save");
-      }
-    });
+  // `asset` is the committed server value (refreshed after each save); each cell
+  // sends the one field it changed, spread over the latest asset. On success we
+  // refresh the route so the server re-runs the engine and the chart + verdict
+  // update; rethrows on failure so the cell reverts to the persisted value.
+  const save = async (next: SerializedPlanAsset) => {
+    setError(null);
+    try {
+      await updatePlanAsset({
+        assetId: next.id,
+        label: next.label,
+        wrapper: next.wrapper,
+        openingValue: next.openingValue,
+        expectedReturnPct: next.expectedReturnPct,
+        annualContribution: next.annualContribution,
+        drawdownPriority: next.drawdownPriority,
+      });
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not save");
+      throw e;
+    }
   };
-  const num = (v: string): number => (v === "" ? 0 : Number(v));
 
   return (
     <>
       <tr>
         <td>
-          <Cell
-            defaultValue={row.label}
-            onBlur={(e) => {
-              const n = { ...row, label: e.target.value };
-              setRow(n);
-              save(n);
-            }}
+          <TextCell
+            value={asset.label}
+            onCommit={(v) => save({ ...asset, label: v })}
           />
         </td>
         <td>
-          <Sel
-            value={row.wrapper}
-            onChange={(e) => {
-              const n = { ...row, wrapper: e.target.value as Wrapper };
-              setRow(n);
-              save(n);
-            }}
-          >
-            {WRAPPERS.map((w) => (
-              <option key={w} value={w}>
-                {w}
-              </option>
-            ))}
-          </Sel>
-        </td>
-        <td>
-          <Cell
-            type="number"
-            defaultValue={row.openingValue}
-            onBlur={(e) => {
-              const n = { ...row, openingValue: num(e.target.value) };
-              setRow(n);
-              save(n);
-            }}
+          <SelectCell
+            value={asset.wrapper}
+            options={WRAPPERS}
+            onCommit={(v) => save({ ...asset, wrapper: v })}
           />
         </td>
         <td>
-          <Cell
-            type="number"
+          <NumberCell
+            value={asset.openingValue}
+            onCommit={(v) =>
+              save({ ...asset, openingValue: v ?? asset.openingValue })
+            }
+          />
+        </td>
+        <td>
+          <NumberCell
+            value={asset.expectedReturnPct}
+            nullable
             step="0.1"
-            defaultValue={row.expectedReturnPct ?? ""}
-            onBlur={(e) => {
-              const n = {
-                ...row,
-                expectedReturnPct:
-                  e.target.value === "" ? null : Number(e.target.value),
-              };
-              setRow(n);
-              save(n);
-            }}
+            onCommit={(v) => save({ ...asset, expectedReturnPct: v })}
           />
         </td>
         <td>
-          <Cell
-            type="number"
-            defaultValue={row.annualContribution}
-            onBlur={(e) => {
-              const n = { ...row, annualContribution: num(e.target.value) };
-              setRow(n);
-              save(n);
-            }}
+          <NumberCell
+            value={asset.annualContribution}
+            onCommit={(v) =>
+              save({
+                ...asset,
+                annualContribution: v ?? asset.annualContribution,
+              })
+            }
           />
         </td>
         <td>
-          <Cell
-            type="number"
-            defaultValue={row.drawdownPriority}
-            onBlur={(e) => {
-              const n = { ...row, drawdownPriority: num(e.target.value) };
-              setRow(n);
-              save(n);
-            }}
+          <NumberCell
+            value={asset.drawdownPriority}
+            onCommit={(v) =>
+              save({ ...asset, drawdownPriority: v ?? asset.drawdownPriority })
+            }
           />
         </td>
       </tr>
