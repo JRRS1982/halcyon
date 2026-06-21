@@ -1,5 +1,12 @@
-import type { YearProjection } from "@/lib/plan";
-import { toNetWorthChartData, wrappersPresent } from "./chartData";
+import type { Wrapper, YearProjection } from "@/lib/plan";
+import {
+  cashFlowKeysPresent,
+  liquidWrappersPresent,
+  toCashFlowChartData,
+  toLiquidAssetsChartData,
+  toNetWorthChartData,
+  wrappersPresent,
+} from "./chartData";
 
 const year = (
   over: Partial<YearProjection> & { age: number },
@@ -77,5 +84,121 @@ describe("toNetWorthChartData", () => {
       }),
     ]);
     expect(wrappersPresent(rows)).toEqual(["CASH"]);
+  });
+});
+
+describe("toCashFlowChartData", () => {
+  it("puts income kinds + withdrawals positive and expenses/tax/repay/contrib negative", () => {
+    const rows = toCashFlowChartData([
+      year({
+        age: 70,
+        incomeByKind: { STATE_PENSION: 9000 },
+        withdrawals: 20000,
+        expensesByCategory: { FIXED: 18000, DISCRETIONARY: 4000 },
+        tax: 3000,
+        liabilityRepayments: 0,
+        contributions: 0,
+      }),
+    ]);
+    expect(rows[0]).toMatchObject({
+      age: 70,
+      STATE_PENSION: 9000,
+      WITHDRAWAL: 20000,
+      FIXED: -18000,
+      DISCRETIONARY: -4000,
+      TAX: -3000,
+      shortfall: false,
+    });
+  });
+
+  it("computes net as the algebraic sum of the drawn segments (in − out)", () => {
+    const rows = toCashFlowChartData([
+      year({
+        age: 40,
+        incomeByKind: { SALARY: 50000 },
+        withdrawals: 0,
+        expensesByCategory: { FIXED: 20000 },
+        tax: 8000,
+        liabilityRepayments: 6000,
+        contributions: 5000,
+      }),
+    ]);
+    // 50000 − (20000 + 8000 + 6000 + 5000) = 11000
+    expect(rows[0]).toMatchObject({ net: 11000 });
+  });
+
+  it("carries the shortfall flag through", () => {
+    const rows = toCashFlowChartData([year({ age: 90, shortfall: true })]);
+    expect(rows[0]).toMatchObject({ shortfall: true });
+  });
+
+  it("cashFlowKeysPresent returns only non-zero keys in canonical order", () => {
+    const rows = toCashFlowChartData([
+      year({
+        age: 65,
+        incomeByKind: { SALARY: 0, STATE_PENSION: 9000 },
+        withdrawals: 12000,
+        expensesByCategory: { FIXED: 15000 },
+        tax: 2000,
+        liabilityRepayments: 0,
+        contributions: 0,
+      }),
+    ]);
+    expect(cashFlowKeysPresent(rows)).toEqual({
+      income: ["STATE_PENSION", "WITHDRAWAL"],
+      outflow: ["FIXED", "TAX"],
+    });
+  });
+});
+
+const liquidAsset = (
+  wrapper: Wrapper,
+  value: number,
+  id = wrapper,
+): YearProjection["assets"][number] => ({
+  id,
+  label: id,
+  wrapper,
+  value,
+  contributed: 0,
+  withdrawn: 0,
+});
+
+describe("toLiquidAssetsChartData", () => {
+  it("sums only liquid wrappers and excludes PROPERTY and DB_PENSION", () => {
+    const rows = toLiquidAssetsChartData([
+      year({
+        age: 50,
+        assets: [
+          liquidAsset("PENSION", 80000),
+          liquidAsset("ISA", 20000),
+          liquidAsset("CASH", 10000),
+          liquidAsset("PROPERTY", 300000),
+          liquidAsset("DB_PENSION", 50000),
+        ],
+      }),
+    ]);
+    expect(rows[0]).toMatchObject({
+      age: 50,
+      PENSION: 80000,
+      ISA: 20000,
+      CASH: 10000,
+      total: 110000,
+    });
+    const row = rows[0];
+    if (row) {
+      expect(row.PROPERTY).toBeUndefined();
+      expect(row.DB_PENSION).toBeUndefined();
+    }
+  });
+
+  it("liquidWrappersPresent lists present liquid wrappers in canonical order", () => {
+    const rows = toLiquidAssetsChartData([
+      year({
+        age: 50,
+        assets: [liquidAsset("CASH", 10000), liquidAsset("PENSION", 5000)],
+      }),
+    ]);
+    expect(liquidWrappersPresent(rows)).toEqual(["PENSION", "CASH"]);
   });
 });

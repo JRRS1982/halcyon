@@ -1,8 +1,12 @@
-// src/app/plan/NetWorthChart.tsx
+// src/app/plan/CashFlowChart.tsx
 "use client";
 
 import type { YearProjection } from "@/lib/plan";
-import { toNetWorthChartData, wrappersPresent } from "@/lib/plan/chartData";
+import {
+  type CashFlowDatum,
+  cashFlowKeysPresent,
+  toCashFlowChartData,
+} from "@/lib/plan/chartData";
 import { type NumberFormat, formatAmount } from "@/lib/settings/currency";
 import {
   Bar,
@@ -18,9 +22,12 @@ import {
 } from "recharts";
 import { useTheme } from "styled-components";
 import { makeAmountTick } from "./chartFormat";
-import { DEBT_COLOUR, NET_WORTH_COLOUR, WRAPPER_COLOURS } from "./colours";
+import { INCOME_COLOURS, NET_WORTH_COLOUR, OUTFLOW_COLOURS } from "./colours";
 
-export function NetWorthChart({
+// Income sources + withdrawals stack above zero; expenses + tax + repayments +
+// contributions stack below zero; the net line is the algebraic sum and gets a
+// red dot in shortfall years.
+export function CashFlowChart({
   years,
   currency,
   numberFormat,
@@ -30,15 +37,35 @@ export function NetWorthChart({
   numberFormat: NumberFormat;
 }) {
   const theme = useTheme();
-  const data = toNetWorthChartData(years);
-  const wrappers = wrappersPresent(data);
-
+  const data = toCashFlowChartData(years);
+  const { income, outflow } = cashFlowKeysPresent(data);
   const amountTick = makeAmountTick(currency);
+
+  const renderNetDot = (props: {
+    cx?: number;
+    cy?: number;
+    payload?: CashFlowDatum;
+  }) => {
+    const { cx, cy, payload } = props;
+    if (cx == null || cy == null || !payload?.shortfall) {
+      return <g key={`net-${payload?.age ?? cx}`} />;
+    }
+    return (
+      <circle
+        key={`net-${payload.age}`}
+        cx={cx}
+        cy={cy}
+        r={4}
+        fill={theme.colors.negative}
+      />
+    );
+  };
 
   return (
     <ResponsiveContainer width="100%" height={360}>
       <ComposedChart
         data={data}
+        stackOffset="sign"
         margin={{ top: 16, right: 16, bottom: 0, left: 8 }}
       >
         <CartesianGrid stroke={theme.colors.hairline} vertical={false} />
@@ -57,7 +84,7 @@ export function NetWorthChart({
         />
         <Tooltip
           formatter={(value, name) => [
-            formatAmount(currency, Number(value), numberFormat),
+            formatAmount(currency, Math.abs(Number(value)), numberFormat),
             name,
           ]}
           contentStyle={{
@@ -68,30 +95,33 @@ export function NetWorthChart({
         />
         <Legend wrapperStyle={{ fontSize: 12 }} />
         <ReferenceLine y={0} stroke={theme.colors.hairlineStrong} />
-        {wrappers.map((w) => (
+        {income.map((k) => (
           <Bar
-            key={w}
-            dataKey={w}
-            name={w}
-            stackId="nw"
-            fill={WRAPPER_COLOURS[w]}
+            key={k}
+            dataKey={k}
+            name={k}
+            stackId="in"
+            fill={INCOME_COLOURS[k]}
             isAnimationActive={false}
           />
         ))}
-        <Bar
-          dataKey="debt"
-          name="Debt"
-          stackId="nw"
-          fill={DEBT_COLOUR}
-          isAnimationActive={false}
-        />
+        {outflow.map((k) => (
+          <Bar
+            key={k}
+            dataKey={k}
+            name={k}
+            stackId="out"
+            fill={OUTFLOW_COLOURS[k]}
+            isAnimationActive={false}
+          />
+        ))}
         <Line
           type="monotone"
-          dataKey="netWorth"
-          name="Net worth"
+          dataKey="net"
+          name="Net"
           stroke={NET_WORTH_COLOUR}
           strokeWidth={2}
-          dot={false}
+          dot={renderNetDot}
           isAnimationActive={false}
         />
       </ComposedChart>

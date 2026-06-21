@@ -1,8 +1,11 @@
-// src/app/plan/NetWorthChart.tsx
+// src/app/plan/LiquidAssetsChart.tsx
 "use client";
 
 import type { YearProjection } from "@/lib/plan";
-import { toNetWorthChartData, wrappersPresent } from "@/lib/plan/chartData";
+import {
+  liquidWrappersPresent,
+  toLiquidAssetsChartData,
+} from "@/lib/plan/chartData";
 import { type NumberFormat, formatAmount } from "@/lib/settings/currency";
 import {
   Bar,
@@ -10,7 +13,6 @@ import {
   ComposedChart,
   Legend,
   Line,
-  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -18,9 +20,11 @@ import {
 } from "recharts";
 import { useTheme } from "styled-components";
 import { makeAmountTick } from "./chartFormat";
-import { DEBT_COLOUR, NET_WORTH_COLOUR, WRAPPER_COLOURS } from "./colours";
+import { NET_WORTH_COLOUR, WRAPPER_COLOURS } from "./colours";
 
-export function NetWorthChart({
+// Drawdownable pots stacked over time, with a total line so depletion in
+// retirement is legible. Same wrapper colours as the net-worth chart.
+export function LiquidAssetsChart({
   years,
   currency,
   numberFormat,
@@ -30,9 +34,8 @@ export function NetWorthChart({
   numberFormat: NumberFormat;
 }) {
   const theme = useTheme();
-  const data = toNetWorthChartData(years);
-  const wrappers = wrappersPresent(data);
-
+  const data = toLiquidAssetsChartData(years);
+  const wrappers = liquidWrappersPresent(data);
   const amountTick = makeAmountTick(currency);
 
   return (
@@ -67,28 +70,20 @@ export function NetWorthChart({
           }}
         />
         <Legend wrapperStyle={{ fontSize: 12 }} />
-        <ReferenceLine y={0} stroke={theme.colors.hairlineStrong} />
         {wrappers.map((w) => (
           <Bar
             key={w}
             dataKey={w}
             name={w}
-            stackId="nw"
+            stackId="liquid"
             fill={WRAPPER_COLOURS[w]}
             isAnimationActive={false}
           />
         ))}
-        <Bar
-          dataKey="debt"
-          name="Debt"
-          stackId="nw"
-          fill={DEBT_COLOUR}
-          isAnimationActive={false}
-        />
         <Line
           type="monotone"
-          dataKey="netWorth"
-          name="Net worth"
+          dataKey="total"
+          name="Total liquid"
           stroke={NET_WORTH_COLOUR}
           strokeWidth={2}
           dot={false}

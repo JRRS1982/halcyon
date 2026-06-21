@@ -6,8 +6,8 @@ import type { NumberFormat } from "@/lib/settings/currency";
 import styled from "styled-components";
 import { AssetsTable } from "./AssetsTable";
 import { AssumptionsPanel } from "./AssumptionsPanel";
+import { ChartPanel } from "./ChartPanel";
 import { LiabilitiesTable } from "./LiabilitiesTable";
-import { NetWorthChart } from "./NetWorthChart";
 import { VerdictBanner } from "./VerdictBanner";
 import type { SerializedPlan } from "./serialized";
 
@@ -46,7 +46,7 @@ export function PlanView({
         currency={currency}
         numberFormat={numberFormat}
       />
-      <NetWorthChart
+      <ChartPanel
         years={years}
         currency={currency}
         numberFormat={numberFormat}
