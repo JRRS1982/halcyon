@@ -17,6 +17,18 @@ const VIEWS: { id: View; label: string }[] = [
   { id: "liquid", label: "Liquid assets" },
 ];
 
+// One-line explainer shown under the switcher — the net-worth vs liquid-assets
+// distinction (all wealth incl. property vs only the drawdownable pots) isn't
+// obvious from the chart alone.
+const DESCRIPTIONS: Record<View, string> = {
+  networth:
+    "Everything you own minus what you owe — all assets, including property, with debts subtracted. Your total financial position in today's money.",
+  cashflow:
+    "Money in vs money out each year: income and pot withdrawals above the line; spending, tax, loan repayments and saving below. Red marks years where the money falls short.",
+  liquid:
+    "Only the pots you can draw on — pensions, ISAs, GIAs and cash. Property and defined-benefit pensions are excluded. Shows whether your spendable savings last.",
+};
+
 const Panel = styled.section`
   display: grid;
   gap: ${({ theme }) => theme.spacing.md};
@@ -40,6 +52,13 @@ const Tab = styled.button<{ $active: boolean }>`
     $active ? theme.colors.ink : "transparent"};
   color: ${({ $active, theme }) =>
     $active ? theme.colors.canvas : theme.colors.body};
+`;
+const Caption = styled.p`
+  margin: 0;
+  max-width: 70ch;
+  font-size: 13px;
+  line-height: 1.5;
+  color: ${({ theme }) => theme.colors.body};
 `;
 
 export function ChartPanel({
@@ -68,6 +87,7 @@ export function ChartPanel({
           </Tab>
         ))}
       </Switcher>
+      <Caption>{DESCRIPTIONS[view]}</Caption>
       {view === "networth" && (
         <NetWorthChart
           years={years}
