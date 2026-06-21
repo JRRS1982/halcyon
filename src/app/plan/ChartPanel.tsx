@@ -21,7 +21,7 @@ const Panel = styled.section`
   display: grid;
   gap: ${({ theme }) => theme.spacing.md};
 `;
-const Switcher = styled.div`
+const Switcher = styled.fieldset`
   display: inline-flex;
   gap: ${({ theme }) => theme.spacing.xs};
   border: 1px solid ${({ theme }) => theme.colors.hairline};
@@ -54,7 +54,7 @@ export function ChartPanel({
 
   return (
     <Panel>
-      <Switcher role="tablist">
+      <Switcher aria-label="Chart view">
         {VIEWS.map((v) => (
           <Tab
             key={v.id}
