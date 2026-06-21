@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import {
   type CurrencyCode,
+  DEFAULT_CURRENCY,
   DEFAULT_NUMBER_FORMAT,
   type NumberFormat,
   isCurrencyCode,
@@ -49,7 +50,7 @@ export async function getCurrentUserSettings(): Promise<{
   });
   return {
     userId: user.id,
-    currency: isCurrencyCode(row.currency) ? row.currency : "USD",
+    currency: isCurrencyCode(row.currency) ? row.currency : DEFAULT_CURRENCY,
     numberFormat: isNumberFormat(row.numberFormat)
       ? row.numberFormat
       : DEFAULT_NUMBER_FORMAT,

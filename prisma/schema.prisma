@@ -52,7 +52,7 @@ model User {
 // guaranteed row for every user. Add columns here as new settings appear.
 model UserSettings {
   userId              String   @id @db.Uuid
-  currency            String   @default("USD")
+  currency            String   @default("GBP")
   numberFormat        String   @default("COMMA_0")
   transactionsEnabled Boolean  @default(false)
   transfersEnabled    Boolean  @default(false)
