@@ -24,6 +24,7 @@ const Panel = styled.section`
 const Switcher = styled.fieldset`
   display: inline-flex;
   gap: ${({ theme }) => theme.spacing.xs};
+  margin: 0;
   border: 1px solid ${({ theme }) => theme.colors.hairline};
   border-radius: ${({ theme }) => theme.rounded.sm};
   padding: ${({ theme }) => theme.spacing.xs};
