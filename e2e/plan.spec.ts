@@ -102,9 +102,7 @@ test("plan: create, edit assumptions/assets, and the data-loss guard holds", asy
   // View switcher: Net worth (default) → Cash flow → Liquid assets.
   // Seeded plan has a SALARY income (cash-flow income bar) and a PENSION pot
   // (after the wrapper edit above), so each view has a distinctive legend entry.
-  await expect(
-    page.getByRole("button", { name: "Net worth" }),
-  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Net worth" })).toBeVisible();
 
   await page.getByRole("button", { name: "Cash flow" }).click();
   await expect(page.locator(".recharts-legend-wrapper")).toContainText(
