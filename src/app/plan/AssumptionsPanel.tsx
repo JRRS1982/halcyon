@@ -1,8 +1,9 @@
 // src/app/plan/AssumptionsPanel.tsx
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import styled from "styled-components";
+import { NumberCell, TextCell } from "./EditableCell";
 import { updatePlanAssumptions } from "./actions";
 import type { SerializedPlanAssumptions } from "./serialized";
 
@@ -30,12 +31,6 @@ const Field = styled.label`
   font-size: 13px;
   color: ${({ theme }) => theme.colors.body};
 `;
-const Input = styled.input`
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  padding: ${({ theme }) => theme.spacing.sm};
-  font-size: ${({ theme }) => theme.typography.bodyMd.size};
-`;
 const Err = styled.p`
   color: ${({ theme }) => theme.colors.negative};
   font-size: 13px;
@@ -45,142 +40,102 @@ const Err = styled.p`
 export function AssumptionsPanel({
   assumptions,
 }: { assumptions: SerializedPlanAssumptions }) {
-  const [a, setA] = useState(assumptions);
-  const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const save = (next: SerializedPlanAssumptions) => {
-    startTransition(async () => {
-      try {
-        setError(null);
-        await updatePlanAssumptions({
-          planId: next.id,
-          dateOfBirth: next.dateOfBirth,
-          retirementAge: next.retirementAge,
-          planToAge: next.planToAge,
-          inflationPct: next.inflationPct,
-          defaultReturnPct: next.defaultReturnPct,
-          blendedTaxRatePct: next.blendedTaxRatePct,
-          statePensionAge: next.statePensionAge,
-          statePensionAnnual: next.statePensionAnnual,
-        });
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Could not save");
-      }
-    });
+  // `assumptions` is the committed server value; each field sends the one value
+  // it changed, spread over the latest. Rethrows so the cell reverts on fail.
+  const save = async (next: SerializedPlanAssumptions) => {
+    setError(null);
+    try {
+      await updatePlanAssumptions({
+        planId: next.id,
+        dateOfBirth: next.dateOfBirth,
+        retirementAge: next.retirementAge,
+        planToAge: next.planToAge,
+        inflationPct: next.inflationPct,
+        defaultReturnPct: next.defaultReturnPct,
+        blendedTaxRatePct: next.blendedTaxRatePct,
+        statePensionAge: next.statePensionAge,
+        statePensionAnnual: next.statePensionAnnual,
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not save");
+      throw e;
+    }
   };
 
-  const num = (v: string): number => (v === "" ? 0 : Number(v));
-  const nullableNum = (v: string): number | null =>
-    v === "" ? null : Number(v);
+  const a = assumptions;
 
   return (
-    <Panel aria-busy={pending}>
+    <Panel>
       <Heading>Assumptions</Heading>
       <Grid>
         <Field>
           Date of birth
-          <Input
+          <TextCell
             type="date"
-            defaultValue={a.dateOfBirth}
-            onBlur={(e) => {
-              const next = { ...a, dateOfBirth: e.target.value };
-              setA(next);
-              save(next);
-            }}
+            value={a.dateOfBirth}
+            onCommit={(v) => save({ ...a, dateOfBirth: v })}
           />
         </Field>
         <Field>
           Retirement age
-          <Input
-            type="number"
-            defaultValue={a.retirementAge}
-            onBlur={(e) => {
-              const next = { ...a, retirementAge: num(e.target.value) };
-              setA(next);
-              save(next);
-            }}
+          <NumberCell
+            value={a.retirementAge}
+            onCommit={(v) =>
+              save({ ...a, retirementAge: v ?? a.retirementAge })
+            }
           />
         </Field>
         <Field>
           Plan to age
-          <Input
-            type="number"
-            defaultValue={a.planToAge}
-            onBlur={(e) => {
-              const next = { ...a, planToAge: num(e.target.value) };
-              setA(next);
-              save(next);
-            }}
+          <NumberCell
+            value={a.planToAge}
+            onCommit={(v) => save({ ...a, planToAge: v ?? a.planToAge })}
           />
         </Field>
         <Field>
           Inflation %
-          <Input
-            type="number"
+          <NumberCell
+            value={a.inflationPct}
             step="0.1"
-            defaultValue={a.inflationPct}
-            onBlur={(e) => {
-              const next = { ...a, inflationPct: num(e.target.value) };
-              setA(next);
-              save(next);
-            }}
+            onCommit={(v) => save({ ...a, inflationPct: v ?? a.inflationPct })}
           />
         </Field>
         <Field>
           Default return %
-          <Input
-            type="number"
+          <NumberCell
+            value={a.defaultReturnPct}
             step="0.1"
-            defaultValue={a.defaultReturnPct}
-            onBlur={(e) => {
-              const next = { ...a, defaultReturnPct: num(e.target.value) };
-              setA(next);
-              save(next);
-            }}
+            onCommit={(v) =>
+              save({ ...a, defaultReturnPct: v ?? a.defaultReturnPct })
+            }
           />
         </Field>
         <Field>
           Tax rate %
-          <Input
-            type="number"
+          <NumberCell
+            value={a.blendedTaxRatePct}
             step="0.1"
-            defaultValue={a.blendedTaxRatePct}
-            onBlur={(e) => {
-              const next = { ...a, blendedTaxRatePct: num(e.target.value) };
-              setA(next);
-              save(next);
-            }}
+            onCommit={(v) =>
+              save({ ...a, blendedTaxRatePct: v ?? a.blendedTaxRatePct })
+            }
           />
         </Field>
         <Field>
           State pension age
-          <Input
-            type="number"
-            defaultValue={a.statePensionAge ?? ""}
-            onBlur={(e) => {
-              const next = {
-                ...a,
-                statePensionAge: nullableNum(e.target.value),
-              };
-              setA(next);
-              save(next);
-            }}
+          <NumberCell
+            value={a.statePensionAge}
+            nullable
+            onCommit={(v) => save({ ...a, statePensionAge: v })}
           />
         </Field>
         <Field>
           State pension / yr
-          <Input
-            type="number"
-            defaultValue={a.statePensionAnnual ?? ""}
-            onBlur={(e) => {
-              const next = {
-                ...a,
-                statePensionAnnual: nullableNum(e.target.value),
-              };
-              setA(next);
-              save(next);
-            }}
+          <NumberCell
+            value={a.statePensionAnnual}
+            nullable
+            onCommit={(v) => save({ ...a, statePensionAnnual: v })}
           />
         </Field>
       </Grid>

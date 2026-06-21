@@ -1,8 +1,9 @@
 // src/app/plan/LiabilitiesTable.tsx
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import styled from "styled-components";
+import { NumberCell, TextCell } from "./EditableCell";
 import { updatePlanLiability } from "./actions";
 import type { SerializedPlanLiability } from "./serialized";
 
@@ -26,13 +27,6 @@ const Table = styled.table`
   th, td { text-align: left; padding: ${({ theme }) => theme.spacing.xs}; font-size: 13px; }
   th { color: ${({ theme }) => theme.colors.dim}; font-weight: 500; }
 `;
-const Cell = styled.input`
-  width: 100%;
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  padding: ${({ theme }) => theme.spacing.xs};
-  font-size: 13px;
-`;
 const Err = styled.p`
   color: ${({ theme }) => theme.colors.negative};
   font-size: 13px;
@@ -40,88 +34,72 @@ const Err = styled.p`
 `;
 
 function LiabilityRow({ liability }: { liability: SerializedPlanLiability }) {
-  const [row, setRow] = useState(liability);
-  const [, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const save = (next: SerializedPlanLiability) => {
-    startTransition(async () => {
-      try {
-        setError(null);
-        await updatePlanLiability({
-          liabilityId: next.id,
-          label: next.label,
-          openingBalance: next.openingBalance,
-          interestPct: next.interestPct,
-          monthlyRepayment: next.monthlyRepayment,
-          endAge: next.endAge,
-        });
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Could not save");
-      }
-    });
+  // `liability` is the committed server value; each cell sends the one field it
+  // changed, spread over the latest value. Rethrows so the cell reverts on fail.
+  const save = async (next: SerializedPlanLiability) => {
+    setError(null);
+    try {
+      await updatePlanLiability({
+        liabilityId: next.id,
+        label: next.label,
+        openingBalance: next.openingBalance,
+        interestPct: next.interestPct,
+        monthlyRepayment: next.monthlyRepayment,
+        endAge: next.endAge,
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not save");
+      throw e;
+    }
   };
-  const num = (v: string): number => (v === "" ? 0 : Number(v));
 
   return (
     <>
       <tr>
         <td>
-          <Cell
-            defaultValue={row.label}
-            onBlur={(e) => {
-              const n = { ...row, label: e.target.value };
-              setRow(n);
-              save(n);
-            }}
+          <TextCell
+            value={liability.label}
+            onCommit={(v) => save({ ...liability, label: v })}
           />
         </td>
         <td>
-          <Cell
-            type="number"
-            defaultValue={row.openingBalance}
-            onBlur={(e) => {
-              const n = { ...row, openingBalance: num(e.target.value) };
-              setRow(n);
-              save(n);
-            }}
+          <NumberCell
+            value={liability.openingBalance}
+            onCommit={(v) =>
+              save({
+                ...liability,
+                openingBalance: v ?? liability.openingBalance,
+              })
+            }
           />
         </td>
         <td>
-          <Cell
-            type="number"
+          <NumberCell
+            value={liability.interestPct}
             step="0.1"
-            defaultValue={row.interestPct}
-            onBlur={(e) => {
-              const n = { ...row, interestPct: num(e.target.value) };
-              setRow(n);
-              save(n);
-            }}
+            onCommit={(v) =>
+              save({ ...liability, interestPct: v ?? liability.interestPct })
+            }
           />
         </td>
         <td>
-          <Cell
-            type="number"
-            defaultValue={row.monthlyRepayment}
-            onBlur={(e) => {
-              const n = { ...row, monthlyRepayment: num(e.target.value) };
-              setRow(n);
-              save(n);
-            }}
+          <NumberCell
+            value={liability.monthlyRepayment}
+            onCommit={(v) =>
+              save({
+                ...liability,
+                monthlyRepayment: v ?? liability.monthlyRepayment,
+              })
+            }
           />
         </td>
         <td>
-          <Cell
-            type="number"
-            defaultValue={row.endAge ?? ""}
-            onBlur={(e) => {
-              const n = {
-                ...row,
-                endAge: e.target.value === "" ? null : Number(e.target.value),
-              };
-              setRow(n);
-              save(n);
-            }}
+          <NumberCell
+            value={liability.endAge}
+            nullable
+            onCommit={(v) => save({ ...liability, endAge: v })}
           />
         </td>
       </tr>
