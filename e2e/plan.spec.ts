@@ -10,9 +10,11 @@ test("plan: create, edit assumptions/assets, and the data-loss guard holds", asy
 }) => {
   await signIn(page);
 
-  // Visiting an authed page upserts the public.User row (getCurrentUserSettings).
-  // /plan has no plan yet → it shows the create form.
-  await page.goto("/plan");
+  // The signed-in "/" redirects to /dashboard, which upserts the public.User
+  // row (getCurrentUserSettings). Wait for that to settle BEFORE navigating
+  // again, so /plan's nav isn't interrupted by the in-flight redirect and the
+  // User upsert doesn't race itself.
+  await page.waitForURL("**/dashboard");
 
   // Seed one month period with a balance ASSET + an income, so createPlan has
   // something to seed the plan from (an editable asset row + a verdict).
@@ -49,8 +51,9 @@ test("plan: create, edit assumptions/assets, and the data-loss guard holds", asy
     },
   });
 
-  // The create form is on screen; submitting runs createPlan, which now finds
-  // the seeded period and seeds the plan from it.
+  // Now navigate to /plan (no plan yet → create form). createPlan reads the
+  // seeded period on submit.
+  await page.goto("/plan");
   await page.locator("input[type='date']").fill("1986-06-01");
   await page.locator("input[type='number']").first().fill("65");
   await page.getByRole("button", { name: /create my plan/i }).click();
