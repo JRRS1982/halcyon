@@ -26,6 +26,11 @@ export const CURRENCY_META: Record<
   NONE: { symbol: "", name: "No symbol" },
 };
 
+// Default currency for new users, and the fallback when a stored value is
+// unrecognised. The app is UK-first, so amounts default to GBP. Mirror this in
+// the UserSettings.currency column default (prisma/schema.prisma).
+export const DEFAULT_CURRENCY: CurrencyCode = "GBP";
+
 export function isCurrencyCode(value: unknown): value is CurrencyCode {
   return (
     typeof value === "string" &&
