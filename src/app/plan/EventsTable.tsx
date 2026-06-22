@@ -1,17 +1,15 @@
-// src/app/plan/LiabilitiesTable.tsx
+// src/app/plan/EventsTable.tsx
 "use client";
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import styled from "styled-components";
-import { NumberCell, TextCell } from "./EditableCell";
+import { NumberCell, SelectCell, TextCell } from "./EditableCell";
 import { AddRowButton, RemoveCell } from "./RowControls";
-import {
-  createPlanLiability,
-  deletePlanLiability,
-  updatePlanLiability,
-} from "./actions";
-import type { SerializedPlanLiability } from "./serialized";
+import { createPlanEvent, deletePlanEvent, updatePlanEvent } from "./actions";
+import type { EventDirection, SerializedPlanEvent } from "./serialized";
+
+const DIRECTIONS: EventDirection[] = ["INFLOW", "OUTFLOW"];
 
 const Panel = styled.section`
   border: 1px solid ${({ theme }) => theme.colors.hairline};
@@ -43,23 +41,19 @@ const Empty = styled.span`
   font-size: 13px;
 `;
 
-function LiabilityRow({ liability }: { liability: SerializedPlanLiability }) {
+function EventRow({ event }: { event: SerializedPlanEvent }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
 
-  // `liability` is the committed server value; each cell sends the one field it
-  // changed, spread over the latest. On success we refresh the route so the
-  // chart + verdict re-render; rethrows so the cell reverts on failure.
-  const save = async (next: SerializedPlanLiability) => {
+  const save = async (next: SerializedPlanEvent) => {
     setError(null);
     try {
-      await updatePlanLiability({
-        liabilityId: next.id,
+      await updatePlanEvent({
+        eventId: next.id,
         label: next.label,
-        openingBalance: next.openingBalance,
-        interestPct: next.interestPct,
-        monthlyRepayment: next.monthlyRepayment,
-        endAge: next.endAge,
+        age: next.age,
+        direction: next.direction,
+        amount: next.amount,
       });
       router.refresh();
     } catch (e) {
@@ -71,7 +65,7 @@ function LiabilityRow({ liability }: { liability: SerializedPlanLiability }) {
   const remove = async () => {
     setError(null);
     try {
-      await deletePlanLiability({ id: liability.id });
+      await deletePlanEvent({ id: event.id });
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not remove");
@@ -84,46 +78,27 @@ function LiabilityRow({ liability }: { liability: SerializedPlanLiability }) {
       <tr>
         <td>
           <TextCell
-            value={liability.label}
-            onCommit={(v) => save({ ...liability, label: v })}
+            value={event.label}
+            onCommit={(v) => save({ ...event, label: v })}
           />
         </td>
         <td>
           <NumberCell
-            value={liability.openingBalance}
-            onCommit={(v) =>
-              save({
-                ...liability,
-                openingBalance: v ?? liability.openingBalance,
-              })
-            }
+            value={event.age}
+            onCommit={(v) => save({ ...event, age: v ?? event.age })}
+          />
+        </td>
+        <td>
+          <SelectCell
+            value={event.direction}
+            options={DIRECTIONS}
+            onCommit={(v) => save({ ...event, direction: v })}
           />
         </td>
         <td>
           <NumberCell
-            value={liability.interestPct}
-            step="0.1"
-            onCommit={(v) =>
-              save({ ...liability, interestPct: v ?? liability.interestPct })
-            }
-          />
-        </td>
-        <td>
-          <NumberCell
-            value={liability.monthlyRepayment}
-            onCommit={(v) =>
-              save({
-                ...liability,
-                monthlyRepayment: v ?? liability.monthlyRepayment,
-              })
-            }
-          />
-        </td>
-        <td>
-          <NumberCell
-            value={liability.endAge}
-            nullable
-            onCommit={(v) => save({ ...liability, endAge: v })}
+            value={event.amount}
+            onCommit={(v) => save({ ...event, amount: v ?? event.amount })}
           />
         </td>
         <td>
@@ -132,7 +107,7 @@ function LiabilityRow({ liability }: { liability: SerializedPlanLiability }) {
       </tr>
       {error ? (
         <tr>
-          <td colSpan={6}>
+          <td colSpan={5}>
             <Err>{error}</Err>
           </td>
         </tr>
@@ -141,42 +116,39 @@ function LiabilityRow({ liability }: { liability: SerializedPlanLiability }) {
   );
 }
 
-export function LiabilitiesTable({
-  liabilities,
-}: { liabilities: SerializedPlanLiability[] }) {
+export function EventsTable({ events }: { events: SerializedPlanEvent[] }) {
   const router = useRouter();
   const add = async () => {
-    await createPlanLiability();
+    await createPlanEvent();
     router.refresh();
   };
 
   return (
     <Panel>
-      <Heading>Liabilities</Heading>
+      <Heading>One-off events</Heading>
       <Table>
         <thead>
           <tr>
             <th>Label</th>
-            <th>Balance</th>
-            <th>Interest %</th>
-            <th>Repayment /mo</th>
-            <th>End age</th>
+            <th>Age</th>
+            <th>Direction</th>
+            <th>Amount</th>
             <th />
           </tr>
         </thead>
         <tbody>
-          {liabilities.length === 0 ? (
+          {events.length === 0 ? (
             <tr>
-              <td colSpan={6}>
-                <Empty>No liabilities yet.</Empty>
+              <td colSpan={5}>
+                <Empty>No events yet.</Empty>
               </td>
             </tr>
           ) : (
-            liabilities.map((l) => <LiabilityRow key={l.id} liability={l} />)
+            events.map((ev) => <EventRow key={ev.id} event={ev} />)
           )}
         </tbody>
       </Table>
-      <AddRowButton label="Add liability" onAdd={add} />
+      <AddRowButton label="Add event" onAdd={add} />
     </Panel>
   );
 }

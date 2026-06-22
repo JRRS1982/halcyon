@@ -1,14 +1,24 @@
-// src/app/plan/AssetsTable.tsx
+// src/app/plan/ExpensesTable.tsx
 "use client";
 
-import { WRAPPERS } from "@/lib/plan";
+import type { ExpenseCategory } from "@/lib/plan";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import styled from "styled-components";
-import { NumberCell, SelectCell, TextCell } from "./EditableCell";
+import { BoolCell, NumberCell, SelectCell, TextCell } from "./EditableCell";
 import { AddRowButton, RemoveCell } from "./RowControls";
-import { createPlanAsset, deletePlanAsset, updatePlanAsset } from "./actions";
-import type { SerializedPlanAsset } from "./serialized";
+import {
+  createPlanExpense,
+  deletePlanExpense,
+  updatePlanExpense,
+} from "./actions";
+import type { SerializedPlanExpense } from "./serialized";
+
+const EXPENSE_CATEGORIES: ExpenseCategory[] = [
+  "FIXED",
+  "VARIABLE",
+  "DISCRETIONARY",
+];
 
 const Panel = styled.section`
   border: 1px solid ${({ theme }) => theme.colors.hairline};
@@ -40,25 +50,21 @@ const Empty = styled.span`
   font-size: 13px;
 `;
 
-function AssetRow({ asset }: { asset: SerializedPlanAsset }) {
+function ExpenseRow({ expense }: { expense: SerializedPlanExpense }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
 
-  // `asset` is the committed server value (refreshed after each save); each cell
-  // sends the one field it changed, spread over the latest asset. On success we
-  // refresh the route so the server re-runs the engine and the chart + verdict
-  // update; rethrows on failure so the cell reverts to the persisted value.
-  const save = async (next: SerializedPlanAsset) => {
+  const save = async (next: SerializedPlanExpense) => {
     setError(null);
     try {
-      await updatePlanAsset({
-        assetId: next.id,
+      await updatePlanExpense({
+        expenseId: next.id,
         label: next.label,
-        wrapper: next.wrapper,
-        openingValue: next.openingValue,
-        expectedReturnPct: next.expectedReturnPct,
-        annualContribution: next.annualContribution,
-        drawdownPriority: next.drawdownPriority,
+        category: next.category,
+        annualAmount: next.annualAmount,
+        startAge: next.startAge,
+        endAge: next.endAge,
+        inflationLinked: next.inflationLinked,
       });
       router.refresh();
     } catch (e) {
@@ -70,7 +76,7 @@ function AssetRow({ asset }: { asset: SerializedPlanAsset }) {
   const remove = async () => {
     setError(null);
     try {
-      await deletePlanAsset({ id: asset.id });
+      await deletePlanExpense({ id: expense.id });
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not remove");
@@ -83,50 +89,43 @@ function AssetRow({ asset }: { asset: SerializedPlanAsset }) {
       <tr>
         <td>
           <TextCell
-            value={asset.label}
-            onCommit={(v) => save({ ...asset, label: v })}
+            value={expense.label}
+            onCommit={(v) => save({ ...expense, label: v })}
           />
         </td>
         <td>
           <SelectCell
-            value={asset.wrapper}
-            options={WRAPPERS}
-            onCommit={(v) => save({ ...asset, wrapper: v })}
+            value={expense.category}
+            options={EXPENSE_CATEGORIES}
+            onCommit={(v) => save({ ...expense, category: v })}
           />
         </td>
         <td>
           <NumberCell
-            value={asset.openingValue}
+            value={expense.annualAmount}
             onCommit={(v) =>
-              save({ ...asset, openingValue: v ?? asset.openingValue })
+              save({ ...expense, annualAmount: v ?? expense.annualAmount })
             }
           />
         </td>
         <td>
           <NumberCell
-            value={asset.expectedReturnPct}
+            value={expense.startAge}
             nullable
-            step="0.1"
-            onCommit={(v) => save({ ...asset, expectedReturnPct: v })}
+            onCommit={(v) => save({ ...expense, startAge: v })}
           />
         </td>
         <td>
           <NumberCell
-            value={asset.annualContribution}
-            onCommit={(v) =>
-              save({
-                ...asset,
-                annualContribution: v ?? asset.annualContribution,
-              })
-            }
+            value={expense.endAge}
+            nullable
+            onCommit={(v) => save({ ...expense, endAge: v })}
           />
         </td>
         <td>
-          <NumberCell
-            value={asset.drawdownPriority}
-            onCommit={(v) =>
-              save({ ...asset, drawdownPriority: v ?? asset.drawdownPriority })
-            }
+          <BoolCell
+            value={expense.inflationLinked}
+            onCommit={(v) => save({ ...expense, inflationLinked: v })}
           />
         </td>
         <td>
@@ -144,41 +143,43 @@ function AssetRow({ asset }: { asset: SerializedPlanAsset }) {
   );
 }
 
-export function AssetsTable({ assets }: { assets: SerializedPlanAsset[] }) {
+export function ExpensesTable({
+  expenses,
+}: { expenses: SerializedPlanExpense[] }) {
   const router = useRouter();
   const add = async () => {
-    await createPlanAsset();
+    await createPlanExpense();
     router.refresh();
   };
 
   return (
     <Panel>
-      <Heading>Assets</Heading>
+      <Heading>Expenses</Heading>
       <Table>
         <thead>
           <tr>
             <th>Label</th>
-            <th>Wrapper</th>
-            <th>Value</th>
-            <th>Return %</th>
-            <th>Contribution /yr</th>
-            <th>Drawdown order</th>
+            <th>Category</th>
+            <th>Amount /yr</th>
+            <th>Start age</th>
+            <th>End age</th>
+            <th>Inflation-linked</th>
             <th />
           </tr>
         </thead>
         <tbody>
-          {assets.length === 0 ? (
+          {expenses.length === 0 ? (
             <tr>
               <td colSpan={7}>
-                <Empty>No assets yet.</Empty>
+                <Empty>No expenses yet.</Empty>
               </td>
             </tr>
           ) : (
-            assets.map((a) => <AssetRow key={a.id} asset={a} />)
+            expenses.map((e) => <ExpenseRow key={e.id} expense={e} />)
           )}
         </tbody>
       </Table>
-      <AddRowButton label="Add asset" onAdd={add} />
+      <AddRowButton label="Add expense" onAdd={add} />
     </Panel>
   );
 }

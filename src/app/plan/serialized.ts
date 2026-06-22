@@ -1,5 +1,5 @@
 // src/app/plan/serialized.ts
-import type { Wrapper } from "@/lib/plan";
+import type { ExpenseCategory, IncomeKind, Wrapper } from "@/lib/plan";
 
 export type SerializedPlanAssumptions = {
   id: string;
@@ -32,8 +32,44 @@ export type SerializedPlanLiability = {
   endAge: number | null;
 };
 
+export type GrowthKind = "INFLATION" | "FIXED" | "NONE";
+export type EventDirection = "INFLOW" | "OUTFLOW";
+
+export type SerializedPlanIncome = {
+  id: string;
+  label: string;
+  kind: IncomeKind;
+  annualAmount: number;
+  startAge: number | null;
+  endAge: number | null;
+  growthKind: GrowthKind;
+  growthPct: number | null;
+  taxable: boolean;
+};
+
+export type SerializedPlanExpense = {
+  id: string;
+  label: string;
+  category: ExpenseCategory;
+  annualAmount: number;
+  startAge: number | null;
+  endAge: number | null;
+  inflationLinked: boolean;
+};
+
+export type SerializedPlanEvent = {
+  id: string;
+  label: string;
+  age: number;
+  direction: EventDirection;
+  amount: number;
+};
+
 export type SerializedPlan = {
   assumptions: SerializedPlanAssumptions;
   assets: SerializedPlanAsset[];
   liabilities: SerializedPlanLiability[];
+  incomes: SerializedPlanIncome[];
+  expenses: SerializedPlanExpense[];
+  events: SerializedPlanEvent[];
 };

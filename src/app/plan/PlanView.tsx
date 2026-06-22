@@ -7,6 +7,9 @@ import styled from "styled-components";
 import { AssetsTable } from "./AssetsTable";
 import { AssumptionsPanel } from "./AssumptionsPanel";
 import { ChartPanel } from "./ChartPanel";
+import { EventsTable } from "./EventsTable";
+import { ExpensesTable } from "./ExpensesTable";
+import { IncomesTable } from "./IncomesTable";
 import { LiabilitiesTable } from "./LiabilitiesTable";
 import { VerdictBanner } from "./VerdictBanner";
 import type { SerializedPlan } from "./serialized";
@@ -54,6 +57,9 @@ export function PlanView({
       <AssumptionsPanel assumptions={plan.assumptions} />
       <AssetsTable assets={plan.assets} />
       <LiabilitiesTable liabilities={plan.liabilities} />
+      <IncomesTable incomes={plan.incomes} />
+      <ExpensesTable expenses={plan.expenses} />
+      <EventsTable events={plan.events} />
     </Shell>
   );
 }

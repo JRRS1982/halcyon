@@ -153,3 +153,31 @@ export function TextCell({
     />
   );
 }
+
+export function BoolCell({
+  value,
+  onCommit,
+}: {
+  value: boolean;
+  onCommit: (value: boolean) => Promise<void> | void;
+}) {
+  // Fully controlled by `value`: on a successful save the committed prop
+  // re-renders the box; on a rejected save the row's `setError` re-render
+  // restores the old `value`, reverting it. We catch here so the rejected
+  // save (which the row rethrows so cells can revert) isn't an unhandled
+  // promise rejection — the row already surfaces the error message.
+  const handle = async (checked: boolean) => {
+    try {
+      await onCommit(checked);
+    } catch {
+      // row shows the error; controlled `value` reverts on the next render
+    }
+  };
+  return (
+    <input
+      type="checkbox"
+      checked={value}
+      onChange={(e) => handle(e.target.checked)}
+    />
+  );
+}

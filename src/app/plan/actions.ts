@@ -3,9 +3,16 @@
 import {
   type UpdatePlanAssetInput,
   type UpdatePlanAssumptionsInput,
+  type UpdatePlanEventInput,
+  type UpdatePlanExpenseInput,
+  type UpdatePlanIncomeInput,
   type UpdatePlanLiabilityInput,
+  deleteRowSchema,
   updatePlanAssetSchema,
   updatePlanAssumptionsSchema,
+  updatePlanEventSchema,
+  updatePlanExpenseSchema,
+  updatePlanIncomeSchema,
   updatePlanLiabilitySchema,
 } from "@/lib/plan/schemas";
 import {
@@ -185,5 +192,245 @@ export async function updatePlanLiability(
     },
   });
   if (res.count === 0) throw new Error("Liability not found");
+  revalidatePath("/plan");
+}
+
+async function requirePrimaryPlan(userId: string) {
+  const plan = await prisma.plan.findFirst({
+    where: { userId, isPrimary: true, deletedAt: null },
+    select: { id: true, retirementAge: true },
+  });
+  if (!plan) throw new Error("Plan not found");
+  return plan;
+}
+
+export async function createPlanAsset(): Promise<void> {
+  const userId = await requireUserId();
+  const plan = await requirePrimaryPlan(userId);
+  const max = await prisma.planAsset.aggregate({
+    where: { planId: plan.id, deletedAt: null },
+    _max: { sortOrder: true },
+  });
+  await prisma.planAsset.create({
+    data: {
+      planId: plan.id,
+      label: "New asset",
+      wrapper: "OTHER",
+      openingValue: 0,
+      annualContribution: 0,
+      drawdownPriority: 0,
+      sortOrder: (max._max.sortOrder ?? -1) + 1,
+    },
+  });
+  revalidatePath("/plan");
+}
+
+export async function createPlanLiability(): Promise<void> {
+  const userId = await requireUserId();
+  const plan = await requirePrimaryPlan(userId);
+  const max = await prisma.planLiability.aggregate({
+    where: { planId: plan.id, deletedAt: null },
+    _max: { sortOrder: true },
+  });
+  await prisma.planLiability.create({
+    data: {
+      planId: plan.id,
+      label: "New liability",
+      openingBalance: 0,
+      interestPct: 0,
+      monthlyRepayment: 0,
+      sortOrder: (max._max.sortOrder ?? -1) + 1,
+    },
+  });
+  revalidatePath("/plan");
+}
+
+export async function createPlanIncome(): Promise<void> {
+  const userId = await requireUserId();
+  const plan = await requirePrimaryPlan(userId);
+  const max = await prisma.planIncome.aggregate({
+    where: { planId: plan.id, deletedAt: null },
+    _max: { sortOrder: true },
+  });
+  await prisma.planIncome.create({
+    data: {
+      planId: plan.id,
+      label: "New income",
+      kind: "OTHER",
+      annualAmount: 0,
+      growthKind: "INFLATION",
+      taxable: true,
+      sortOrder: (max._max.sortOrder ?? -1) + 1,
+    },
+  });
+  revalidatePath("/plan");
+}
+
+export async function createPlanExpense(): Promise<void> {
+  const userId = await requireUserId();
+  const plan = await requirePrimaryPlan(userId);
+  const max = await prisma.planExpense.aggregate({
+    where: { planId: plan.id, deletedAt: null },
+    _max: { sortOrder: true },
+  });
+  await prisma.planExpense.create({
+    data: {
+      planId: plan.id,
+      label: "New expense",
+      category: "FIXED",
+      annualAmount: 0,
+      inflationLinked: true,
+      sortOrder: (max._max.sortOrder ?? -1) + 1,
+    },
+  });
+  revalidatePath("/plan");
+}
+
+export async function createPlanEvent(): Promise<void> {
+  const userId = await requireUserId();
+  const plan = await requirePrimaryPlan(userId);
+  const max = await prisma.planEvent.aggregate({
+    where: { planId: plan.id, deletedAt: null },
+    _max: { sortOrder: true },
+  });
+  await prisma.planEvent.create({
+    data: {
+      planId: plan.id,
+      label: "New event",
+      age: plan.retirementAge,
+      direction: "OUTFLOW",
+      amount: 0,
+      sortOrder: (max._max.sortOrder ?? -1) + 1,
+    },
+  });
+  revalidatePath("/plan");
+}
+
+export async function deletePlanAsset(input: { id: string }): Promise<void> {
+  const userId = await requireUserId();
+  const { id } = deleteRowSchema.parse(input);
+  const res = await prisma.planAsset.updateMany({
+    where: { id, deletedAt: null, plan: { userId, deletedAt: null } },
+    data: { deletedAt: new Date() },
+  });
+  if (res.count === 0) throw new Error("Asset not found");
+  revalidatePath("/plan");
+}
+
+export async function deletePlanLiability(input: {
+  id: string;
+}): Promise<void> {
+  const userId = await requireUserId();
+  const { id } = deleteRowSchema.parse(input);
+  const res = await prisma.planLiability.updateMany({
+    where: { id, deletedAt: null, plan: { userId, deletedAt: null } },
+    data: { deletedAt: new Date() },
+  });
+  if (res.count === 0) throw new Error("Liability not found");
+  revalidatePath("/plan");
+}
+
+export async function deletePlanIncome(input: { id: string }): Promise<void> {
+  const userId = await requireUserId();
+  const { id } = deleteRowSchema.parse(input);
+  const res = await prisma.planIncome.updateMany({
+    where: { id, deletedAt: null, plan: { userId, deletedAt: null } },
+    data: { deletedAt: new Date() },
+  });
+  if (res.count === 0) throw new Error("Income not found");
+  revalidatePath("/plan");
+}
+
+export async function deletePlanExpense(input: { id: string }): Promise<void> {
+  const userId = await requireUserId();
+  const { id } = deleteRowSchema.parse(input);
+  const res = await prisma.planExpense.updateMany({
+    where: { id, deletedAt: null, plan: { userId, deletedAt: null } },
+    data: { deletedAt: new Date() },
+  });
+  if (res.count === 0) throw new Error("Expense not found");
+  revalidatePath("/plan");
+}
+
+export async function deletePlanEvent(input: { id: string }): Promise<void> {
+  const userId = await requireUserId();
+  const { id } = deleteRowSchema.parse(input);
+  const res = await prisma.planEvent.updateMany({
+    where: { id, deletedAt: null, plan: { userId, deletedAt: null } },
+    data: { deletedAt: new Date() },
+  });
+  if (res.count === 0) throw new Error("Event not found");
+  revalidatePath("/plan");
+}
+
+export async function updatePlanIncome(
+  input: UpdatePlanIncomeInput,
+): Promise<void> {
+  const userId = await requireUserId();
+  const p = updatePlanIncomeSchema.parse(input);
+  const res = await prisma.planIncome.updateMany({
+    where: {
+      id: p.incomeId,
+      deletedAt: null,
+      plan: { userId, deletedAt: null },
+    },
+    data: {
+      label: p.label,
+      kind: p.kind,
+      annualAmount: p.annualAmount,
+      startAge: p.startAge,
+      endAge: p.endAge,
+      growthKind: p.growthKind,
+      growthPct: p.growthPct,
+      taxable: p.taxable,
+    },
+  });
+  if (res.count === 0) throw new Error("Income not found");
+  revalidatePath("/plan");
+}
+
+export async function updatePlanExpense(
+  input: UpdatePlanExpenseInput,
+): Promise<void> {
+  const userId = await requireUserId();
+  const p = updatePlanExpenseSchema.parse(input);
+  const res = await prisma.planExpense.updateMany({
+    where: {
+      id: p.expenseId,
+      deletedAt: null,
+      plan: { userId, deletedAt: null },
+    },
+    data: {
+      label: p.label,
+      category: p.category,
+      annualAmount: p.annualAmount,
+      startAge: p.startAge,
+      endAge: p.endAge,
+      inflationLinked: p.inflationLinked,
+    },
+  });
+  if (res.count === 0) throw new Error("Expense not found");
+  revalidatePath("/plan");
+}
+
+export async function updatePlanEvent(
+  input: UpdatePlanEventInput,
+): Promise<void> {
+  const userId = await requireUserId();
+  const p = updatePlanEventSchema.parse(input);
+  const res = await prisma.planEvent.updateMany({
+    where: {
+      id: p.eventId,
+      deletedAt: null,
+      plan: { userId, deletedAt: null },
+    },
+    data: {
+      label: p.label,
+      age: p.age,
+      direction: p.direction,
+      amount: p.amount,
+    },
+  });
+  if (res.count === 0) throw new Error("Event not found");
   revalidatePath("/plan");
 }
