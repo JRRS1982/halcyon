@@ -34,19 +34,26 @@ export async function getCurrentUserSettings(): Promise<{
   // (see ADR-002 / the supabase_auth_integration migration). But that trigger
   // lives in the Supabase database; when Prisma points at a separate DB (e.g.
   // local Docker Postgres with auth still on Supabase), the row is never
-  // created locally and FK constraints fail. This idempotent upsert mirrors the
+  // created locally and FK constraints fail. This idempotent insert mirrors the
   // trigger as an app-side fallback so sign-in works regardless of which DB
   // Prisma targets. Trigger-first, app-fallback.
-  await prisma.user.upsert({
-    where: { id: user.id },
-    update: {},
-    create: { id: user.id },
+  //
+  // `createMany({ skipDuplicates })` compiles to INSERT ... ON CONFLICT DO
+  // NOTHING — atomic. `upsert` does a non-atomic select-then-insert, so two
+  // concurrent first-time requests (a page and its prefetch, or parallel server
+  // components) both INSERT and all but one fail with P2002. User first, since
+  // UserSettings FKs it.
+  await prisma.user.createMany({
+    data: [{ id: user.id }],
+    skipDuplicates: true,
+  });
+  await prisma.userSettings.createMany({
+    data: [{ userId: user.id }],
+    skipDuplicates: true,
   });
 
-  const row = await prisma.userSettings.upsert({
+  const row = await prisma.userSettings.findUniqueOrThrow({
     where: { userId: user.id },
-    update: {},
-    create: { userId: user.id },
   });
   return {
     userId: user.id,
