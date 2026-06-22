@@ -48,3 +48,51 @@ export type UpdatePlanAssetInput = z.infer<typeof updatePlanAssetSchema>;
 export type UpdatePlanLiabilityInput = z.infer<
   typeof updatePlanLiabilitySchema
 >;
+
+const INCOME_KIND = z.enum([
+  "SALARY",
+  "SELF_EMPLOYMENT",
+  "STATE_PENSION",
+  "DB_PENSION",
+  "RENTAL",
+  "OTHER",
+]);
+const GROWTH_KIND = z.enum(["INFLATION", "FIXED", "NONE"]);
+const EXPENSE_CATEGORY = z.enum(["FIXED", "VARIABLE", "DISCRETIONARY"]);
+const EVENT_DIRECTION = z.enum(["INFLOW", "OUTFLOW"]);
+
+export const updatePlanIncomeSchema = z.object({
+  incomeId: z.string().uuid(),
+  label: z.string().min(1),
+  kind: INCOME_KIND,
+  annualAmount: z.number().min(0),
+  startAge: z.number().int().min(0).max(120).nullable(),
+  endAge: z.number().int().min(0).max(120).nullable(),
+  growthKind: GROWTH_KIND,
+  growthPct: z.number().min(-20).max(30).nullable(),
+  taxable: z.boolean(),
+});
+
+export const updatePlanExpenseSchema = z.object({
+  expenseId: z.string().uuid(),
+  label: z.string().min(1),
+  category: EXPENSE_CATEGORY,
+  annualAmount: z.number().min(0),
+  startAge: z.number().int().min(0).max(120).nullable(),
+  endAge: z.number().int().min(0).max(120).nullable(),
+  inflationLinked: z.boolean(),
+});
+
+export const updatePlanEventSchema = z.object({
+  eventId: z.string().uuid(),
+  label: z.string().min(1),
+  age: z.number().int().min(0).max(120),
+  direction: EVENT_DIRECTION,
+  amount: z.number().min(0),
+});
+
+export const deleteRowSchema = z.object({ id: z.string().uuid() });
+
+export type UpdatePlanIncomeInput = z.infer<typeof updatePlanIncomeSchema>;
+export type UpdatePlanExpenseInput = z.infer<typeof updatePlanExpenseSchema>;
+export type UpdatePlanEventInput = z.infer<typeof updatePlanEventSchema>;

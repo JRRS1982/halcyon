@@ -64,6 +64,33 @@ export default async function PlanPage() {
       monthlyRepayment: Number(l.monthlyRepayment),
       endAge: l.endAge,
     })),
+    incomes: plan.incomes.map((i) => ({
+      id: i.id,
+      label: i.label,
+      kind: i.kind,
+      annualAmount: Number(i.annualAmount),
+      startAge: i.startAge,
+      endAge: i.endAge,
+      growthKind: i.growthKind,
+      growthPct: i.growthPct === null ? null : Number(i.growthPct),
+      taxable: i.taxable,
+    })),
+    expenses: plan.expenses.map((e) => ({
+      id: e.id,
+      label: e.label,
+      category: e.category ?? "FIXED",
+      annualAmount: Number(e.annualAmount),
+      startAge: e.startAge,
+      endAge: e.endAge,
+      inflationLinked: e.inflationLinked,
+    })),
+    events: plan.events.map((ev) => ({
+      id: ev.id,
+      label: ev.label,
+      age: ev.age,
+      direction: ev.direction,
+      amount: Number(ev.amount),
+    })),
   };
 
   return (
