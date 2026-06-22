@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import styled from "styled-components";
 import { NumberCell, SelectCell, TextCell } from "./EditableCell";
-import { updatePlanAsset } from "./actions";
+import { AddRowButton, RemoveCell } from "./RowControls";
+import { createPlanAsset, deletePlanAsset, updatePlanAsset } from "./actions";
 import type { SerializedPlanAsset } from "./serialized";
 
 const Panel = styled.section`
@@ -34,6 +35,10 @@ const Err = styled.p`
   font-size: 13px;
   margin: 0;
 `;
+const Empty = styled.span`
+  color: ${({ theme }) => theme.colors.dim};
+  font-size: 13px;
+`;
 
 function AssetRow({ asset }: { asset: SerializedPlanAsset }) {
   const router = useRouter();
@@ -58,6 +63,17 @@ function AssetRow({ asset }: { asset: SerializedPlanAsset }) {
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not save");
+      throw e;
+    }
+  };
+
+  const remove = async () => {
+    setError(null);
+    try {
+      await deletePlanAsset({ id: asset.id });
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not remove");
       throw e;
     }
   };
@@ -113,10 +129,13 @@ function AssetRow({ asset }: { asset: SerializedPlanAsset }) {
             }
           />
         </td>
+        <td>
+          <RemoveCell onConfirm={remove} />
+        </td>
       </tr>
       {error ? (
         <tr>
-          <td colSpan={6}>
+          <td colSpan={7}>
             <Err>{error}</Err>
           </td>
         </tr>
@@ -126,6 +145,12 @@ function AssetRow({ asset }: { asset: SerializedPlanAsset }) {
 }
 
 export function AssetsTable({ assets }: { assets: SerializedPlanAsset[] }) {
+  const router = useRouter();
+  const add = async () => {
+    await createPlanAsset();
+    router.refresh();
+  };
+
   return (
     <Panel>
       <Heading>Assets</Heading>
@@ -138,14 +163,22 @@ export function AssetsTable({ assets }: { assets: SerializedPlanAsset[] }) {
             <th>Return %</th>
             <th>Contribution /yr</th>
             <th>Drawdown order</th>
+            <th />
           </tr>
         </thead>
         <tbody>
-          {assets.map((a) => (
-            <AssetRow key={a.id} asset={a} />
-          ))}
+          {assets.length === 0 ? (
+            <tr>
+              <td colSpan={7}>
+                <Empty>No assets yet.</Empty>
+              </td>
+            </tr>
+          ) : (
+            assets.map((a) => <AssetRow key={a.id} asset={a} />)
+          )}
         </tbody>
       </Table>
+      <AddRowButton label="Add asset" onAdd={add} />
     </Panel>
   );
 }

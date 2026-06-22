@@ -5,7 +5,12 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import styled from "styled-components";
 import { NumberCell, TextCell } from "./EditableCell";
-import { updatePlanLiability } from "./actions";
+import { AddRowButton, RemoveCell } from "./RowControls";
+import {
+  createPlanLiability,
+  deletePlanLiability,
+  updatePlanLiability,
+} from "./actions";
 import type { SerializedPlanLiability } from "./serialized";
 
 const Panel = styled.section`
@@ -33,6 +38,10 @@ const Err = styled.p`
   font-size: 13px;
   margin: 0;
 `;
+const Empty = styled.span`
+  color: ${({ theme }) => theme.colors.dim};
+  font-size: 13px;
+`;
 
 function LiabilityRow({ liability }: { liability: SerializedPlanLiability }) {
   const router = useRouter();
@@ -55,6 +64,17 @@ function LiabilityRow({ liability }: { liability: SerializedPlanLiability }) {
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not save");
+      throw e;
+    }
+  };
+
+  const remove = async () => {
+    setError(null);
+    try {
+      await deletePlanLiability({ id: liability.id });
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not remove");
       throw e;
     }
   };
@@ -106,10 +126,13 @@ function LiabilityRow({ liability }: { liability: SerializedPlanLiability }) {
             onCommit={(v) => save({ ...liability, endAge: v })}
           />
         </td>
+        <td>
+          <RemoveCell onConfirm={remove} />
+        </td>
       </tr>
       {error ? (
         <tr>
-          <td colSpan={5}>
+          <td colSpan={6}>
             <Err>{error}</Err>
           </td>
         </tr>
@@ -121,7 +144,12 @@ function LiabilityRow({ liability }: { liability: SerializedPlanLiability }) {
 export function LiabilitiesTable({
   liabilities,
 }: { liabilities: SerializedPlanLiability[] }) {
-  if (liabilities.length === 0) return null;
+  const router = useRouter();
+  const add = async () => {
+    await createPlanLiability();
+    router.refresh();
+  };
+
   return (
     <Panel>
       <Heading>Liabilities</Heading>
@@ -133,14 +161,22 @@ export function LiabilitiesTable({
             <th>Interest %</th>
             <th>Repayment /mo</th>
             <th>End age</th>
+            <th />
           </tr>
         </thead>
         <tbody>
-          {liabilities.map((l) => (
-            <LiabilityRow key={l.id} liability={l} />
-          ))}
+          {liabilities.length === 0 ? (
+            <tr>
+              <td colSpan={6}>
+                <Empty>No liabilities yet.</Empty>
+              </td>
+            </tr>
+          ) : (
+            liabilities.map((l) => <LiabilityRow key={l.id} liability={l} />)
+          )}
         </tbody>
       </Table>
+      <AddRowButton label="Add liability" onAdd={add} />
     </Panel>
   );
 }
