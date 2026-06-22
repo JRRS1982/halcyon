@@ -130,5 +130,28 @@ test("plan: create, edit assumptions/assets, and the data-loss guard holds", asy
     fullPage: true,
   });
 
+  // CRUD: add an income, edit it, then confirm-remove it.
+  // (The plan already has one seeded "Salary" income from the financial period;
+  //  the new row appends at the end, so we use .last() to target it.)
+  const incomePanel = page.locator("section", { hasText: "Income" });
+  await incomePanel.getByRole("button", { name: "+ Add income" }).click();
+  const incomeRow = incomePanel.locator("table tbody tr").last();
+  const incomeLabel = incomeRow.locator("input[type='text']").first();
+  await expect(incomeLabel).toHaveValue("New income");
+  await incomeLabel.fill("Freelance");
+  await incomeLabel.blur();
+  await expect(incomeLabel).toHaveValue("Freelance");
+
+  // Confirm-remove the newly added row; seeded "Salary" row remains.
+  await incomeRow.getByRole("button", { name: /^remove$/i }).click();
+  await incomeRow.getByRole("button", { name: /yes/i }).click();
+  // One row remains (the seeded Salary income).
+  await expect(incomePanel.locator("table tbody tr")).toHaveCount(1);
+
+  // Add then remove an asset (Assets panel always present from the seeded SIPP).
+  const assetPanel = page.locator("section", { hasText: "Assets" });
+  await assetPanel.getByRole("button", { name: "+ Add asset" }).click();
+  await expect(assetPanel.locator("table tbody tr")).toHaveCount(2);
+
   await page.screenshot({ path: "test-results/plan-1b.png", fullPage: true });
 });
