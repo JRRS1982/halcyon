@@ -1,12 +1,15 @@
 // src/app/plan/EventsTable.tsx
 "use client";
 
+import { type NumberFormat, formatAmount } from "@/lib/settings/currency";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import styled from "styled-components";
 import { NumberCell, SelectCell, TextCell } from "./EditableCell";
-import { AddRowButton, RemoveCell } from "./RowControls";
-import { createPlanEvent, deletePlanEvent, updatePlanEvent } from "./actions";
+import { DrawerSection, Field } from "./PlanDrawer";
+import { AddRowButton } from "./RowControls";
+import { SummaryList, SummaryRow } from "./SummaryRow";
+import { createPlanEvent, updatePlanEvent } from "./actions";
 import type { EventDirection, SerializedPlanEvent } from "./serialized";
 
 const DIRECTIONS: EventDirection[] = ["INFLOW", "OUTFLOW"];
@@ -16,8 +19,7 @@ const Panel = styled.section`
   border-radius: ${({ theme }) => theme.rounded.sm};
   padding: ${({ theme }) => theme.spacing.lg};
   display: grid;
-  gap: ${({ theme }) => theme.spacing.md};
-  overflow-x: auto;
+  gap: ${({ theme }) => theme.spacing.sm};
 `;
 const Heading = styled.h2`
   font-size: ${({ theme }) => theme.typography.displayLg.size};
@@ -25,33 +27,18 @@ const Heading = styled.h2`
   color: ${({ theme }) => theme.colors.ink};
   margin: 0;
 `;
-const Table = styled.table`
-  width: 100%;
-  border-collapse: collapse;
-  th, td { text-align: left; padding: ${({ theme }) => theme.spacing.sm} ${({ theme }) => theme.spacing.xs}; font-size: 13px; vertical-align: middle; }
-  thead th {
-    font-family: ${({ theme }) => theme.typography.monoCaps.family};
-    font-size: 10px;
-    font-weight: 500;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    color: ${({ theme }) => theme.colors.dim};
-    border-bottom: 1px solid ${({ theme }) => theme.colors.hairline};
-  }
-  tbody tr:hover td { background: ${({ theme }) => theme.colors.canvasSoft}; }
-  input, select { font-variant-numeric: tabular-nums; }
+const Empty = styled.p`
+  color: ${({ theme }) => theme.colors.dim};
+  font-size: 13px;
+  margin: ${({ theme }) => theme.spacing.sm} 0;
 `;
 const Err = styled.p`
   color: ${({ theme }) => theme.colors.negative};
   font-size: 13px;
-  margin: 0;
-`;
-const Empty = styled.span`
-  color: ${({ theme }) => theme.colors.dim};
-  font-size: 13px;
+  margin: 0 ${({ theme }) => theme.spacing.xl} ${({ theme }) => theme.spacing.md};
 `;
 
-function EventRow({ event }: { event: SerializedPlanEvent }) {
+export function EventFields({ event }: { event: SerializedPlanEvent }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
 
@@ -72,92 +59,75 @@ function EventRow({ event }: { event: SerializedPlanEvent }) {
     }
   };
 
-  const remove = async () => {
-    setError(null);
-    try {
-      await deletePlanEvent({ id: event.id });
-      router.refresh();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not remove");
-      throw e;
-    }
-  };
-
   return (
     <>
-      <tr>
-        <td>
+      {error ? <Err>{error}</Err> : null}
+      <DrawerSection title="Basics" defaultOpen>
+        <Field label="Label">
           <TextCell
             value={event.label}
             onCommit={(v) => save({ ...event, label: v })}
           />
-        </td>
-        <td>
+        </Field>
+        <Field label="Age">
           <NumberCell
             value={event.age}
             onCommit={(v) => save({ ...event, age: v ?? event.age })}
           />
-        </td>
-        <td>
+        </Field>
+        <Field label="Direction">
           <SelectCell
             value={event.direction}
             options={DIRECTIONS}
             onCommit={(v) => save({ ...event, direction: v })}
           />
-        </td>
-        <td>
+        </Field>
+        <Field label="Amount">
           <NumberCell
             value={event.amount}
             onCommit={(v) => save({ ...event, amount: v ?? event.amount })}
           />
-        </td>
-        <td>
-          <RemoveCell onConfirm={remove} />
-        </td>
-      </tr>
-      {error ? (
-        <tr>
-          <td colSpan={5}>
-            <Err>{error}</Err>
-          </td>
-        </tr>
-      ) : null}
+        </Field>
+      </DrawerSection>
     </>
   );
 }
 
-export function EventsTable({ events }: { events: SerializedPlanEvent[] }) {
+export function EventsTable({
+  events,
+  currency,
+  numberFormat,
+  onOpen,
+}: {
+  events: SerializedPlanEvent[];
+  currency: string;
+  numberFormat: NumberFormat;
+  onOpen: (id: string) => void;
+}) {
   const router = useRouter();
   const add = async () => {
-    await createPlanEvent();
+    const id = await createPlanEvent();
     router.refresh();
+    onOpen(id);
   };
 
   return (
     <Panel>
       <Heading>One-off events</Heading>
-      <Table>
-        <thead>
-          <tr>
-            <th>Label</th>
-            <th>Age</th>
-            <th>Direction</th>
-            <th>Amount</th>
-            <th />
-          </tr>
-        </thead>
-        <tbody>
-          {events.length === 0 ? (
-            <tr>
-              <td colSpan={5}>
-                <Empty>No events yet.</Empty>
-              </td>
-            </tr>
-          ) : (
-            events.map((ev) => <EventRow key={ev.id} event={ev} />)
-          )}
-        </tbody>
-      </Table>
+      {events.length === 0 ? (
+        <Empty>No events yet.</Empty>
+      ) : (
+        <SummaryList>
+          {events.map((ev) => (
+            <SummaryRow
+              key={ev.id}
+              primary={ev.label}
+              secondary={`age ${ev.age} · ${ev.direction === "INFLOW" ? "+" : "−"}${formatAmount(currency, ev.amount, numberFormat)}`}
+              onOpen={() => onOpen(ev.id)}
+            />
+          ))}
+        </SummaryList>
+      )}
       <AddRowButton label="Add event" onAdd={add} />
     </Panel>
   );
