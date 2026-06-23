@@ -11,6 +11,7 @@ import { EventsTable } from "./EventsTable";
 import { ExpensesTable } from "./ExpensesTable";
 import { IncomesTable } from "./IncomesTable";
 import { LiabilitiesTable } from "./LiabilitiesTable";
+import { Timeline } from "./Timeline";
 import { VerdictBanner } from "./VerdictBanner";
 import type { SerializedPlan } from "./serialized";
 
@@ -53,6 +54,16 @@ export function PlanView({
         years={years}
         currency={currency}
         numberFormat={numberFormat}
+      />
+      <Timeline
+        incomes={plan.incomes}
+        expenses={plan.expenses}
+        liabilities={plan.liabilities}
+        events={plan.events}
+        retirementAge={plan.assumptions.retirementAge}
+        statePensionAge={plan.assumptions.statePensionAge}
+        minAge={years[0]?.age ?? 0}
+        maxAge={years[years.length - 1]?.age ?? 0}
       />
       <AssumptionsPanel assumptions={plan.assumptions} />
       <AssetsTable assets={plan.assets} />
