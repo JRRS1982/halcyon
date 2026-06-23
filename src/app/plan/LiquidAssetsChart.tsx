@@ -8,7 +8,7 @@ import {
 } from "@/lib/plan/chartData";
 import { type NumberFormat, formatAmount } from "@/lib/settings/currency";
 import {
-  Bar,
+  Area,
   CartesianGrid,
   ComposedChart,
   Legend,
@@ -71,12 +71,17 @@ export function LiquidAssetsChart({
         />
         <Legend wrapperStyle={{ fontSize: 12 }} />
         {wrappers.map((w) => (
-          <Bar
+          <Area
             key={w}
+            type="monotone"
             dataKey={w}
             name={w}
             stackId="liquid"
             fill={WRAPPER_COLOURS[w]}
+            fillOpacity={0.18}
+            stroke={WRAPPER_COLOURS[w]}
+            strokeWidth={1}
+            strokeOpacity={0.55}
             isAnimationActive={false}
           />
         ))}
