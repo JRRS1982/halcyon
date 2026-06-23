@@ -2,7 +2,7 @@
 "use client";
 
 import type { Verdict, YearProjection } from "@/lib/plan";
-import { type NumberFormat, formatAmount } from "@/lib/settings/currency";
+import type { NumberFormat } from "@/lib/settings/currency";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import styled from "styled-components";

@@ -2,16 +2,15 @@
 "use client";
 
 import type { IncomeKind } from "@/lib/plan";
+import { type NumberFormat, formatAmount } from "@/lib/settings/currency";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import styled from "styled-components";
 import { BoolCell, NumberCell, SelectCell, TextCell } from "./EditableCell";
-import { AddRowButton, RemoveCell } from "./RowControls";
-import {
-  createPlanIncome,
-  deletePlanIncome,
-  updatePlanIncome,
-} from "./actions";
+import { DrawerSection, Field } from "./PlanDrawer";
+import { AddRowButton } from "./RowControls";
+import { SummaryList, SummaryRow } from "./SummaryRow";
+import { createPlanIncome, updatePlanIncome } from "./actions";
 import type { GrowthKind, SerializedPlanIncome } from "./serialized";
 
 const INCOME_KINDS: IncomeKind[] = [
@@ -29,8 +28,7 @@ const Panel = styled.section`
   border-radius: ${({ theme }) => theme.rounded.sm};
   padding: ${({ theme }) => theme.spacing.lg};
   display: grid;
-  gap: ${({ theme }) => theme.spacing.md};
-  overflow-x: auto;
+  gap: ${({ theme }) => theme.spacing.sm};
 `;
 const Heading = styled.h2`
   font-size: ${({ theme }) => theme.typography.displayLg.size};
@@ -38,36 +36,18 @@ const Heading = styled.h2`
   color: ${({ theme }) => theme.colors.ink};
   margin: 0;
 `;
-const Table = styled.table`
-  width: 100%;
-  border-collapse: collapse;
-  th, td { text-align: left; padding: ${({ theme }) => theme.spacing.sm} ${({ theme }) => theme.spacing.xs}; font-size: 13px; vertical-align: middle; }
-  thead th {
-    font-family: ${({ theme }) => theme.typography.monoCaps.family};
-    font-size: 10px;
-    font-weight: 500;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    color: ${({ theme }) => theme.colors.dim};
-    border-bottom: 1px solid ${({ theme }) => theme.colors.hairline};
-  }
-  tbody tr:hover td { background: ${({ theme }) => theme.colors.canvasSoft}; }
-  input, select { font-variant-numeric: tabular-nums; }
+const Empty = styled.p`
+  color: ${({ theme }) => theme.colors.dim};
+  font-size: 13px;
+  margin: ${({ theme }) => theme.spacing.sm} 0;
 `;
 const Err = styled.p`
   color: ${({ theme }) => theme.colors.negative};
   font-size: 13px;
-  margin: 0;
-`;
-const Empty = styled.span`
-  color: ${({ theme }) => theme.colors.dim};
-  font-size: 13px;
-`;
-const Dash = styled.span`
-  color: ${({ theme }) => theme.colors.dim};
+  margin: 0 ${({ theme }) => theme.spacing.xl} ${({ theme }) => theme.spacing.md};
 `;
 
-function IncomeRow({ income }: { income: SerializedPlanIncome }) {
+export function IncomeFields({ income }: { income: SerializedPlanIncome }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
 
@@ -92,131 +72,116 @@ function IncomeRow({ income }: { income: SerializedPlanIncome }) {
     }
   };
 
-  const remove = async () => {
-    setError(null);
-    try {
-      await deletePlanIncome({ id: income.id });
-      router.refresh();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not remove");
-      throw e;
-    }
-  };
-
   return (
     <>
-      <tr>
-        <td>
+      {error ? <Err>{error}</Err> : null}
+      <DrawerSection title="Basics" defaultOpen>
+        <Field label="Label">
           <TextCell
             value={income.label}
             onCommit={(v) => save({ ...income, label: v })}
           />
-        </td>
-        <td>
+        </Field>
+        <Field label="Kind">
           <SelectCell
             value={income.kind}
             options={INCOME_KINDS}
             onCommit={(v) => save({ ...income, kind: v })}
           />
-        </td>
-        <td>
+        </Field>
+        <Field label="Amount /yr">
           <NumberCell
             value={income.annualAmount}
             onCommit={(v) =>
               save({ ...income, annualAmount: v ?? income.annualAmount })
             }
           />
-        </td>
-        <td>
+        </Field>
+      </DrawerSection>
+      <DrawerSection title="Timing">
+        <Field label="Start age (blank = from now)">
           <NumberCell
             value={income.startAge}
             nullable
             onCommit={(v) => save({ ...income, startAge: v })}
           />
-        </td>
-        <td>
+        </Field>
+        <Field label="End age (blank = end of plan)">
           <NumberCell
             value={income.endAge}
             nullable
             onCommit={(v) => save({ ...income, endAge: v })}
           />
-        </td>
-        <td>
+        </Field>
+      </DrawerSection>
+      <DrawerSection title="Growth">
+        <Field label="Grows by">
           <SelectCell
             value={income.growthKind}
             options={GROWTH_KINDS}
             onCommit={(v) => save({ ...income, growthKind: v })}
           />
-        </td>
-        <td>
-          {income.growthKind === "FIXED" ? (
+        </Field>
+        {income.growthKind === "FIXED" ? (
+          <Field label="Fixed growth %">
             <NumberCell
               value={income.growthPct}
               nullable
               step="0.1"
               onCommit={(v) => save({ ...income, growthPct: v })}
             />
-          ) : (
-            <Dash>—</Dash>
-          )}
-        </td>
-        <td>
+          </Field>
+        ) : null}
+      </DrawerSection>
+      <DrawerSection title="Tax">
+        <Field label="Taxable">
           <BoolCell
             value={income.taxable}
             onCommit={(v) => save({ ...income, taxable: v })}
           />
-        </td>
-        <td>
-          <RemoveCell onConfirm={remove} />
-        </td>
-      </tr>
-      {error ? (
-        <tr>
-          <td colSpan={9}>
-            <Err>{error}</Err>
-          </td>
-        </tr>
-      ) : null}
+        </Field>
+      </DrawerSection>
     </>
   );
 }
 
-export function IncomesTable({ incomes }: { incomes: SerializedPlanIncome[] }) {
+export function IncomesTable({
+  incomes,
+  currency,
+  numberFormat,
+  onOpen,
+}: {
+  incomes: SerializedPlanIncome[];
+  currency: string;
+  numberFormat: NumberFormat;
+  onOpen: (id: string) => void;
+}) {
   const router = useRouter();
   const add = async () => {
-    await createPlanIncome();
+    const id = await createPlanIncome();
     router.refresh();
+    onOpen(id);
   };
+  const span = (i: SerializedPlanIncome) =>
+    `age ${i.startAge ?? "now"}→${i.endAge ?? "end"}`;
 
   return (
     <Panel>
       <Heading>Income</Heading>
-      <Table>
-        <thead>
-          <tr>
-            <th>Label</th>
-            <th>Kind</th>
-            <th>Amount /yr</th>
-            <th>Start age</th>
-            <th>End age</th>
-            <th>Growth</th>
-            <th>Growth %</th>
-            <th>Taxable</th>
-            <th />
-          </tr>
-        </thead>
-        <tbody>
-          {incomes.length === 0 ? (
-            <tr>
-              <td colSpan={9}>
-                <Empty>No income yet.</Empty>
-              </td>
-            </tr>
-          ) : (
-            incomes.map((i) => <IncomeRow key={i.id} income={i} />)
-          )}
-        </tbody>
-      </Table>
+      {incomes.length === 0 ? (
+        <Empty>No income yet.</Empty>
+      ) : (
+        <SummaryList>
+          {incomes.map((i) => (
+            <SummaryRow
+              key={i.id}
+              primary={i.label}
+              secondary={`${formatAmount(currency, i.annualAmount, numberFormat)}/yr · ${span(i)}`}
+              onOpen={() => onOpen(i.id)}
+            />
+          ))}
+        </SummaryList>
+      )}
       <AddRowButton label="Add income" onAdd={add} />
     </Panel>
   );
