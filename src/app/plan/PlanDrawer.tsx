@@ -14,6 +14,13 @@ const Scrim = styled.div<{ $open: boolean }>`
   transition: opacity 0.2s ease;
   z-index: 40;
 `;
+// A native <dialog> (chosen over <aside role="dialog"> to satisfy Biome's
+// useSemanticElements), but deliberately NEVER opened via showModal()/open — it
+// is rendered purely with CSS: `display: flex` overrides the UA `display:none`,
+// and the `$open` transform slides it in/out. Don't add showModal()/the `open`
+// attribute: that would move it to the top layer + add UA backdrop/Esc handling
+// and break this slide animation. Open/close is driven by the `open` prop and
+// our own Esc/scrim handlers.
 const Sheet = styled.dialog<{ $open: boolean }>`
   position: fixed;
   top: 0;
