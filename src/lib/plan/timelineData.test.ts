@@ -1,0 +1,151 @@
+import type {
+  SerializedPlanEvent,
+  SerializedPlanExpense,
+  SerializedPlanIncome,
+  SerializedPlanLiability,
+} from "@/app/plan/serialized";
+import { toTimelineModel } from "./timelineData";
+
+const income = (over: Partial<SerializedPlanIncome>): SerializedPlanIncome => ({
+  id: "i1",
+  label: "Salary",
+  kind: "SALARY",
+  annualAmount: 1000,
+  startAge: null,
+  endAge: null,
+  growthKind: "INFLATION",
+  growthPct: null,
+  taxable: true,
+  ...over,
+});
+const expense = (
+  over: Partial<SerializedPlanExpense>,
+): SerializedPlanExpense => ({
+  id: "e1",
+  label: "Living",
+  category: "FIXED",
+  annualAmount: 1000,
+  startAge: null,
+  endAge: null,
+  inflationLinked: true,
+  ...over,
+});
+const liability = (
+  over: Partial<SerializedPlanLiability>,
+): SerializedPlanLiability => ({
+  id: "l1",
+  label: "Mortgage",
+  openingBalance: 1000,
+  interestPct: 3,
+  monthlyRepayment: 100,
+  endAge: null,
+  ...over,
+});
+const event = (over: Partial<SerializedPlanEvent>): SerializedPlanEvent => ({
+  id: "v1",
+  label: "House",
+  age: 50,
+  direction: "OUTFLOW",
+  amount: 1000,
+  ...over,
+});
+
+const base = {
+  incomes: [],
+  expenses: [],
+  liabilities: [],
+  events: [],
+  minAge: 40,
+  maxAge: 90,
+  retirementAge: 65,
+  statePensionAge: null as number | null,
+};
+
+describe("toTimelineModel", () => {
+  it("resolves null income start/end to the range edges (full-width bar)", () => {
+    const m = toTimelineModel({ ...base, incomes: [income({})] });
+    const bar = m.bars.income[0];
+    expect(bar?.startAge).toBe(40);
+    expect(bar?.endAge).toBe(90);
+    expect(bar?.leftPct).toBe(0);
+    expect(bar?.widthPct).toBe(100);
+    expect(bar?.subKind).toBe("SALARY");
+  });
+
+  it("positions a bounded expense by age fraction", () => {
+    const m = toTimelineModel({
+      ...base,
+      expenses: [expense({ startAge: 50, endAge: 60 })],
+    });
+    const bar = m.bars.expense[0];
+    expect(bar?.leftPct).toBeCloseTo(20); // (50-40)/50
+    expect(bar?.widthPct).toBeCloseTo(20); // (60-50)/50
+  });
+
+  it("spans a liability from minAge to its end age", () => {
+    const m = toTimelineModel({
+      ...base,
+      liabilities: [liability({ endAge: 65 })],
+    });
+    const bar = m.bars.liability[0];
+    expect(bar?.startAge).toBe(40);
+    expect(bar?.endAge).toBe(65);
+    expect(bar?.leftPct).toBe(0);
+    expect(bar?.widthPct).toBeCloseTo(50); // (65-40)/50
+    expect(bar?.subKind).toBeNull();
+  });
+
+  it("clamps out-of-range and inverted spans to widthPct 0", () => {
+    const out = toTimelineModel({
+      ...base,
+      incomes: [income({ startAge: 100, endAge: 120 })],
+    });
+    expect(out.bars.income[0]?.widthPct).toBe(0);
+    expect(out.bars.income[0]?.leftPct).toBe(100);
+
+    const inverted = toTimelineModel({
+      ...base,
+      incomes: [income({ startAge: 80, endAge: 60 })],
+    });
+    expect(inverted.bars.income[0]?.widthPct).toBe(0);
+  });
+
+  it("keeps an out-of-range event at the edge (not dropped), with its real age", () => {
+    const m = toTimelineModel({ ...base, events: [event({ age: 95 })] });
+    expect(m.events).toHaveLength(1);
+    expect(m.events[0]?.age).toBe(95);
+    expect(m.events[0]?.leftPct).toBe(100);
+  });
+
+  it("includes retirement in range, excludes state pension when null", () => {
+    const m = toTimelineModel({ ...base, retirementAge: 65 });
+    expect(m.refLines.map((r) => r.label)).toEqual(["Retirement"]);
+    expect(m.refLines[0]?.leftPct).toBeCloseTo(50); // (65-40)/50
+  });
+
+  it("includes state pension when set and in range; excludes a retirement past maxAge", () => {
+    const m = toTimelineModel({
+      ...base,
+      retirementAge: 99,
+      statePensionAge: 67,
+    });
+    expect(m.refLines.map((r) => r.label)).toEqual(["State pension"]);
+  });
+
+  it("emits 10-year ticks including minAge", () => {
+    const m = toTimelineModel({ ...base, minAge: 40, maxAge: 90 });
+    expect(m.ticks.map((t) => t.age)).toEqual([40, 50, 60, 70, 80, 90]);
+  });
+
+  it("guards a degenerate single-year range (no divide-by-zero)", () => {
+    const m = toTimelineModel({
+      ...base,
+      minAge: 50,
+      maxAge: 50,
+      incomes: [income({})],
+    });
+    expect(m.bars.income[0]?.leftPct).toBe(0);
+    expect(m.bars.income[0]?.widthPct).toBe(0);
+    expect(m.ticks).toEqual([{ age: 50, leftPct: 0 }]);
+  });
+});
