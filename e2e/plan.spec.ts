@@ -153,5 +153,17 @@ test("plan: create, edit assumptions/assets, and the data-loss guard holds", asy
   await assetPanel.getByRole("button", { name: "+ Add asset" }).click();
   await expect(assetPanel.locator("table tbody tr")).toHaveCount(2);
 
+  // Timeline (read-only Gantt): renders the seeded Salary income row + the
+  // retirement reference line. Scope to the Timeline section so "Salary" /
+  // "Retirement" don't collide with the income table / assumptions.
+  const timeline = page.locator("section", { hasText: "Timeline" });
+  await expect(timeline.getByText("Salary")).toBeVisible();
+  await expect(timeline.getByText("Retirement")).toBeVisible();
+
+  // A liability added via the 2a table appears on the timeline too.
+  const liabilityPanel = page.locator("section", { hasText: "Liabilities" });
+  await liabilityPanel.getByRole("button", { name: "+ Add liability" }).click();
+  await expect(timeline.getByText("New liability")).toBeVisible();
+
   await page.screenshot({ path: "test-results/plan-1b.png", fullPage: true });
 });
