@@ -79,7 +79,9 @@ test("plan: create, edit assumptions/assets, and the data-loss guard holds", asy
   const wrapper = drawer.locator("select").first();
   await expect(wrapper).toHaveValue("OTHER");
   await wrapper.selectOption("PENSION");
-  await expect(page.locator(".recharts-legend-wrapper")).toContainText("PENSION");
+  await expect(page.locator(".recharts-legend-wrapper")).toContainText(
+    "PENSION",
+  );
 
   // Data-loss guard inside the drawer: clear the required Value, blur → reverts.
   const valueCell = drawer.locator("input[type='number']").first();
@@ -135,12 +137,18 @@ test("plan: create, edit assumptions/assets, and the data-loss guard holds", asy
   const incomePanel = page.locator("section", { hasText: "Income" });
   await incomePanel.getByRole("button", { name: "+ Add income" }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
-  const incomeLabel = page.getByRole("dialog").locator("input[type='text']").first();
+  const incomeLabel = page
+    .getByRole("dialog")
+    .locator("input[type='text']")
+    .first();
   await expect(incomeLabel).toHaveValue("New income");
   await incomeLabel.fill("Freelance");
   await incomeLabel.blur();
   await expect(incomeLabel).toHaveValue("Freelance");
-  await page.getByRole("dialog").getByRole("button", { name: /^remove$/i }).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: /^remove$/i })
+    .click();
   await page.getByRole("dialog").getByRole("button", { name: /yes/i }).click();
   await expect(page.getByRole("dialog")).not.toBeVisible();
 
