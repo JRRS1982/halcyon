@@ -1,8 +1,9 @@
 "use client";
 
 import { signInWithGoogle } from "@/app/auth/oauth-actions";
-import { signIn } from "@/app/sign-in/actions";
+import { signIn, signInAsDemo } from "@/app/sign-in/actions";
 import { Button } from "@/components/ui/Button";
+import { demoLoginEnabled } from "@/lib/auth/demo";
 import { AuthCard } from "../AuthCard";
 import {
   Alert,
@@ -53,6 +54,15 @@ export function SignInForm({ next, error }: SignInFormProps) {
           Sign in
         </Button>
       </Form>
+
+      {demoLoginEnabled && (
+        <form action={signInAsDemo}>
+          <input type="hidden" name="next" value={next} />
+          <Button type="submit" variant="outline" style={{ width: "100%" }}>
+            Log in as demo (dev)
+          </Button>
+        </form>
+      )}
 
       <Divider>or</Divider>
 
