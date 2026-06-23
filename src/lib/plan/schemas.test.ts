@@ -23,6 +23,7 @@ const validAsset = {
   openingValue: 100000,
   expectedReturnPct: 5,
   annualContribution: 6000,
+  contributionEndAge: null,
   drawdownPriority: 2,
 };
 
