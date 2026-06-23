@@ -2,12 +2,15 @@
 "use client";
 
 import { WRAPPERS } from "@/lib/plan";
+import { type NumberFormat, formatAmount } from "@/lib/settings/currency";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import styled from "styled-components";
 import { NumberCell, SelectCell, TextCell } from "./EditableCell";
-import { AddRowButton, RemoveCell } from "./RowControls";
-import { createPlanAsset, deletePlanAsset, updatePlanAsset } from "./actions";
+import { DrawerSection, Field } from "./PlanDrawer";
+import { AddRowButton } from "./RowControls";
+import { SummaryList, SummaryRow } from "./SummaryRow";
+import { createPlanAsset, updatePlanAsset } from "./actions";
 import type { SerializedPlanAsset } from "./serialized";
 
 const Panel = styled.section`
@@ -15,8 +18,7 @@ const Panel = styled.section`
   border-radius: ${({ theme }) => theme.rounded.sm};
   padding: ${({ theme }) => theme.spacing.lg};
   display: grid;
-  gap: ${({ theme }) => theme.spacing.md};
-  overflow-x: auto;
+  gap: ${({ theme }) => theme.spacing.sm};
 `;
 const Heading = styled.h2`
   font-size: ${({ theme }) => theme.typography.displayLg.size};
@@ -24,40 +26,22 @@ const Heading = styled.h2`
   color: ${({ theme }) => theme.colors.ink};
   margin: 0;
 `;
-const Table = styled.table`
-  width: 100%;
-  border-collapse: collapse;
-  th, td { text-align: left; padding: ${({ theme }) => theme.spacing.sm} ${({ theme }) => theme.spacing.xs}; font-size: 13px; vertical-align: middle; }
-  thead th {
-    font-family: ${({ theme }) => theme.typography.monoCaps.family};
-    font-size: 10px;
-    font-weight: 500;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    color: ${({ theme }) => theme.colors.dim};
-    border-bottom: 1px solid ${({ theme }) => theme.colors.hairline};
-  }
-  tbody tr:hover td { background: ${({ theme }) => theme.colors.canvasSoft}; }
-  input, select { font-variant-numeric: tabular-nums; }
+const Empty = styled.p`
+  color: ${({ theme }) => theme.colors.dim};
+  font-size: 13px;
+  margin: ${({ theme }) => theme.spacing.sm} 0;
 `;
 const Err = styled.p`
   color: ${({ theme }) => theme.colors.negative};
   font-size: 13px;
-  margin: 0;
-`;
-const Empty = styled.span`
-  color: ${({ theme }) => theme.colors.dim};
-  font-size: 13px;
+  margin: 0 ${({ theme }) => theme.spacing.xl} ${({ theme }) => theme.spacing.md};
 `;
 
-function AssetRow({ asset }: { asset: SerializedPlanAsset }) {
+// ── Drawer form ──────────────────────────────────────────────────────────
+export function AssetFields({ asset }: { asset: SerializedPlanAsset }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
 
-  // `asset` is the committed server value (refreshed after each save); each cell
-  // sends the one field it changed, spread over the latest asset. On success we
-  // refresh the route so the server re-runs the engine and the chart + verdict
-  // update; rethrows on failure so the cell reverts to the persisted value.
   const save = async (next: SerializedPlanAsset) => {
     setError(null);
     try {
@@ -68,6 +52,7 @@ function AssetRow({ asset }: { asset: SerializedPlanAsset }) {
         openingValue: next.openingValue,
         expectedReturnPct: next.expectedReturnPct,
         annualContribution: next.annualContribution,
+        contributionEndAge: next.contributionEndAge,
         drawdownPriority: next.drawdownPriority,
       });
       router.refresh();
@@ -77,50 +62,44 @@ function AssetRow({ asset }: { asset: SerializedPlanAsset }) {
     }
   };
 
-  const remove = async () => {
-    setError(null);
-    try {
-      await deletePlanAsset({ id: asset.id });
-      router.refresh();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not remove");
-      throw e;
-    }
-  };
-
   return (
     <>
-      <tr>
-        <td>
+      {error ? <Err>{error}</Err> : null}
+      <DrawerSection title="Basics" defaultOpen>
+        <Field label="Label">
           <TextCell
             value={asset.label}
             onCommit={(v) => save({ ...asset, label: v })}
           />
-        </td>
-        <td>
+        </Field>
+        <Field label="Account type">
           <SelectCell
             value={asset.wrapper}
             options={WRAPPERS}
             onCommit={(v) => save({ ...asset, wrapper: v })}
           />
-        </td>
-        <td>
+        </Field>
+        <Field label="Current value">
           <NumberCell
             value={asset.openingValue}
             onCommit={(v) =>
               save({ ...asset, openingValue: v ?? asset.openingValue })
             }
           />
-        </td>
-        <td>
+        </Field>
+      </DrawerSection>
+      <DrawerSection title="Growth">
+        <Field label="Expected return %">
           <NumberCell
             value={asset.expectedReturnPct}
             nullable
             step="0.1"
             onCommit={(v) => save({ ...asset, expectedReturnPct: v })}
           />
-        </td>
-        <td>
+        </Field>
+      </DrawerSection>
+      <DrawerSection title="Contributions">
+        <Field label="Amount /yr">
           <NumberCell
             value={asset.annualContribution}
             onCommit={(v) =>
@@ -130,64 +109,65 @@ function AssetRow({ asset }: { asset: SerializedPlanAsset }) {
               })
             }
           />
-        </td>
-        <td>
+        </Field>
+        <Field label="Contribute until age (blank = retirement)">
+          <NumberCell
+            value={asset.contributionEndAge}
+            nullable
+            onCommit={(v) => save({ ...asset, contributionEndAge: v })}
+          />
+        </Field>
+      </DrawerSection>
+      <DrawerSection title="Drawdown">
+        <Field label="Draw order">
           <NumberCell
             value={asset.drawdownPriority}
             onCommit={(v) =>
               save({ ...asset, drawdownPriority: v ?? asset.drawdownPriority })
             }
           />
-        </td>
-        <td>
-          <RemoveCell onConfirm={remove} />
-        </td>
-      </tr>
-      {error ? (
-        <tr>
-          <td colSpan={7}>
-            <Err>{error}</Err>
-          </td>
-        </tr>
-      ) : null}
+        </Field>
+      </DrawerSection>
     </>
   );
 }
 
-export function AssetsTable({ assets }: { assets: SerializedPlanAsset[] }) {
+// ── Summary list ─────────────────────────────────────────────────────────
+export function AssetsTable({
+  assets,
+  currency,
+  numberFormat,
+  onOpen,
+}: {
+  assets: SerializedPlanAsset[];
+  currency: string;
+  numberFormat: NumberFormat;
+  onOpen: (id: string) => void;
+}) {
   const router = useRouter();
   const add = async () => {
-    await createPlanAsset();
+    const id = await createPlanAsset();
     router.refresh();
+    onOpen(id);
   };
 
   return (
     <Panel>
       <Heading>Assets</Heading>
-      <Table>
-        <thead>
-          <tr>
-            <th>Label</th>
-            <th>Wrapper</th>
-            <th>Value</th>
-            <th>Return %</th>
-            <th>Contribution /yr</th>
-            <th>Drawdown order</th>
-            <th />
-          </tr>
-        </thead>
-        <tbody>
-          {assets.length === 0 ? (
-            <tr>
-              <td colSpan={7}>
-                <Empty>No assets yet.</Empty>
-              </td>
-            </tr>
-          ) : (
-            assets.map((a) => <AssetRow key={a.id} asset={a} />)
-          )}
-        </tbody>
-      </Table>
+      {assets.length === 0 ? (
+        <Empty>No assets yet.</Empty>
+      ) : (
+        <SummaryList>
+          {assets.map((a) => (
+            <SummaryRow
+              key={a.id}
+              primary={a.label}
+              secondary={`${a.wrapper} · ${formatAmount(currency, a.openingValue, numberFormat)}`}
+              onOpen={() => onOpen(a.id)}
+            />
+          ))}
+        </SummaryList>
+      )}
       <AddRowButton label="Add asset" onAdd={add} />
     </Panel>
   );

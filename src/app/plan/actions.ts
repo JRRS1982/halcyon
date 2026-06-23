@@ -165,6 +165,7 @@ export async function updatePlanAsset(
       openingValue: p.openingValue,
       expectedReturnPct: p.expectedReturnPct,
       annualContribution: p.annualContribution,
+      contributionEndAge: p.contributionEndAge,
       drawdownPriority: p.drawdownPriority,
     },
   });
