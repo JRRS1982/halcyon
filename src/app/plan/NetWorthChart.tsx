@@ -5,7 +5,7 @@ import type { YearProjection } from "@/lib/plan";
 import { toNetWorthChartData, wrappersPresent } from "@/lib/plan/chartData";
 import { type NumberFormat, formatAmount } from "@/lib/settings/currency";
 import {
-  Bar,
+  Area,
   CartesianGrid,
   ComposedChart,
   Legend,
@@ -69,20 +69,30 @@ export function NetWorthChart({
         <Legend wrapperStyle={{ fontSize: 12 }} />
         <ReferenceLine y={0} stroke={theme.colors.hairlineStrong} />
         {wrappers.map((w) => (
-          <Bar
+          <Area
             key={w}
+            type="monotone"
             dataKey={w}
             name={w}
             stackId="nw"
             fill={WRAPPER_COLOURS[w]}
+            fillOpacity={0.18}
+            stroke={WRAPPER_COLOURS[w]}
+            strokeWidth={1}
+            strokeOpacity={0.55}
             isAnimationActive={false}
           />
         ))}
-        <Bar
+        <Area
+          type="monotone"
           dataKey="debt"
           name="Debt"
           stackId="nw"
           fill={DEBT_COLOUR}
+          fillOpacity={0.18}
+          stroke={DEBT_COLOUR}
+          strokeWidth={1}
+          strokeOpacity={0.55}
           isAnimationActive={false}
         />
         <Line

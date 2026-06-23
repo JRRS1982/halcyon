@@ -37,8 +37,18 @@ const Heading = styled.h2`
 const Table = styled.table`
   width: 100%;
   border-collapse: collapse;
-  th, td { text-align: left; padding: ${({ theme }) => theme.spacing.xs}; font-size: 13px; }
-  th { color: ${({ theme }) => theme.colors.dim}; font-weight: 500; }
+  th, td { text-align: left; padding: ${({ theme }) => theme.spacing.sm} ${({ theme }) => theme.spacing.xs}; font-size: 13px; vertical-align: middle; }
+  thead th {
+    font-family: ${({ theme }) => theme.typography.monoCaps.family};
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: ${({ theme }) => theme.colors.dim};
+    border-bottom: 1px solid ${({ theme }) => theme.colors.hairline};
+  }
+  tbody tr:hover td { background: ${({ theme }) => theme.colors.canvasSoft}; }
+  input, select { font-variant-numeric: tabular-nums; }
 `;
 const Err = styled.p`
   color: ${({ theme }) => theme.colors.negative};
