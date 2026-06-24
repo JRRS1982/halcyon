@@ -188,21 +188,56 @@ export function PlanDrawer({
   const sheetRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
 
-  // Esc to close; lock body scroll; move focus into the sheet on open.
+  // `onClose` is recreated on every parent render, so keep it in a ref and depend
+  // the effect only on `open` — otherwise the effect would re-run (and steal
+  // focus back to the trigger) on every re-render while the drawer is open.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  // While open: Esc closes; Tab is trapped within the sheet; body scroll is
+  // locked; focus moves into the sheet. On close, focus returns to the element
+  // that opened the drawer (the summary row).
   useEffect(() => {
     if (!open) return;
+    const sheet = sheetRef.current;
+    const trigger =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") {
+        onCloseRef.current();
+        return;
+      }
+      if (e.key !== "Tab" || !sheet) return;
+      const focusables = sheet.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (!first || !last) return;
+      const active = document.activeElement;
+      if (e.shiftKey && active === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      }
     };
+
     document.addEventListener("keydown", onKey);
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    sheetRef.current?.focus();
+    sheet?.focus();
+
     return () => {
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = prevOverflow;
+      trigger?.focus();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   return (
     <>
@@ -216,6 +251,7 @@ export function PlanDrawer({
         ref={sheetRef}
         $open={open}
         aria-labelledby={titleId}
+        aria-modal={open || undefined}
         aria-hidden={!open}
         tabIndex={-1}
       >

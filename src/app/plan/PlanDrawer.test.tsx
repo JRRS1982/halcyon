@@ -48,6 +48,17 @@ describe("PlanDrawer", () => {
     expect(screen.getByRole("dialog", { name: "ISA" })).toBeInTheDocument();
   });
 
+  it("is a modal dialog and moves focus into the sheet when open", () => {
+    renderWithTheme(
+      <PlanDrawer open title="ISA" onClose={noop} onRemove={noop}>
+        <p>body</p>
+      </PlanDrawer>,
+    );
+    const dialog = screen.getByRole("dialog", { name: "ISA" });
+    expect(dialog).toHaveAttribute("aria-modal", "true");
+    expect(dialog).toHaveFocus();
+  });
+
   it("DrawerSection toggles its body", () => {
     renderWithTheme(
       <DrawerSection title="Growth" defaultOpen={false}>
