@@ -28,7 +28,11 @@ const yr = (age: number, netWorth: number): YearProjection => ({
   shortfall: netWorth < 0,
 });
 
-const proj = (peakAge: number, peak: number, years: YearProjection[]): PlanProjection => ({
+const proj = (
+  peakAge: number,
+  peak: number,
+  years: YearProjection[],
+): PlanProjection => ({
   years,
   verdict: {
     feasible: years.every((y) => !y.shortfall),

@@ -1,5 +1,9 @@
 // src/lib/plan/index.ts
-export { project, projectWithBand, earliestSustainableRetirementAge } from "./project";
+export {
+  project,
+  projectWithBand,
+  earliestSustainableRetirementAge,
+} from "./project";
 export { incomeTax, grossUp, isTaxableOnWithdrawal } from "./tax";
 export { WRAPPERS } from "./types";
 export type {

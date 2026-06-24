@@ -207,16 +207,37 @@ describe("toLiquidAssetsChartData", () => {
 
 describe("toNetWorthBandData", () => {
   it("carries a sorted [low, high] net-worth range alongside the mid composition", () => {
-    const mk = (nw: number) =>
-      [{ age: 40, netWorth: nw, liabilitiesTotal: 0, assets: [{ id: "x", label: "X", wrapper: "GIA", value: nw, contributed: 0, withdrawn: 0 }] } as unknown as YearProjection];
+    const mk = (nw: number) => [
+      {
+        age: 40,
+        netWorth: nw,
+        liabilitiesTotal: 0,
+        assets: [
+          {
+            id: "x",
+            label: "X",
+            wrapper: "GIA",
+            value: nw,
+            contributed: 0,
+            withdrawn: 0,
+          },
+        ],
+      } as unknown as YearProjection,
+    ];
     const rows = toNetWorthBandData(mk(80), mk(100), mk(130));
     expect(rows[0]?.netWorth).toBe(100);
     expect(rows[0]?.nwRange).toEqual([80, 130]);
   });
 
   it("orders the range even if a low pass overtakes a high pass", () => {
-    const mk = (nw: number) =>
-      [{ age: 40, netWorth: nw, liabilitiesTotal: 0, assets: [] } as unknown as YearProjection];
+    const mk = (nw: number) => [
+      {
+        age: 40,
+        netWorth: nw,
+        liabilitiesTotal: 0,
+        assets: [],
+      } as unknown as YearProjection,
+    ];
     const rows = toNetWorthBandData(mk(130), mk(100), mk(80));
     expect(rows[0]?.nwRange).toEqual([80, 130]);
   });
@@ -224,8 +245,23 @@ describe("toNetWorthBandData", () => {
 
 describe("toLiquidAssetsBandData", () => {
   it("carries a [low, high] total range alongside the mid pots", () => {
-    const mk = (v: number) =>
-      [{ age: 40, netWorth: 0, liabilitiesTotal: 0, assets: [{ id: "c", label: "Cash", wrapper: "CASH", value: v, contributed: 0, withdrawn: 0 }] } as unknown as YearProjection];
+    const mk = (v: number) => [
+      {
+        age: 40,
+        netWorth: 0,
+        liabilitiesTotal: 0,
+        assets: [
+          {
+            id: "c",
+            label: "Cash",
+            wrapper: "CASH",
+            value: v,
+            contributed: 0,
+            withdrawn: 0,
+          },
+        ],
+      } as unknown as YearProjection,
+    ];
     const rows = toLiquidAssetsBandData(mk(20), mk(50), mk(70));
     expect(rows[0]?.total).toBe(50);
     expect(rows[0]?.totalRange).toEqual([20, 70]);
