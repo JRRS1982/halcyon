@@ -51,8 +51,10 @@ returnSpreadPct  Decimal @default(0) @db.Decimal(5, 2)
 - **DB default `0`** → the band is **opt-in**. A `±0` spread makes all three
   passes identical, collapsing the cone to today's single line, so no existing
   plan's chart changes silently on deploy.
-- The **demo seed** (`prisma/seed.ts`) sets `returnSpreadPct: 2.0` so the feature
-  is visibly showcased on the demo account.
+- The life-plan is **not** seeded in `prisma/seed.ts`; it is created on first
+  `/plan` visit by the `createPlan` action. To showcase the band out-of-the-box,
+  `createPlan` sets `returnSpreadPct: 2` on **new** plans. Existing plans keep the
+  DB default `0` until the owner edits the field (no silent change).
 - Migration authored container-only (`make migrate-create
   name=add_return_spread`), then applied to `halcyon_test` before `pnpm test:int`.
 
@@ -161,14 +163,14 @@ covered by e2e + a live browser pass, per the standing convention.
 
 ## Files touched (anticipated)
 
-- `prisma/schema.prisma` + new migration; `prisma/seed.ts`
+- `prisma/schema.prisma` + new migration
 - `src/lib/plan/types.ts` (PlanInput, BandedProjection, BandedVerdict)
 - `src/lib/plan/project.ts` (returnDeltaPct param, projectWithBand)
 - `src/lib/plan/toPlanInput.ts` (read spread; band-aware toTodaysMoney)
 - `src/lib/plan/chartData.ts` (+ test) — band transforms
 - `src/lib/plan/schemas.ts` (+ test) — returnSpreadPct
 - `src/app/plan/page.tsx`, `serialized.ts`
-- `src/app/plan/actions.ts` (updatePlanAssumptions)
+- `src/app/plan/actions.ts` (updatePlanAssumptions + createPlan sets spread 2 on new plans)
 - `src/app/plan/AssumptionsPanel.tsx`, `VerdictBanner.tsx`
 - `src/app/plan/NetWorthChart.tsx`, `LiquidAssetsChart.tsx`, `PlanView.tsx`
 - `e2e/plan.spec.ts`
