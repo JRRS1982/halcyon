@@ -378,6 +378,7 @@ model Plan {
   planToAge          Int      @default(95)
   inflationPct       Decimal  @default(2.5) @db.Decimal(5, 2)
   defaultReturnPct   Decimal  @default(5) @db.Decimal(5, 2)
+  returnSpreadPct    Decimal  @default(0) @db.Decimal(5, 2)
   blendedTaxRatePct  Decimal  @default(20) @db.Decimal(5, 2)
   statePensionAge    Int?
   statePensionAnnual Decimal? @db.Decimal(12, 2)

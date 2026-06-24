@@ -20,6 +20,7 @@ const basePlan = (over: Partial<PlanWithChildren> = {}): PlanWithChildren => ({
   planToAge: 90,
   inflationPct: d(2.5),
   defaultReturnPct: d(5),
+  returnSpreadPct: d(0),
   blendedTaxRatePct: d(20),
   statePensionAge: 67,
   statePensionAnnual: d(11000),
