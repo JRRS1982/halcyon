@@ -35,6 +35,23 @@ export function wrappersPresent(rows: NetWorthDatum[]): Wrapper[] {
   return WRAPPERS.filter((w) => rows.some((r) => (r[w] ?? 0) !== 0));
 }
 
+export type NetWorthBandDatum = NetWorthDatum & { nwRange: [number, number] };
+
+// mid pass supplies the stacked-wrapper composition + the netWorth line; low/high
+// supply the [min, max] net-worth range for the shaded cone. Range is ordered so a
+// crossing (rare, only with mixed-sign assets) never produces an inverted band.
+export function toNetWorthBandData(
+  low: YearProjection[],
+  mid: YearProjection[],
+  high: YearProjection[],
+): NetWorthBandDatum[] {
+  return toNetWorthChartData(mid).map((row, i) => {
+    const lo = low[i]?.netWorth ?? row.netWorth;
+    const hi = high[i]?.netWorth ?? row.netWorth;
+    return { ...row, nwRange: [Math.min(lo, hi), Math.max(lo, hi)] };
+  });
+}
+
 // ── Cash-flow chart ──────────────────────────────────────────────────────
 // Diverging money-in / money-out. Income kinds + WITHDRAWAL are positive;
 // expense categories + TAX + REPAYMENT + CONTRIBUTION are negative. `net` is
@@ -162,4 +179,25 @@ export function toLiquidAssetsChartData(
 
 export function liquidWrappersPresent(rows: LiquidAssetsDatum[]): Wrapper[] {
   return LIQUID_WRAPPERS.filter((w) => rows.some((r) => (r[w] ?? 0) !== 0));
+}
+
+export type LiquidBandDatum = LiquidAssetsDatum & {
+  totalRange: [number, number];
+};
+
+export function toLiquidAssetsBandData(
+  low: YearProjection[],
+  mid: YearProjection[],
+  high: YearProjection[],
+): LiquidBandDatum[] {
+  const total = (years: YearProjection[], i: number): number =>
+    years[i]?.assets
+      .filter((a) => LIQUID_WRAPPERS.includes(a.wrapper))
+      .reduce((s, a) => s + a.value, 0) ?? 0;
+
+  return toLiquidAssetsChartData(mid).map((row, i) => {
+    const lo = total(low, i);
+    const hi = total(high, i);
+    return { ...row, totalRange: [Math.min(lo, hi), Math.max(lo, hi)] };
+  });
 }
