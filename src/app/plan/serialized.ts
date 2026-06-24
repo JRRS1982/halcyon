@@ -8,6 +8,7 @@ export type SerializedPlanAssumptions = {
   planToAge: number;
   inflationPct: number;
   defaultReturnPct: number;
+  returnSpreadPct: number;
   blendedTaxRatePct: number;
   statePensionAge: number | null;
   statePensionAnnual: number | null;

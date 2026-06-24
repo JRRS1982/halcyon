@@ -11,6 +11,7 @@ const validAssumptions = {
   planToAge: 95,
   inflationPct: 2.5,
   defaultReturnPct: 5,
+  returnSpreadPct: 2,
   blendedTaxRatePct: 20,
   statePensionAge: 67,
   statePensionAnnual: 11500,
@@ -62,6 +63,20 @@ describe("updatePlanAssumptionsSchema", () => {
       updatePlanAssumptionsSchema.parse({
         ...validAssumptions,
         dateOfBirth: "01/06/1986",
+      }),
+    ).toThrow();
+  });
+  it("rejects an out-of-range returnSpreadPct", () => {
+    expect(() =>
+      updatePlanAssumptionsSchema.parse({
+        ...validAssumptions,
+        returnSpreadPct: 11,
+      }),
+    ).toThrow();
+    expect(() =>
+      updatePlanAssumptionsSchema.parse({
+        ...validAssumptions,
+        returnSpreadPct: -1,
       }),
     ).toThrow();
   });

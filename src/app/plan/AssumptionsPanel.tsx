@@ -57,6 +57,7 @@ export function AssumptionsPanel({
         planToAge: next.planToAge,
         inflationPct: next.inflationPct,
         defaultReturnPct: next.defaultReturnPct,
+        returnSpreadPct: next.returnSpreadPct,
         blendedTaxRatePct: next.blendedTaxRatePct,
         statePensionAge: next.statePensionAge,
         statePensionAnnual: next.statePensionAnnual,
@@ -113,6 +114,16 @@ export function AssumptionsPanel({
             step="0.1"
             onCommit={(v) =>
               save({ ...a, defaultReturnPct: v ?? a.defaultReturnPct })
+            }
+          />
+        </Field>
+        <Field>
+          Return spread ±%
+          <NumberCell
+            value={a.returnSpreadPct}
+            step="0.1"
+            onCommit={(v) =>
+              save({ ...a, returnSpreadPct: v ?? a.returnSpreadPct })
             }
           />
         </Field>
