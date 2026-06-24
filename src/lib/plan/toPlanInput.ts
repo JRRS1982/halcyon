@@ -1,5 +1,11 @@
 // src/lib/plan/toPlanInput.ts
-import type { Growth, PlanInput, PlanProjection } from "@/lib/plan";
+import type {
+  BandedProjection,
+  BandedVerdict,
+  Growth,
+  PlanInput,
+  PlanProjection,
+} from "@/lib/plan";
 import type {
   Plan,
   PlanAsset,
@@ -50,6 +56,7 @@ export function toPlanInput(
     planToAge: plan.planToAge,
     inflationPct: num(plan.inflationPct),
     defaultReturnPct: num(plan.defaultReturnPct),
+    returnSpreadPct: num(plan.returnSpreadPct),
     taxRatePct: num(plan.blendedTaxRatePct),
     statePension,
     assets: plan.assets.map((a) => ({
@@ -98,6 +105,36 @@ export function toPlanInput(
       amount: num(ev.amount),
     })),
   };
+}
+
+// Deflates each pass to today's money, then assembles the BandedVerdict ranges
+// from the *deflated* peaks (each pass peaks at its own age, and deflation is
+// age-dependent — so the range must be taken after deflation, never by deflating
+// a pre-computed nominal range). The headline verdict is anchored on mid.
+export function toTodaysMoneyBand(
+  band: { low: PlanProjection; mid: PlanProjection; high: PlanProjection },
+  inflationPct: number,
+  currentAge: number,
+): BandedProjection {
+  const low = toTodaysMoney(band.low, inflationPct, currentAge);
+  const mid = toTodaysMoney(band.mid, inflationPct, currentAge);
+  const high = toTodaysMoney(band.high, inflationPct, currentAge);
+
+  const peaks = [low, mid, high].map((p) => p.verdict.peakNetWorth.value);
+  const shortfalls = [low, mid, high]
+    .map((p) => p.verdict.firstShortfallAge)
+    .filter((a): a is number => a !== null);
+
+  const verdict: BandedVerdict = {
+    ...mid.verdict,
+    peakNetWorthRange: [Math.min(...peaks), Math.max(...peaks)],
+    firstShortfallAgeRange:
+      shortfalls.length > 0
+        ? [Math.min(...shortfalls), Math.max(...shortfalls)]
+        : null,
+  };
+
+  return { low: low.years, mid: mid.years, high: high.years, verdict };
 }
 
 // Engine output is nominal (future £). Deflate to today's money for display.

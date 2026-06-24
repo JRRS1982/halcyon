@@ -91,6 +91,7 @@ export interface PlanInput {
   planToAge: number;
   inflationPct: number;
   defaultReturnPct: number;
+  returnSpreadPct?: number; // ± shift applied to every asset's return for the low/high passes; default 0
   taxRatePct: number; // v1 blended tax rate
   statePension?: { startAge: number; annualAmount: number };
   assets: AssetInput[];
@@ -145,4 +146,18 @@ export interface Verdict {
 export interface PlanProjection {
   years: YearProjection[];
   verdict: Verdict;
+}
+
+export interface BandedVerdict extends Verdict {
+  // [min, max] across the three passes. firstShortfallAgeRange is null only when
+  // no pass ever shorts. peakNetWorthRange is in today's money (assembled post-deflation).
+  firstShortfallAgeRange: [number, number] | null;
+  peakNetWorthRange: [number, number];
+}
+
+export interface BandedProjection {
+  low: YearProjection[];
+  mid: YearProjection[];
+  high: YearProjection[];
+  verdict: BandedVerdict;
 }

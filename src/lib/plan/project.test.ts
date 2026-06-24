@@ -1,5 +1,9 @@
 // src/lib/plan/project.test.ts
-import { earliestSustainableRetirementAge, project } from "./project";
+import {
+  earliestSustainableRetirementAge,
+  project,
+  projectWithBand,
+} from "./project";
 import type { PlanInput, PlanProjection, YearProjection } from "./types";
 
 const at = (p: PlanProjection, i: number): YearProjection => {
@@ -509,5 +513,53 @@ describe("no-asset cash home", () => {
     );
     expect(at(p, 1).netWorth).toBe(50000);
     expect(wrapperTotal(at(p, 1), "CASH")).toBe(50000);
+  });
+});
+
+describe("projectWithBand", () => {
+  const banded = (over: Partial<PlanInput> = {}) =>
+    base({
+      planToAge: 60,
+      defaultReturnPct: 5,
+      returnSpreadPct: 2,
+      assets: [
+        {
+          id: "a",
+          label: "GIA",
+          wrapper: "GIA",
+          openingValue: 100000,
+          drawdownPriority: 1,
+        },
+      ],
+      ...over,
+    });
+
+  it("mid pass equals plain project()", () => {
+    const input = banded();
+    const b = projectWithBand(input);
+    expect(b.mid.years).toEqual(project(input).years);
+  });
+
+  it("high pass beats mid beats low on net worth every year", () => {
+    const b = projectWithBand(banded());
+    for (let i = 0; i < b.mid.years.length; i++) {
+      const lo = at(b.low, i).netWorth;
+      const mid = at(b.mid, i).netWorth;
+      const hi = at(b.high, i).netWorth;
+      expect(lo).toBeLessThanOrEqual(mid);
+      expect(mid).toBeLessThanOrEqual(hi);
+    }
+  });
+
+  it("collapses to three identical passes when spread is 0", () => {
+    const b = projectWithBand(banded({ returnSpreadPct: 0 }));
+    expect(b.low.years).toEqual(b.mid.years);
+    expect(b.high.years).toEqual(b.mid.years);
+  });
+
+  it("treats absent spread as 0", () => {
+    const input = banded({ returnSpreadPct: undefined });
+    const b = projectWithBand(input);
+    expect(b.low.years).toEqual(b.mid.years);
   });
 });

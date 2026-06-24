@@ -112,6 +112,7 @@ export async function createPlan(input: {
         userId,
         dateOfBirth: new Date(dateOfBirth),
         retirementAge,
+        returnSpreadPct: 2,
         statePensionAge: 67,
         // UK full new State Pension (approx 2024/25); user edits this in Phase 1b.
         statePensionAnnual: 11500,
@@ -139,6 +140,7 @@ export async function updatePlanAssumptions(
       planToAge: p.planToAge,
       inflationPct: p.inflationPct,
       defaultReturnPct: p.defaultReturnPct,
+      returnSpreadPct: p.returnSpreadPct,
       blendedTaxRatePct: p.blendedTaxRatePct,
       statePensionAge: p.statePensionAge,
       statePensionAnnual: p.statePensionAnnual,

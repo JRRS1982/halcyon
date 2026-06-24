@@ -43,6 +43,7 @@ describe("plan update actions (integration)", () => {
       planToAge: 100,
       inflationPct: 3,
       defaultReturnPct: 6,
+      returnSpreadPct: 3,
       blendedTaxRatePct: 25,
       statePensionAge: 68,
       statePensionAnnual: 12000,
@@ -53,6 +54,7 @@ describe("plan update actions (integration)", () => {
     expect(after.retirementAge).toBe(60);
     expect(after.planToAge).toBe(100);
     expect(Number(after.defaultReturnPct)).toBe(6);
+    expect(Number(after.returnSpreadPct)).toBe(3);
   });
 
   it("updatePlanAsset sets the wrapper + return for the owner", async () => {

@@ -101,6 +101,13 @@ test("plan: create, edit assumptions/assets, and the data-loss guard holds", asy
   await expect(retirementAge).toHaveValue("60");
   await expect(page.getByRole("heading", { name: "Your plan" })).toBeVisible();
 
+  // Return spread round-trips: set to 3, blur → persists after router.refresh().
+  const returnSpread = page.getByLabel(/Return spread/i);
+  await returnSpread.fill("3");
+  await returnSpread.blur();
+  await expect(returnSpread).toHaveValue("3");
+  await expect(page.getByRole("heading", { name: "Your plan" })).toBeVisible();
+
   // View switcher: Net worth (default) → Cash flow → Liquid assets.
   // Seeded plan has a SALARY income (cash-flow income bar) and a PENSION pot
   // (after the wrapper edit above), so each view has a distinctive legend entry.

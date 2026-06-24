@@ -1,6 +1,6 @@
 // src/app/plan/page.tsx
-import { project } from "@/lib/plan";
-import { toPlanInput, toTodaysMoney } from "@/lib/plan/toPlanInput";
+import { projectWithBand } from "@/lib/plan";
+import { toPlanInput, toTodaysMoneyBand } from "@/lib/plan/toPlanInput";
 import { getCurrentUserSettings } from "@/lib/settings/server";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
@@ -25,8 +25,8 @@ export default async function PlanPage() {
 
   const asOfYear = new Date().getUTCFullYear();
   const input = toPlanInput(plan, asOfYear);
-  const projection = toTodaysMoney(
-    project(input),
+  const band = toTodaysMoneyBand(
+    projectWithBand(input),
     input.inflationPct,
     input.currentAge,
   );
@@ -39,6 +39,7 @@ export default async function PlanPage() {
       planToAge: plan.planToAge,
       inflationPct: Number(plan.inflationPct),
       defaultReturnPct: Number(plan.defaultReturnPct),
+      returnSpreadPct: Number(plan.returnSpreadPct),
       blendedTaxRatePct: Number(plan.blendedTaxRatePct),
       statePensionAge: plan.statePensionAge,
       statePensionAnnual:
@@ -96,8 +97,7 @@ export default async function PlanPage() {
 
   return (
     <PlanView
-      years={projection.years}
-      verdict={projection.verdict}
+      band={band}
       plan={serialized}
       currency={currency}
       numberFormat={numberFormat}

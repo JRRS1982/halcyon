@@ -1,7 +1,7 @@
 // src/app/plan/PlanView.tsx
 "use client";
 
-import type { Verdict, YearProjection } from "@/lib/plan";
+import type { BandedProjection } from "@/lib/plan";
 import type { NumberFormat } from "@/lib/settings/currency";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -42,14 +42,12 @@ const Title = styled.h1`
 `;
 
 export function PlanView({
-  years,
-  verdict,
+  band,
   plan,
   currency,
   numberFormat,
 }: {
-  years: YearProjection[];
-  verdict: Verdict;
+  band: BandedProjection;
   plan: SerializedPlan;
   currency: string;
   numberFormat: NumberFormat;
@@ -118,12 +116,14 @@ export function PlanView({
     <Shell>
       <Title>Your plan</Title>
       <VerdictBanner
-        verdict={verdict}
+        verdict={band.verdict}
         currency={currency}
         numberFormat={numberFormat}
       />
       <ChartPanel
-        years={years}
+        low={band.low}
+        mid={band.mid}
+        high={band.high}
         currency={currency}
         numberFormat={numberFormat}
       />
@@ -134,8 +134,8 @@ export function PlanView({
         events={plan.events}
         retirementAge={plan.assumptions.retirementAge}
         statePensionAge={plan.assumptions.statePensionAge}
-        minAge={years[0]?.age ?? 0}
-        maxAge={years[years.length - 1]?.age ?? 0}
+        minAge={band.mid[0]?.age ?? 0}
+        maxAge={band.mid[band.mid.length - 1]?.age ?? 0}
       />
       <AssumptionsPanel assumptions={plan.assumptions} />
       <AssetsTable
