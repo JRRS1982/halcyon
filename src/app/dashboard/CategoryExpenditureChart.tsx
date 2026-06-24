@@ -1,6 +1,7 @@
 "use client";
 
 import { ChartLegend } from "@/app/dashboard/ChartLegend";
+import { padAxisMax, padAxisMin } from "@/lib/dashboard/axis";
 import {
   type NumberFormat,
   formatAmount,
@@ -64,6 +65,7 @@ export function CategoryExpenditureChart({
           tickLine={false}
           axisLine={false}
           tickFormatter={tick}
+          domain={[padAxisMin, padAxisMax]}
         />
         <Tooltip
           formatter={(value, name) => [

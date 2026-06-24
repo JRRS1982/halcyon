@@ -1,6 +1,7 @@
 "use client";
 
 import { ChartLegend } from "@/app/dashboard/ChartLegend";
+import { padAxisMax, padAxisMin } from "@/lib/dashboard/axis";
 import type { ValueAvgPoint } from "@/lib/dashboard/series";
 import {
   type NumberFormat,
@@ -56,6 +57,7 @@ export function BalanceCategoryChart({
           tickLine={false}
           axisLine={false}
           tickFormatter={tick}
+          domain={[padAxisMin, padAxisMax]}
         />
         <Tooltip
           formatter={(value, name) => [
