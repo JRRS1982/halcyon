@@ -3,6 +3,8 @@
 
 import { type TimelineBar, toTimelineModel } from "@/lib/plan/timelineData";
 import styled, { useTheme } from "styled-components";
+import { PlanCard } from "./PlanCard";
+import { PLOT_LEFT_INSET, PLOT_RIGHT_INSET } from "./axisGeometry";
 import { DEBT_COLOUR, INCOME_COLOURS, OUTFLOW_COLOURS } from "./colours";
 import type {
   SerializedPlanEvent,
@@ -20,14 +22,9 @@ const OUTFLOW = OUTFLOW_COLOURS as Record<string, string>;
 
 // Width of the left label gutter — single source so the bar tracks and the
 // reference-line overlay share one coordinate space and stay aligned.
-const GUTTER = "140px";
+const GUTTER = `${PLOT_LEFT_INSET}px`;
 
-const Panel = styled.section`
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  padding: ${({ theme }) => theme.spacing.lg};
-  display: grid;
-  gap: ${({ theme }) => theme.spacing.md};
+const Panel = styled(PlanCard)`
   overflow-x: auto;
 `;
 const Heading = styled.h2`
@@ -45,6 +42,7 @@ const Rows = styled.div`
   grid-template-columns: ${GUTTER} 1fr;
   align-items: center;
   row-gap: ${({ theme }) => theme.spacing.xs};
+  padding-right: ${PLOT_RIGHT_INSET}px;
 `;
 const GroupLabel = styled.div`
   grid-column: 1 / -1;
@@ -84,7 +82,7 @@ const Marker = styled.div<{ $inflow: boolean }>`
 const Overlay = styled.div`
   position: absolute;
   left: ${GUTTER};
-  right: 0;
+  right: ${PLOT_RIGHT_INSET}px;
   top: 0;
   bottom: 0;
   pointer-events: none;

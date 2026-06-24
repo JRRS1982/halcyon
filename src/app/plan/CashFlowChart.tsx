@@ -21,6 +21,7 @@ import {
   YAxis,
 } from "recharts";
 import { useTheme } from "styled-components";
+import { PLOT_LEFT_INSET, PLOT_RIGHT_INSET } from "./axisGeometry";
 import { makeAmountTick } from "./chartFormat";
 import { INCOME_COLOURS, NET_WORTH_COLOUR, OUTFLOW_COLOURS } from "./colours";
 
@@ -66,7 +67,7 @@ export function CashFlowChart({
       <ComposedChart
         data={data}
         stackOffset="sign"
-        margin={{ top: 16, right: 16, bottom: 0, left: 8 }}
+        margin={{ top: 16, right: PLOT_RIGHT_INSET, bottom: 0, left: 8 }}
       >
         <CartesianGrid stroke={theme.colors.hairline} vertical={false} />
         <XAxis
@@ -76,7 +77,7 @@ export function CashFlowChart({
           axisLine={{ stroke: theme.colors.hairline }}
         />
         <YAxis
-          width={64}
+          width={PLOT_LEFT_INSET - 8}
           tick={{ fontSize: 11, fill: theme.colors.body }}
           tickLine={false}
           axisLine={false}

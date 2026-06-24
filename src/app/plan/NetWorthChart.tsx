@@ -17,6 +17,7 @@ import {
   YAxis,
 } from "recharts";
 import { useTheme } from "styled-components";
+import { PLOT_LEFT_INSET, PLOT_RIGHT_INSET } from "./axisGeometry";
 import { makeAmountTick } from "./chartFormat";
 import { DEBT_COLOUR, NET_WORTH_COLOUR, WRAPPER_COLOURS } from "./colours";
 
@@ -43,7 +44,7 @@ export function NetWorthChart({
     <ResponsiveContainer width="100%" height={360}>
       <ComposedChart
         data={data}
-        margin={{ top: 16, right: 16, bottom: 0, left: 8 }}
+        margin={{ top: 16, right: PLOT_RIGHT_INSET, bottom: 0, left: 8 }}
       >
         <CartesianGrid stroke={theme.colors.hairline} vertical={false} />
         <XAxis
@@ -53,7 +54,7 @@ export function NetWorthChart({
           axisLine={{ stroke: theme.colors.hairline }}
         />
         <YAxis
-          width={64}
+          width={PLOT_LEFT_INSET - 8}
           tick={{ fontSize: 11, fill: theme.colors.body }}
           tickLine={false}
           axisLine={false}
