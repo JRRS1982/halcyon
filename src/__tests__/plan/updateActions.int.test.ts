@@ -65,6 +65,7 @@ describe("plan update actions (integration)", () => {
       openingValue: 2000,
       expectedReturnPct: 5,
       annualContribution: 100,
+      contributionEndAge: null,
       drawdownPriority: 3,
     });
     const after = await prisma.planAsset.findUniqueOrThrow({
@@ -106,6 +107,7 @@ describe("plan update actions (integration)", () => {
         openingValue: 1,
         expectedReturnPct: null,
         annualContribution: 0,
+        contributionEndAge: null,
         drawdownPriority: 0,
       }),
     ).rejects.toThrow();

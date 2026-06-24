@@ -1,9 +1,10 @@
 import { expect, signIn, test } from "./_helpers/fixtures";
 
-// Phase 1b /plan editing loop, end-to-end through the browser:
+// Phase 2c /plan editing loop, end-to-end through the browser:
 // create from seeded data → render chart + verdict + editors → edit an asset
 // wrapper and an assumption (save-on-change → revalidate) → and the data-loss
 // guard: clearing a required number field must revert, not persist 0.
+// CRUD (add/edit/remove) driven through the detail drawer.
 test("plan: create, edit assumptions/assets, and the data-loss guard holds", async ({
   page,
   db,
@@ -68,31 +69,32 @@ test("plan: create, edit assumptions/assets, and the data-loss guard holds", asy
   // Seeded asset is wrapper OTHER, so the chart's only asset segment is OTHER.
   await expect(page.locator(".recharts-legend-wrapper")).toContainText("OTHER");
 
-  // The seeded asset row (only table on the page — no liabilities seeded).
-  const assetRow = page.locator("table tbody tr").first();
-  const valueCell = assetRow.locator("input[type='number']").first();
-  await expect(valueCell).toHaveValue("100000");
+  // Open the seeded asset's drawer (summary row → dialog).
+  const assetPanel = page.locator("section", { hasText: "Assets" });
+  await assetPanel.getByRole("button", { name: /SIPP/ }).click();
+  const drawer = page.getByRole("dialog");
+  await expect(drawer).toBeVisible();
 
-  // Edit the wrapper OTHER → PENSION; it should stick after the server round-trip.
-  const wrapper = assetRow.locator("select");
+  // Change the wrapper OTHER → PENSION inside the drawer; chart legend recolours.
+  const wrapper = drawer.locator("select").first();
   await expect(wrapper).toHaveValue("OTHER");
   await wrapper.selectOption("PENSION");
-  await expect(wrapper).toHaveValue("PENSION");
-  // The edit must re-render the chart: its asset segment recolours OTHER → PENSION.
   await expect(page.locator(".recharts-legend-wrapper")).toContainText(
     "PENSION",
   );
-  await expect(page.locator(".recharts-legend-wrapper")).not.toContainText(
-    "OTHER",
-  );
 
-  // Data-loss guard: clear the required Value field and blur → it must revert
-  // to the persisted value, NOT save 0.
+  // Data-loss guard inside the drawer: clear the required Value, blur → reverts.
+  const valueCell = drawer.locator("input[type='number']").first();
+  await expect(valueCell).toHaveValue("100000");
   await valueCell.fill("");
   await valueCell.blur();
   await expect(valueCell).toHaveValue("100000");
 
-  // Edit an assumption (save-on-change → revalidate, page still renders).
+  // Close the drawer (Escape).
+  await page.keyboard.press("Escape");
+  await expect(drawer).not.toBeVisible();
+
+  // Edit an assumption (still inline, save-on-blur → revalidate, page renders).
   const retirementAge = page.getByLabel(/Retirement age/i);
   await retirementAge.fill("60");
   await retirementAge.blur();
@@ -130,28 +132,25 @@ test("plan: create, edit assumptions/assets, and the data-loss guard holds", asy
     fullPage: true,
   });
 
-  // CRUD: add an income, edit it, then confirm-remove it.
-  // (The plan already has one seeded "Salary" income from the financial period;
-  //  the new row appends at the end, so we use .last() to target it.)
+  // CRUD: add an income → its drawer opens ready to edit; edit the label;
+  // confirm-remove closes the drawer.
   const incomePanel = page.locator("section", { hasText: "Income" });
   await incomePanel.getByRole("button", { name: "+ Add income" }).click();
-  const incomeRow = incomePanel.locator("table tbody tr").last();
-  const incomeLabel = incomeRow.locator("input[type='text']").first();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  const incomeLabel = page
+    .getByRole("dialog")
+    .locator("input[type='text']")
+    .first();
   await expect(incomeLabel).toHaveValue("New income");
   await incomeLabel.fill("Freelance");
   await incomeLabel.blur();
   await expect(incomeLabel).toHaveValue("Freelance");
-
-  // Confirm-remove the newly added row; seeded "Salary" row remains.
-  await incomeRow.getByRole("button", { name: /^remove$/i }).click();
-  await incomeRow.getByRole("button", { name: /yes/i }).click();
-  // One row remains (the seeded Salary income).
-  await expect(incomePanel.locator("table tbody tr")).toHaveCount(1);
-
-  // Add then remove an asset (Assets panel always present from the seeded SIPP).
-  const assetPanel = page.locator("section", { hasText: "Assets" });
-  await assetPanel.getByRole("button", { name: "+ Add asset" }).click();
-  await expect(assetPanel.locator("table tbody tr")).toHaveCount(2);
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: /^remove$/i })
+    .click();
+  await page.getByRole("dialog").getByRole("button", { name: /yes/i }).click();
+  await expect(page.getByRole("dialog")).not.toBeVisible();
 
   // Timeline (read-only Gantt): renders the seeded Salary income row + the
   // retirement reference line. Scope to the Timeline section so "Salary" /
@@ -160,7 +159,7 @@ test("plan: create, edit assumptions/assets, and the data-loss guard holds", asy
   await expect(timeline.getByText("Salary")).toBeVisible();
   await expect(timeline.getByText("Retirement")).toBeVisible();
 
-  // A liability added via the 2a table appears on the timeline too.
+  // A liability added via the add button appears on the timeline too.
   const liabilityPanel = page.locator("section", { hasText: "Liabilities" });
   await liabilityPanel.getByRole("button", { name: "+ Add liability" }).click();
   await expect(timeline.getByText("New liability")).toBeVisible();

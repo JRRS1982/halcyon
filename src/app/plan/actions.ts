@@ -165,6 +165,7 @@ export async function updatePlanAsset(
       openingValue: p.openingValue,
       expectedReturnPct: p.expectedReturnPct,
       annualContribution: p.annualContribution,
+      contributionEndAge: p.contributionEndAge,
       drawdownPriority: p.drawdownPriority,
     },
   });
@@ -204,14 +205,14 @@ async function requirePrimaryPlan(userId: string) {
   return plan;
 }
 
-export async function createPlanAsset(): Promise<void> {
+export async function createPlanAsset(): Promise<string> {
   const userId = await requireUserId();
   const plan = await requirePrimaryPlan(userId);
   const max = await prisma.planAsset.aggregate({
     where: { planId: plan.id, deletedAt: null },
     _max: { sortOrder: true },
   });
-  await prisma.planAsset.create({
+  const row = await prisma.planAsset.create({
     data: {
       planId: plan.id,
       label: "New asset",
@@ -223,16 +224,17 @@ export async function createPlanAsset(): Promise<void> {
     },
   });
   revalidatePath("/plan");
+  return row.id;
 }
 
-export async function createPlanLiability(): Promise<void> {
+export async function createPlanLiability(): Promise<string> {
   const userId = await requireUserId();
   const plan = await requirePrimaryPlan(userId);
   const max = await prisma.planLiability.aggregate({
     where: { planId: plan.id, deletedAt: null },
     _max: { sortOrder: true },
   });
-  await prisma.planLiability.create({
+  const row = await prisma.planLiability.create({
     data: {
       planId: plan.id,
       label: "New liability",
@@ -243,16 +245,17 @@ export async function createPlanLiability(): Promise<void> {
     },
   });
   revalidatePath("/plan");
+  return row.id;
 }
 
-export async function createPlanIncome(): Promise<void> {
+export async function createPlanIncome(): Promise<string> {
   const userId = await requireUserId();
   const plan = await requirePrimaryPlan(userId);
   const max = await prisma.planIncome.aggregate({
     where: { planId: plan.id, deletedAt: null },
     _max: { sortOrder: true },
   });
-  await prisma.planIncome.create({
+  const row = await prisma.planIncome.create({
     data: {
       planId: plan.id,
       label: "New income",
@@ -264,16 +267,17 @@ export async function createPlanIncome(): Promise<void> {
     },
   });
   revalidatePath("/plan");
+  return row.id;
 }
 
-export async function createPlanExpense(): Promise<void> {
+export async function createPlanExpense(): Promise<string> {
   const userId = await requireUserId();
   const plan = await requirePrimaryPlan(userId);
   const max = await prisma.planExpense.aggregate({
     where: { planId: plan.id, deletedAt: null },
     _max: { sortOrder: true },
   });
-  await prisma.planExpense.create({
+  const row = await prisma.planExpense.create({
     data: {
       planId: plan.id,
       label: "New expense",
@@ -284,16 +288,17 @@ export async function createPlanExpense(): Promise<void> {
     },
   });
   revalidatePath("/plan");
+  return row.id;
 }
 
-export async function createPlanEvent(): Promise<void> {
+export async function createPlanEvent(): Promise<string> {
   const userId = await requireUserId();
   const plan = await requirePrimaryPlan(userId);
   const max = await prisma.planEvent.aggregate({
     where: { planId: plan.id, deletedAt: null },
     _max: { sortOrder: true },
   });
-  await prisma.planEvent.create({
+  const row = await prisma.planEvent.create({
     data: {
       planId: plan.id,
       label: "New event",
@@ -304,6 +309,7 @@ export async function createPlanEvent(): Promise<void> {
     },
   });
   revalidatePath("/plan");
+  return row.id;
 }
 
 export async function deletePlanAsset(input: { id: string }): Promise<void> {

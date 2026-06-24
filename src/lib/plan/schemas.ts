@@ -29,6 +29,7 @@ export const updatePlanAssetSchema = z.object({
   openingValue: z.number().min(0),
   expectedReturnPct: z.number().min(-20).max(30).nullable(),
   annualContribution: z.number().min(0),
+  contributionEndAge: z.number().int().min(0).max(120).nullable(),
   drawdownPriority: z.number().int().min(0),
 });
 

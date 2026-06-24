@@ -2,16 +2,15 @@
 "use client";
 
 import type { ExpenseCategory } from "@/lib/plan";
+import { type NumberFormat, formatAmount } from "@/lib/settings/currency";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import styled from "styled-components";
 import { BoolCell, NumberCell, SelectCell, TextCell } from "./EditableCell";
-import { AddRowButton, RemoveCell } from "./RowControls";
-import {
-  createPlanExpense,
-  deletePlanExpense,
-  updatePlanExpense,
-} from "./actions";
+import { DrawerSection, Field } from "./PlanDrawer";
+import { AddRowButton } from "./RowControls";
+import { SummaryList, SummaryRow } from "./SummaryRow";
+import { createPlanExpense, updatePlanExpense } from "./actions";
 import type { SerializedPlanExpense } from "./serialized";
 
 const EXPENSE_CATEGORIES: ExpenseCategory[] = [
@@ -25,8 +24,7 @@ const Panel = styled.section`
   border-radius: ${({ theme }) => theme.rounded.sm};
   padding: ${({ theme }) => theme.spacing.lg};
   display: grid;
-  gap: ${({ theme }) => theme.spacing.md};
-  overflow-x: auto;
+  gap: ${({ theme }) => theme.spacing.sm};
 `;
 const Heading = styled.h2`
   font-size: ${({ theme }) => theme.typography.displayLg.size};
@@ -34,33 +32,18 @@ const Heading = styled.h2`
   color: ${({ theme }) => theme.colors.ink};
   margin: 0;
 `;
-const Table = styled.table`
-  width: 100%;
-  border-collapse: collapse;
-  th, td { text-align: left; padding: ${({ theme }) => theme.spacing.sm} ${({ theme }) => theme.spacing.xs}; font-size: 13px; vertical-align: middle; }
-  thead th {
-    font-family: ${({ theme }) => theme.typography.monoCaps.family};
-    font-size: 10px;
-    font-weight: 500;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    color: ${({ theme }) => theme.colors.dim};
-    border-bottom: 1px solid ${({ theme }) => theme.colors.hairline};
-  }
-  tbody tr:hover td { background: ${({ theme }) => theme.colors.canvasSoft}; }
-  input, select { font-variant-numeric: tabular-nums; }
+const Empty = styled.p`
+  color: ${({ theme }) => theme.colors.dim};
+  font-size: 13px;
+  margin: ${({ theme }) => theme.spacing.sm} 0;
 `;
 const Err = styled.p`
   color: ${({ theme }) => theme.colors.negative};
   font-size: 13px;
-  margin: 0;
-`;
-const Empty = styled.span`
-  color: ${({ theme }) => theme.colors.dim};
-  font-size: 13px;
+  margin: 0 ${({ theme }) => theme.spacing.xl} ${({ theme }) => theme.spacing.md};
 `;
 
-function ExpenseRow({ expense }: { expense: SerializedPlanExpense }) {
+export function ExpenseFields({ expense }: { expense: SerializedPlanExpense }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
 
@@ -83,112 +66,95 @@ function ExpenseRow({ expense }: { expense: SerializedPlanExpense }) {
     }
   };
 
-  const remove = async () => {
-    setError(null);
-    try {
-      await deletePlanExpense({ id: expense.id });
-      router.refresh();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not remove");
-      throw e;
-    }
-  };
-
   return (
     <>
-      <tr>
-        <td>
+      {error ? <Err>{error}</Err> : null}
+      <DrawerSection title="Basics" defaultOpen>
+        <Field label="Label">
           <TextCell
             value={expense.label}
             onCommit={(v) => save({ ...expense, label: v })}
           />
-        </td>
-        <td>
+        </Field>
+        <Field label="Category">
           <SelectCell
             value={expense.category}
             options={EXPENSE_CATEGORIES}
             onCommit={(v) => save({ ...expense, category: v })}
           />
-        </td>
-        <td>
+        </Field>
+        <Field label="Amount /yr">
           <NumberCell
             value={expense.annualAmount}
             onCommit={(v) =>
               save({ ...expense, annualAmount: v ?? expense.annualAmount })
             }
           />
-        </td>
-        <td>
+        </Field>
+      </DrawerSection>
+      <DrawerSection title="Timing">
+        <Field label="Start age (blank = from now)">
           <NumberCell
             value={expense.startAge}
             nullable
             onCommit={(v) => save({ ...expense, startAge: v })}
           />
-        </td>
-        <td>
+        </Field>
+        <Field label="End age (blank = end of plan)">
           <NumberCell
             value={expense.endAge}
             nullable
             onCommit={(v) => save({ ...expense, endAge: v })}
           />
-        </td>
-        <td>
+        </Field>
+      </DrawerSection>
+      <DrawerSection title="Inflation">
+        <Field label="Inflation-linked">
           <BoolCell
             value={expense.inflationLinked}
             onCommit={(v) => save({ ...expense, inflationLinked: v })}
           />
-        </td>
-        <td>
-          <RemoveCell onConfirm={remove} />
-        </td>
-      </tr>
-      {error ? (
-        <tr>
-          <td colSpan={7}>
-            <Err>{error}</Err>
-          </td>
-        </tr>
-      ) : null}
+        </Field>
+      </DrawerSection>
     </>
   );
 }
 
 export function ExpensesTable({
   expenses,
-}: { expenses: SerializedPlanExpense[] }) {
+  currency,
+  numberFormat,
+  onOpen,
+}: {
+  expenses: SerializedPlanExpense[];
+  currency: string;
+  numberFormat: NumberFormat;
+  onOpen: (id: string) => void;
+}) {
   const router = useRouter();
   const add = async () => {
-    await createPlanExpense();
+    const id = await createPlanExpense();
     router.refresh();
+    onOpen(id);
   };
 
   return (
     <Panel>
       <Heading>Expenses</Heading>
-      <Table>
-        <thead>
-          <tr>
-            <th>Label</th>
-            <th>Category</th>
-            <th>Amount /yr</th>
-            <th>Start age</th>
-            <th>End age</th>
-            <th>Inflation-linked</th>
-            <th />
-          </tr>
-        </thead>
-        <tbody>
-          {expenses.length === 0 ? (
-            <tr>
-              <td colSpan={7}>
-                <Empty>No expenses yet.</Empty>
-              </td>
-            </tr>
-          ) : (
-            expenses.map((e) => <ExpenseRow key={e.id} expense={e} />)
-          )}
-        </tbody>
-      </Table>
+      {expenses.length === 0 ? (
+        <Empty>No expenses yet.</Empty>
+      ) : (
+        <SummaryList>
+          {expenses.map((e) => (
+            <SummaryRow
+              key={e.id}
+              primary={e.label}
+              secondary={`${e.category} · ${formatAmount(currency, e.annualAmount, numberFormat)}/yr`}
+              onOpen={() => onOpen(e.id)}
+            />
+          ))}
+        </SummaryList>
+      )}
       <AddRowButton label="Add expense" onAdd={add} />
     </Panel>
   );

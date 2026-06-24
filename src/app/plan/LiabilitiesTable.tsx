@@ -1,16 +1,15 @@
 // src/app/plan/LiabilitiesTable.tsx
 "use client";
 
+import { type NumberFormat, formatAmount } from "@/lib/settings/currency";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import styled from "styled-components";
 import { NumberCell, TextCell } from "./EditableCell";
-import { AddRowButton, RemoveCell } from "./RowControls";
-import {
-  createPlanLiability,
-  deletePlanLiability,
-  updatePlanLiability,
-} from "./actions";
+import { DrawerSection, Field } from "./PlanDrawer";
+import { AddRowButton } from "./RowControls";
+import { SummaryList, SummaryRow } from "./SummaryRow";
+import { createPlanLiability, updatePlanLiability } from "./actions";
 import type { SerializedPlanLiability } from "./serialized";
 
 const Panel = styled.section`
@@ -18,8 +17,7 @@ const Panel = styled.section`
   border-radius: ${({ theme }) => theme.rounded.sm};
   padding: ${({ theme }) => theme.spacing.lg};
   display: grid;
-  gap: ${({ theme }) => theme.spacing.md};
-  overflow-x: auto;
+  gap: ${({ theme }) => theme.spacing.sm};
 `;
 const Heading = styled.h2`
   font-size: ${({ theme }) => theme.typography.displayLg.size};
@@ -27,39 +25,23 @@ const Heading = styled.h2`
   color: ${({ theme }) => theme.colors.ink};
   margin: 0;
 `;
-const Table = styled.table`
-  width: 100%;
-  border-collapse: collapse;
-  th, td { text-align: left; padding: ${({ theme }) => theme.spacing.sm} ${({ theme }) => theme.spacing.xs}; font-size: 13px; vertical-align: middle; }
-  thead th {
-    font-family: ${({ theme }) => theme.typography.monoCaps.family};
-    font-size: 10px;
-    font-weight: 500;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    color: ${({ theme }) => theme.colors.dim};
-    border-bottom: 1px solid ${({ theme }) => theme.colors.hairline};
-  }
-  tbody tr:hover td { background: ${({ theme }) => theme.colors.canvasSoft}; }
-  input, select { font-variant-numeric: tabular-nums; }
+const Empty = styled.p`
+  color: ${({ theme }) => theme.colors.dim};
+  font-size: 13px;
+  margin: ${({ theme }) => theme.spacing.sm} 0;
 `;
 const Err = styled.p`
   color: ${({ theme }) => theme.colors.negative};
   font-size: 13px;
-  margin: 0;
-`;
-const Empty = styled.span`
-  color: ${({ theme }) => theme.colors.dim};
-  font-size: 13px;
+  margin: 0 ${({ theme }) => theme.spacing.xl} ${({ theme }) => theme.spacing.md};
 `;
 
-function LiabilityRow({ liability }: { liability: SerializedPlanLiability }) {
+export function LiabilityFields({
+  liability,
+}: { liability: SerializedPlanLiability }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
 
-  // `liability` is the committed server value; each cell sends the one field it
-  // changed, spread over the latest. On success we refresh the route so the
-  // chart + verdict re-render; rethrows so the cell reverts on failure.
   const save = async (next: SerializedPlanLiability) => {
     setError(null);
     try {
@@ -78,27 +60,17 @@ function LiabilityRow({ liability }: { liability: SerializedPlanLiability }) {
     }
   };
 
-  const remove = async () => {
-    setError(null);
-    try {
-      await deletePlanLiability({ id: liability.id });
-      router.refresh();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not remove");
-      throw e;
-    }
-  };
-
   return (
     <>
-      <tr>
-        <td>
+      {error ? <Err>{error}</Err> : null}
+      <DrawerSection title="Basics" defaultOpen>
+        <Field label="Label">
           <TextCell
             value={liability.label}
             onCommit={(v) => save({ ...liability, label: v })}
           />
-        </td>
-        <td>
+        </Field>
+        <Field label="Balance">
           <NumberCell
             value={liability.openingBalance}
             onCommit={(v) =>
@@ -108,8 +80,10 @@ function LiabilityRow({ liability }: { liability: SerializedPlanLiability }) {
               })
             }
           />
-        </td>
-        <td>
+        </Field>
+      </DrawerSection>
+      <DrawerSection title="Terms">
+        <Field label="Interest %">
           <NumberCell
             value={liability.interestPct}
             step="0.1"
@@ -117,8 +91,8 @@ function LiabilityRow({ liability }: { liability: SerializedPlanLiability }) {
               save({ ...liability, interestPct: v ?? liability.interestPct })
             }
           />
-        </td>
-        <td>
+        </Field>
+        <Field label="Repayment /mo">
           <NumberCell
             value={liability.monthlyRepayment}
             onCommit={(v) =>
@@ -128,64 +102,54 @@ function LiabilityRow({ liability }: { liability: SerializedPlanLiability }) {
               })
             }
           />
-        </td>
-        <td>
+        </Field>
+        <Field label="Paid off by age (blank = none)">
           <NumberCell
             value={liability.endAge}
             nullable
             onCommit={(v) => save({ ...liability, endAge: v })}
           />
-        </td>
-        <td>
-          <RemoveCell onConfirm={remove} />
-        </td>
-      </tr>
-      {error ? (
-        <tr>
-          <td colSpan={6}>
-            <Err>{error}</Err>
-          </td>
-        </tr>
-      ) : null}
+        </Field>
+      </DrawerSection>
     </>
   );
 }
 
 export function LiabilitiesTable({
   liabilities,
-}: { liabilities: SerializedPlanLiability[] }) {
+  currency,
+  numberFormat,
+  onOpen,
+}: {
+  liabilities: SerializedPlanLiability[];
+  currency: string;
+  numberFormat: NumberFormat;
+  onOpen: (id: string) => void;
+}) {
   const router = useRouter();
   const add = async () => {
-    await createPlanLiability();
+    const id = await createPlanLiability();
     router.refresh();
+    onOpen(id);
   };
 
   return (
     <Panel>
       <Heading>Liabilities</Heading>
-      <Table>
-        <thead>
-          <tr>
-            <th>Label</th>
-            <th>Balance</th>
-            <th>Interest %</th>
-            <th>Repayment /mo</th>
-            <th>End age</th>
-            <th />
-          </tr>
-        </thead>
-        <tbody>
-          {liabilities.length === 0 ? (
-            <tr>
-              <td colSpan={6}>
-                <Empty>No liabilities yet.</Empty>
-              </td>
-            </tr>
-          ) : (
-            liabilities.map((l) => <LiabilityRow key={l.id} liability={l} />)
-          )}
-        </tbody>
-      </Table>
+      {liabilities.length === 0 ? (
+        <Empty>No liabilities yet.</Empty>
+      ) : (
+        <SummaryList>
+          {liabilities.map((l) => (
+            <SummaryRow
+              key={l.id}
+              primary={l.label}
+              secondary={`${formatAmount(currency, l.openingBalance, numberFormat)} · ${l.interestPct}%`}
+              onOpen={() => onOpen(l.id)}
+            />
+          ))}
+        </SummaryList>
+      )}
       <AddRowButton label="Add liability" onAdd={add} />
     </Panel>
   );

@@ -64,6 +64,14 @@ describe("plan create/delete actions (integration)", () => {
     expect(ev.age).toBe(65);
   });
 
+  it("createPlanIncome returns the new row id", async () => {
+    await makePrimaryPlan(TEST_USER_ID);
+    const id = await createPlanIncome();
+    expect(typeof id).toBe("string");
+    const row = await prisma.planIncome.findUniqueOrThrow({ where: { id } });
+    expect(row.label).toBe("New income");
+  });
+
   it("create throws when the user has no primary plan", async () => {
     await expect(createPlanIncome()).rejects.toThrow();
   });
