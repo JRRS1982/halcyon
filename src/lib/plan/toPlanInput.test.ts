@@ -4,7 +4,39 @@ import {
   type PlanWithChildren,
   toPlanInput,
   toTodaysMoney,
+  toTodaysMoneyBand,
 } from "./toPlanInput";
+import type { PlanProjection, YearProjection } from "./types";
+
+const yr = (age: number, netWorth: number): YearProjection => ({
+  age,
+  year: 2026 + (age - 40),
+  grossIncome: 0,
+  incomeByKind: {},
+  tax: 0,
+  netIncome: 0,
+  expensesByCategory: {},
+  totalExpenses: 0,
+  liabilityRepayments: 0,
+  surplus: 0,
+  contributions: 0,
+  withdrawals: 0,
+  assets: [],
+  liabilities: [],
+  liabilitiesTotal: 0,
+  netWorth,
+  shortfall: netWorth < 0,
+});
+
+const proj = (peakAge: number, peak: number, years: YearProjection[]): PlanProjection => ({
+  years,
+  verdict: {
+    feasible: years.every((y) => !y.shortfall),
+    firstShortfallAge: years.find((y) => y.shortfall)?.age ?? null,
+    peakNetWorth: { age: peakAge, value: peak },
+    earliestSustainableRetirementAge: null,
+  },
+});
 
 const d = (n: number) =>
   ({
@@ -100,5 +132,35 @@ describe("toTodaysMoney", () => {
     const nominal41 = out.years.find((y) => y.age === 41);
     const real41 = real.years.find((y) => y.age === 41);
     expect(real41?.netWorth).toBeCloseTo((nominal41?.netWorth ?? 0) / 1.1, 0);
+  });
+});
+
+describe("toTodaysMoneyBand", () => {
+  it("anchors the verdict on mid and derives ranges from deflated peaks", () => {
+    // inflation 0 so deflation is identity — ranges equal nominal min/max.
+    const low = proj(40, 80, [yr(40, 80)]);
+    const mid = proj(40, 100, [yr(40, 100)]);
+    const high = proj(40, 130, [yr(40, 130)]);
+    const banded = toTodaysMoneyBand({ low, mid, high }, 0, 40);
+
+    expect(banded.verdict.peakNetWorth.value).toBe(100); // anchored on mid
+    expect(banded.verdict.peakNetWorthRange).toEqual([80, 130]);
+    expect(banded.mid).toEqual(mid.years);
+  });
+
+  it("reports a shortfall-age range and null when no pass shorts", () => {
+    const noShort = proj(40, 100, [yr(40, 100)]);
+    const allClear = toTodaysMoneyBand(
+      { low: noShort, mid: noShort, high: noShort },
+      0,
+      40,
+    );
+    expect(allClear.verdict.firstShortfallAgeRange).toBeNull();
+
+    const low = proj(40, -10, [yr(40, 100), yr(41, -10)]);
+    const mid = proj(40, 100, [yr(40, 100), yr(41, 50)]);
+    const high = proj(40, 100, [yr(40, 100), yr(41, 80)]);
+    const banded = toTodaysMoneyBand({ low, mid, high }, 0, 40);
+    expect(banded.verdict.firstShortfallAgeRange).toEqual([41, 41]);
   });
 });
