@@ -2,7 +2,7 @@
 "use client";
 
 import type { YearProjection } from "@/lib/plan";
-import { toNetWorthChartData, wrappersPresent } from "@/lib/plan/chartData";
+import { toNetWorthBandData, wrappersPresent } from "@/lib/plan/chartData";
 import { type NumberFormat, formatAmount } from "@/lib/settings/currency";
 import {
   Area,
@@ -21,16 +21,20 @@ import { makeAmountTick } from "./chartFormat";
 import { DEBT_COLOUR, NET_WORTH_COLOUR, WRAPPER_COLOURS } from "./colours";
 
 export function NetWorthChart({
-  years,
+  low,
+  mid,
+  high,
   currency,
   numberFormat,
 }: {
-  years: YearProjection[];
+  low: YearProjection[];
+  mid: YearProjection[];
+  high: YearProjection[];
   currency: string;
   numberFormat: NumberFormat;
 }) {
   const theme = useTheme();
-  const data = toNetWorthChartData(years);
+  const data = toNetWorthBandData(low, mid, high);
   const wrappers = wrappersPresent(data);
 
   const amountTick = makeAmountTick(currency);
@@ -68,6 +72,17 @@ export function NetWorthChart({
         />
         <Legend wrapperStyle={{ fontSize: 12 }} />
         <ReferenceLine y={0} stroke={theme.colors.hairlineStrong} />
+        <Area
+          type="monotone"
+          dataKey="nwRange"
+          name="Return range"
+          fill={NET_WORTH_COLOUR}
+          fillOpacity={0.08}
+          stroke="none"
+          legendType="none"
+          tooltipType="none"
+          isAnimationActive={false}
+        />
         {wrappers.map((w) => (
           <Area
             key={w}

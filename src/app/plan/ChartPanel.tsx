@@ -62,11 +62,15 @@ const Caption = styled.p`
 `;
 
 export function ChartPanel({
-  years,
+  low,
+  mid,
+  high,
   currency,
   numberFormat,
 }: {
-  years: YearProjection[];
+  low: YearProjection[];
+  mid: YearProjection[];
+  high: YearProjection[];
   currency: string;
   numberFormat: NumberFormat;
 }) {
@@ -90,21 +94,25 @@ export function ChartPanel({
       <Caption>{DESCRIPTIONS[view]}</Caption>
       {view === "networth" && (
         <NetWorthChart
-          years={years}
+          low={low}
+          mid={mid}
+          high={high}
           currency={currency}
           numberFormat={numberFormat}
         />
       )}
       {view === "cashflow" && (
         <CashFlowChart
-          years={years}
+          years={mid}
           currency={currency}
           numberFormat={numberFormat}
         />
       )}
       {view === "liquid" && (
         <LiquidAssetsChart
-          years={years}
+          low={low}
+          mid={mid}
+          high={high}
           currency={currency}
           numberFormat={numberFormat}
         />

@@ -1,7 +1,7 @@
 // src/app/plan/VerdictBanner.tsx
 "use client";
 
-import type { Verdict } from "@/lib/plan";
+import type { BandedVerdict } from "@/lib/plan";
 import { type NumberFormat, formatAmount } from "@/lib/settings/currency";
 import styled from "styled-components";
 
@@ -114,19 +114,36 @@ const StatVal = styled.dd<{ $danger?: boolean }>`
   }
 `;
 
+const RangeNote = styled.span`
+  font-size: 12px;
+  color: ${({ theme }) => theme.colors.dim};
+`;
+
 export function VerdictBanner({
   verdict,
   currency,
   numberFormat,
 }: {
-  verdict: Verdict;
+  verdict: BandedVerdict;
   currency: string;
   numberFormat: NumberFormat;
 }) {
   const peak = formatAmount(currency, verdict.peakNetWorth.value, numberFormat);
+  const [peakLo, peakHi] = verdict.peakNetWorthRange;
+  const peakRange =
+    peakLo !== peakHi
+      ? `${formatAmount(currency, peakLo, numberFormat)}–${formatAmount(currency, peakHi, numberFormat)}`
+      : null;
+  const shortRange =
+    verdict.firstShortfallAgeRange &&
+    verdict.firstShortfallAgeRange[0] !== verdict.firstShortfallAgeRange[1]
+      ? verdict.firstShortfallAgeRange
+      : null;
   const headline = verdict.feasible
     ? "Your money lasts the plan"
-    : `Your money runs short at age ${verdict.firstShortfallAge}`;
+    : shortRange
+      ? `Your money runs short at age ${verdict.firstShortfallAge} (between ${shortRange[0]} and ${shortRange[1]} depending on returns)`
+      : `Your money runs short at age ${verdict.firstShortfallAge}`;
   const sub = verdict.feasible
     ? verdict.earliestSustainableRetirementAge !== null
       ? `You could retire as early as age ${verdict.earliestSustainableRetirementAge} and the money still lasts.`
@@ -150,6 +167,7 @@ export function VerdictBanner({
           <StatVal>
             {peak} <small>· age {verdict.peakNetWorth.age}</small>
           </StatVal>
+          {peakRange ? <RangeNote>range {peakRange}</RangeNote> : null}
         </Stat>
         <Stat>
           {verdict.feasible ? (
@@ -165,6 +183,11 @@ export function VerdictBanner({
             <>
               <StatKey>Money runs out</StatKey>
               <StatVal $danger>Age {verdict.firstShortfallAge}</StatVal>
+              {shortRange ? (
+                <RangeNote>
+                  range {shortRange[0]}–{shortRange[1]}
+                </RangeNote>
+              ) : null}
             </>
           )}
         </Stat>

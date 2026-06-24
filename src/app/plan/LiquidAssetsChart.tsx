@@ -4,7 +4,7 @@
 import type { YearProjection } from "@/lib/plan";
 import {
   liquidWrappersPresent,
-  toLiquidAssetsChartData,
+  toLiquidAssetsBandData,
 } from "@/lib/plan/chartData";
 import { type NumberFormat, formatAmount } from "@/lib/settings/currency";
 import {
@@ -25,16 +25,20 @@ import { NET_WORTH_COLOUR, WRAPPER_COLOURS } from "./colours";
 // Drawdownable pots stacked over time, with a total line so depletion in
 // retirement is legible. Same wrapper colours as the net-worth chart.
 export function LiquidAssetsChart({
-  years,
+  low,
+  mid,
+  high,
   currency,
   numberFormat,
 }: {
-  years: YearProjection[];
+  low: YearProjection[];
+  mid: YearProjection[];
+  high: YearProjection[];
   currency: string;
   numberFormat: NumberFormat;
 }) {
   const theme = useTheme();
-  const data = toLiquidAssetsChartData(years);
+  const data = toLiquidAssetsBandData(low, mid, high);
   const wrappers = liquidWrappersPresent(data);
   const amountTick = makeAmountTick(currency);
 
@@ -70,6 +74,17 @@ export function LiquidAssetsChart({
           }}
         />
         <Legend wrapperStyle={{ fontSize: 12 }} />
+        <Area
+          type="monotone"
+          dataKey="totalRange"
+          name="Return range"
+          fill={NET_WORTH_COLOUR}
+          fillOpacity={0.08}
+          stroke="none"
+          legendType="none"
+          tooltipType="none"
+          isAnimationActive={false}
+        />
         {wrappers.map((w) => (
           <Area
             key={w}
