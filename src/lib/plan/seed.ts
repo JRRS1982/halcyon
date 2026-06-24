@@ -84,6 +84,10 @@ export function seedPlanChildren(
   const assets: SeededAsset[] = [];
   const liabilities: SeededLiability[] = [];
   for (const b of balanceItems) {
+    // A zero-balance item (e.g. a paid-off credit card) carries no signal into
+    // the projection — skip it so it doesn't seed a dead row or a ghost bar on
+    // the timeline. The user can always add it back by hand.
+    if (b.value <= 0) continue;
     if (b.type === "ASSET") {
       assets.push({
         label: b.label,

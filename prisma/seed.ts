@@ -103,14 +103,14 @@ const CATEGORY_PLAN: SeedCategory[] = [
     label: "Salary",
     type: "INCOME",
     incomeCategory: "SALARY",
-    budget: 3000,
+    budget: 4000,
   },
   {
-    key: "rent",
-    label: "Rent",
+    key: "mortgage",
+    label: "Mortgage",
     type: "EXPENSE",
     expenseCategory: "FIXED",
-    budget: 1200,
+    budget: 1250,
   },
   {
     key: "councilTax",
@@ -230,15 +230,15 @@ function transactionsForMonth(
       categoryKey: "salary",
       accountKey: "current",
       day: 25,
-      amount: 3000,
+      amount: 4000,
       description: "Monthly salary",
     },
     {
-      categoryKey: "rent",
+      categoryKey: "mortgage",
       accountKey: "joint",
       day: 1,
-      amount: -1200,
-      description: "Rent",
+      amount: -1250,
+      description: "Mortgage",
     },
     {
       categoryKey: "councilTax",
@@ -324,11 +324,12 @@ function transactionsForMonth(
 // salary. Each is seeded as TWO transaction rows — one leg per account, each
 // tagged with the counterparty via transferAccountId (no categoryId), so they
 // are off-budget and surface only in the budget Transfers section. The Joint
-// transfer covers the bills above (max joint outgoings ≈ £1,970 at peak drift).
+// transfer covers the bills above (max joint outgoings ≈ £2,020 at peak drift:
+// £1,250 mortgage + £180 council tax + ~£590 groceries).
 const TRANSFER_PLAN: { from: AccountKey; to: AccountKey; amount: number }[] = [
-  { from: "current", to: "joint", amount: 2000 },
-  { from: "current", to: "isa", amount: 200 },
-  { from: "current", to: "sipp", amount: 150 },
+  { from: "current", to: "joint", amount: 2100 },
+  { from: "current", to: "isa", amount: 350 },
+  { from: "current", to: "sipp", amount: 400 },
 ];
 const TRANSFER_DAY = 26;
 
@@ -468,39 +469,62 @@ async function seedBalanceItems(
   _userId: string,
   opts: { periods: { id: string }[] },
 ) {
-  // ISA/SIPP step up by exactly the monthly contribution (cash in, no
-  // simulated investment growth — the app models flows, not holdings).
+  // A realistic homeowner household (i = 0 is the oldest month, so the last
+  // entry is "today" — what a freshly-created plan bootstraps from). ISA/SIPP
+  // step up by exactly the monthly contribution (cash in, no simulated growth —
+  // the app models flows, not holdings). House appreciates slowly, the car
+  // depreciates, and the mortgage is paid down — these are independent monthly
+  // snapshots, not derived from transfers. The credit card keeps a small live
+  // revolving balance (never zero), so it stays a meaningful liability.
   for (const [i, period] of opts.periods.entries()) {
     const rows = [
       {
         type: "ASSET" as const,
         category: "CURRENT" as const,
         label: "Current Account",
-        value: 1800 + i * 80,
+        value: 3500 + i * 40,
       },
       {
         type: "ASSET" as const,
         category: "CURRENT" as const,
         label: "Joint Account",
-        value: 500 + i * 30,
+        value: 9000 + i * 25,
       },
       {
         type: "ASSET" as const,
         category: "MEDIUM_TERM" as const,
         label: "ISA",
-        value: 4000 + i * 200,
+        value: 28000 + i * 350,
       },
       {
         type: "ASSET" as const,
         category: "LONG_TERM" as const,
         label: "SIPP",
-        value: 20000 + i * 150,
+        value: 95000 + i * 400,
+      },
+      {
+        type: "ASSET" as const,
+        category: "PROPERTY" as const,
+        label: "Home",
+        value: 335000 + i * 300,
+      },
+      {
+        type: "ASSET" as const,
+        category: "OTHER" as const,
+        label: "Car",
+        value: Math.max(8000, 14000 - i * 60),
+      },
+      {
+        type: "LIABILITY" as const,
+        category: "LONG_TERM" as const,
+        label: "Mortgage",
+        value: Math.max(0, 175000 - i * 250),
       },
       {
         type: "LIABILITY" as const,
         category: "CURRENT" as const,
         label: "Credit Card",
-        value: Math.max(0, 1500 - i * 150),
+        value: 450 + (i % 4) * 60,
       },
     ];
     await Promise.all(
