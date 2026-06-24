@@ -23,7 +23,10 @@ const SYNTHETIC_CASH: AssetInput[] = [
   },
 ];
 
-const projectYears = (input: PlanInput): YearProjection[] => {
+const projectYears = (
+  input: PlanInput,
+  returnDeltaPct = 0,
+): YearProjection[] => {
   // A plan with no assets gets an implicit cash account so inflows/surplus are
   // never silently lost.
   const runAssets = input.assets.length > 0 ? input.assets : SYNTHETIC_CASH;
@@ -125,7 +128,7 @@ const projectYears = (input: PlanInput): YearProjection[] => {
     for (const a of runAssets) {
       assetBal[a.id] = grow(
         assetBal[a.id] ?? 0,
-        a.expectedReturnPct ?? input.defaultReturnPct,
+        (a.expectedReturnPct ?? input.defaultReturnPct) + returnDeltaPct,
       );
     }
 
@@ -212,5 +215,32 @@ export const project = (input: PlanInput): PlanProjection => {
       ...summarise(years),
       earliestSustainableRetirementAge: earliestSustainableRetirementAge(input),
     },
+  };
+};
+
+// Three deterministic passes for the return band. The spread shifts every
+// asset's effective return by ±returnSpreadPct. mid === project(input). Only the
+// mid pass computes earliestSustainableRetirementAge (the only pass that surfaces
+// it); low/high set it null to avoid the extra projection sweep.
+export const projectWithBand = (
+  input: PlanInput,
+): { low: PlanProjection; mid: PlanProjection; high: PlanProjection } => {
+  const spread = input.returnSpreadPct ?? 0;
+  const pass = (delta: number, withEarliest: boolean): PlanProjection => {
+    const years = projectYears(input, delta);
+    return {
+      years,
+      verdict: {
+        ...summarise(years),
+        earliestSustainableRetirementAge: withEarliest
+          ? earliestSustainableRetirementAge(input)
+          : null,
+      },
+    };
+  };
+  return {
+    low: pass(-spread, false),
+    mid: pass(0, true),
+    high: pass(spread, false),
   };
 };
