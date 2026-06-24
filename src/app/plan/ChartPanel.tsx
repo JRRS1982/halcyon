@@ -8,6 +8,7 @@ import styled from "styled-components";
 import { CashFlowChart } from "./CashFlowChart";
 import { LiquidAssetsChart } from "./LiquidAssetsChart";
 import { NetWorthChart } from "./NetWorthChart";
+import { PlanCard } from "./PlanCard";
 
 type View = "networth" | "cashflow" | "liquid";
 
@@ -29,10 +30,6 @@ const DESCRIPTIONS: Record<View, string> = {
     "Only the pots you can draw on — pensions, ISAs, GIAs and cash. Property and defined-benefit pensions are excluded. Shows whether your spendable savings last.",
 };
 
-const Panel = styled.section`
-  display: grid;
-  gap: ${({ theme }) => theme.spacing.md};
-`;
 const Switcher = styled.fieldset`
   display: inline-flex;
   gap: ${({ theme }) => theme.spacing.xs};
@@ -77,7 +74,7 @@ export function ChartPanel({
   const [view, setView] = useState<View>("networth");
 
   return (
-    <Panel>
+    <PlanCard>
       <Switcher aria-label="Chart view">
         {VIEWS.map((v) => (
           <Tab
@@ -117,6 +114,6 @@ export function ChartPanel({
           numberFormat={numberFormat}
         />
       )}
-    </Panel>
+    </PlanCard>
   );
 }
