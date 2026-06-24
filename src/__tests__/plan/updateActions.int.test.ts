@@ -66,8 +66,10 @@ describe("plan update actions (integration)", () => {
       wrapper: "PENSION",
       openingValue: 2000,
       expectedReturnPct: 5,
+      feePct: 0.5,
       annualContribution: 100,
       contributionEndAge: null,
+      minAccessAge: 57,
       drawdownPriority: 3,
     });
     const after = await prisma.planAsset.findUniqueOrThrow({
@@ -75,6 +77,11 @@ describe("plan update actions (integration)", () => {
     });
     expect(after.wrapper).toBe("PENSION");
     expect(Number(after.openingValue)).toBe(2000);
+    const asset = await prisma.planAsset.findFirstOrThrow({
+      where: { id: assetId },
+    });
+    expect(Number(asset.feePct)).toBe(0.5);
+    expect(asset.minAccessAge).toBe(57);
   });
 
   it("updatePlanLiability updates rates for the owner", async () => {
@@ -108,8 +115,10 @@ describe("plan update actions (integration)", () => {
         wrapper: "CASH",
         openingValue: 1,
         expectedReturnPct: null,
+        feePct: 0,
         annualContribution: 0,
         contributionEndAge: null,
+        minAccessAge: null,
         drawdownPriority: 0,
       }),
     ).rejects.toThrow();

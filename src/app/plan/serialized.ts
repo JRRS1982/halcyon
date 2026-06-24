@@ -20,8 +20,10 @@ export type SerializedPlanAsset = {
   wrapper: Wrapper;
   openingValue: number;
   expectedReturnPct: number | null;
+  feePct: number;
   annualContribution: number;
   contributionEndAge: number | null;
+  minAccessAge: number | null;
   drawdownPriority: number;
 };
 

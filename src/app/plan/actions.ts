@@ -166,8 +166,10 @@ export async function updatePlanAsset(
       wrapper: p.wrapper,
       openingValue: p.openingValue,
       expectedReturnPct: p.expectedReturnPct,
+      feePct: p.feePct,
       annualContribution: p.annualContribution,
       contributionEndAge: p.contributionEndAge,
+      minAccessAge: p.minAccessAge,
       drawdownPriority: p.drawdownPriority,
     },
   });

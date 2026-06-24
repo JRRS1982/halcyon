@@ -51,8 +51,10 @@ export function AssetFields({ asset }: { asset: SerializedPlanAsset }) {
         wrapper: next.wrapper,
         openingValue: next.openingValue,
         expectedReturnPct: next.expectedReturnPct,
+        feePct: next.feePct,
         annualContribution: next.annualContribution,
         contributionEndAge: next.contributionEndAge,
+        minAccessAge: next.minAccessAge,
         drawdownPriority: next.drawdownPriority,
       });
       router.refresh();
@@ -97,6 +99,13 @@ export function AssetFields({ asset }: { asset: SerializedPlanAsset }) {
             onCommit={(v) => save({ ...asset, expectedReturnPct: v })}
           />
         </Field>
+        <Field label="Fees / charges %">
+          <NumberCell
+            value={asset.feePct}
+            step="0.1"
+            onCommit={(v) => save({ ...asset, feePct: v ?? asset.feePct })}
+          />
+        </Field>
       </DrawerSection>
       <DrawerSection title="Contributions">
         <Field label="Amount /yr">
@@ -127,6 +136,15 @@ export function AssetFields({ asset }: { asset: SerializedPlanAsset }) {
             }
           />
         </Field>
+        {asset.wrapper === "PENSION" ? (
+          <Field label="Earliest access age">
+            <NumberCell
+              value={asset.minAccessAge ?? 57}
+              nullable
+              onCommit={(v) => save({ ...asset, minAccessAge: v })}
+            />
+          </Field>
+        ) : null}
       </DrawerSection>
     </>
   );
