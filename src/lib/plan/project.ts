@@ -115,6 +115,7 @@ const projectYears = (
         assetBal,
         -cashflow,
         input.taxRatePct,
+        age,
       );
       Object.assign(assetBal, fund.balances);
       Object.assign(withdrawnByAsset, fund.withdrawnByAsset);
@@ -128,7 +129,9 @@ const projectYears = (
     for (const a of runAssets) {
       assetBal[a.id] = grow(
         assetBal[a.id] ?? 0,
-        (a.expectedReturnPct ?? input.defaultReturnPct) + returnDeltaPct,
+        (a.expectedReturnPct ?? input.defaultReturnPct) -
+          (a.feePct ?? 0) +
+          returnDeltaPct,
       );
     }
 

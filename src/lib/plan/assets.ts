@@ -4,6 +4,11 @@ import type { AssetInput } from "./types";
 
 const drawable = (a: AssetInput): boolean => a.wrapper !== "PROPERTY";
 
+// Earliest age an asset may be drawn. PENSION defaults to 57 when unset; other
+// wrappers are unrestricted unless an explicit minAccessAge is given.
+const accessLimit = (a: AssetInput): number | null =>
+  a.minAccessAge ?? (a.wrapper === "PENSION" ? 57 : null);
+
 // Where leftover surplus sits: the CASH buffer. Falls back to the most-liquid
 // non-PROPERTY asset (lowest drawdownPriority), then the first asset; null only
 // when there are no assets.
@@ -35,6 +40,7 @@ export const fundDeficit = (
   balances: Record<string, number>,
   need: number,
   ratePct: number,
+  age: number,
 ): FundResult => {
   const next = { ...balances };
   const withdrawnByAsset: Record<string, number> = {};
@@ -43,6 +49,10 @@ export const fundDeficit = (
 
   const order = assets
     .filter(drawable)
+    .filter((a) => {
+      const limit = accessLimit(a);
+      return limit === null || age >= limit;
+    })
     .sort((a, b) => a.drawdownPriority - b.drawdownPriority);
 
   for (const a of order) {

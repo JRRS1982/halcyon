@@ -204,6 +204,7 @@ describe("project", () => {
             label: "SIPP",
             wrapper: "PENSION",
             openingValue: 50000,
+            minAccessAge: 40, // explicitly accessible at test age 40
             drawdownPriority: 0,
           },
         ],
@@ -270,6 +271,27 @@ describe("project", () => {
     );
     expect(at(p, 0).liabilitiesTotal).toBe(60000);
     expect(at(p, 0).netWorth).toBe(40000);
+  });
+
+  it("subtracts feePct from the asset's effective return", () => {
+    const p = project(
+      base({
+        planToAge: 40,
+        defaultReturnPct: 10,
+        assets: [
+          {
+            id: "a",
+            label: "GIA",
+            wrapper: "GIA",
+            openingValue: 10000,
+            feePct: 2,
+            drawdownPriority: 1,
+          },
+        ],
+      }),
+    );
+    // 10% return − 2% fee = 8% growth on 10000 ⇒ 10800
+    expect(wrapperTotal(at(p, 0), "GIA")).toBeCloseTo(10800, 0);
   });
 
   it("applies a one-off inflow event the year it lands", () => {

@@ -37,7 +37,7 @@ describe("fundDeficit", () => {
       asset({ id: "cash", wrapper: "CASH", drawdownPriority: 0 }),
       asset({ id: "isa", wrapper: "ISA", drawdownPriority: 1 }),
     ];
-    const r = fundDeficit(assets, { cash: 5000, isa: 10000 }, 7000, 20);
+    const r = fundDeficit(assets, { cash: 5000, isa: 10000 }, 7000, 20, 40);
     expect(r.shortfall).toBe(false);
     expect(r.withdrawalTax).toBe(0);
     expect(r.balances.cash).toBe(0);
@@ -49,7 +49,7 @@ describe("fundDeficit", () => {
     const assets = [
       asset({ id: "sipp", wrapper: "PENSION", drawdownPriority: 0 }),
     ];
-    const r = fundDeficit(assets, { sipp: 50000 }, 8000, 20);
+    const r = fundDeficit(assets, { sipp: 50000 }, 8000, 20, 65);
     expect(r.balances.sipp).toBe(40000);
     expect(r.withdrawnByAsset.sipp).toBe(10000);
     expect(r.withdrawalTax).toBe(2000);
@@ -61,7 +61,7 @@ describe("fundDeficit", () => {
       asset({ id: "cash", wrapper: "CASH", drawdownPriority: 0 }),
       asset({ id: "house", wrapper: "PROPERTY", drawdownPriority: 1 }),
     ];
-    const r = fundDeficit(assets, { cash: 3000, house: 400000 }, 5000, 20);
+    const r = fundDeficit(assets, { cash: 3000, house: 400000 }, 5000, 20, 40);
     expect(r.withdrawnByAsset.cash).toBe(3000);
     expect(r.balances.house).toBe(400000);
     expect(r.shortfall).toBe(true);
@@ -69,7 +69,49 @@ describe("fundDeficit", () => {
   it("does not mutate the input balances", () => {
     const assets = [asset({ id: "cash", wrapper: "CASH" })];
     const balances = { cash: 1000 };
-    fundDeficit(assets, balances, 500, 20);
+    fundDeficit(assets, balances, 500, 20, 40);
     expect(balances.cash).toBe(1000);
+  });
+
+  it("skips a pension before its access age, funds it at/after", () => {
+    const pension = {
+      id: "p",
+      label: "SIPP",
+      wrapper: "PENSION" as const,
+      openingValue: 100000,
+      drawdownPriority: 1,
+    };
+    const before = fundDeficit([pension], { p: 100000 }, 10000, 0, 55);
+    expect(before.shortfall).toBe(true);
+    expect(before.totalWithdrawn).toBe(0);
+
+    const after = fundDeficit([pension], { p: 100000 }, 10000, 0, 57);
+    expect(after.shortfall).toBe(false);
+    expect(after.totalWithdrawn).toBeGreaterThan(0);
+  });
+
+  it("does not gate a non-pension asset and honours an explicit minAccessAge", () => {
+    const isa = {
+      id: "i",
+      label: "ISA",
+      wrapper: "ISA" as const,
+      openingValue: 100000,
+      drawdownPriority: 1,
+    };
+    expect(fundDeficit([isa], { i: 100000 }, 10000, 0, 40).shortfall).toBe(
+      false,
+    );
+
+    const earlyPension = {
+      id: "p",
+      label: "SIPP",
+      wrapper: "PENSION" as const,
+      openingValue: 100000,
+      minAccessAge: 50,
+      drawdownPriority: 1,
+    };
+    expect(
+      fundDeficit([earlyPension], { p: 100000 }, 10000, 0, 52).shortfall,
+    ).toBe(false);
   });
 });
