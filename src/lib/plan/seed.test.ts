@@ -42,6 +42,47 @@ describe("seedPlanChildren", () => {
     ]);
   });
 
+  it("skips balance items with a zero (or negative) value", () => {
+    // A fully-paid credit card or an emptied account shouldn't bootstrap a dead
+    // plan row — that's what produces a ghost full-width bar on the Timeline.
+    const r = seedPlanChildren(
+      [
+        {
+          id: "b1",
+          type: "ASSET",
+          category: "CURRENT",
+          label: "Cash",
+          value: 5000,
+        },
+        {
+          id: "b2",
+          type: "ASSET",
+          category: "CURRENT",
+          label: "Empty pot",
+          value: 0,
+        },
+        {
+          id: "b3",
+          type: "LIABILITY",
+          category: "CURRENT",
+          label: "Credit Card",
+          value: 0,
+        },
+        {
+          id: "b4",
+          type: "LIABILITY",
+          category: "LONG_TERM",
+          label: "Mortgage",
+          value: 175000,
+        },
+      ],
+      [],
+      65,
+    );
+    expect(r.assets.map((a) => a.label)).toEqual(["Cash"]);
+    expect(r.liabilities.map((l) => l.label)).toEqual(["Mortgage"]);
+  });
+
   it("maps balance liabilities to PlanLiabilities (rates default 0)", () => {
     const r = seedPlanChildren(
       [
