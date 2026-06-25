@@ -103,6 +103,7 @@ export default async function PlanPage() {
       plan={serialized}
       currency={currency}
       numberFormat={numberFormat}
+      asOfYear={asOfYear}
     />
   );
 }
