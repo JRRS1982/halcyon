@@ -227,15 +227,17 @@ export const project = (input: PlanInput): PlanProjection => {
 // it); low/high set it null to avoid the extra projection sweep.
 export const projectWithBand = (
   input: PlanInput,
+  opts: { withEarliest?: boolean } = {},
 ): { low: PlanProjection; mid: PlanProjection; high: PlanProjection } => {
   const spread = input.returnSpreadPct ?? 0;
-  const pass = (delta: number, withEarliest: boolean): PlanProjection => {
+  const withEarliest = opts.withEarliest ?? true;
+  const pass = (delta: number, computeEarliest: boolean): PlanProjection => {
     const years = projectYears(input, delta);
     return {
       years,
       verdict: {
         ...summarise(years),
-        earliestSustainableRetirementAge: withEarliest
+        earliestSustainableRetirementAge: computeEarliest
           ? earliestSustainableRetirementAge(input)
           : null,
       },
@@ -243,7 +245,7 @@ export const projectWithBand = (
   };
   return {
     low: pass(-spread, false),
-    mid: pass(0, true),
+    mid: pass(0, withEarliest),
     high: pass(spread, false),
   };
 };
