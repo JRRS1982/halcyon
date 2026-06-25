@@ -14,6 +14,7 @@ import { ExpenseFields, ExpensesTable } from "./ExpensesTable";
 import { IncomeFields, IncomesTable } from "./IncomesTable";
 import { LiabilitiesTable, LiabilityFields } from "./LiabilitiesTable";
 import { PlanDrawer } from "./PlanDrawer";
+import { Sliders } from "./Sliders";
 import { Timeline } from "./Timeline";
 import { VerdictBanner } from "./VerdictBanner";
 import {
@@ -24,6 +25,7 @@ import {
   deletePlanLiability,
 } from "./actions";
 import type { SerializedPlan } from "./serialized";
+import { usePlanProjection } from "./usePlanProjection";
 
 type Kind = "asset" | "liability" | "income" | "expense" | "event";
 
@@ -46,13 +48,17 @@ export function PlanView({
   plan,
   currency,
   numberFormat,
+  asOfYear,
 }: {
   band: BandedProjection;
   plan: SerializedPlan;
   currency: string;
   numberFormat: NumberFormat;
+  asOfYear: number;
 }) {
   const router = useRouter();
+  const { liveBand, effectiveAssumptions, setOverride, commit } =
+    usePlanProjection(plan, band, asOfYear);
   const [selected, setSelected] = useState<{ kind: Kind; id: string } | null>(
     null,
   );
@@ -116,14 +122,19 @@ export function PlanView({
     <Shell>
       <Title>Your plan</Title>
       <VerdictBanner
-        verdict={band.verdict}
+        verdict={liveBand.verdict}
         currency={currency}
         numberFormat={numberFormat}
       />
+      <Sliders
+        assumptions={effectiveAssumptions}
+        onInput={setOverride}
+        onCommit={commit}
+      />
       <ChartPanel
-        low={band.low}
-        mid={band.mid}
-        high={band.high}
+        low={liveBand.low}
+        mid={liveBand.mid}
+        high={liveBand.high}
         currency={currency}
         numberFormat={numberFormat}
       />
@@ -132,10 +143,10 @@ export function PlanView({
         expenses={plan.expenses}
         liabilities={plan.liabilities}
         events={plan.events}
-        retirementAge={plan.assumptions.retirementAge}
-        statePensionAge={plan.assumptions.statePensionAge}
-        minAge={band.mid[0]?.age ?? 0}
-        maxAge={band.mid[band.mid.length - 1]?.age ?? 0}
+        retirementAge={effectiveAssumptions.retirementAge}
+        statePensionAge={effectiveAssumptions.statePensionAge}
+        minAge={liveBand.mid[0]?.age ?? 0}
+        maxAge={liveBand.mid[liveBand.mid.length - 1]?.age ?? 0}
       />
       <AssumptionsPanel assumptions={plan.assumptions} />
       <AssetsTable

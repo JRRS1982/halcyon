@@ -27,7 +27,7 @@ const num = (d: { toString(): string }): number => Number(d.toString());
 const optNum = (d: { toString(): string } | null): number | undefined =>
   d === null ? undefined : Number(d.toString());
 
-const growthOf = (
+export const growthOf = (
   kind: PlanIncome["growthKind"],
   pct: number | undefined,
 ): Growth => {

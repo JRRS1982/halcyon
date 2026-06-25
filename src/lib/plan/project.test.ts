@@ -584,4 +584,16 @@ describe("projectWithBand", () => {
     const b = projectWithBand(input);
     expect(b.low.years).toEqual(b.mid.years);
   });
+
+  it("skips the earliest-retirement sweep when withEarliest is false", () => {
+    const input = banded();
+    const fast = projectWithBand(input, { withEarliest: false });
+    expect(fast.mid.verdict.earliestSustainableRetirementAge).toBeNull();
+    // year series + peak/shortfall identical to the full compute
+    const full = projectWithBand(input);
+    expect(fast.mid.years).toEqual(full.mid.years);
+    expect(fast.low.years).toEqual(full.low.years);
+    expect(fast.high.years).toEqual(full.high.years);
+    expect(fast.mid.verdict.feasible).toBe(full.mid.verdict.feasible);
+  });
 });
