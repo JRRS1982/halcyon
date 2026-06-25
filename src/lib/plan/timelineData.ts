@@ -135,3 +135,19 @@ export function toTimelineModel(input: {
     ticks,
   };
 }
+
+// Inverse of the layout pct(): given a pointer x and the track's left/width
+// (from getBoundingClientRect), return the whole-year age under the cursor,
+// clamped to the range. Degenerate width → minAge.
+export function ageFromOffset(
+  clientX: number,
+  trackLeft: number,
+  trackWidth: number,
+  minAge: number,
+  maxAge: number,
+): number {
+  if (trackWidth <= 0) return minAge;
+  const fraction = (clientX - trackLeft) / trackWidth;
+  const age = Math.round(minAge + fraction * (maxAge - minAge));
+  return Math.min(Math.max(age, minAge), maxAge);
+}

@@ -4,7 +4,7 @@ import type {
   SerializedPlanIncome,
   SerializedPlanLiability,
 } from "@/app/plan/serialized";
-import { toTimelineModel } from "./timelineData";
+import { ageFromOffset, toTimelineModel } from "./timelineData";
 
 const income = (over: Partial<SerializedPlanIncome>): SerializedPlanIncome => ({
   id: "i1",
@@ -147,5 +147,24 @@ describe("toTimelineModel", () => {
     expect(m.bars.income[0]?.leftPct).toBe(0);
     expect(m.bars.income[0]?.widthPct).toBe(0);
     expect(m.ticks).toEqual([{ age: 50, leftPct: 0 }]);
+  });
+});
+
+describe("ageFromOffset", () => {
+  // track spans 44..95 over 0..1000px from x=100
+  it("maps the track left edge to minAge and right edge to maxAge", () => {
+    expect(ageFromOffset(100, 100, 1000, 44, 95)).toBe(44);
+    expect(ageFromOffset(1100, 100, 1000, 44, 95)).toBe(95);
+  });
+  it("maps the midpoint to the rounded middle age", () => {
+    // halfway = 44 + 0.5*51 = 69.5 → round → 70
+    expect(ageFromOffset(600, 100, 1000, 44, 95)).toBe(70);
+  });
+  it("clamps below minAge and above maxAge", () => {
+    expect(ageFromOffset(0, 100, 1000, 44, 95)).toBe(44);
+    expect(ageFromOffset(5000, 100, 1000, 44, 95)).toBe(95);
+  });
+  it("returns minAge for a degenerate track width", () => {
+    expect(ageFromOffset(300, 100, 0, 44, 95)).toBe(44);
   });
 });
