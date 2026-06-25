@@ -404,8 +404,10 @@ model PlanAsset {
   wrapper             PlanAssetWrapper @default(OTHER)
   openingValue        Decimal          @default(0) @db.Decimal(14, 2)
   expectedReturnPct   Decimal?         @db.Decimal(5, 2)
+  feePct              Decimal          @default(0) @db.Decimal(5, 2)
   annualContribution  Decimal          @default(0) @db.Decimal(12, 2)
   contributionEndAge  Int?
+  minAccessAge        Int?
   drawdownPriority    Int              @default(0)
   sourceBalanceItemId String?          @db.Uuid
   sortOrder           Int              @default(0)

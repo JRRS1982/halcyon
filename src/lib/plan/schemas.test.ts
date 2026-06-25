@@ -23,8 +23,10 @@ const validAsset = {
   wrapper: "PENSION",
   openingValue: 100000,
   expectedReturnPct: 5,
+  feePct: 0,
   annualContribution: 6000,
   contributionEndAge: null,
+  minAccessAge: null,
   drawdownPriority: 2,
 };
 
@@ -99,6 +101,21 @@ describe("updatePlanAssetSchema", () => {
     expect(() =>
       updatePlanAssetSchema.parse({ ...validAsset, openingValue: -1 }),
     ).toThrow();
+  });
+  it("rejects out-of-range feePct and minAccessAge", () => {
+    expect(() =>
+      updatePlanAssetSchema.parse({ ...validAsset, feePct: 6 }),
+    ).toThrow();
+    expect(() =>
+      updatePlanAssetSchema.parse({ ...validAsset, feePct: -1 }),
+    ).toThrow();
+    expect(() =>
+      updatePlanAssetSchema.parse({ ...validAsset, minAccessAge: 40 }),
+    ).toThrow();
+    expect(
+      updatePlanAssetSchema.parse({ ...validAsset, minAccessAge: null })
+        .minAccessAge,
+    ).toBeNull();
   });
 });
 

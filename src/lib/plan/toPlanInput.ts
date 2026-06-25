@@ -65,8 +65,10 @@ export function toPlanInput(
       wrapper: a.wrapper,
       openingValue: num(a.openingValue),
       expectedReturnPct: optNum(a.expectedReturnPct),
+      feePct: num(a.feePct),
       annualContribution: num(a.annualContribution),
       contributionEndAge: a.contributionEndAge ?? undefined,
+      minAccessAge: a.minAccessAge ?? undefined,
       drawdownPriority: a.drawdownPriority,
     })),
     liabilities: plan.liabilities.map((l) => ({

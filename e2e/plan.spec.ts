@@ -1,5 +1,71 @@
 import { expect, signIn, test } from "./_helpers/fixtures";
 
+// Fees / charges % field round-trips: open asset drawer, expand the Growth
+// section, set feePct to 0.5, blur → persists after router.refresh().
+test("plan: asset fees field round-trips through the drawer", async ({
+  page,
+  db,
+}) => {
+  await signIn(page);
+  await page.waitForURL("**/dashboard");
+
+  const user = await db.user.findFirstOrThrow();
+  const start = new Date(Date.UTC(2026, 0, 1));
+  const end = new Date(Date.UTC(2026, 0, 31));
+  await db.financialPeriod.create({
+    data: {
+      userId: user.id,
+      granularity: "MONTH",
+      startDate: start,
+      endDate: end,
+      label: "Jan 2026",
+      balanceItems: {
+        create: [
+          {
+            type: "ASSET",
+            category: "LONG_TERM",
+            label: "SIPP",
+            value: 100000,
+          },
+        ],
+      },
+      items: {
+        create: [
+          {
+            type: "INCOME",
+            incomeCategory: "SALARY",
+            label: "Salary",
+            budget: 4000,
+          },
+        ],
+      },
+    },
+  });
+
+  await page.goto("/plan");
+  await page.locator("input[type='date']").fill("1986-06-01");
+  await page.locator("input[type='number']").first().fill("65");
+  await page.getByRole("button", { name: /create my plan/i }).click();
+
+  await expect(page.getByRole("heading", { name: "Your plan" })).toBeVisible();
+
+  // Open the seeded asset's drawer (summary row → dialog).
+  const assetPanel = page.locator("section", { hasText: "Assets" });
+  await assetPanel.getByRole("button", { name: /SIPP/ }).click();
+  const drawer = page.getByRole("dialog");
+  await expect(drawer).toBeVisible();
+
+  // Expand the Growth section (collapsed by default) to reveal the fee field.
+  await drawer.getByRole("button", { name: /growth/i }).click();
+
+  // Fees / charges % round-trips: set 0.5, blur → persists after router.refresh().
+  const feeField = drawer.getByLabel(/fees \/ charges %/i);
+  await feeField.fill("0.5");
+  await feeField.blur();
+  await expect(feeField).toHaveValue("0.5");
+  await expect(page.getByRole("heading", { name: "Your plan" })).toBeVisible();
+});
+
 // Phase 2c /plan editing loop, end-to-end through the browser:
 // create from seeded data → render chart + verdict + editors → edit an asset
 // wrapper and an assumption (save-on-change → revalidate) → and the data-loss

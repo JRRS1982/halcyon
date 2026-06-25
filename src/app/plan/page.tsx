@@ -54,8 +54,10 @@ export default async function PlanPage() {
       openingValue: Number(a.openingValue),
       expectedReturnPct:
         a.expectedReturnPct === null ? null : Number(a.expectedReturnPct),
+      feePct: Number(a.feePct),
       annualContribution: Number(a.annualContribution),
       contributionEndAge: a.contributionEndAge,
+      minAccessAge: a.minAccessAge,
       drawdownPriority: a.drawdownPriority,
     })),
     liabilities: plan.liabilities.map((l) => ({

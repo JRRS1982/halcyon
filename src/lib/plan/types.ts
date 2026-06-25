@@ -40,8 +40,10 @@ export interface AssetInput {
   wrapper: Wrapper;
   openingValue: number;
   expectedReturnPct?: number; // undefined ⇒ PlanInput.defaultReturnPct
+  feePct?: number; // annual charge subtracted from the effective return; default 0
   annualContribution?: number; // regular paying-in, inflation-grown; default 0
   contributionEndAge?: number; // default = PlanInput.retirementAge
+  minAccessAge?: number; // earliest drawdown age; PENSION defaults to 57 when undefined
   drawdownPriority: number; // ascending = drawn first (CASH buffer first)
 }
 
