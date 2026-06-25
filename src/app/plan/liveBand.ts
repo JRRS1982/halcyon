@@ -14,16 +14,31 @@ export type AssumptionOverrides = Partial<
   >
 >;
 
+export type LiveOverrides = {
+  assumptions: AssumptionOverrides;
+  events: Record<string, number>; // event id → overridden age
+};
+
 export function computeLiveBand(
   plan: SerializedPlan,
-  overrides: AssumptionOverrides,
+  overrides: LiveOverrides,
   serverBand: BandedProjection,
   asOfYear: number,
 ): BandedProjection {
-  if (Object.keys(overrides).length === 0) return serverBand;
+  const noAssumptions = Object.keys(overrides.assumptions).length === 0;
+  const noEvents = Object.keys(overrides.events).length === 0;
+  if (noAssumptions && noEvents) return serverBand;
 
   const input = serializedToPlanInput(
-    { ...plan, assumptions: { ...plan.assumptions, ...overrides } },
+    {
+      ...plan,
+      assumptions: { ...plan.assumptions, ...overrides.assumptions },
+      events: plan.events.map((e) =>
+        e.id in overrides.events
+          ? { ...e, age: overrides.events[e.id] ?? e.age }
+          : e,
+      ),
+    },
     asOfYear,
   );
   const band = toTodaysMoneyBand(
