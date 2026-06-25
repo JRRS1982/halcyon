@@ -107,6 +107,10 @@ export async function createPlan(input: {
       retirementAge,
     );
 
+    const currentAge =
+      new Date().getUTCFullYear() - new Date(dateOfBirth).getUTCFullYear();
+    const carAge = Math.min(currentAge + 5, 94); // planToAge default 95 − 1
+
     await tx.plan.create({
       data: {
         userId,
@@ -120,6 +124,16 @@ export async function createPlan(input: {
         liabilities: { create: seeded.liabilities },
         incomes: { create: seeded.incomes },
         expenses: { create: seeded.expenses },
+        events: {
+          create: [
+            {
+              label: "New car",
+              age: carAge,
+              direction: "OUTFLOW",
+              amount: 15000,
+            },
+          ],
+        },
       },
     });
   });
