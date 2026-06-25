@@ -66,6 +66,84 @@ test("plan: asset fees field round-trips through the drawer", async ({
   await expect(page.getByRole("heading", { name: "Your plan" })).toBeVisible();
 });
 
+// Retirement-age slider persists on release: fill the range input, trigger the
+// commit path via pointerup, assert the value, reload, and assert persistence.
+test("plan: retirement-age slider persists on release", async ({
+  page,
+  db,
+}) => {
+  await signIn(page);
+  await page.waitForURL("**/dashboard");
+
+  const user = await db.user.findFirstOrThrow();
+  const start = new Date(Date.UTC(2026, 0, 1));
+  const end = new Date(Date.UTC(2026, 0, 31));
+  await db.financialPeriod.create({
+    data: {
+      userId: user.id,
+      granularity: "MONTH",
+      startDate: start,
+      endDate: end,
+      label: "Jan 2026",
+      balanceItems: {
+        create: [
+          {
+            type: "ASSET",
+            category: "LONG_TERM",
+            label: "SIPP",
+            value: 100000,
+          },
+        ],
+      },
+      items: {
+        create: [
+          {
+            type: "INCOME",
+            incomeCategory: "SALARY",
+            label: "Salary",
+            budget: 4000,
+          },
+        ],
+      },
+    },
+  });
+
+  await page.goto("/plan");
+  // Wait for the create form to be interactive (hydration complete) before filling.
+  await page.waitForLoadState("networkidle");
+  await page.locator("input[type='date']").fill("1986-06-01");
+  await page.locator("input[type='number']").first().fill("65");
+  await page.getByRole("button", { name: /create my plan/i }).click();
+
+  await expect(page.getByRole("heading", { name: "Your plan" })).toBeVisible();
+
+  // Locate the retirement-age range input in the Sliders strip.
+  const slider = page.getByRole("slider", { name: /retirement age/i });
+  await expect(slider).toBeVisible();
+
+  // Set the range value and fire React's synthetic onChange (via nativeInputValueSetter
+  // + input event), then dispatch pointerup to trigger onCommit.
+  await slider.evaluate((el: HTMLInputElement) => {
+    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+      window.HTMLInputElement.prototype,
+      "value",
+    )?.set;
+    nativeInputValueSetter?.call(el, "64");
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    el.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
+  });
+  await expect(slider).toHaveValue("64");
+
+  // Wait for the commit + router.refresh() to complete.
+  await expect(page.getByRole("heading", { name: "Your plan" })).toBeVisible();
+
+  // Reload and confirm the persisted value survives a full page refresh.
+  await page.reload();
+  await expect(
+    page.getByRole("slider", { name: /retirement age/i }),
+  ).toHaveValue("64");
+});
+
 // Phase 2c /plan editing loop, end-to-end through the browser:
 // create from seeded data → render chart + verdict + editors → edit an asset
 // wrapper and an assumption (save-on-change → revalidate) → and the data-loss
@@ -161,14 +239,20 @@ test("plan: create, edit assumptions/assets, and the data-loss guard holds", asy
   await expect(drawer).not.toBeVisible();
 
   // Edit an assumption (still inline, save-on-blur → revalidate, page renders).
-  const retirementAge = page.getByLabel(/Retirement age/i);
+  // Scope to the Assumptions section to avoid matching the slider with the same label.
+  const assumptionsPanel = page.locator("section", { hasText: "Assumptions" });
+  const retirementAge = assumptionsPanel.getByRole("spinbutton", {
+    name: /Retirement age/i,
+  });
   await retirementAge.fill("60");
   await retirementAge.blur();
   await expect(retirementAge).toHaveValue("60");
   await expect(page.getByRole("heading", { name: "Your plan" })).toBeVisible();
 
   // Return spread round-trips: set to 3, blur → persists after router.refresh().
-  const returnSpread = page.getByLabel(/Return spread/i);
+  const returnSpread = assumptionsPanel.getByRole("spinbutton", {
+    name: /Return spread/i,
+  });
   await returnSpread.fill("3");
   await returnSpread.blur();
   await expect(returnSpread).toHaveValue("3");
