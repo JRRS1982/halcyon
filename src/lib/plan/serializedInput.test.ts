@@ -76,10 +76,10 @@ describe("serializedToPlanInput", () => {
     expect(input.taxRatePct).toBe(20); // blendedTaxRatePct → taxRatePct
     expect(input.returnSpreadPct).toBe(2);
     expect(input.statePension).toEqual({ startAge: 67, annualAmount: 11500 });
+    expect(input.assets[0]?.expectedReturnPct).toBeUndefined();
+    expect(input.assets[0]?.contributionEndAge).toBeUndefined();
     expect(input.assets[0]).toMatchObject({
-      expectedReturnPct: undefined, // null → undefined (engine default)
       feePct: 0.5,
-      contributionEndAge: undefined,
       minAccessAge: 57,
     });
     expect(input.incomes[0]?.growth).toEqual({ kind: "INFLATION" });
