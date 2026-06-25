@@ -24,7 +24,6 @@ export function usePlanProjection(
   // the live state — overrides clear and the live band falls back to the server
   // band. Depending on serverBand identity means the override persists through
   // the commit→refresh window (no flash-back to the pre-drag value).
-  // biome-ignore lint/correctness/useExhaustiveDependencies: reset is keyed on serverBand only
   useEffect(() => {
     setOverrides({});
     setLiveBand(serverBand);
