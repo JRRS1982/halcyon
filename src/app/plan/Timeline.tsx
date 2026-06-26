@@ -1,7 +1,12 @@
 // src/app/plan/Timeline.tsx
 "use client";
 
-import { type TimelineBar, toTimelineModel } from "@/lib/plan/timelineData";
+import {
+  type TimelineBar,
+  ageFromOffset,
+  toTimelineModel,
+} from "@/lib/plan/timelineData";
+import { useRef } from "react";
 import styled, { useTheme } from "styled-components";
 import { PlanCard } from "./PlanCard";
 import { PLOT_LEFT_INSET, PLOT_RIGHT_INSET } from "./axisGeometry";
@@ -76,8 +81,14 @@ const Marker = styled.div<{ $inflow: boolean }>`
   width: 12px;
   height: 12px;
   transform: translateX(-50%) rotate(45deg);
+  cursor: ew-resize;
+  touch-action: none;
   background: ${({ $inflow, theme }) =>
     $inflow ? theme.colors.positive : theme.colors.negative};
+  &:focus-visible {
+    outline: 2px solid ${({ theme }) => theme.colors.accent};
+    outline-offset: 2px;
+  }
 `;
 const Overlay = styled.div`
   position: absolute;
@@ -123,6 +134,8 @@ export function Timeline({
   statePensionAge,
   minAge,
   maxAge,
+  onEventInput,
+  onEventCommit,
 }: {
   incomes: SerializedPlanIncome[];
   expenses: SerializedPlanExpense[];
@@ -132,8 +145,11 @@ export function Timeline({
   statePensionAge: number | null;
   minAge: number;
   maxAge: number;
+  onEventInput?: (id: string, age: number) => void;
+  onEventCommit?: (id: string, age: number) => void;
 }) {
   const theme = useTheme();
+  const eventTrackRef = useRef<HTMLDivElement>(null);
   const model = toTimelineModel({
     incomes,
     expenses,
@@ -191,15 +207,83 @@ export function Timeline({
               <div style={{ display: "contents" }}>
                 <GroupLabel>Events</GroupLabel>
                 <RowLabel />
-                <Track>
-                  {model.events.map((m) => (
-                    <Marker
-                      key={m.id}
-                      $inflow={m.direction === "INFLOW"}
-                      style={{ left: `${m.leftPct}%` }}
-                      title={`${m.label} (age ${m.age})`}
-                    />
-                  ))}
+                <Track ref={eventTrackRef}>
+                  {model.events.map((m) => {
+                    const ageAt = (clientX: number): number => {
+                      const r = eventTrackRef.current?.getBoundingClientRect();
+                      if (!r) return m.age;
+                      return ageFromOffset(
+                        clientX,
+                        r.left,
+                        r.width,
+                        minAge,
+                        maxAge,
+                      );
+                    };
+                    return (
+                      <Marker
+                        key={m.id}
+                        $inflow={m.direction === "INFLOW"}
+                        style={{ left: `${m.leftPct}%` }}
+                        role="slider"
+                        tabIndex={0}
+                        aria-label={`${m.label} age`}
+                        aria-valuemin={minAge}
+                        aria-valuemax={maxAge}
+                        aria-valuenow={m.age}
+                        title={`${m.label} (age ${m.age})`}
+                        onPointerDown={(e) => {
+                          if (!onEventInput) return;
+                          e.currentTarget.setPointerCapture(e.pointerId);
+                        }}
+                        onPointerMove={(e) => {
+                          if (
+                            !onEventInput ||
+                            !e.currentTarget.hasPointerCapture(e.pointerId)
+                          )
+                            return;
+                          onEventInput(m.id, ageAt(e.clientX));
+                        }}
+                        onPointerUp={(e) => {
+                          if (
+                            !onEventCommit ||
+                            !e.currentTarget.hasPointerCapture(e.pointerId)
+                          )
+                            return;
+                          e.currentTarget.releasePointerCapture(e.pointerId);
+                          onEventCommit(m.id, ageAt(e.clientX));
+                        }}
+                        onKeyDown={(e) => {
+                          if (!onEventInput) return;
+                          const delta =
+                            e.key === "ArrowRight" || e.key === "ArrowUp"
+                              ? 1
+                              : e.key === "ArrowLeft" || e.key === "ArrowDown"
+                                ? -1
+                                : 0;
+                          if (delta === 0) return;
+                          e.preventDefault();
+                          const next = Math.min(
+                            Math.max(m.age + delta, minAge),
+                            maxAge,
+                          );
+                          onEventInput(m.id, next);
+                        }}
+                        onKeyUp={(e) => {
+                          if (!onEventCommit) return;
+                          if (
+                            [
+                              "ArrowRight",
+                              "ArrowUp",
+                              "ArrowLeft",
+                              "ArrowDown",
+                            ].includes(e.key)
+                          )
+                            onEventCommit(m.id, m.age);
+                        }}
+                      />
+                    );
+                  })}
                 </Track>
               </div>
             ) : null}

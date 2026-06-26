@@ -57,8 +57,15 @@ export function PlanView({
   asOfYear: number;
 }) {
   const router = useRouter();
-  const { liveBand, effectiveAssumptions, setOverride, commit } =
-    usePlanProjection(plan, band, asOfYear);
+  const {
+    liveBand,
+    effectiveAssumptions,
+    liveEvents,
+    setOverride,
+    commit,
+    setEventOverride,
+    commitEvent,
+  } = usePlanProjection(plan, band, asOfYear);
   const [selected, setSelected] = useState<{ kind: Kind; id: string } | null>(
     null,
   );
@@ -142,11 +149,13 @@ export function PlanView({
         incomes={plan.incomes}
         expenses={plan.expenses}
         liabilities={plan.liabilities}
-        events={plan.events}
+        events={liveEvents}
         retirementAge={effectiveAssumptions.retirementAge}
         statePensionAge={effectiveAssumptions.statePensionAge}
         minAge={liveBand.mid[0]?.age ?? 0}
         maxAge={liveBand.mid[liveBand.mid.length - 1]?.age ?? 0}
+        onEventInput={setEventOverride}
+        onEventCommit={commitEvent}
       />
       <AssumptionsPanel assumptions={plan.assumptions} />
       <AssetsTable
