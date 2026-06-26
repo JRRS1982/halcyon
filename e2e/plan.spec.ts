@@ -144,6 +144,76 @@ test("plan: retirement-age slider persists on release", async ({
   ).toHaveValue("64");
 });
 
+// Draggable event markers: a freshly-created plan seeds a "New car" event, so
+// the timeline renders a keyboard-operable slider marker. Focus it, nudge the
+// age with ArrowRight (live recompute), and confirm the new age persists after
+// a full reload (commit-on-keyup → updatePlanEvent → refresh). Keyboard (not a
+// synthetic pointer drag) keeps the interaction deterministic.
+test("plan: dragging an event marker (keyboard) persists its age", async ({
+  page,
+  db,
+}) => {
+  await signIn(page);
+  await page.waitForURL("**/dashboard");
+
+  const user = await db.user.findFirstOrThrow();
+  const start = new Date(Date.UTC(2026, 0, 1));
+  const end = new Date(Date.UTC(2026, 0, 31));
+  await db.financialPeriod.create({
+    data: {
+      userId: user.id,
+      granularity: "MONTH",
+      startDate: start,
+      endDate: end,
+      label: "Jan 2026",
+      balanceItems: {
+        create: [
+          {
+            type: "ASSET",
+            category: "LONG_TERM",
+            label: "SIPP",
+            value: 100000,
+          },
+        ],
+      },
+      items: {
+        create: [
+          {
+            type: "INCOME",
+            incomeCategory: "SALARY",
+            label: "Salary",
+            budget: 4000,
+          },
+        ],
+      },
+    },
+  });
+
+  await page.goto("/plan");
+  await page.waitForLoadState("networkidle");
+  await page.locator("input[type='date']").fill("1986-06-01");
+  await page.locator("input[type='number']").first().fill("65");
+  await page.getByRole("button", { name: /create my plan/i }).click();
+
+  await expect(page.getByRole("heading", { name: "Your plan" })).toBeVisible();
+
+  // The seeded "New car" event renders a slider marker on the timeline.
+  const marker = page.getByRole("slider", { name: /new car age/i });
+  await expect(marker).toBeVisible();
+  const before = Number(await marker.getAttribute("aria-valuenow"));
+
+  await marker.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(marker).toHaveAttribute("aria-valuenow", String(before + 1));
+
+  // Commit-on-keyup persists; the new age survives a full page reload.
+  await expect(page.getByRole("heading", { name: "Your plan" })).toBeVisible();
+  await page.reload();
+  await expect(
+    page.getByRole("slider", { name: /new car age/i }),
+  ).toHaveAttribute("aria-valuenow", String(before + 1));
+});
+
 // Phase 2c /plan editing loop, end-to-end through the browser:
 // create from seeded data → render chart + verdict + editors → edit an asset
 // wrapper and an assumption (save-on-change → revalidate) → and the data-loss
