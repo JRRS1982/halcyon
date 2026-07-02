@@ -66,9 +66,12 @@ test("plan: asset fees field round-trips through the drawer", async ({
   await expect(page.getByRole("heading", { name: "Your plan" })).toBeVisible();
 });
 
-// Retirement-age slider persists on release: fill the range input, trigger the
-// commit path via pointerup, assert the value, reload, and assert persistence.
-test("plan: retirement-age slider persists on release", async ({
+// Draggable event markers: a freshly-created plan seeds a "New car" event, so
+// the timeline renders a keyboard-operable slider marker. Focus it, nudge the
+// age with ArrowRight (live recompute), and confirm the new age persists after
+// a full reload (commit-on-keyup → updatePlanEvent → refresh). Keyboard (not a
+// synthetic pointer drag) keeps the interaction deterministic.
+test("plan: dragging an event marker (keyboard) persists its age", async ({
   page,
   db,
 }) => {
@@ -109,7 +112,6 @@ test("plan: retirement-age slider persists on release", async ({
   });
 
   await page.goto("/plan");
-  // Wait for the create form to be interactive (hydration complete) before filling.
   await page.waitForLoadState("networkidle");
   await page.locator("input[type='date']").fill("1986-06-01");
   await page.locator("input[type='number']").first().fill("65");
@@ -117,31 +119,90 @@ test("plan: retirement-age slider persists on release", async ({
 
   await expect(page.getByRole("heading", { name: "Your plan" })).toBeVisible();
 
-  // Locate the retirement-age range input in the Sliders strip.
-  const slider = page.getByRole("slider", { name: /retirement age/i });
-  await expect(slider).toBeVisible();
+  // The seeded "New car" event renders a slider marker on the timeline.
+  const marker = page.getByRole("slider", { name: /new car age/i });
+  await expect(marker).toBeVisible();
+  const before = Number(await marker.getAttribute("aria-valuenow"));
 
-  // Set the range value and fire React's synthetic onChange (via nativeInputValueSetter
-  // + input event), then dispatch pointerup to trigger onCommit.
-  await slider.evaluate((el: HTMLInputElement) => {
-    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
-      window.HTMLInputElement.prototype,
-      "value",
-    )?.set;
-    nativeInputValueSetter?.call(el, "64");
-    el.dispatchEvent(new Event("input", { bubbles: true }));
-    el.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
-  });
-  await expect(slider).toHaveValue("64");
+  await marker.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(marker).toHaveAttribute("aria-valuenow", String(before + 1));
 
-  // Wait for the commit + router.refresh() to complete.
+  // Commit-on-keyup persists; the new age survives a full page reload.
   await expect(page.getByRole("heading", { name: "Your plan" })).toBeVisible();
-
-  // Reload and confirm the persisted value survives a full page refresh.
   await page.reload();
   await expect(
-    page.getByRole("slider", { name: /retirement age/i }),
-  ).toHaveValue("64");
+    page.getByRole("slider", { name: /new car age/i }),
+  ).toHaveAttribute("aria-valuenow", String(before + 1));
+});
+
+// Draggable bar edges: the seeded Salary income renders start/end grip handles
+// on the timeline. Focus its "end" handle, nudge it left (live recompute), and
+// confirm the new end age persists after a reload (commit-on-keyup →
+// updatePlanIncome → refresh). Keyboard keeps the interaction deterministic.
+test("plan: dragging a bar's end handle (keyboard) persists the age", async ({
+  page,
+  db,
+}) => {
+  await signIn(page);
+  await page.waitForURL("**/dashboard");
+
+  const user = await db.user.findFirstOrThrow();
+  const start = new Date(Date.UTC(2026, 0, 1));
+  const end = new Date(Date.UTC(2026, 0, 31));
+  await db.financialPeriod.create({
+    data: {
+      userId: user.id,
+      granularity: "MONTH",
+      startDate: start,
+      endDate: end,
+      label: "Jan 2026",
+      balanceItems: {
+        create: [
+          {
+            type: "ASSET",
+            category: "LONG_TERM",
+            label: "SIPP",
+            value: 100000,
+          },
+        ],
+      },
+      items: {
+        create: [
+          {
+            type: "INCOME",
+            incomeCategory: "SALARY",
+            label: "Salary",
+            budget: 4000,
+          },
+        ],
+      },
+    },
+  });
+
+  await page.goto("/plan");
+  await page.waitForLoadState("networkidle");
+  await page.locator("input[type='date']").fill("1986-06-01");
+  await page.locator("input[type='number']").first().fill("65");
+  await page.getByRole("button", { name: /create my plan/i }).click();
+
+  await expect(page.getByRole("heading", { name: "Your plan" })).toBeVisible();
+
+  // The seeded Salary income's end handle (salary ends at retirement age 65).
+  const handle = page.getByRole("slider", { name: /salary end age/i });
+  await expect(handle).toBeVisible();
+  const before = Number(await handle.getAttribute("aria-valuenow"));
+
+  await handle.focus();
+  await page.keyboard.press("ArrowLeft");
+  await expect(handle).toHaveAttribute("aria-valuenow", String(before - 1));
+
+  // Commit-on-keyup persists; the new end age survives a full page reload.
+  await expect(page.getByRole("heading", { name: "Your plan" })).toBeVisible();
+  await page.reload();
+  await expect(
+    page.getByRole("slider", { name: /salary end age/i }),
+  ).toHaveAttribute("aria-valuenow", String(before - 1));
 });
 
 // Phase 2c /plan editing loop, end-to-end through the browser:
@@ -210,8 +271,11 @@ test("plan: create, edit assumptions/assets, and the data-loss guard holds", asy
   ).toBeVisible();
   await expect(page.getByRole("heading", { name: "Assets" })).toBeVisible();
   await expect(page.locator("svg").first()).toBeVisible();
-  // Seeded asset is wrapper OTHER, so the chart's only asset segment is OTHER.
-  await expect(page.locator(".recharts-legend-wrapper")).toContainText("OTHER");
+  // The seeded "SIPP" label infers wrapper PENSION, so the chart's asset segment
+  // is PENSION.
+  await expect(page.locator(".recharts-legend-wrapper")).toContainText(
+    "PENSION",
+  );
 
   // Open the seeded asset's drawer (summary row → dialog).
   const assetPanel = page.locator("section", { hasText: "Assets" });
@@ -219,13 +283,11 @@ test("plan: create, edit assumptions/assets, and the data-loss guard holds", asy
   const drawer = page.getByRole("dialog");
   await expect(drawer).toBeVisible();
 
-  // Change the wrapper OTHER → PENSION inside the drawer; chart legend recolours.
+  // Change the wrapper PENSION → GIA inside the drawer; chart legend recolours.
   const wrapper = drawer.locator("select").first();
-  await expect(wrapper).toHaveValue("OTHER");
-  await wrapper.selectOption("PENSION");
-  await expect(page.locator(".recharts-legend-wrapper")).toContainText(
-    "PENSION",
-  );
+  await expect(wrapper).toHaveValue("PENSION");
+  await wrapper.selectOption("GIA");
+  await expect(page.locator(".recharts-legend-wrapper")).toContainText("GIA");
 
   // Data-loss guard inside the drawer: clear the required Value, blur → reverts.
   const valueCell = drawer.locator("input[type='number']").first();
@@ -239,7 +301,6 @@ test("plan: create, edit assumptions/assets, and the data-loss guard holds", asy
   await expect(drawer).not.toBeVisible();
 
   // Edit an assumption (still inline, save-on-blur → revalidate, page renders).
-  // Scope to the Assumptions section to avoid matching the slider with the same label.
   const assumptionsPanel = page.locator("section", { hasText: "Assumptions" });
   const retirementAge = assumptionsPanel.getByRole("spinbutton", {
     name: /Retirement age/i,
@@ -259,7 +320,7 @@ test("plan: create, edit assumptions/assets, and the data-loss guard holds", asy
   await expect(page.getByRole("heading", { name: "Your plan" })).toBeVisible();
 
   // View switcher: Net worth (default) → Cash flow → Liquid assets.
-  // Seeded plan has a SALARY income (cash-flow income bar) and a PENSION pot
+  // Seeded plan has a SALARY income (cash-flow income bar) and a GIA pot
   // (after the wrapper edit above), so each view has a distinctive legend entry.
   await expect(page.getByRole("button", { name: "Net worth" })).toBeVisible();
   // The per-view caption (default = net worth) explains what the chart shows.
@@ -280,9 +341,7 @@ test("plan: create, edit assumptions/assets, and the data-loss guard holds", asy
   });
 
   await page.getByRole("button", { name: "Liquid assets" }).click();
-  await expect(page.locator(".recharts-legend-wrapper")).toContainText(
-    "PENSION",
-  );
+  await expect(page.locator(".recharts-legend-wrapper")).toContainText("GIA");
   await expect(page.getByText(/only the pots you can draw on/i)).toBeVisible();
   await page.screenshot({
     path: "test-results/plan-2b-liquid.png",

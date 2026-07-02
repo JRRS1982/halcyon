@@ -55,7 +55,8 @@ Docker workflow (Make is the primary interface — `make` alone runs `down` then
 - `make db-shell` — `psql` into the `halcyon` DB
 - `make db-seed` / `make db-reset` — runs `prisma migrate deploy`/`reset` then `prisma/seed.ts` inside the app container
 - `make migrate-create name=<verb_table>` — `prisma migrate dev --name <name>`; authors a new migration (name required, should start with a verb)
-- `make migrate-deploy` — `prisma migrate deploy`; applies all pending migrations to the local DB (run after pulling/adding migrations so the running app matches the schema)
+- `make migrate-deploy` — `prisma migrate deploy` to apply all pending migrations to the local DB, then regenerates the client and restarts the app (via `prisma-generate`) so the running app matches the schema. Run after pulling/adding migrations. Unlike the CI/prod `prisma migrate deploy` step, the local target also regenerates + restarts (a local-only convenience — prod rebuilds the client from scratch on every deploy, so it can't go stale there).
+- `make prisma-generate` — `prisma generate` inside the container, then restarts the app. Standalone fix for when the running app loads a stale client after a schema change (symptom: Prisma `Unknown argument <field>` at runtime even though the column exists and migrations are applied). `migrate-deploy` and `migrate-create` both call/perform this for you; use it directly when the client is stale but no migration needs applying.
 - `make lint-and-format` — `pnpm lint:fix && pnpm format`
 
 There is no longer a self-hosted production setup — `Dockerfile.prod`, `compose.prod.yaml`, the `make prod-*` targets, and `.github/workflows/deploy.yml` were removed when production moved to Vercel.

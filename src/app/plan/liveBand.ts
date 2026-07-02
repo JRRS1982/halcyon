@@ -14,16 +14,68 @@ export type AssumptionOverrides = Partial<
   >
 >;
 
+// A dragged bar edge overrides one or both age bounds of an income/expense
+// (start + end) or a liability (end only). undefined = leave as committed.
+export type StreamOverride = {
+  startAge?: number | null;
+  endAge?: number | null;
+};
+
+export type LiveOverrides = {
+  assumptions: AssumptionOverrides;
+  events: Record<string, number>; // event id → overridden age
+  streams: Record<string, StreamOverride>; // income/expense/liability id → age bounds
+};
+
+export function withStreamAges<
+  T extends { startAge: number | null; endAge: number | null },
+>(item: T, o: StreamOverride | undefined): T {
+  if (!o) return item;
+  return {
+    ...item,
+    startAge: o.startAge !== undefined ? o.startAge : item.startAge,
+    endAge: o.endAge !== undefined ? o.endAge : item.endAge,
+  };
+}
+
+export function withStreamEnd<T extends { endAge: number | null }>(
+  item: T,
+  o: StreamOverride | undefined,
+): T {
+  if (!o || o.endAge === undefined) return item;
+  return { ...item, endAge: o.endAge };
+}
+
 export function computeLiveBand(
   plan: SerializedPlan,
-  overrides: AssumptionOverrides,
+  overrides: LiveOverrides,
   serverBand: BandedProjection,
   asOfYear: number,
 ): BandedProjection {
-  if (Object.keys(overrides).length === 0) return serverBand;
+  const noAssumptions = Object.keys(overrides.assumptions).length === 0;
+  const noEvents = Object.keys(overrides.events).length === 0;
+  const noStreams = Object.keys(overrides.streams).length === 0;
+  if (noAssumptions && noEvents && noStreams) return serverBand;
 
   const input = serializedToPlanInput(
-    { ...plan, assumptions: { ...plan.assumptions, ...overrides } },
+    {
+      ...plan,
+      assumptions: { ...plan.assumptions, ...overrides.assumptions },
+      events: plan.events.map((e) =>
+        e.id in overrides.events
+          ? { ...e, age: overrides.events[e.id] ?? e.age }
+          : e,
+      ),
+      incomes: plan.incomes.map((i) =>
+        withStreamAges(i, overrides.streams[i.id]),
+      ),
+      expenses: plan.expenses.map((e) =>
+        withStreamAges(e, overrides.streams[e.id]),
+      ),
+      liabilities: plan.liabilities.map((l) =>
+        withStreamEnd(l, overrides.streams[l.id]),
+      ),
+    },
     asOfYear,
   );
   const band = toTodaysMoneyBand(

@@ -1,4 +1,5 @@
 import {
+  createPlan,
   createPlanEvent,
   createPlanExpense,
   createPlanIncome,
@@ -92,6 +93,20 @@ describe("plan create/delete actions (integration)", () => {
     await deletePlanIncome({ id });
     const after = await prisma.planIncome.findUniqueOrThrow({ where: { id } });
     expect(after.deletedAt).not.toBeNull();
+  });
+
+  it("createPlan seeds one example New car OUTFLOW event", async () => {
+    await createPlan({ dateOfBirth: "1986-06-01", retirementAge: 65 });
+    const events = await prisma.planEvent.findMany({
+      where: { plan: { userId: TEST_USER_ID }, deletedAt: null },
+    });
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      label: "New car",
+      direction: "OUTFLOW",
+    });
+    expect(Number(events[0]?.amount)).toBe(15000);
+    expect(events[0]?.age).toBeGreaterThan(0);
   });
 
   it("rejects deleting another user's income (no cross-user delete)", async () => {

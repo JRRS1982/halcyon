@@ -68,17 +68,70 @@ const serverBand = toTodaysMoneyBand(
 
 describe("computeLiveBand", () => {
   it("returns the server band unchanged when there are no overrides", () => {
-    expect(computeLiveBand(plan, {}, serverBand, 2026)).toBe(serverBand);
+    expect(
+      computeLiveBand(
+        plan,
+        { assumptions: {}, events: {}, streams: {} },
+        serverBand,
+        2026,
+      ),
+    ).toBe(serverBand);
   });
 
-  it("recomputes for an override but carries the server earliest-retirement value", () => {
-    const live = computeLiveBand(plan, { retirementAge: 68 }, serverBand, 2026);
+  it("recomputes for an assumption override but carries the server earliest value", () => {
+    const live = computeLiveBand(
+      plan,
+      { assumptions: { retirementAge: 68 }, events: {}, streams: {} },
+      serverBand,
+      2026,
+    );
     expect(live).not.toBe(serverBand);
-    // earliest-retirement is NOT recomputed live — carried from the server band
     expect(live.verdict.earliestSustainableRetirementAge).toBe(
       serverBand.verdict.earliestSustainableRetirementAge,
     );
-    // retiring later changes the year series
     expect(live.mid).not.toEqual(serverBand.mid);
+  });
+
+  it("recomputes when an event age is overridden", () => {
+    // plan must have an event for this; add one to the test plan fixture:
+    const withEvent: SerializedPlan = {
+      ...plan,
+      events: [
+        {
+          id: "ev1",
+          label: "Car",
+          age: 50,
+          direction: "OUTFLOW",
+          amount: 20000,
+        },
+      ],
+    };
+    const base = computeLiveBand(
+      withEvent,
+      { assumptions: {}, events: {}, streams: {} },
+      serverBand,
+      2026,
+    );
+    const moved = computeLiveBand(
+      withEvent,
+      { assumptions: {}, events: { ev1: 60 }, streams: {} },
+      serverBand,
+      2026,
+    );
+    expect(moved).not.toBe(serverBand);
+    expect(moved.mid).not.toEqual(base.mid);
+  });
+
+  it("recomputes when a stream's end age is overridden", () => {
+    // The fixture salary (i1) ends at 60; extending it to 70 adds earning years,
+    // so the projected band must diverge from the server band.
+    const moved = computeLiveBand(
+      plan,
+      { assumptions: {}, events: {}, streams: { i1: { endAge: 70 } } },
+      serverBand,
+      2026,
+    );
+    expect(moved).not.toBe(serverBand);
+    expect(moved.mid).not.toEqual(serverBand.mid);
   });
 });

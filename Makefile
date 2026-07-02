@@ -45,13 +45,16 @@ db-shell:
 	docker compose exec db psql -U postgres -d halcyon
 
 # migrate-deploy: apply every pending migration to the local dev DB
-# (`prisma migrate deploy`). Does NOT diff the schema or create files — it only
-# runs migration SQL that already exists. Idempotent. Run this after pulling new
-# migrations from git, or after migrate-create, so the running app matches the
-# schema. Requires the containers to be up (make / make up).
+# (`prisma migrate deploy`), then regenerate the client and restart the app (via
+# prisma-generate) so the running app always matches the schema. Does NOT diff
+# the schema or create files — it only runs migration SQL that already exists.
+# Run this after pulling new migrations from git, or after migrate-create.
+# Requires the containers to be up (make / make up). NB: unlike the CI/prod
+# `prisma migrate deploy`, this also regenerates + restarts (local convenience).
 # Example: make migrate-deploy
 migrate-deploy:
 	docker compose exec app npx prisma migrate deploy
+	$(MAKE) prisma-generate
 
 # Apply migrations (via migrate-deploy) then seed test data. Requires the
 # containers to be up (started by `make` / `make up`).
@@ -74,6 +77,16 @@ migrate-create:
 		exit 1; \
 	fi
 	docker compose exec app npx prisma migrate dev --name $(name)
+
+# prisma-generate: regenerate the Prisma client in the running container and
+# reload the dev server. `migrate-deploy` applies migration SQL but does NOT
+# regenerate the client, so after pulling schema changes the app can load a
+# stale client (symptom: Prisma "Unknown argument <field>" at runtime even
+# though the column exists and migrations are applied). Run this to fix it.
+# Requires the containers to be up (make / make up).
+prisma-generate:
+	docker compose exec app npx prisma generate
+	docker compose restart app
 
 lint-and-format:
 	pnpm lint:fix

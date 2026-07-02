@@ -14,7 +14,6 @@ import { ExpenseFields, ExpensesTable } from "./ExpensesTable";
 import { IncomeFields, IncomesTable } from "./IncomesTable";
 import { LiabilitiesTable, LiabilityFields } from "./LiabilitiesTable";
 import { PlanDrawer } from "./PlanDrawer";
-import { Sliders } from "./Sliders";
 import { Timeline } from "./Timeline";
 import { VerdictBanner } from "./VerdictBanner";
 import {
@@ -57,8 +56,18 @@ export function PlanView({
   asOfYear: number;
 }) {
   const router = useRouter();
-  const { liveBand, effectiveAssumptions, setOverride, commit } =
-    usePlanProjection(plan, band, asOfYear);
+  const {
+    liveBand,
+    effectiveAssumptions,
+    liveEvents,
+    liveIncomes,
+    liveExpenses,
+    liveLiabilities,
+    setEventOverride,
+    commitEvent,
+    setStreamOverride,
+    commitStream,
+  } = usePlanProjection(plan, band, asOfYear);
   const [selected, setSelected] = useState<{ kind: Kind; id: string } | null>(
     null,
   );
@@ -121,15 +130,11 @@ export function PlanView({
   return (
     <Shell>
       <Title>Your plan</Title>
+      <AssumptionsPanel assumptions={plan.assumptions} />
       <VerdictBanner
         verdict={liveBand.verdict}
         currency={currency}
         numberFormat={numberFormat}
-      />
-      <Sliders
-        assumptions={effectiveAssumptions}
-        onInput={setOverride}
-        onCommit={commit}
       />
       <ChartPanel
         low={liveBand.low}
@@ -139,16 +144,19 @@ export function PlanView({
         numberFormat={numberFormat}
       />
       <Timeline
-        incomes={plan.incomes}
-        expenses={plan.expenses}
-        liabilities={plan.liabilities}
-        events={plan.events}
+        incomes={liveIncomes}
+        expenses={liveExpenses}
+        liabilities={liveLiabilities}
+        events={liveEvents}
         retirementAge={effectiveAssumptions.retirementAge}
         statePensionAge={effectiveAssumptions.statePensionAge}
         minAge={liveBand.mid[0]?.age ?? 0}
         maxAge={liveBand.mid[liveBand.mid.length - 1]?.age ?? 0}
+        onEventInput={setEventOverride}
+        onEventCommit={commitEvent}
+        onStreamInput={setStreamOverride}
+        onStreamCommit={commitStream}
       />
-      <AssumptionsPanel assumptions={plan.assumptions} />
       <AssetsTable
         assets={plan.assets}
         currency={currency}
