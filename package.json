@@ -17,7 +17,7 @@
     "db:reset": "prisma migrate reset --force && pnpm db:seed",
     "test": "jest",
     "check": "biome ci .",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "verify": "pnpm typecheck && pnpm check && pnpm test",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
