@@ -17,24 +17,31 @@ const Scrim = styled.div<{ $open: boolean }>`
 // A native <dialog> (chosen over <aside role="dialog"> to satisfy Biome's
 // useSemanticElements), but deliberately NEVER opened via showModal()/open — it
 // is rendered purely with CSS: `display: flex` overrides the UA `display:none`,
-// and the `$open` transform slides it in/out. Don't add showModal()/the `open`
-// attribute: that would move it to the top layer + add UA backdrop/Esc handling
-// and break this slide animation. Open/close is driven by the `open` prop and
-// our own Esc/scrim handlers.
+// and `$open` fades/scales it in over the scrim, centred on the page. Don't add
+// showModal()/the `open` attribute: that would move it to the top layer + add UA
+// backdrop/Esc handling. Open/close is driven by the `open` prop and our own
+// Esc/scrim handlers.
 const Sheet = styled.dialog<{ $open: boolean }>`
   position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
+  top: 50%;
+  left: 50%;
   width: min(460px, 94vw);
+  max-height: min(88vh, 720px);
   background: ${({ theme }) => theme.colors.canvas};
-  border-left: 1px solid ${({ theme }) => theme.colors.hairline};
-  box-shadow: -18px 0 48px rgba(15, 17, 22, 0.12);
-  transform: translateX(${({ $open }) => ($open ? "0" : "100%")});
-  transition: transform 0.24s cubic-bezier(0.2, 0.7, 0.2, 1);
+  border: 1px solid ${({ theme }) => theme.colors.hairline};
+  border-radius: ${({ theme }) => theme.rounded.sm};
+  box-shadow: 0 24px 64px rgba(15, 17, 22, 0.22);
+  transform: translate(-50%, -50%)
+    scale(${({ $open }) => ($open ? "1" : "0.98")});
+  opacity: ${({ $open }) => ($open ? 1 : 0)};
+  visibility: ${({ $open }) => ($open ? "visible" : "hidden")};
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
   z-index: 50;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
   @media (prefers-reduced-motion: reduce) {
     transition: none;
   }
