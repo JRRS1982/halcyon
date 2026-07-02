@@ -41,7 +41,8 @@ describe("createPlan (integration)", () => {
     expect(plan).not.toBeNull();
     expect(plan?.isPrimary).toBe(true);
     expect(plan?.assets.length).toBeGreaterThan(0);
-    expect(plan?.assets[0]?.wrapper).toBe("OTHER");
+    // "Cash savings" infers the CASH wrapper (label keyword beats the bucket).
+    expect(plan?.assets[0]?.wrapper).toBe("CASH");
     expect(plan?.incomes.length).toBeGreaterThan(0);
   });
 
