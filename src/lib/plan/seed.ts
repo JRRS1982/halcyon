@@ -68,6 +68,49 @@ const DRAWDOWN_BY_CATEGORY: Record<BalanceItemCategory, number> = {
   PROPERTY: 9,
 };
 
+// A balance sheet only records a value and a coarse term bucket, not the tax
+// wrapper. Infer a sensible wrapper from the label first (an explicit "SIPP" or
+// "ISA" beats any bucket guess), then fall back to the term bucket. These are
+// starting points — the user edits them in the plan's Assets table.
+const WRAPPER_BY_CATEGORY: Record<BalanceItemCategory, PlanAssetWrapper> = {
+  CURRENT: "CASH",
+  MEDIUM_TERM: "GIA",
+  LONG_TERM: "ISA",
+  PROPERTY: "PROPERTY",
+  OTHER: "OTHER",
+};
+
+function inferWrapper(
+  label: string,
+  category: BalanceItemCategory,
+): PlanAssetWrapper {
+  const l = label.toLowerCase();
+  if (category === "PROPERTY" || /propert|house|home|flat/.test(l))
+    return "PROPERTY";
+  if (/pension|sipp|retire|drawdown/.test(l)) return "PENSION";
+  if (/isa/.test(l)) return "ISA";
+  if (/gia|brokerage|shares|stocks/.test(l)) return "GIA";
+  if (/cash|savings|deposit|premium bond/.test(l)) return "CASH";
+  return WRAPPER_BY_CATEGORY[category];
+}
+
+// Likewise the balance sheet carries no APR, so infer a plausible rate from the
+// label (a card is dearer than a mortgage), then the bucket. Editable in the
+// plan's Liabilities table.
+function inferInterestPct(
+  label: string,
+  category: BalanceItemCategory,
+): number {
+  const l = label.toLowerCase();
+  if (/mortgage/.test(l)) return 4.5;
+  if (/credit card|card/.test(l)) return 19.9;
+  if (/overdraft/.test(l)) return 20;
+  if (/loan|car|finance/.test(l)) return 7;
+  if (category === "LONG_TERM") return 4.5;
+  if (category === "CURRENT") return 18;
+  return 5;
+}
+
 const INCOME_KIND_BY_BUCKET: Record<IncomeCategory, PlanIncomeKind> = {
   SALARY: "SALARY",
   PENSIONS: "DB_PENSION",
@@ -91,7 +134,7 @@ export function seedPlanChildren(
     if (b.type === "ASSET") {
       assets.push({
         label: b.label,
-        wrapper: "OTHER",
+        wrapper: inferWrapper(b.label, b.category),
         openingValue: b.value,
         annualContribution: 0,
         drawdownPriority: DRAWDOWN_BY_CATEGORY[b.category],
@@ -101,7 +144,7 @@ export function seedPlanChildren(
       liabilities.push({
         label: b.label,
         openingBalance: b.value,
-        interestPct: 0,
+        interestPct: inferInterestPct(b.label, b.category),
         monthlyRepayment: 0,
       });
     }

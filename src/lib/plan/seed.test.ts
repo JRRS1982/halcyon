@@ -1,7 +1,7 @@
 import { seedPlanChildren } from "./seed";
 
 describe("seedPlanChildren", () => {
-  it("maps balance assets to OTHER-wrapper PlanAssets with category-based drawdown order", () => {
+  it("maps balance assets to wrappers inferred from label/category, category-based drawdown order", () => {
     const r = seedPlanChildren(
       [
         {
@@ -25,7 +25,7 @@ describe("seedPlanChildren", () => {
     expect(r.assets).toEqual([
       {
         label: "Cash",
-        wrapper: "OTHER",
+        wrapper: "CASH",
         openingValue: 5000,
         annualContribution: 0,
         drawdownPriority: 0,
@@ -33,13 +33,36 @@ describe("seedPlanChildren", () => {
       },
       {
         label: "SIPP",
-        wrapper: "OTHER",
+        wrapper: "PENSION",
         openingValue: 100000,
         annualContribution: 0,
         drawdownPriority: 2,
         sourceBalanceItemId: "b2",
       },
     ]);
+  });
+
+  it.each([
+    // label keyword wins over category
+    ["My SIPP", "OTHER", "PENSION"],
+    ["Workplace pension", "OTHER", "PENSION"],
+    ["Cash ISA", "CURRENT", "ISA"],
+    ["Vanguard GIA", "OTHER", "GIA"],
+    ["Emergency cash", "OTHER", "CASH"],
+    ["Holiday home", "OTHER", "PROPERTY"],
+    // no keyword → category fallback
+    ["Rainy-day fund", "CURRENT", "CASH"],
+    ["Balanced portfolio", "MEDIUM_TERM", "GIA"],
+    ["Nest egg", "LONG_TERM", "ISA"],
+    ["Buy-to-let", "PROPERTY", "PROPERTY"],
+    ["Misc", "OTHER", "OTHER"],
+  ] as const)("infers wrapper for %s (%s) → %s", (label, category, wrapper) => {
+    const r = seedPlanChildren(
+      [{ id: "a", type: "ASSET", category, label, value: 1000 }],
+      [],
+      65,
+    );
+    expect(r.assets[0]?.wrapper).toBe(wrapper);
   });
 
   it("skips balance items with a zero (or negative) value", () => {
@@ -83,7 +106,7 @@ describe("seedPlanChildren", () => {
     expect(r.liabilities.map((l) => l.label)).toEqual(["Mortgage"]);
   });
 
-  it("maps balance liabilities to PlanLiabilities (rates default 0)", () => {
+  it("maps balance liabilities to PlanLiabilities with an inferred interest rate", () => {
     const r = seedPlanChildren(
       [
         {
@@ -101,11 +124,33 @@ describe("seedPlanChildren", () => {
       {
         label: "Mortgage",
         openingBalance: 120000,
-        interestPct: 0,
+        interestPct: 4.5,
         monthlyRepayment: 0,
       },
     ]);
   });
+
+  it.each([
+    // label keyword wins over category
+    ["Mortgage", "OTHER", 4.5],
+    ["Credit Card", "CURRENT", 19.9],
+    ["Overdraft", "CURRENT", 20],
+    ["Car loan", "MEDIUM_TERM", 7],
+    // no keyword → category fallback
+    ["Home balance", "LONG_TERM", 4.5],
+    ["Store account", "CURRENT", 18],
+    ["Misc debt", "OTHER", 5],
+  ] as const)(
+    "infers interest for %s (%s) → %s%",
+    (label, category, interestPct) => {
+      const r = seedPlanChildren(
+        [{ id: "l", type: "LIABILITY", category, label, value: 1000 }],
+        [],
+        65,
+      );
+      expect(r.liabilities[0]?.interestPct).toBe(interestPct);
+    },
+  );
 
   it("maps income items by kind, salary ends at retirement, amount = budget x 12", () => {
     const r = seedPlanChildren(
