@@ -67,6 +67,7 @@ export function CashFlowChart({
       <ComposedChart
         data={data}
         stackOffset="sign"
+        barCategoryGap={1}
         margin={{ top: 16, right: PLOT_RIGHT_INSET, bottom: 0, left: 8 }}
       >
         <CartesianGrid stroke={theme.colors.hairline} vertical={false} />
@@ -96,12 +97,15 @@ export function CashFlowChart({
         />
         <Legend wrapperStyle={{ fontSize: 12 }} />
         <ReferenceLine y={0} stroke={theme.colors.hairlineStrong} />
+        {/* One stack per age: `stackOffset="sign"` sends positive income segments
+            above zero and negative outflow segments below, so a single stackId
+            yields one full-width bar per year with no gap between the two halves. */}
         {income.map((k) => (
           <Bar
             key={k}
             dataKey={k}
             name={k}
-            stackId="in"
+            stackId="flow"
             fill={INCOME_COLOURS[k]}
             isAnimationActive={false}
           />
@@ -111,7 +115,7 @@ export function CashFlowChart({
             key={k}
             dataKey={k}
             name={k}
-            stackId="out"
+            stackId="flow"
             fill={OUTFLOW_COLOURS[k]}
             isAnimationActive={false}
           />
