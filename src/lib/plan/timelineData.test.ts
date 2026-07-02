@@ -4,7 +4,7 @@ import type {
   SerializedPlanIncome,
   SerializedPlanLiability,
 } from "@/app/plan/serialized";
-import { ageFromOffset, toTimelineModel } from "./timelineData";
+import { ageFromOffset, clampHandle, toTimelineModel } from "./timelineData";
 
 const income = (over: Partial<SerializedPlanIncome>): SerializedPlanIncome => ({
   id: "i1",
@@ -166,5 +166,27 @@ describe("ageFromOffset", () => {
   });
   it("returns minAge for a degenerate track width", () => {
     expect(ageFromOffset(300, 100, 0, 44, 95)).toBe(44);
+  });
+});
+
+describe("clampHandle", () => {
+  // A bar spans startAge=50..endAge=70 within a range of minAge=40..maxAge=90.
+  it("keeps a start handle within [minAge, endAge]", () => {
+    expect(clampHandle("start", 45, 50, 70, 40, 90)).toBe(45);
+  });
+  it("stops a start handle at minAge", () => {
+    expect(clampHandle("start", 35, 50, 70, 40, 90)).toBe(40);
+  });
+  it("stops a start handle at the end age (never crosses it)", () => {
+    expect(clampHandle("start", 80, 50, 70, 40, 90)).toBe(70);
+  });
+  it("keeps an end handle within [startAge, maxAge]", () => {
+    expect(clampHandle("end", 65, 50, 70, 40, 90)).toBe(65);
+  });
+  it("stops an end handle at maxAge", () => {
+    expect(clampHandle("end", 95, 50, 70, 40, 90)).toBe(90);
+  });
+  it("stops an end handle at the start age (never crosses it)", () => {
+    expect(clampHandle("end", 45, 50, 70, 40, 90)).toBe(50);
   });
 });

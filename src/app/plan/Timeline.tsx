@@ -4,6 +4,7 @@
 import {
   type TimelineBar,
   ageFromOffset,
+  clampHandle,
   toTimelineModel,
 } from "@/lib/plan/timelineData";
 import { useRef } from "react";
@@ -11,12 +12,15 @@ import styled, { useTheme } from "styled-components";
 import { PlanCard } from "./PlanCard";
 import { PLOT_LEFT_INSET, PLOT_RIGHT_INSET } from "./axisGeometry";
 import { DEBT_COLOUR, INCOME_COLOURS, OUTFLOW_COLOURS } from "./colours";
+import type { StreamOverride } from "./liveBand";
 import type {
   SerializedPlanEvent,
   SerializedPlanExpense,
   SerializedPlanIncome,
   SerializedPlanLiability,
 } from "./serialized";
+
+type StreamLane = "income" | "expense" | "liability";
 
 // The exhaustive cashflow palettes are keyed by their literal unions; widen to
 // a string index so a bar's `subKind` (typed `string | null`) can look up its
@@ -75,6 +79,22 @@ const Bar = styled.div`
   border-radius: 3px;
   min-width: 2px;
 `;
+const Handle = styled.div`
+  position: absolute;
+  top: 0;
+  width: 10px;
+  height: 18px;
+  transform: translateX(-50%);
+  cursor: ew-resize;
+  touch-action: none;
+  border-radius: 3px;
+  background: ${({ theme }) => theme.colors.canvas};
+  border: 1px solid ${({ theme }) => theme.colors.ink};
+  &:focus-visible {
+    outline: 2px solid ${({ theme }) => theme.colors.accent};
+    outline-offset: 2px;
+  }
+`;
 const Marker = styled.div<{ $inflow: boolean }>`
   position: absolute;
   top: 3px;
@@ -104,6 +124,12 @@ const RefLine = styled.div`
   bottom: 0;
   border-left: 1px dashed ${({ theme }) => theme.colors.hairlineStrong};
 `;
+const GuideLine = styled.div`
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-left: 1px solid ${({ theme }) => theme.colors.hairline};
+`;
 const RefLabel = styled.span`
   position: absolute;
   top: 0;
@@ -125,6 +151,99 @@ const Empty = styled.p`
   margin: 0;
 `;
 
+// One draggable grip on a bar edge. Reads its own Track's rect at drag time
+// (all bar tracks share the plot's coordinate space), converts pointer x → age,
+// and clamps so start never crosses end. Live-updates on drag, persists on
+// release — the same pattern as the event markers.
+function BarHandle({
+  bar,
+  edge,
+  minAge,
+  maxAge,
+  onInput,
+  onCommit,
+}: {
+  bar: TimelineBar;
+  edge: "start" | "end";
+  minAge: number;
+  maxAge: number;
+  onInput?: (id: string, ages: StreamOverride) => void;
+  onCommit?: (lane: StreamLane, id: string, ages: StreamOverride) => void;
+}) {
+  const pct = edge === "start" ? bar.leftPct : bar.leftPct + bar.widthPct;
+  const ageNow = edge === "start" ? bar.startAge : bar.endAge;
+  const bound = (age: number): StreamOverride =>
+    edge === "start" ? { startAge: age } : { endAge: age };
+  const ageAt = (track: HTMLElement | null, clientX: number): number => {
+    const r = track?.getBoundingClientRect();
+    if (!r) return ageNow;
+    return clampHandle(
+      edge,
+      ageFromOffset(clientX, r.left, r.width, minAge, maxAge),
+      bar.startAge,
+      bar.endAge,
+      minAge,
+      maxAge,
+    );
+  };
+
+  return (
+    <Handle
+      style={{ left: `${pct}%` }}
+      role="slider"
+      tabIndex={0}
+      aria-label={`${bar.label} ${edge} age`}
+      aria-valuemin={minAge}
+      aria-valuemax={maxAge}
+      aria-valuenow={ageNow}
+      title={`${bar.label} ${edge} (age ${ageNow})`}
+      onPointerDown={(e) => {
+        if (!onInput) return;
+        e.currentTarget.setPointerCapture(e.pointerId);
+      }}
+      onPointerMove={(e) => {
+        if (!onInput || !e.currentTarget.hasPointerCapture(e.pointerId)) return;
+        onInput(bar.id, bound(ageAt(e.currentTarget.parentElement, e.clientX)));
+      }}
+      onPointerUp={(e) => {
+        if (!onCommit || !e.currentTarget.hasPointerCapture(e.pointerId))
+          return;
+        e.currentTarget.releasePointerCapture(e.pointerId);
+        onCommit(
+          bar.lane,
+          bar.id,
+          bound(ageAt(e.currentTarget.parentElement, e.clientX)),
+        );
+      }}
+      onKeyDown={(e) => {
+        if (!onInput) return;
+        const delta =
+          e.key === "ArrowRight" || e.key === "ArrowUp"
+            ? 1
+            : e.key === "ArrowLeft" || e.key === "ArrowDown"
+              ? -1
+              : 0;
+        if (delta === 0) return;
+        e.preventDefault();
+        const next = clampHandle(
+          edge,
+          ageNow + delta,
+          bar.startAge,
+          bar.endAge,
+          minAge,
+          maxAge,
+        );
+        onInput(bar.id, bound(next));
+      }}
+      onKeyUp={(e) => {
+        if (!onCommit) return;
+        if (["ArrowRight", "ArrowUp", "ArrowLeft", "ArrowDown"].includes(e.key))
+          onCommit(bar.lane, bar.id, bound(ageNow));
+      }}
+    />
+  );
+}
+
 export function Timeline({
   incomes,
   expenses,
@@ -136,6 +255,8 @@ export function Timeline({
   maxAge,
   onEventInput,
   onEventCommit,
+  onStreamInput,
+  onStreamCommit,
 }: {
   incomes: SerializedPlanIncome[];
   expenses: SerializedPlanExpense[];
@@ -147,6 +268,8 @@ export function Timeline({
   maxAge: number;
   onEventInput?: (id: string, age: number) => void;
   onEventCommit?: (id: string, age: number) => void;
+  onStreamInput?: (id: string, ages: StreamOverride) => void;
+  onStreamCommit?: (lane: StreamLane, id: string, ages: StreamOverride) => void;
 }) {
   const theme = useTheme();
   const eventTrackRef = useRef<HTMLDivElement>(null);
@@ -196,6 +319,24 @@ export function Timeline({
                             background: barColour(b),
                           }}
                           title={`${b.label}: ${b.startAge}–${b.endAge}`}
+                        />
+                        {b.lane !== "liability" ? (
+                          <BarHandle
+                            bar={b}
+                            edge="start"
+                            minAge={minAge}
+                            maxAge={maxAge}
+                            onInput={onStreamInput}
+                            onCommit={onStreamCommit}
+                          />
+                        ) : null}
+                        <BarHandle
+                          bar={b}
+                          edge="end"
+                          minAge={minAge}
+                          maxAge={maxAge}
+                          onInput={onStreamInput}
+                          onCommit={onStreamCommit}
                         />
                       </Track>
                     </div>
@@ -297,6 +438,12 @@ export function Timeline({
             </Track>
           </Rows>
           <Overlay>
+            {model.ticks.map((t) => (
+              <GuideLine
+                key={`guide-${t.age}`}
+                style={{ left: `${t.leftPct}%` }}
+              />
+            ))}
             {model.refLines.map((r) => (
               <RefLine
                 key={r.label}

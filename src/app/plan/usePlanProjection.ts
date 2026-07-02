@@ -4,20 +4,33 @@
 import type { BandedProjection } from "@/lib/plan";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { updatePlanAssumptions, updatePlanEvent } from "./actions";
+import {
+  updatePlanAssumptions,
+  updatePlanEvent,
+  updatePlanExpense,
+  updatePlanIncome,
+  updatePlanLiability,
+} from "./actions";
 import {
   type AssumptionOverrides,
   type LiveOverrides,
+  type StreamOverride,
   computeLiveBand,
+  withStreamAges,
+  withStreamEnd,
 } from "./liveBand";
 import type {
   SerializedPlan,
   SerializedPlanAssumptions,
   SerializedPlanEvent,
+  SerializedPlanExpense,
+  SerializedPlanIncome,
+  SerializedPlanLiability,
 } from "./serialized";
 
 type SliderKey = keyof AssumptionOverrides;
-const EMPTY: LiveOverrides = { assumptions: {}, events: {} };
+type StreamLane = "income" | "expense" | "liability";
+const EMPTY: LiveOverrides = { assumptions: {}, events: {}, streams: {} };
 
 export function usePlanProjection(
   plan: SerializedPlan,
@@ -74,6 +87,22 @@ export function usePlanProjection(
     [scheduleRecompute],
   );
 
+  const setStreamOverride = useCallback(
+    (id: string, ages: StreamOverride) => {
+      setOverrides((prev) => {
+        const next: LiveOverrides = {
+          ...prev,
+          // Merge onto any existing override for this id so setting the end
+          // handle doesn't wipe a start-handle override made in the same drag.
+          streams: { ...prev.streams, [id]: { ...prev.streams[id], ...ages } },
+        };
+        scheduleRecompute(next);
+        return next;
+      });
+    },
+    [scheduleRecompute],
+  );
+
   const commit = useCallback(
     async (key: SliderKey, value: number) => {
       const a = plan.assumptions;
@@ -111,6 +140,54 @@ export function usePlanProjection(
     [plan, router],
   );
 
+  const commitStream = useCallback(
+    async (lane: StreamLane, id: string, ages: StreamOverride) => {
+      if (lane === "income") {
+        const i = plan.incomes.find((x) => x.id === id);
+        if (!i) return;
+        const next = withStreamAges(i, ages);
+        await updatePlanIncome({
+          incomeId: i.id,
+          label: i.label,
+          kind: i.kind,
+          annualAmount: i.annualAmount,
+          startAge: next.startAge,
+          endAge: next.endAge,
+          growthKind: i.growthKind,
+          growthPct: i.growthPct,
+          taxable: i.taxable,
+        });
+      } else if (lane === "expense") {
+        const e = plan.expenses.find((x) => x.id === id);
+        if (!e) return;
+        const next = withStreamAges(e, ages);
+        await updatePlanExpense({
+          expenseId: e.id,
+          label: e.label,
+          category: e.category,
+          annualAmount: e.annualAmount,
+          startAge: next.startAge,
+          endAge: next.endAge,
+          inflationLinked: e.inflationLinked,
+        });
+      } else {
+        const l = plan.liabilities.find((x) => x.id === id);
+        if (!l) return;
+        const next = withStreamEnd(l, ages);
+        await updatePlanLiability({
+          liabilityId: l.id,
+          label: l.label,
+          openingBalance: l.openingBalance,
+          interestPct: l.interestPct,
+          monthlyRepayment: l.monthlyRepayment,
+          endAge: next.endAge,
+        });
+      }
+      router.refresh();
+    },
+    [plan, router],
+  );
+
   const effectiveAssumptions: SerializedPlanAssumptions = {
     ...plan.assumptions,
     ...overrides.assumptions,
@@ -120,14 +197,28 @@ export function usePlanProjection(
       ? { ...e, age: overrides.events[e.id] ?? e.age }
       : e,
   );
+  const liveIncomes: SerializedPlanIncome[] = plan.incomes.map((i) =>
+    withStreamAges(i, overrides.streams[i.id]),
+  );
+  const liveExpenses: SerializedPlanExpense[] = plan.expenses.map((e) =>
+    withStreamAges(e, overrides.streams[e.id]),
+  );
+  const liveLiabilities: SerializedPlanLiability[] = plan.liabilities.map((l) =>
+    withStreamEnd(l, overrides.streams[l.id]),
+  );
 
   return {
     liveBand,
     effectiveAssumptions,
     liveEvents,
+    liveIncomes,
+    liveExpenses,
+    liveLiabilities,
     setOverride,
     commit,
     setEventOverride,
     commitEvent,
+    setStreamOverride,
+    commitStream,
   };
 }
