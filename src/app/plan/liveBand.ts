@@ -14,8 +14,8 @@ export type AssumptionOverrides = Partial<
   >
 >;
 
-// A dragged bar edge overrides one or both age bounds of an income/expense
-// (start + end) or a liability (end only). undefined = leave as committed.
+// A dragged bar edge overrides one or both age bounds of an income/expense/
+// liability. undefined = leave as committed.
 export type StreamOverride = {
   startAge?: number | null;
   endAge?: number | null;
@@ -36,14 +36,6 @@ export function withStreamAges<
     startAge: o.startAge !== undefined ? o.startAge : item.startAge,
     endAge: o.endAge !== undefined ? o.endAge : item.endAge,
   };
-}
-
-export function withStreamEnd<T extends { endAge: number | null }>(
-  item: T,
-  o: StreamOverride | undefined,
-): T {
-  if (!o || o.endAge === undefined) return item;
-  return { ...item, endAge: o.endAge };
 }
 
 export function computeLiveBand(
@@ -73,7 +65,7 @@ export function computeLiveBand(
         withStreamAges(e, overrides.streams[e.id]),
       ),
       liabilities: plan.liabilities.map((l) =>
-        withStreamEnd(l, overrides.streams[l.id]),
+        withStreamAges(l, overrides.streams[l.id]),
       ),
     },
     asOfYear,
