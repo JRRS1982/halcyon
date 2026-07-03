@@ -36,14 +36,20 @@ export const updatePlanAssetSchema = z.object({
   drawdownPriority: z.number().int().min(0),
 });
 
-export const updatePlanLiabilitySchema = z.object({
-  liabilityId: z.string().uuid(),
-  label: z.string().min(1),
-  openingBalance: z.number().min(0),
-  interestPct: z.number().min(-20).max(30),
-  monthlyRepayment: z.number().min(0),
-  endAge: z.number().int().min(40).max(120).nullable(),
-});
+export const updatePlanLiabilitySchema = z
+  .object({
+    liabilityId: z.string().uuid(),
+    label: z.string().min(1),
+    openingBalance: z.number().min(0),
+    interestPct: z.number().min(-20).max(30),
+    monthlyRepayment: z.number().min(0),
+    startAge: z.number().int().min(0).max(120).nullable(),
+    endAge: z.number().int().min(40).max(120).nullable(),
+  })
+  .refine(
+    (p) => p.startAge === null || p.endAge === null || p.startAge <= p.endAge,
+    { message: "Start age must not be after the paid-off age" },
+  );
 
 export type UpdatePlanAssumptionsInput = z.infer<
   typeof updatePlanAssumptionsSchema

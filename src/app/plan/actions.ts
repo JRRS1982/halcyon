@@ -207,6 +207,7 @@ export async function updatePlanLiability(
       openingBalance: p.openingBalance,
       interestPct: p.interestPct,
       monthlyRepayment: p.monthlyRepayment,
+      startAge: p.startAge,
       endAge: p.endAge,
     },
   });

@@ -51,6 +51,7 @@ export function LiabilityFields({
         openingBalance: next.openingBalance,
         interestPct: next.interestPct,
         monthlyRepayment: next.monthlyRepayment,
+        startAge: next.startAge,
         endAge: next.endAge,
       });
       router.refresh();

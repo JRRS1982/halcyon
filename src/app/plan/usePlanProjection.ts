@@ -180,6 +180,7 @@ export function usePlanProjection(
           openingBalance: l.openingBalance,
           interestPct: l.interestPct,
           monthlyRepayment: l.monthlyRepayment,
+          startAge: l.startAge,
           endAge: next.endAge,
         });
       }
