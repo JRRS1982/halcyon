@@ -207,12 +207,34 @@ export function PlanView({
         eyebrow={eyebrow}
         title={title}
         onClose={close}
-        onRemove={onRemove}
+        onRemove={
+          selected?.kind === "expense" && expense?.liabilityId
+            ? undefined
+            : onRemove
+        }
       >
         {asset ? <AssetFields asset={asset} /> : null}
-        {liability ? <LiabilityFields liability={liability} /> : null}
+        {liability ? (
+          <LiabilityFields
+            liability={liability}
+            linkedExpense={plan.expenses.find(
+              (e) => e.liabilityId === liability.id,
+            )}
+            onOpenExpense={open("expense")}
+          />
+        ) : null}
         {income ? <IncomeFields income={income} /> : null}
-        {expense ? <ExpenseFields expense={expense} /> : null}
+        {expense ? (
+          <ExpenseFields
+            expense={expense}
+            managedBy={
+              expense.liabilityId
+                ? plan.liabilities.find((l) => l.id === expense.liabilityId)
+                : undefined
+            }
+            onOpenLiability={open("liability")}
+          />
+        ) : null}
         {event ? <EventFields event={event} /> : null}
       </PlanDrawer>
     </Shell>
