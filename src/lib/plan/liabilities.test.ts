@@ -36,3 +36,38 @@ describe("liabilityStep", () => {
     expect(balances.m).toBe(100000);
   });
 });
+
+describe("liabilityStep startAge + external payments", () => {
+  const mortgage = {
+    id: "m1",
+    label: "Mortgage",
+    openingBalance: 100000,
+    interestPct: 10,
+    monthlyRepayment: 100,
+    startAge: 50,
+  };
+
+  it("accrues no interest and takes no repayment before startAge", () => {
+    const r = liabilityStep([mortgage], { m1: 100000 }, 49);
+    expect(r.balances.m1).toBe(100000);
+    expect(r.repaid).toBe(0);
+  });
+
+  it("operates normally from startAge", () => {
+    const r = liabilityStep([mortgage], { m1: 100000 }, 50);
+    expect(r.balances.m1).toBe(100000 * 1.1 - 1200);
+    expect(r.repaid).toBe(1200);
+  });
+
+  it("uses a provided annual payment over monthlyRepayment", () => {
+    const r = liabilityStep([mortgage], { m1: 100000 }, 50, { m1: 20000 });
+    expect(r.balances.m1).toBe(100000 * 1.1 - 20000);
+    expect(r.repaid).toBe(20000);
+  });
+
+  it("caps the provided payment at the post-interest balance", () => {
+    const r = liabilityStep([mortgage], { m1: 100 }, 50, { m1: 99999 });
+    expect(r.balances.m1).toBe(0);
+    expect(r.repaid).toBeCloseTo(110);
+  });
+});

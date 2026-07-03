@@ -53,6 +53,7 @@ export interface LiabilityInput {
   openingBalance: number;
   interestPct: number;
   monthlyRepayment: number;
+  startAge?: number; // debt drawn at this age; undefined = from plan start
   endAge?: number;
   linkedAssetId?: string;
 }
@@ -76,6 +77,7 @@ export interface ExpenseInput {
   startAge?: number;
   endAge?: number;
   inflationLinked: boolean;
+  liabilityId?: string; // repayment of this liability; excluded from category totals
 }
 
 export interface EventInput {
