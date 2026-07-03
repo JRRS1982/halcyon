@@ -40,13 +40,16 @@ const projectYears = (
   // Expenses linked to a liability are that liability's repayment: they fund
   // liabilityStep (REPAYMENT outflow) instead of the category totals, so the
   // money out is counted exactly once.
+  const liabilityIds = new Set(input.liabilities.map((l) => l.id));
   const linkedExpenseByLiability = new Map<string, ExpenseInput>();
   for (const e of input.expenses) {
-    if (e.liabilityId !== undefined)
+    if (e.liabilityId !== undefined && liabilityIds.has(e.liabilityId))
       linkedExpenseByLiability.set(e.liabilityId, e);
   }
+  // An expense whose liabilityId matches no liability is treated as a normal
+  // expense — never silently dropped from the totals.
   const unlinkedExpenses = input.expenses.filter(
-    (e) => e.liabilityId === undefined,
+    (e) => e.liabilityId === undefined || !liabilityIds.has(e.liabilityId),
   );
 
   const years: YearProjection[] = [];

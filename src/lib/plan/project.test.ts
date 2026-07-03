@@ -682,5 +682,19 @@ describe("projectWithBand", () => {
       expect(years[0]?.liabilityRepayments).toBe(0);
       expect(years[2]?.liabilities[0]?.value).toBe(88000); // age 42: starts, pays 12k
     });
+
+    it("treats an expense with an unknown liabilityId as a normal expense", () => {
+      const input = makeInput();
+      if (!input.expenses[0]) throw new Error("fixture");
+      input.expenses[0] = {
+        ...input.expenses[0],
+        liabilityId: "no-such-liability",
+        category: "FIXED",
+      };
+      const { years } = project(input);
+      expect(years[0]?.totalExpenses).toBe(12000); // counted once, as an expense
+      expect(years[0]?.expensesByCategory.FIXED).toBe(12000);
+      expect(years[0]?.liabilityRepayments).toBe(0);
+    });
   });
 });
