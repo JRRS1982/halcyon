@@ -426,6 +426,7 @@ model PlanLiability {
   openingBalance   Decimal  @default(0) @db.Decimal(14, 2)
   interestPct      Decimal  @default(0) @db.Decimal(5, 2)
   monthlyRepayment Decimal  @default(0) @db.Decimal(12, 2)
+  startAge         Int?
   endAge           Int?
   linkedAssetId    String?  @db.Uuid
   sortOrder        Int      @default(0)
@@ -433,7 +434,8 @@ model PlanLiability {
   updatedAt        DateTime @updatedAt
   deletedAt        DateTime?
 
-  plan Plan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  plan             Plan         @relation(fields: [planId], references: [id], onDelete: Cascade)
+  repaymentExpense PlanExpense? @relation("LiabilityRepaymentExpense")
   @@index([planId])
 }
 
@@ -467,12 +469,14 @@ model PlanExpense {
   endAge           Int?
   inflationLinked  Boolean          @default(true)
   sourceCategoryId String?          @db.Uuid
+  liabilityId      String?          @unique @db.Uuid
   sortOrder        Int              @default(0)
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
   deletedAt        DateTime?
 
-  plan Plan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  plan      Plan           @relation(fields: [planId], references: [id], onDelete: Cascade)
+  liability PlanLiability? @relation("LiabilityRepaymentExpense", fields: [liabilityId], references: [id], onDelete: SetNull)
   @@index([planId])
 }
 
