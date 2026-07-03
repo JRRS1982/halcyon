@@ -55,6 +55,7 @@ const plan: SerializedPlan = {
       startAge: null,
       endAge: null,
       inflationLinked: true,
+      liabilityId: null,
     },
   ],
   events: [],

@@ -33,6 +33,7 @@ export type SerializedPlanLiability = {
   openingBalance: number;
   interestPct: number;
   monthlyRepayment: number;
+  startAge: number | null;
   endAge: number | null;
 };
 
@@ -59,6 +60,7 @@ export type SerializedPlanExpense = {
   startAge: number | null;
   endAge: number | null;
   inflationLinked: boolean;
+  liabilityId: string | null;
 };
 
 export type SerializedPlanEvent = {

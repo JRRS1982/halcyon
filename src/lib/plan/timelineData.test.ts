@@ -28,6 +28,7 @@ const expense = (
   startAge: null,
   endAge: null,
   inflationLinked: true,
+  liabilityId: null,
   ...over,
 });
 const liability = (
@@ -38,6 +39,7 @@ const liability = (
   openingBalance: 1000,
   interestPct: 3,
   monthlyRepayment: 100,
+  startAge: null,
   endAge: null,
   ...over,
 });
