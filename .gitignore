@@ -24,7 +24,11 @@ next-env.d.ts
 *.tsbuildinfo
 
 # Visual companion mockups (brainstorming skill)
-.superpowers/
+.superpowers
+
+# Superpowers planning/spec artifacts (kept locally, not tracked; curated
+# feature docs live in docs/features/ instead)
+/docs/superpowers/
 
 # Playwright auth session state (written by capture-shots.mjs — never commit)
 /.auth/
