@@ -64,12 +64,16 @@ export function ChartPanel({
   high,
   currency,
   numberFormat,
+  retirementAge,
+  statePensionAge,
 }: {
   low: YearProjection[];
   mid: YearProjection[];
   high: YearProjection[];
   currency: string;
   numberFormat: NumberFormat;
+  retirementAge: number;
+  statePensionAge: number | null;
 }) {
   const [view, setView] = useState<View>("networth");
 
@@ -96,6 +100,8 @@ export function ChartPanel({
           high={high}
           currency={currency}
           numberFormat={numberFormat}
+          retirementAge={retirementAge}
+          statePensionAge={statePensionAge}
         />
       )}
       {view === "cashflow" && (
@@ -103,6 +109,8 @@ export function ChartPanel({
           years={mid}
           currency={currency}
           numberFormat={numberFormat}
+          retirementAge={retirementAge}
+          statePensionAge={statePensionAge}
         />
       )}
       {view === "liquid" && (
@@ -112,6 +120,8 @@ export function ChartPanel({
           high={high}
           currency={currency}
           numberFormat={numberFormat}
+          retirementAge={retirementAge}
+          statePensionAge={statePensionAge}
         />
       )}
     </PlanCard>

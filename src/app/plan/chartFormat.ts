@@ -14,3 +14,20 @@ export const makeAmountTick =
       ? `${sign}${sym}${Math.round(abs / 1000)}k`
       : `${sign}${sym}${abs}`;
   };
+
+export type AmountAxis = { domain: [number, number]; ticks: number[] };
+
+// Builds a numeric Y-axis whose gridlines land on fixed `step` increments,
+// spanning the data's [min, max] rounded outward to the nearest step and always
+// including 0 so the zero baseline is itself a gridline. Passing both the domain
+// and the explicit ticks to Recharts overrides its automatic "nice number" tick
+// selection — that's what lets a caller pin the increment (e.g. 250k, 10k).
+// Non-finite inputs (empty series) collapse to a single [0, step] interval.
+export function amountAxis(min: number, max: number, step: number): AmountAxis {
+  const start = Math.floor(Math.min(0, min) / step) * step;
+  const endRaw = Math.ceil(Math.max(0, max) / step) * step;
+  const end = endRaw === start ? start + step : endRaw;
+  const count = Math.round((end - start) / step);
+  const ticks = Array.from({ length: count + 1 }, (_, i) => start + i * step);
+  return { domain: [start, end], ticks };
+}

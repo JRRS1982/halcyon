@@ -122,7 +122,7 @@ export function toTimelineModel(input: {
 
   const ticks: TimelineTick[] = [{ age: minAge, leftPct: 0 }];
   if (span > 0) {
-    for (let age = Math.ceil(minAge / 10) * 10; age <= maxAge; age += 10) {
+    for (let age = Math.ceil(minAge / 5) * 5; age <= maxAge; age += 5) {
       if (age !== minAge) ticks.push({ age, leftPct: pct(age) });
     }
   }
