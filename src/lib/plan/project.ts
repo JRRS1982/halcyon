@@ -6,6 +6,7 @@ import { activeExpenses, activeIncome } from "./streams";
 import { incomeTax } from "./tax";
 import type {
   AssetInput,
+  ExpenseInput,
   IncomeInput,
   PlanInput,
   PlanProjection,
@@ -36,6 +37,18 @@ const projectYears = (
   const liabBal: Record<string, number> = {};
   for (const l of input.liabilities) liabBal[l.id] = l.openingBalance;
 
+  // Expenses linked to a liability are that liability's repayment: they fund
+  // liabilityStep (REPAYMENT outflow) instead of the category totals, so the
+  // money out is counted exactly once.
+  const linkedExpenseByLiability = new Map<string, ExpenseInput>();
+  for (const e of input.expenses) {
+    if (e.liabilityId !== undefined)
+      linkedExpenseByLiability.set(e.liabilityId, e);
+  }
+  const unlinkedExpenses = input.expenses.filter(
+    (e) => e.liabilityId === undefined,
+  );
+
   const years: YearProjection[] = [];
 
   for (let age = input.currentAge; age <= input.planToAge; age++) {
@@ -52,13 +65,26 @@ const projectYears = (
     const netIncome = income.gross - incTax;
 
     const expenses = activeExpenses(
-      input.expenses,
+      unlinkedExpenses,
       age,
       yearsElapsed,
       input.inflationPct,
     );
 
-    const liab = liabilityStep(input.liabilities, liabBal, age);
+    const annualPayments: Record<string, number> = {};
+    for (const l of input.liabilities) {
+      const linked = linkedExpenseByLiability.get(l.id);
+      annualPayments[l.id] = linked
+        ? linked.inflationLinked
+          ? amountThisYear(
+              linked.annualAmount,
+              input.inflationPct,
+              yearsElapsed,
+            )
+          : linked.annualAmount
+        : l.monthlyRepayment * 12;
+    }
+    const liab = liabilityStep(input.liabilities, liabBal, age, annualPayments);
     Object.assign(liabBal, liab.balances);
 
     const eventsNet = sum(
@@ -146,7 +172,10 @@ const projectYears = (
     const liabilities = input.liabilities.map((l) => ({
       id: l.id,
       label: l.label,
-      value: round(liabBal[l.id] ?? 0),
+      value:
+        l.startAge !== undefined && age < l.startAge
+          ? 0
+          : round(liabBal[l.id] ?? 0),
     }));
     const liabilitiesTotal = sum(liabilities.map((l) => l.value));
     const netWorth = sum(assets.map((a) => a.value)) - liabilitiesTotal;
