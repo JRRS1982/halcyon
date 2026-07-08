@@ -378,18 +378,20 @@ export async function deletePlanIncome(input: { id: string }): Promise<void> {
 export async function deletePlanExpense(input: { id: string }): Promise<void> {
   const userId = await requireUserId();
   const { id } = deleteRowSchema.parse(input);
-  const expense = await prisma.planExpense.findFirst({
-    where: { id, deletedAt: null, plan: { userId, deletedAt: null } },
-    select: { liabilityId: true },
-  });
-  if (!expense) throw new Error("Expense not found");
-  if (expense.liabilityId !== null)
-    throw new Error(
-      "This repayment is managed by a liability — delete the liability, or unlink it first",
-    );
-  await prisma.planExpense.updateMany({
-    where: { id, deletedAt: null, plan: { userId, deletedAt: null } },
-    data: { deletedAt: new Date() },
+  await prisma.$transaction(async (tx) => {
+    const expense = await tx.planExpense.findFirst({
+      where: { id, deletedAt: null, plan: { userId, deletedAt: null } },
+      select: { liabilityId: true },
+    });
+    if (!expense) throw new Error("Expense not found");
+    if (expense.liabilityId !== null)
+      throw new Error(
+        "This repayment is managed by a liability — delete the liability, or unlink it first",
+      );
+    await tx.planExpense.updateMany({
+      where: { id, deletedAt: null, plan: { userId, deletedAt: null } },
+      data: { deletedAt: new Date() },
+    });
   });
   revalidatePath("/plan");
 }
