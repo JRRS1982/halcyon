@@ -1,0 +1,20 @@
+# pnpm 11 reads dependency overrides + settings here, not from package.json's
+# "pnpm" field (ignored as of pnpm 11 — https://pnpm.io/settings).
+
+# Pin vulnerable transitive deps up to patched versions (security).
+overrides:
+  postcss@<8.5.10: ^8.5.10
+  esbuild@<0.28.1: ^0.28.1
+
+# Dependencies allowed to run install/build scripts. pnpm blocks these by
+# default (supply-chain safety); each needs its script to fetch a native
+# binary or set up tooling (sharp/esbuild/unrs-resolver native builds, the
+# prisma/biome engine binaries, git hooks).
+allowBuilds:
+  "@biomejs/biome": true
+  "@prisma/engines": true
+  esbuild: true
+  prisma: true
+  sharp: true
+  simple-git-hooks: true
+  unrs-resolver: true
