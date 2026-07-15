@@ -16,8 +16,11 @@ RUN corepack enable && corepack prepare pnpm@11.13.0 --activate
 ENV PRISMA_CLI_QUERY_ENGINE_TYPE=library
 ENV PRISMA_CLI_BINARY_TARGETS=debian-openssl-3.0.x
 
-# Copy package files and prisma schema (needed for postinstall)
-COPY package.json pnpm-lock.yaml ./
+# Copy package files and prisma schema (needed for postinstall).
+# pnpm-workspace.yaml carries the dependency overrides + build-script allowlist
+# (pnpm 11 reads them here, not from package.json) — the frozen install fails
+# with ERR_PNPM_LOCKFILE_CONFIG_MISMATCH without it.
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY prisma ./prisma
 
 # Install dependencies (runs postinstall which generates Prisma client)
