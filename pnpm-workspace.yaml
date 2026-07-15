@@ -6,6 +6,14 @@ overrides:
   postcss@<8.5.10: ^8.5.10
   esbuild@<0.28.1: ^0.28.1
 
+# Don't re-verify node_modules against the lockfile before `pnpm <script>`.
+# pnpm 11 added this pre-run check (pnpm 10 had none); in the dev container the
+# anonymous node_modules volume isn't a perfect lockfile match on first boot, so
+# the check tries to purge+reinstall and aborts under `docker compose up` (no
+# TTY): ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY. Deps are installed at image
+# build time; CI installs explicitly — so nothing needs this runtime check.
+verifyDepsBeforeRun: false
+
 # Dependencies allowed to run install/build scripts. pnpm blocks these by
 # default (supply-chain safety); each needs its script to fetch a native
 # binary or set up tooling (sharp/esbuild/unrs-resolver native builds, the
