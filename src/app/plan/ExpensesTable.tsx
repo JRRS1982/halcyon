@@ -11,7 +11,10 @@ import { DrawerSection, Field } from "./PlanDrawer";
 import { AddRowButton } from "./RowControls";
 import { SummaryList, SummaryRow } from "./SummaryRow";
 import { createPlanExpense, updatePlanExpense } from "./actions";
-import type { SerializedPlanExpense } from "./serialized";
+import type {
+  SerializedPlanExpense,
+  SerializedPlanLiability,
+} from "./serialized";
 
 const EXPENSE_CATEGORIES: ExpenseCategory[] = [
   "FIXED",
@@ -42,8 +45,30 @@ const Err = styled.p`
   font-size: 13px;
   margin: 0 ${({ theme }) => theme.spacing.xl} ${({ theme }) => theme.spacing.md};
 `;
+const ManagedNote = styled.p`
+  font-size: 12px;
+  color: ${({ theme }) => theme.colors.dim};
+  margin: 0;
+`;
+const ManagedLink = styled.button`
+  border: 0;
+  background: none;
+  padding: 0;
+  color: ${({ theme }) => theme.colors.accent};
+  font-size: 12px;
+  cursor: pointer;
+  text-decoration: underline;
+`;
 
-export function ExpenseFields({ expense }: { expense: SerializedPlanExpense }) {
+export function ExpenseFields({
+  expense,
+  managedBy,
+  onOpenLiability,
+}: {
+  expense: SerializedPlanExpense;
+  managedBy: SerializedPlanLiability | undefined;
+  onOpenLiability: (id: string) => void;
+}) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
 
@@ -70,19 +95,33 @@ export function ExpenseFields({ expense }: { expense: SerializedPlanExpense }) {
     <>
       {error ? <Err>{error}</Err> : null}
       <DrawerSection title="Basics" defaultOpen>
+        {managedBy ? (
+          <ManagedNote>
+            Repayment managed by{" "}
+            <ManagedLink
+              type="button"
+              onClick={() => onOpenLiability(managedBy.id)}
+            >
+              {managedBy.label}
+            </ManagedLink>
+            {" — timing follows the liability."}
+          </ManagedNote>
+        ) : null}
         <Field label="Label">
           <TextCell
             value={expense.label}
             onCommit={(v) => save({ ...expense, label: v })}
           />
         </Field>
-        <Field label="Category">
-          <SelectCell
-            value={expense.category}
-            options={EXPENSE_CATEGORIES}
-            onCommit={(v) => save({ ...expense, category: v })}
-          />
-        </Field>
+        {managedBy ? null : (
+          <Field label="Category">
+            <SelectCell
+              value={expense.category}
+              options={EXPENSE_CATEGORIES}
+              onCommit={(v) => save({ ...expense, category: v })}
+            />
+          </Field>
+        )}
         <Field label="Amount /yr">
           <NumberCell
             value={expense.annualAmount}
@@ -92,22 +131,24 @@ export function ExpenseFields({ expense }: { expense: SerializedPlanExpense }) {
           />
         </Field>
       </DrawerSection>
-      <DrawerSection title="Timing">
-        <Field label="Start age (blank = from now)">
-          <NumberCell
-            value={expense.startAge}
-            nullable
-            onCommit={(v) => save({ ...expense, startAge: v })}
-          />
-        </Field>
-        <Field label="End age (blank = end of plan)">
-          <NumberCell
-            value={expense.endAge}
-            nullable
-            onCommit={(v) => save({ ...expense, endAge: v })}
-          />
-        </Field>
-      </DrawerSection>
+      {managedBy ? null : (
+        <DrawerSection title="Timing">
+          <Field label="Start age (blank = from now)">
+            <NumberCell
+              value={expense.startAge}
+              nullable
+              onCommit={(v) => save({ ...expense, startAge: v })}
+            />
+          </Field>
+          <Field label="End age (blank = end of plan)">
+            <NumberCell
+              value={expense.endAge}
+              nullable
+              onCommit={(v) => save({ ...expense, endAge: v })}
+            />
+          </Field>
+        </DrawerSection>
+      )}
       <DrawerSection title="Inflation">
         <Field label="Inflation-linked">
           <BoolCell
@@ -149,7 +190,7 @@ export function ExpensesTable({
             <SummaryRow
               key={e.id}
               primary={e.label}
-              secondary={`${e.category} · ${formatAmount(currency, e.annualAmount, numberFormat)}/yr`}
+              secondary={`${e.liabilityId ? "Repayment" : e.category} · ${formatAmount(currency, e.annualAmount, numberFormat)}/yr`}
               onOpen={() => onOpen(e.id)}
             />
           ))}

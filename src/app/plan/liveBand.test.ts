@@ -1,7 +1,7 @@
 import { projectWithBand } from "@/lib/plan";
 import { serializedToPlanInput } from "@/lib/plan/serializedInput";
 import { toTodaysMoneyBand } from "@/lib/plan/toPlanInput";
-import { computeLiveBand } from "./liveBand";
+import { computeLiveBand, withStreamAges } from "./liveBand";
 import type { SerializedPlan } from "./serialized";
 
 // minimal serialized plan (reuse the shape from serializedInput.test.ts)
@@ -55,6 +55,7 @@ const plan: SerializedPlan = {
       startAge: null,
       endAge: null,
       inflationLinked: true,
+      liabilityId: null,
     },
   ],
   events: [],
@@ -133,5 +134,13 @@ describe("computeLiveBand", () => {
     );
     expect(moved).not.toBe(serverBand);
     expect(moved.mid).not.toEqual(serverBand.mid);
+  });
+});
+
+describe("withStreamAges", () => {
+  it("applies a start-age override, e.g. for a dragged liability start handle", () => {
+    expect(
+      withStreamAges({ startAge: null, endAge: 70 }, { startAge: 48 }).startAge,
+    ).toBe(48);
   });
 });

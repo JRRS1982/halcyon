@@ -123,6 +123,73 @@ describe("toPlanInput", () => {
     expect(input.assets[0]?.expectedReturnPct).toBeUndefined();
   });
 
+  it("maps a liability with startAge", () => {
+    const input = toPlanInput(
+      basePlan({
+        liabilities: [
+          {
+            id: "liab-1",
+            planId: "p1",
+            label: "Mortgage",
+            openingBalance: d(100000),
+            interestPct: d(4),
+            monthlyRepayment: d(500),
+            startAge: 45,
+            endAge: 65,
+            linkedAssetId: null,
+            sortOrder: 0,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            deletedAt: null,
+          },
+        ],
+      }),
+      2026,
+    );
+    expect(input.liabilities[0]).toMatchObject({
+      id: "liab-1",
+      label: "Mortgage",
+      openingBalance: 100000,
+      interestPct: 4,
+      monthlyRepayment: 500,
+    });
+    expect(input.liabilities[0]?.startAge).toBe(45);
+  });
+
+  it("maps an expense with liabilityId", () => {
+    const input = toPlanInput(
+      basePlan({
+        expenses: [
+          {
+            id: "exp-1",
+            planId: "p1",
+            label: "Groceries",
+            category: "VARIABLE",
+            annualAmount: d(7200),
+            startAge: null,
+            endAge: null,
+            inflationLinked: true,
+            liabilityId: "liab-1",
+            sourceCategoryId: null,
+            sortOrder: 0,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            deletedAt: null,
+          },
+        ],
+      }),
+      2026,
+    );
+    expect(input.expenses[0]).toMatchObject({
+      id: "exp-1",
+      label: "Groceries",
+      category: "VARIABLE",
+      annualAmount: 7200,
+      inflationLinked: true,
+    });
+    expect(input.expenses[0]?.liabilityId).toBe("liab-1");
+  });
+
   it("the mapped plan runs through the engine", () => {
     const out = project(toPlanInput(basePlan(), 2026));
     expect(out.years[0]?.age).toBe(40);
@@ -138,6 +205,16 @@ describe("toTodaysMoney", () => {
     const nominal41 = out.years.find((y) => y.age === 41);
     const real41 = real.years.find((y) => y.age === 41);
     expect(real41?.netWorth).toBeCloseTo((nominal41?.netWorth ?? 0) / 1.1, 0);
+  });
+
+  it("reports the peak of the deflated series, not the deflated nominal peak", () => {
+    // Nominal net worth rises 100 → 105 (5%/yr) but inflation is 10%, so in
+    // today's money it falls. The real-terms peak is age 40 (100), even though
+    // the nominal peak is age 41 (105) → deflating the nominal peak would
+    // wrongly report age 41 / 95.
+    const nominal = proj(41, 105, [yr(40, 100), yr(41, 105)]);
+    const real = toTodaysMoney(nominal, 10, 40);
+    expect(real.verdict.peakNetWorth).toEqual({ age: 40, value: 100 });
   });
 });
 

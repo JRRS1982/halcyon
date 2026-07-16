@@ -43,6 +43,9 @@ test("plan: asset fees field round-trips through the drawer", async ({
   });
 
   await page.goto("/plan");
+  // Wait for hydration: the "Create my plan" button stays disabled until the
+  // date field's onChange sets state, which needs the client bundle attached.
+  await page.waitForLoadState("networkidle");
   await page.locator("input[type='date']").fill("1986-06-01");
   await page.locator("input[type='number']").first().fill("65");
   await page.getByRole("button", { name: /create my plan/i }).click();
@@ -260,6 +263,9 @@ test("plan: create, edit assumptions/assets, and the data-loss guard holds", asy
   // Now navigate to /plan (no plan yet → create form). createPlan reads the
   // seeded period on submit.
   await page.goto("/plan");
+  // Wait for hydration: the "Create my plan" button stays disabled until the
+  // date field's onChange sets state, which needs the client bundle attached.
+  await page.waitForLoadState("networkidle");
   await page.locator("input[type='date']").fill("1986-06-01");
   await page.locator("input[type='number']").first().fill("65");
   await page.getByRole("button", { name: /create my plan/i }).click();

@@ -1,15 +1,10 @@
 "use server";
 
 import { DEMO_EMAIL, DEMO_PASSWORD } from "@/lib/auth/demo";
+import { safeNext } from "@/lib/auth/safeNext";
 import { signInSchema } from "@/lib/auth/schemas";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-
-// Only forward to in-app paths to prevent open-redirect via `next=https://evil`.
-const safeNext = (raw: FormDataEntryValue | null) =>
-  typeof raw === "string" && raw.startsWith("/") && !raw.startsWith("//")
-    ? raw
-    : "/";
 
 export const signIn = async (formData: FormData) => {
   const parsed = signInSchema.safeParse({

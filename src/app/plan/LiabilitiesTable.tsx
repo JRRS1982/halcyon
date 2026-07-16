@@ -9,8 +9,16 @@ import { NumberCell, TextCell } from "./EditableCell";
 import { DrawerSection, Field } from "./PlanDrawer";
 import { AddRowButton } from "./RowControls";
 import { SummaryList, SummaryRow } from "./SummaryRow";
-import { createPlanLiability, updatePlanLiability } from "./actions";
-import type { SerializedPlanLiability } from "./serialized";
+import {
+  createPlanLiability,
+  linkRepaymentExpense,
+  unlinkRepaymentExpense,
+  updatePlanLiability,
+} from "./actions";
+import type {
+  SerializedPlanExpense,
+  SerializedPlanLiability,
+} from "./serialized";
 
 const Panel = styled.section`
   border: 1px solid ${({ theme }) => theme.colors.hairline};
@@ -35,10 +43,31 @@ const Err = styled.p`
   font-size: 13px;
   margin: 0 ${({ theme }) => theme.spacing.xl} ${({ theme }) => theme.spacing.md};
 `;
+const LinkedRow = styled.div`
+  display: flex;
+  gap: ${({ theme }) => theme.spacing.sm};
+  align-items: center;
+`;
+const LinkedButton = styled.button`
+  border: 1px solid ${({ theme }) => theme.colors.hairline};
+  border-radius: ${({ theme }) => theme.rounded.sm};
+  background: transparent;
+  color: ${({ theme }) => theme.colors.body};
+  font-size: 12px;
+  padding: ${({ theme }) => theme.spacing.xs} ${({ theme }) => theme.spacing.sm};
+  cursor: pointer;
+  width: fit-content;
+`;
 
 export function LiabilityFields({
   liability,
-}: { liability: SerializedPlanLiability }) {
+  linkedExpense,
+  onOpenExpense,
+}: {
+  liability: SerializedPlanLiability;
+  linkedExpense: SerializedPlanExpense | undefined;
+  onOpenExpense: (id: string) => void;
+}) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
 
@@ -51,12 +80,35 @@ export function LiabilityFields({
         openingBalance: next.openingBalance,
         interestPct: next.interestPct,
         monthlyRepayment: next.monthlyRepayment,
+        startAge: next.startAge,
         endAge: next.endAge,
       });
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not save");
       throw e;
+    }
+  };
+
+  const link = async () => {
+    setError(null);
+    try {
+      const id = await linkRepaymentExpense({ liabilityId: liability.id });
+      router.refresh();
+      onOpenExpense(id);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not link");
+    }
+  };
+
+  const unlink = async () => {
+    if (!linkedExpense) return;
+    setError(null);
+    try {
+      await unlinkRepaymentExpense({ id: linkedExpense.id });
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not unlink");
     }
   };
 
@@ -92,15 +144,43 @@ export function LiabilityFields({
             }
           />
         </Field>
-        <Field label="Repayment /mo">
+        {linkedExpense ? (
+          <Field label="Repayment (managed by expense)">
+            <LinkedRow>
+              <LinkedButton
+                type="button"
+                onClick={() => onOpenExpense(linkedExpense.id)}
+              >
+                {`${Math.round(linkedExpense.annualAmount / 12)}/mo — edit expense`}
+              </LinkedButton>
+              <LinkedButton type="button" onClick={unlink}>
+                Unlink
+              </LinkedButton>
+            </LinkedRow>
+          </Field>
+        ) : (
+          <>
+            <Field label="Repayment /mo">
+              <NumberCell
+                value={liability.monthlyRepayment}
+                onCommit={(v) =>
+                  save({
+                    ...liability,
+                    monthlyRepayment: v ?? liability.monthlyRepayment,
+                  })
+                }
+              />
+            </Field>
+            <LinkedButton type="button" onClick={link}>
+              Track repayment as an expense
+            </LinkedButton>
+          </>
+        )}
+        <Field label="Starts at age (blank = now)">
           <NumberCell
-            value={liability.monthlyRepayment}
-            onCommit={(v) =>
-              save({
-                ...liability,
-                monthlyRepayment: v ?? liability.monthlyRepayment,
-              })
-            }
+            value={liability.startAge}
+            nullable
+            onCommit={(v) => save({ ...liability, startAge: v })}
           />
         </Field>
         <Field label="Paid off by age (blank = none)">

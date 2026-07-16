@@ -20,6 +20,10 @@ export type TimelineBar = {
   endAge: number; // resolved + clamped to range
   leftPct: number; // 0..100
   widthPct: number; // 0..100, never negative
+  // Which record a drag on this bar edits. A linked repayment expense renders
+  // in the expense lane but drags its liability (the liability owns timing).
+  dragLane: "income" | "expense" | "liability";
+  dragId: string;
 };
 
 export type TimelineMarker = {
@@ -69,6 +73,7 @@ export function toTimelineModel(input: {
     subKind: string | null,
     rawStart: number,
     rawEnd: number,
+    drag?: { lane: TimelineBar["lane"]; id: string },
   ): TimelineBar => ({
     id,
     label,
@@ -78,6 +83,8 @@ export function toTimelineModel(input: {
     endAge: clamp(rawEnd),
     leftPct: pct(rawStart),
     widthPct: Math.max(0, pct(rawEnd) - pct(rawStart)),
+    dragLane: drag?.lane ?? lane,
+    dragId: drag?.id ?? id,
   });
 
   const income = input.incomes.map((i) =>
@@ -90,18 +97,39 @@ export function toTimelineModel(input: {
       i.endAge ?? maxAge,
     ),
   );
-  const expense = input.expenses.map((e) =>
-    makeBar(
+  const liabilityById = new Map(input.liabilities.map((l) => [l.id, l]));
+  const expense = input.expenses.map((e) => {
+    const linked =
+      e.liabilityId !== null ? liabilityById.get(e.liabilityId) : undefined;
+    if (!linked) {
+      return makeBar(
+        e.id,
+        e.label,
+        "expense",
+        e.category,
+        e.startAge ?? minAge,
+        e.endAge ?? maxAge,
+      );
+    }
+    return makeBar(
       e.id,
       e.label,
       "expense",
       e.category,
-      e.startAge ?? minAge,
-      e.endAge ?? maxAge,
-    ),
-  );
+      linked.startAge ?? minAge,
+      linked.endAge ?? maxAge,
+      { lane: "liability", id: linked.id },
+    );
+  });
   const liability = input.liabilities.map((l) =>
-    makeBar(l.id, l.label, "liability", null, minAge, l.endAge ?? maxAge),
+    makeBar(
+      l.id,
+      l.label,
+      "liability",
+      null,
+      l.startAge ?? minAge,
+      l.endAge ?? maxAge,
+    ),
   );
 
   const events = input.events.map((ev) => ({

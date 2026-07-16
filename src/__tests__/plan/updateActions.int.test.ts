@@ -93,6 +93,7 @@ describe("plan update actions (integration)", () => {
       openingBalance: 100000,
       interestPct: 4,
       monthlyRepayment: 1000,
+      startAge: null,
       endAge: 60,
     });
     const after = await prisma.planLiability.findUniqueOrThrow({

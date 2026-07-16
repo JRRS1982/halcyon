@@ -28,6 +28,7 @@ const expense = (
   startAge: null,
   endAge: null,
   inflationLinked: true,
+  liabilityId: null,
   ...over,
 });
 const liability = (
@@ -38,6 +39,7 @@ const liability = (
   openingBalance: 1000,
   interestPct: 3,
   monthlyRepayment: 100,
+  startAge: null,
   endAge: null,
   ...over,
 });
@@ -149,6 +151,45 @@ describe("toTimelineModel", () => {
     expect(m.bars.income[0]?.leftPct).toBe(0);
     expect(m.bars.income[0]?.widthPct).toBe(0);
     expect(m.ticks).toEqual([{ age: 50, leftPct: 0 }]);
+  });
+});
+
+describe("liability startAge + linked expense drag targets", () => {
+  it("starts a liability bar at its startAge", () => {
+    const m = toTimelineModel({
+      ...base,
+      minAge: 40,
+      maxAge: 90,
+      liabilities: [liability({ startAge: 50, endAge: 70 })],
+    });
+    expect(m.bars.liability[0]?.startAge).toBe(50);
+    expect(m.bars.liability[0]?.leftPct).toBeCloseTo(20); // (50-40)/50
+  });
+
+  it("bars drag themselves by default", () => {
+    const m = toTimelineModel({
+      ...base,
+      incomes: [income({ startAge: 45, endAge: 65 })],
+    });
+    expect(m.bars.income[0]?.dragLane).toBe("income");
+    expect(m.bars.income[0]?.dragId).toBe(m.bars.income[0]?.id);
+  });
+
+  it("a linked expense bar takes the liability window and drags the liability", () => {
+    const m = toTimelineModel({
+      ...base,
+      minAge: 40,
+      maxAge: 90,
+      liabilities: [liability({ id: "m1", startAge: 50, endAge: 70 })],
+      expenses: [
+        expense({ id: "rep1", startAge: 41, endAge: 42, liabilityId: "m1" }),
+      ],
+    });
+    const bar = m.bars.expense[0];
+    expect(bar?.startAge).toBe(50); // liability's window, not the expense's own
+    expect(bar?.endAge).toBe(70);
+    expect(bar?.dragLane).toBe("liability");
+    expect(bar?.dragId).toBe("m1");
   });
 });
 
