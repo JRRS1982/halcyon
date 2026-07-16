@@ -148,48 +148,51 @@ export function toTodaysMoney(
   const deflate = (value: number, age: number): number =>
     Math.round(value / (1 + inflationPct / 100) ** (age - currentAge));
 
-  return {
-    verdict: {
-      ...projection.verdict,
-      peakNetWorth: {
-        age: projection.verdict.peakNetWorth.age,
-        value: deflate(
-          projection.verdict.peakNetWorth.value,
-          projection.verdict.peakNetWorth.age,
-        ),
-      },
-    },
-    years: projection.years.map((y) => ({
-      ...y,
-      grossIncome: deflate(y.grossIncome, y.age),
-      tax: deflate(y.tax, y.age),
-      netIncome: deflate(y.netIncome, y.age),
-      totalExpenses: deflate(y.totalExpenses, y.age),
-      liabilityRepayments: deflate(y.liabilityRepayments, y.age),
-      surplus: deflate(y.surplus, y.age),
-      contributions: deflate(y.contributions, y.age),
-      withdrawals: deflate(y.withdrawals, y.age),
-      liabilitiesTotal: deflate(y.liabilitiesTotal, y.age),
-      netWorth: deflate(y.netWorth, y.age),
-      incomeByKind: Object.fromEntries(
-        Object.entries(y.incomeByKind).map(([k, v]) => [k, deflate(v, y.age)]),
-      ),
-      expensesByCategory: Object.fromEntries(
-        Object.entries(y.expensesByCategory).map(([k, v]) => [
-          k,
-          deflate(v, y.age),
-        ]),
-      ),
-      assets: y.assets.map((a) => ({
-        ...a,
-        value: deflate(a.value, y.age),
-        contributed: deflate(a.contributed, y.age),
-        withdrawn: deflate(a.withdrawn, y.age),
-      })),
-      liabilities: y.liabilities.map((l) => ({
-        ...l,
-        value: deflate(l.value, y.age),
-      })),
+  const years = projection.years.map((y) => ({
+    ...y,
+    grossIncome: deflate(y.grossIncome, y.age),
+    tax: deflate(y.tax, y.age),
+    netIncome: deflate(y.netIncome, y.age),
+    totalExpenses: deflate(y.totalExpenses, y.age),
+    liabilityRepayments: deflate(y.liabilityRepayments, y.age),
+    surplus: deflate(y.surplus, y.age),
+    contributions: deflate(y.contributions, y.age),
+    withdrawals: deflate(y.withdrawals, y.age),
+    liabilitiesTotal: deflate(y.liabilitiesTotal, y.age),
+    netWorth: deflate(y.netWorth, y.age),
+    incomeByKind: Object.fromEntries(
+      Object.entries(y.incomeByKind).map(([k, v]) => [k, deflate(v, y.age)]),
+    ),
+    expensesByCategory: Object.fromEntries(
+      Object.entries(y.expensesByCategory).map(([k, v]) => [
+        k,
+        deflate(v, y.age),
+      ]),
+    ),
+    assets: y.assets.map((a) => ({
+      ...a,
+      value: deflate(a.value, y.age),
+      contributed: deflate(a.contributed, y.age),
+      withdrawn: deflate(a.withdrawn, y.age),
     })),
+    liabilities: y.liabilities.map((l) => ({
+      ...l,
+      value: deflate(l.value, y.age),
+    })),
+  }));
+
+  // Real-terms peak = the max of the *deflated* netWorth series. Deflation is
+  // age-dependent, so deflating the pre-computed nominal peak would report the
+  // wrong age and an understated value — the same reasoning the banded ranges
+  // above already follow.
+  const peakNetWorth = years.reduce(
+    (best, y) =>
+      y.netWorth > best.value ? { age: y.age, value: y.netWorth } : best,
+    { age: years[0]?.age ?? 0, value: Number.NEGATIVE_INFINITY },
+  );
+
+  return {
+    verdict: { ...projection.verdict, peakNetWorth },
+    years,
   };
 }
