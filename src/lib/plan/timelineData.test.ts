@@ -132,9 +132,11 @@ describe("toTimelineModel", () => {
     expect(m.refLines.map((r) => r.label)).toEqual(["State pension"]);
   });
 
-  it("emits 10-year ticks including minAge", () => {
+  it("emits 5-year ticks including minAge", () => {
     const m = toTimelineModel({ ...base, minAge: 40, maxAge: 90 });
-    expect(m.ticks.map((t) => t.age)).toEqual([40, 50, 60, 70, 80, 90]);
+    expect(m.ticks.map((t) => t.age)).toEqual([
+      40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90,
+    ]);
   });
 
   it("guards a degenerate single-year range (no divide-by-zero)", () => {

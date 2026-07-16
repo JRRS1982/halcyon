@@ -22,7 +22,8 @@ import {
 } from "recharts";
 import { useTheme } from "styled-components";
 import { PLOT_LEFT_INSET, PLOT_RIGHT_INSET } from "./axisGeometry";
-import { makeAmountTick } from "./chartFormat";
+import { amountAxis, makeAmountTick } from "./chartFormat";
+import { ageReferenceLines } from "./chartRefLines";
 import { INCOME_COLOURS, NET_WORTH_COLOUR, OUTFLOW_COLOURS } from "./colours";
 
 // Income sources + withdrawals stack above zero; expenses + tax + repayments +
@@ -32,14 +33,33 @@ export function CashFlowChart({
   years,
   currency,
   numberFormat,
+  retirementAge,
+  statePensionAge,
 }: {
   years: YearProjection[];
   currency: string;
   numberFormat: NumberFormat;
+  retirementAge: number;
+  statePensionAge: number | null;
 }) {
   const theme = useTheme();
   const data = toCashFlowChartData(years);
   const { income, outflow } = cashFlowKeysPresent(data);
+  const minAge = data[0]?.age ?? Number.NaN;
+  const maxAge = data[data.length - 1]?.age ?? Number.NaN;
+
+  // Fixed 10k gridlines. Extent = the positive income stack top, the negative
+  // outflow stack bottom (outflow fields are stored negative) and the net line.
+  const extent = data.flatMap((d) => [
+    income.reduce((sum, k) => sum + (d[k] ?? 0), 0),
+    outflow.reduce((sum, k) => sum + (d[k] ?? 0), 0),
+    d.net,
+  ]);
+  const { domain, ticks } = amountAxis(
+    Math.min(...extent),
+    Math.max(...extent),
+    10_000,
+  );
   const amountTick = makeAmountTick(currency);
 
   const renderNetDot = (props: {
@@ -79,6 +99,8 @@ export function CashFlowChart({
         />
         <YAxis
           width={PLOT_LEFT_INSET - 8}
+          domain={domain}
+          ticks={ticks}
           tick={{ fontSize: 11, fill: theme.colors.body }}
           tickLine={false}
           axisLine={false}
@@ -129,6 +151,13 @@ export function CashFlowChart({
           dot={renderNetDot}
           isAnimationActive={false}
         />
+        {ageReferenceLines({
+          retirementAge,
+          statePensionAge,
+          minAge,
+          maxAge,
+          theme,
+        })}
       </ComposedChart>
     </ResponsiveContainer>
   );

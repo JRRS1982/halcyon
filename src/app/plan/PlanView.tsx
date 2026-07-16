@@ -41,6 +41,16 @@ const Title = styled.h1`
   color: ${({ theme }) => theme.colors.ink};
   margin: 0;
 `;
+// All record cards in one responsive grid: as many equal ~320px+ columns as fit
+// (2–3 on desktop, 1 on mobile — no manual breakpoints). align-items: start so
+// each card is only as tall as its own content rather than stretching to match
+// its row neighbour.
+const Cards = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: ${({ theme }) => theme.spacing["2xl"]};
+  align-items: start;
+`;
 
 export function PlanView({
   band,
@@ -142,6 +152,8 @@ export function PlanView({
         high={liveBand.high}
         currency={currency}
         numberFormat={numberFormat}
+        retirementAge={effectiveAssumptions.retirementAge}
+        statePensionAge={effectiveAssumptions.statePensionAge}
       />
       <Timeline
         incomes={liveIncomes}
@@ -157,36 +169,38 @@ export function PlanView({
         onStreamInput={setStreamOverride}
         onStreamCommit={commitStream}
       />
-      <AssetsTable
-        assets={plan.assets}
-        currency={currency}
-        numberFormat={numberFormat}
-        onOpen={open("asset")}
-      />
-      <LiabilitiesTable
-        liabilities={plan.liabilities}
-        currency={currency}
-        numberFormat={numberFormat}
-        onOpen={open("liability")}
-      />
-      <IncomesTable
-        incomes={plan.incomes}
-        currency={currency}
-        numberFormat={numberFormat}
-        onOpen={open("income")}
-      />
-      <ExpensesTable
-        expenses={plan.expenses}
-        currency={currency}
-        numberFormat={numberFormat}
-        onOpen={open("expense")}
-      />
-      <EventsTable
-        events={plan.events}
-        currency={currency}
-        numberFormat={numberFormat}
-        onOpen={open("event")}
-      />
+      <Cards>
+        <AssetsTable
+          assets={plan.assets}
+          currency={currency}
+          numberFormat={numberFormat}
+          onOpen={open("asset")}
+        />
+        <LiabilitiesTable
+          liabilities={plan.liabilities}
+          currency={currency}
+          numberFormat={numberFormat}
+          onOpen={open("liability")}
+        />
+        <IncomesTable
+          incomes={plan.incomes}
+          currency={currency}
+          numberFormat={numberFormat}
+          onOpen={open("income")}
+        />
+        <ExpensesTable
+          expenses={plan.expenses}
+          currency={currency}
+          numberFormat={numberFormat}
+          onOpen={open("expense")}
+        />
+        <EventsTable
+          events={plan.events}
+          currency={currency}
+          numberFormat={numberFormat}
+          onOpen={open("event")}
+        />
+      </Cards>
 
       <PlanDrawer
         open={target !== undefined}

@@ -139,6 +139,16 @@ describe("toTodaysMoney", () => {
     const real41 = real.years.find((y) => y.age === 41);
     expect(real41?.netWorth).toBeCloseTo((nominal41?.netWorth ?? 0) / 1.1, 0);
   });
+
+  it("reports the peak of the deflated series, not the deflated nominal peak", () => {
+    // Nominal net worth rises 100 → 105 (5%/yr) but inflation is 10%, so in
+    // today's money it falls. The real-terms peak is age 40 (100), even though
+    // the nominal peak is age 41 (105) → deflating the nominal peak would
+    // wrongly report age 41 / 95.
+    const nominal = proj(41, 105, [yr(40, 100), yr(41, 105)]);
+    const real = toTodaysMoney(nominal, 10, 40);
+    expect(real.verdict.peakNetWorth).toEqual({ age: 40, value: 100 });
+  });
 });
 
 describe("toTodaysMoneyBand", () => {

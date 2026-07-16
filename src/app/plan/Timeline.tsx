@@ -7,7 +7,6 @@ import {
   clampHandle,
   toTimelineModel,
 } from "@/lib/plan/timelineData";
-import { useRef } from "react";
 import styled, { useTheme } from "styled-components";
 import { PlanCard } from "./PlanCard";
 import { PLOT_LEFT_INSET, PLOT_RIGHT_INSET } from "./axisGeometry";
@@ -189,7 +188,10 @@ function BarHandle({
 
   return (
     <Handle
-      style={{ left: `${pct}%` }}
+      // Position-aware centring: translateX slides from 0% at the left edge to
+      // -100% at the right edge (still -50% mid-track), so an edge grip at 0% or
+      // 100% stays fully on-track and grabbable instead of hanging half off it.
+      style={{ left: `${pct}%`, transform: `translateX(-${pct}%)` }}
       role="slider"
       tabIndex={0}
       aria-label={`${bar.label} ${edge} age`}
@@ -272,7 +274,6 @@ export function Timeline({
   onStreamCommit?: (lane: StreamLane, id: string, ages: StreamOverride) => void;
 }) {
   const theme = useTheme();
-  const eventTrackRef = useRef<HTMLDivElement>(null);
   const model = toTimelineModel({
     incomes,
     expenses,
@@ -347,85 +348,100 @@ export function Timeline({
             {model.events.length > 0 ? (
               <div style={{ display: "contents" }}>
                 <GroupLabel>Events</GroupLabel>
-                <RowLabel />
-                <Track ref={eventTrackRef}>
-                  {model.events.map((m) => {
-                    const ageAt = (clientX: number): number => {
-                      const r = eventTrackRef.current?.getBoundingClientRect();
-                      if (!r) return m.age;
-                      return ageFromOffset(
-                        clientX,
-                        r.left,
-                        r.width,
-                        minAge,
-                        maxAge,
-                      );
-                    };
-                    return (
-                      <Marker
-                        key={m.id}
-                        $inflow={m.direction === "INFLOW"}
-                        style={{ left: `${m.leftPct}%` }}
-                        role="slider"
-                        tabIndex={0}
-                        aria-label={`${m.label} age`}
-                        aria-valuemin={minAge}
-                        aria-valuemax={maxAge}
-                        aria-valuenow={m.age}
-                        title={`${m.label} (age ${m.age})`}
-                        onPointerDown={(e) => {
-                          if (!onEventInput) return;
-                          e.currentTarget.setPointerCapture(e.pointerId);
-                        }}
-                        onPointerMove={(e) => {
-                          if (
-                            !onEventInput ||
-                            !e.currentTarget.hasPointerCapture(e.pointerId)
-                          )
-                            return;
-                          onEventInput(m.id, ageAt(e.clientX));
-                        }}
-                        onPointerUp={(e) => {
-                          if (
-                            !onEventCommit ||
-                            !e.currentTarget.hasPointerCapture(e.pointerId)
-                          )
-                            return;
-                          e.currentTarget.releasePointerCapture(e.pointerId);
-                          onEventCommit(m.id, ageAt(e.clientX));
-                        }}
-                        onKeyDown={(e) => {
-                          if (!onEventInput) return;
-                          const delta =
-                            e.key === "ArrowRight" || e.key === "ArrowUp"
-                              ? 1
-                              : e.key === "ArrowLeft" || e.key === "ArrowDown"
-                                ? -1
-                                : 0;
-                          if (delta === 0) return;
-                          e.preventDefault();
-                          const next = Math.min(
-                            Math.max(m.age + delta, minAge),
-                            maxAge,
-                          );
-                          onEventInput(m.id, next);
-                        }}
-                        onKeyUp={(e) => {
-                          if (!onEventCommit) return;
-                          if (
-                            [
-                              "ArrowRight",
-                              "ArrowUp",
-                              "ArrowLeft",
-                              "ArrowDown",
-                            ].includes(e.key)
-                          )
-                            onEventCommit(m.id, m.age);
-                        }}
-                      />
+                {model.events.map((m) => {
+                  const ageAt = (
+                    track: HTMLElement | null,
+                    clientX: number,
+                  ): number => {
+                    const r = track?.getBoundingClientRect();
+                    if (!r) return m.age;
+                    return ageFromOffset(
+                      clientX,
+                      r.left,
+                      r.width,
+                      minAge,
+                      maxAge,
                     );
-                  })}
-                </Track>
+                  };
+                  return (
+                    <div key={m.id} style={{ display: "contents" }}>
+                      <RowLabel title={m.label}>{m.label}</RowLabel>
+                      <Track>
+                        <Marker
+                          $inflow={m.direction === "INFLOW"}
+                          // Same position-aware centring as the bar grips, so an
+                          // event at the plan's first/last age stays on-track.
+                          style={{
+                            left: `${m.leftPct}%`,
+                            transform: `translateX(-${m.leftPct}%) rotate(45deg)`,
+                          }}
+                          role="slider"
+                          tabIndex={0}
+                          aria-label={`${m.label} age`}
+                          aria-valuemin={minAge}
+                          aria-valuemax={maxAge}
+                          aria-valuenow={m.age}
+                          title={`${m.label} (age ${m.age})`}
+                          onPointerDown={(e) => {
+                            if (!onEventInput) return;
+                            e.currentTarget.setPointerCapture(e.pointerId);
+                          }}
+                          onPointerMove={(e) => {
+                            if (
+                              !onEventInput ||
+                              !e.currentTarget.hasPointerCapture(e.pointerId)
+                            )
+                              return;
+                            onEventInput(
+                              m.id,
+                              ageAt(e.currentTarget.parentElement, e.clientX),
+                            );
+                          }}
+                          onPointerUp={(e) => {
+                            if (
+                              !onEventCommit ||
+                              !e.currentTarget.hasPointerCapture(e.pointerId)
+                            )
+                              return;
+                            e.currentTarget.releasePointerCapture(e.pointerId);
+                            onEventCommit(
+                              m.id,
+                              ageAt(e.currentTarget.parentElement, e.clientX),
+                            );
+                          }}
+                          onKeyDown={(e) => {
+                            if (!onEventInput) return;
+                            const delta =
+                              e.key === "ArrowRight" || e.key === "ArrowUp"
+                                ? 1
+                                : e.key === "ArrowLeft" || e.key === "ArrowDown"
+                                  ? -1
+                                  : 0;
+                            if (delta === 0) return;
+                            e.preventDefault();
+                            const next = Math.min(
+                              Math.max(m.age + delta, minAge),
+                              maxAge,
+                            );
+                            onEventInput(m.id, next);
+                          }}
+                          onKeyUp={(e) => {
+                            if (!onEventCommit) return;
+                            if (
+                              [
+                                "ArrowRight",
+                                "ArrowUp",
+                                "ArrowLeft",
+                                "ArrowDown",
+                              ].includes(e.key)
+                            )
+                              onEventCommit(m.id, m.age);
+                          }}
+                        />
+                      </Track>
+                    </div>
+                  );
+                })}
               </div>
             ) : null}
             <RowLabel />
