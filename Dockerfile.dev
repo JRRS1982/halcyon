@@ -7,17 +7,20 @@ RUN apt-get update && apt-get install -y \
   openssl \
   && rm -rf /var/lib/apt/lists/*
 
-# Install pnpm. Pin the version (not @latest) for reproducible builds — a
-# floating @latest pulled pnpm 11, which is incompatible with this image's
-# Node 20 (ERR_UNKNOWN_BUILTIN_MODULE). Keep in sync with the host pnpm.
-RUN corepack enable && corepack prepare pnpm@10.24.0 --activate
+# Install pnpm. Pin the exact version (not @latest) for reproducible builds and
+# keep it in sync with package.json's packageManager field + CI. pnpm 11 needs
+# Node >=20; this image is node:22-slim, so it's fine.
+RUN corepack enable && corepack prepare pnpm@11.13.0 --activate
 
 # Set up Prisma
 ENV PRISMA_CLI_QUERY_ENGINE_TYPE=library
 ENV PRISMA_CLI_BINARY_TARGETS=debian-openssl-3.0.x
 
-# Copy package files and prisma schema (needed for postinstall)
-COPY package.json pnpm-lock.yaml ./
+# Copy package files and prisma schema (needed for postinstall).
+# pnpm-workspace.yaml carries the dependency overrides + build-script allowlist
+# (pnpm 11 reads them here, not from package.json) — the frozen install fails
+# with ERR_PNPM_LOCKFILE_CONFIG_MISMATCH without it.
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY prisma ./prisma
 
 # Install dependencies (runs postinstall which generates Prisma client)

@@ -1,0 +1,28 @@
+# pnpm 11 reads dependency overrides + settings here, not from package.json's
+# "pnpm" field (ignored as of pnpm 11 — https://pnpm.io/settings).
+
+# Pin vulnerable transitive deps up to patched versions (security).
+overrides:
+  postcss@<8.5.10: ^8.5.10
+  esbuild@<0.28.1: ^0.28.1
+
+# Don't re-verify node_modules against the lockfile before `pnpm <script>`.
+# pnpm 11 added this pre-run check (pnpm 10 had none); in the dev container the
+# anonymous node_modules volume isn't a perfect lockfile match on first boot, so
+# the check tries to purge+reinstall and aborts under `docker compose up` (no
+# TTY): ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY. Deps are installed at image
+# build time; CI installs explicitly — so nothing needs this runtime check.
+verifyDepsBeforeRun: false
+
+# Dependencies allowed to run install/build scripts. pnpm blocks these by
+# default (supply-chain safety); each needs its script to fetch a native
+# binary or set up tooling (sharp/esbuild/unrs-resolver native builds, the
+# prisma/biome engine binaries, git hooks).
+allowBuilds:
+  "@biomejs/biome": true
+  "@prisma/engines": true
+  esbuild: true
+  prisma: true
+  sharp: true
+  simple-git-hooks: true
+  unrs-resolver: true
