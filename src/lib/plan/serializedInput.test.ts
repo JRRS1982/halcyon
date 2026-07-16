@@ -35,6 +35,7 @@ const plan: SerializedPlan = {
       openingBalance: 120000,
       interestPct: 4,
       monthlyRepayment: 1100,
+      startAge: 45,
       endAge: 60,
     },
   ],
@@ -60,6 +61,7 @@ const plan: SerializedPlan = {
       startAge: null,
       endAge: null,
       inflationLinked: true,
+      liabilityId: "liab-1",
     },
   ],
   events: [
@@ -88,6 +90,8 @@ describe("serializedToPlanInput", () => {
       direction: "OUTFLOW",
       amount: 20000,
     });
+    expect(input.liabilities[0]?.startAge).toBe(45);
+    expect(input.expenses[0]?.liabilityId).toBe("liab-1");
   });
 
   it("omits statePension when either field is null", () => {

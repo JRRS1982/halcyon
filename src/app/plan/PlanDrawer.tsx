@@ -189,7 +189,7 @@ export function PlanDrawer({
   eyebrow?: string;
   title: string;
   onClose: () => void;
-  onRemove: () => Promise<void> | void;
+  onRemove?: () => Promise<void> | void;
   children: ReactNode;
 }) {
   const sheetRef = useRef<HTMLDialogElement>(null);
@@ -276,7 +276,7 @@ export function PlanDrawer({
             <Body>{children}</Body>
             <Foot>
               <Live>Changes update your plan instantly</Live>
-              <RemoveCell onConfirm={onRemove} />
+              {onRemove ? <RemoveCell onConfirm={onRemove} /> : null}
             </Foot>
           </>
         ) : null}

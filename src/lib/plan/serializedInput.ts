@@ -47,6 +47,7 @@ export function serializedToPlanInput(
       openingBalance: x.openingBalance,
       interestPct: x.interestPct,
       monthlyRepayment: x.monthlyRepayment,
+      startAge: x.startAge ?? undefined,
       endAge: x.endAge ?? undefined,
     })),
     incomes: plan.incomes.map((x) => ({
@@ -67,6 +68,7 @@ export function serializedToPlanInput(
       startAge: x.startAge ?? undefined,
       endAge: x.endAge ?? undefined,
       inflationLinked: x.inflationLinked,
+      liabilityId: x.liabilityId ?? undefined,
     })),
     events: plan.events.map((x) => ({
       id: x.id,

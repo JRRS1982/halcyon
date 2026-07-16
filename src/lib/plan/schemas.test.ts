@@ -36,6 +36,7 @@ const validLiability = {
   openingBalance: 120000,
   interestPct: 4,
   monthlyRepayment: 1100,
+  startAge: null,
   endAge: 60,
 };
 
@@ -135,6 +136,35 @@ describe("updatePlanLiabilitySchema", () => {
         ...validLiability,
         monthlyRepayment: -5,
       }),
+    ).toThrow();
+  });
+});
+
+describe("updatePlanLiabilitySchema startAge", () => {
+  const base = {
+    liabilityId: "6f9619ff-8b86-4d01-b42d-00cf4fc964ff",
+    label: "Mortgage",
+    openingBalance: 100000,
+    interestPct: 4,
+    monthlyRepayment: 1200,
+    endAge: 65,
+  };
+
+  it("accepts a null startAge", () => {
+    expect(
+      updatePlanLiabilitySchema.parse({ ...base, startAge: null }).startAge,
+    ).toBeNull();
+  });
+
+  it("accepts startAge before endAge", () => {
+    expect(
+      updatePlanLiabilitySchema.parse({ ...base, startAge: 40 }).startAge,
+    ).toBe(40);
+  });
+
+  it("rejects startAge after endAge", () => {
+    expect(() =>
+      updatePlanLiabilitySchema.parse({ ...base, startAge: 70 }),
     ).toThrow();
   });
 });

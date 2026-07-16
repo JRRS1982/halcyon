@@ -57,6 +57,8 @@ const createPlanSchema = z.object({
   retirementAge: z.number().int().min(40).max(90),
 });
 
+const linkRepaymentSchema = z.object({ liabilityId: z.string().uuid() });
+
 export async function createPlan(input: {
   dateOfBirth: string;
   retirementAge: number;
@@ -208,6 +210,7 @@ export async function updatePlanLiability(
       openingBalance: p.openingBalance,
       interestPct: p.interestPct,
       monthlyRepayment: p.monthlyRepayment,
+      startAge: p.startAge,
       endAge: p.endAge,
     },
   });
@@ -347,11 +350,18 @@ export async function deletePlanLiability(input: {
 }): Promise<void> {
   const userId = await requireUserId();
   const { id } = deleteRowSchema.parse(input);
-  const res = await prisma.planLiability.updateMany({
-    where: { id, deletedAt: null, plan: { userId, deletedAt: null } },
-    data: { deletedAt: new Date() },
+  await prisma.$transaction(async (tx) => {
+    const res = await tx.planLiability.updateMany({
+      where: { id, deletedAt: null, plan: { userId, deletedAt: null } },
+      data: { deletedAt: new Date() },
+    });
+    if (res.count === 0) throw new Error("Liability not found");
+    // The repayment can't outlive the debt: cascade the soft delete.
+    await tx.planExpense.updateMany({
+      where: { liabilityId: id, deletedAt: null },
+      data: { deletedAt: new Date() },
+    });
   });
-  if (res.count === 0) throw new Error("Liability not found");
   revalidatePath("/plan");
 }
 
@@ -369,11 +379,87 @@ export async function deletePlanIncome(input: { id: string }): Promise<void> {
 export async function deletePlanExpense(input: { id: string }): Promise<void> {
   const userId = await requireUserId();
   const { id } = deleteRowSchema.parse(input);
-  const res = await prisma.planExpense.updateMany({
-    where: { id, deletedAt: null, plan: { userId, deletedAt: null } },
-    data: { deletedAt: new Date() },
+  await prisma.$transaction(async (tx) => {
+    const expense = await tx.planExpense.findFirst({
+      where: { id, deletedAt: null, plan: { userId, deletedAt: null } },
+      select: { liabilityId: true },
+    });
+    if (!expense) throw new Error("Expense not found");
+    if (expense.liabilityId !== null)
+      throw new Error(
+        "This repayment is managed by a liability — delete the liability, or unlink it first",
+      );
+    await tx.planExpense.updateMany({
+      where: { id, deletedAt: null, plan: { userId, deletedAt: null } },
+      data: { deletedAt: new Date() },
+    });
   });
-  if (res.count === 0) throw new Error("Expense not found");
+  revalidatePath("/plan");
+}
+
+// Creates the liability's linked repayment expense (idempotent). The expense
+// owns the payment amount from here on; timing stays on the liability.
+export async function linkRepaymentExpense(input: {
+  liabilityId: string;
+}): Promise<string> {
+  const userId = await requireUserId();
+  const { liabilityId } = linkRepaymentSchema.parse(input);
+  const id = await prisma.$transaction(async (tx) => {
+    const liability = await tx.planLiability.findFirst({
+      where: {
+        id: liabilityId,
+        deletedAt: null,
+        plan: { userId, deletedAt: null },
+      },
+    });
+    if (!liability) throw new Error("Liability not found");
+    const existing = await tx.planExpense.findFirst({
+      where: { liabilityId, deletedAt: null },
+      select: { id: true },
+    });
+    if (existing) return existing.id;
+    const max = await tx.planExpense.aggregate({
+      where: { planId: liability.planId, deletedAt: null },
+      _max: { sortOrder: true },
+    });
+    const row = await tx.planExpense.create({
+      data: {
+        planId: liability.planId,
+        label: `${liability.label} repayment`,
+        category: null,
+        annualAmount: Number(liability.monthlyRepayment) * 12,
+        inflationLinked: false,
+        liabilityId,
+        sortOrder: (max._max.sortOrder ?? -1) + 1,
+      },
+    });
+    return row.id;
+  });
+  revalidatePath("/plan");
+  return id;
+}
+
+// Detaches a linked repayment expense; the liability falls back to
+// monthlyRepayment at the expense's current amount so projections don't jump.
+export async function unlinkRepaymentExpense(input: {
+  id: string;
+}): Promise<void> {
+  const userId = await requireUserId();
+  const { id } = deleteRowSchema.parse(input);
+  await prisma.$transaction(async (tx) => {
+    const expense = await tx.planExpense.findFirst({
+      where: { id, deletedAt: null, plan: { userId, deletedAt: null } },
+    });
+    if (!expense?.liabilityId) throw new Error("Linked expense not found");
+    await tx.planLiability.update({
+      where: { id: expense.liabilityId },
+      data: { monthlyRepayment: Number(expense.annualAmount) / 12 },
+    });
+    await tx.planExpense.update({
+      where: { id },
+      data: { liabilityId: null },
+    });
+  });
   revalidatePath("/plan");
 }
 

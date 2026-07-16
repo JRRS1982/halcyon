@@ -66,6 +66,7 @@ export default async function PlanPage() {
       openingBalance: Number(l.openingBalance),
       interestPct: Number(l.interestPct),
       monthlyRepayment: Number(l.monthlyRepayment),
+      startAge: l.startAge,
       endAge: l.endAge,
     })),
     incomes: plan.incomes.map((i) => ({
@@ -87,6 +88,7 @@ export default async function PlanPage() {
       startAge: e.startAge,
       endAge: e.endAge,
       inflationLinked: e.inflationLinked,
+      liabilityId: e.liabilityId,
     })),
     events: plan.events.map((ev) => ({
       id: ev.id,

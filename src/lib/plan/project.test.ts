@@ -596,4 +596,105 @@ describe("projectWithBand", () => {
     expect(fast.high.years).toEqual(full.high.years);
     expect(fast.mid.verdict.feasible).toBe(full.mid.verdict.feasible);
   });
+
+  describe("linked repayment expenses + liability startAge", () => {
+    const makeInput = (): PlanInput => ({
+      currentAge: 40,
+      startYear: 2026,
+      retirementAge: 65,
+      planToAge: 45,
+      inflationPct: 0,
+      defaultReturnPct: 0,
+      taxRatePct: 0,
+      assets: [
+        {
+          id: "cash",
+          label: "Cash",
+          wrapper: "CASH",
+          openingValue: 1000000,
+          drawdownPriority: 0,
+        },
+      ],
+      liabilities: [
+        {
+          id: "m1",
+          label: "Mortgage",
+          openingBalance: 100000,
+          interestPct: 0,
+          monthlyRepayment: 0,
+        },
+      ],
+      incomes: [],
+      expenses: [
+        {
+          id: "rep1",
+          label: "Mortgage repayment",
+          annualAmount: 12000,
+          inflationLinked: false,
+          liabilityId: "m1",
+        },
+      ],
+      events: [],
+    });
+
+    it("excludes linked expenses from category totals", () => {
+      const { years } = project(makeInput());
+      expect(years[0]?.totalExpenses).toBe(0);
+      expect(years[0]?.expensesByCategory).toEqual({});
+    });
+
+    it("pays the liability down from the linked expense via liabilityRepayments", () => {
+      const { years } = project(makeInput());
+      expect(years[0]?.liabilityRepayments).toBe(12000);
+      expect(years[0]?.liabilities[0]?.value).toBe(88000);
+    });
+
+    it("stops the outflow once the debt is repaid", () => {
+      const input = makeInput();
+      input.liabilities = [
+        {
+          id: "m1",
+          label: "Mortgage",
+          openingBalance: 6000,
+          interestPct: 0,
+          monthlyRepayment: 0,
+        },
+      ];
+      const { years } = project(input);
+      expect(years[0]?.liabilityRepayments).toBe(6000); // capped at balance
+      expect(years[1]?.liabilityRepayments).toBe(0);
+    });
+
+    it("reports zero liability value (and no repayments) before startAge", () => {
+      const input = makeInput();
+      input.liabilities = [
+        {
+          id: "m1",
+          label: "Mortgage",
+          openingBalance: 100000,
+          interestPct: 0,
+          monthlyRepayment: 0,
+          startAge: 42,
+        },
+      ];
+      const { years } = project(input);
+      expect(years[0]?.liabilities[0]?.value).toBe(0); // age 40
+      expect(years[0]?.liabilityRepayments).toBe(0);
+      expect(years[2]?.liabilities[0]?.value).toBe(88000); // age 42: starts, pays 12k
+    });
+
+    it("treats an expense with an unknown liabilityId as a normal expense", () => {
+      const input = makeInput();
+      if (!input.expenses[0]) throw new Error("fixture");
+      input.expenses[0] = {
+        ...input.expenses[0],
+        liabilityId: "no-such-liability",
+        category: "FIXED",
+      };
+      const { years } = project(input);
+      expect(years[0]?.totalExpenses).toBe(12000); // counted once, as an expense
+      expect(years[0]?.expensesByCategory.FIXED).toBe(12000);
+      expect(years[0]?.liabilityRepayments).toBe(0);
+    });
+  });
 });

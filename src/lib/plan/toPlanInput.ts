@@ -77,6 +77,7 @@ export function toPlanInput(
       openingBalance: num(l.openingBalance),
       interestPct: num(l.interestPct),
       monthlyRepayment: num(l.monthlyRepayment),
+      startAge: l.startAge ?? undefined,
       endAge: l.endAge ?? undefined,
       linkedAssetId: l.linkedAssetId ?? undefined,
     })),
@@ -98,6 +99,7 @@ export function toPlanInput(
       startAge: e.startAge ?? undefined,
       endAge: e.endAge ?? undefined,
       inflationLinked: e.inflationLinked,
+      liabilityId: e.liabilityId ?? undefined,
     })),
     events: plan.events.map((ev) => ({
       id: ev.id,

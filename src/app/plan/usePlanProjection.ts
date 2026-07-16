@@ -17,7 +17,6 @@ import {
   type StreamOverride,
   computeLiveBand,
   withStreamAges,
-  withStreamEnd,
 } from "./liveBand";
 import type {
   SerializedPlan,
@@ -173,13 +172,14 @@ export function usePlanProjection(
       } else {
         const l = plan.liabilities.find((x) => x.id === id);
         if (!l) return;
-        const next = withStreamEnd(l, ages);
+        const next = withStreamAges(l, ages);
         await updatePlanLiability({
           liabilityId: l.id,
           label: l.label,
           openingBalance: l.openingBalance,
           interestPct: l.interestPct,
           monthlyRepayment: l.monthlyRepayment,
+          startAge: next.startAge,
           endAge: next.endAge,
         });
       }
@@ -204,7 +204,7 @@ export function usePlanProjection(
     withStreamAges(e, overrides.streams[e.id]),
   );
   const liveLiabilities: SerializedPlanLiability[] = plan.liabilities.map((l) =>
-    withStreamEnd(l, overrides.streams[l.id]),
+    withStreamAges(l, overrides.streams[l.id]),
   );
 
   return {

@@ -205,15 +205,18 @@ function BarHandle({
       }}
       onPointerMove={(e) => {
         if (!onInput || !e.currentTarget.hasPointerCapture(e.pointerId)) return;
-        onInput(bar.id, bound(ageAt(e.currentTarget.parentElement, e.clientX)));
+        onInput(
+          bar.dragId,
+          bound(ageAt(e.currentTarget.parentElement, e.clientX)),
+        );
       }}
       onPointerUp={(e) => {
         if (!onCommit || !e.currentTarget.hasPointerCapture(e.pointerId))
           return;
         e.currentTarget.releasePointerCapture(e.pointerId);
         onCommit(
-          bar.lane,
-          bar.id,
+          bar.dragLane,
+          bar.dragId,
           bound(ageAt(e.currentTarget.parentElement, e.clientX)),
         );
       }}
@@ -235,12 +238,12 @@ function BarHandle({
           minAge,
           maxAge,
         );
-        onInput(bar.id, bound(next));
+        onInput(bar.dragId, bound(next));
       }}
       onKeyUp={(e) => {
         if (!onCommit) return;
         if (["ArrowRight", "ArrowUp", "ArrowLeft", "ArrowDown"].includes(e.key))
-          onCommit(bar.lane, bar.id, bound(ageNow));
+          onCommit(bar.dragLane, bar.dragId, bound(ageNow));
       }}
     />
   );
@@ -321,16 +324,14 @@ export function Timeline({
                           }}
                           title={`${b.label}: ${b.startAge}–${b.endAge}`}
                         />
-                        {b.lane !== "liability" ? (
-                          <BarHandle
-                            bar={b}
-                            edge="start"
-                            minAge={minAge}
-                            maxAge={maxAge}
-                            onInput={onStreamInput}
-                            onCommit={onStreamCommit}
-                          />
-                        ) : null}
+                        <BarHandle
+                          bar={b}
+                          edge="start"
+                          minAge={minAge}
+                          maxAge={maxAge}
+                          onInput={onStreamInput}
+                          onCommit={onStreamCommit}
+                        />
                         <BarHandle
                           bar={b}
                           edge="end"
