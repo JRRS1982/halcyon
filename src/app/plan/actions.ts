@@ -35,7 +35,8 @@ async function requireUserId(): Promise<string> {
   return user.id;
 }
 
-export async function getPrimaryPlan(userId: string) {
+export async function getPrimaryPlan() {
+  const userId = await requireUserId();
   return prisma.plan.findFirst({
     where: { userId, isPrimary: true, deletedAt: null },
     include: {

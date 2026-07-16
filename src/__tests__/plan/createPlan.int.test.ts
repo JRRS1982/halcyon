@@ -37,7 +37,7 @@ describe("createPlan (integration)", () => {
 
     await createPlan({ dateOfBirth: "1986-06-01", retirementAge: 65 });
 
-    const plan = await getPrimaryPlan(TEST_USER_ID);
+    const plan = await getPrimaryPlan();
     expect(plan).not.toBeNull();
     expect(plan?.isPrimary).toBe(true);
     expect(plan?.assets.length).toBeGreaterThan(0);
@@ -53,5 +53,37 @@ describe("createPlan (integration)", () => {
       where: { userId: TEST_USER_ID, isPrimary: true, deletedAt: null },
     });
     expect(count).toBe(1);
+  });
+
+  it("returns only the signed-in user's plan, never another user's", async () => {
+    // A different user with their own primary plan.
+    const OTHER_USER_ID = "00000000-0000-0000-0000-0000000000bb";
+    await prisma.user.create({ data: { id: OTHER_USER_ID } });
+    const otherPlan = await prisma.plan.create({
+      data: {
+        userId: OTHER_USER_ID,
+        dateOfBirth: new Date("1970-01-01"),
+        retirementAge: 60,
+        isPrimary: true,
+      },
+    });
+
+    // The signed-in user (mocked session = TEST_USER_ID) creates their own.
+    await prisma.financialPeriod.create({
+      data: {
+        userId: TEST_USER_ID,
+        granularity: "MONTH",
+        startDate: new Date("2026-01-01"),
+        endDate: new Date("2026-01-31"),
+        label: "Jan 2026",
+      },
+    });
+    await createPlan({ dateOfBirth: "1986-06-01", retirementAge: 65 });
+
+    // getPrimaryPlan derives identity from the session — it must never return
+    // the other user's plan (regression for the getPrimaryPlan(userId) IDOR).
+    const plan = await getPrimaryPlan();
+    expect(plan?.userId).toBe(TEST_USER_ID);
+    expect(plan?.id).not.toBe(otherPlan.id);
   });
 });
