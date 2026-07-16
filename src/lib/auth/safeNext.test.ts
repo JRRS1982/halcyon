@@ -10,8 +10,12 @@ describe("safeNext", () => {
 
   it.each([
     ["//evil.com", "protocol-relative"],
+    ["///evil.com", "triple-slash"],
     ["/\\evil.com", "backslash (normalised to //)"],
     ["/\\/evil.com", "backslash variant"],
+    ["/\t/evil.com", "tab smuggling (stripped to //)"],
+    ["/\n/evil.com", "newline smuggling (stripped to //)"],
+    ["/\r/evil.com", "cr smuggling (stripped to //)"],
     ["https://evil.com", "absolute url"],
     ["http://evil.com", "absolute url"],
     ["@evil.com", "authority-escape via userinfo"],
