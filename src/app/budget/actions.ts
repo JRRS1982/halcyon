@@ -19,7 +19,15 @@ import {
 } from "@/lib/budget/schemas";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
+import type { FinancialItem } from "@prisma/client";
 import { redirect } from "next/navigation";
+
+// Prisma `Decimal` can't cross the server→client boundary (it serialises to
+// `{}`); the budget sheet consumes budget/actual as numbers (`SerializedItem`),
+// so coerce them before returning a mutated item to the client.
+function toClientItem(item: FinancialItem) {
+  return { ...item, budget: Number(item.budget), actual: Number(item.actual) };
+}
 
 // Gates every server action on a valid signed-in user. The middleware also
 // guards /budget, but every action enforces auth independently — never trust
@@ -115,16 +123,18 @@ export async function createItem(input: CreateItemInput) {
   const incomeCategory =
     parsed.type === "INCOME" ? (parsed.incomeCategory ?? "OTHER") : null;
 
-  return prisma.financialItem.create({
-    data: {
-      periodId: parsed.periodId,
-      type: parsed.type,
-      category,
-      incomeCategory,
-      label: parsed.label,
-      sortOrder: (last?.sortOrder ?? 0) + 1,
-    },
-  });
+  return toClientItem(
+    await prisma.financialItem.create({
+      data: {
+        periodId: parsed.periodId,
+        type: parsed.type,
+        category,
+        incomeCategory,
+        label: parsed.label,
+        sortOrder: (last?.sortOrder ?? 0) + 1,
+      },
+    }),
+  );
 }
 
 export async function updateItem(input: UpdateItemInput) {
@@ -147,18 +157,20 @@ export async function updateItem(input: UpdateItemInput) {
     throw new Error("Only income rows have an income category");
   }
 
-  return prisma.financialItem.update({
-    where: { id: parsed.itemId },
-    data: {
-      ...(parsed.label !== undefined && { label: parsed.label }),
-      ...(parsed.budget !== undefined && { budget: parsed.budget }),
-      ...(parsed.actual !== undefined && { actual: parsed.actual }),
-      ...(parsed.category !== undefined && { category: parsed.category }),
-      ...(parsed.incomeCategory !== undefined && {
-        incomeCategory: parsed.incomeCategory,
-      }),
-    },
-  });
+  return toClientItem(
+    await prisma.financialItem.update({
+      where: { id: parsed.itemId },
+      data: {
+        ...(parsed.label !== undefined && { label: parsed.label }),
+        ...(parsed.budget !== undefined && { budget: parsed.budget }),
+        ...(parsed.actual !== undefined && { actual: parsed.actual }),
+        ...(parsed.category !== undefined && { category: parsed.category }),
+        ...(parsed.incomeCategory !== undefined && {
+          incomeCategory: parsed.incomeCategory,
+        }),
+      },
+    }),
+  );
 }
 
 // Soft-delete an item.

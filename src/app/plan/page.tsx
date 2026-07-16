@@ -17,7 +17,7 @@ export default async function PlanPage() {
   if (!user) redirect("/sign-in?next=/plan");
 
   const { currency, numberFormat } = await getCurrentUserSettings();
-  const plan = await getPrimaryPlan(user.id);
+  const plan = await getPrimaryPlan();
 
   if (!plan) {
     return <CreatePlanForm />;
