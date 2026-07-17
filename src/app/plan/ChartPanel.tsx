@@ -52,7 +52,6 @@ const Tab = styled.button<{ $active: boolean }>`
 `;
 const Caption = styled.p`
   margin: 0;
-  max-width: 70ch;
   font-size: 13px;
   line-height: 1.5;
   color: ${({ theme }) => theme.colors.body};
