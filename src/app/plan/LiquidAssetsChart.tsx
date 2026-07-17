@@ -22,7 +22,7 @@ import { useTheme } from "styled-components";
 import { PLOT_LEFT_INSET, PLOT_RIGHT_INSET } from "./axisGeometry";
 import { amountAxis, makeAmountTick } from "./chartFormat";
 import { ageReferenceLines } from "./chartRefLines";
-import { NET_WORTH_COLOUR, WRAPPER_COLOURS } from "./colours";
+import { NET_WORTH_COLOUR, WRAPPER_COLOURS, WRAPPER_LABELS } from "./colours";
 
 // Drawdownable pots stacked over time, with a total line so depletion in
 // retirement is legible. Same wrapper colours as the net-worth chart.
@@ -113,7 +113,7 @@ export function LiquidAssetsChart({
             key={w}
             type="monotone"
             dataKey={w}
-            name={w}
+            name={WRAPPER_LABELS[w]}
             stackId="liquid"
             fill={WRAPPER_COLOURS[w]}
             fillOpacity={0.18}

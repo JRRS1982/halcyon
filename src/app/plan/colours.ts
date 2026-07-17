@@ -11,6 +11,18 @@ export const WRAPPER_COLOURS: Record<Wrapper, string> = {
   OTHER: "#94A3B8",
 };
 
+// Human-readable wrapper labels for chart legends / tooltips (the raw enum keys
+// read as shouty all-caps). True acronyms (ISA, GIA) stay uppercase.
+export const WRAPPER_LABELS: Record<Wrapper, string> = {
+  PENSION: "Pension",
+  ISA: "ISA",
+  GIA: "GIA",
+  CASH: "Cash",
+  PROPERTY: "Property",
+  DB_PENSION: "DB pension",
+  OTHER: "Other",
+};
+
 export const DEBT_COLOUR = "#B33B3B";
 export const NET_WORTH_COLOUR = "#0F1116";
 

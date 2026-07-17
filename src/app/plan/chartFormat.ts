@@ -1,15 +1,18 @@
 // src/app/plan/chartFormat.ts
 import { symbolFor } from "@/lib/settings/currency";
 
-// A Y-axis tick formatter for the plan charts: amounts ≥ 1000 collapse to a
-// rounded `k` value, smaller amounts render in full. ASCII minus for negatives
-// (axis ticks, not body copy). Shared by all three plan charts.
+// A Y-axis tick formatter for the plan charts: amounts ≥ 1m collapse to an `m`
+// value (up to 2dp, trailing zeros trimmed — "£12.25m" reads far better than
+// "£12250k"), ≥ 1000 to a rounded `k`, smaller amounts in full. ASCII minus for
+// negatives (axis ticks, not body copy). Shared by all three plan charts.
 export const makeAmountTick =
   (currency: string) =>
   (v: number): string => {
     const sym = symbolFor(currency);
     const abs = Math.abs(v);
     const sign = v < 0 ? "-" : "";
+    if (abs >= 1_000_000)
+      return `${sign}${sym}${Number((abs / 1_000_000).toFixed(2))}m`;
     return abs >= 1000
       ? `${sign}${sym}${Math.round(abs / 1000)}k`
       : `${sign}${sym}${abs}`;

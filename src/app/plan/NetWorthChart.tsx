@@ -20,7 +20,12 @@ import { useTheme } from "styled-components";
 import { PLOT_LEFT_INSET, PLOT_RIGHT_INSET } from "./axisGeometry";
 import { amountAxis, makeAmountTick } from "./chartFormat";
 import { ageReferenceLines } from "./chartRefLines";
-import { DEBT_COLOUR, NET_WORTH_COLOUR, WRAPPER_COLOURS } from "./colours";
+import {
+  DEBT_COLOUR,
+  NET_WORTH_COLOUR,
+  WRAPPER_COLOURS,
+  WRAPPER_LABELS,
+} from "./colours";
 
 export function NetWorthChart({
   low,
@@ -113,7 +118,7 @@ export function NetWorthChart({
             key={w}
             type="monotone"
             dataKey={w}
-            name={w}
+            name={WRAPPER_LABELS[w]}
             stackId="nw"
             fill={WRAPPER_COLOURS[w]}
             fillOpacity={0.18}
