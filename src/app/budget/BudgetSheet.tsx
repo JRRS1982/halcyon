@@ -7,7 +7,6 @@ import {
   SheetItemRow,
   SheetSectionRow,
   SheetSubheadRow,
-  SheetTotalsRow,
 } from "@/components/sheet/SheetRow";
 import {
   Toolbar,
@@ -1494,13 +1493,6 @@ export function BudgetSheet({
             {rows.map((item) => renderItemRow(item))}
           </div>
         ))}
-        <SheetTotalsRow
-          label="Income subtotal"
-          amounts={{
-            budget: fmtAmount(incomeTotals.budget),
-            actual: fmtAmount(incomeTotals.actual),
-          }}
-        />
 
         <SheetSectionRow
           label="Expenses"
@@ -1545,13 +1537,6 @@ export function BudgetSheet({
             {rows.map((item) => renderItemRow(item))}
           </div>
         ))}
-        <SheetTotalsRow
-          label="Expenses subtotal"
-          amounts={{
-            budget: fmtAmount(expenseTotals.budget),
-            actual: fmtAmount(expenseTotals.actual),
-          }}
-        />
 
         <SheetGrandRow
           label="Net income"

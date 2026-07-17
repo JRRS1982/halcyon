@@ -176,20 +176,6 @@ const baseRow = css`
   grid-template-columns: ${GRID};
 `;
 
-const HeadRow = styled.div`
-  ${baseRow}
-
-  /* Column-header cells: Inter, medium, dim (unified single-font sheet). */
-  > div {
-    background: ${({ theme }) => theme.colors.canvasSoft};
-    color: ${({ theme }) => theme.colors.body};
-    font-family: ${({ theme }) => theme.typography.bodyMd.family};
-    font-size: ${({ theme }) => theme.typography.bodyMd.size};
-    font-weight: 500;
-    border-bottom: 1px solid ${({ theme }) => theme.colors.hairlineStrong};
-  }
-`;
-
 // Top-level band — Assets / Liabilities. Dark canvas, Inter semibold label.
 const SectionRow = styled.div`
   ${baseRow}
@@ -225,22 +211,6 @@ const SubheadRow = styled.div`
 
 const ItemRow = styled.div`
   ${baseRow}
-`;
-
-const TotalsRow = styled.div`
-  ${baseRow}
-
-  > div {
-    background: ${({ theme }) => theme.colors.canvasSoft};
-    border-top: 1px solid ${({ theme }) => theme.colors.hairlineStrong};
-  }
-  > div:nth-child(1) {
-    color: ${({ theme }) => theme.colors.body};
-    font-weight: 600;
-  }
-  > div:nth-child(n + 2) {
-    font-weight: 600;
-  }
 `;
 
 const GrandRow = styled.div`
@@ -1511,23 +1481,8 @@ export function BalanceSheet({
         <ToolbarSpacer />
       </Toolbar>
       <Sheet>
-        <HeadRow>
-          <SheetCell>Item</SheetCell>
-          <SheetCell align="right">Value</SheetCell>
-          <SheetCell>Notes</SheetCell>
-        </HeadRow>
         {renderSection("ASSET", "Assets", assetsTotal)}
-        <TotalsRow>
-          <SheetCell>Total assets</SheetCell>
-          <SheetCell align="right">{fmtAmount(assetsTotal)}</SheetCell>
-          <SheetCell />
-        </TotalsRow>
         {renderSection("LIABILITY", "Liabilities", liabilitiesTotal)}
-        <TotalsRow>
-          <SheetCell>Total liabilities</SheetCell>
-          <SheetCell align="right">{fmtAmount(liabilitiesTotal)}</SheetCell>
-          <SheetCell />
-        </TotalsRow>
         <GrandRow>
           <SheetCell>Net worth</SheetCell>
           <SheetCell
