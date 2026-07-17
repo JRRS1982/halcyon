@@ -88,6 +88,8 @@ export function AssumptionsPanel({
           Retirement age
           <NumberCell
             value={a.retirementAge}
+            min={40}
+            max={90}
             onCommit={(v) =>
               save({ ...a, retirementAge: v ?? a.retirementAge })
             }
@@ -97,6 +99,8 @@ export function AssumptionsPanel({
           Plan to age
           <NumberCell
             value={a.planToAge}
+            min={50}
+            max={120}
             onCommit={(v) => save({ ...a, planToAge: v ?? a.planToAge })}
           />
         </Field>
@@ -105,6 +109,8 @@ export function AssumptionsPanel({
           <NumberCell
             value={a.inflationPct}
             step="0.1"
+            min={0}
+            max={20}
             onCommit={(v) => save({ ...a, inflationPct: v ?? a.inflationPct })}
           />
         </Field>
@@ -113,6 +119,8 @@ export function AssumptionsPanel({
           <NumberCell
             value={a.defaultReturnPct}
             step="0.1"
+            min={-20}
+            max={30}
             onCommit={(v) =>
               save({ ...a, defaultReturnPct: v ?? a.defaultReturnPct })
             }
@@ -123,6 +131,8 @@ export function AssumptionsPanel({
           <NumberCell
             value={a.returnSpreadPct}
             step="0.1"
+            min={0}
+            max={10}
             onCommit={(v) =>
               save({ ...a, returnSpreadPct: v ?? a.returnSpreadPct })
             }
@@ -133,6 +143,8 @@ export function AssumptionsPanel({
           <NumberCell
             value={a.blendedTaxRatePct}
             step="0.1"
+            min={0}
+            max={60}
             onCommit={(v) =>
               save({ ...a, blendedTaxRatePct: v ?? a.blendedTaxRatePct })
             }
@@ -143,6 +155,8 @@ export function AssumptionsPanel({
           <NumberCell
             value={a.statePensionAge}
             nullable
+            min={50}
+            max={80}
             onCommit={(v) => save({ ...a, statePensionAge: v })}
           />
         </Field>
@@ -151,6 +165,7 @@ export function AssumptionsPanel({
           <NumberCell
             value={a.statePensionAnnual}
             nullable
+            min={0}
             onCommit={(v) => save({ ...a, statePensionAnnual: v })}
           />
         </Field>
@@ -159,6 +174,8 @@ export function AssumptionsPanel({
           <NumberCell
             value={a.expectedDeathAge}
             nullable
+            min={1}
+            max={120}
             onCommit={(v) => save({ ...a, expectedDeathAge: v })}
           />
         </Field>

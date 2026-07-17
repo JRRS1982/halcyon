@@ -35,11 +35,15 @@ export function NumberCell({
   value,
   nullable = false,
   step,
+  min,
+  max,
   onCommit,
 }: {
   value: number | null;
   nullable?: boolean;
   step?: string;
+  min?: number;
+  max?: number;
   onCommit: (value: number | null) => Promise<void> | void;
 }) {
   const [buf, setBuf] = useState<string>(fmtNum(value));
@@ -63,9 +67,19 @@ export function NumberCell({
       setBuf(fmtNum(value));
       return;
     }
-    if (n === value) return;
+    // Clamp to the field's bounds so an out-of-range value snaps to the limit
+    // inline rather than failing the server validation and reverting.
+    const clamped = Math.min(
+      Math.max(n, min ?? Number.NEGATIVE_INFINITY),
+      max ?? Number.POSITIVE_INFINITY,
+    );
+    if (clamped === value) {
+      setBuf(fmtNum(value));
+      return;
+    }
     try {
-      await onCommit(n);
+      await onCommit(clamped);
+      if (clamped !== n) setBuf(fmtNum(clamped)); // reflect the clamp immediately
     } catch {
       setBuf(fmtNum(value));
     }
@@ -75,6 +89,8 @@ export function NumberCell({
     <Input
       type="number"
       step={step}
+      min={min}
+      max={max}
       value={buf}
       onChange={(e) => setBuf(e.target.value)}
       onBlur={commit}
