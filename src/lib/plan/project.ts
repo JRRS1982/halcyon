@@ -233,8 +233,10 @@ export const earliestSustainableRetirementAge = (
         : i,
     );
     if (
-      summarise(projectYears({ ...input, retirementAge: candidate, incomes }))
-        .feasible
+      summarise(
+        projectYears({ ...input, retirementAge: candidate, incomes }),
+        input.expectedDeathAge ?? input.planToAge,
+      ).feasible
     ) {
       return candidate;
     }
@@ -247,7 +249,7 @@ export const project = (input: PlanInput): PlanProjection => {
   return {
     years,
     verdict: {
-      ...summarise(years),
+      ...summarise(years, input.expectedDeathAge ?? input.planToAge),
       earliestSustainableRetirementAge: earliestSustainableRetirementAge(input),
     },
   };
@@ -268,7 +270,7 @@ export const projectWithBand = (
     return {
       years,
       verdict: {
-        ...summarise(years),
+        ...summarise(years, input.expectedDeathAge ?? input.planToAge),
         earliestSustainableRetirementAge: computeEarliest
           ? earliestSustainableRetirementAge(input)
           : null,

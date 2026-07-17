@@ -92,7 +92,8 @@ export interface PlanInput {
   currentAge: number;
   startYear: number; // calendar year of currentAge
   retirementAge: number;
-  planToAge: number;
+  planToAge: number; // horizon the projection runs to (chart extent)
+  expectedDeathAge?: number; // horizon the verdict is judged to; falls back to planToAge
   inflationPct: number;
   defaultReturnPct: number;
   returnSpreadPct?: number; // ± shift applied to every asset's return for the low/high passes; default 0

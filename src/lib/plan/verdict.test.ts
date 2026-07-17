@@ -43,4 +43,16 @@ describe("summarise", () => {
     expect(v.feasible).toBe(false);
     expect(v.firstShortfallAge).toBe(89);
   });
+
+  it("ignores shortfall and peak beyond maxAge (the lived horizon)", () => {
+    const years = [
+      year({ age: 84, netWorth: 100000 }),
+      year({ age: 85, netWorth: 120000 }),
+      year({ age: 92, netWorth: 500000, shortfall: true }),
+    ];
+    const v = summarise(years, 88);
+    expect(v.feasible).toBe(true); // the age-92 shortfall is past death age 88
+    expect(v.firstShortfallAge).toBeNull();
+    expect(v.peakNetWorth).toEqual({ age: 85, value: 120000 }); // not the age-92 500k
+  });
 });

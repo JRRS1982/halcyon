@@ -54,6 +54,7 @@ export function toPlanInput(
     startYear: asOfYear,
     retirementAge: plan.retirementAge,
     planToAge: plan.planToAge,
+    expectedDeathAge: plan.expectedDeathAge ?? undefined,
     inflationPct: num(plan.inflationPct),
     defaultReturnPct: num(plan.defaultReturnPct),
     returnSpreadPct: num(plan.returnSpreadPct),
