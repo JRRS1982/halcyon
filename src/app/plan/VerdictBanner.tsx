@@ -221,11 +221,11 @@ export function VerdictBanner({
           <Stat>
             <StatKey>At age {expectedDeathAge}</StatKey>
             <StatVal>
-              {formatAmount(currency, atDeath.netWorth, numberFormat)}{" "}
-              <small>
-                · liquid {formatAmount(currency, atDeath.liquid, numberFormat)}
-              </small>
+              {formatAmount(currency, atDeath.netWorth, numberFormat)}
             </StatVal>
+            <RangeNote>
+              liquid {formatAmount(currency, atDeath.liquid, numberFormat)}
+            </RangeNote>
           </Stat>
         ) : null}
       </Stats>
