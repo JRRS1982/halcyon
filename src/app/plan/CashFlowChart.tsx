@@ -26,7 +26,7 @@ import {
   YAxis,
 } from "recharts";
 import styled, { useTheme } from "styled-components";
-import { PLOT_LEFT_INSET, PLOT_RIGHT_INSET } from "./axisGeometry";
+import { PLOT_HEIGHT, PLOT_LEFT_INSET, PLOT_RIGHT_INSET } from "./axisGeometry";
 import { amountAxis, makeAmountTick } from "./chartFormat";
 import { ageReferenceLines } from "./chartRefLines";
 import {
@@ -217,7 +217,7 @@ export function CashFlowChart({
   };
 
   return (
-    <ResponsiveContainer width="100%" height={360}>
+    <ResponsiveContainer width="100%" height={PLOT_HEIGHT}>
       <ComposedChart
         data={data}
         stackOffset="sign"
