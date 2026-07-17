@@ -13,16 +13,14 @@ const baseRow = css`
 export const HeadRow = styled.div`
   ${baseRow}
 
-  /* The cells inside a head row override default cell styling: smaller
-     mono-caps labels on canvas-soft, stronger bottom hairline. */
+  /* Column-header cells: Inter, medium, dim, on canvas-soft with a stronger
+     bottom hairline (unified single-font sheet — no mono-caps). */
   > div {
     background: ${({ theme }) => theme.colors.canvasSoft};
     color: ${({ theme }) => theme.colors.body};
-    font-family: ${({ theme }) => theme.typography.monoCaps.family};
-    font-size: ${({ theme }) => theme.typography.monoCaps.size};
-    font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
-    text-transform: uppercase;
-    letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
+    font-family: ${({ theme }) => theme.typography.bodyMd.family};
+    font-size: ${({ theme }) => theme.typography.bodyMd.size};
+    font-weight: 500;
     border-bottom: 1px solid ${({ theme }) => theme.colors.hairlineStrong};
   }
 `;
@@ -30,41 +28,28 @@ export const HeadRow = styled.div`
 export const SectionRow = styled.div`
   ${baseRow}
 
+  /* Section band (Income / Expenses): Inter semibold on the dark band. */
   > div {
     background: ${({ theme }) => theme.colors.canvasDark};
     color: ${({ theme }) => theme.colors.onDark};
     border-color: ${({ theme }) => theme.colors.hairlineDark};
     padding-top: ${({ theme }) => theme.spacing.md};
     padding-bottom: ${({ theme }) => theme.spacing.md};
-    /* Label cell (1st) uses mono-caps. */
-    &:nth-child(1) {
-      font-family: ${({ theme }) => theme.typography.monoCaps.family};
-      font-size: ${({ theme }) => theme.typography.monoCaps.size};
-      font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
-      text-transform: uppercase;
-      letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
-    }
-    /* Amount cells (2nd onwards) bump to medium weight. */
-    &:nth-child(n + 2) {
-      font-weight: 500;
-    }
+    font-weight: 600;
   }
 `;
 
 export const SubheadRow = styled.div`
   ${baseRow}
 
+  /* Sub-header (category buckets): Inter medium, label dim. */
   > div {
     background: ${({ theme }) => theme.colors.canvasSoft};
     border-top: 1px solid ${({ theme }) => theme.colors.hairline};
   }
   > div:nth-child(1) {
-    font-family: ${({ theme }) => theme.typography.monoCaps.family};
-    font-size: ${({ theme }) => theme.typography.monoCaps.size};
-    font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
-    text-transform: uppercase;
-    letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
     color: ${({ theme }) => theme.colors.body};
+    font-weight: 500;
   }
   > div:nth-child(n + 2) {
     font-weight: 500;
@@ -95,43 +80,27 @@ export const TotalsRow = styled.div`
     background: ${({ theme }) => theme.colors.canvasSoft};
     border-top: 1px solid ${({ theme }) => theme.colors.hairlineStrong};
   }
+  /* Subtotal: Inter semibold. */
   > div:nth-child(1) {
-    font-family: ${({ theme }) => theme.typography.monoCaps.family};
-    font-size: ${({ theme }) => theme.typography.monoCaps.size};
-    font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
-    text-transform: uppercase;
-    letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
     color: ${({ theme }) => theme.colors.body};
+    font-weight: 600;
   }
   > div:nth-child(n + 2) {
-    font-weight: 500;
+    font-weight: 600;
   }
 `;
 
 export const GrandRow = styled.div`
   ${baseRow}
 
+  /* Grand total (Net income): same size as the section headings (Inter 14px),
+     semibold — the dark band carries the emphasis, not an oversized type size. */
   > div {
     background: ${({ theme }) => theme.colors.primary};
     color: ${({ theme }) => theme.colors.onPrimary};
     border-color: ${({ theme }) => theme.colors.primary};
     padding-top: ${({ theme }) => theme.spacing.md};
     padding-bottom: ${({ theme }) => theme.spacing.md};
-  }
-  /* Match the label's size to the value's so the grand-total row reads as one
-     line, not a small label next to a big number. */
-  > div:nth-child(1) {
-    font-family: ${({ theme }) => theme.typography.monoCaps.family};
-    font-size: ${({ theme }) => theme.typography.amountXl.size};
-    font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
-    line-height: ${({ theme }) => theme.typography.amountXl.lineHeight};
-    text-transform: uppercase;
-    letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
-  }
-  > div:nth-child(n + 2) {
-    font-size: ${({ theme }) => theme.typography.amountXl.size};
-    font-weight: ${({ theme }) => theme.typography.amountXl.weight};
-    line-height: ${({ theme }) => theme.typography.amountXl.lineHeight};
-    letter-spacing: ${({ theme }) => theme.typography.amountXl.letterSpacing};
+    font-weight: 600;
   }
 `;
