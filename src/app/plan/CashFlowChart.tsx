@@ -30,74 +30,23 @@ import { PLOT_LEFT_INSET, PLOT_RIGHT_INSET } from "./axisGeometry";
 import { amountAxis, makeAmountTick } from "./chartFormat";
 import { ageReferenceLines } from "./chartRefLines";
 import {
+  Key,
+  TipAge,
+  TipBox,
+  TipHeading,
+  TipLabel,
+  TipName,
+  TipRow,
+  TipTotal,
+  TipValue,
+} from "./chartTooltip";
+import {
   ASSET_FLOW_PALETTE,
   INCOME_COLOURS,
   NET_WORTH_COLOUR,
   OUTFLOW_COLOURS,
 } from "./colours";
 
-const TipBox = styled.div`
-  background: ${({ theme }) => theme.colors.canvas};
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  padding: ${({ theme }) => theme.spacing.sm};
-  font-size: 12px;
-  color: ${({ theme }) => theme.colors.body};
-  min-width: 180px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
-`;
-const TipAge = styled.div`
-  font-weight: 600;
-  color: ${({ theme }) => theme.colors.ink};
-  margin-bottom: ${({ theme }) => theme.spacing.xs};
-`;
-const TipHeading = styled.div`
-  font-size: 11px;
-  color: ${({ theme }) => theme.colors.dim};
-  margin-top: ${({ theme }) => theme.spacing.sm};
-  margin-bottom: ${({ theme }) => theme.spacing.xxs};
-`;
-const TipRow = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: ${({ theme }) => theme.spacing.lg};
-  line-height: 1.6;
-`;
-const TipLabel = styled.span`
-  display: flex;
-  align-items: center;
-  gap: ${({ theme }) => theme.spacing.sm};
-  min-width: 0;
-  flex: 1;
-`;
-// A short colour stroke keys the row to its bar — at tooltip density a filled
-// box would be data-weight ink doing a label's job (dataviz: line keys, not boxes).
-const Key = styled.span<{ $c: string }>`
-  width: 12px;
-  height: 3px;
-  border-radius: 2px;
-  background: ${({ $c }) => $c};
-  flex: none;
-`;
-const TipName = styled.span`
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-`;
-// The number is the strong element the reader wants; the name is secondary
-// (dataviz: values lead, labels follow). Tabular figures keep the column aligned.
-const TipValue = styled.span`
-  flex: none;
-  color: ${({ theme }) => theme.colors.ink};
-  font-variant-numeric: tabular-nums;
-`;
-const TipTotal = styled(TipRow)`
-  font-weight: 600;
-  border-top: 1px solid ${({ theme }) => theme.colors.hairline};
-  margin-top: ${({ theme }) => theme.spacing.xxs};
-  padding-top: ${({ theme }) => theme.spacing.xxs};
-`;
 const TipNet = styled(TipRow)<{ $negative: boolean }>`
   font-weight: 600;
   border-top: 1px solid ${({ theme }) => theme.colors.hairlineStrong};

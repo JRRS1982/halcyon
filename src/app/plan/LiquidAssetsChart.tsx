@@ -6,7 +6,7 @@ import {
   liquidWrappersPresent,
   toLiquidAssetsBandData,
 } from "@/lib/plan/chartData";
-import { type NumberFormat, formatAmount } from "@/lib/settings/currency";
+import type { NumberFormat } from "@/lib/settings/currency";
 import {
   Area,
   CartesianGrid,
@@ -22,6 +22,7 @@ import { useTheme } from "styled-components";
 import { PLOT_LEFT_INSET, PLOT_RIGHT_INSET } from "./axisGeometry";
 import { amountAxis, makeAmountTick } from "./chartFormat";
 import { ageReferenceLines } from "./chartRefLines";
+import { StackedTooltip } from "./chartTooltip";
 import { NET_WORTH_COLOUR, WRAPPER_COLOURS, WRAPPER_LABELS } from "./colours";
 
 // Drawdownable pots stacked over time, with a total line so depletion in
@@ -86,15 +87,16 @@ export function LiquidAssetsChart({
           tickFormatter={amountTick}
         />
         <Tooltip
-          formatter={(value, name) => [
-            formatAmount(currency, Number(value), numberFormat),
-            name,
-          ]}
-          contentStyle={{
-            border: `1px solid ${theme.colors.hairline}`,
-            borderRadius: theme.rounded.sm,
-            fontSize: 12,
-          }}
+          content={({ active, payload, label }) => (
+            <StackedTooltip
+              active={active}
+              payload={payload}
+              label={label}
+              currency={currency}
+              numberFormat={numberFormat}
+              totalKey="total"
+            />
+          )}
         />
         <Legend wrapperStyle={{ fontSize: 12 }} />
         <Area

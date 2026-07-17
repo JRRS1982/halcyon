@@ -258,6 +258,44 @@ export function summariseCashFlow(
   return { moneyIn, moneyOut, totalIn, totalOut, net: totalIn - totalOut };
 }
 
+// Group a stacked composition tooltip (net-worth / liquid-assets) into its
+// component rows and the single headline total. `totalKey` names the total
+// series' dataKey (e.g. "netWorth", "total"); everything else is a component,
+// signed (debt stays negative), ordered largest-first. Zero rows are dropped.
+export interface StackTooltipRow {
+  name: string;
+  value: number; // signed
+  color?: string;
+}
+export interface StackSummary {
+  components: StackTooltipRow[];
+  total: StackTooltipRow | null;
+}
+export function summariseStack(
+  items: readonly {
+    name?: string | number;
+    value?: unknown;
+    dataKey?: unknown;
+    color?: string;
+  }[],
+  totalKey: string,
+): StackSummary {
+  const components: StackTooltipRow[] = [];
+  let total: StackTooltipRow | null = null;
+  for (const it of items) {
+    const value = typeof it.value === "number" ? it.value : 0;
+    const row = { name: String(it.name ?? ""), value, color: it.color };
+    if (it.dataKey === totalKey) {
+      total = row;
+      continue;
+    }
+    if (value === 0) continue;
+    components.push(row);
+  }
+  components.sort((a, b) => b.value - a.value);
+  return { components, total };
+}
+
 // ── Liquid-assets chart ────────────────────────────────────────────────────
 // Drawdownable pots only — the wrappers the engine actually draws down.
 // PROPERTY (illiquid) and DB_PENSION (an income stream, not a pot) are excluded.

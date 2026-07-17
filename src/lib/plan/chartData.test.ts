@@ -3,6 +3,7 @@ import {
   cashFlowKeysPresent,
   liquidWrappersPresent,
   summariseCashFlow,
+  summariseStack,
   toCashFlowChartData,
   toLiquidAssetsBandData,
   toLiquidAssetsChartData,
@@ -237,6 +238,42 @@ describe("summariseCashFlow", () => {
     expect(model.moneyOut).toEqual([]);
     expect(model.totalIn).toBe(40000);
     expect(model.net).toBe(40000);
+  });
+});
+
+describe("summariseStack", () => {
+  it("splits components from the total, ordered by value desc (debt last)", () => {
+    const model = summariseStack(
+      [
+        { name: "Cash", value: 204693, dataKey: "CASH", color: "#c" },
+        { name: "Debt", value: -387378, dataKey: "debt", color: "#d" },
+        { name: "Pension", value: 805037, dataKey: "PENSION", color: "#p" },
+        { name: "Net worth", value: 2091546, dataKey: "netWorth", color: "#n" },
+      ],
+      "netWorth",
+    );
+    expect(model.components.map((c) => c.name)).toEqual([
+      "Pension",
+      "Cash",
+      "Debt",
+    ]);
+    expect(model.total).toEqual({
+      name: "Net worth",
+      value: 2091546,
+      color: "#n",
+    });
+  });
+
+  it("drops zero components and returns a null total when absent", () => {
+    const model = summariseStack(
+      [
+        { name: "Cash", value: 0, dataKey: "CASH" },
+        { name: "Pension", value: 5000, dataKey: "PENSION" },
+      ],
+      "total",
+    );
+    expect(model.components.map((c) => c.name)).toEqual(["Pension"]);
+    expect(model.total).toBeNull();
   });
 });
 
