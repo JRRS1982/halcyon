@@ -240,6 +240,7 @@ const DetailHint = styled.p`
 const Pagination = styled.nav`
   display: flex;
   align-items: center;
+  justify-content: center;
   flex-wrap: wrap;
   gap: ${({ theme }) => theme.spacing.xs};
 `;
