@@ -3,6 +3,7 @@
 
 import {
   type TimelineBar,
+  type TimelineMarker,
   ageFromOffset,
   clampHandle,
   toTimelineModel,
@@ -94,20 +95,43 @@ const Handle = styled.div`
     outline-offset: 2px;
   }
 `;
-const Marker = styled.div<{ $inflow: boolean }>`
+// A one-off event renders as a full-height vertical line across every lane
+// (like the retirement / state-pension ref lines) rather than a diamond in its
+// own row. EventHit is a slim transparent strip that carries the drag/keyboard
+// interaction; EventStroke is the visible coloured line centred within it.
+const EventHit = styled.div`
   position: absolute;
-  top: 3px;
-  width: 12px;
-  height: 12px;
-  transform: translateX(-50%) rotate(45deg);
+  top: 0;
+  bottom: 0;
+  width: 14px;
+  transform: translateX(-50%);
+  display: flex;
+  justify-content: center;
   cursor: ew-resize;
   touch-action: none;
-  background: ${({ $inflow, theme }) =>
-    $inflow ? theme.colors.positive : theme.colors.negative};
+  pointer-events: auto;
   &:focus-visible {
     outline: 2px solid ${({ theme }) => theme.colors.accent};
     outline-offset: 2px;
   }
+`;
+const EventStroke = styled.div<{ $inflow: boolean }>`
+  width: 2px;
+  height: 100%;
+  background: ${({ $inflow, theme }) =>
+    $inflow ? theme.colors.positive : theme.colors.negative};
+`;
+const EventLabel = styled.span<{ $inflow: boolean; $level: number }>`
+  position: absolute;
+  top: ${({ $level }) => $level * 13}px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0 2px;
+  font-size: 10px;
+  white-space: nowrap;
+  background: ${({ theme }) => theme.colors.canvas};
+  color: ${({ $inflow, theme }) =>
+    $inflow ? theme.colors.positive : theme.colors.negative};
 `;
 const Overlay = styled.div`
   position: absolute;
@@ -129,9 +153,9 @@ const GuideLine = styled.div`
   bottom: 0;
   border-left: 1px solid ${({ theme }) => theme.colors.hairline};
 `;
-const RefLabel = styled.span`
+const RefLabel = styled.span<{ $level: number }>`
   position: absolute;
-  top: 0;
+  top: ${({ $level }) => $level * 13}px;
   left: 4px;
   font-size: 10px;
   color: ${({ theme }) => theme.colors.dim};
@@ -249,6 +273,81 @@ function BarHandle({
   );
 }
 
+// A draggable vertical event line. Reads the shared plot rect (its Overlay
+// parent, same coordinate space as the bar tracks) at drag time and converts
+// pointer x → age. Live-updates on drag/arrow-key, persists on release/keyup —
+// the same interaction the event diamonds had before, now spanning all lanes.
+function EventLine({
+  marker,
+  minAge,
+  maxAge,
+  onInput,
+  onCommit,
+}: {
+  marker: TimelineMarker;
+  minAge: number;
+  maxAge: number;
+  onInput?: (id: string, age: number) => void;
+  onCommit?: (id: string, age: number) => void;
+}) {
+  const inflow = marker.direction === "INFLOW";
+  const ageAt = (overlay: HTMLElement | null, clientX: number): number => {
+    const r = overlay?.getBoundingClientRect();
+    if (!r) return marker.age;
+    return ageFromOffset(clientX, r.left, r.width, minAge, maxAge);
+  };
+
+  return (
+    <EventHit
+      style={{ left: `${marker.leftPct}%` }}
+      role="slider"
+      tabIndex={0}
+      aria-label={`${marker.label} age`}
+      aria-valuemin={minAge}
+      aria-valuemax={maxAge}
+      aria-valuenow={marker.age}
+      title={`${marker.label} (age ${marker.age})`}
+      onPointerDown={(e) => {
+        if (!onInput) return;
+        e.currentTarget.setPointerCapture(e.pointerId);
+      }}
+      onPointerMove={(e) => {
+        if (!onInput || !e.currentTarget.hasPointerCapture(e.pointerId)) return;
+        onInput(marker.id, ageAt(e.currentTarget.parentElement, e.clientX));
+      }}
+      onPointerUp={(e) => {
+        if (!onCommit || !e.currentTarget.hasPointerCapture(e.pointerId))
+          return;
+        e.currentTarget.releasePointerCapture(e.pointerId);
+        onCommit(marker.id, ageAt(e.currentTarget.parentElement, e.clientX));
+      }}
+      onKeyDown={(e) => {
+        if (!onInput) return;
+        const delta =
+          e.key === "ArrowRight" || e.key === "ArrowUp"
+            ? 1
+            : e.key === "ArrowLeft" || e.key === "ArrowDown"
+              ? -1
+              : 0;
+        if (delta === 0) return;
+        e.preventDefault();
+        const next = Math.min(Math.max(marker.age + delta, minAge), maxAge);
+        onInput(marker.id, next);
+      }}
+      onKeyUp={(e) => {
+        if (!onCommit) return;
+        if (["ArrowRight", "ArrowUp", "ArrowLeft", "ArrowDown"].includes(e.key))
+          onCommit(marker.id, marker.age);
+      }}
+    >
+      <EventStroke $inflow={inflow} />
+      <EventLabel $inflow={inflow} $level={marker.labelLevel}>
+        {marker.label}
+      </EventLabel>
+    </EventHit>
+  );
+}
+
 export function Timeline({
   incomes,
   expenses,
@@ -346,105 +445,6 @@ export function Timeline({
                 </div>
               ),
             )}
-            {model.events.length > 0 ? (
-              <div style={{ display: "contents" }}>
-                <GroupLabel>Events</GroupLabel>
-                {model.events.map((m) => {
-                  const ageAt = (
-                    track: HTMLElement | null,
-                    clientX: number,
-                  ): number => {
-                    const r = track?.getBoundingClientRect();
-                    if (!r) return m.age;
-                    return ageFromOffset(
-                      clientX,
-                      r.left,
-                      r.width,
-                      minAge,
-                      maxAge,
-                    );
-                  };
-                  return (
-                    <div key={m.id} style={{ display: "contents" }}>
-                      <RowLabel title={m.label}>{m.label}</RowLabel>
-                      <Track>
-                        <Marker
-                          $inflow={m.direction === "INFLOW"}
-                          // Same position-aware centring as the bar grips, so an
-                          // event at the plan's first/last age stays on-track.
-                          style={{
-                            left: `${m.leftPct}%`,
-                            transform: `translateX(-${m.leftPct}%) rotate(45deg)`,
-                          }}
-                          role="slider"
-                          tabIndex={0}
-                          aria-label={`${m.label} age`}
-                          aria-valuemin={minAge}
-                          aria-valuemax={maxAge}
-                          aria-valuenow={m.age}
-                          title={`${m.label} (age ${m.age})`}
-                          onPointerDown={(e) => {
-                            if (!onEventInput) return;
-                            e.currentTarget.setPointerCapture(e.pointerId);
-                          }}
-                          onPointerMove={(e) => {
-                            if (
-                              !onEventInput ||
-                              !e.currentTarget.hasPointerCapture(e.pointerId)
-                            )
-                              return;
-                            onEventInput(
-                              m.id,
-                              ageAt(e.currentTarget.parentElement, e.clientX),
-                            );
-                          }}
-                          onPointerUp={(e) => {
-                            if (
-                              !onEventCommit ||
-                              !e.currentTarget.hasPointerCapture(e.pointerId)
-                            )
-                              return;
-                            e.currentTarget.releasePointerCapture(e.pointerId);
-                            onEventCommit(
-                              m.id,
-                              ageAt(e.currentTarget.parentElement, e.clientX),
-                            );
-                          }}
-                          onKeyDown={(e) => {
-                            if (!onEventInput) return;
-                            const delta =
-                              e.key === "ArrowRight" || e.key === "ArrowUp"
-                                ? 1
-                                : e.key === "ArrowLeft" || e.key === "ArrowDown"
-                                  ? -1
-                                  : 0;
-                            if (delta === 0) return;
-                            e.preventDefault();
-                            const next = Math.min(
-                              Math.max(m.age + delta, minAge),
-                              maxAge,
-                            );
-                            onEventInput(m.id, next);
-                          }}
-                          onKeyUp={(e) => {
-                            if (!onEventCommit) return;
-                            if (
-                              [
-                                "ArrowRight",
-                                "ArrowUp",
-                                "ArrowLeft",
-                                "ArrowDown",
-                              ].includes(e.key)
-                            )
-                              onEventCommit(m.id, m.age);
-                          }}
-                        />
-                      </Track>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : null}
             <RowLabel />
             <Track>
               {model.ticks.map((t) => (
@@ -467,8 +467,18 @@ export function Timeline({
                 style={{ left: `${r.leftPct}%` }}
                 title={`${r.label} (age ${r.age})`}
               >
-                <RefLabel>{r.label}</RefLabel>
+                <RefLabel $level={r.labelLevel}>{r.label}</RefLabel>
               </RefLine>
+            ))}
+            {model.events.map((m) => (
+              <EventLine
+                key={m.id}
+                marker={m}
+                minAge={minAge}
+                maxAge={maxAge}
+                onInput={onEventInput}
+                onCommit={onEventCommit}
+              />
             ))}
           </Overlay>
         </Plot>
