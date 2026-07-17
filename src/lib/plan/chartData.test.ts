@@ -2,6 +2,7 @@ import type { Wrapper, YearProjection } from "@/lib/plan";
 import {
   cashFlowKeysPresent,
   liquidWrappersPresent,
+  summariseCashFlow,
   toCashFlowChartData,
   toLiquidAssetsBandData,
   toLiquidAssetsChartData,
@@ -90,26 +91,62 @@ describe("toNetWorthChartData", () => {
 });
 
 describe("toCashFlowChartData", () => {
-  it("puts income kinds + withdrawals positive and expenses/tax/repay/contrib negative", () => {
+  const asset = (
+    over: Partial<YearProjection["assets"][number]> & { id: string },
+  ): YearProjection["assets"][number] => ({
+    label: over.id,
+    wrapper: "PENSION",
+    value: 0,
+    contributed: 0,
+    withdrawn: 0,
+    ...over,
+  });
+
+  it("splits withdrawals into positive per-asset segments and expenses/tax negative", () => {
     const rows = toCashFlowChartData([
       year({
         age: 70,
         incomeByKind: { STATE_PENSION: 9000 },
-        withdrawals: 20000,
         expensesByCategory: { FIXED: 18000, DISCRETIONARY: 4000 },
         tax: 3000,
-        liabilityRepayments: 0,
-        contributions: 0,
+        assets: [
+          asset({
+            id: "pen",
+            label: "SIPP",
+            wrapper: "PENSION",
+            withdrawn: 15000,
+          }),
+          asset({ id: "isa", label: "ISA", wrapper: "ISA", withdrawn: 5000 }),
+        ],
       }),
     ]);
     expect(rows[0]).toMatchObject({
       age: 70,
       STATE_PENSION: 9000,
-      WITHDRAWAL: 20000,
+      "wd:pen": 15000,
+      "wd:isa": 5000,
       FIXED: -18000,
       DISCRETIONARY: -4000,
       TAX: -3000,
       shortfall: false,
+    });
+  });
+
+  it("splits contributions into negative per-asset segments", () => {
+    const rows = toCashFlowChartData([
+      year({
+        age: 40,
+        incomeByKind: { SALARY: 50000 },
+        expensesByCategory: { FIXED: 20000 },
+        tax: 8000,
+        assets: [asset({ id: "pen", label: "SIPP", contributed: 5000 })],
+      }),
+    ]);
+    expect(rows[0]).toMatchObject({
+      SALARY: 50000,
+      "co:pen": -5000,
+      FIXED: -20000,
+      TAX: -8000,
     });
   });
 
@@ -118,11 +155,10 @@ describe("toCashFlowChartData", () => {
       year({
         age: 40,
         incomeByKind: { SALARY: 50000 },
-        withdrawals: 0,
         expensesByCategory: { FIXED: 20000 },
         tax: 8000,
         liabilityRepayments: 6000,
-        contributions: 5000,
+        assets: [asset({ id: "pen", contributed: 5000 })],
       }),
     ]);
     // 50000 − (20000 + 8000 + 6000 + 5000) = 11000
@@ -134,22 +170,73 @@ describe("toCashFlowChartData", () => {
     expect(rows[0]).toMatchObject({ shortfall: true });
   });
 
-  it("cashFlowKeysPresent returns only non-zero keys in canonical order", () => {
-    const rows = toCashFlowChartData([
+  it("cashFlowKeysPresent returns fixed keys plus per-asset segments in wrapper order", () => {
+    const years = [
       year({
         age: 65,
         incomeByKind: { SALARY: 0, STATE_PENSION: 9000 },
-        withdrawals: 12000,
         expensesByCategory: { FIXED: 15000 },
         tax: 2000,
-        liabilityRepayments: 0,
-        contributions: 0,
+        assets: [
+          asset({ id: "isa", label: "ISA", wrapper: "ISA", withdrawn: 4000 }),
+          asset({
+            id: "pen",
+            label: "SIPP",
+            wrapper: "PENSION",
+            withdrawn: 8000,
+          }),
+          asset({ id: "gia", label: "GIA", wrapper: "GIA", contributed: 3000 }),
+        ],
       }),
-    ]);
-    expect(cashFlowKeysPresent(rows)).toEqual({
-      income: ["STATE_PENSION", "WITHDRAWAL"],
+    ];
+    const rows = toCashFlowChartData(years);
+    expect(cashFlowKeysPresent(rows, years)).toEqual({
+      income: ["STATE_PENSION"],
       outflow: ["FIXED", "TAX"],
+      withdrawals: [
+        { key: "wd:pen", assetId: "pen", label: "SIPP", wrapper: "PENSION" },
+        { key: "wd:isa", assetId: "isa", label: "ISA", wrapper: "ISA" },
+      ],
+      contributions: [
+        { key: "co:gia", assetId: "gia", label: "GIA", wrapper: "GIA" },
+      ],
     });
+  });
+});
+
+describe("summariseCashFlow", () => {
+  it("groups payload into money in/out with totals and net = in − out", () => {
+    const model = summariseCashFlow([
+      { name: "Salary", value: 50000, dataKey: "SALARY", color: "#1" },
+      { name: "Withdraw SIPP", value: 5000, dataKey: "wd:pen", color: "#2" },
+      { name: "Fixed", value: -20000, dataKey: "FIXED", color: "#3" },
+      { name: "Tax", value: -8000, dataKey: "TAX", color: "#4" },
+      { name: "Net", value: 27000, dataKey: "net", color: "#5" },
+    ]);
+    expect(model).toEqual({
+      moneyIn: [
+        { name: "Salary", value: 50000, color: "#1" },
+        { name: "Withdraw SIPP", value: 5000, color: "#2" },
+      ],
+      moneyOut: [
+        { name: "Fixed", value: 20000, color: "#3" },
+        { name: "Tax", value: 8000, color: "#4" },
+      ],
+      totalIn: 55000,
+      totalOut: 28000,
+      net: 27000,
+    });
+  });
+
+  it("excludes the net line and zero entries", () => {
+    const model = summariseCashFlow([
+      { name: "Salary", value: 40000, dataKey: "SALARY" },
+      { name: "Withdraw GIA", value: 0, dataKey: "wd:gia" },
+      { name: "Net", value: 40000, dataKey: "net" },
+    ]);
+    expect(model.moneyOut).toEqual([]);
+    expect(model.totalIn).toBe(40000);
+    expect(model.net).toBe(40000);
   });
 });
 
