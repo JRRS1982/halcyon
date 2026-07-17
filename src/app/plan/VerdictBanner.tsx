@@ -1,7 +1,8 @@
 // src/app/plan/VerdictBanner.tsx
 "use client";
 
-import type { BandedVerdict } from "@/lib/plan";
+import type { BandedVerdict, YearProjection } from "@/lib/plan";
+import { LIQUID_WRAPPERS } from "@/lib/plan/chartData";
 import { type NumberFormat, formatAmount } from "@/lib/settings/currency";
 import styled from "styled-components";
 
@@ -69,7 +70,6 @@ const Sub = styled.p`
 
 const Stats = styled.dl`
   display: flex;
-  gap: ${({ theme }) => theme.spacing["2xl"]};
   margin: 0;
   padding-left: ${({ theme }) => theme.spacing["2xl"]};
   border-left: 1px solid ${({ theme }) => theme.colors.hairline};
@@ -86,6 +86,13 @@ const Stat = styled.div`
   display: grid;
   gap: ${({ theme }) => theme.spacing.xs};
   align-content: start;
+
+  /* Hairline divider between each pulled-out figure (peak / earliest / at-age). */
+  & + & {
+    margin-left: ${({ theme }) => theme.spacing["2xl"]};
+    padding-left: ${({ theme }) => theme.spacing["2xl"]};
+    border-left: 1px solid ${({ theme }) => theme.colors.hairline};
+  }
 `;
 
 const StatKey = styled.dt`
@@ -121,13 +128,32 @@ const RangeNote = styled.span`
 
 export function VerdictBanner({
   verdict,
+  years,
+  expectedDeathAge,
   currency,
   numberFormat,
 }: {
   verdict: BandedVerdict;
+  years: YearProjection[];
+  expectedDeathAge: number | null;
   currency: string;
   numberFormat: NumberFormat;
 }) {
+  // Value at the expected age of death (today's money, like peak net worth).
+  // Only shown when that age falls within the projected range.
+  const deathYear =
+    expectedDeathAge === null
+      ? undefined
+      : years.find((y) => y.age === expectedDeathAge);
+  const atDeath = deathYear
+    ? {
+        netWorth: deathYear.netWorth,
+        liquid: deathYear.assets
+          .filter((a) => LIQUID_WRAPPERS.includes(a.wrapper))
+          .reduce((sum, a) => sum + a.value, 0),
+      }
+    : null;
+
   const peak = formatAmount(currency, verdict.peakNetWorth.value, numberFormat);
   const [peakLo, peakHi] = verdict.peakNetWorthRange;
   const peakRange =
@@ -145,12 +171,8 @@ export function VerdictBanner({
       ? `Your money runs short at age ${verdict.firstShortfallAge} (between ${shortRange[0]} and ${shortRange[1]} depending on returns)`
       : `Your money runs short at age ${verdict.firstShortfallAge}`;
   const sub = verdict.feasible
-    ? verdict.earliestSustainableRetirementAge !== null
-      ? `You could retire as early as age ${verdict.earliestSustainableRetirementAge} and the money still lasts.`
-      : "On today's settings, the money lasts the whole plan."
-    : verdict.earliestSustainableRetirementAge !== null
-      ? `Retiring at age ${verdict.earliestSustainableRetirementAge} or later would make it last — or save more, or trim spending below.`
-      : "No retirement age in range is sustainable yet — try retiring later, saving more, or trimming spending below.";
+    ? "On today's settings, the money lasts the whole plan."
+    : "Try retiring later, saving more, or trimming spending below.";
 
   return (
     <Card $ok={verdict.feasible}>
@@ -169,28 +191,28 @@ export function VerdictBanner({
           </StatVal>
           {peakRange ? <RangeNote>range {peakRange}</RangeNote> : null}
         </Stat>
-        <Stat>
-          {verdict.feasible ? (
-            <>
-              <StatKey>Earliest retirement</StatKey>
-              <StatVal>
-                {verdict.earliestSustainableRetirementAge !== null
-                  ? `Age ${verdict.earliestSustainableRetirementAge}`
-                  : "In range"}
-              </StatVal>
-            </>
-          ) : (
-            <>
-              <StatKey>Money runs out</StatKey>
-              <StatVal $danger>Age {verdict.firstShortfallAge}</StatVal>
-              {shortRange ? (
-                <RangeNote>
-                  range {shortRange[0]}–{shortRange[1]}
-                </RangeNote>
-              ) : null}
-            </>
-          )}
-        </Stat>
+        {verdict.feasible ? null : (
+          <Stat>
+            <StatKey>Money runs out</StatKey>
+            <StatVal $danger>Age {verdict.firstShortfallAge}</StatVal>
+            {shortRange ? (
+              <RangeNote>
+                range {shortRange[0]}–{shortRange[1]}
+              </RangeNote>
+            ) : null}
+          </Stat>
+        )}
+        {atDeath ? (
+          <Stat>
+            <StatKey>At age {expectedDeathAge}</StatKey>
+            <StatVal>
+              {formatAmount(currency, atDeath.netWorth, numberFormat)}
+            </StatVal>
+            <RangeNote>
+              liquid {formatAmount(currency, atDeath.liquid, numberFormat)}
+            </RangeNote>
+          </Stat>
+        ) : null}
       </Stats>
     </Card>
   );

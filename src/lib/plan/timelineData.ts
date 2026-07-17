@@ -64,6 +64,7 @@ export function toTimelineModel(input: {
   maxAge: number;
   retirementAge: number;
   statePensionAge: number | null;
+  expectedDeathAge: number | null;
 }): TimelineModel {
   const { minAge, maxAge } = input;
   const span = maxAge - minAge;
@@ -156,6 +157,7 @@ export function toTimelineModel(input: {
   };
   addRef("Retirement", input.retirementAge);
   addRef("State pension", input.statePensionAge);
+  addRef("Life expectancy", input.expectedDeathAge);
   const refLevels = levelsByLeftPct(
     refMarks.map((r) => ({ key: r.label, leftPct: r.leftPct })),
   );

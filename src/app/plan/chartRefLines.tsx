@@ -11,12 +11,16 @@ import type { DefaultTheme } from "styled-components";
 export function ageReferenceLines({
   retirementAge,
   statePensionAge,
+  expectedDeathAge,
+  liquidDepletionAge,
   minAge,
   maxAge,
   theme,
 }: {
   retirementAge: number;
   statePensionAge: number | null;
+  expectedDeathAge: number | null;
+  liquidDepletionAge: number | null;
   minAge: number;
   maxAge: number;
   theme: DefaultTheme;
@@ -24,27 +28,38 @@ export function ageReferenceLines({
   const inRange = (age: number | null): age is number =>
     age !== null && age >= minAge && age <= maxAge;
 
-  const marks: { label: string; age: number }[] = [];
+  // `emphasis` marks draw solid + coloured (the pots-depleted line is an
+  // important moment); the rest are recessive dashed grey.
+  const marks: { label: string; age: number; emphasis?: string }[] = [];
   if (inRange(retirementAge))
     marks.push({ label: "Retirement", age: retirementAge });
   if (inRange(statePensionAge))
     marks.push({ label: "State pension", age: statePensionAge });
+  if (inRange(expectedDeathAge))
+    marks.push({ label: "Life expectancy", age: expectedDeathAge });
+  if (inRange(liquidDepletionAge))
+    marks.push({
+      label: "Pots depleted",
+      age: liquidDepletionAge,
+      emphasis: theme.colors.negative,
+    });
 
-  return marks.map(({ label, age }, i) => (
+  return marks.map(({ label, age, emphasis }, i) => (
     <ReferenceLine
       key={label}
       x={age}
-      stroke={theme.colors.hairlineStrong}
-      strokeDasharray="4 3"
+      stroke={emphasis ?? theme.colors.hairlineStrong}
+      strokeDasharray={emphasis ? undefined : "4 3"}
+      strokeWidth={emphasis ? 1.5 : 1}
       label={{
         value: label,
-        // Horizontal, and staggered top vs bottom: retirement and state pension
-        // are often only a couple of years apart, so alternating vertical ends
-        // keeps the two labels from colliding. Horizontal also avoids the
-        // clipping a rotated label suffered against the chart's small top margin.
+        // Horizontal, and staggered top vs bottom: the marker ages are often
+        // only a couple of years apart, so alternating vertical ends keeps the
+        // labels from colliding. Horizontal also avoids the clipping a rotated
+        // label suffered against the chart's small top margin.
         position: i % 2 === 0 ? "insideTopLeft" : "insideBottomLeft",
         fontSize: 10,
-        fill: theme.colors.dim,
+        fill: emphasis ?? theme.colors.dim,
       }}
     />
   ));

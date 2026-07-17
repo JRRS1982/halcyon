@@ -1,9 +1,5 @@
 // src/lib/plan/project.test.ts
-import {
-  earliestSustainableRetirementAge,
-  project,
-  projectWithBand,
-} from "./project";
+import { project, projectWithBand } from "./project";
 import type { PlanInput, PlanProjection, YearProjection } from "./types";
 
 const at = (p: PlanProjection, i: number): YearProjection => {
@@ -324,126 +320,6 @@ describe("project", () => {
   });
 });
 
-describe("earliestSustainableRetirementAge", () => {
-  it("finds the earliest age at which stopping salary keeps the plan feasible", () => {
-    const input = base({
-      currentAge: 60,
-      planToAge: 65,
-      retirementAge: 65,
-      taxRatePct: 0,
-      incomes: [
-        {
-          id: "s",
-          label: "Salary",
-          kind: "SALARY",
-          annualAmount: 40000,
-          growth: { kind: "NONE" },
-          taxable: false,
-        },
-      ],
-      expenses: [
-        {
-          id: "e",
-          label: "Living",
-          annualAmount: 20000,
-          inflationLinked: false,
-        },
-      ],
-      assets: [
-        {
-          id: "cash",
-          label: "Cash",
-          wrapper: "CASH",
-          openingValue: 40000,
-          drawdownPriority: 0,
-        },
-      ],
-    });
-    const age = earliestSustainableRetirementAge(input);
-    expect(age).not.toBeNull();
-    expect(age).toBeGreaterThanOrEqual(60);
-    expect(age).toBeLessThanOrEqual(65);
-  });
-
-  it("returns currentAge when already feasible with no work", () => {
-    const input = base({
-      currentAge: 60,
-      planToAge: 62,
-      taxRatePct: 0,
-      expenses: [
-        {
-          id: "e",
-          label: "Living",
-          annualAmount: 10000,
-          inflationLinked: false,
-        },
-      ],
-      assets: [
-        {
-          id: "cash",
-          label: "Cash",
-          wrapper: "CASH",
-          openingValue: 1000000,
-          drawdownPriority: 0,
-        },
-      ],
-    });
-    expect(earliestSustainableRetirementAge(input)).toBe(60);
-  });
-
-  it("returns null when no retirement age in range is feasible", () => {
-    const input = base({
-      currentAge: 60,
-      planToAge: 90,
-      taxRatePct: 0,
-      expenses: [
-        {
-          id: "e",
-          label: "Living",
-          annualAmount: 50000,
-          inflationLinked: false,
-        },
-      ],
-      assets: [
-        {
-          id: "cash",
-          label: "Cash",
-          wrapper: "CASH",
-          openingValue: 1000,
-          drawdownPriority: 0,
-        },
-      ],
-    });
-    expect(earliestSustainableRetirementAge(input)).toBeNull();
-  });
-
-  it("is wired into project()'s verdict", () => {
-    const input = base({
-      currentAge: 60,
-      planToAge: 62,
-      taxRatePct: 0,
-      expenses: [
-        {
-          id: "e",
-          label: "Living",
-          annualAmount: 10000,
-          inflationLinked: false,
-        },
-      ],
-      assets: [
-        {
-          id: "cash",
-          label: "Cash",
-          wrapper: "CASH",
-          openingValue: 1000000,
-          drawdownPriority: 0,
-        },
-      ],
-    });
-    expect(project(input).verdict.earliestSustainableRetirementAge).toBe(60);
-  });
-});
-
 describe("contribution funding (no leak)", () => {
   it("does not fund a contribution by liquidating a taxable pot", () => {
     const p = project(
@@ -583,18 +459,6 @@ describe("projectWithBand", () => {
     const input = banded({ returnSpreadPct: undefined });
     const b = projectWithBand(input);
     expect(b.low.years).toEqual(b.mid.years);
-  });
-
-  it("skips the earliest-retirement sweep when withEarliest is false", () => {
-    const input = banded();
-    const fast = projectWithBand(input, { withEarliest: false });
-    expect(fast.mid.verdict.earliestSustainableRetirementAge).toBeNull();
-    // year series + peak/shortfall identical to the full compute
-    const full = projectWithBand(input);
-    expect(fast.mid.years).toEqual(full.mid.years);
-    expect(fast.low.years).toEqual(full.low.years);
-    expect(fast.high.years).toEqual(full.high.years);
-    expect(fast.mid.verdict.feasible).toBe(full.mid.verdict.feasible);
   });
 
   describe("linked repayment expenses + liability startAge", () => {

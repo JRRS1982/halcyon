@@ -61,6 +61,7 @@ const base = {
   maxAge: 90,
   retirementAge: 65,
   statePensionAge: null as number | null,
+  expectedDeathAge: null as number | null,
 };
 
 describe("toTimelineModel", () => {
@@ -152,6 +153,17 @@ describe("toTimelineModel", () => {
       statePensionAge: 67,
     });
     expect(m.refLines.map((r) => r.label)).toEqual(["State pension"]);
+  });
+
+  it("includes an in-range expected death age as a Life expectancy ref line", () => {
+    const m = toTimelineModel({ ...base, expectedDeathAge: 88 });
+    const life = m.refLines.find((r) => r.label === "Life expectancy");
+    expect(life?.age).toBe(88);
+  });
+
+  it("omits the Life expectancy ref line when the death age is out of range", () => {
+    const m = toTimelineModel({ ...base, expectedDeathAge: 130 });
+    expect(m.refLines.map((r) => r.label)).not.toContain("Life expectancy");
   });
 
   it("emits 5-year ticks including minAge", () => {

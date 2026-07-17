@@ -1,6 +1,7 @@
 import type { Wrapper, YearProjection } from "@/lib/plan";
 import {
   cashFlowKeysPresent,
+  liquidDepletionAge,
   liquidWrappersPresent,
   summariseCashFlow,
   summariseStack,
@@ -326,6 +327,29 @@ describe("toLiquidAssetsChartData", () => {
       }),
     ]);
     expect(liquidWrappersPresent(rows)).toEqual(["PENSION", "CASH"]);
+  });
+});
+
+describe("liquidDepletionAge", () => {
+  it("returns the age liquid pots first hit zero after holding value", () => {
+    const years = [
+      year({ age: 60, assets: [liquidAsset("PENSION", 50000)] }),
+      year({ age: 61, assets: [liquidAsset("PENSION", 20000)] }),
+      year({ age: 62, assets: [liquidAsset("PENSION", 0)] }),
+    ];
+    expect(liquidDepletionAge(years)).toBe(62);
+  });
+
+  it("is null when the pots never deplete", () => {
+    const years = [year({ age: 60, assets: [liquidAsset("ISA", 1000)] })];
+    expect(liquidDepletionAge(years)).toBeNull();
+  });
+
+  it("is null when there were never liquid pots (property doesn't count)", () => {
+    const years = [
+      year({ age: 60, assets: [liquidAsset("PROPERTY", 500000)] }),
+    ];
+    expect(liquidDepletionAge(years)).toBeNull();
   });
 });
 

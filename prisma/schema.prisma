@@ -382,6 +382,7 @@ model Plan {
   blendedTaxRatePct  Decimal  @default(20) @db.Decimal(5, 2)
   statePensionAge    Int?
   statePensionAnnual Decimal? @db.Decimal(12, 2)
+  expectedDeathAge   Int?     @default(90)
   isPrimary          Boolean  @default(true)
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt

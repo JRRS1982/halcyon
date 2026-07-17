@@ -3,6 +3,7 @@
 
 import type { YearProjection } from "@/lib/plan";
 import {
+  liquidDepletionAge,
   liquidWrappersPresent,
   toLiquidAssetsBandData,
 } from "@/lib/plan/chartData";
@@ -19,7 +20,7 @@ import {
   YAxis,
 } from "recharts";
 import { useTheme } from "styled-components";
-import { PLOT_LEFT_INSET, PLOT_RIGHT_INSET } from "./axisGeometry";
+import { PLOT_HEIGHT, PLOT_LEFT_INSET, PLOT_RIGHT_INSET } from "./axisGeometry";
 import { amountAxis, makeAmountTick } from "./chartFormat";
 import { ageReferenceLines } from "./chartRefLines";
 import { StackedTooltip } from "./chartTooltip";
@@ -35,6 +36,7 @@ export function LiquidAssetsChart({
   numberFormat,
   retirementAge,
   statePensionAge,
+  expectedDeathAge,
 }: {
   low: YearProjection[];
   mid: YearProjection[];
@@ -43,6 +45,7 @@ export function LiquidAssetsChart({
   numberFormat: NumberFormat;
   retirementAge: number;
   statePensionAge: number | null;
+  expectedDeathAge: number | null;
 }) {
   const theme = useTheme();
   const data = toLiquidAssetsBandData(low, mid, high);
@@ -65,7 +68,7 @@ export function LiquidAssetsChart({
   const amountTick = makeAmountTick(currency);
 
   return (
-    <ResponsiveContainer width="100%" height={360}>
+    <ResponsiveContainer width="100%" height={PLOT_HEIGHT}>
       <ComposedChart
         data={data}
         margin={{ top: 16, right: PLOT_RIGHT_INSET, bottom: 0, left: 8 }}
@@ -137,6 +140,8 @@ export function LiquidAssetsChart({
         {ageReferenceLines({
           retirementAge,
           statePensionAge,
+          expectedDeathAge,
+          liquidDepletionAge: liquidDepletionAge(mid),
           minAge,
           maxAge,
           theme,

@@ -9,6 +9,7 @@ import {
   type OutflowKey,
   cashFlowAmount,
   cashFlowKeysPresent,
+  liquidDepletionAge,
   summariseCashFlow,
   toCashFlowChartData,
 } from "@/lib/plan/chartData";
@@ -26,7 +27,7 @@ import {
   YAxis,
 } from "recharts";
 import styled, { useTheme } from "styled-components";
-import { PLOT_LEFT_INSET, PLOT_RIGHT_INSET } from "./axisGeometry";
+import { PLOT_HEIGHT, PLOT_LEFT_INSET, PLOT_RIGHT_INSET } from "./axisGeometry";
 import { amountAxis, makeAmountTick } from "./chartFormat";
 import { ageReferenceLines } from "./chartRefLines";
 import {
@@ -152,12 +153,14 @@ export function CashFlowChart({
   numberFormat,
   retirementAge,
   statePensionAge,
+  expectedDeathAge,
 }: {
   years: YearProjection[];
   currency: string;
   numberFormat: NumberFormat;
   retirementAge: number;
   statePensionAge: number | null;
+  expectedDeathAge: number | null;
 }) {
   const theme = useTheme();
   const data = toCashFlowChartData(years);
@@ -215,7 +218,7 @@ export function CashFlowChart({
   };
 
   return (
-    <ResponsiveContainer width="100%" height={360}>
+    <ResponsiveContainer width="100%" height={PLOT_HEIGHT}>
       <ComposedChart
         data={data}
         stackOffset="sign"
@@ -306,6 +309,8 @@ export function CashFlowChart({
         {ageReferenceLines({
           retirementAge,
           statePensionAge,
+          expectedDeathAge,
+          liquidDepletionAge: liquidDepletionAge(years),
           minAge,
           maxAge,
           theme,

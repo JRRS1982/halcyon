@@ -25,7 +25,7 @@ const DESCRIPTIONS: Record<View, string> = {
   networth:
     "Everything you own minus what you owe — all assets, including property, with debts subtracted. Your total financial position in today's money.",
   cashflow:
-    "Money in vs money out each year: income and pot withdrawals above the line; spending, tax, loan repayments and saving below. Red marks years where the money falls short.",
+    "Money in vs money out each year: income and pot withdrawals above the line; spending, tax, loan repayments and saving below. While you're working, a surplus (positive cash flow) is saved into your pots. In retirement the plan draws that money back out of your accounts to cover spending, so net cash flow sits around zero for as long as your assets last. Red marks years where the money falls short.",
   liquid:
     "Only the pots you can draw on — pensions, ISAs, GIAs and cash. Property and defined-benefit pensions are excluded. Shows whether your spendable savings last.",
 };
@@ -52,7 +52,6 @@ const Tab = styled.button<{ $active: boolean }>`
 `;
 const Caption = styled.p`
   margin: 0;
-  max-width: 70ch;
   font-size: 13px;
   line-height: 1.5;
   color: ${({ theme }) => theme.colors.body};
@@ -66,6 +65,7 @@ export function ChartPanel({
   numberFormat,
   retirementAge,
   statePensionAge,
+  expectedDeathAge,
 }: {
   low: YearProjection[];
   mid: YearProjection[];
@@ -74,6 +74,7 @@ export function ChartPanel({
   numberFormat: NumberFormat;
   retirementAge: number;
   statePensionAge: number | null;
+  expectedDeathAge: number | null;
 }) {
   const [view, setView] = useState<View>("networth");
 
@@ -102,6 +103,7 @@ export function ChartPanel({
           numberFormat={numberFormat}
           retirementAge={retirementAge}
           statePensionAge={statePensionAge}
+          expectedDeathAge={expectedDeathAge}
         />
       )}
       {view === "cashflow" && (
@@ -111,6 +113,7 @@ export function ChartPanel({
           numberFormat={numberFormat}
           retirementAge={retirementAge}
           statePensionAge={statePensionAge}
+          expectedDeathAge={expectedDeathAge}
         />
       )}
       {view === "liquid" && (
@@ -122,6 +125,7 @@ export function ChartPanel({
           numberFormat={numberFormat}
           retirementAge={retirementAge}
           statePensionAge={statePensionAge}
+          expectedDeathAge={expectedDeathAge}
         />
       )}
     </PlanCard>

@@ -24,6 +24,7 @@ export function serializedToPlanInput(
     startYear: asOfYear,
     retirementAge: a.retirementAge,
     planToAge: a.planToAge,
+    expectedDeathAge: a.expectedDeathAge ?? undefined,
     inflationPct: a.inflationPct,
     defaultReturnPct: a.defaultReturnPct,
     returnSpreadPct: a.returnSpreadPct,

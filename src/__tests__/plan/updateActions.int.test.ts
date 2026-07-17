@@ -47,6 +47,7 @@ describe("plan update actions (integration)", () => {
       blendedTaxRatePct: 25,
       statePensionAge: 68,
       statePensionAnnual: 12000,
+      expectedDeathAge: 88,
     });
     const after = await prisma.plan.findUniqueOrThrow({
       where: { id: plan.id },
@@ -55,6 +56,7 @@ describe("plan update actions (integration)", () => {
     expect(after.planToAge).toBe(100);
     expect(Number(after.defaultReturnPct)).toBe(6);
     expect(Number(after.returnSpreadPct)).toBe(3);
+    expect(after.expectedDeathAge).toBe(88);
   });
 
   it("updatePlanAsset sets the wrapper + return for the owner", async () => {

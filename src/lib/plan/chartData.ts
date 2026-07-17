@@ -324,6 +324,21 @@ export function liquidWrappersPresent(rows: LiquidAssetsDatum[]): Wrapper[] {
   return LIQUID_WRAPPERS.filter((w) => rows.some((r) => (r[w] ?? 0) !== 0));
 }
 
+// The age the liquid pots first hit zero after having held value — the point
+// the plan is fully drawn down and reliant on income (e.g. state pension).
+// Null if the pots never deplete, or there were none to begin with.
+export function liquidDepletionAge(years: YearProjection[]): number | null {
+  let hadLiquid = false;
+  for (const y of years) {
+    const liquid = y.assets
+      .filter((a) => LIQUID_WRAPPERS.includes(a.wrapper))
+      .reduce((sum, a) => sum + a.value, 0);
+    if (liquid > 0) hadLiquid = true;
+    else if (hadLiquid) return y.age;
+  }
+  return null;
+}
+
 export type LiquidBandDatum = LiquidAssetsDatum & {
   totalRange: [number, number];
 };

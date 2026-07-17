@@ -2,7 +2,11 @@
 "use client";
 
 import type { YearProjection } from "@/lib/plan";
-import { toNetWorthBandData, wrappersPresent } from "@/lib/plan/chartData";
+import {
+  liquidDepletionAge,
+  toNetWorthBandData,
+  wrappersPresent,
+} from "@/lib/plan/chartData";
 import type { NumberFormat } from "@/lib/settings/currency";
 import {
   Area,
@@ -17,7 +21,7 @@ import {
   YAxis,
 } from "recharts";
 import { useTheme } from "styled-components";
-import { PLOT_LEFT_INSET, PLOT_RIGHT_INSET } from "./axisGeometry";
+import { PLOT_HEIGHT, PLOT_LEFT_INSET, PLOT_RIGHT_INSET } from "./axisGeometry";
 import { amountAxis, makeAmountTick } from "./chartFormat";
 import { ageReferenceLines } from "./chartRefLines";
 import { StackedTooltip } from "./chartTooltip";
@@ -36,6 +40,7 @@ export function NetWorthChart({
   numberFormat,
   retirementAge,
   statePensionAge,
+  expectedDeathAge,
 }: {
   low: YearProjection[];
   mid: YearProjection[];
@@ -44,6 +49,7 @@ export function NetWorthChart({
   numberFormat: NumberFormat;
   retirementAge: number;
   statePensionAge: number | null;
+  expectedDeathAge: number | null;
 }) {
   const theme = useTheme();
   const data = toNetWorthBandData(low, mid, high);
@@ -69,7 +75,7 @@ export function NetWorthChart({
   const amountTick = makeAmountTick(currency);
 
   return (
-    <ResponsiveContainer width="100%" height={360}>
+    <ResponsiveContainer width="100%" height={PLOT_HEIGHT}>
       <ComposedChart
         data={data}
         margin={{ top: 16, right: PLOT_RIGHT_INSET, bottom: 0, left: 8 }}
@@ -154,6 +160,8 @@ export function NetWorthChart({
         {ageReferenceLines({
           retirementAge,
           statePensionAge,
+          expectedDeathAge,
+          liquidDepletionAge: liquidDepletionAge(mid),
           minAge,
           maxAge,
           theme,
