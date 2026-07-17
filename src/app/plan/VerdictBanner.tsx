@@ -70,7 +70,6 @@ const Sub = styled.p`
 
 const Stats = styled.dl`
   display: flex;
-  gap: ${({ theme }) => theme.spacing["2xl"]};
   margin: 0;
   padding-left: ${({ theme }) => theme.spacing["2xl"]};
   border-left: 1px solid ${({ theme }) => theme.colors.hairline};
@@ -87,6 +86,13 @@ const Stat = styled.div`
   display: grid;
   gap: ${({ theme }) => theme.spacing.xs};
   align-content: start;
+
+  /* Hairline divider between each pulled-out figure (peak / earliest / at-age). */
+  & + & {
+    margin-left: ${({ theme }) => theme.spacing["2xl"]};
+    padding-left: ${({ theme }) => theme.spacing["2xl"]};
+    border-left: 1px solid ${({ theme }) => theme.colors.hairline};
+  }
 `;
 
 const StatKey = styled.dt`
