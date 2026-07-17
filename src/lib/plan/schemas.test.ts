@@ -15,6 +15,7 @@ const validAssumptions = {
   blendedTaxRatePct: 20,
   statePensionAge: 67,
   statePensionAnnual: 11500,
+  expectedDeathAge: 90,
 };
 
 const validAsset = {

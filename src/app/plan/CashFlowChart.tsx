@@ -152,12 +152,14 @@ export function CashFlowChart({
   numberFormat,
   retirementAge,
   statePensionAge,
+  expectedDeathAge,
 }: {
   years: YearProjection[];
   currency: string;
   numberFormat: NumberFormat;
   retirementAge: number;
   statePensionAge: number | null;
+  expectedDeathAge: number | null;
 }) {
   const theme = useTheme();
   const data = toCashFlowChartData(years);
@@ -306,6 +308,7 @@ export function CashFlowChart({
         {ageReferenceLines({
           retirementAge,
           statePensionAge,
+          expectedDeathAge,
           minAge,
           maxAge,
           theme,

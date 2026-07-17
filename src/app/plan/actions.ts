@@ -123,6 +123,8 @@ export async function createPlan(input: {
         statePensionAge: 67,
         // UK full new State Pension (approx 2024/25); user edits this in Phase 1b.
         statePensionAnnual: 11500,
+        // ONS-ish default life expectancy; user edits in the Assumptions panel.
+        expectedDeathAge: 90,
         assets: { create: seeded.assets },
         liabilities: { create: seeded.liabilities },
         incomes: { create: seeded.incomes },
@@ -161,6 +163,7 @@ export async function updatePlanAssumptions(
       blendedTaxRatePct: p.blendedTaxRatePct,
       statePensionAge: p.statePensionAge,
       statePensionAnnual: p.statePensionAnnual,
+      expectedDeathAge: p.expectedDeathAge,
     },
   });
   if (res.count === 0) throw new Error("Plan not found");

@@ -61,6 +61,7 @@ export function AssumptionsPanel({
         blendedTaxRatePct: next.blendedTaxRatePct,
         statePensionAge: next.statePensionAge,
         statePensionAnnual: next.statePensionAnnual,
+        expectedDeathAge: next.expectedDeathAge,
       });
       router.refresh();
     } catch (e) {
@@ -151,6 +152,14 @@ export function AssumptionsPanel({
             value={a.statePensionAnnual}
             nullable
             onCommit={(v) => save({ ...a, statePensionAnnual: v })}
+          />
+        </Field>
+        <Field>
+          Expected age at death
+          <NumberCell
+            value={a.expectedDeathAge}
+            nullable
+            onCommit={(v) => save({ ...a, expectedDeathAge: v })}
           />
         </Field>
       </Grid>

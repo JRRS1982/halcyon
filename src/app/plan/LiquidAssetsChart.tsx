@@ -35,6 +35,7 @@ export function LiquidAssetsChart({
   numberFormat,
   retirementAge,
   statePensionAge,
+  expectedDeathAge,
 }: {
   low: YearProjection[];
   mid: YearProjection[];
@@ -43,6 +44,7 @@ export function LiquidAssetsChart({
   numberFormat: NumberFormat;
   retirementAge: number;
   statePensionAge: number | null;
+  expectedDeathAge: number | null;
 }) {
   const theme = useTheme();
   const data = toLiquidAssetsBandData(low, mid, high);
@@ -137,6 +139,7 @@ export function LiquidAssetsChart({
         {ageReferenceLines({
           retirementAge,
           statePensionAge,
+          expectedDeathAge,
           minAge,
           maxAge,
           theme,

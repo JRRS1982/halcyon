@@ -11,12 +11,14 @@ import type { DefaultTheme } from "styled-components";
 export function ageReferenceLines({
   retirementAge,
   statePensionAge,
+  expectedDeathAge,
   minAge,
   maxAge,
   theme,
 }: {
   retirementAge: number;
   statePensionAge: number | null;
+  expectedDeathAge: number | null;
   minAge: number;
   maxAge: number;
   theme: DefaultTheme;
@@ -29,6 +31,8 @@ export function ageReferenceLines({
     marks.push({ label: "Retirement", age: retirementAge });
   if (inRange(statePensionAge))
     marks.push({ label: "State pension", age: statePensionAge });
+  if (inRange(expectedDeathAge))
+    marks.push({ label: "Life expectancy", age: expectedDeathAge });
 
   return marks.map(({ label, age }, i) => (
     <ReferenceLine

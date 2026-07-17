@@ -46,6 +46,7 @@ export default async function PlanPage() {
         plan.statePensionAnnual === null
           ? null
           : Number(plan.statePensionAnnual),
+      expectedDeathAge: plan.expectedDeathAge,
     },
     assets: plan.assets.map((a) => ({
       id: a.id,

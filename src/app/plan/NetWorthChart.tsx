@@ -36,6 +36,7 @@ export function NetWorthChart({
   numberFormat,
   retirementAge,
   statePensionAge,
+  expectedDeathAge,
 }: {
   low: YearProjection[];
   mid: YearProjection[];
@@ -44,6 +45,7 @@ export function NetWorthChart({
   numberFormat: NumberFormat;
   retirementAge: number;
   statePensionAge: number | null;
+  expectedDeathAge: number | null;
 }) {
   const theme = useTheme();
   const data = toNetWorthBandData(low, mid, high);
@@ -154,6 +156,7 @@ export function NetWorthChart({
         {ageReferenceLines({
           retirementAge,
           statePensionAge,
+          expectedDeathAge,
           minAge,
           maxAge,
           theme,

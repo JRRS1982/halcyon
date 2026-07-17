@@ -21,6 +21,7 @@ export const updatePlanAssumptionsSchema = z.object({
   blendedTaxRatePct: z.number().min(0).max(60),
   statePensionAge: z.number().int().min(50).max(80).nullable(),
   statePensionAnnual: z.number().min(0).nullable(),
+  expectedDeathAge: z.number().int().min(50).max(120).nullable(),
 });
 
 export const updatePlanAssetSchema = z.object({

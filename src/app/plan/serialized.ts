@@ -12,6 +12,7 @@ export type SerializedPlanAssumptions = {
   blendedTaxRatePct: number;
   statePensionAge: number | null;
   statePensionAnnual: number | null;
+  expectedDeathAge: number | null;
 };
 
 export type SerializedPlanAsset = {

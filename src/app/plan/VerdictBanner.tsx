@@ -1,7 +1,8 @@
 // src/app/plan/VerdictBanner.tsx
 "use client";
 
-import type { BandedVerdict } from "@/lib/plan";
+import type { BandedVerdict, YearProjection } from "@/lib/plan";
+import { LIQUID_WRAPPERS } from "@/lib/plan/chartData";
 import { type NumberFormat, formatAmount } from "@/lib/settings/currency";
 import styled from "styled-components";
 
@@ -121,13 +122,32 @@ const RangeNote = styled.span`
 
 export function VerdictBanner({
   verdict,
+  years,
+  expectedDeathAge,
   currency,
   numberFormat,
 }: {
   verdict: BandedVerdict;
+  years: YearProjection[];
+  expectedDeathAge: number | null;
   currency: string;
   numberFormat: NumberFormat;
 }) {
+  // Value at the expected age of death (today's money, like peak net worth).
+  // Only shown when that age falls within the projected range.
+  const deathYear =
+    expectedDeathAge === null
+      ? undefined
+      : years.find((y) => y.age === expectedDeathAge);
+  const atDeath = deathYear
+    ? {
+        netWorth: deathYear.netWorth,
+        liquid: deathYear.assets
+          .filter((a) => LIQUID_WRAPPERS.includes(a.wrapper))
+          .reduce((sum, a) => sum + a.value, 0),
+      }
+    : null;
+
   const peak = formatAmount(currency, verdict.peakNetWorth.value, numberFormat);
   const [peakLo, peakHi] = verdict.peakNetWorthRange;
   const peakRange =
@@ -191,6 +211,17 @@ export function VerdictBanner({
             </>
           )}
         </Stat>
+        {atDeath ? (
+          <Stat>
+            <StatKey>At age {expectedDeathAge}</StatKey>
+            <StatVal>
+              {formatAmount(currency, atDeath.netWorth, numberFormat)}{" "}
+              <small>
+                · liquid {formatAmount(currency, atDeath.liquid, numberFormat)}
+              </small>
+            </StatVal>
+          </Stat>
+        ) : null}
       </Stats>
     </Card>
   );

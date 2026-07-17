@@ -143,6 +143,8 @@ export function PlanView({
       <AssumptionsPanel assumptions={plan.assumptions} />
       <VerdictBanner
         verdict={liveBand.verdict}
+        years={liveBand.mid}
+        expectedDeathAge={effectiveAssumptions.expectedDeathAge}
         currency={currency}
         numberFormat={numberFormat}
       />
@@ -154,6 +156,7 @@ export function PlanView({
         numberFormat={numberFormat}
         retirementAge={effectiveAssumptions.retirementAge}
         statePensionAge={effectiveAssumptions.statePensionAge}
+        expectedDeathAge={effectiveAssumptions.expectedDeathAge}
       />
       <Timeline
         incomes={liveIncomes}
@@ -162,6 +165,7 @@ export function PlanView({
         events={liveEvents}
         retirementAge={effectiveAssumptions.retirementAge}
         statePensionAge={effectiveAssumptions.statePensionAge}
+        expectedDeathAge={effectiveAssumptions.expectedDeathAge}
         minAge={liveBand.mid[0]?.age ?? 0}
         maxAge={liveBand.mid[liveBand.mid.length - 1]?.age ?? 0}
         onEventInput={setEventOverride}

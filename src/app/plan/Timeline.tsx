@@ -355,6 +355,7 @@ export function Timeline({
   events,
   retirementAge,
   statePensionAge,
+  expectedDeathAge,
   minAge,
   maxAge,
   onEventInput,
@@ -368,6 +369,7 @@ export function Timeline({
   events: SerializedPlanEvent[];
   retirementAge: number;
   statePensionAge: number | null;
+  expectedDeathAge: number | null;
   minAge: number;
   maxAge: number;
   onEventInput?: (id: string, age: number) => void;
@@ -385,6 +387,7 @@ export function Timeline({
     maxAge,
     retirementAge,
     statePensionAge,
+    expectedDeathAge,
   });
 
   const barColour = (b: TimelineBar): string => {

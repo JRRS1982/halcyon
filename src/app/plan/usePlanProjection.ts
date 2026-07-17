@@ -116,6 +116,7 @@ export function usePlanProjection(
         blendedTaxRatePct: a.blendedTaxRatePct,
         statePensionAge: a.statePensionAge,
         statePensionAnnual: a.statePensionAnnual,
+        expectedDeathAge: a.expectedDeathAge,
         [key]: value,
       });
       router.refresh();
