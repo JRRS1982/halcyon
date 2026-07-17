@@ -80,7 +80,7 @@ describe("computeLiveBand", () => {
     ).toBe(serverBand);
   });
 
-  it("recomputes for an assumption override but carries the server earliest value", () => {
+  it("recomputes for an assumption override", () => {
     const live = computeLiveBand(
       plan,
       { assumptions: { retirementAge: 68 }, events: {}, streams: {} },
@@ -88,9 +88,6 @@ describe("computeLiveBand", () => {
       2026,
     );
     expect(live).not.toBe(serverBand);
-    expect(live.verdict.earliestSustainableRetirementAge).toBe(
-      serverBand.verdict.earliestSustainableRetirementAge,
-    );
     expect(live.mid).not.toEqual(serverBand.mid);
   });
 

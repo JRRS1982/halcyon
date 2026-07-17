@@ -38,7 +38,6 @@ const proj = (
     feasible: years.every((y) => !y.shortfall),
     firstShortfallAge: years.find((y) => y.shortfall)?.age ?? null,
     peakNetWorth: { age: peakAge, value: peak },
-    earliestSustainableRetirementAge: null,
   },
 });
 

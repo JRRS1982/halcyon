@@ -145,7 +145,6 @@ export interface Verdict {
   feasible: boolean;
   firstShortfallAge: number | null;
   peakNetWorth: { age: number; value: number };
-  earliestSustainableRetirementAge: number | null;
 }
 
 export interface PlanProjection {

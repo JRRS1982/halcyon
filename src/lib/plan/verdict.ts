@@ -4,7 +4,7 @@ import type { Verdict, YearProjection } from "./types";
 export const summarise = (
   years: YearProjection[],
   maxAge?: number,
-): Omit<Verdict, "earliestSustainableRetirementAge"> => {
+): Verdict => {
   // Judge feasibility, shortfall and peak over the lived horizon only — a
   // shortfall (or peak) beyond the expected age of death doesn't matter.
   const lived =

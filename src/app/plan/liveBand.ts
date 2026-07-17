@@ -1,7 +1,6 @@
 // src/app/plan/liveBand.ts
-// Pure client-side recompute for the real-time sliders. Skips the O(years^2)
-// earliest-retirement sweep (withEarliest:false) and carries the server band's
-// earliest value, so a drag frame costs only the three cheap band passes.
+// Pure client-side recompute for the real-time sliders — a drag frame costs only
+// the three cheap band passes.
 import { type BandedProjection, projectWithBand } from "@/lib/plan";
 import { serializedToPlanInput } from "@/lib/plan/serializedInput";
 import { toTodaysMoneyBand } from "@/lib/plan/toPlanInput";
@@ -70,17 +69,9 @@ export function computeLiveBand(
     },
     asOfYear,
   );
-  const band = toTodaysMoneyBand(
-    projectWithBand(input, { withEarliest: false }),
+  return toTodaysMoneyBand(
+    projectWithBand(input),
     input.inflationPct,
     input.currentAge,
   );
-  return {
-    ...band,
-    verdict: {
-      ...band.verdict,
-      earliestSustainableRetirementAge:
-        serverBand.verdict.earliestSustainableRetirementAge,
-    },
-  };
 }

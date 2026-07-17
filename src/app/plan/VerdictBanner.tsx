@@ -171,12 +171,8 @@ export function VerdictBanner({
       ? `Your money runs short at age ${verdict.firstShortfallAge} (between ${shortRange[0]} and ${shortRange[1]} depending on returns)`
       : `Your money runs short at age ${verdict.firstShortfallAge}`;
   const sub = verdict.feasible
-    ? verdict.earliestSustainableRetirementAge !== null
-      ? `You could retire as early as age ${verdict.earliestSustainableRetirementAge} and the money still lasts.`
-      : "On today's settings, the money lasts the whole plan."
-    : verdict.earliestSustainableRetirementAge !== null
-      ? `Retiring at age ${verdict.earliestSustainableRetirementAge} or later would make it last — or save more, or trim spending below.`
-      : "No retirement age in range is sustainable yet — try retiring later, saving more, or trimming spending below.";
+    ? "On today's settings, the money lasts the whole plan."
+    : "Try retiring later, saving more, or trimming spending below.";
 
   return (
     <Card $ok={verdict.feasible}>
@@ -195,28 +191,17 @@ export function VerdictBanner({
           </StatVal>
           {peakRange ? <RangeNote>range {peakRange}</RangeNote> : null}
         </Stat>
-        <Stat>
-          {verdict.feasible ? (
-            <>
-              <StatKey>Earliest retirement</StatKey>
-              <StatVal>
-                {verdict.earliestSustainableRetirementAge !== null
-                  ? `Age ${verdict.earliestSustainableRetirementAge}`
-                  : "In range"}
-              </StatVal>
-            </>
-          ) : (
-            <>
-              <StatKey>Money runs out</StatKey>
-              <StatVal $danger>Age {verdict.firstShortfallAge}</StatVal>
-              {shortRange ? (
-                <RangeNote>
-                  range {shortRange[0]}–{shortRange[1]}
-                </RangeNote>
-              ) : null}
-            </>
-          )}
-        </Stat>
+        {verdict.feasible ? null : (
+          <Stat>
+            <StatKey>Money runs out</StatKey>
+            <StatVal $danger>Age {verdict.firstShortfallAge}</StatVal>
+            {shortRange ? (
+              <RangeNote>
+                range {shortRange[0]}–{shortRange[1]}
+              </RangeNote>
+            ) : null}
+          </Stat>
+        )}
         {atDeath ? (
           <Stat>
             <StatKey>At age {expectedDeathAge}</StatKey>

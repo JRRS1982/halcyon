@@ -7,7 +7,6 @@ import { incomeTax } from "./tax";
 import type {
   AssetInput,
   ExpenseInput,
-  IncomeInput,
   PlanInput,
   PlanProjection,
   YearProjection,
@@ -214,72 +213,26 @@ const projectYears = (
   return years;
 };
 
-const EMPLOYMENT: IncomeInput["kind"][] = ["SALARY", "SELF_EMPLOYMENT"];
-
-// Re-runs the projection with employment income ending at each candidate age,
-// from currentAge to planToAge, returning the earliest age that keeps the plan
-// feasible (or null). Uses projectYears directly, so it never recurses.
-export const earliestSustainableRetirementAge = (
-  input: PlanInput,
-): number | null => {
-  for (
-    let candidate = input.currentAge;
-    candidate <= input.planToAge;
-    candidate++
-  ) {
-    const incomes = input.incomes.map((i) =>
-      EMPLOYMENT.includes(i.kind)
-        ? { ...i, endAge: Math.min(i.endAge ?? candidate, candidate) }
-        : i,
-    );
-    if (
-      summarise(
-        projectYears({ ...input, retirementAge: candidate, incomes }),
-        input.expectedDeathAge ?? input.planToAge,
-      ).feasible
-    ) {
-      return candidate;
-    }
-  }
-  return null;
-};
-
 export const project = (input: PlanInput): PlanProjection => {
   const years = projectYears(input);
   return {
     years,
-    verdict: {
-      ...summarise(years, input.expectedDeathAge ?? input.planToAge),
-      earliestSustainableRetirementAge: earliestSustainableRetirementAge(input),
-    },
+    verdict: summarise(years, input.expectedDeathAge ?? input.planToAge),
   };
 };
 
 // Three deterministic passes for the return band. The spread shifts every
-// asset's effective return by ±returnSpreadPct. mid === project(input). Only the
-// mid pass computes earliestSustainableRetirementAge (the only pass that surfaces
-// it); low/high set it null to avoid the extra projection sweep.
+// asset's effective return by ±returnSpreadPct. mid === project(input).
 export const projectWithBand = (
   input: PlanInput,
-  opts: { withEarliest?: boolean } = {},
 ): { low: PlanProjection; mid: PlanProjection; high: PlanProjection } => {
   const spread = input.returnSpreadPct ?? 0;
-  const withEarliest = opts.withEarliest ?? true;
-  const pass = (delta: number, computeEarliest: boolean): PlanProjection => {
+  const pass = (delta: number): PlanProjection => {
     const years = projectYears(input, delta);
     return {
       years,
-      verdict: {
-        ...summarise(years, input.expectedDeathAge ?? input.planToAge),
-        earliestSustainableRetirementAge: computeEarliest
-          ? earliestSustainableRetirementAge(input)
-          : null,
-      },
+      verdict: summarise(years, input.expectedDeathAge ?? input.planToAge),
     };
   };
-  return {
-    low: pass(-spread, false),
-    mid: pass(0, withEarliest),
-    high: pass(spread, false),
-  };
+  return { low: pass(-spread), mid: pass(0), high: pass(spread) };
 };
