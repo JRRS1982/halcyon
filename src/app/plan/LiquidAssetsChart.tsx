@@ -3,6 +3,7 @@
 
 import type { YearProjection } from "@/lib/plan";
 import {
+  liquidDepletionAge,
   liquidWrappersPresent,
   toLiquidAssetsBandData,
 } from "@/lib/plan/chartData";
@@ -140,6 +141,7 @@ export function LiquidAssetsChart({
           retirementAge,
           statePensionAge,
           expectedDeathAge,
+          liquidDepletionAge: liquidDepletionAge(mid),
           minAge,
           maxAge,
           theme,

@@ -2,7 +2,11 @@
 "use client";
 
 import type { YearProjection } from "@/lib/plan";
-import { toNetWorthBandData, wrappersPresent } from "@/lib/plan/chartData";
+import {
+  liquidDepletionAge,
+  toNetWorthBandData,
+  wrappersPresent,
+} from "@/lib/plan/chartData";
 import type { NumberFormat } from "@/lib/settings/currency";
 import {
   Area,
@@ -157,6 +161,7 @@ export function NetWorthChart({
           retirementAge,
           statePensionAge,
           expectedDeathAge,
+          liquidDepletionAge: liquidDepletionAge(mid),
           minAge,
           maxAge,
           theme,

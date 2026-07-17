@@ -9,6 +9,7 @@ import {
   type OutflowKey,
   cashFlowAmount,
   cashFlowKeysPresent,
+  liquidDepletionAge,
   summariseCashFlow,
   toCashFlowChartData,
 } from "@/lib/plan/chartData";
@@ -309,6 +310,7 @@ export function CashFlowChart({
           retirementAge,
           statePensionAge,
           expectedDeathAge,
+          liquidDepletionAge: liquidDepletionAge(years),
           minAge,
           maxAge,
           theme,
