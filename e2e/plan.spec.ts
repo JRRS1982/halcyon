@@ -277,10 +277,10 @@ test("plan: create, edit assumptions/assets, and the data-loss guard holds", asy
   ).toBeVisible();
   await expect(page.getByRole("heading", { name: "Assets" })).toBeVisible();
   await expect(page.locator("svg").first()).toBeVisible();
-  // The seeded "SIPP" label infers wrapper PENSION, so the chart's asset segment
-  // is PENSION.
+  // The seeded "SIPP" label infers wrapper PENSION, whose legend label reads
+  // "Pension" (de-capped).
   await expect(page.locator(".recharts-legend-wrapper")).toContainText(
-    "PENSION",
+    "Pension",
   );
 
   // Open the seeded asset's drawer (summary row → dialog).
@@ -336,7 +336,7 @@ test("plan: create, edit assumptions/assets, and the data-loss guard holds", asy
 
   await page.getByRole("button", { name: "Cash flow" }).click();
   await expect(page.locator(".recharts-legend-wrapper")).toContainText(
-    "SALARY",
+    "Salary",
   );
   await expect(
     page.getByText(/money in vs money out each year/i),
