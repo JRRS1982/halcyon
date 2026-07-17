@@ -140,7 +140,6 @@ export function PlanView({
   return (
     <Shell>
       <Title>Your plan</Title>
-      <AssumptionsPanel assumptions={plan.assumptions} />
       <VerdictBanner
         verdict={liveBand.verdict}
         years={liveBand.mid}
@@ -148,6 +147,7 @@ export function PlanView({
         currency={currency}
         numberFormat={numberFormat}
       />
+      <AssumptionsPanel assumptions={plan.assumptions} />
       <ChartPanel
         low={liveBand.low}
         mid={liveBand.mid}
