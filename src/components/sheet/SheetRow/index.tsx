@@ -9,15 +9,13 @@ import {
   TotalsRow,
 } from "./SheetRow.styled";
 
-// Column header row — Category · Budget · Actual · Difference · Spent.
+// Column header row — Category · Budget · Actual.
 export function SheetHeadRow() {
   return (
     <HeadRow>
       <SheetCell>Category</SheetCell>
       <SheetCell align="right">Budget</SheetCell>
       <SheetCell align="right">Actual</SheetCell>
-      <SheetCell align="right">Difference</SheetCell>
-      <SheetCell align="right">Spent</SheetCell>
     </HeadRow>
   );
 }
@@ -25,8 +23,6 @@ export function SheetHeadRow() {
 type AmountCells = {
   budget: ReactNode;
   actual: ReactNode;
-  variance: ReactNode;
-  variancePct: ReactNode;
 };
 
 // Section group header (Income, Expenses). Dark full-width band.
@@ -42,8 +38,6 @@ export function SheetSectionRow({
       <SheetCell>{label}</SheetCell>
       <SheetCell align="right">{amounts.budget}</SheetCell>
       <SheetCell align="right">{amounts.actual}</SheetCell>
-      <SheetCell align="right">{amounts.variance}</SheetCell>
-      <SheetCell align="right">{amounts.variancePct}</SheetCell>
     </SectionRow>
   );
 }
@@ -63,8 +57,6 @@ export function SheetSubheadRow({
       <SheetCell>{label}</SheetCell>
       <SheetCell align="right">{amounts.budget}</SheetCell>
       <SheetCell align="right">{amounts.actual}</SheetCell>
-      <SheetCell align="right">{amounts.variance}</SheetCell>
-      <SheetCell align="right">{amounts.variancePct}</SheetCell>
     </SubheadRow>
   );
 }
@@ -90,14 +82,6 @@ export function SheetItemRow({
       tone?: "default" | "dim" | "positive" | "negative";
     };
     actual: {
-      value: ReactNode;
-      tone?: "default" | "dim" | "positive" | "negative";
-    };
-    variance: {
-      value: ReactNode;
-      tone?: "default" | "dim" | "positive" | "negative";
-    };
-    variancePct: {
       value: ReactNode;
       tone?: "default" | "dim" | "positive" | "negative";
     };
@@ -128,12 +112,6 @@ export function SheetItemRow({
       >
         {amounts.actual.value}
       </SheetCell>
-      <SheetCell align="right" tone={amounts.variance.tone ?? "default"}>
-        {amounts.variance.value}
-      </SheetCell>
-      <SheetCell align="right" tone={amounts.variancePct.tone ?? "default"}>
-        {amounts.variancePct.value}
-      </SheetCell>
     </ItemRow>
   );
 }
@@ -151,8 +129,6 @@ export function SheetTotalsRow({
       <SheetCell>{label}</SheetCell>
       <SheetCell align="right">{amounts.budget}</SheetCell>
       <SheetCell align="right">{amounts.actual}</SheetCell>
-      <SheetCell align="right">{amounts.variance}</SheetCell>
-      <SheetCell align="right">{amounts.variancePct}</SheetCell>
     </TotalsRow>
   );
 }
@@ -170,8 +146,6 @@ export function SheetGrandRow({
       <SheetCell>{label}</SheetCell>
       <SheetCell align="right">{amounts.budget}</SheetCell>
       <SheetCell align="right">{amounts.actual}</SheetCell>
-      <SheetCell align="right">{amounts.variance}</SheetCell>
-      <SheetCell align="right">{amounts.variancePct}</SheetCell>
     </GrandRow>
   );
 }

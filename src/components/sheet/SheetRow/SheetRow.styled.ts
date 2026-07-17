@@ -1,8 +1,9 @@
 import styled, { css } from "styled-components";
 
-// Shared 5-column template across every row in the sheet. Keep this in
-// lockstep with DESIGN.md → Layout → Grid & Container → "Sheet column template".
-export const SHEET_GRID = "1fr 150px 150px 150px 90px";
+// Shared 3-column template across every row in the sheet (Category · Budget ·
+// Actual). Keep this in lockstep with DESIGN.md → Layout → Grid & Container →
+// "Sheet column template".
+export const SHEET_GRID = "1fr 150px 150px";
 
 const baseRow = css`
   display: grid;
