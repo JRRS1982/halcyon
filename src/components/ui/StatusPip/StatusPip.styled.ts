@@ -27,6 +27,10 @@ export const PipWrapper = styled.span`
     align-items: center;
     gap: ${theme.spacing.sm};
     line-height: 1;
+    /* Reserve a stable width so the pill doesn't resize as its label cycles
+       (Saving… → Saved just now → Saved 3m ago → Up to date). */
+    min-width: 132px;
+    justify-content: flex-end;
   `}
 `;
 
