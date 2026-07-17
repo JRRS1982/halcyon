@@ -125,6 +125,26 @@ describe("toTimelineModel", () => {
     expect(m.refLines[0]?.leftPct).toBeCloseTo(50); // (65-40)/50
   });
 
+  it("staggers retirement and state-pension labels when they are close", () => {
+    const m = toTimelineModel({
+      ...base,
+      retirementAge: 65,
+      statePensionAge: 67,
+    });
+    const byLabel = new Map(m.refLines.map((r) => [r.label, r.labelLevel]));
+    expect(byLabel.get("Retirement")).toBe(0);
+    expect(byLabel.get("State pension")).toBe(1);
+  });
+
+  it("keeps retirement and state-pension labels on level 0 when far apart", () => {
+    const m = toTimelineModel({
+      ...base,
+      retirementAge: 50,
+      statePensionAge: 80,
+    });
+    expect(m.refLines.every((r) => r.labelLevel === 0)).toBe(true);
+  });
+
   it("includes state pension when set and in range; excludes a retirement past maxAge", () => {
     const m = toTimelineModel({
       ...base,
@@ -151,6 +171,46 @@ describe("toTimelineModel", () => {
     expect(m.bars.income[0]?.leftPct).toBe(0);
     expect(m.bars.income[0]?.widthPct).toBe(0);
     expect(m.ticks).toEqual([{ age: 50, leftPct: 0 }]);
+  });
+});
+
+describe("event label staggering", () => {
+  const evAt = (id: string, age: number) => event({ id, age, label: id });
+
+  it("keeps well-spaced event labels on level 0", () => {
+    const m = toTimelineModel({
+      ...base,
+      events: [evAt("a", 45), evAt("b", 75)],
+    });
+    expect(m.events.map((e) => e.labelLevel)).toEqual([0, 0]);
+  });
+
+  it("staggers labels of events close in age onto increasing levels", () => {
+    const m = toTimelineModel({
+      ...base,
+      events: [evAt("a", 50), evAt("b", 51), evAt("c", 52)],
+    });
+    const byId = new Map(m.events.map((e) => [e.id, e.labelLevel]));
+    expect(byId.get("a")).toBe(0);
+    expect(byId.get("b")).toBe(1);
+    expect(byId.get("c")).toBe(2);
+  });
+
+  it("returns a label to level 0 once there is horizontal room again", () => {
+    const m = toTimelineModel({
+      ...base,
+      events: [evAt("a", 50), evAt("b", 51), evAt("c", 70)],
+    });
+    const byId = new Map(m.events.map((e) => [e.id, e.labelLevel]));
+    expect(byId.get("c")).toBe(0);
+  });
+
+  it("preserves input order in the returned events", () => {
+    const m = toTimelineModel({
+      ...base,
+      events: [evAt("c", 70), evAt("a", 50), evAt("b", 51)],
+    });
+    expect(m.events.map((e) => e.id)).toEqual(["c", "a", "b"]);
   });
 });
 

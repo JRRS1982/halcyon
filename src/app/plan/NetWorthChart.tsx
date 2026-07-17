@@ -3,7 +3,7 @@
 
 import type { YearProjection } from "@/lib/plan";
 import { toNetWorthBandData, wrappersPresent } from "@/lib/plan/chartData";
-import { type NumberFormat, formatAmount } from "@/lib/settings/currency";
+import type { NumberFormat } from "@/lib/settings/currency";
 import {
   Area,
   CartesianGrid,
@@ -20,7 +20,13 @@ import { useTheme } from "styled-components";
 import { PLOT_LEFT_INSET, PLOT_RIGHT_INSET } from "./axisGeometry";
 import { amountAxis, makeAmountTick } from "./chartFormat";
 import { ageReferenceLines } from "./chartRefLines";
-import { DEBT_COLOUR, NET_WORTH_COLOUR, WRAPPER_COLOURS } from "./colours";
+import { StackedTooltip } from "./chartTooltip";
+import {
+  DEBT_COLOUR,
+  NET_WORTH_COLOUR,
+  WRAPPER_COLOURS,
+  WRAPPER_LABELS,
+} from "./colours";
 
 export function NetWorthChart({
   low,
@@ -85,15 +91,16 @@ export function NetWorthChart({
           tickFormatter={amountTick}
         />
         <Tooltip
-          formatter={(value, name) => [
-            formatAmount(currency, Number(value), numberFormat),
-            name,
-          ]}
-          contentStyle={{
-            border: `1px solid ${theme.colors.hairline}`,
-            borderRadius: theme.rounded.sm,
-            fontSize: 12,
-          }}
+          content={({ active, payload, label }) => (
+            <StackedTooltip
+              active={active}
+              payload={payload}
+              label={label}
+              currency={currency}
+              numberFormat={numberFormat}
+              totalKey="netWorth"
+            />
+          )}
         />
         <Legend wrapperStyle={{ fontSize: 12 }} />
         <ReferenceLine y={0} stroke={theme.colors.hairlineStrong} />
@@ -113,7 +120,7 @@ export function NetWorthChart({
             key={w}
             type="monotone"
             dataKey={w}
-            name={w}
+            name={WRAPPER_LABELS[w]}
             stackId="nw"
             fill={WRAPPER_COLOURS[w]}
             fillOpacity={0.18}

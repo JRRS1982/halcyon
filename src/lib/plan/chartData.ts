@@ -53,11 +53,13 @@ export function toNetWorthBandData(
 }
 
 // ── Cash-flow chart ──────────────────────────────────────────────────────
-// Diverging money-in / money-out. Income kinds + WITHDRAWAL are positive;
-// expense categories + TAX + REPAYMENT + CONTRIBUTION are negative. `net` is
-// the algebraic sum of the drawn segments, so the net line ties to the bars by
-// construction. One-off events are not represented (the engine does not surface
-// per-year event flows on YearProjection — see spec §3.1).
+// Diverging money-in / money-out. Income kinds are positive, alongside one
+// positive segment per asset drawn down that year (WITHDRAW_PREFIX). Expense
+// categories + TAX + REPAYMENT are negative, alongside one negative segment per
+// asset paid into that year (CONTRIBUTE_PREFIX). `net` is the algebraic sum of
+// the drawn segments, so the net line ties to the bars by construction. One-off
+// events are not represented (the engine does not surface per-year event flows
+// on YearProjection — see spec §3.1).
 
 const INCOME_KEYS = [
   "SALARY",
@@ -66,8 +68,7 @@ const INCOME_KEYS = [
   "DB_PENSION",
   "RENTAL",
   "OTHER",
-  "WITHDRAWAL",
-] as const satisfies readonly (IncomeKind | "WITHDRAWAL")[];
+] as const satisfies readonly IncomeKind[];
 
 const EXPENSE_KEYS = [
   "FIXED",
@@ -81,22 +82,40 @@ const OUTFLOW_KEYS = [
   "DISCRETIONARY",
   "TAX",
   "REPAYMENT",
-  "CONTRIBUTION",
-] as const satisfies readonly (
-  | ExpenseCategory
-  | "TAX"
-  | "REPAYMENT"
-  | "CONTRIBUTION"
-)[];
+] as const satisfies readonly (ExpenseCategory | "TAX" | "REPAYMENT")[];
+
+// Per-asset segment keys. Prefixed so they never collide with the fixed income
+// / outflow keys above, and so the chart can tell the two flows apart.
+const WITHDRAW_PREFIX = "wd:";
+const CONTRIBUTE_PREFIX = "co:";
 
 export type IncomeFlowKey = (typeof INCOME_KEYS)[number];
 export type OutflowKey = (typeof OUTFLOW_KEYS)[number];
 
+// A drawdown/contribution segment for one asset (money in for withdrawals, out
+// for contributions). Carries the asset's label + wrapper for the legend colour.
+export interface CashFlowSegment {
+  key: string; // the datum key, e.g. "wd:<assetId>"
+  assetId: string;
+  label: string;
+  wrapper: Wrapper;
+}
+
+// Fixed keys hold numbers; `shortfall` is boolean; per-asset segment keys are
+// added dynamically. The mixed index signature keeps all three in one flat row
+// (what Recharts needs), so read segment amounts through `cashFlowAmount`.
 export type CashFlowDatum = {
   age: number;
   net: number;
   shortfall: boolean;
-} & Partial<Record<IncomeFlowKey | OutflowKey, number>>;
+  [key: string]: number | boolean;
+};
+
+// Safely read a stacked segment's amount off a datum (0 when absent/boolean).
+export function cashFlowAmount(d: CashFlowDatum, key: string): number {
+  const v = d[key];
+  return typeof v === "number" ? v : 0;
+}
 
 export function toCashFlowChartData(years: YearProjection[]): CashFlowDatum[] {
   return years.map((y) => {
@@ -104,16 +123,17 @@ export function toCashFlowChartData(years: YearProjection[]): CashFlowDatum[] {
 
     let inTotal = 0;
     for (const key of INCOME_KEYS) {
-      if (key === "WITHDRAWAL") continue;
       const amount = y.incomeByKind[key] ?? 0;
       if (amount !== 0) {
         row[key] = amount;
         inTotal += amount;
       }
     }
-    if (y.withdrawals !== 0) {
-      row.WITHDRAWAL = y.withdrawals;
-      inTotal += y.withdrawals;
+    for (const a of y.assets) {
+      if (a.withdrawn !== 0) {
+        row[`${WITHDRAW_PREFIX}${a.id}`] = a.withdrawn;
+        inTotal += a.withdrawn;
+      }
     }
 
     let outTotal = 0;
@@ -127,12 +147,17 @@ export function toCashFlowChartData(years: YearProjection[]): CashFlowDatum[] {
     const synthetic: [OutflowKey, number][] = [
       ["TAX", y.tax],
       ["REPAYMENT", y.liabilityRepayments],
-      ["CONTRIBUTION", y.contributions],
     ];
     for (const [key, amount] of synthetic) {
       if (amount !== 0) {
         row[key] = -amount;
         outTotal += amount;
+      }
+    }
+    for (const a of y.assets) {
+      if (a.contributed !== 0) {
+        row[`${CONTRIBUTE_PREFIX}${a.id}`] = -a.contributed;
+        outTotal += a.contributed;
       }
     }
 
@@ -141,16 +166,134 @@ export function toCashFlowChartData(years: YearProjection[]): CashFlowDatum[] {
   });
 }
 
-// Which positive (income) and negative (outflow) keys actually occur anywhere
-// in the series, in canonical order — so only those <Bar>s render.
-export function cashFlowKeysPresent(rows: CashFlowDatum[]): {
+// Unique per-asset segments (withdrawal or contribution) occurring in any year,
+// ordered by wrapper (canonical WRAPPERS order) then label so the legend is
+// stable and matches the other panels' wrapper ordering.
+function assetSegments(
+  years: YearProjection[],
+  flow: "withdrawn" | "contributed",
+): CashFlowSegment[] {
+  const prefix = flow === "withdrawn" ? WITHDRAW_PREFIX : CONTRIBUTE_PREFIX;
+  const byId = new Map<string, CashFlowSegment>();
+  for (const y of years) {
+    for (const a of y.assets) {
+      if (a[flow] !== 0 && !byId.has(a.id)) {
+        byId.set(a.id, {
+          key: `${prefix}${a.id}`,
+          assetId: a.id,
+          label: a.label,
+          wrapper: a.wrapper,
+        });
+      }
+    }
+  }
+  return [...byId.values()].sort(
+    (x, z) =>
+      WRAPPERS.indexOf(x.wrapper) - WRAPPERS.indexOf(z.wrapper) ||
+      x.label.localeCompare(z.label),
+  );
+}
+
+// Which fixed keys occur anywhere in the series (in canonical order) plus the
+// per-asset withdrawal / contribution segments — so only those <Bar>s render.
+export function cashFlowKeysPresent(
+  rows: CashFlowDatum[],
+  years: YearProjection[],
+): {
   income: IncomeFlowKey[];
   outflow: OutflowKey[];
+  withdrawals: CashFlowSegment[];
+  contributions: CashFlowSegment[];
 } {
   return {
-    income: INCOME_KEYS.filter((k) => rows.some((r) => (r[k] ?? 0) !== 0)),
-    outflow: OUTFLOW_KEYS.filter((k) => rows.some((r) => (r[k] ?? 0) !== 0)),
+    income: INCOME_KEYS.filter((k) =>
+      rows.some((r) => cashFlowAmount(r, k) !== 0),
+    ),
+    outflow: OUTFLOW_KEYS.filter((k) =>
+      rows.some((r) => cashFlowAmount(r, k) !== 0),
+    ),
+    withdrawals: assetSegments(years, "withdrawn"),
+    contributions: assetSegments(years, "contributed"),
   };
+}
+
+// Group a Recharts tooltip payload into money-in / money-out rows (magnitudes),
+// each side's total, and the net (in − out). The net line is skipped and zero
+// entries dropped, so the tooltip lists only the segments actually drawn.
+export interface CashFlowTooltipRow {
+  name: string;
+  value: number; // positive magnitude
+  color?: string;
+}
+export interface CashFlowSummary {
+  moneyIn: CashFlowTooltipRow[];
+  moneyOut: CashFlowTooltipRow[];
+  totalIn: number;
+  totalOut: number;
+  net: number;
+}
+export function summariseCashFlow(
+  items: readonly {
+    name?: string | number;
+    value?: unknown; // Recharts payload value (number | string | …); guarded below
+    dataKey?: unknown; // string | number | fn on Recharts payloads
+    color?: string;
+  }[],
+): CashFlowSummary {
+  const moneyIn: CashFlowTooltipRow[] = [];
+  const moneyOut: CashFlowTooltipRow[] = [];
+  for (const it of items) {
+    if (it.dataKey === "net") continue;
+    const value = typeof it.value === "number" ? it.value : 0;
+    if (value === 0) continue;
+    const row = {
+      name: String(it.name ?? ""),
+      value: Math.abs(value),
+      color: it.color,
+    };
+    (value > 0 ? moneyIn : moneyOut).push(row);
+  }
+  const totalIn = moneyIn.reduce((s, r) => s + r.value, 0);
+  const totalOut = moneyOut.reduce((s, r) => s + r.value, 0);
+  return { moneyIn, moneyOut, totalIn, totalOut, net: totalIn - totalOut };
+}
+
+// Group a stacked composition tooltip (net-worth / liquid-assets) into its
+// component rows and the single headline total. `totalKey` names the total
+// series' dataKey (e.g. "netWorth", "total"); everything else is a component,
+// signed (debt stays negative), ordered largest-first. Zero rows are dropped.
+export interface StackTooltipRow {
+  name: string;
+  value: number; // signed
+  color?: string;
+}
+export interface StackSummary {
+  components: StackTooltipRow[];
+  total: StackTooltipRow | null;
+}
+export function summariseStack(
+  items: readonly {
+    name?: string | number;
+    value?: unknown;
+    dataKey?: unknown;
+    color?: string;
+  }[],
+  totalKey: string,
+): StackSummary {
+  const components: StackTooltipRow[] = [];
+  let total: StackTooltipRow | null = null;
+  for (const it of items) {
+    const value = typeof it.value === "number" ? it.value : 0;
+    const row = { name: String(it.name ?? ""), value, color: it.color };
+    if (it.dataKey === totalKey) {
+      total = row;
+      continue;
+    }
+    if (value === 0) continue;
+    components.push(row);
+  }
+  components.sort((a, b) => b.value - a.value);
+  return { components, total };
 }
 
 // ── Liquid-assets chart ────────────────────────────────────────────────────

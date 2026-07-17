@@ -13,6 +13,14 @@ describe("makeAmountTick", () => {
     expect(tick(0)).toBe("£0");
   });
 
+  it("renders millions with an m suffix, trailing zeros trimmed", () => {
+    expect(tick(1_000_000)).toBe("£1m");
+    expect(tick(1_500_000)).toBe("£1.5m");
+    expect(tick(12_250_000)).toBe("£12.25m");
+    expect(tick(7_000_000)).toBe("£7m");
+    expect(tick(-2_000_000)).toBe("-£2m");
+  });
+
   it("prefixes negatives with an ASCII minus", () => {
     expect(tick(-2000)).toBe("-£2k");
   });

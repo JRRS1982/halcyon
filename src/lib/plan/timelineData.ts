@@ -32,10 +32,16 @@ export type TimelineMarker = {
   age: number; // real age (may be outside range; title shows it)
   direction: "INFLOW" | "OUTFLOW";
   leftPct: number; // 0..100 (clamped position)
+  labelLevel: number; // vertical stagger row (0 = top) so close labels don't overlap
 };
 
 export type TimelineTick = { age: number; leftPct: number };
-export type TimelineRefLine = { label: string; age: number; leftPct: number };
+export type TimelineRefLine = {
+  label: string;
+  age: number;
+  leftPct: number;
+  labelLevel: number; // vertical stagger row (0 = top), as with event labels
+};
 
 export type TimelineModel = {
   range: TimelineRange;
@@ -132,21 +138,31 @@ export function toTimelineModel(input: {
     ),
   );
 
-  const events = input.events.map((ev) => ({
-    id: ev.id,
-    label: ev.label,
-    age: ev.age,
-    direction: ev.direction,
-    leftPct: pct(ev.age),
-  }));
+  const events = staggerLabels(
+    input.events.map((ev) => ({
+      id: ev.id,
+      label: ev.label,
+      age: ev.age,
+      direction: ev.direction,
+      leftPct: pct(ev.age),
+      labelLevel: 0,
+    })),
+  );
 
-  const refLines: TimelineRefLine[] = [];
+  const refMarks: { label: string; age: number; leftPct: number }[] = [];
   const addRef = (label: string, age: number | null) => {
     if (age !== null && age >= minAge && age <= maxAge)
-      refLines.push({ label, age, leftPct: pct(age) });
+      refMarks.push({ label, age, leftPct: pct(age) });
   };
   addRef("Retirement", input.retirementAge);
   addRef("State pension", input.statePensionAge);
+  const refLevels = levelsByLeftPct(
+    refMarks.map((r) => ({ key: r.label, leftPct: r.leftPct })),
+  );
+  const refLines: TimelineRefLine[] = refMarks.map((r) => ({
+    ...r,
+    labelLevel: refLevels.get(r.label) ?? 0,
+  }));
 
   const ticks: TimelineTick[] = [{ age: minAge, leftPct: 0 }];
   if (span > 0) {
@@ -162,6 +178,43 @@ export function toTimelineModel(input: {
     refLines,
     ticks,
   };
+}
+
+// Approximate horizontal footprint of an event label, as a share of the track
+// width. Text width isn't measurable in this pure layout, so this is a
+// heuristic: events whose lines fall within this many percent of each other get
+// their labels stacked instead of overlapping.
+const LABEL_GAP_PCT = 8;
+
+// Greedy vertical packing shared by event and reference-line labels: a
+// left-to-right sweep drops each label to the lowest row whose previous label
+// sits at least LABEL_GAP_PCT to its left, so labels with room all stay on row
+// 0 and only crowded ones stack. Returns a level (0 = top) keyed by each item.
+function levelsByLeftPct(
+  items: { key: string; leftPct: number }[],
+): Map<string, number> {
+  const lastLeftByLevel: number[] = [];
+  const levelByKey = new Map<string, number>();
+  for (const it of [...items].sort((a, b) => a.leftPct - b.leftPct)) {
+    let level = 0;
+    let lastLeft = lastLeftByLevel[level];
+    while (lastLeft !== undefined && it.leftPct - lastLeft < LABEL_GAP_PCT) {
+      level++;
+      lastLeft = lastLeftByLevel[level];
+    }
+    lastLeftByLevel[level] = it.leftPct;
+    levelByKey.set(it.key, level);
+  }
+  return levelByKey;
+}
+
+// Assign each event label a vertical stagger row so labels of events close
+// together in age don't overlap. Input order is preserved in the output.
+export function staggerLabels(markers: TimelineMarker[]): TimelineMarker[] {
+  const levels = levelsByLeftPct(
+    markers.map((m) => ({ key: m.id, leftPct: m.leftPct })),
+  );
+  return markers.map((m) => ({ ...m, labelLevel: levels.get(m.id) ?? 0 }));
 }
 
 // Clamp a dragged bar-edge handle to a legal age. A start handle may not fall
