@@ -69,7 +69,7 @@ test.describe("transfers journey", () => {
     // counterparty name also appears as an <option> in the import account select.
     await row.getByText("Transfer ▸").click();
     await row.getByText(counterparty, { exact: true }).click();
-    await expect(row.getByText(/Transfer →/)).toBeVisible();
+    await expect(row.getByText(/Transfer (to|from)/)).toBeVisible();
     await page.waitForLoadState("networkidle");
 
     // The budget Transfers section lists the owning account's net for the month
