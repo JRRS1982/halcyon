@@ -22,11 +22,22 @@ export const PipWrapper = styled.span`
     background: ${theme.colors.canvas};
     border: 1px solid ${theme.colors.hairline};
     border-radius: ${theme.rounded.sm};
-    padding: ${theme.spacing.xs} ${theme.spacing.sm};
+    /* Match the toolbar buttons' height/format so the pill sits flush in the
+       toolbar row rather than looking short. */
+    height: 30px;
+    padding: 0 ${theme.spacing.md};
     display: inline-flex;
     align-items: center;
     gap: ${theme.spacing.sm};
     line-height: 1;
+    /* Reserve a stable width so the pill doesn't resize as its label cycles
+       (Saving… → Saved just now → Saved 3m ago → Up to date). */
+    min-width: 132px;
+    justify-content: flex-end;
+
+    @media (max-width: 767px) {
+      height: 44px;
+    }
   `}
 `;
 

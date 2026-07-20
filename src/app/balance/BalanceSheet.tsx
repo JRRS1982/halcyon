@@ -176,22 +176,7 @@ const baseRow = css`
   grid-template-columns: ${GRID};
 `;
 
-const HeadRow = styled.div`
-  ${baseRow}
-
-  > div {
-    background: ${({ theme }) => theme.colors.canvasSoft};
-    color: ${({ theme }) => theme.colors.body};
-    font-family: ${({ theme }) => theme.typography.monoCaps.family};
-    font-size: ${({ theme }) => theme.typography.monoCaps.size};
-    font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
-    text-transform: uppercase;
-    letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
-    border-bottom: 1px solid ${({ theme }) => theme.colors.hairlineStrong};
-  }
-`;
-
-// Top-level band — Assets / Liabilities. Dark canvas, mono-caps label.
+// Top-level band — Assets / Liabilities. Dark canvas, Inter semibold label.
 const SectionRow = styled.div`
   ${baseRow}
 
@@ -201,16 +186,7 @@ const SectionRow = styled.div`
     border-color: ${({ theme }) => theme.colors.hairlineDark};
     padding-top: ${({ theme }) => theme.spacing.md};
     padding-bottom: ${({ theme }) => theme.spacing.md};
-    &:nth-child(1) {
-      font-family: ${({ theme }) => theme.typography.monoCaps.family};
-      font-size: ${({ theme }) => theme.typography.monoCaps.size};
-      font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
-      text-transform: uppercase;
-      letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
-    }
-    &:nth-child(n + 2) {
-      font-weight: 500;
-    }
+    font-weight: 600;
   }
 `;
 
@@ -225,12 +201,8 @@ const SubheadRow = styled.div`
     border-top: 1px solid ${({ theme }) => theme.colors.hairline};
   }
   > div:nth-child(1) {
-    font-family: ${({ theme }) => theme.typography.monoCaps.family};
-    font-size: ${({ theme }) => theme.typography.monoCaps.size};
-    font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
-    text-transform: uppercase;
-    letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
     color: ${({ theme }) => theme.colors.body};
+    font-weight: 500;
   }
   > div:nth-child(n + 2) {
     font-weight: 500;
@@ -241,48 +213,18 @@ const ItemRow = styled.div`
   ${baseRow}
 `;
 
-const TotalsRow = styled.div`
-  ${baseRow}
-
-  > div {
-    background: ${({ theme }) => theme.colors.canvasSoft};
-    border-top: 1px solid ${({ theme }) => theme.colors.hairlineStrong};
-  }
-  > div:nth-child(1) {
-    font-family: ${({ theme }) => theme.typography.monoCaps.family};
-    font-size: ${({ theme }) => theme.typography.monoCaps.size};
-    font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
-    text-transform: uppercase;
-    letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
-    color: ${({ theme }) => theme.colors.body};
-  }
-  > div:nth-child(n + 2) {
-    font-weight: 500;
-  }
-`;
-
 const GrandRow = styled.div`
   ${baseRow}
 
+  /* Grand total (Net worth): same size as the section headings (Inter 14px),
+     semibold — the dark band carries the emphasis, not an oversized type size. */
   > div {
     background: ${({ theme }) => theme.colors.primary};
     color: ${({ theme }) => theme.colors.onPrimary};
     border-color: ${({ theme }) => theme.colors.primary};
     padding-top: ${({ theme }) => theme.spacing.md};
     padding-bottom: ${({ theme }) => theme.spacing.md};
-  }
-  > div:nth-child(1) {
-    font-family: ${({ theme }) => theme.typography.monoCaps.family};
-    font-size: ${({ theme }) => theme.typography.monoCaps.size};
-    font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
-    text-transform: uppercase;
-    letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
-  }
-  > div:nth-child(n + 2) {
-    font-size: ${({ theme }) => theme.typography.amountXl.size};
-    font-weight: ${({ theme }) => theme.typography.amountXl.weight};
-    line-height: ${({ theme }) => theme.typography.amountXl.lineHeight};
-    letter-spacing: ${({ theme }) => theme.typography.amountXl.letterSpacing};
+    font-weight: 600;
   }
 `;
 
@@ -1539,23 +1481,8 @@ export function BalanceSheet({
         <ToolbarSpacer />
       </Toolbar>
       <Sheet>
-        <HeadRow>
-          <SheetCell>Item</SheetCell>
-          <SheetCell align="right">Value</SheetCell>
-          <SheetCell>Notes</SheetCell>
-        </HeadRow>
         {renderSection("ASSET", "Assets", assetsTotal)}
-        <TotalsRow>
-          <SheetCell>Total assets</SheetCell>
-          <SheetCell align="right">{fmtAmount(assetsTotal)}</SheetCell>
-          <SheetCell />
-        </TotalsRow>
         {renderSection("LIABILITY", "Liabilities", liabilitiesTotal)}
-        <TotalsRow>
-          <SheetCell>Total liabilities</SheetCell>
-          <SheetCell align="right">{fmtAmount(liabilitiesTotal)}</SheetCell>
-          <SheetCell />
-        </TotalsRow>
         <GrandRow>
           <SheetCell>Net worth</SheetCell>
           <SheetCell

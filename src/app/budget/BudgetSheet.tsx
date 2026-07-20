@@ -7,7 +7,6 @@ import {
   SheetItemRow,
   SheetSectionRow,
   SheetSubheadRow,
-  SheetTotalsRow,
 } from "@/components/sheet/SheetRow";
 import {
   Toolbar,
@@ -102,13 +101,6 @@ type FocusedCell = {
 
 // Currency formatters live in @/lib/settings/currency and take the user's
 // currency code so the same symbol is rendered everywhere.
-
-const formatPct = (n: number) => `${n}%`;
-
-const toneFor = (n: number) => {
-  if (n === 0) return "dim" as const;
-  return n > 0 ? ("positive" as const) : ("negative" as const);
-};
 
 // ─── Styled in-cell inputs ──────────────────────────────────────────────────
 
@@ -1170,13 +1162,6 @@ export function BudgetSheet({
   // ─── Render ───────────────────────────────────────────────────────────────
 
   const renderItemRow = (item: SerializedItem) => {
-    const variance =
-      item.type === "INCOME"
-        ? item.actual - item.budget
-        : item.budget - item.actual;
-    const pct =
-      item.budget === 0 ? 0 : Math.round((item.actual / item.budget) * 100);
-
     return (
       <SheetItemRow
         key={item.id}
@@ -1229,14 +1214,6 @@ export function BudgetSheet({
             ),
             tone: item.actual === 0 ? "dim" : "default",
           },
-          variance: {
-            value: fmtSigned(variance),
-            tone: toneFor(variance),
-          },
-          variancePct: {
-            value: formatPct(pct),
-            tone: pct === 0 ? "dim" : "default",
-          },
         }}
         focusedCell={
           focusedCell?.itemId === item.id ? focusedCell.field : undefined
@@ -1254,7 +1231,6 @@ export function BudgetSheet({
           </>
         }
         lead="Click any cell to edit. Tab moves right, Enter drops down. Totals recalc as you type."
-        actions={<StatusPip state={pipState}>{pipText}</StatusPip>}
       />
 
       <Toolbar>
@@ -1468,6 +1444,7 @@ export function BudgetSheet({
           </ToolbarTool>
         </ToolbarGroup>
         <ToolbarSpacer />
+        <StatusPip state={pipState}>{pipText}</StatusPip>
       </Toolbar>
 
       <Sheet>
@@ -1478,8 +1455,6 @@ export function BudgetSheet({
           amounts={{
             budget: fmtAmount(incomeTotals.budget),
             actual: fmtAmount(incomeTotals.actual),
-            variance: fmtSigned(incomeTotals.variance),
-            variancePct: formatPct(incomeTotals.variancePct),
           }}
         />
         {incomeBuckets.map(({ cat, rows, totals }) => (
@@ -1513,30 +1488,17 @@ export function BudgetSheet({
               amounts={{
                 budget: fmtAmount(totals.budget),
                 actual: fmtAmount(totals.actual),
-                variance: fmtSigned(totals.variance),
-                variancePct: formatPct(totals.variancePct),
               }}
             />
             {rows.map((item) => renderItemRow(item))}
           </div>
         ))}
-        <SheetTotalsRow
-          label="Income subtotal"
-          amounts={{
-            budget: fmtAmount(incomeTotals.budget),
-            actual: fmtAmount(incomeTotals.actual),
-            variance: fmtSigned(incomeTotals.variance),
-            variancePct: formatPct(incomeTotals.variancePct),
-          }}
-        />
 
         <SheetSectionRow
           label="Expenses"
           amounts={{
             budget: fmtAmount(expenseTotals.budget),
             actual: fmtAmount(expenseTotals.actual),
-            variance: fmtSigned(expenseTotals.variance),
-            variancePct: formatPct(expenseTotals.variancePct),
           }}
         />
         {expenseBuckets.map(({ cat, rows, totals }) => (
@@ -1570,30 +1532,17 @@ export function BudgetSheet({
               amounts={{
                 budget: fmtAmount(totals.budget),
                 actual: fmtAmount(totals.actual),
-                variance: fmtSigned(totals.variance),
-                variancePct: formatPct(totals.variancePct),
               }}
             />
             {rows.map((item) => renderItemRow(item))}
           </div>
         ))}
-        <SheetTotalsRow
-          label="Expenses subtotal"
-          amounts={{
-            budget: fmtAmount(expenseTotals.budget),
-            actual: fmtAmount(expenseTotals.actual),
-            variance: fmtSigned(expenseTotals.variance),
-            variancePct: formatPct(expenseTotals.variancePct),
-          }}
-        />
 
         <SheetGrandRow
           label="Net income"
           amounts={{
             budget: fmtSigned(grand.budget),
             actual: fmtSigned(grand.actual),
-            variance: fmtSigned(grand.variance),
-            variancePct: "",
           }}
         />
       </Sheet>

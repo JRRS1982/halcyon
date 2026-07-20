@@ -1,14 +1,17 @@
 ---
 version: alpha
 name: Halcyon-design-system
-description: Halcyon's design language — a personal-finance app whose primary surface is a real spreadsheet (column headers, row indices, a formula bar, focused-cell selection, dark full-width section bands that group rows). Two faces carry every page — Inter for headlines and body, a system monospace face used uppercase for every label that touches data. One muted blue accent reserved for interaction and wayfinding; positive and negative variance amounts use sign-only muted green and red.
+description: Halcyon's design language — a personal-finance app whose primary surface is a real spreadsheet (column headers, row indices, a formula bar, focused-cell selection, dark full-width section bands that group rows). Two faces carry every page — Inter for headlines, body and the spreadsheet tables themselves, and a system monospace face used uppercase for the chrome around them (eyebrows, toolbar and button labels, the formula-cell reference, status pips). The sheet tables are unified single-font Inter so the grid reads cleanly; hierarchy comes from weight and size. One muted blue accent reserved for interaction and wayfinding; positive and negative variance amounts use sign-only muted green and red.
 
 # Type scale — only five sizes anywhere in the system:
 #   28 → page h1
 #   18 → section heading h2, grand-total amount
 #   14 → cell body, lead, nav brand, formula value
 #   13 → dense data UI — ledger/import tables, popover options, inline notes
-#   11 → ALL mono caps (column headers, section labels, eyebrows, button labels, status pips)
+#   11 → chrome mono caps (eyebrows, toolbar/button labels, formula-cell ref, status pips)
+#        NB: the sheet tables (budget, balance) are unified single-font Inter —
+#        their column headers / section / sub-head / totals labels do NOT use
+#        mono-caps; hierarchy there comes from weight + size.
 # (Chart internals — axis ticks, legends, tooltips — render at 11–12px inside the
 # chart surface and don't count against the scale.)
 # If a new size is needed, prefer adjusting one of these before introducing a sixth.
@@ -269,18 +272,20 @@ components:
     fontWeight: 500
 
   sheet-row-head:
-    description: "Column header row — Category · Budget · Actual · Difference · Spent. Mono-caps labels on canvas-soft, with a stronger hairline below."
+    description: "Column header row — Category · Budget · Actual. Inter medium labels (dim) on canvas-soft, with a stronger hairline below. The sheet tables use one font (Inter) throughout — hierarchy comes from weight/size, not a second face."
     backgroundColor: "{colors.canvas-soft}"
     textColor: "{colors.body}"
-    typography: "{typography.mono-caps}"
+    typography: "{typography.body-md}"
+    fontWeight: 500
     borderBottom: "1px solid {colors.hairline-strong}"
 
   sheet-row-section:
-    description: "Section group header (Income, Expenses). Full-width dark band — the page's primary visual separator. Mono-caps label, amount cells already populated with section roll-ups."
+    description: "Section group header (Income, Expenses). Full-width dark band — the page's primary visual separator. Inter semibold label, amount cells already populated with section roll-ups."
     backgroundColor: "{colors.canvas-dark}"
     textColor: "{colors.on-dark}"
     borderColor: "{colors.hairline-dark}"
-    labelTypography: "{typography.mono-caps}"
+    labelTypography: "{typography.body-md}"
+    labelFontWeight: 600
     valueTypography: "{typography.amount-strong}"
     padding: "{spacing.md} {spacing.md}"
 
@@ -296,21 +301,23 @@ components:
     padding: "{spacing.sm} {spacing.md}"
 
   sheet-row-totals:
-    description: "Section subtotal row (Income subtotal, Expenses subtotal). Soft canvas, stronger top hairline, mono-caps label, medium-weight amount."
+    description: "Section subtotal row (Income subtotal, Expenses subtotal). Soft canvas, stronger top hairline, Inter semibold label, semibold amount."
     backgroundColor: "{colors.canvas-soft}"
     textColor: "{colors.ink}"
     borderTop: "1px solid {colors.hairline-strong}"
-    labelTypography: "{typography.mono-caps}"
+    labelTypography: "{typography.body-md}"
+    labelFontWeight: 600
     labelColor: "{colors.body}"
     valueTypography: "{typography.amount-strong}"
 
   sheet-row-grand:
-    description: "Grand total row at the very bottom (Net income). Black band, mono-caps label, large amount. The single heaviest moment on the page."
+    description: "Grand total row at the very bottom (Net income / Net worth). Black band, Inter semibold at the same size as the section headings — the dark band carries the emphasis, not an oversized type size."
     backgroundColor: "{colors.primary}"
     textColor: "{colors.on-primary}"
     borderColor: "{colors.primary}"
-    labelTypography: "{typography.mono-caps}"
-    valueTypography: "{typography.amount-xl}"
+    labelTypography: "{typography.body-md}"
+    labelFontWeight: 600
+    valueTypography: "{typography.amount-strong}"
     padding: "{spacing.md} {spacing.md}"
 
   period-tab:
