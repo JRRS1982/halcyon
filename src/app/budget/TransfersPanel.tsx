@@ -1,6 +1,6 @@
 "use client";
 
-import { type NumberFormat, formatSignedAmount } from "@/lib/settings/currency";
+import { type NumberFormat, formatAmount } from "@/lib/settings/currency";
 import type { TransferAccountRow } from "@/lib/transactions/transfers";
 import { useState } from "react";
 import styled from "styled-components";
@@ -46,10 +46,9 @@ const Row = styled.button`
   text-align: left;
 `;
 
-const Net = styled.span<{ $negative: boolean }>`
+const Net = styled.span`
   font-variant-numeric: tabular-nums;
-  color: ${({ $negative, theme }) =>
-    $negative ? theme.colors.ink : theme.colors.positive};
+  color: ${({ theme }) => theme.colors.ink};
 `;
 
 const Parts = styled.div`
@@ -107,8 +106,9 @@ export function TransfersPanel({
               <span>
                 {open === row.accountId ? "▾" : "▸"} {row.accountName}
               </span>
-              <Net $negative={row.net < 0}>
-                {formatSignedAmount(currency, row.net, numberFormat)}
+              <Net>
+                {formatAmount(currency, Math.abs(row.net), numberFormat)}
+                {row.net !== 0 && (row.net < 0 ? " out" : " in")}
               </Net>
             </Row>
             {open === row.accountId && (
@@ -116,10 +116,10 @@ export function TransfersPanel({
                 {row.counterparties.map((part) => (
                   <PartRow key={part.accountId}>
                     <span>
-                      {part.net < 0 ? "→" : "←"} {part.accountName}
+                      {part.net < 0 ? "To" : "From"} {part.accountName}
                     </span>
-                    <Net $negative={part.net < 0}>
-                      {formatSignedAmount(currency, part.net, numberFormat)}
+                    <Net>
+                      {formatAmount(currency, Math.abs(part.net), numberFormat)}
                     </Net>
                   </PartRow>
                 ))}

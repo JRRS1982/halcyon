@@ -320,8 +320,9 @@ export function CategoryCombobox({
     close();
   };
 
-  // Sign decides the arrow: negative leaves this account (→), positive arrives (←).
-  const transferArrow = defaultType === "EXPENSE" ? "→" : "←";
+  // Sign decides the direction word: an outflow is a transfer "to" the other
+  // account, an inflow is a transfer "from" it.
+  const transferWord = defaultType === "EXPENSE" ? "to" : "from";
 
   return (
     <Wrap
@@ -340,7 +341,7 @@ export function CategoryCombobox({
           </>
         ) : transferAccount ? (
           <>
-            <Muted>Transfer {transferArrow}</Muted> {transferAccount.name}
+            <Muted>Transfer {transferWord}</Muted> {transferAccount.name}
           </>
         ) : (
           <Muted>— Uncategorized —</Muted>
@@ -496,7 +497,7 @@ export function CategoryCombobox({
                     onClick={() => chooseAccount(a.id)}
                   >
                     <span>{a.name}</span>
-                    <OptionMeta>{transferArrow}</OptionMeta>
+                    <OptionMeta>{transferWord}</OptionMeta>
                   </Option>
                 ))}
                 {accountMatches.length === 0 && !canCreateAccount && (
