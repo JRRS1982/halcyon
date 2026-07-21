@@ -69,6 +69,7 @@ export default async function PlanPage() {
       monthlyRepayment: Number(l.monthlyRepayment),
       startAge: l.startAge,
       endAge: l.endAge,
+      linkedAssetId: l.linkedAssetId,
     })),
     incomes: plan.incomes.map((i) => ({
       id: i.id,

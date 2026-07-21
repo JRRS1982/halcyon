@@ -202,6 +202,20 @@ export async function updatePlanLiability(
 ): Promise<void> {
   const userId = await requireUserId();
   const p = updatePlanLiabilitySchema.parse(input);
+
+  if (p.linkedAssetId !== null) {
+    const asset = await prisma.planAsset.findFirst({
+      where: {
+        id: p.linkedAssetId,
+        deletedAt: null,
+        plan: { userId, deletedAt: null },
+      },
+      select: { wrapper: true },
+    });
+    if (!asset || asset.wrapper !== "PROPERTY")
+      throw new Error("Linked asset must be a property");
+  }
+
   const res = await prisma.planLiability.updateMany({
     where: {
       id: p.liabilityId,
@@ -215,6 +229,7 @@ export async function updatePlanLiability(
       monthlyRepayment: p.monthlyRepayment,
       startAge: p.startAge,
       endAge: p.endAge,
+      linkedAssetId: p.linkedAssetId,
     },
   });
   if (res.count === 0) throw new Error("Liability not found");
