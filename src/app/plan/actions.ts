@@ -267,6 +267,96 @@ export async function createPlanAsset(): Promise<string> {
   return row.id;
 }
 
+export async function createPlanProperty(): Promise<string> {
+  const userId = await requireUserId();
+  const plan = await requirePrimaryPlan(userId);
+  const max = await prisma.planAsset.aggregate({
+    where: { planId: plan.id, deletedAt: null },
+    _max: { sortOrder: true },
+  });
+  const row = await prisma.planAsset.create({
+    data: {
+      planId: plan.id,
+      label: "New property",
+      wrapper: "PROPERTY",
+      openingValue: 0,
+      annualContribution: 0,
+      drawdownPriority: 0,
+      sortOrder: (max._max.sortOrder ?? -1) + 1,
+    },
+  });
+  revalidatePath("/plan");
+  return row.id;
+}
+
+const createMortgageForPropertySchema = z.object({
+  assetId: z.string().uuid(),
+});
+
+// Attaches a mortgage (liability + repayment expense) to an existing property.
+// The repayment expense owns the payment amount; timing lives on the liability.
+export async function createMortgageForProperty(input: {
+  assetId: string;
+}): Promise<string> {
+  const userId = await requireUserId();
+  const { assetId } = createMortgageForPropertySchema.parse(input);
+  const id = await prisma.$transaction(async (tx) => {
+    const property = await tx.planAsset.findFirst({
+      where: {
+        id: assetId,
+        wrapper: "PROPERTY",
+        deletedAt: null,
+        plan: { userId, deletedAt: null },
+      },
+      select: { planId: true },
+    });
+    if (!property) throw new Error("Property not found");
+
+    const maxL = await tx.planLiability.aggregate({
+      where: { planId: property.planId, deletedAt: null },
+      _max: { sortOrder: true },
+    });
+    const liability = await tx.planLiability.create({
+      data: {
+        planId: property.planId,
+        label: "Mortgage",
+        openingBalance: 0,
+        interestPct: 0,
+        monthlyRepayment: 0,
+        linkedAssetId: assetId,
+        sortOrder: (maxL._max.sortOrder ?? -1) + 1,
+      },
+    });
+
+    const maxE = await tx.planExpense.aggregate({
+      where: { planId: property.planId, deletedAt: null },
+      _max: { sortOrder: true },
+    });
+    await tx.planExpense.create({
+      data: {
+        planId: property.planId,
+        label: "Mortgage repayment",
+        category: null,
+        annualAmount: 0,
+        inflationLinked: false,
+        liabilityId: liability.id,
+        sortOrder: (maxE._max.sortOrder ?? -1) + 1,
+      },
+    });
+    return liability.id;
+  });
+  revalidatePath("/plan");
+  return id;
+}
+
+// Creates a fresh property + mortgage + repayment trio; returns the property id
+// so the caller can open the shared property card.
+export async function createMortgage(): Promise<string> {
+  const assetId = await createPlanProperty();
+  await createMortgageForProperty({ assetId });
+  return assetId;
+}
+
 export async function createPlanLiability(): Promise<string> {
   const userId = await requireUserId();
   const plan = await requirePrimaryPlan(userId);
@@ -371,7 +461,7 @@ export async function deletePlanLiability(input: {
   await prisma.$transaction(async (tx) => {
     const res = await tx.planLiability.updateMany({
       where: { id, deletedAt: null, plan: { userId, deletedAt: null } },
-      data: { deletedAt: new Date() },
+      data: { deletedAt: new Date(), linkedAssetId: null },
     });
     if (res.count === 0) throw new Error("Liability not found");
     // The repayment can't outlive the debt: cascade the soft delete.
