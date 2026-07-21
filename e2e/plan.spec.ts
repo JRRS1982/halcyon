@@ -131,8 +131,10 @@ test("plan: dragging an event marker (keyboard) persists its age", async ({
   await page.keyboard.press("ArrowRight");
   await expect(marker).toHaveAttribute("aria-valuenow", String(before + 1));
 
-  // Commit-on-keyup persists; the new age survives a full page reload.
-  await expect(page.getByRole("heading", { name: "Your plan" })).toBeVisible();
+  // Commit-on-keyup persists via a server action + router.refresh(); wait for
+  // that round-trip to settle before reloading, else the reload can race the
+  // write and read the stale age back. Then confirm it survives the reload.
+  await page.waitForLoadState("networkidle");
   await page.reload();
   await expect(
     page.getByRole("slider", { name: /new car age/i }),
@@ -200,8 +202,10 @@ test("plan: dragging a bar's end handle (keyboard) persists the age", async ({
   await page.keyboard.press("ArrowLeft");
   await expect(handle).toHaveAttribute("aria-valuenow", String(before - 1));
 
-  // Commit-on-keyup persists; the new end age survives a full page reload.
-  await expect(page.getByRole("heading", { name: "Your plan" })).toBeVisible();
+  // Commit-on-keyup persists via a server action + router.refresh(); wait for
+  // that round-trip to settle before reloading, else the reload can race the
+  // write and read the stale age back. Then confirm it survives the reload.
+  await page.waitForLoadState("networkidle");
   await page.reload();
   await expect(
     page.getByRole("slider", { name: /salary end age/i }),
@@ -384,6 +388,9 @@ test("plan: create, edit assumptions/assets, and the data-loss guard holds", asy
   // A liability added via the add button appears on the timeline too.
   const liabilityPanel = page.locator("section", { hasText: "Liabilities" });
   await liabilityPanel.getByRole("button", { name: "+ Add liability" }).click();
+  // Wait for the create + router.refresh() round-trip so the new bar has
+  // rendered on the timeline before asserting.
+  await page.waitForLoadState("networkidle");
   await expect(timeline.getByText("New liability")).toBeVisible();
 
   await page.screenshot({ path: "test-results/plan-1b.png", fullPage: true });
