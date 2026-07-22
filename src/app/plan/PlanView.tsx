@@ -85,6 +85,10 @@ export function PlanView({
   const open = (kind: Kind) => (id: string) => setSelected({ kind, id });
   const close = () => setSelected(null);
 
+  const properties = plan.assets
+    .filter((a) => a.wrapper === "PROPERTY")
+    .map((a) => ({ id: a.id, label: a.label }));
+
   const asset =
     selected?.kind === "asset"
       ? plan.assets.find((a) => a.id === selected.id)
@@ -255,6 +259,7 @@ export function PlanView({
           events={plan.events}
           currency={currency}
           numberFormat={numberFormat}
+          properties={properties}
           onOpen={open("event")}
         />
       </Cards>
@@ -302,7 +307,9 @@ export function PlanView({
                 onOpenLiability={open("liability")}
               />
             ) : null}
-            {event ? <EventFields event={event} /> : null}
+            {event ? (
+              <EventFields event={event} properties={properties} />
+            ) : null}
           </>
         )}
       </PlanDrawer>

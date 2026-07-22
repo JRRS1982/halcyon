@@ -10,9 +10,16 @@ import { DrawerSection, Field } from "./PlanDrawer";
 import { AddRowButton } from "./RowControls";
 import { SummaryList, SummaryRow } from "./SummaryRow";
 import { createPlanEvent, updatePlanEvent } from "./actions";
-import type { EventDirection, SerializedPlanEvent } from "./serialized";
+import type {
+  EventDirection,
+  EventKind,
+  SerializedPlanEvent,
+} from "./serialized";
 
 const DIRECTIONS: EventDirection[] = ["INFLOW", "OUTFLOW"];
+const EVENT_KINDS: EventKind[] = ["MANUAL", "PROPERTY_SALE"];
+
+type PlanProperty = { id: string; label: string };
 
 const Panel = styled.section`
   border: 1px solid ${({ theme }) => theme.colors.hairline};
@@ -37,8 +44,29 @@ const Err = styled.p`
   font-size: 13px;
   margin: 0 ${({ theme }) => theme.spacing.xl} ${({ theme }) => theme.spacing.md};
 `;
+const Hint = styled.p`
+  color: ${({ theme }) => theme.colors.dim};
+  font-size: 12px;
+  margin: 0;
+`;
+// A minimal id→label picker: SelectCell only ever shows its raw value as both
+// the option value and its text, which is fine for the MANUAL/PROPERTY_SALE
+// toggle but not for a property, whose id isn't fit for display.
+const PropertySelect = styled.select`
+  width: 100%;
+  border: 1px solid ${({ theme }) => theme.colors.hairline};
+  border-radius: ${({ theme }) => theme.rounded.sm};
+  padding: ${({ theme }) => theme.spacing.xs};
+  font-size: 13px;
+`;
 
-export function EventFields({ event }: { event: SerializedPlanEvent }) {
+export function EventFields({
+  event,
+  properties,
+}: {
+  event: SerializedPlanEvent;
+  properties: PlanProperty[];
+}) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
 
@@ -61,6 +89,8 @@ export function EventFields({ event }: { event: SerializedPlanEvent }) {
     }
   };
 
+  const isSale = event.kind === "PROPERTY_SALE";
+
   return (
     <>
       {error ? <Err>{error}</Err> : null}
@@ -77,19 +107,59 @@ export function EventFields({ event }: { event: SerializedPlanEvent }) {
             onCommit={(v) => save({ ...event, age: v ?? event.age })}
           />
         </Field>
-        <Field label="Direction">
+        <Field label="Type">
           <SelectCell
-            value={event.direction}
-            options={DIRECTIONS}
-            onCommit={(v) => save({ ...event, direction: v })}
+            value={event.kind}
+            options={EVENT_KINDS}
+            onCommit={(v) =>
+              save({
+                ...event,
+                kind: v,
+                // Switching to a sale needs a non-null assetId to pass
+                // server validation, so default to the first property when
+                // none is picked yet; the picker below lets it be changed.
+                assetId:
+                  v === "MANUAL"
+                    ? null
+                    : (event.assetId ?? properties[0]?.id ?? null),
+              })
+            }
           />
         </Field>
-        <Field label="Amount">
-          <NumberCell
-            value={event.amount}
-            onCommit={(v) => save({ ...event, amount: v ?? event.amount })}
-          />
-        </Field>
+        {isSale ? (
+          properties.length > 0 ? (
+            <Field label="Property">
+              <PropertySelect
+                value={event.assetId ?? ""}
+                onChange={(e) => save({ ...event, assetId: e.target.value })}
+              >
+                {properties.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.label}
+                  </option>
+                ))}
+              </PropertySelect>
+            </Field>
+          ) : (
+            <Hint>Add a property first</Hint>
+          )
+        ) : (
+          <>
+            <Field label="Direction">
+              <SelectCell
+                value={event.direction}
+                options={DIRECTIONS}
+                onCommit={(v) => save({ ...event, direction: v })}
+              />
+            </Field>
+            <Field label="Amount">
+              <NumberCell
+                value={event.amount}
+                onCommit={(v) => save({ ...event, amount: v ?? event.amount })}
+              />
+            </Field>
+          </>
+        )}
       </DrawerSection>
     </>
   );
@@ -99,11 +169,13 @@ export function EventsTable({
   events,
   currency,
   numberFormat,
+  properties,
   onOpen,
 }: {
   events: SerializedPlanEvent[];
   currency: string;
   numberFormat: NumberFormat;
+  properties: PlanProperty[];
   onOpen: (id: string) => void;
 }) {
   const router = useRouter();
@@ -111,6 +183,14 @@ export function EventsTable({
     const id = await createPlanEvent();
     router.refresh();
     onOpen(id);
+  };
+
+  const secondary = (ev: SerializedPlanEvent) => {
+    if (ev.kind === "PROPERTY_SALE") {
+      const label = properties.find((p) => p.id === ev.assetId)?.label ?? "?";
+      return `age ${ev.age} · sale of ${label}`;
+    }
+    return `age ${ev.age} · ${ev.direction === "INFLOW" ? "+" : "−"}${formatAmount(currency, ev.amount, numberFormat)}`;
   };
 
   return (
@@ -124,7 +204,7 @@ export function EventsTable({
             <SummaryRow
               key={ev.id}
               primary={ev.label}
-              secondary={`age ${ev.age} · ${ev.direction === "INFLOW" ? "+" : "−"}${formatAmount(currency, ev.amount, numberFormat)}`}
+              secondary={secondary(ev)}
               onOpen={() => onOpen(ev.id)}
             />
           ))}
