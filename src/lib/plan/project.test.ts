@@ -639,4 +639,52 @@ describe("PROPERTY_SALE event", () => {
     const p = project(input);
     expect(wrapperTotal(at(p, 1), "CASH")).toBe(200000);
   });
+
+  it("does not lose sale proceeds when the property is the plan's only asset", () => {
+    // No CASH, no other drawable asset — the fallback synthetic cash sink
+    // must catch the net proceeds instead of them being deposited back into
+    // (and then zeroed with) the sold property.
+    const input = base({
+      currentAge: 40,
+      planToAge: 42,
+      defaultReturnPct: 0,
+      inflationPct: 0,
+      assets: [
+        {
+          id: "home",
+          label: "Home",
+          wrapper: "PROPERTY",
+          openingValue: 300000,
+          expectedReturnPct: 0,
+          drawdownPriority: 0,
+        },
+      ],
+      liabilities: [
+        {
+          id: "m",
+          label: "Mortgage",
+          openingBalance: 100000,
+          interestPct: 0,
+          monthlyRepayment: 0,
+          linkedAssetId: "home",
+        },
+      ],
+      events: [
+        {
+          id: "sale",
+          label: "Downsize",
+          age: 41,
+          direction: "INFLOW",
+          amount: 0,
+          kind: "PROPERTY_SALE",
+          assetId: "home",
+        },
+      ],
+    });
+    const p = project(input);
+    expect(wrapperTotal(at(p, 1), "PROPERTY")).toBe(0);
+    expect(wrapperTotal(at(p, 1), "CASH")).toBe(200000);
+    expect(at(p, 1).liabilitiesTotal).toBe(0);
+    expect(at(p, 1).netWorth).toBe(200000);
+  });
 });

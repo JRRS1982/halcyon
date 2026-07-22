@@ -38,7 +38,7 @@ const plan: SerializedPlan = {
       monthlyRepayment: 1100,
       startAge: 45,
       endAge: 60,
-      linkedAssetId: null,
+      linkedAssetId: "a1",
       interestOnly: true,
     },
   ],
@@ -105,6 +105,7 @@ describe("serializedToPlanInput", () => {
     });
     expect(input.liabilities[0]?.startAge).toBe(45);
     expect(input.liabilities[0]?.interestOnly).toBe(true);
+    expect(input.liabilities[0]?.linkedAssetId).toBe("a1");
     expect(input.expenses[0]?.liabilityId).toBe("liab-1");
   });
 

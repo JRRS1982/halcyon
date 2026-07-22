@@ -1,5 +1,5 @@
 // src/lib/plan/project.ts
-import { contributionTargetId, fundDeficit } from "./assets";
+import { contributionTargetId, drawable, fundDeficit } from "./assets";
 import { amountThisYear, grow, round, sum } from "./helpers";
 import { liabilityStep } from "./liabilities";
 import { activeExpenses, activeIncome } from "./streams";
@@ -27,9 +27,16 @@ const projectYears = (
   input: PlanInput,
   returnDeltaPct = 0,
 ): YearProjection[] => {
-  // A plan with no assets gets an implicit cash account so inflows/surplus are
-  // never silently lost.
-  const runAssets = input.assets.length > 0 ? input.assets : SYNTHETIC_CASH;
+  // A plan with no assets — or with assets but none drawable (all PROPERTY) —
+  // gets an implicit cash account so inflows/surplus (including sale net
+  // proceeds) are never silently lost: contributionTargetId never targets a
+  // PROPERTY, and a sold property is zeroed the same year it receives money.
+  const runAssets =
+    input.assets.length === 0
+      ? SYNTHETIC_CASH
+      : input.assets.some(drawable)
+        ? input.assets
+        : [...input.assets, ...SYNTHETIC_CASH];
 
   const assetBal: Record<string, number> = {};
   for (const a of runAssets) assetBal[a.id] = a.openingValue;

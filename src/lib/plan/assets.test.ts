@@ -29,6 +29,13 @@ describe("contributionTargetId", () => {
   it("returns null when there are no assets", () => {
     expect(contributionTargetId([])).toBeNull();
   });
+  it("returns null when the only assets are PROPERTY (never a contribution target)", () => {
+    const assets = [
+      asset({ id: "house", wrapper: "PROPERTY", drawdownPriority: 0 }),
+      asset({ id: "flat", wrapper: "PROPERTY", drawdownPriority: 1 }),
+    ];
+    expect(contributionTargetId(assets)).toBeNull();
+  });
 });
 
 describe("fundDeficit", () => {
