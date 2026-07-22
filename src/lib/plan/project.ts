@@ -1,5 +1,5 @@
 // src/lib/plan/project.ts
-import { contributionTargetId, fundDeficit } from "./assets";
+import { contributionTargetId, drawable, fundDeficit } from "./assets";
 import { amountThisYear, grow, round, sum } from "./helpers";
 import { liabilityStep } from "./liabilities";
 import { activeExpenses, activeIncome } from "./streams";
@@ -27,14 +27,32 @@ const projectYears = (
   input: PlanInput,
   returnDeltaPct = 0,
 ): YearProjection[] => {
-  // A plan with no assets gets an implicit cash account so inflows/surplus are
-  // never silently lost.
-  const runAssets = input.assets.length > 0 ? input.assets : SYNTHETIC_CASH;
+  // A plan with no assets — or with assets but none drawable (all PROPERTY) —
+  // gets an implicit cash account so inflows/surplus (including sale net
+  // proceeds) are never silently lost: contributionTargetId never targets a
+  // PROPERTY, and a sold property is zeroed the same year it receives money.
+  const runAssets =
+    input.assets.length === 0
+      ? SYNTHETIC_CASH
+      : input.assets.some(drawable)
+        ? input.assets
+        : [...input.assets, ...SYNTHETIC_CASH];
 
   const assetBal: Record<string, number> = {};
   for (const a of runAssets) assetBal[a.id] = a.openingValue;
   const liabBal: Record<string, number> = {};
   for (const l of input.liabilities) liabBal[l.id] = l.openingBalance;
+
+  // Property sales: assetId -> { age, liabilityId? }. A sale zeroes the property
+  // (and its linked mortgage) from its age on, and pays net proceeds into cash.
+  const mortgageByAsset = new Map<string, string>();
+  for (const l of input.liabilities)
+    if (l.linkedAssetId !== undefined)
+      mortgageByAsset.set(l.linkedAssetId, l.id);
+  const saleAgeByAsset = new Map<string, number>();
+  for (const e of input.events)
+    if (e.kind === "PROPERTY_SALE" && e.assetId !== undefined)
+      saleAgeByAsset.set(e.assetId, e.age);
 
   // Expenses linked to a liability are that liability's repayment: they fund
   // liabilityStep (REPAYMENT outflow) instead of the category totals, so the
@@ -91,15 +109,32 @@ const projectYears = (
 
     const eventsNet = sum(
       input.events
-        .filter((e) => e.age === age)
+        .filter((e) => e.age === age && e.kind !== "PROPERTY_SALE")
         .map((e) => (e.direction === "INFLOW" ? e.amount : -e.amount)),
     );
+
+    // Property sales that land this year: liquidate to cash net of the mortgage.
+    let saleNet = 0;
+    for (const e of input.events) {
+      if (
+        e.kind !== "PROPERTY_SALE" ||
+        e.age !== age ||
+        e.assetId === undefined
+      )
+        continue;
+      const propVal = assetBal[e.assetId] ?? 0;
+      const liabId = mortgageByAsset.get(e.assetId);
+      const mortBal = liabId ? (liabBal[liabId] ?? 0) : 0;
+      saleNet += propVal - mortBal;
+      assetBal[e.assetId] = 0;
+      if (liabId) liabBal[liabId] = 0;
+    }
 
     // Contributions are funded only from the year's operating cash flow; they
     // never force a (taxable) drawdown. If cash flow can't cover the full
     // requested amount, contributions scale down proportionally.
     const preContribCashflow =
-      netIncome - expenses.total - liab.repaid + eventsNet;
+      netIncome - expenses.total - liab.repaid + eventsNet + saleNet;
     const requested = runAssets
       .map((a) => {
         const endAge = a.contributionEndAge ?? input.retirementAge;
@@ -155,6 +190,11 @@ const projectYears = (
     const yearTax = incTax + withdrawalTax;
 
     for (const a of runAssets) {
+      const saleAge = saleAgeByAsset.get(a.id);
+      if (saleAge !== undefined && age >= saleAge) {
+        assetBal[a.id] = 0;
+        continue;
+      }
       assetBal[a.id] = grow(
         assetBal[a.id] ?? 0,
         (a.expectedReturnPct ?? input.defaultReturnPct) -

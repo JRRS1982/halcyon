@@ -134,6 +134,8 @@ export function usePlanProjection(
         age,
         direction: ev.direction,
         amount: ev.amount,
+        kind: ev.kind,
+        assetId: ev.assetId,
       });
       router.refresh();
     },

@@ -109,6 +109,8 @@ export function toPlanInput(
       age: ev.age,
       direction: ev.direction,
       amount: num(ev.amount),
+      kind: ev.kind,
+      assetId: ev.assetId ?? undefined,
     })),
   };
 }

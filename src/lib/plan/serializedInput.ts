@@ -3,9 +3,11 @@
 // plan the client holds into the engine's PlanInput, so the pure engine can
 // re-run in the browser for the real-time sliders. Parity with toPlanInput is
 // covered by serializedInput.test.ts.
-// interestOnly IS wired through here: it changes engine maths (interest-only
-// balances stay flat), so the client live projection must see it to match the
-// server. Only linkedAssetId remains omitted (still unused by the engine).
+// interestOnly and linkedAssetId ARE wired through here: interestOnly changes
+// engine maths (interest-only balances stay flat), and linkedAssetId is read
+// by project.ts to net + clear a mortgage against its property on a
+// PROPERTY_SALE — the client live projection must see both to match the
+// server. Nothing remains intentionally omitted.
 import type { SerializedPlan } from "@/app/plan/serialized";
 import type { PlanInput } from "@/lib/plan";
 import { growthOf } from "./toPlanInput";
@@ -52,6 +54,7 @@ export function serializedToPlanInput(
       monthlyRepayment: x.monthlyRepayment,
       startAge: x.startAge ?? undefined,
       endAge: x.endAge ?? undefined,
+      linkedAssetId: x.linkedAssetId ?? undefined,
       interestOnly: x.interestOnly,
     })),
     incomes: plan.incomes.map((x) => ({
@@ -80,6 +83,8 @@ export function serializedToPlanInput(
       age: x.age,
       direction: x.direction,
       amount: x.amount,
+      kind: x.kind,
+      assetId: x.assetId ?? undefined,
     })),
   };
 }

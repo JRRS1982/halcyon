@@ -2,7 +2,7 @@ import { grossUp, isTaxableOnWithdrawal } from "./tax";
 // src/lib/plan/assets.ts
 import type { AssetInput } from "./types";
 
-const drawable = (a: AssetInput): boolean => a.wrapper !== "PROPERTY";
+export const drawable = (a: AssetInput): boolean => a.wrapper !== "PROPERTY";
 
 // Earliest age an asset may be drawn. PENSION defaults to 57 when unset; other
 // wrappers are unrestricted unless an explicit minAccessAge is given.
@@ -10,15 +10,17 @@ const accessLimit = (a: AssetInput): number | null =>
   a.minAccessAge ?? (a.wrapper === "PENSION" ? 57 : null);
 
 // Where leftover surplus sits: the CASH buffer. Falls back to the most-liquid
-// non-PROPERTY asset (lowest drawdownPriority), then the first asset; null only
-// when there are no assets.
+// non-PROPERTY asset (lowest drawdownPriority); null when there are no assets,
+// or when none are drawable (all PROPERTY) — a PROPERTY must never be a
+// contribution target, since a later sale zeroes it and would silently erase
+// the surplus deposited there.
 export const contributionTargetId = (assets: AssetInput[]): string | null => {
   if (assets.length === 0) return null;
   const cash = assets.find((a) => a.wrapper === "CASH");
   if (cash) return cash.id;
   const liquid = assets.filter(drawable);
-  const pool = liquid.length > 0 ? liquid : assets;
-  return pool.reduce((best, a) =>
+  if (liquid.length === 0) return null;
+  return liquid.reduce((best, a) =>
     a.drawdownPriority < best.drawdownPriority ? a : best,
   ).id;
 };

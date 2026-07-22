@@ -38,7 +38,7 @@ const plan: SerializedPlan = {
       monthlyRepayment: 1100,
       startAge: 45,
       endAge: 60,
-      linkedAssetId: null,
+      linkedAssetId: "a1",
       interestOnly: true,
     },
   ],
@@ -68,7 +68,15 @@ const plan: SerializedPlan = {
     },
   ],
   events: [
-    { id: "ev1", label: "Car", age: 50, direction: "OUTFLOW", amount: 20000 },
+    {
+      id: "ev1",
+      label: "Car",
+      age: 50,
+      direction: "OUTFLOW",
+      amount: 20000,
+      kind: "PROPERTY_SALE",
+      assetId: "22222222-2222-4222-8222-222222222222",
+    },
   ],
 };
 
@@ -92,9 +100,12 @@ describe("serializedToPlanInput", () => {
       age: 50,
       direction: "OUTFLOW",
       amount: 20000,
+      kind: "PROPERTY_SALE",
+      assetId: "22222222-2222-4222-8222-222222222222",
     });
     expect(input.liabilities[0]?.startAge).toBe(45);
     expect(input.liabilities[0]?.interestOnly).toBe(true);
+    expect(input.liabilities[0]?.linkedAssetId).toBe("a1");
     expect(input.expenses[0]?.liabilityId).toBe("liab-1");
   });
 

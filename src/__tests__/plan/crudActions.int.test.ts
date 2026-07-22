@@ -228,6 +228,8 @@ describe("plan update actions for income/expense/event (integration)", () => {
       age: 72,
       direction: "OUTFLOW",
       amount: 25000,
+      kind: "MANUAL",
+      assetId: null,
     });
     const e = await prisma.planExpense.findUniqueOrThrow({
       where: { id: plan.expenses[0]?.id ?? "" },

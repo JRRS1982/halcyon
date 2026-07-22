@@ -102,6 +102,8 @@ describe("computeLiveBand", () => {
           age: 50,
           direction: "OUTFLOW",
           amount: 20000,
+          kind: "MANUAL",
+          assetId: null,
         },
       ],
     };
