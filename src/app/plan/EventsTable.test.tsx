@@ -92,6 +92,28 @@ describe("EventFields", () => {
     );
     expect(screen.getByText(/add a property first/i)).toBeInTheDocument();
   });
+
+  it("does not offer Property sale as a Type option when there are no properties", () => {
+    renderWithTheme(<EventFields event={manualEvent} properties={[]} />);
+    const select = screen.getByRole("combobox", {
+      name: /type/i,
+    }) as HTMLSelectElement;
+    const optionValues = Array.from(select.options).map((o) => o.value);
+    expect(optionValues).toEqual(["MANUAL"]);
+    expect(updatePlanEvent).not.toHaveBeenCalledWith(
+      expect.objectContaining({ assetId: null, kind: "PROPERTY_SALE" }),
+    );
+  });
+
+  it("still shows the hint for an existing sale event when properties is empty", () => {
+    renderWithTheme(
+      <EventFields
+        event={{ ...manualEvent, kind: "PROPERTY_SALE", assetId: "home" }}
+        properties={[]}
+      />,
+    );
+    expect(screen.getByText(/add a property first/i)).toBeInTheDocument();
+  });
 });
 
 describe("EventsTable", () => {

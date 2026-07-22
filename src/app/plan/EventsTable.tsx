@@ -90,6 +90,11 @@ export function EventFields({
   };
 
   const isSale = event.kind === "PROPERTY_SALE";
+  // Only offer the Property sale toggle when there's a property to sell —
+  // otherwise switching to it would auto-default assetId to null, which
+  // fails server validation and reverts the dropdown (see review fix).
+  const kindOptions: EventKind[] =
+    properties.length > 0 ? EVENT_KINDS : ["MANUAL"];
 
   return (
     <>
@@ -110,7 +115,7 @@ export function EventFields({
         <Field label="Type">
           <SelectCell
             value={event.kind}
-            options={EVENT_KINDS}
+            options={kindOptions}
             onCommit={(v) =>
               save({
                 ...event,
