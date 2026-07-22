@@ -6,10 +6,12 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import styled from "styled-components";
 import { NumberCell, TextCell } from "./EditableCell";
+import { MortgageBadge } from "./MortgageBadge";
 import { DrawerSection, Field } from "./PlanDrawer";
 import { AddRowButton } from "./RowControls";
 import { SummaryList, SummaryRow } from "./SummaryRow";
 import {
+  createMortgage,
   createPlanLiability,
   linkRepaymentExpense,
   unlinkRepaymentExpense,
@@ -201,17 +203,24 @@ export function LiabilitiesTable({
   currency,
   numberFormat,
   onOpen,
+  onAddMortgage,
 }: {
   liabilities: SerializedPlanLiability[];
   currency: string;
   numberFormat: NumberFormat;
   onOpen: (id: string) => void;
+  onAddMortgage: (assetId: string) => void;
 }) {
   const router = useRouter();
   const add = async () => {
     const id = await createPlanLiability();
     router.refresh();
     onOpen(id);
+  };
+  const addMortgage = async () => {
+    const assetId = await createMortgage();
+    router.refresh();
+    onAddMortgage(assetId);
   };
 
   return (
@@ -226,12 +235,18 @@ export function LiabilitiesTable({
               key={l.id}
               primary={l.label}
               secondary={`${formatAmount(currency, l.openingBalance, numberFormat)} · ${l.interestPct}%`}
+              badge={
+                l.linkedAssetId ? (
+                  <MortgageBadge>Mortgage</MortgageBadge>
+                ) : undefined
+              }
               onOpen={() => onOpen(l.id)}
             />
           ))}
         </SummaryList>
       )}
       <AddRowButton label="Add liability" onAdd={add} />
+      <AddRowButton label="Add mortgage" onAdd={addMortgage} />
     </Panel>
   );
 }

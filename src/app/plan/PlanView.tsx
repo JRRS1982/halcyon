@@ -14,6 +14,7 @@ import { ExpenseFields, ExpensesTable } from "./ExpensesTable";
 import { IncomeFields, IncomesTable } from "./IncomesTable";
 import { LiabilitiesTable, LiabilityFields } from "./LiabilitiesTable";
 import { PlanDrawer } from "./PlanDrawer";
+import { PropertyFields } from "./PropertyFields";
 import { Timeline } from "./Timeline";
 import { VerdictBanner } from "./VerdictBanner";
 import {
@@ -106,9 +107,42 @@ export function PlanView({
       : undefined;
   const target = asset ?? liability ?? income ?? expense ?? event;
 
-  const title = target ? ("label" in target ? target.label : "") : "";
-  const eyebrow =
-    asset !== undefined
+  // A record is "part of a property" when the selected asset is itself a
+  // PROPERTY, the selected liability is a mortgage (linkedAssetId), or the
+  // selected expense is that mortgage's repayment. All three route to the
+  // shared PropertyFields card for the underlying property.
+  const propertyAsset =
+    asset?.wrapper === "PROPERTY"
+      ? asset
+      : liability?.linkedAssetId
+        ? plan.assets.find((a) => a.id === liability.linkedAssetId)
+        : expense?.liabilityId
+          ? (() => {
+              const l = plan.liabilities.find(
+                (x) => x.id === expense.liabilityId,
+              );
+              return l?.linkedAssetId
+                ? plan.assets.find((a) => a.id === l.linkedAssetId)
+                : undefined;
+            })()
+          : undefined;
+  const propertyMortgage = propertyAsset
+    ? plan.liabilities.find((l) => l.linkedAssetId === propertyAsset.id)
+    : undefined;
+  const propertyRepayment = propertyMortgage
+    ? plan.expenses.find((e) => e.liabilityId === propertyMortgage.id)
+    : undefined;
+
+  const title = propertyAsset
+    ? propertyAsset.label
+    : target
+      ? "label" in target
+        ? target.label
+        : ""
+      : "";
+  const eyebrow = propertyAsset
+    ? "Property"
+    : asset !== undefined
       ? "Asset"
       : liability !== undefined
         ? "Liability"
@@ -185,6 +219,7 @@ export function PlanView({
           currency={currency}
           numberFormat={numberFormat}
           onOpen={open("liability")}
+          onAddMortgage={open("asset")}
         />
         <IncomesTable
           incomes={plan.incomes}
@@ -212,34 +247,45 @@ export function PlanView({
         title={title}
         onClose={close}
         onRemove={
-          selected?.kind === "expense" && expense?.liabilityId
+          propertyAsset ||
+          (selected?.kind === "expense" && expense?.liabilityId)
             ? undefined
             : onRemove
         }
       >
-        {asset ? <AssetFields asset={asset} /> : null}
-        {liability ? (
-          <LiabilityFields
-            liability={liability}
-            linkedExpense={plan.expenses.find(
-              (e) => e.liabilityId === liability.id,
-            )}
-            onOpenExpense={open("expense")}
+        {propertyAsset ? (
+          <PropertyFields
+            property={propertyAsset}
+            mortgage={propertyMortgage}
+            repayment={propertyRepayment}
           />
-        ) : null}
-        {income ? <IncomeFields income={income} /> : null}
-        {expense ? (
-          <ExpenseFields
-            expense={expense}
-            managedBy={
-              expense.liabilityId
-                ? plan.liabilities.find((l) => l.id === expense.liabilityId)
-                : undefined
-            }
-            onOpenLiability={open("liability")}
-          />
-        ) : null}
-        {event ? <EventFields event={event} /> : null}
+        ) : (
+          <>
+            {asset ? <AssetFields asset={asset} /> : null}
+            {liability ? (
+              <LiabilityFields
+                liability={liability}
+                linkedExpense={plan.expenses.find(
+                  (e) => e.liabilityId === liability.id,
+                )}
+                onOpenExpense={open("expense")}
+              />
+            ) : null}
+            {income ? <IncomeFields income={income} /> : null}
+            {expense ? (
+              <ExpenseFields
+                expense={expense}
+                managedBy={
+                  expense.liabilityId
+                    ? plan.liabilities.find((l) => l.id === expense.liabilityId)
+                    : undefined
+                }
+                onOpenLiability={open("liability")}
+              />
+            ) : null}
+            {event ? <EventFields event={event} /> : null}
+          </>
+        )}
       </PlanDrawer>
     </Shell>
   );
