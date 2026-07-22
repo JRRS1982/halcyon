@@ -445,11 +445,30 @@ export async function createPlanEvent(): Promise<string> {
 export async function deletePlanAsset(input: { id: string }): Promise<void> {
   const userId = await requireUserId();
   const { id } = deleteRowSchema.parse(input);
-  const res = await prisma.planAsset.updateMany({
-    where: { id, deletedAt: null, plan: { userId, deletedAt: null } },
-    data: { deletedAt: new Date() },
+  await prisma.$transaction(async (tx) => {
+    const res = await tx.planAsset.updateMany({
+      where: { id, deletedAt: null, plan: { userId, deletedAt: null } },
+      data: { deletedAt: new Date() },
+    });
+    if (res.count === 0) throw new Error("Asset not found");
+    // A mortgage cannot outlive its property: cascade the soft delete to the
+    // linked liability and its repayment expense.
+    const mortgages = await tx.planLiability.findMany({
+      where: { linkedAssetId: id, deletedAt: null },
+      select: { id: true },
+    });
+    if (mortgages.length > 0) {
+      const ids = mortgages.map((m) => m.id);
+      await tx.planLiability.updateMany({
+        where: { id: { in: ids } },
+        data: { deletedAt: new Date(), linkedAssetId: null },
+      });
+      await tx.planExpense.updateMany({
+        where: { liabilityId: { in: ids }, deletedAt: null },
+        data: { deletedAt: new Date() },
+      });
+    }
   });
-  if (res.count === 0) throw new Error("Asset not found");
   revalidatePath("/plan");
 }
 
