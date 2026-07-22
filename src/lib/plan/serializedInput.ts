@@ -80,6 +80,8 @@ export function serializedToPlanInput(
       age: x.age,
       direction: x.direction,
       amount: x.amount,
+      kind: x.kind,
+      assetId: x.assetId ?? undefined,
     })),
   };
 }

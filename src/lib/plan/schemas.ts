@@ -73,6 +73,7 @@ const INCOME_KIND = z.enum([
 const GROWTH_KIND = z.enum(["INFLATION", "FIXED", "NONE"]);
 const EXPENSE_CATEGORY = z.enum(["FIXED", "VARIABLE", "DISCRETIONARY"]);
 const EVENT_DIRECTION = z.enum(["INFLOW", "OUTFLOW"]);
+const EVENT_KIND = z.enum(["MANUAL", "PROPERTY_SALE"]);
 
 export const updatePlanIncomeSchema = z.object({
   incomeId: z.string().uuid(),
@@ -96,13 +97,19 @@ export const updatePlanExpenseSchema = z.object({
   inflationLinked: z.boolean(),
 });
 
-export const updatePlanEventSchema = z.object({
-  eventId: z.string().uuid(),
-  label: z.string().min(1),
-  age: z.number().int().min(0).max(120),
-  direction: EVENT_DIRECTION,
-  amount: z.number().min(0),
-});
+export const updatePlanEventSchema = z
+  .object({
+    eventId: z.string().uuid(),
+    label: z.string().min(1),
+    age: z.number().int().min(0).max(120),
+    direction: EVENT_DIRECTION,
+    amount: z.number().min(0),
+    kind: EVENT_KIND,
+    assetId: z.string().uuid().nullable(),
+  })
+  .refine((p) => p.kind !== "PROPERTY_SALE" || p.assetId !== null, {
+    message: "A property sale must reference a property",
+  });
 
 export const deleteRowSchema = z.object({ id: z.string().uuid() });
 

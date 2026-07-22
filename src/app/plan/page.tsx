@@ -99,6 +99,8 @@ export default async function PlanPage() {
       age: ev.age,
       direction: ev.direction,
       amount: Number(ev.amount),
+      kind: ev.kind,
+      assetId: ev.assetId,
     })),
   };
 

@@ -661,6 +661,20 @@ export async function updatePlanEvent(
 ): Promise<void> {
   const userId = await requireUserId();
   const p = updatePlanEventSchema.parse(input);
+
+  if (p.kind === "PROPERTY_SALE") {
+    const asset = await prisma.planAsset.findFirst({
+      where: {
+        id: p.assetId ?? "",
+        deletedAt: null,
+        plan: { userId, deletedAt: null },
+      },
+      select: { wrapper: true },
+    });
+    if (!asset || asset.wrapper !== "PROPERTY")
+      throw new Error("Sale must reference a property");
+  }
+
   const res = await prisma.planEvent.updateMany({
     where: {
       id: p.eventId,
@@ -672,6 +686,8 @@ export async function updatePlanEvent(
       age: p.age,
       direction: p.direction,
       amount: p.amount,
+      kind: p.kind,
+      assetId: p.kind === "PROPERTY_SALE" ? p.assetId : null,
     },
   });
   if (res.count === 0) throw new Error("Event not found");

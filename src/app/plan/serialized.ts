@@ -42,6 +42,7 @@ export type SerializedPlanLiability = {
 
 export type GrowthKind = "INFLATION" | "FIXED" | "NONE";
 export type EventDirection = "INFLOW" | "OUTFLOW";
+export type EventKind = "MANUAL" | "PROPERTY_SALE";
 
 export type SerializedPlanIncome = {
   id: string;
@@ -72,6 +73,8 @@ export type SerializedPlanEvent = {
   age: number;
   direction: EventDirection;
   amount: number;
+  kind: EventKind;
+  assetId: string | null;
 };
 
 export type SerializedPlan = {

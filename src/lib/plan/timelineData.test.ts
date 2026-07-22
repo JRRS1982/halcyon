@@ -51,6 +51,8 @@ const event = (over: Partial<SerializedPlanEvent>): SerializedPlanEvent => ({
   age: 50,
   direction: "OUTFLOW",
   amount: 1000,
+  kind: "MANUAL",
+  assetId: null,
   ...over,
 });
 

@@ -51,6 +51,8 @@ export function EventFields({ event }: { event: SerializedPlanEvent }) {
         age: next.age,
         direction: next.direction,
         amount: next.amount,
+        kind: next.kind,
+        assetId: next.assetId,
       });
       router.refresh();
     } catch (e) {
