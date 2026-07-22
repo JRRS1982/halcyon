@@ -363,6 +363,11 @@ enum PlanEventDirection {
   OUTFLOW
 }
 
+enum PlanEventKind {
+  MANUAL
+  PROPERTY_SALE
+}
+
 enum GrowthKind {
   INFLATION
   FIXED
@@ -416,8 +421,9 @@ model PlanAsset {
   updatedAt           DateTime         @updatedAt
   deletedAt           DateTime?
 
-  plan     Plan           @relation(fields: [planId], references: [id], onDelete: Cascade)
-  mortgage PlanLiability? @relation("MortgageProperty")
+  plan       Plan           @relation(fields: [planId], references: [id], onDelete: Cascade)
+  mortgage   PlanLiability? @relation("MortgageProperty")
+  saleEvents PlanEvent[]    @relation("EventProperty")
   @@index([planId])
 }
 
@@ -491,11 +497,14 @@ model PlanEvent {
   age       Int
   direction PlanEventDirection
   amount    Decimal            @default(0) @db.Decimal(14, 2)
+  kind      PlanEventKind      @default(MANUAL)
+  assetId   String?            @db.Uuid
   sortOrder Int                @default(0)
   createdAt DateTime           @default(now())
   updatedAt DateTime           @updatedAt
   deletedAt DateTime?
 
-  plan Plan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  plan      Plan       @relation(fields: [planId], references: [id], onDelete: Cascade)
+  saleAsset PlanAsset? @relation("EventProperty", fields: [assetId], references: [id], onDelete: SetNull)
   @@index([planId])
 }
