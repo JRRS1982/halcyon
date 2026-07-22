@@ -171,14 +171,17 @@ const projectYears = (
       contributed: round(contributedByAsset[a.id] ?? 0),
       withdrawn: round(withdrawnByAsset[a.id] ?? 0),
     }));
-    const liabilities = input.liabilities.map((l) => ({
-      id: l.id,
-      label: l.label,
-      value:
-        l.startAge !== undefined && age < l.startAge
-          ? 0
-          : round(liabBal[l.id] ?? 0),
-    }));
+    const liabilities = input.liabilities.map((l) => {
+      const notStarted = l.startAge !== undefined && age < l.startAge;
+      const split = liab.byLiability[l.id] ?? { interest: 0, principal: 0 };
+      return {
+        id: l.id,
+        label: l.label,
+        value: notStarted ? 0 : round(liabBal[l.id] ?? 0),
+        interest: round(split.interest),
+        principal: round(split.principal),
+      };
+    });
     const liabilitiesTotal = sum(liabilities.map((l) => l.value));
     const netWorth = sum(assets.map((a) => a.value)) - liabilitiesTotal;
 

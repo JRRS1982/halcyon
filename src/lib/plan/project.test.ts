@@ -513,6 +513,16 @@ describe("projectWithBand", () => {
       expect(years[0]?.liabilities[0]?.value).toBe(88000);
     });
 
+    it("reports the interest/principal split on each liability balance", () => {
+      const p = project(makeInput());
+      const y0 = at(p, 0);
+      const l = y0.liabilities[0];
+      if (!l) throw new Error("fixture");
+      expect((l.interest ?? 0) + (l.principal ?? 0)).toBeCloseTo(
+        y0.liabilityRepayments,
+      );
+    });
+
     it("stops the outflow once the debt is repaid", () => {
       const input = makeInput();
       input.liabilities = [

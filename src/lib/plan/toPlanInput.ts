@@ -181,6 +181,8 @@ export function toTodaysMoney(
     liabilities: y.liabilities.map((l) => ({
       ...l,
       value: deflate(l.value, y.age),
+      interest: deflate(l.interest, y.age),
+      principal: deflate(l.principal, y.age),
     })),
   }));
 
