@@ -47,6 +47,7 @@ const base = (id: string) => ({
   monthlyRepayment: 1200,
   startAge: null,
   endAge: null,
+  interestOnly: false,
 });
 
 describe("updatePlanLiability linkedAssetId", () => {

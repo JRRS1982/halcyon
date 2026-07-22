@@ -42,6 +42,7 @@ const mortgage = {
   startAge: null,
   endAge: null,
   linkedAssetId: "asset-1",
+  interestOnly: false,
 };
 const repayment = {
   id: "exp-1",

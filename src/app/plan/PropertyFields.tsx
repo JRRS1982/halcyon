@@ -85,6 +85,7 @@ export function PropertyFields({
         startAge: next.startAge,
         endAge: next.endAge,
         linkedAssetId: next.linkedAssetId,
+        interestOnly: next.interestOnly,
       }),
     );
 

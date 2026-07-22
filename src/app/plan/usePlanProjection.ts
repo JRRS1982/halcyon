@@ -183,6 +183,7 @@ export function usePlanProjection(
           startAge: next.startAge,
           endAge: next.endAge,
           linkedAssetId: l.linkedAssetId,
+          interestOnly: l.interestOnly,
         });
       }
       router.refresh();
