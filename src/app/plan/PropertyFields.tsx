@@ -54,6 +54,7 @@ export function PropertyFields({
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not save");
+      throw e;
     }
   };
 
