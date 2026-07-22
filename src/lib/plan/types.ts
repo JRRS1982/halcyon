@@ -87,6 +87,8 @@ export interface EventInput {
   age: number;
   direction: "INFLOW" | "OUTFLOW";
   amount: number;
+  kind?: "MANUAL" | "PROPERTY_SALE"; // default MANUAL
+  assetId?: string; // the property sold, when kind === "PROPERTY_SALE"
 }
 
 export interface PlanInput {
