@@ -427,6 +427,7 @@ model PlanLiability {
   label            String
   openingBalance   Decimal  @default(0) @db.Decimal(14, 2)
   interestPct      Decimal  @default(0) @db.Decimal(5, 2)
+  interestOnly     Boolean  @default(false)
   monthlyRepayment Decimal  @default(0) @db.Decimal(12, 2)
   startAge         Int?
   endAge           Int?
