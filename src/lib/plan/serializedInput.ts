@@ -2,8 +2,10 @@
 // Client-side counterpart of toPlanInput: maps the serialized (plain-number)
 // plan the client holds into the engine's PlanInput, so the pure engine can
 // re-run in the browser for the real-time sliders. Parity with toPlanInput is
-// covered by serializedInput.test.ts. (linkedAssetId is intentionally omitted:
-// it is not present on SerializedPlanLiability and is unused by the engine.)
+// covered by serializedInput.test.ts.
+// linkedAssetId IS present on SerializedPlanLiability but is intentionally
+// omitted here: the client-side live projection does not read it yet (Phase 1
+// makes no maths changes). Wire it in when the engine consumes the property link.
 import type { SerializedPlan } from "@/app/plan/serialized";
 import type { PlanInput } from "@/lib/plan";
 import { growthOf } from "./toPlanInput";

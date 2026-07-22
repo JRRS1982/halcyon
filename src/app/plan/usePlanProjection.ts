@@ -182,6 +182,7 @@ export function usePlanProjection(
           monthlyRepayment: l.monthlyRepayment,
           startAge: next.startAge,
           endAge: next.endAge,
+          linkedAssetId: l.linkedAssetId,
         });
       }
       router.refresh();

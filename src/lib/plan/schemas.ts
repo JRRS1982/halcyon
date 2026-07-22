@@ -46,6 +46,7 @@ export const updatePlanLiabilitySchema = z
     monthlyRepayment: z.number().min(0),
     startAge: z.number().int().min(0).max(120).nullable(),
     endAge: z.number().int().min(40).max(120).nullable(),
+    linkedAssetId: z.string().uuid().nullable(),
   })
   .refine(
     (p) => p.startAge === null || p.endAge === null || p.startAge <= p.endAge,

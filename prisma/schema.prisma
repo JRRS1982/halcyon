@@ -416,7 +416,8 @@ model PlanAsset {
   updatedAt           DateTime         @updatedAt
   deletedAt           DateTime?
 
-  plan Plan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  plan     Plan           @relation(fields: [planId], references: [id], onDelete: Cascade)
+  mortgage PlanLiability? @relation("MortgageProperty")
   @@index([planId])
 }
 
@@ -429,13 +430,14 @@ model PlanLiability {
   monthlyRepayment Decimal  @default(0) @db.Decimal(12, 2)
   startAge         Int?
   endAge           Int?
-  linkedAssetId    String?  @db.Uuid
+  linkedAssetId    String?  @unique @db.Uuid
   sortOrder        Int      @default(0)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   deletedAt        DateTime?
 
   plan             Plan         @relation(fields: [planId], references: [id], onDelete: Cascade)
+  linkedAsset      PlanAsset?   @relation("MortgageProperty", fields: [linkedAssetId], references: [id], onDelete: SetNull)
   repaymentExpense PlanExpense? @relation("LiabilityRepaymentExpense")
   @@index([planId])
 }

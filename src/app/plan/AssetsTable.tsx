@@ -7,10 +7,15 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import styled from "styled-components";
 import { NumberCell, SelectCell, TextCell } from "./EditableCell";
+import { MortgageBadge } from "./MortgageBadge";
 import { DrawerSection, Field } from "./PlanDrawer";
 import { AddRowButton } from "./RowControls";
 import { SummaryList, SummaryRow } from "./SummaryRow";
-import { createPlanAsset, updatePlanAsset } from "./actions";
+import {
+  createPlanAsset,
+  createPlanProperty,
+  updatePlanAsset,
+} from "./actions";
 import type { SerializedPlanAsset } from "./serialized";
 
 const Panel = styled.section`
@@ -168,6 +173,11 @@ export function AssetsTable({
     router.refresh();
     onOpen(id);
   };
+  const addProperty = async () => {
+    const id = await createPlanProperty();
+    router.refresh();
+    onOpen(id);
+  };
 
   return (
     <Panel>
@@ -181,12 +191,18 @@ export function AssetsTable({
               key={a.id}
               primary={a.label}
               secondary={`${a.wrapper} · ${formatAmount(currency, a.openingValue, numberFormat)}`}
+              badge={
+                a.wrapper === "PROPERTY" ? (
+                  <MortgageBadge>Property</MortgageBadge>
+                ) : undefined
+              }
               onOpen={() => onOpen(a.id)}
             />
           ))}
         </SummaryList>
       )}
       <AddRowButton label="Add asset" onAdd={add} />
+      <AddRowButton label="Add property" onAdd={addProperty} />
     </Panel>
   );
 }

@@ -38,6 +38,7 @@ const plan: SerializedPlan = {
       monthlyRepayment: 1100,
       startAge: 45,
       endAge: 60,
+      linkedAssetId: null,
     },
   ],
   incomes: [

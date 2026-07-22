@@ -1,6 +1,7 @@
 // src/app/plan/SummaryRow.tsx
 "use client";
 
+import type { ReactNode } from "react";
 import styled from "styled-components";
 
 export const SummaryList = styled.ul`
@@ -27,6 +28,11 @@ const Row = styled.button`
   &:hover { background: ${({ theme }) => theme.colors.canvasSoft}; }
   li:first-child & { border-top: 0; }
 `;
+const Left = styled.span`
+  display: flex;
+  align-items: center;
+  min-width: 0;
+`;
 const Primary = styled.span`
   font-size: 14px;
   font-weight: 500;
@@ -49,16 +55,21 @@ const Secondary = styled.span`
 export function SummaryRow({
   primary,
   secondary,
+  badge,
   onOpen,
 }: {
   primary: string;
   secondary: string;
+  badge?: ReactNode;
   onOpen: () => void;
 }) {
   return (
     <li>
       <Row type="button" aria-haspopup="dialog" onClick={onOpen}>
-        <Primary>{primary}</Primary>
+        <Left>
+          <Primary>{primary}</Primary>
+          {badge}
+        </Left>
         <Secondary>{secondary}</Secondary>
       </Row>
     </li>
