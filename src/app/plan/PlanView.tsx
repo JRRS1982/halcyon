@@ -132,6 +132,24 @@ export function PlanView({
   const propertyRepayment = propertyMortgage
     ? plan.expenses.find((e) => e.liabilityId === propertyMortgage.id)
     : undefined;
+  // The mortgage's current-year interest/principal split, sourced from the
+  // first projected year in which it's active (rather than year 0, which is
+  // 0/0/0 before the mortgage starts).
+  const mortgageSplit = propertyMortgage
+    ? (() => {
+        const y = liveBand.mid.find((yr) =>
+          yr.liabilities.some(
+            (l) =>
+              l.id === propertyMortgage.id &&
+              (l.interest !== 0 || l.principal !== 0 || l.value !== 0),
+          ),
+        );
+        const lb = y?.liabilities.find((l) => l.id === propertyMortgage.id);
+        return lb
+          ? { interest: lb.interest, principal: lb.principal }
+          : undefined;
+      })()
+    : undefined;
 
   const title = propertyAsset
     ? propertyAsset.label
@@ -258,6 +276,7 @@ export function PlanView({
             property={propertyAsset}
             mortgage={propertyMortgage}
             repayment={propertyRepayment}
+            currentSplit={mortgageSplit}
           />
         ) : (
           <>
