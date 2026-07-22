@@ -15,7 +15,8 @@ export const liabilityStep = (
   annualPayments?: Record<string, number>,
 ): LiabilityStepResult => {
   const next = { ...balances };
-  const byLiability: Record<string, { interest: number; principal: number }> = {};
+  const byLiability: Record<string, { interest: number; principal: number }> =
+    {};
   let repaid = 0;
   for (const l of liabilities) {
     const balance = next[l.id] ?? 0;

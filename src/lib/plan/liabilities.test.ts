@@ -77,12 +77,16 @@ describe("liabilityStep interest/principal split", () => {
     const r = liabilityStep([mortgage], { m: 100000 }, 40); // 5% on 100k = 5000 interest, 12000 paid
     expect(r.byLiability.m?.interest).toBeCloseTo(5000);
     expect(r.byLiability.m?.principal).toBeCloseTo(7000);
-    expect((r.byLiability.m?.interest ?? 0) + (r.byLiability.m?.principal ?? 0)).toBeCloseTo(
-      r.repaid,
-    );
+    expect(
+      (r.byLiability.m?.interest ?? 0) + (r.byLiability.m?.principal ?? 0),
+    ).toBeCloseTo(r.repaid);
   });
   it("counts an underpayment (below interest) as all interest, zero principal", () => {
-    const r = liabilityStep([{ ...mortgage, monthlyRepayment: 100 }], { m: 100000 }, 40); // 1200 paid < 5000 interest
+    const r = liabilityStep(
+      [{ ...mortgage, monthlyRepayment: 100 }],
+      { m: 100000 },
+      40,
+    ); // 1200 paid < 5000 interest
     expect(r.byLiability.m?.interest).toBeCloseTo(1200);
     expect(r.byLiability.m?.principal).toBe(0);
   });
@@ -94,10 +98,17 @@ describe("liabilityStep interestOnly", () => {
     const r = liabilityStep([io], { m: 100000 }, 40); // 5% interest-only
     expect(r.balances.m).toBeCloseTo(100000);
     expect(r.repaid).toBeCloseTo(5000);
-    expect(r.byLiability.m).toEqual({ interest: expect.closeTo(5000), principal: 0 });
+    expect(r.byLiability.m).toEqual({
+      interest: expect.closeTo(5000),
+      principal: 0,
+    });
   });
   it("ignores the repayment amount when interest-only", () => {
-    const r = liabilityStep([{ ...io, monthlyRepayment: 9999 }], { m: 100000 }, 40);
+    const r = liabilityStep(
+      [{ ...io, monthlyRepayment: 9999 }],
+      { m: 100000 },
+      40,
+    );
     expect(r.repaid).toBeCloseTo(5000); // still just the interest
     expect(r.balances.m).toBeCloseTo(100000);
   });
