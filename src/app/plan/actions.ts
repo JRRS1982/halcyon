@@ -230,6 +230,7 @@ export async function updatePlanLiability(
       startAge: p.startAge,
       endAge: p.endAge,
       linkedAssetId: p.linkedAssetId,
+      interestOnly: p.interestOnly,
     },
   });
   if (res.count === 0) throw new Error("Liability not found");

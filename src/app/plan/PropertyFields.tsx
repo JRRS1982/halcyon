@@ -4,7 +4,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import styled from "styled-components";
-import { NumberCell, TextCell } from "./EditableCell";
+import { BoolCell, NumberCell, TextCell } from "./EditableCell";
 import { DrawerSection, Field } from "./PlanDrawer";
 import {
   createMortgageForProperty,
@@ -34,15 +34,21 @@ const ActionButton = styled.button`
   cursor: pointer;
   width: fit-content;
 `;
+const ReadoutSpan = styled.span`
+  font-size: 13px;
+  color: ${({ theme }) => theme.colors.ink};
+`;
 
 export function PropertyFields({
   property,
   mortgage,
   repayment,
+  currentSplit,
 }: {
   property: SerializedPlanAsset;
   mortgage: SerializedPlanLiability | undefined;
   repayment: SerializedPlanExpense | undefined;
+  currentSplit?: { interest: number; principal: number };
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -85,6 +91,7 @@ export function PropertyFields({
         startAge: next.startAge,
         endAge: next.endAge,
         linkedAssetId: next.linkedAssetId,
+        interestOnly: next.interestOnly,
       }),
     );
 
@@ -162,12 +169,25 @@ export function PropertyFields({
               }
             />
           </Field>
-          {repayment ? (
+          <Field label="Interest-only">
+            <BoolCell
+              value={mortgage.interestOnly}
+              onCommit={(v) => saveMortgage({ ...mortgage, interestOnly: v })}
+            />
+          </Field>
+          {!mortgage.interestOnly && repayment ? (
             <Field label="Repayment /mo">
               <NumberCell
                 value={Math.round(repayment.annualAmount / 12)}
                 onCommit={(v) => savePayment((v ?? 0) * 12)}
               />
+            </Field>
+          ) : null}
+          {currentSplit ? (
+            <Field label="This year">
+              <ReadoutSpan>
+                {`${Math.round(currentSplit.interest)} interest · ${Math.round(currentSplit.principal)} principal`}
+              </ReadoutSpan>
             </Field>
           ) : null}
           <Field label="Starts at age (blank = now)">

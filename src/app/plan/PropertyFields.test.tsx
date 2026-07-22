@@ -42,6 +42,7 @@ const mortgage = {
   startAge: null,
   endAge: null,
   linkedAssetId: "asset-1",
+  interestOnly: false,
 };
 const repayment = {
   id: "exp-1",
@@ -153,5 +154,45 @@ describe("PropertyFields", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: /remove mortgage/i }));
     expect(deletePlanLiability).toHaveBeenCalledWith({ id: mortgage.id });
+  });
+
+  it("toggling interest-only calls updatePlanLiability with interestOnly true", () => {
+    renderWithTheme(
+      <PropertyFields
+        property={property}
+        mortgage={mortgage}
+        repayment={repayment}
+      />,
+    );
+    fireEvent.click(screen.getByRole("checkbox", { name: /interest-only/i }));
+    expect(updatePlanLiability).toHaveBeenCalledWith(
+      expect.objectContaining({ interestOnly: true }),
+    );
+  });
+
+  it("hides the editable monthly repayment when interest-only", () => {
+    renderWithTheme(
+      <PropertyFields
+        property={property}
+        mortgage={{ ...mortgage, interestOnly: true }}
+        repayment={repayment}
+      />,
+    );
+    expect(screen.queryByLabelText(/repayment \/mo/i)).not.toBeInTheDocument();
+  });
+
+  it("shows the interest/principal readout when a currentSplit is provided", () => {
+    renderWithTheme(
+      <PropertyFields
+        property={property}
+        mortgage={mortgage}
+        repayment={repayment}
+        currentSplit={{ interest: 5000, principal: 7000 }}
+      />,
+    );
+    // "Interest %" and "Interest-only" are both existing field labels, so a
+    // bare /interest/i query is ambiguous — assert on the combined readout
+    // text (the one element mentioning both interest and principal).
+    expect(screen.getByText(/interest.*principal/i)).toBeInTheDocument();
   });
 });

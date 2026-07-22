@@ -70,6 +70,7 @@ export default async function PlanPage() {
       startAge: l.startAge,
       endAge: l.endAge,
       linkedAssetId: l.linkedAssetId,
+      interestOnly: l.interestOnly,
     })),
     incomes: plan.incomes.map((i) => ({
       id: i.id,

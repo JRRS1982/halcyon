@@ -133,6 +133,7 @@ describe("toPlanInput", () => {
             label: "Mortgage",
             openingBalance: d(100000),
             interestPct: d(4),
+            interestOnly: false,
             monthlyRepayment: d(500),
             startAge: 45,
             endAge: 65,

@@ -59,7 +59,15 @@ describe("toNetWorthChartData", () => {
             withdrawn: 0,
           },
         ],
-        liabilities: [{ id: "m", label: "Mortgage", value: 20000 }],
+        liabilities: [
+          {
+            id: "m",
+            label: "Mortgage",
+            value: 20000,
+            interest: 0,
+            principal: 0,
+          },
+        ],
         liabilitiesTotal: 20000,
       }),
     ]);

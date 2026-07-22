@@ -81,6 +81,7 @@ export function toPlanInput(
       startAge: l.startAge ?? undefined,
       endAge: l.endAge ?? undefined,
       linkedAssetId: l.linkedAssetId ?? undefined,
+      interestOnly: l.interestOnly,
     })),
     incomes: plan.incomes.map((i) => ({
       id: i.id,
@@ -181,6 +182,8 @@ export function toTodaysMoney(
     liabilities: y.liabilities.map((l) => ({
       ...l,
       value: deflate(l.value, y.age),
+      interest: deflate(l.interest, y.age),
+      principal: deflate(l.principal, y.age),
     })),
   }));
 

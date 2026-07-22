@@ -37,6 +37,7 @@ export type SerializedPlanLiability = {
   startAge: number | null;
   endAge: number | null;
   linkedAssetId: string | null;
+  interestOnly: boolean;
 };
 
 export type GrowthKind = "INFLATION" | "FIXED" | "NONE";

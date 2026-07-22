@@ -85,6 +85,7 @@ export function LiabilityFields({
         startAge: next.startAge,
         endAge: next.endAge,
         linkedAssetId: next.linkedAssetId,
+        interestOnly: next.interestOnly,
       });
       router.refresh();
     } catch (e) {
