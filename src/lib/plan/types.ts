@@ -56,6 +56,7 @@ export interface LiabilityInput {
   startAge?: number; // debt drawn at this age; undefined = from plan start
   endAge?: number;
   linkedAssetId?: string;
+  interestOnly?: boolean;
 }
 
 export interface IncomeInput {
@@ -119,6 +120,8 @@ export interface LiabilityBalance {
   id: string;
   label: string;
   value: number;
+  interest: number; // interest paid this year
+  principal: number; // principal repaid this year
 }
 
 export interface YearProjection {
