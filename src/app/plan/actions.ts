@@ -454,13 +454,17 @@ export async function deletePlanAsset(input: { id: string }): Promise<void> {
     // A mortgage cannot outlive its property: cascade the soft delete to the
     // linked liability and its repayment expense.
     const mortgages = await tx.planLiability.findMany({
-      where: { linkedAssetId: id, deletedAt: null },
+      where: {
+        linkedAssetId: id,
+        deletedAt: null,
+        plan: { userId, deletedAt: null },
+      },
       select: { id: true },
     });
     if (mortgages.length > 0) {
       const ids = mortgages.map((m) => m.id);
       await tx.planLiability.updateMany({
-        where: { id: { in: ids } },
+        where: { id: { in: ids }, plan: { userId, deletedAt: null } },
         data: { deletedAt: new Date(), linkedAssetId: null },
       });
       await tx.planExpense.updateMany({
