@@ -127,14 +127,19 @@ test("plan: dragging an event marker (keyboard) persists its age", async ({
   await expect(marker).toBeVisible();
   const before = Number(await marker.getAttribute("aria-valuenow"));
 
+  // Commit-on-keyup persists via a server action (POST to /plan) that only
+  // responds after the Prisma write + revalidate complete. Wait for THAT
+  // response before reloading — `networkidle` is a racy proxy (it can settle in
+  // a quiet window before the async write commits, flaky on WebKit in CI).
+  const committed = page.waitForResponse(
+    (r) =>
+      r.request().method() === "POST" && r.url().includes("/plan") && r.ok(),
+  );
   await marker.focus();
   await page.keyboard.press("ArrowRight");
   await expect(marker).toHaveAttribute("aria-valuenow", String(before + 1));
 
-  // Commit-on-keyup persists via a server action + router.refresh(); wait for
-  // that round-trip to settle before reloading, else the reload can race the
-  // write and read the stale age back. Then confirm it survives the reload.
-  await page.waitForLoadState("networkidle");
+  await committed;
   await page.reload();
   await expect(
     page.getByRole("slider", { name: /new car age/i }),
@@ -198,14 +203,19 @@ test("plan: dragging a bar's end handle (keyboard) persists the age", async ({
   await expect(handle).toBeVisible();
   const before = Number(await handle.getAttribute("aria-valuenow"));
 
+  // Commit-on-keyup persists via a server action (POST to /plan) that only
+  // responds after the Prisma write + revalidate complete. Wait for THAT
+  // response before reloading — `networkidle` is a racy proxy (it can settle in
+  // a quiet window before the async write commits, flaky on WebKit in CI).
+  const committed = page.waitForResponse(
+    (r) =>
+      r.request().method() === "POST" && r.url().includes("/plan") && r.ok(),
+  );
   await handle.focus();
   await page.keyboard.press("ArrowLeft");
   await expect(handle).toHaveAttribute("aria-valuenow", String(before - 1));
 
-  // Commit-on-keyup persists via a server action + router.refresh(); wait for
-  // that round-trip to settle before reloading, else the reload can race the
-  // write and read the stale age back. Then confirm it survives the reload.
-  await page.waitForLoadState("networkidle");
+  await committed;
   await page.reload();
   await expect(
     page.getByRole("slider", { name: /salary end age/i }),
