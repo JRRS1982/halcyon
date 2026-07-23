@@ -53,6 +53,7 @@ const projectYears = (
   for (const e of input.events)
     if (e.kind === "PROPERTY_SALE" && e.assetId !== undefined)
       saleAgeByAsset.set(e.assetId, e.age);
+  const assetById = new Map(runAssets.map((a) => [a.id, a]));
 
   // Expenses linked to a liability are that liability's repayment: they fund
   // liabilityStep (REPAYMENT outflow) instead of the category totals, so the
@@ -122,7 +123,16 @@ const projectYears = (
         e.assetId === undefined
       )
         continue;
-      const propVal = assetBal[e.assetId] ?? 0;
+      // Sell at the property's closing (post-growth) value so the proceeds and
+      // the mortgage balance (already post-liabilityStep) are netted at the same
+      // year-end point. The growth loop skips a sold asset, so it grows once.
+      const asset = assetById.get(e.assetId);
+      const propVal = grow(
+        assetBal[e.assetId] ?? 0,
+        (asset?.expectedReturnPct ?? input.defaultReturnPct) -
+          (asset?.feePct ?? 0) +
+          returnDeltaPct,
+      );
       const liabId = mortgageByAsset.get(e.assetId);
       const mortBal = liabId ? (liabBal[liabId] ?? 0) : 0;
       saleNet += propVal - mortBal;

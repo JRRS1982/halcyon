@@ -687,4 +687,148 @@ describe("PROPERTY_SALE event", () => {
     expect(at(p, 1).liabilitiesTotal).toBe(0);
     expect(at(p, 1).netWorth).toBe(200000);
   });
+
+  it("sells at the property's closing (post-growth) value, not its opening value", () => {
+    // Sale in the first year of a 10%-growth property: proceeds must reflect the
+    // year's growth (110000), not the opening value (100000). No mortgage; the
+    // property is the only asset so the synthetic cash sink catches the proceeds.
+    const p = project(
+      base({
+        currentAge: 40,
+        planToAge: 40,
+        defaultReturnPct: 0,
+        inflationPct: 0,
+        assets: [
+          {
+            id: "home",
+            label: "Home",
+            wrapper: "PROPERTY",
+            openingValue: 100000,
+            expectedReturnPct: 10,
+            drawdownPriority: 0,
+          },
+        ],
+        events: [
+          {
+            id: "sale",
+            label: "Downsize",
+            age: 40,
+            direction: "INFLOW",
+            amount: 0,
+            kind: "PROPERTY_SALE",
+            assetId: "home",
+          },
+        ],
+      }),
+    );
+    expect(wrapperTotal(at(p, 0), "PROPERTY")).toBe(0);
+    expect(wrapperTotal(at(p, 0), "CASH")).toBeCloseTo(110000, 0);
+  });
+
+  it("clears the mortgage from proceeds even when underwater (negative net)", () => {
+    // Property 100000, mortgage 150000: net proceeds are -50000, which funds
+    // like any deficit from the cash buffer; the debt still fully clears.
+    const p = project(
+      base({
+        currentAge: 40,
+        planToAge: 40,
+        defaultReturnPct: 0,
+        inflationPct: 0,
+        assets: [
+          {
+            id: "cash",
+            label: "Cash",
+            wrapper: "CASH",
+            openingValue: 60000,
+            drawdownPriority: 0,
+          },
+          {
+            id: "home",
+            label: "Home",
+            wrapper: "PROPERTY",
+            openingValue: 100000,
+            expectedReturnPct: 0,
+            drawdownPriority: 1,
+          },
+        ],
+        liabilities: [
+          {
+            id: "m",
+            label: "Mortgage",
+            openingBalance: 150000,
+            interestPct: 0,
+            monthlyRepayment: 0,
+            linkedAssetId: "home",
+          },
+        ],
+        events: [
+          {
+            id: "sale",
+            label: "Downsize",
+            age: 40,
+            direction: "INFLOW",
+            amount: 0,
+            kind: "PROPERTY_SALE",
+            assetId: "home",
+          },
+        ],
+      }),
+    );
+    expect(wrapperTotal(at(p, 0), "PROPERTY")).toBe(0);
+    expect(at(p, 0).liabilitiesTotal).toBe(0); // debt cleared
+    expect(wrapperTotal(at(p, 0), "CASH")).toBe(10000); // 60000 - 50000 shortfall
+    expect(at(p, 0).shortfall).toBe(false);
+  });
+
+  it("counts the proceeds once when two sale events target the same property", () => {
+    // Second sale (age 41) hits an already-zeroed property → no-op, no double-count.
+    const p = project(
+      base({
+        currentAge: 40,
+        planToAge: 42,
+        defaultReturnPct: 0,
+        inflationPct: 0,
+        assets: [
+          {
+            id: "cash",
+            label: "Cash",
+            wrapper: "CASH",
+            openingValue: 0,
+            drawdownPriority: 0,
+          },
+          {
+            id: "home",
+            label: "Home",
+            wrapper: "PROPERTY",
+            openingValue: 300000,
+            expectedReturnPct: 0,
+            drawdownPriority: 1,
+          },
+        ],
+        events: [
+          {
+            id: "sale1",
+            label: "Sale A",
+            age: 40,
+            direction: "INFLOW",
+            amount: 0,
+            kind: "PROPERTY_SALE",
+            assetId: "home",
+          },
+          {
+            id: "sale2",
+            label: "Sale B",
+            age: 41,
+            direction: "INFLOW",
+            amount: 0,
+            kind: "PROPERTY_SALE",
+            assetId: "home",
+          },
+        ],
+      }),
+    );
+    expect(wrapperTotal(at(p, 0), "CASH")).toBe(300000);
+    expect(wrapperTotal(at(p, 1), "CASH")).toBe(300000); // not 600000
+    expect(wrapperTotal(at(p, 2), "PROPERTY")).toBe(0);
+  });
 });

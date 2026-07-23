@@ -114,6 +114,24 @@ describe("EventFields", () => {
     );
     expect(screen.getByText(/add a property first/i)).toBeInTheDocument();
   });
+
+  it("keeps PROPERTY_SALE a valid Type option for an existing sale event with no properties", () => {
+    // The Type select must not display a value absent from its options (its
+    // selected value is PROPERTY_SALE), even though a fresh event can't switch
+    // to a sale without a property.
+    renderWithTheme(
+      <EventFields
+        event={{ ...manualEvent, kind: "PROPERTY_SALE", assetId: "home" }}
+        properties={[]}
+      />,
+    );
+    const type = screen.getByRole("combobox", { name: /type/i });
+    const values = Array.from(
+      type.querySelectorAll("option"),
+      (o) => (o as HTMLOptionElement).value,
+    );
+    expect(values).toContain("PROPERTY_SALE");
+  });
 });
 
 describe("EventsTable", () => {
