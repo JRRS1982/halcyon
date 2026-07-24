@@ -41,16 +41,21 @@ export async function getCurrentUserSettings(): Promise<{
   // `createMany({ skipDuplicates })` compiles to INSERT ... ON CONFLICT DO
   // NOTHING — atomic. `upsert` does a non-atomic select-then-insert, so two
   // concurrent first-time requests (a page and its prefetch, or parallel server
-  // components) both INSERT and all but one fail with P2002. User first, since
-  // UserSettings FKs it.
-  await prisma.user.createMany({
-    data: [{ id: user.id }],
-    skipDuplicates: true,
-  });
-  await prisma.userSettings.createMany({
-    data: [{ userId: user.id }],
-    skipDuplicates: true,
-  });
+  // components) both INSERT and all but one fail with P2002.
+  //
+  // Both inserts run in ONE transaction so the pair is atomic too: nothing can
+  // observe User created but UserSettings not-yet-created, which would make the
+  // UserSettings insert trip its userId FK. This matters under the e2e harness,
+  // which `TRUNCATE "User" CASCADE`s between tests — a truncate landing between
+  // two separate statements (for an in-flight request) would delete the User
+  // before UserSettings references it. User first, since UserSettings FKs it.
+  await prisma.$transaction([
+    prisma.user.createMany({ data: [{ id: user.id }], skipDuplicates: true }),
+    prisma.userSettings.createMany({
+      data: [{ userId: user.id }],
+      skipDuplicates: true,
+    }),
+  ]);
 
   const row = await prisma.userSettings.findUniqueOrThrow({
     where: { userId: user.id },
