@@ -35,17 +35,17 @@ Install dependencies with pnpm, then run the app **in Docker** for local develop
 
 ### Which database am I hitting?
 
-Two databases exist: **local Postgres** (the Docker `db` service) and **production Supabase**. Which one a command uses comes down to env-file values *and* which tool reads them. With `.env.local` pointing at the local DB (the recommended local setup), it shakes out as:
+Two databases exist: **local Postgres** (the Docker `db` service) and **production Supabase**. Production DB URLs live only in Vercel env vars and CI secrets — no local file holds them. Locally it shakes out as:
 
 | Command | Reads | Hits |
 | --- | --- | --- |
 | App in Docker — `make up` | `compose.yaml` env (local) | **local** |
-| App on host — `pnpm dev` (Next.js) | `.env.local` → `.env.development` → `.env` | **local** |
-| **Prisma CLI on host — `pnpm prisma …`** | **`.env` only** | **production ⚠️** |
+| App on host — `pnpm dev` (Next.js) | `.env.development` → `.env` | **local** |
+| Prisma CLI on host — `pnpm prisma …` | nothing (`prisma.config.ts` loads no env file) | **fails loudly** |
 
-The gotcha: **Next.js reads `.env.local` first** (which we set to the local DB), so `pnpm dev` is local — but the **Prisma CLI reads only `.env`** (it ignores `.env.local`), and `.env` holds the **production** Supabase URLs. So host `pnpm prisma migrate`/seed quietly target **production**. Always run migrations with **`make migrate-create` / `make migrate-deploy`** (in-container → local).
+Two local env files, two roles: `.env.development` (committed) holds non-secret defaults — the local DB URL; the gitignored `.env` holds only the Supabase auth values (URL + keys, **no DB URLs**) — it's also the only file Docker Compose can interpolate `${...}` from, which is why the secrets live there and not in a `.env.local`.
 
-So it only hits prod when a tool falls back to `.env`. To make the host app hit production deliberately, comment the local URLs out of `.env.local`. (These files are gitignored — set them from `.env.example`.)
+Prisma migrations always run inside the container — **`make migrate-create` / `make migrate-deploy`** — where `compose.yaml` pins `DATABASE_URL`/`DIRECT_URL` to the local `db` service. A stray host `pnpm prisma migrate` fails loudly (no connection string) instead of silently touching anything.
 
 ## Documentation
 

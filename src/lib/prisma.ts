@@ -1,3 +1,4 @@
+import { env } from "@/lib/env";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 
@@ -12,7 +13,7 @@ declare global {
 // Prisma 7 connects through a node-postgres driver adapter rather than a bundled
 // engine. The adapter reads the pooled runtime URL (`DATABASE_URL`); migrations
 // use `DIRECT_URL` via prisma.config.ts.
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+const adapter = new PrismaPg({ connectionString: env.DATABASE_URL });
 
 export const prisma =
   globalThis.prismaClient ??

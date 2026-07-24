@@ -1,3 +1,4 @@
+import { env } from "@/lib/env";
 import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 
@@ -8,10 +9,8 @@ export const updateSession = async (request: NextRequest) => {
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
-    // biome-ignore lint/style/noNonNullAssertion: validated at app startup
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    // biome-ignore lint/style/noNonNullAssertion: validated at app startup
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    env.NEXT_PUBLIC_SUPABASE_URL,
+    env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
     {
       cookies: {
         getAll: () => request.cookies.getAll(),
