@@ -23,7 +23,7 @@ The pattern is the **"identity-in-`auth`, profile-in-`public`"** pattern — the
 | Email verification, password reset, OAuth callbacks | All handled by Supabase Auth endpoints. The app only implements a single `/auth/callback` route handler that exchanges a one-time code for a session. |
 | Brute force / credential stuffing | Supabase rate-limits its own auth endpoints. Tunable in the Supabase dashboard. The application has no own lockout counters to maintain. |
 | Authorisation | Two layers: app-level `userId` filtering on every Prisma query (primary boundary, because server-side Prisma bypasses RLS), **plus** Postgres Row Level Security with `auth.uid() = id` policies (defence-in-depth; the real fence if/when a feature ever queries Supabase directly from the browser). |
-| Loss of secrets | The DB password and `SUPABASE_SECRET_KEY` are the only secrets that bypass RLS. They live in Vercel project env vars in production and `.env.local` in dev — never in source. |
+| Loss of secrets | The DB password and `SUPABASE_SECRET_KEY` are the only secrets that bypass RLS. They live in Vercel project env vars in production and the gitignored `.env` in dev — never in source. |
 
 ## Components involved
 

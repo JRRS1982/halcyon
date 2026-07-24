@@ -1,4 +1,5 @@
 import "server-only";
+import { env } from "@/lib/env";
 import { createClient } from "@supabase/supabase-js";
 
 // Service-role Supabase client. SERVER-ONLY — never import from a client
@@ -16,11 +17,7 @@ import { createClient } from "@supabase/supabase-js";
 // bypasses Postgres RLS, so this module's only caller is the `deleteMyAccount`
 // server action.
 export function createAdminClient() {
-  return createClient(
-    // biome-ignore lint/style/noNonNullAssertion: validated at app startup
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    // biome-ignore lint/style/noNonNullAssertion: server-only secret
-    process.env.SUPABASE_SECRET_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } },
-  );
+  return createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SECRET_KEY, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
 }

@@ -62,6 +62,9 @@ export default defineConfig({
         NEXT_PUBLIC_SUPABASE_URL: mockSupabaseURL,
         NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
           "sb_publishable_test_anon_key_for_e2e",
+        // src/lib/env.ts validates this at boot (via instrumentation.ts); the
+        // mock auth server never checks it, so a dummy value is fine.
+        SUPABASE_SECRET_KEY: "sb_secret_test_key_for_e2e",
         // Prisma needs *something*; nothing in the auth flow touches the DB
         // via Prisma, so a fake URL is fine.
         DATABASE_URL: "postgresql://test:test@localhost:5432/halcyon_test",
