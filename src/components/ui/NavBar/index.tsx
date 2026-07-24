@@ -10,7 +10,7 @@ import {
   NavLink,
   PillLink,
   RightGroup,
-  Spacer,
+  RightZone,
 } from "./NavBar.styled";
 
 type NavBarProps = {
@@ -62,42 +62,40 @@ export function NavBar({
     <Bar>
       <Brand href="/">Balanced Money</Brand>
 
-      {signedIn ? (
-        <Links>
-          {items.map((item) => (
-            <NavLink
-              key={item.href}
-              href={item.href}
-              $active={pathname === item.href}
-            >
-              {item.label}
-            </NavLink>
-          ))}
-        </Links>
-      ) : isHome ? (
-        <Links>
-          {MARKETING_ITEMS.map((item) => (
-            <NavLink key={item.href} href={item.href} $active={false}>
-              {item.label}
-            </NavLink>
-          ))}
-        </Links>
-      ) : null}
+      <Links>
+        {signedIn
+          ? items.map((item) => (
+              <NavLink
+                key={item.href}
+                href={item.href}
+                $active={pathname === item.href}
+              >
+                {item.label}
+              </NavLink>
+            ))
+          : isHome
+            ? MARKETING_ITEMS.map((item) => (
+                <NavLink key={item.href} href={item.href} $active={false}>
+                  {item.label}
+                </NavLink>
+              ))
+            : null}
+      </Links>
 
-      <Spacer />
-
-      {signedIn ? (
-        <form action={signOut}>
-          <Button type="submit">Sign out</Button>
-        </form>
-      ) : (
-        <RightGroup>
-          <NavLink href="/sign-in" $active={pathname === "/sign-in"}>
-            Sign in
-          </NavLink>
-          <PillLink href="/sign-up">Get started</PillLink>
-        </RightGroup>
-      )}
+      <RightZone>
+        {signedIn ? (
+          <form action={signOut}>
+            <Button type="submit">Sign out</Button>
+          </form>
+        ) : (
+          <RightGroup>
+            <NavLink href="/sign-in" $active={pathname === "/sign-in"}>
+              Sign in
+            </NavLink>
+            <PillLink href="/sign-up">Get started</PillLink>
+          </RightGroup>
+        )}
+      </RightZone>
     </Bar>
   );
 }
