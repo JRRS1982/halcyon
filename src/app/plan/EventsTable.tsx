@@ -93,8 +93,12 @@ export function EventFields({
   // Only offer the Property sale toggle when there's a property to sell —
   // otherwise switching to it would auto-default assetId to null, which
   // fails server validation and reverts the dropdown (see review fix).
+  // Offer "Property sale" only when there's a property to sell — but keep it a
+  // valid option for an event that is ALREADY a sale (e.g. its property was
+  // later deleted), so the Type select never shows a value absent from its
+  // options. The picker below still shows the "add a property first" hint.
   const kindOptions: EventKind[] =
-    properties.length > 0 ? EVENT_KINDS : ["MANUAL"];
+    properties.length > 0 || isSale ? EVENT_KINDS : ["MANUAL"];
 
   return (
     <>
