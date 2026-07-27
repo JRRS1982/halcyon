@@ -1,20 +1,30 @@
 # Dependabot version-update PRs. (Security alerts are a separate feature,
-# enabled in the repo's Settings -> Code security, and need no config here.)
-# Grouped + weekly to keep PR noise low for a solo project.
+# enabled in the repo's Settings -> Code security, and need no config here.
+# Those bypass `cooldown` below, so real CVEs still surface immediately.)
+# Grouped + monthly to keep PR noise low for a solo project.
+#
+# `cooldown` also keeps Dependabot from proposing a version that pnpm will then
+# refuse to install: pnpm 11 enforces a 24h minimumReleaseAge, so a package
+# published the same morning fails every job at "Install dependencies"
+# (ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION). The floors here are well clear of it.
 version: 2
 updates:
   - package-ecosystem: "npm" # reads pnpm-lock.yaml
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "monthly"
     open-pull-requests-limit: 5
+    cooldown:
+      default-days: 7
+      semver-patch-days: 7
+      semver-minor-days: 14
+      semver-major-days: 30
     labels:
       - "dependencies"
     commit-message:
       prefix: "chore(deps)"
     groups:
-      # One PR per week for all non-major bumps; majors stay individual so
+      # One PR per month for all non-major bumps; majors stay individual so
       # breaking changes are reviewed on their own.
       minor-and-patch:
         update-types:
@@ -24,9 +34,12 @@ updates:
   - package-ecosystem: "github-actions" # keeps actions/* in ci.yml current
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "monthly"
     open-pull-requests-limit: 5
+    # Only `default-days` here — the semver-*-days keys above are rejected for
+    # the github-actions ecosystem.
+    cooldown:
+      default-days: 7
     labels:
       - "dependencies"
       - "github-actions"

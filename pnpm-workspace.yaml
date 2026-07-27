@@ -3,10 +3,12 @@
 
 # Pin vulnerable transitive deps up to patched versions (security).
 overrides:
-  postcss@<8.5.10: ^8.5.10
+  postcss@<8.5.18: ^8.5.18
   esbuild@<0.28.1: ^0.28.1
-  brace-expansion@1: ">=1.1.16 <2.0.0"
-  brace-expansion@2: ">=2.1.2 <3.0.0"
+  # GHSA-mh99-v99m-4gvg (DoS) is only patched in >=5.0.8 — the 1.x/2.x lines it
+  # replaces have no backport. Dev-only tree (`pnpm why brace-expansion --prod`
+  # is empty); 5.x still ships a CJS build, so jest/glob/minimatch are fine.
+  brace-expansion: ^5.0.8
   js-yaml: ">=3.15.0 <4.0.0"
   fast-uri: ">=3.1.4 <4.0.0"
 
