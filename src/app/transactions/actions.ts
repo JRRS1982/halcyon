@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireTransactionsEnabled } from "@/lib/settings/server";
 import { transactionFingerprint } from "@/lib/transactions/dedupe";
 import { type ColumnMapping, mapRows } from "@/lib/transactions/import";
+import { MAX_IMPORT_ROWS } from "@/lib/transactions/limits";
 import type { LedgerCategory } from "@/lib/transactions/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -22,7 +23,7 @@ const mappingSchema = z.object({
 const importSchema = z.object({
   accountId: z.string().uuid().nullable(),
   newAccountName: z.string().trim().max(120).nullable(),
-  rows: z.array(z.array(z.string())).max(20000),
+  rows: z.array(z.array(z.string())).max(MAX_IMPORT_ROWS),
   mapping: mappingSchema,
 });
 
