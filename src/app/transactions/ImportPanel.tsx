@@ -8,6 +8,12 @@ import {
   guessMapping,
   mapRows,
 } from "@/lib/transactions/import";
+import {
+  MAX_IMPORT_FILE_BYTES,
+  MAX_IMPORT_FILE_MB,
+  MAX_IMPORT_ROWS,
+  importLimitHint,
+} from "@/lib/transactions/limits";
 import { useRouter } from "next/navigation";
 import {
   type ChangeEvent,
@@ -73,6 +79,14 @@ const FileButton = styled.span`
   letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
   text-transform: uppercase;
   white-space: nowrap;
+`;
+
+// States the import limits up front, so a too-big file is a known boundary
+// rather than a surprise rejection.
+const FileHint = styled.span`
+  font-family: ${({ theme }) => theme.typography.bodyMd.family};
+  font-size: 13px;
+  color: ${({ theme }) => theme.colors.dim};
 `;
 
 const FileName = styled.span`
@@ -341,6 +355,19 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
     setError(null);
     if (!file) return;
 
+    // Reject oversized files before reading them: the whole CSV is held in
+    // memory here and then posted to the server action as JSON, so this is the
+    // cap that keeps both bounded.
+    if (file.size > MAX_IMPORT_FILE_BYTES) {
+      setRows([]);
+      setMapping(null);
+      setError(
+        `That file is ${(file.size / (1024 * 1024)).toFixed(1)}MB — the limit is ${MAX_IMPORT_FILE_MB}MB. Export a shorter date range and import it in a few goes.`,
+      );
+      setOpen(true);
+      return;
+    }
+
     const text = await file.text();
     const parsed = parseCsv(text);
     const [headerRow] = parsed;
@@ -348,6 +375,15 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
       setRows([]);
       setMapping(null);
       setError("That file has no rows.");
+      setOpen(true);
+      return;
+    }
+    if (parsed.length > MAX_IMPORT_ROWS) {
+      setRows([]);
+      setMapping(null);
+      setError(
+        `That file has ${parsed.length.toLocaleString()} rows — the limit is ${MAX_IMPORT_ROWS.toLocaleString()} per import. Export a shorter date range and import it in a few goes.`,
+      );
       setOpen(true);
       return;
     }
@@ -483,6 +519,7 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
       <FileRow>
         <HiddenFile type="file" accept=".csv,text/csv" onChange={onFile} />
         <FileButton>Import statement…</FileButton>
+        <FileHint>{importLimitHint}</FileHint>
       </FileRow>
 
       {open && (
