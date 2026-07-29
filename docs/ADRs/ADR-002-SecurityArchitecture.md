@@ -33,11 +33,27 @@ The original (Nov 2025) design used NextAuth.js + bcrypt against a self-hosted P
 
 ### Defence in depth: Row Level Security
 
-- **RLS policies** are enabled on all user-data tables in Postgres.
-- RLS is **not** the primary enforcement mechanism, because server-side Prisma queries use the standard Postgres connection (not a Supabase JWT) and therefore bypass RLS. RLS exists so that:
-  1. Any future client-side `@supabase/supabase-js` query (e.g., Realtime, Storage) is safe by default.
-  2. Mistakes in server code that forget a `userId` filter are caught at the database layer when policies match.
-- RLS policies are migrated via Prisma raw SQL migrations alongside schema changes.
+- **RLS policies** are enabled on all user-data tables in Postgres. Enforced by
+  `src/__tests__/security/rls.test.ts`, which fails the build if a model has no
+  policy. See [Row Level Security](../features/row-level-security.md) for the
+  working detail and the template for new tables.
+- RLS is **not** the primary enforcement mechanism *for the application path*,
+  because server-side Prisma queries use the standard Postgres connection (not a
+  Supabase JWT) and therefore bypass RLS.
+- It **is** the only enforcement mechanism for the **Supabase Data API**
+  (PostgREST), which is enabled on this project and reaches the same tables over
+  HTTPS without passing through the app. `anon` and `authenticated` hold all
+  privileges on the `public` schema by default, and a `GRANT` is table-wide — so
+  an unfenced table is world-readable and world-writable to anyone holding the
+  publishable key, which is public by design. Describing RLS as purely
+  "defence in depth" understates this: for that surface it is the whole fence.
+- Beyond that, RLS also means mistakes in server code that forget a `userId`
+  filter are caught at the database layer when policies match.
+- RLS policies are migrated via Prisma raw SQL migrations alongside schema
+  changes. Prisma cannot generate them — `schema.prisma` has no way to express a
+  policy — so each one is hand-written into the generated `migration.sql`. Since
+  the app bypasses RLS, a forgotten policy is invisible to every test and page,
+  which is why the guard above exists.
 
 ### Data Protection
 
@@ -69,6 +85,7 @@ The original (Nov 2025) design used NextAuth.js + bcrypt against a self-hosted P
 | **OAuth token theft** | OAuth flow managed by Supabase Auth; tokens never round-trip through our app |
 | **Forgotten `userId` filter** | RLS policies block the query at the DB layer if client-side; code review + tests if server-side |
 | **Public-key exposure** | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` is safe to expose by design; `SUPABASE_SECRET_KEY` is server-only and never sent to the browser |
+| **Direct Data API access** | The publishable key reaches PostgREST without touching the app, so RLS policies are the only control — enforced on every model by `src/__tests__/security/rls.test.ts` |
 
 ### Monitoring & Incident Response
 
