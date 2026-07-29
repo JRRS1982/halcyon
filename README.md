@@ -56,6 +56,7 @@ I have done my best, with the support of AI to put a comprehensive set of docume
 - [Data Models](docs/DataModels/DataModels.md)
 - [Architecture Decision Records (ADRs)](docs/ADRs/)
 - [Security Architecture](docs/ADRs/ADR-002-SecurityArchitecture.md)
+- [Row Level Security](docs/features/row-level-security.md) — the two doors into the data, and the hand-written step Prisma can't generate
 - [Auth Flow (sequence diagrams)](docs/features/auth.md)
 - [User Personas](docs/UserPersonas.md)
 - [User Journeys](docs/UserJourneys/UserJourney.md)
