@@ -142,6 +142,19 @@ export const Success = styled.output`
   `}
 `;
 
+// Neutral counterpart to Alert/Success: states a fact about the last session
+// rather than reporting a failure or a win.
+export const Notice = styled.output`
+  ${({ theme }) => css`
+    display: block;
+    font-family: ${theme.typography.bodyMd.family};
+    font-size: ${theme.typography.bodyMd.size};
+    line-height: ${theme.typography.bodyMd.lineHeight};
+    color: ${theme.colors.body};
+    margin: ${theme.spacing["2xl"]} 0 0;
+  `}
+`;
+
 export const Footnote = styled.p`
   ${({ theme }) => css`
     font-family: ${theme.typography.bodyMd.family};

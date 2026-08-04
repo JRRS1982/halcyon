@@ -1,10 +1,32 @@
+import {
+  ACTIVITY_COOKIE,
+  SESSION_TIMEOUT,
+  evaluateSession,
+  nextActivity,
+  parseActivity,
+  serializeActivity,
+} from "@/lib/auth/sessionTimeout";
 import { env } from "@/lib/env";
 import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 
-// Called from `src/middleware.ts` on every request. Refreshes the Supabase
-// session cookies so that server components see a current user, and (optionally)
-// redirects unauthenticated requests away from protected paths.
+// The activity cookie must outlive both timeout windows. If the browser dropped
+// it at the idle limit instead, a visit just past that limit would arrive with
+// no cookie — which reads as a fresh session and would silently resurrect the
+// very session the idle limit exists to end. Expiry is decided by
+// `evaluateSession`, never by cookie eviction.
+const activityCookieOptions = {
+  httpOnly: true,
+  sameSite: "lax",
+  secure: process.env.NODE_ENV === "production",
+  path: "/",
+  maxAge: Math.floor(SESSION_TIMEOUT.absoluteMs / 1000),
+} as const;
+
+// Called from `src/proxy.ts` on every request. Refreshes the Supabase
+// session cookies so that server components see a current user, enforces the
+// idle/absolute session limits, and (optionally) redirects unauthenticated
+// requests away from protected paths.
 export const updateSession = async (request: NextRequest) => {
   let supabaseResponse = NextResponse.next({ request });
 
@@ -61,5 +83,58 @@ export const updateSession = async (request: NextRequest) => {
     return NextResponse.redirect(url);
   }
 
+  if (!user) return supabaseResponse;
+
+  const now = Date.now();
+  const activity = parseActivity(request.cookies.get(ACTIVITY_COOKIE)?.value);
+  const session = evaluateSession(activity, now, SESSION_TIMEOUT);
+
+  if (session.status === "expired") {
+    return expireSession(request, supabase, session.reason);
+  }
+
+  supabaseResponse.cookies.set(
+    ACTIVITY_COOKIE,
+    serializeActivity(nextActivity(activity, now)),
+    activityCookieOptions,
+  );
+
   return supabaseResponse;
+};
+
+// Ends a timed-out session: revokes the refresh token with Supabase, clears
+// every auth cookie on the redirect, and sends the user to /sign-in with a
+// reason the page can explain.
+const expireSession = async (
+  request: NextRequest,
+  supabase: ReturnType<typeof createServerClient>,
+  reason: "idle" | "absolute",
+) => {
+  // Captured before signOut, which writes through the cookie adapter above and
+  // so edits `request.cookies` as it goes. Reading the names first keeps this
+  // independent of how the library chooses to clear them.
+  const authCookieNames = request.cookies
+    .getAll()
+    .map(({ name }) => name)
+    .filter((name) => name.startsWith("sb-"));
+
+  // Best-effort: if the call fails the cookies below still end the session in
+  // this browser, and the access token expires on its own within the hour.
+  await supabase.auth.signOut().catch(() => undefined);
+
+  const url = request.nextUrl.clone();
+  url.pathname = "/sign-in";
+  url.search = "";
+  url.searchParams.set("timeout", reason);
+  if (request.nextUrl.pathname !== "/") {
+    url.searchParams.set("next", request.nextUrl.pathname);
+  }
+
+  const response = NextResponse.redirect(url);
+  response.cookies.delete(ACTIVITY_COOKIE);
+  for (const name of authCookieNames) {
+    response.cookies.delete(name);
+  }
+
+  return response;
 };
