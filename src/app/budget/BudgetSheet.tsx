@@ -1447,7 +1447,7 @@ export function BudgetSheet({
         <StatusPip state={pipState}>{pipText}</StatusPip>
       </Toolbar>
 
-      <Sheet>
+      <Sheet data-sheet-scroller>
         <SheetHeadRow />
 
         <SheetSectionRow

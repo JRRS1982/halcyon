@@ -127,11 +127,25 @@ const Search = styled.input`
   font-size: 13px;
 `;
 
+// Seven columns (select, date, description, account, amount, category, note)
+// cannot compress into a phone viewport without becoming unreadable, so below
+// desktop the ledger keeps its width and pans inside this scroller.
+const TableScroll = styled.div`
+  @media (max-width: 991px) {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+`;
+
 const Table = styled.table`
   width: 100%;
   border-collapse: collapse;
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
   font-size: 13px;
+
+  @media (max-width: 991px) {
+    min-width: 720px;
+  }
 `;
 
 const Th = styled.th<{ $align?: "right" }>`
@@ -732,129 +746,133 @@ export function Ledger({
             : "No transactions yet — import a statement above."}
         </Empty>
       ) : (
-        <Table>
-          <thead>
-            <tr>
-              <ThCheck>
-                <input
-                  type="checkbox"
-                  checked={allOnPageSelected}
-                  onChange={toggleAllOnPage}
-                  aria-label="Select all transactions on this page"
-                />
-              </ThCheck>
-              {COLUMNS.map((col) => (
-                <Th
-                  key={col.key}
-                  $align={col.align}
-                  onClick={() => onSort(col.key)}
-                >
-                  {col.label}
-                  {sortMark(col.key)}
-                </Th>
-              ))}
-              <ThCheck aria-label="Notes" />
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((tx) => (
-              <Fragment key={tx.id}>
-                <tr>
-                  <Td>
-                    <input
-                      type="checkbox"
-                      checked={selected.has(tx.id)}
-                      onChange={() => toggleRow(tx.id)}
-                      aria-label={`Select ${tx.description}`}
-                    />
-                  </Td>
-                  <Td>{tx.date.slice(0, 10)}</Td>
-                  <Td>{tx.description}</Td>
-                  <Td>{tx.accountName}</Td>
-                  <Amount $negative={tx.amount < 0}>
-                    {tx.amount.toFixed(2)}
-                  </Amount>
-                  <Td>
-                    <CategoryCombobox
-                      categories={categories}
-                      accounts={accounts}
-                      value={tx.categoryId}
-                      transferAccountId={tx.transferAccountId}
-                      ownAccountId={tx.accountId}
-                      defaultType={tx.amount < 0 ? "EXPENSE" : "INCOME"}
-                      transfersEnabled={transfersEnabled}
-                      onSelect={(categoryId) => onSelect(tx.id, categoryId)}
-                      onCreate={(input) => onCreateAndAssign(tx.id, input)}
-                      onTransfer={(accountId) => onTransfer(tx.id, accountId)}
-                      onCreateAccount={(name) =>
-                        onCreateAccountAndTransfer(tx.id, name)
-                      }
-                    />
-                  </Td>
-                  <Td>
-                    <NoteToggle
-                      type="button"
-                      $has={Boolean(tx.note || tx.extra)}
-                      aria-expanded={expandedId === tx.id}
-                      onClick={() => toggleExpanded(tx)}
-                    >
-                      {tx.note ? "Note ●" : tx.extra ? "Details" : "+ Note"}
-                    </NoteToggle>
-                  </Td>
-                </tr>
-                {expandedId === tx.id && (
+        <TableScroll>
+          <Table>
+            <thead>
+              <tr>
+                <ThCheck>
+                  <input
+                    type="checkbox"
+                    checked={allOnPageSelected}
+                    onChange={toggleAllOnPage}
+                    aria-label="Select all transactions on this page"
+                  />
+                </ThCheck>
+                {COLUMNS.map((col) => (
+                  <Th
+                    key={col.key}
+                    $align={col.align}
+                    onClick={() => onSort(col.key)}
+                  >
+                    {col.label}
+                    {sortMark(col.key)}
+                  </Th>
+                ))}
+                <ThCheck aria-label="Notes" />
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((tx) => (
+                <Fragment key={tx.id}>
                   <tr>
-                    <DetailTd colSpan={7}>
-                      <DetailPanel>
-                        {tx.extra ? (
-                          <>
-                            <ExtraList>
-                              {Object.entries(tx.extra).map(([key, value]) => (
-                                <ExtraPair key={key}>
-                                  <ExtraKey>{key}</ExtraKey>
-                                  {value}
-                                </ExtraPair>
-                              ))}
-                            </ExtraList>
-                            <DetailHint>
-                              Showing only the columns ticked under “Also keep”
-                              when this statement was imported.
-                            </DetailHint>
-                          </>
-                        ) : (
-                          <DetailHint>
-                            No kept import columns — tick columns under “Also
-                            keep” when importing to store them here.
-                          </DetailHint>
-                        )}
-                        <NoteRow>
-                          <NoteArea
-                            value={noteDraft}
-                            onChange={(e) => setNoteDraft(e.target.value)}
-                            placeholder="Add a note…"
-                            aria-label={`Note for ${tx.description}`}
-                          />
-                          <GhostButton
-                            type="button"
-                            onClick={() => saveNote(tx.id)}
-                          >
-                            Save
-                          </GhostButton>
-                          <GhostButton
-                            type="button"
-                            onClick={() => setExpandedId(null)}
-                          >
-                            Cancel
-                          </GhostButton>
-                        </NoteRow>
-                      </DetailPanel>
-                    </DetailTd>
+                    <Td>
+                      <input
+                        type="checkbox"
+                        checked={selected.has(tx.id)}
+                        onChange={() => toggleRow(tx.id)}
+                        aria-label={`Select ${tx.description}`}
+                      />
+                    </Td>
+                    <Td>{tx.date.slice(0, 10)}</Td>
+                    <Td>{tx.description}</Td>
+                    <Td>{tx.accountName}</Td>
+                    <Amount $negative={tx.amount < 0}>
+                      {tx.amount.toFixed(2)}
+                    </Amount>
+                    <Td>
+                      <CategoryCombobox
+                        categories={categories}
+                        accounts={accounts}
+                        value={tx.categoryId}
+                        transferAccountId={tx.transferAccountId}
+                        ownAccountId={tx.accountId}
+                        defaultType={tx.amount < 0 ? "EXPENSE" : "INCOME"}
+                        transfersEnabled={transfersEnabled}
+                        onSelect={(categoryId) => onSelect(tx.id, categoryId)}
+                        onCreate={(input) => onCreateAndAssign(tx.id, input)}
+                        onTransfer={(accountId) => onTransfer(tx.id, accountId)}
+                        onCreateAccount={(name) =>
+                          onCreateAccountAndTransfer(tx.id, name)
+                        }
+                      />
+                    </Td>
+                    <Td>
+                      <NoteToggle
+                        type="button"
+                        $has={Boolean(tx.note || tx.extra)}
+                        aria-expanded={expandedId === tx.id}
+                        onClick={() => toggleExpanded(tx)}
+                      >
+                        {tx.note ? "Note ●" : tx.extra ? "Details" : "+ Note"}
+                      </NoteToggle>
+                    </Td>
                   </tr>
-                )}
-              </Fragment>
-            ))}
-          </tbody>
-        </Table>
+                  {expandedId === tx.id && (
+                    <tr>
+                      <DetailTd colSpan={7}>
+                        <DetailPanel>
+                          {tx.extra ? (
+                            <>
+                              <ExtraList>
+                                {Object.entries(tx.extra).map(
+                                  ([key, value]) => (
+                                    <ExtraPair key={key}>
+                                      <ExtraKey>{key}</ExtraKey>
+                                      {value}
+                                    </ExtraPair>
+                                  ),
+                                )}
+                              </ExtraList>
+                              <DetailHint>
+                                Showing only the columns ticked under “Also
+                                keep” when this statement was imported.
+                              </DetailHint>
+                            </>
+                          ) : (
+                            <DetailHint>
+                              No kept import columns — tick columns under “Also
+                              keep” when importing to store them here.
+                            </DetailHint>
+                          )}
+                          <NoteRow>
+                            <NoteArea
+                              value={noteDraft}
+                              onChange={(e) => setNoteDraft(e.target.value)}
+                              placeholder="Add a note…"
+                              aria-label={`Note for ${tx.description}`}
+                            />
+                            <GhostButton
+                              type="button"
+                              onClick={() => saveNote(tx.id)}
+                            >
+                              Save
+                            </GhostButton>
+                            <GhostButton
+                              type="button"
+                              onClick={() => setExpandedId(null)}
+                            >
+                              Cancel
+                            </GhostButton>
+                          </NoteRow>
+                        </DetailPanel>
+                      </DetailTd>
+                    </tr>
+                  )}
+                </Fragment>
+              ))}
+            </tbody>
+          </Table>
+        </TableScroll>
       )}
 
       {totalPages > 1 && (

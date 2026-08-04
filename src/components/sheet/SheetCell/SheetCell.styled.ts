@@ -31,6 +31,13 @@ export const CellWrapper = styled.div<{
     font-size: ${theme.typography.bodyMd.size};
     line-height: ${theme.typography.bodyMd.lineHeight};
     min-width: 0;
+
+    /* ~36px on desktop is below the touch floor; 12px vertical padding takes
+       the row past 44px (DESIGN.md → Responsive Strategy → Touch Targets). */
+    @media (max-width: 767px) {
+      padding-top: ${theme.spacing.md};
+      padding-bottom: ${theme.spacing.md};
+    }
   `}
 
   &:last-child {

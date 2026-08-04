@@ -35,6 +35,11 @@ const Shell = styled.main`
   padding: ${({ theme }) => theme.spacing["3xl"]} ${({ theme }) => theme.spacing["2xl"]};
   display: grid;
   gap: ${({ theme }) => theme.spacing["2xl"]};
+  /* DESIGN.md → Layout → Grid & Container: gutters drop to 16px on mobile. */
+  @media (max-width: 767px) {
+    padding-left: ${({ theme }) => theme.spacing.lg};
+    padding-right: ${({ theme }) => theme.spacing.lg};
+  }
 `;
 const Title = styled.h1`
   font-size: ${({ theme }) => theme.typography.displayXl.size};
