@@ -50,7 +50,6 @@ async function seedAndCreatePlan(page: Page, db: PrismaClient): Promise<void> {
   await page.goto("/plan");
   await page.waitForLoadState("networkidle");
   await page.locator("input[type='date']").fill("1986-06-01");
-  await page.locator("input[type='number']").first().fill("65");
   await page.getByRole("button", { name: /create my plan/i }).click();
   await expect(page.getByRole("heading", { name: "Your plan" })).toBeVisible();
 }
