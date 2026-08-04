@@ -50,7 +50,6 @@ test("add a mortgage opens the property card with a mortgage section", async ({
   // date field's onChange sets state, which needs the client bundle attached.
   await page.waitForLoadState("networkidle");
   await page.locator("input[type='date']").fill("1986-06-01");
-  await page.locator("input[type='number']").first().fill("65");
   await page.getByRole("button", { name: /create my plan/i }).click();
 
   await expect(page.getByRole("heading", { name: "Your plan" })).toBeVisible();
@@ -119,7 +118,6 @@ test("toggling interest-only persists after reload and hides the repayment field
   await page.goto("/plan");
   await page.waitForLoadState("networkidle");
   await page.locator("input[type='date']").fill("1986-06-01");
-  await page.locator("input[type='number']").first().fill("65");
   await page.getByRole("button", { name: /create my plan/i }).click();
 
   await expect(page.getByRole("heading", { name: "Your plan" })).toBeVisible();

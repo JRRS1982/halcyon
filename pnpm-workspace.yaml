@@ -5,12 +5,13 @@
 overrides:
   postcss@<8.5.18: ^8.5.18
   esbuild@<0.28.1: ^0.28.1
-  # GHSA-mh99-v99m-4gvg (DoS) is only patched in >=5.0.8 — the 1.x/2.x lines it
+  # GHSA-mh99-v99m-4gvg (DoS) is only patched in >=5.0.8, and the follow-up
+  # GHSA-rgw5-rvv9-x895 (mitigation bypass) in >=5.0.9 — the 1.x/2.x lines it
   # replaces have no backport. Dev-only tree (`pnpm why brace-expansion --prod`
   # is empty); 5.x still ships a CJS build, so jest/glob/minimatch are fine.
-  brace-expansion: ^5.0.8
+  brace-expansion: ^5.0.9
   js-yaml: ">=3.15.0 <4.0.0"
-  fast-uri: ">=3.1.4 <4.0.0"
+  fast-uri: ">=3.1.5 <4.0.0"
 
 # sharp's libvips CVEs (GHSA-f88m-g3jw-g9cj) are ignored below: sharp@0.34.5 is
 # pinned transitively by next@16.2.9 (`pnpm why sharp`). Forcing sharp>=0.35.0

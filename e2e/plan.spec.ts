@@ -47,7 +47,6 @@ test("plan: asset fees field round-trips through the drawer", async ({
   // date field's onChange sets state, which needs the client bundle attached.
   await page.waitForLoadState("networkidle");
   await page.locator("input[type='date']").fill("1986-06-01");
-  await page.locator("input[type='number']").first().fill("65");
   await page.getByRole("button", { name: /create my plan/i }).click();
 
   await expect(page.getByRole("heading", { name: "Your plan" })).toBeVisible();
@@ -117,7 +116,6 @@ test("plan: dragging an event marker (keyboard) persists its age", async ({
   await page.goto("/plan");
   await page.waitForLoadState("networkidle");
   await page.locator("input[type='date']").fill("1986-06-01");
-  await page.locator("input[type='number']").first().fill("65");
   await page.getByRole("button", { name: /create my plan/i }).click();
 
   await expect(page.getByRole("heading", { name: "Your plan" })).toBeVisible();
@@ -193,12 +191,11 @@ test("plan: dragging a bar's end handle (keyboard) persists the age", async ({
   await page.goto("/plan");
   await page.waitForLoadState("networkidle");
   await page.locator("input[type='date']").fill("1986-06-01");
-  await page.locator("input[type='number']").first().fill("65");
   await page.getByRole("button", { name: /create my plan/i }).click();
 
   await expect(page.getByRole("heading", { name: "Your plan" })).toBeVisible();
 
-  // The seeded Salary income's end handle (salary ends at retirement age 65).
+  // The seeded Salary income's end handle (salary ends at the retirement age).
   const handle = page.getByRole("slider", { name: /salary end age/i });
   await expect(handle).toBeVisible();
   const before = Number(await handle.getAttribute("aria-valuenow"));
@@ -281,7 +278,6 @@ test("plan: create, edit assumptions/assets, and the data-loss guard holds", asy
   // date field's onChange sets state, which needs the client bundle attached.
   await page.waitForLoadState("networkidle");
   await page.locator("input[type='date']").fill("1986-06-01");
-  await page.locator("input[type='number']").first().fill("65");
   await page.getByRole("button", { name: /create my plan/i }).click();
 
   // Plan renders: title, verdict banner, the net-worth chart (svg), and editors.
