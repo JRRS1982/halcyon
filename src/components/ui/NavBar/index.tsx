@@ -89,7 +89,9 @@ export function NavBar({
           </form>
         ) : (
           <RightGroup>
-            <NavLink href="/sign-in" $active={pathname === "/sign-in"}>
+            {/* Never marked active: signed out, "Sign in" is the only
+                destination, so highlighting it carries no information. */}
+            <NavLink href="/sign-in" $active={false}>
               Sign in
             </NavLink>
             <PillLink href="/sign-up">Get started</PillLink>

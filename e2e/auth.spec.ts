@@ -1,3 +1,4 @@
+import { SESSION_TIMEOUT } from "@/lib/auth/sessionTimeout";
 import { expect, test } from "@playwright/test";
 
 // The mock Supabase server is pre-seeded with this user.
@@ -141,6 +142,88 @@ test.describe("sign-out", () => {
     // /dashboard should now bounce us back to /sign-in.
     await page.goto("/dashboard");
     await expect(page).toHaveURL(/\/sign-in/);
+  });
+});
+
+test.describe("session timeout", () => {
+  const MINUTE = 60 * 1000;
+
+  const signIn = async (page: import("@playwright/test").Page) => {
+    await page.goto("/sign-in");
+    await page.fill("input[name='email']", KNOWN_USER.email);
+    await page.fill("input[name='password']", KNOWN_USER.password);
+    await page.getByRole("button", { name: "Sign in" }).click();
+    await page.waitForURL("**/dashboard");
+  };
+
+  // Rewinds the httpOnly activity cookie the proxy maintains, which is the only
+  // way to reach a multi-hour idle window inside a test. Offsets are derived
+  // from SESSION_TIMEOUT so that retuning the windows cannot quietly turn an
+  // "idle" fixture into an "absolute" one.
+  const backdateActivity = async (
+    context: import("@playwright/test").BrowserContext,
+    startedAgoMs: number,
+    lastSeenAgoMs: number,
+  ) => {
+    await context.addCookies([
+      {
+        name: "bm_activity",
+        value: `${Date.now() - startedAgoMs}.${Date.now() - lastSeenAgoMs}`,
+        domain: "localhost",
+        path: "/",
+      },
+    ]);
+  };
+
+  test("an active session carries an activity cookie", async ({
+    context,
+    page,
+  }) => {
+    await context.clearCookies();
+    await signIn(page);
+
+    const activity = (await context.cookies()).find(
+      (cookie) => cookie.name === "bm_activity",
+    );
+    expect(activity).toBeDefined();
+    expect(activity?.httpOnly).toBe(true);
+  });
+
+  test("an idle session is ended and explained on the sign-in page", async ({
+    context,
+    page,
+  }) => {
+    await context.clearCookies();
+    await signIn(page);
+    const idleAgo = SESSION_TIMEOUT.idleMs + MINUTE;
+    await backdateActivity(context, idleAgo, idleAgo);
+
+    await page.goto("/budget");
+
+    await expect(page).toHaveURL(/\/sign-in\?timeout=idle/);
+    await expect(
+      page.getByText(/signed out after a period of inactivity/i),
+    ).toBeVisible();
+
+    // The session is genuinely over, not merely redirected once.
+    await page.goto("/dashboard");
+    await expect(page).toHaveURL(/\/sign-in/);
+  });
+
+  test("a session past its absolute cap is ended too", async ({
+    context,
+    page,
+  }) => {
+    await context.clearCookies();
+    await signIn(page);
+    await backdateActivity(context, SESSION_TIMEOUT.absoluteMs + MINUTE, 0);
+
+    await page.goto("/dashboard");
+
+    await expect(page).toHaveURL(/\/sign-in\?timeout=absolute/);
+    await expect(
+      page.getByText(/session reached its time limit/i),
+    ).toBeVisible();
   });
 });
 

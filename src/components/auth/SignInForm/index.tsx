@@ -14,14 +14,16 @@ import {
   Form,
   Input,
   Label,
+  Notice,
 } from "../AuthCard/AuthCard.styled";
 
 type SignInFormProps = {
   next: string;
   error?: string;
+  notice?: string;
 };
 
-export function SignInForm({ next, error }: SignInFormProps) {
+export function SignInForm({ next, error, notice }: SignInFormProps) {
   return (
     <AuthCard
       eyebrow="Welcome back"
@@ -34,6 +36,7 @@ export function SignInForm({ next, error }: SignInFormProps) {
       }
     >
       {error && <Alert role="alert">{error}</Alert>}
+      {notice && <Notice>{notice}</Notice>}
 
       <Form action={signIn}>
         <input type="hidden" name="next" value={next} />

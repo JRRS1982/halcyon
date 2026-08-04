@@ -1,3 +1,4 @@
+import { IdleTimeout } from "@/components/auth/IdleTimeout";
 import { Footer } from "@/components/ui/Footer";
 import { NavBar } from "@/components/ui/NavBar";
 import { isPlanVisible, isTransactionsEnabled } from "@/lib/settings/server";
@@ -40,6 +41,7 @@ export default async function RootLayout({
           />
           <div className="app-content">{children}</div>
           <Footer />
+          {user && <IdleTimeout />}
         </StyledComponentsRegistry>
       </body>
     </html>

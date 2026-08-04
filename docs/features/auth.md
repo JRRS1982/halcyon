@@ -145,10 +145,34 @@ sequenceDiagram
     App-->>User: Clear sb-...-auth-token cookie<br/>303 → /sign-in
 ```
 
+## Session length
+
+Supabase Auth issues a 1-hour access token plus a rolling refresh token, and the proxy renews it on every request. Left at that, a session never ends: come back a month later and you are still signed in. Supabase's own controls for this (Auth → Sessions: inactivity timeout, time-box) are Pro-plan only, so the limits are enforced in the app instead.
+
+Two windows, both defined in [`src/lib/auth/sessionTimeout.ts`](../../src/lib/auth/sessionTimeout.ts):
+
+| Window | Value | Meaning |
+|---|---|---|
+| `idleMs` | 6 hours | No requests for this long ends the session. |
+| `absoluteMs` | 24 hours | Hard cap on total session age, however active the user has been. |
+| `warnMs` | 60 seconds | How long before idle expiry the browser warns. |
+
+**The server is the fence.** `updateSession` reads a `bm_activity` cookie — `"<startedAt>.<lastSeenAt>"`, httpOnly, `SameSite=Lax` — and calls `evaluateSession` on every authenticated request. Expired means `supabase.auth.signOut()` (so the refresh token is revoked, not merely forgotten), every `sb-*` cookie cleared on the redirect, and `307 → /sign-in?timeout=idle|absolute`. Active means the cookie is rewritten with a fresh `lastSeenAt`. This is what catches the closed-browser case.
+
+Two decisions worth knowing before changing any of it:
+
+- **The cookie's `maxAge` is the absolute window, not the idle one.** If the browser dropped it at the idle limit, a visit just past that limit would arrive with no cookie — which reads as a fresh session and would silently resurrect the very session the idle limit exists to end. Expiry is decided by `evaluateSession`, never by cookie eviction.
+- **A missing or unreadable cookie counts as active, not expired.** Treating it as expired would loop forever for any client that cannot store the cookie. The cookie is unsigned for the same reason the trade-off is acceptable: forging it only extends the forger's own session, and they already hold the refresh token that grants it.
+
+**The client is the courtesy.** [`useIdleTimer`](../../src/lib/hooks/useIdleTimer.ts) ticks once a second, re-deriving state from wall-clock timestamps rather than counting elapsed ticks — so a laptop that slept through the window wakes up knowing the session already lapsed. [`IdleTimeout`](../../src/components/auth/IdleTimeout/) renders the 60-second warning as a native `<dialog>` opened with `showModal()`; "Stay signed in" calls `router.refresh()`, whose request passes through the proxy and resets the server's clock as a side effect, so no dedicated action is needed. Tabs share one activity clock over a `BroadcastChannel`, so working in one tab does not let another time out underneath you. Once the warning is up, ordinary activity no longer extends the session — only the explicit button does, because only that path also moves the server's clock.
+
 ## Code map
 
 | Concern | File |
 |---|---|
+| Idle + absolute session limits (pure) | [`src/lib/auth/sessionTimeout.ts`](../../src/lib/auth/sessionTimeout.ts) |
+| Client-side idle timer | [`src/lib/hooks/useIdleTimer.ts`](../../src/lib/hooks/useIdleTimer.ts) |
+| Idle warning dialog | [`src/components/auth/IdleTimeout/`](../../src/components/auth/IdleTimeout/) |
 | Browser-side Supabase client | [`src/lib/supabase/client.ts`](../../src/lib/supabase/client.ts) |
 | Server-side Supabase client (cookies via `next/headers`) | [`src/lib/supabase/server.ts`](../../src/lib/supabase/server.ts) |
 | Middleware Supabase client + session refresh helper | [`src/lib/supabase/middleware.ts`](../../src/lib/supabase/middleware.ts) |
