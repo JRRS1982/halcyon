@@ -199,9 +199,10 @@ export function NavBar({
                 <PillLink href="/sign-up" onClick={() => setMenuOpen(false)}>
                   Get started
                 </PillLink>
+                {/* Not marked active, matching the inline nav above. */}
                 <NavLink
                   href="/sign-in"
-                  $active={pathname === "/sign-in"}
+                  $active={false}
                   onClick={() => setMenuOpen(false)}
                 >
                   Sign in
