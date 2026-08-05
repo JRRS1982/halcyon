@@ -1,4 +1,10 @@
-import { expect, importCsv, signIn, test } from "./_helpers/fixtures";
+import {
+  ensureTransactionsEnabled,
+  expect,
+  importCsv,
+  signIn,
+  test,
+} from "./_helpers/fixtures";
 
 // Reversing an import removes every transaction that import created. The
 // "Undo import…" dialog lists reversible batches (newest preselected) and the
@@ -16,13 +22,7 @@ test.describe("reverse import", () => {
 
     await signIn(page);
 
-    await page.goto("/settings");
-    const txToggle = page.getByRole("checkbox", { name: "Transactions" });
-    await txToggle.check({ force: true });
-    await page.getByRole("button", { name: "Confirm" }).click();
-    await expect(
-      page.getByRole("link", { name: "Transactions" }),
-    ).toBeVisible();
+    await ensureTransactionsEnabled(page);
 
     // Import one transaction into a fresh account.
     await page.goto("/transactions");

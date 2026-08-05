@@ -84,15 +84,18 @@ test.describe("sign-in", () => {
     await context.clearCookies();
   });
 
-  test("happy path lands signed in on the dashboard", async ({ page }) => {
+  test("happy path lands signed in on transactions", async ({ page }) => {
     await page.goto("/sign-in");
     await page.fill("input[name='email']", KNOWN_USER.email);
     await page.fill("input[name='password']", KNOWN_USER.password);
     await page.getByRole("button", { name: "Sign in" }).click();
-    // Sign-in redirects to "/", which now bounces a signed-in user to /dashboard.
-    await page.waitForURL("**/dashboard");
+    // Importing a statement is the fastest route to a filled-in app, so that
+    // is where sign-in lands when no ?next= asked for somewhere else.
+    await page.waitForURL("**/transactions");
+    // The page title and the ledger's section heading are both "Transactions",
+    // so pin to the h1.
     await expect(
-      page.getByRole("heading", { name: "Dashboard" }),
+      page.getByRole("heading", { level: 1, name: "Transactions" }),
     ).toBeVisible();
   });
 
@@ -133,7 +136,7 @@ test.describe("sign-out", () => {
     await page.fill("input[name='email']", KNOWN_USER.email);
     await page.fill("input[name='password']", KNOWN_USER.password);
     await page.getByRole("button", { name: "Sign in" }).click();
-    await page.waitForURL("**/dashboard");
+    await page.waitForURL("**/transactions");
 
     // Sign out.
     await page.getByRole("button", { name: "Sign out" }).click();
@@ -153,7 +156,7 @@ test.describe("session timeout", () => {
     await page.fill("input[name='email']", KNOWN_USER.email);
     await page.fill("input[name='password']", KNOWN_USER.password);
     await page.getByRole("button", { name: "Sign in" }).click();
-    await page.waitForURL("**/dashboard");
+    await page.waitForURL("**/transactions");
   };
 
   // Rewinds the httpOnly activity cookie the proxy maintains, which is the only

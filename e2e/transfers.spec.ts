@@ -1,4 +1,10 @@
-import { expect, importCsv, signIn, test } from "./_helpers/fixtures";
+import {
+  ensureTransactionsEnabled,
+  expect,
+  importCsv,
+  signIn,
+  test,
+} from "./_helpers/fixtures";
 
 // Signed-in transfers journey: enable Transactions + Transfers, create a
 // counterparty account in Settings, import a row, tag it as a transfer, and
@@ -24,13 +30,7 @@ test.describe("transfers journey", () => {
     // Settings: enable Transactions (toggle opens a confirm dialog) then
     // Transfers (immediate, no dialog). The clean-DB fixture guarantees both
     // start off.
-    await page.goto("/settings");
-    const txToggle = page.getByRole("checkbox", { name: "Transactions" });
-    await txToggle.check({ force: true });
-    await page.getByRole("button", { name: "Confirm" }).click();
-    await expect(
-      page.getByRole("link", { name: "Transactions" }),
-    ).toBeVisible();
+    await ensureTransactionsEnabled(page);
 
     const transfersToggle = page.getByRole("checkbox", { name: "Transfers" });
     await transfersToggle.check({ force: true });

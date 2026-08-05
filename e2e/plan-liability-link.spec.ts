@@ -12,7 +12,6 @@ import { expect, signIn, test } from "./_helpers/fixtures";
 // plan. Leaves the page on the rendered /plan.
 async function seedAndCreatePlan(page: Page, db: PrismaClient): Promise<void> {
   await signIn(page);
-  await page.waitForURL("**/dashboard");
 
   const user = await db.user.findFirstOrThrow();
   const start = new Date(Date.UTC(2026, 0, 1));

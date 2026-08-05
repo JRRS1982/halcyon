@@ -7,7 +7,6 @@ test("plan: asset fees field round-trips through the drawer", async ({
   db,
 }) => {
   await signIn(page);
-  await page.waitForURL("**/dashboard");
 
   const user = await db.user.findFirstOrThrow();
   const start = new Date(Date.UTC(2026, 0, 1));
@@ -78,7 +77,6 @@ test("plan: dragging an event marker (keyboard) persists its age", async ({
   db,
 }) => {
   await signIn(page);
-  await page.waitForURL("**/dashboard");
 
   const user = await db.user.findFirstOrThrow();
   const start = new Date(Date.UTC(2026, 0, 1));
@@ -153,7 +151,6 @@ test("plan: dragging a bar's end handle (keyboard) persists the age", async ({
   db,
 }) => {
   await signIn(page);
-  await page.waitForURL("**/dashboard");
 
   const user = await db.user.findFirstOrThrow();
   const start = new Date(Date.UTC(2026, 0, 1));
@@ -230,11 +227,9 @@ test("plan: create, edit assumptions/assets, and the data-loss guard holds", asy
 }) => {
   await signIn(page);
 
-  // The signed-in "/" redirects to /dashboard, which upserts the public.User
-  // row (getCurrentUserSettings). Wait for that to settle BEFORE navigating
-  // again, so /plan's nav isn't interrupted by the in-flight redirect and the
-  // User upsert doesn't race itself.
-  await page.waitForURL("**/dashboard");
+  // The landing page after sign-in upserts the public.User row
+  // (getCurrentUserSettings). signIn() has already waited for it, so that
+  // upsert has settled and /plan's navigation won't race it.
 
   // Seed one month period with a balance ASSET + an income, so createPlan has
   // something to seed the plan from (an editable asset row + a verdict).

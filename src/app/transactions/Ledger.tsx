@@ -13,6 +13,7 @@ import type {
   SortColumn,
   SortDir,
 } from "@/lib/transactions/server";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Fragment, useEffect, useState, useTransition } from "react";
 import styled from "styled-components";
@@ -179,6 +180,15 @@ const Empty = styled.p`
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
   font-size: ${({ theme }) => theme.typography.bodyMd.size};
   color: ${({ theme }) => theme.colors.body};
+`;
+
+const EmptyLink = styled(Link)`
+  color: ${({ theme }) => theme.colors.accent};
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
 `;
 
 // Checkbox column header — unlike the data columns it doesn't sort.
@@ -741,9 +751,16 @@ export function Ledger({
 
       {items.length === 0 ? (
         <Empty>
-          {onlyUncategorized || search
-            ? "No transactions match."
-            : "No transactions yet — import a statement above."}
+          {onlyUncategorized || search ? (
+            "No transactions match."
+          ) : (
+            <>
+              No transactions yet — import a statement above. First time?{" "}
+              {/* This is where new users now land, so it's the one empty state
+                  most likely to be someone's first screen. */}
+              <EmptyLink href="/about">See how it works</EmptyLink>.
+            </>
+          )}
         </Empty>
       ) : (
         <TableScroll>
