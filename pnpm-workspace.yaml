@@ -13,14 +13,6 @@ overrides:
   js-yaml: ">=3.15.0 <4.0.0"
   fast-uri: ">=3.1.5 <4.0.0"
 
-# sharp's libvips CVEs (GHSA-f88m-g3jw-g9cj) are ignored below: sharp@0.34.5 is
-# pinned transitively by next@16.2.9 (`pnpm why sharp`). Forcing sharp>=0.35.0
-# against Next's pin risks breaking Next's image optimization at build/runtime;
-# the real fix is a Next upgrade, tracked separately.
-auditConfig:
-  ignoreGhsas:
-    - GHSA-f88m-g3jw-g9cj
-
 # Don't re-verify node_modules against the lockfile before `pnpm <script>`.
 # pnpm 11 added this pre-run check (pnpm 10 had none); in the dev container the
 # anonymous node_modules volume isn't a perfect lockfile match on first boot, so
