@@ -17,6 +17,11 @@ const Shell = styled.main`
   margin: 0 auto;
   padding: ${({ theme }) => theme.spacing["3xl"]}
     ${({ theme }) => theme.spacing["2xl"]} ${({ theme }) => theme.spacing["5xl"]};
+  /* DESIGN.md → Layout → Grid & Container: gutters drop to 16px on mobile. */
+  @media (max-width: 767px) {
+    padding-left: ${({ theme }) => theme.spacing.lg};
+    padding-right: ${({ theme }) => theme.spacing.lg};
+  }
 `;
 
 const FieldLabel = styled.span`

@@ -286,7 +286,11 @@ test("plan: create, edit assumptions/assets, and the data-loss guard holds", asy
     page.getByRole("heading", { name: "Assumptions" }),
   ).toBeVisible();
   await expect(page.getByRole("heading", { name: "Assets" })).toBeVisible();
-  await expect(page.locator("svg").first()).toBeVisible();
+  // Scoped to recharts' own surface rather than the first <svg> on the page:
+  // the nav's hamburger icon is an inline SVG that sits earlier in the DOM and
+  // is display:none above the mobile breakpoint, so a bare locator("svg")
+  // matches a deliberately hidden element at desktop width.
+  await expect(page.locator(".recharts-surface").first()).toBeVisible();
   // The seeded "SIPP" label infers wrapper PENSION, whose legend label reads
   // "Pension" (de-capped).
   await expect(page.locator(".recharts-legend-wrapper")).toContainText(

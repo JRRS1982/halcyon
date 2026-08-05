@@ -171,9 +171,29 @@ const CATEGORY_HELP: Record<
 // grid because the balance sheet has no Actual / Variance / % columns.
 const GRID = "1fr 200px 1.5fr";
 
+// Below desktop the row keeps a floor width so the Sheet container (a
+// horizontal scroller at the same breakpoints) pans rather than crushing the
+// label. The label cell pins to the left edge while Value and Notes scroll
+// under it. Mirrors the budget sheet — see SheetRow.styled.
 const baseRow = css`
   display: grid;
   grid-template-columns: ${GRID};
+
+  @media (max-width: 991px) {
+    grid-template-columns: minmax(200px, 1fr) 140px minmax(200px, 1.5fr);
+    min-width: 540px;
+
+    > div:nth-child(1) {
+      position: sticky;
+      left: 0;
+      z-index: 1;
+    }
+  }
+
+  @media (max-width: 767px) {
+    grid-template-columns: minmax(180px, 1fr) 120px minmax(180px, 1.5fr);
+    min-width: 480px;
+  }
 `;
 
 // Top-level band — Assets / Liabilities. Dark canvas, Inter semibold label.
@@ -1480,7 +1500,7 @@ export function BalanceSheet({
         </ToolbarGroup>
         <ToolbarSpacer />
       </Toolbar>
-      <Sheet>
+      <Sheet data-sheet-scroller>
         {renderSection("ASSET", "Assets", assetsTotal)}
         {renderSection("LIABILITY", "Liabilities", liabilitiesTotal)}
         <GrandRow>

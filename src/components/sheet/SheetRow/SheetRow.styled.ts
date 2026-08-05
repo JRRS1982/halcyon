@@ -5,9 +5,34 @@ import styled, { css } from "styled-components";
 // "Sheet column template".
 export const SHEET_GRID = "1fr 150px 150px";
 
+// Below desktop the amount columns narrow and the row keeps a floor width, so
+// the sheet container (which turns into a horizontal scroller at the same
+// breakpoints) pans instead of crushing the category column. The category cell
+// stays pinned to the left edge while the amounts scroll under it.
+// DESIGN.md → Responsive Strategy → Breakpoints / Collapsing Strategy.
 const baseRow = css`
   display: grid;
   grid-template-columns: ${SHEET_GRID};
+
+  @media (max-width: 991px) {
+    grid-template-columns: minmax(200px, 1fr) 120px 120px;
+    min-width: 440px;
+  }
+
+  @media (max-width: 767px) {
+    grid-template-columns: minmax(180px, 1fr) 110px 110px;
+    min-width: 400px;
+  }
+
+  /* Each row variant already paints an opaque background on its cells, so the
+     pinned category cell hides the amounts sliding beneath it. */
+  @media (max-width: 991px) {
+    > div:nth-child(1) {
+      position: sticky;
+      left: 0;
+      z-index: 1;
+    }
+  }
 `;
 
 export const HeadRow = styled.div`
