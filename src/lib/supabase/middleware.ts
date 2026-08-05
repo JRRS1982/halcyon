@@ -2,6 +2,7 @@ import { POST_AUTH_LANDING } from "@/lib/auth/landing";
 import {
   ACTIVITY_COOKIE,
   SESSION_TIMEOUT,
+  activityCookieOptions,
   evaluateSession,
   nextActivity,
   parseActivity,
@@ -10,19 +11,6 @@ import {
 import { env } from "@/lib/env";
 import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
-
-// The activity cookie must outlive both timeout windows. If the browser dropped
-// it at the idle limit instead, a visit just past that limit would arrive with
-// no cookie — which reads as a fresh session and would silently resurrect the
-// very session the idle limit exists to end. Expiry is decided by
-// `evaluateSession`, never by cookie eviction.
-const activityCookieOptions = {
-  httpOnly: true,
-  sameSite: "lax",
-  secure: process.env.NODE_ENV === "production",
-  path: "/",
-  maxAge: Math.floor(SESSION_TIMEOUT.absoluteMs / 1000),
-} as const;
 
 // Called from `src/proxy.ts` on every request. Refreshes the Supabase
 // session cookies so that server components see a current user, enforces the
