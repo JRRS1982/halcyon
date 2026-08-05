@@ -1,14 +1,32 @@
 // src/app/plan/ChartPanel.tsx
 "use client";
 
+import { ChartFallback } from "@/components/ui/ChartFallback";
 import type { YearProjection } from "@/lib/plan";
 import type { NumberFormat } from "@/lib/settings/currency";
+import nextDynamic from "next/dynamic";
 import { useState } from "react";
 import styled from "styled-components";
-import { CashFlowChart } from "./CashFlowChart";
-import { LiquidAssetsChart } from "./LiquidAssetsChart";
-import { NetWorthChart } from "./NetWorthChart";
 import { PlanCard } from "./PlanCard";
+
+// Only one of the three views is ever on screen, but all three used to be in
+// the page's bundle. Loading each on demand means the user pays for the tab
+// they actually open — and none of recharts arrives until this panel renders.
+//
+// The options object is written out at each call site rather than shared:
+// Turbopack statically analyses `dynamic()` and needs the literal inline.
+const NetWorthChart = nextDynamic(
+  () => import("./NetWorthChart").then((m) => m.NetWorthChart),
+  { ssr: false, loading: () => <ChartFallback height={320} /> },
+);
+const CashFlowChart = nextDynamic(
+  () => import("./CashFlowChart").then((m) => m.CashFlowChart),
+  { ssr: false, loading: () => <ChartFallback height={320} /> },
+);
+const LiquidAssetsChart = nextDynamic(
+  () => import("./LiquidAssetsChart").then((m) => m.LiquidAssetsChart),
+  { ssr: false, loading: () => <ChartFallback height={320} /> },
+);
 
 type View = "networth" | "cashflow" | "liquid";
 

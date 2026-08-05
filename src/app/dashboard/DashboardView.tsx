@@ -1,17 +1,48 @@
 "use client";
 
+import { ChartFallback } from "@/components/ui/ChartFallback";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { WhenVisible } from "@/components/ui/WhenVisible";
 import {
   type CashFlowPoint,
   type ExpenditurePoint,
   trailingAverageSeries,
 } from "@/lib/dashboard/series";
 import type { NumberFormat } from "@/lib/settings/currency";
+import nextDynamic from "next/dynamic";
 import styled from "styled-components";
-import { BalanceCategoryChart } from "./BalanceCategoryChart";
-import { type BalancePoint, BalanceTrendChart } from "./BalanceTrendChart";
-import { CashFlowChart } from "./CashFlowChart";
-import { CategoryExpenditureChart } from "./CategoryExpenditureChart";
+import type { BalancePoint } from "./BalanceTrendChart";
+
+// Recharts is ~123KB gzipped — by far the heaviest thing the app ships, and
+// none of it is needed to render the page frame. Loading each chart on demand
+// keeps it out of the initial payload, and means charts the user has hidden in
+// Settings are never fetched at all.
+//
+// `ssr: false` because these are behind auth and purely visual: server-
+// rendering them would put the whole library back on the critical path for no
+// SEO or first-paint gain.
+const CashFlowChart = nextDynamic(
+  () => import("./CashFlowChart").then((m) => m.CashFlowChart),
+  { ssr: false, loading: () => <ChartFallback height={320} /> },
+);
+
+const CategoryExpenditureChart = nextDynamic(
+  () =>
+    import("./CategoryExpenditureChart").then(
+      (m) => m.CategoryExpenditureChart,
+    ),
+  { ssr: false, loading: () => <ChartFallback height={180} /> },
+);
+
+const BalanceTrendChart = nextDynamic(
+  () => import("./BalanceTrendChart").then((m) => m.BalanceTrendChart),
+  { ssr: false, loading: () => <ChartFallback height={320} /> },
+);
+
+const BalanceCategoryChart = nextDynamic(
+  () => import("./BalanceCategoryChart").then((m) => m.BalanceCategoryChart),
+  { ssr: false, loading: () => <ChartFallback height={180} /> },
+);
 
 const ASSET_COLOR = "#1F8A4C";
 const LIABILITY_COLOR = "#B33B3B";
@@ -204,12 +235,14 @@ export function DashboardView({
           <Panel key={c.label}>
             <PanelTitle>{c.label}</PanelTitle>
             <PanelLead>{c.lead}</PanelLead>
-            <CategoryExpenditureChart
-              color={c.color}
-              currency={currency}
-              numberFormat={numberFormat}
-              data={c.data}
-            />
+            <WhenVisible fallback={<ChartFallback height={180} />}>
+              <CategoryExpenditureChart
+                color={c.color}
+                currency={currency}
+                numberFormat={numberFormat}
+                data={c.data}
+              />
+            </WhenVisible>
           </Panel>
         ))}
       </CategoryGrid>
@@ -288,12 +321,14 @@ export function DashboardView({
                 <PanelLead>
                   {p.label} each month, against the 6-month average.
                 </PanelLead>
-                <BalanceCategoryChart
-                  data={p.series}
-                  color={p.color}
-                  currency={currency}
-                  numberFormat={numberFormat}
-                />
+                <WhenVisible fallback={<ChartFallback height={180} />}>
+                  <BalanceCategoryChart
+                    data={p.series}
+                    color={p.color}
+                    currency={currency}
+                    numberFormat={numberFormat}
+                  />
+                </WhenVisible>
               </Panel>
             ))}
           </CategoryGrid>
