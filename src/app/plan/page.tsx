@@ -2,7 +2,7 @@
 import { projectWithBand } from "@/lib/plan";
 import { toPlanInput, toTodaysMoneyBand } from "@/lib/plan/toPlanInput";
 import { getCurrentUserSettings } from "@/lib/settings/server";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/supabase/user";
 import { redirect } from "next/navigation";
 import { CreatePlanForm } from "./CreatePlanForm";
 import { PlanView } from "./PlanView";
@@ -10,10 +10,7 @@ import { getPrimaryPlan } from "./actions";
 import type { SerializedPlan } from "./serialized";
 
 export default async function PlanPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) redirect("/sign-in?next=/plan");
 
   const { currency, numberFormat } = await getCurrentUserSettings();

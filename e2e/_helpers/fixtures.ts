@@ -75,10 +75,13 @@ const KNOWN_USER = { email: "test@example.com", password: "password123" };
 
 // Signs in as the mock Supabase user and waits for the post-login redirect.
 // The app upserts the User/UserSettings profile rows on the first request.
+//
+// Sign-in now lands directly on POST_AUTH_LANDING rather than bouncing off the
+// marketing page, so this waits for the dashboard.
 export async function signIn(page: Page): Promise<void> {
   await page.goto("/sign-in");
   await page.fill("input[name='email']", KNOWN_USER.email);
   await page.fill("input[name='password']", KNOWN_USER.password);
   await page.getByRole("button", { name: "Sign in" }).click();
-  await page.waitForURL("/");
+  await page.waitForURL(/\/dashboard$/);
 }

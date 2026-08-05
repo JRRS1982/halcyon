@@ -9,7 +9,7 @@ import {
 } from "@/lib/dashboard/series";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserSettings } from "@/lib/settings/server";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/supabase/user";
 import { redirect } from "next/navigation";
 import { DashboardView } from "./DashboardView";
 
@@ -22,10 +22,7 @@ type Cat = "FIXED" | "VARIABLE" | "DISCRETIONARY";
 // series each dashboard chart needs: monthly cash flow, balance buckets, and
 // per-category expenditure (actual/budget/average).
 export default async function DashboardPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) redirect("/sign-in?next=/dashboard");
 
   const { currency, numberFormat, hiddenCharts } =

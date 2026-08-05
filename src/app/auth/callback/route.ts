@@ -1,3 +1,4 @@
+import { POST_AUTH_LANDING } from "@/lib/auth/landing";
 import { safeNext } from "@/lib/auth/safeNext";
 import { log } from "@/lib/log";
 import { createClient } from "@/lib/supabase/server";
@@ -9,7 +10,7 @@ import { NextResponse } from "next/server";
 export const GET = async (request: Request) => {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = safeNext(searchParams.get("next"));
+  const next = safeNext(searchParams.get("next"), POST_AUTH_LANDING);
 
   if (!code) {
     return NextResponse.redirect(

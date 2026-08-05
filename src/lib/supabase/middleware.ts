@@ -6,6 +6,7 @@ import {
   parseActivity,
   serializeActivity,
 } from "@/lib/auth/sessionTimeout";
+import { POST_AUTH_LANDING } from "@/lib/auth/landing";
 import { env } from "@/lib/env";
 import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
@@ -98,6 +99,25 @@ export const updateSession = async (request: NextRequest) => {
     serializeActivity(nextActivity(activity, now)),
     activityCookieOptions,
   );
+
+  // The mirror image of the route guard above: the marketing page is for
+  // prospects, so a signed-in visitor goes straight to the app. This lived in
+  // the "/" server component, which meant a second getUser() round-trip on the
+  // page where first-load speed matters most. We already know who they are.
+  //
+  // Deliberately after the expiry check — a timed-out session must be expired,
+  // not quietly forwarded — and the response carries `supabaseResponse`'s
+  // cookies so the refreshed auth tokens and the activity stamp survive the
+  // redirect instead of being dropped with the discarded response.
+  if (request.nextUrl.pathname === "/") {
+    const url = request.nextUrl.clone();
+    url.pathname = POST_AUTH_LANDING;
+    const redirect = NextResponse.redirect(url);
+    for (const cookie of supabaseResponse.cookies.getAll()) {
+      redirect.cookies.set(cookie);
+    }
+    return redirect;
+  }
 
   return supabaseResponse;
 };

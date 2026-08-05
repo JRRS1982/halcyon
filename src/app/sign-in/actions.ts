@@ -1,6 +1,7 @@
 "use server";
 
 import { DEMO_EMAIL, DEMO_PASSWORD } from "@/lib/auth/demo";
+import { POST_AUTH_LANDING } from "@/lib/auth/landing";
 import { safeNext } from "@/lib/auth/safeNext";
 import { signInSchema } from "@/lib/auth/schemas";
 import { createClient } from "@/lib/supabase/server";
@@ -11,7 +12,7 @@ export const signIn = async (formData: FormData) => {
     email: formData.get("email"),
     password: formData.get("password"),
   });
-  const next = safeNext(formData.get("next"));
+  const next = safeNext(formData.get("next"), POST_AUTH_LANDING);
 
   if (!parsed.success) {
     const message =
@@ -36,7 +37,7 @@ export const signInAsDemo = async (formData: FormData) => {
   if (process.env.NODE_ENV === "production") {
     redirect("/sign-in");
   }
-  const next = safeNext(formData.get("next"));
+  const next = safeNext(formData.get("next"), POST_AUTH_LANDING);
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({

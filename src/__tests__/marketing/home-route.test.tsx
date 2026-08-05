@@ -4,36 +4,17 @@ import { theme } from "@/lib/theme";
 import { render } from "@testing-library/react";
 import { ThemeProvider } from "styled-components";
 
-const getUser = jest.fn();
-jest.mock("@/lib/supabase/server", () => ({
-  createClient: async () => ({ auth: { getUser } }),
-}));
-const redirect = jest.fn();
-jest.mock("next/navigation", () => ({
-  redirect: (url: string) => redirect(url),
-}));
-
+// "/" no longer performs its own session check — the proxy redirects signed-in
+// visitors before the request reaches this component, which saves a second
+// getUser() round-trip on the marketing page. The redirect itself is covered
+// by src/__tests__/security/proxy-redirects.test.ts.
 describe("Home route", () => {
-  beforeEach(() => {
-    getUser.mockReset();
-    redirect.mockReset();
-  });
-
-  test("renders the landing page for signed-out visitors", async () => {
-    getUser.mockResolvedValue({ data: { user: null } });
-    const ui = await Home();
+  test("renders the landing page without an auth round-trip", () => {
     const { getByRole } = render(
-      <ThemeProvider theme={theme}>{ui}</ThemeProvider>,
+      <ThemeProvider theme={theme}>{Home()}</ThemeProvider>,
     );
     expect(
       getByRole("heading", { level: 1, name: /make sense of your money/i }),
     ).toBeInTheDocument();
-    expect(redirect).not.toHaveBeenCalled();
-  });
-
-  test("redirects signed-in visitors to /dashboard", async () => {
-    getUser.mockResolvedValue({ data: { user: { id: "u1" } } });
-    await Home();
-    expect(redirect).toHaveBeenCalledWith("/dashboard");
   });
 });

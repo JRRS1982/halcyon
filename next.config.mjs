@@ -5,6 +5,14 @@ const nextConfig = {
   compiler: {
     styledComponents: true,
   },
+  images: {
+    // The marketing screenshots all render through next/image, so the source
+    // PNGs are never what a visitor downloads — the optimiser resizes and
+    // re-encodes them per request. Default output is WebP only; adding AVIF
+    // ahead of it means browsers that support it (most now) get the smaller
+    // encode, and the rest fall back to WebP automatically.
+    formats: ["image/avif", "image/webp"],
+  },
   experimental: {
     serverActions: {
       // CSV import posts parsed rows as JSON, which outgrows the 1MB default
