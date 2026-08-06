@@ -8,6 +8,12 @@ on:
     branches: [master, main]
   push:
     branches: [master, main]
+  # Manual trigger, from the Actions tab or `gh workflow run ci.yml --ref <branch>`.
+  # A dispatch is a direct API call rather than a webhook, so it still works when
+  # webhook delivery is degraded — during the 2026-08-06 Actions incident GitHub
+  # throttled webhooks to ~15%, and pushes and pull requests simply stopped
+  # producing runs with no way to ask for one.
+  workflow_dispatch:
 
 jobs:
   lint-and-test:
