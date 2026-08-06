@@ -21,6 +21,7 @@ jest.mock("@/lib/env", () => ({
   },
 }));
 
+import { POST_AUTH_LANDING } from "@/lib/auth/landing";
 import { updateSession } from "@/lib/supabase/middleware";
 import { NextRequest } from "next/server";
 
@@ -34,13 +35,16 @@ const signedOut = () => getUser.mockResolvedValue({ data: { user: null } });
 describe("proxy redirects", () => {
   beforeEach(() => getUser.mockReset());
 
-  test("sends a signed-in visitor from / to their dashboard", async () => {
+  // Asserted against the constant, not a literal: "/" and the sign-in form must
+  // agree on where the app starts, so a change to one should never leave the
+  // other behind.
+  test("sends a signed-in visitor from / into the app", async () => {
     signedIn();
     const res = await updateSession(requestFor("/"));
 
     expect(res.status).toBe(307);
     expect(new URL(res.headers.get("location") ?? "").pathname).toBe(
-      "/dashboard",
+      POST_AUTH_LANDING,
     );
   });
 
