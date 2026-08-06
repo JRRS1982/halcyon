@@ -38,6 +38,8 @@ export default async function SettingsPage() {
     planVisible,
     hiddenCharts,
     themePreference,
+    monthlyReminderEnabled,
+    monthlyReminderDay,
   } = await getCurrentUserSettings();
   const symbol = symbolFor(currency);
 
@@ -143,6 +145,8 @@ export default async function SettingsPage() {
         transfersEnabled={transfersEnabled}
         planVisible={planVisible}
         themePreference={themePreference}
+        monthlyReminderEnabled={monthlyReminderEnabled}
+        monthlyReminderDay={monthlyReminderDay}
       />
       <DashboardSettings hiddenCharts={hiddenCharts} />
       <CategoryManager categories={managedCategories} />
