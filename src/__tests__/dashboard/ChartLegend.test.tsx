@@ -1,4 +1,4 @@
-import { ChartLegend } from "@/app/dashboard/ChartLegend";
+import { ChartLegend } from "@/app/(app)/dashboard/ChartLegend";
 import { render, screen } from "@testing-library/react";
 import type { LegendPayload } from "recharts";
 

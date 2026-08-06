@@ -4,26 +4,26 @@ import { theme } from "@/lib/theme";
 import { render, screen } from "@testing-library/react";
 import { ThemeProvider } from "styled-components";
 
-let mockPathname = "/dashboard";
-jest.mock("next/navigation", () => ({ usePathname: () => mockPathname }));
+jest.mock("next/navigation", () => ({ usePathname: () => "/dashboard" }));
 
-const renderit = () =>
-  render(
-    <ThemeProvider theme={theme}>
-      <Footer />
-    </ThemeProvider>,
-  );
+const renderit = (ui: React.ReactElement) =>
+  render(<ThemeProvider theme={theme}>{ui}</ThemeProvider>);
 
 describe("Footer", () => {
-  test("renders on app pages", () => {
-    mockPathname = "/dashboard";
-    renderit();
-    expect(screen.getByText(/privacy/i)).toBeInTheDocument();
+  test("carries the guide and the legal links", () => {
+    renderit(<Footer />);
+
+    expect(screen.getByRole("link", { name: /how it works/i })).toHaveAttribute(
+      "href",
+      "/about",
+    );
+    expect(screen.getByRole("link", { name: /privacy/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /terms/i })).toBeInTheDocument();
   });
 
-  test("hides itself on the landing page", () => {
-    mockPathname = "/";
-    const { container } = renderit();
-    expect(container).toBeEmptyDOMElement();
-  });
+  // "No footer on the landing page" used to be this component's job — it
+  // checked usePathname and returned null on "/". The route groups now say it
+  // structurally, so there is nothing left here to assert: the guarantee lives
+  // in which layout renders it. Covered by landing.spec.ts, in a browser, where
+  // the real layouts are the ones running.
 });

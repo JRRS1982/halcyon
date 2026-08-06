@@ -8,7 +8,7 @@
 // by project.ts to net + clear a mortgage against its property on a
 // PROPERTY_SALE — the client live projection must see both to match the
 // server. Nothing remains intentionally omitted.
-import type { SerializedPlan } from "@/app/plan/serialized";
+import type { SerializedPlan } from "@/app/(app)/plan/serialized";
 import type { PlanInput } from "@/lib/plan";
 import { growthOf } from "./toPlanInput";
 

@@ -21,7 +21,7 @@ import {
   clearMyData,
   deleteMyAccount,
   exportMyData,
-} from "@/app/settings/dataActions";
+} from "@/app/(app)/settings/dataActions";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
 

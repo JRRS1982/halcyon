@@ -1,4 +1,4 @@
-import { WRAPPER_TEXTURES, wrapperFill } from "@/app/plan/ChartTextures";
+import { WRAPPER_TEXTURES, wrapperFill } from "@/app/(app)/plan/ChartTextures";
 import { darkPalette, lightPalette } from "@/lib/palette";
 import type { Wrapper } from "@/lib/plan";
 

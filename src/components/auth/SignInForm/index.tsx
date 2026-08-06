@@ -1,7 +1,7 @@
 "use client";
 
+import { signIn, signInAsDemo } from "@/app/(app)/sign-in/actions";
 import { signInWithGoogle } from "@/app/auth/oauth-actions";
-import { signIn, signInAsDemo } from "@/app/sign-in/actions";
 import { Button } from "@/components/ui/Button";
 import { demoLoginEnabled } from "@/lib/auth/demo";
 import { AuthCard } from "../AuthCard";

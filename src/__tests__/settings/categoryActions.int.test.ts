@@ -1,4 +1,4 @@
-import { mergeCategories } from "@/app/settings/categoryActions";
+import { mergeCategories } from "@/app/(app)/settings/categoryActions";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
 

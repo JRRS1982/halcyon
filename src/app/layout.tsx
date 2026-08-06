@@ -1,10 +1,5 @@
-import { IdleTimeout } from "@/components/auth/IdleTimeout";
-import { Footer } from "@/components/ui/Footer";
-import { NavBar } from "@/components/ui/NavBar";
-import { getNavFlags, getThemePreference } from "@/lib/settings/server";
 import { StyledComponentsRegistry } from "@/lib/styled";
-import { getCurrentUser } from "@/lib/supabase/user";
-import { themeAttribute, themeCss } from "@/lib/themeCss";
+import { themeCss } from "@/lib/themeCss";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
@@ -17,21 +12,26 @@ export const metadata: Metadata = {
     "Personal finance, made clear. Track what you have, understand where it goes.",
 };
 
-export default async function RootLayout({
+/**
+ * Deliberately knows nothing about the signed-in user.
+ *
+ * A layout that reads the session makes every route beneath it dynamic, and
+ * this one sits above all of them — so asking "who is this?" here meant the
+ * marketing page was rendered per request, behind an auth round-trip, on the
+ * one page whose load time decides whether a stranger stays. The session moved
+ * down into (app), which needs it anyway; (marketing) does without and
+ * prerenders.
+ *
+ * What stays here is what every page shares regardless of who is looking: the
+ * document, the font, the colour-scheme variables, and the skip link.
+ */
+export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const user = await getCurrentUser();
-  // One settings read for both nav flags rather than two round-trips.
-  const { transactionsEnabled, planVisible } = await getNavFlags(user?.id);
-  // Resolved on the server so the correct scheme is in the very first paint.
-  // Deciding this on the client would mean rendering light, hydrating, then
-  // repainting dark — the flash every dark-mode implementation is judged by.
-  const theme = themeAttribute(await getThemePreference(user?.id));
-
   return (
-    <html lang="en" data-theme={theme}>
+    <html lang="en">
       <head>
         {/* Generated from the palettes rather than a static stylesheet, so the
             two never drift. Inline in <head> so the variables exist before the
@@ -48,20 +48,7 @@ export default async function RootLayout({
         <a className="skip-link" href="#main-content">
           Skip to content
         </a>
-        <StyledComponentsRegistry>
-          <NavBar
-            signedIn={!!user}
-            transactionsEnabled={transactionsEnabled}
-            planVisible={planVisible}
-          />
-          {/* tabIndex -1 makes the target programmatically focusable, so the
-              jump actually moves focus rather than only scrolling. */}
-          <div className="app-content" id="main-content" tabIndex={-1}>
-            {children}
-          </div>
-          <Footer />
-          {user && <IdleTimeout />}
-        </StyledComponentsRegistry>
+        <StyledComponentsRegistry>{children}</StyledComponentsRegistry>
       </body>
     </html>
   );

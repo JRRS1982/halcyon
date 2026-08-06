@@ -3,7 +3,7 @@ import type {
   SerializedPlanExpense,
   SerializedPlanIncome,
   SerializedPlanLiability,
-} from "@/app/plan/serialized";
+} from "@/app/(app)/plan/serialized";
 
 // Pure layout model for the read-only life timeline. All age→position maths
 // live here so the Timeline component can stay a dumb renderer. No React, no

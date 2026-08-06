@@ -1,4 +1,7 @@
-import { commitImport, setTransactionNote } from "@/app/transactions/actions";
+import {
+  commitImport,
+  setTransactionNote,
+} from "@/app/(app)/transactions/actions";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
 

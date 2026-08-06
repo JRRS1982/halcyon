@@ -1,5 +1,5 @@
 // src/__tests__/marketing/about.test.tsx
-import { AboutGuide } from "@/app/about/AboutGuide";
+import { AboutGuide } from "@/app/(app)/about/AboutGuide";
 import { theme } from "@/lib/theme";
 import { render, screen, within } from "@testing-library/react";
 import { ThemeProvider } from "styled-components";

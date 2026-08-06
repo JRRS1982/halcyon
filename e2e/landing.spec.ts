@@ -85,3 +85,20 @@ test.describe("Trust", () => {
     ).toHaveAttribute("href", "/about");
   });
 });
+
+test.describe("Footers", () => {
+  // The landing page brings its own MarketingFooter. The app footer used to
+  // step aside by checking the pathname; now the marketing layout simply
+  // doesn't render one — so the thing worth asserting is that exactly one
+  // footer survives, not that a component knows where it is.
+  test("the landing page has exactly one footer, and it is the marketing one", async ({
+    page,
+  }) => {
+    await page.goto("/");
+
+    await expect(page.getByRole("contentinfo")).toHaveCount(1);
+    await expect(
+      page.getByRole("contentinfo").getByRole("link", { name: /full guide/i }),
+    ).toBeVisible();
+  });
+});

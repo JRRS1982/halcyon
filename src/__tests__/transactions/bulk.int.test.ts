@@ -1,7 +1,7 @@
 import {
   bulkDeleteTransactions,
   bulkSetTransactionCategory,
-} from "@/app/transactions/actions";
+} from "@/app/(app)/transactions/actions";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
 

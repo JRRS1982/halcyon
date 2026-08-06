@@ -1,7 +1,7 @@
 import {
   setTransactionCategory,
   setTransactionTransfer,
-} from "@/app/transactions/actions";
+} from "@/app/(app)/transactions/actions";
 import { prisma } from "@/lib/prisma";
 import { getTransfersByAccount } from "@/lib/transactions/server";
 import { TEST_USER_ID } from "../../../test/integration/helpers";

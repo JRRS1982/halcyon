@@ -45,14 +45,19 @@ test.describe("Colour scheme", () => {
       expect(await canvas(page)).toBe(DARK_CANVAS);
       // No attribute at all is what lets the media query decide — and keeps it
       // deciding when the user changes their OS setting later.
-      await expect(page.locator("html")).not.toHaveAttribute("data-theme", /./);
+      await expect(page.locator("[data-theme]")).toHaveCount(0);
     });
 
     test("choosing Light overrides a dark system", async ({ page }) => {
       await signIn(page);
       await chooseScheme(page, "Light");
 
-      await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+      // On the (app) wrapper rather than <html>: the root layout deliberately
+      // knows nothing about the session, so the marketing page can prerender.
+      await expect(page.locator("[data-theme]")).toHaveAttribute(
+        "data-theme",
+        "light",
+      );
       expect(await canvas(page)).toBe(LIGHT_CANVAS);
 
       // And it survives a reload — the point of storing it.
@@ -75,7 +80,12 @@ test.describe("Colour scheme", () => {
       await signIn(page);
       await chooseScheme(page, "Dark");
 
-      await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+      await expect(page.locator("[data-theme]")).toHaveAttribute(
+        "data-theme",
+        "dark",
+      );
+      // The root picks the choice up through :has(), so the page background and
+      // scrollbars follow it too — not just the wrapper's subtree.
       expect(await canvas(page)).toBe(DARK_CANVAS);
 
       await page.goto("/budget");

@@ -1,4 +1,4 @@
-import { togglePlanVisible } from "@/app/settings/actions";
+import { togglePlanVisible } from "@/app/(app)/settings/actions";
 import { isPlanVisible } from "@/lib/settings/server";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
 

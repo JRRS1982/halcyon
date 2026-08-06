@@ -1,14 +1,18 @@
 "use client";
 
-import { usePathname } from "next/navigation";
 import { Copy, FooterBar, FooterLink } from "./Footer.styled";
 
+// Rendered by the (app) layout only. It used to check usePathname and return
+// null on "/" to avoid doubling up with the landing page's own MarketingFooter
+// — the route groups now say that structurally, so it no longer needs to know
+// where it is.
+//
+// It does still need "use client": every element here is a styled component,
+// and those read the theme from context, which does not exist in a server
+// component. Dropping the directive along with usePathname turned the whole
+// footer into a 500 on every page that renders it — and not on "/", because
+// the marketing layout is the one place that doesn't.
 export function Footer() {
-  const pathname = usePathname();
-  // The landing page ("/") supplies its own MarketingFooter, so the global
-  // footer steps aside there to avoid a double footer.
-  if (pathname === "/") return null;
-
   return (
     <FooterBar>
       <Copy>Balanced Money</Copy>
