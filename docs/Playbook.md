@@ -56,7 +56,7 @@ Build functionality in small, releasable vertical feature slices. When writing e
 - [x] *Backend services, endpoints, and business logic — server actions + route handlers across budget, balance, transactions, settings, auth
 - [x] *Frontend components, state management, and routing — App Router pages + ~60 components (state is server-driven + local React state; Redux Toolkit installed but not yet wired)
 - [x] *Authentication and user management (roles, sessions) — Supabase Auth (email/password + Google OAuth), sessions via `@supabase/ssr`, middleware route protection
-- [ ] Security scanning and dependency management (Snyk, dependabot, etc.)
+- [x] Security scanning and dependency management — Dependabot (`.github/dependabot.yml`), a `security-audit` CI job running `pnpm audit --audit-level high`, and GitGuardian secret scanning on every PR
 - [ ] Performance testing and optimization during development (Lighthouse, WebPageTest, etc.)
 
 ## 5. Validate
@@ -67,7 +67,7 @@ Prove the system is correct, performant, and secure.
 - [ ] Security testing (penetration testing, OWASP validation)
 - [ ] Non functional requirements validation (Service Level Agreements, Recovery Time Objective / Recovery Point Objective, Error budgets)
 - [ ] CI pipeline (Regression tests running on a schedule)
-- [ ] Common Vulnerabilities and Exposures (CVE) scanning with critical vulnerability blocking
+- [x] Common Vulnerabilities and Exposures (CVE) scanning with critical vulnerability blocking — the `security-audit` job fails the build on high/critical advisories; low and moderate are reported but don't block
 - [ ] Observability implementation (logging, metrics, tracing to i.e. Datadog)
 - [ ] Backup and disaster recovery testing
 
