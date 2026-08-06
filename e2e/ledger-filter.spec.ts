@@ -1,4 +1,10 @@
-import { expect, importCsv, signIn, test } from "./_helpers/fixtures";
+import {
+  ensureTransactionsEnabled,
+  expect,
+  importCsv,
+  signIn,
+  test,
+} from "./_helpers/fixtures";
 
 // Regression: categorising a row while the "Uncategorized only" filter is on
 // must keep the filtered view — the just-categorised row should drop out and
@@ -22,13 +28,7 @@ test.describe("ledger uncategorized filter", () => {
 
     await signIn(page);
 
-    await page.goto("/settings");
-    const txToggle = page.getByRole("checkbox", { name: "Transactions" });
-    await txToggle.check({ force: true });
-    await page.getByRole("button", { name: "Confirm" }).click();
-    await expect(
-      page.getByRole("link", { name: "Transactions" }),
-    ).toBeVisible();
+    await ensureTransactionsEnabled(page);
 
     // Import two uncategorised rows into a fresh account.
     await page.goto("/transactions");

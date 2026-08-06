@@ -8,7 +8,6 @@ test("add a mortgage opens the property card with a mortgage section", async ({
   db,
 }) => {
   await signIn(page);
-  await page.waitForURL("**/dashboard");
 
   // createPlan seeds from the most recent month period, so give it one to
   // read (mirrors e2e/plan.spec.ts).
@@ -80,7 +79,6 @@ test("toggling interest-only persists after reload and hides the repayment field
   db,
 }) => {
   await signIn(page);
-  await page.waitForURL("**/dashboard");
 
   const user = await db.user.findFirstOrThrow();
   const start = new Date(Date.UTC(2026, 0, 1));

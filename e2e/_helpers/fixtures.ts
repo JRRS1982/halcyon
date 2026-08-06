@@ -1,4 +1,4 @@
-import { type Page, test as base } from "@playwright/test";
+import { type Page, test as base, expect } from "@playwright/test";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 
@@ -76,14 +76,14 @@ const KNOWN_USER = { email: "test@example.com", password: "password123" };
 // Signs in as the mock Supabase user and waits for the post-login redirect.
 // The app upserts the User/UserSettings profile rows on the first request.
 //
-// Sign-in now lands directly on POST_AUTH_LANDING rather than bouncing off the
-// marketing page, so this waits for the dashboard.
+// Sign-in lands on POST_AUTH_LANDING (/transactions) rather than bouncing off
+// the marketing page.
 export async function signIn(page: Page): Promise<void> {
   await page.goto("/sign-in");
   await page.fill("input[name='email']", KNOWN_USER.email);
   await page.fill("input[name='password']", KNOWN_USER.password);
   await page.getByRole("button", { name: "Sign in" }).click();
-  await page.waitForURL(/\/dashboard$/);
+  await page.waitForURL(/\/transactions$/);
 }
 
 /**
@@ -130,4 +130,24 @@ export async function importCsv(
   }
 
   throw new Error("Import panel never reached the mapping step");
+}
+
+// Journeys that need the transactions feature on.
+//
+// New accounts get it enabled by default, and the clean-DB fixture makes every
+// test a new account — so this is usually just an assertion. It still performs
+// the toggle-and-confirm when the setting is off, so a spec reads as "this
+// journey needs transactions" rather than silently depending on the default,
+// and keeps working if that default ever changes again.
+export async function ensureTransactionsEnabled(page: Page): Promise<void> {
+  await page.goto("/settings");
+  const toggle = page.getByRole("checkbox", { name: "Transactions" });
+
+  if (!(await toggle.isChecked())) {
+    await toggle.check({ force: true });
+    await page.getByRole("button", { name: "Confirm" }).click();
+  }
+
+  // Nav link appears once the setting is saved + revalidated.
+  await expect(page.getByRole("link", { name: "Transactions" })).toBeVisible();
 }

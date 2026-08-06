@@ -12,6 +12,9 @@ export function Footer() {
   return (
     <FooterBar>
       <Copy>Balanced Money</Copy>
+      {/* Present on every app page: the guide is reference material, and the
+          moment someone needs it is the moment something confused them. */}
+      <FooterLink href="/about">How it works</FooterLink>
       <FooterLink href="/privacy">Privacy</FooterLink>
       <FooterLink href="/terms">Terms</FooterLink>
     </FooterBar>

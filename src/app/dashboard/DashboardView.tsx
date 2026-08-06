@@ -10,7 +10,8 @@ import {
 } from "@/lib/dashboard/series";
 import type { NumberFormat } from "@/lib/settings/currency";
 import nextDynamic from "next/dynamic";
-import styled from "styled-components";
+import Link from "next/link";
+import styled, { css } from "styled-components";
 import type { BalancePoint } from "./BalanceTrendChart";
 
 // Recharts is ~123KB gzipped — by far the heaviest thing the app ships, and
@@ -178,6 +179,78 @@ const PanelLead = styled.p`
   max-width: 70ch;
 `;
 
+// Shown only when the whole dashboard has nothing in it — see `nothingToChart`.
+const FirstRun = styled.section`
+  border: 1px solid ${({ theme }) => theme.colors.hairline};
+  border-radius: ${({ theme }) => theme.rounded.sm};
+  background: ${({ theme }) => theme.colors.canvasSoft};
+  padding: ${({ theme }) => theme.spacing.xl};
+  margin-top: ${({ theme }) => theme.spacing["2xl"]};
+`;
+
+const FirstRunTitle = styled.h2`
+  margin: 0 0 ${({ theme }) => theme.spacing.sm};
+  font-family: ${({ theme }) => theme.typography.displayLg.family};
+  font-size: ${({ theme }) => theme.typography.displayLg.size};
+  font-weight: ${({ theme }) => theme.typography.displayLg.weight};
+  letter-spacing: ${({ theme }) => theme.typography.displayLg.letterSpacing};
+  color: ${({ theme }) => theme.colors.ink};
+`;
+
+const FirstRunBody = styled.p`
+  margin: 0;
+  max-width: 68ch;
+  font-family: ${({ theme }) => theme.typography.bodyMd.family};
+  font-size: ${({ theme }) => theme.typography.bodyMd.size};
+  line-height: 1.6;
+  color: ${({ theme }) => theme.colors.body};
+`;
+
+const FirstRunActions = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: ${({ theme }) => theme.spacing.md};
+  margin-top: ${({ theme }) => theme.spacing.lg};
+`;
+
+const FirstRunPrimary = styled(Link)`
+  ${({ theme }) => css`
+    display: inline-flex;
+    align-items: center;
+    background: ${theme.colors.primary};
+    color: ${theme.colors.onPrimary};
+    border-radius: ${theme.rounded.sm};
+    padding: ${theme.spacing.sm} ${theme.spacing.lg};
+    font-family: ${theme.typography.monoCaps.family};
+    font-size: ${theme.typography.monoCaps.size};
+    font-weight: ${theme.typography.monoCaps.weight};
+    letter-spacing: ${theme.typography.monoCaps.letterSpacing};
+    text-transform: uppercase;
+    text-decoration: none;
+
+    &:hover {
+      opacity: 0.85;
+    }
+
+    @media (max-width: 767px) {
+      min-height: 44px;
+    }
+  `}
+`;
+
+const FirstRunSecondary = styled(FirstRunPrimary)`
+  ${({ theme }) => css`
+    background: ${theme.colors.canvas};
+    color: ${theme.colors.ink};
+    border: 1px solid ${theme.colors.hairline};
+
+    &:hover {
+      opacity: 1;
+      border-color: ${theme.colors.ink};
+    }
+  `}
+`;
+
 const EmptyState = styled.div`
   display: flex;
   align-items: center;
@@ -261,6 +334,15 @@ export function DashboardView({
       </Panel>
     );
 
+  // Every panel empty means this is almost certainly someone's first visit.
+  // Three separate "go to the Budget page" empty states leave a new user with
+  // instructions and no idea which to follow first, so lead with one
+  // explanation of why the page is blank and where to start.
+  const nothingToChart =
+    cashFlowData.length === 0 &&
+    balanceData.length === 0 &&
+    expenditurePanels.length === 0;
+
   return (
     <Shell>
       <PageHeader
@@ -268,6 +350,23 @@ export function DashboardView({
         title="Dashboard"
         lead="Trends across your tracked months."
       />
+      {nothingToChart && (
+        <FirstRun>
+          <FirstRunTitle>Nothing to chart yet</FirstRunTitle>
+          <FirstRunBody>
+            This page is built from figures you enter elsewhere — it has no
+            input of its own. The quickest way to fill it is to import a bank
+            statement and categorise the rows; your budget, spending breakdown
+            and cash-flow chart all follow from that.
+          </FirstRunBody>
+          <FirstRunActions>
+            <FirstRunPrimary href="/transactions">
+              Import a statement
+            </FirstRunPrimary>
+            <FirstRunSecondary href="/about">Read the guide</FirstRunSecondary>
+          </FirstRunActions>
+        </FirstRun>
+      )}
       <Panels>
         {shown("cashFlow") && (
           <Panel>

@@ -54,7 +54,10 @@ model UserSettings {
   userId              String   @id @db.Uuid
   currency            String   @default("GBP")
   numberFormat        String   @default("COMMA_0")
-  transactionsEnabled Boolean  @default(false)
+  // Defaults true: CSV import is the fastest route to a filled-in app, so it
+  // shouldn't be something a new user has to discover in Settings first. Only
+  // affects rows created from here on — existing users keep their own choice.
+  transactionsEnabled Boolean  @default(true)
   transfersEnabled    Boolean  @default(false)
   // Dashboard chart keys the user has switched off (empty = all shown).
   hiddenCharts        String[] @default([])

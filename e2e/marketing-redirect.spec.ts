@@ -11,18 +11,19 @@ test.describe("Marketing page for signed-in users", () => {
     test.skip(browserName !== "chromium", "journey runs on chromium only");
   });
 
-  test("a direct visit to / lands on the dashboard", async ({ page }) => {
+  test("a direct visit to / lands in the app", async ({ page }) => {
     await signIn(page);
 
     await page.goto("/");
 
-    await expect(page).toHaveURL(/\/dashboard$/);
+    await expect(page).toHaveURL(/\/transactions$/);
+    // Page title, not the ledger's section heading of the same name.
     await expect(
-      page.getByRole("heading", { name: "Dashboard" }),
+      page.getByRole("heading", { level: 1, name: "Transactions" }),
     ).toBeVisible();
   });
 
-  test("the brand link in the nav goes to the dashboard, not the pitch", async ({
+  test("the brand link in the nav goes into the app, not the pitch", async ({
     page,
   }) => {
     await signIn(page);
@@ -30,6 +31,6 @@ test.describe("Marketing page for signed-in users", () => {
 
     await page.getByRole("link", { name: /balanced money/i }).click();
 
-    await expect(page).toHaveURL(/\/dashboard$/);
+    await expect(page).toHaveURL(/\/transactions$/);
   });
 });

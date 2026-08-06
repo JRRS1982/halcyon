@@ -1,16 +1,49 @@
-import { expect, importCsv, signIn, test } from "./_helpers/fixtures";
+import {
+  ensureTransactionsEnabled,
+  expect,
+  importCsv,
+  signIn,
+  test,
+} from "./_helpers/fixtures";
 
-// Signed-in transactions journey: enable the feature, import a CSV, categorise
-// the row, and confirm it surfaces on the budget. This exercises app logic
-// rather than rendering, so it runs on one browser. Each test gets a clean DB
-// (see _helpers/fixtures), so the feature always starts disabled.
+// Signed-in transactions journey: import a CSV, categorise the row, and
+// confirm it surfaces on the budget. This exercises app logic rather than
+// rendering, so it runs on one browser. Each test gets a clean DB (see
+// _helpers/fixtures), which means a brand-new account — and new accounts have
+// transactions switched on.
 
 test.describe("transactions journey", () => {
   test.beforeEach(({ browserName }) => {
     test.skip(browserName !== "chromium", "journey runs on chromium only");
   });
 
-  test("enable → import → categorise → shows on budget", async ({ page }) => {
+  // Transactions is on for new accounts, so the enable path is no longer part
+  // of the main journey — but an existing user who switched it off still meets
+  // the confirm dialog, and it's the gate on a feature that changes the nav.
+  test("switching the feature off and back on goes through a confirmation", async ({
+    page,
+  }) => {
+    await signIn(page);
+    await page.goto("/settings");
+
+    const toggle = page.getByRole("checkbox", { name: "Transactions" });
+    // New accounts start with it on.
+    await expect(toggle).toBeChecked();
+
+    // Both directions confirm first — the setting changes the nav and flips
+    // the budget's actual column between computed and editable.
+    await toggle.uncheck({ force: true });
+    await page.getByRole("button", { name: "Confirm" }).click();
+    await expect(page.getByRole("link", { name: "Transactions" })).toBeHidden();
+
+    await toggle.check({ force: true });
+    await page.getByRole("button", { name: "Confirm" }).click();
+    await expect(
+      page.getByRole("link", { name: "Transactions" }),
+    ).toBeVisible();
+  });
+
+  test("import → categorise → shows on budget", async ({ page }) => {
     const token = `${Date.now()}`;
     const account = `E2E ${token}`;
     const description = `Coffee-${token}`;
@@ -18,16 +51,7 @@ test.describe("transactions journey", () => {
 
     await signIn(page);
 
-    // Enable Transactions in Settings: toggling the switch opens a confirm
-    // dialog; Confirm persists it. The clean-DB fixture guarantees it starts off.
-    await page.goto("/settings");
-    const toggle = page.getByRole("checkbox", { name: "Transactions" });
-    await toggle.check({ force: true });
-    await page.getByRole("button", { name: "Confirm" }).click();
-    // Nav link appears once the setting is saved + revalidated.
-    await expect(
-      page.getByRole("link", { name: "Transactions" }),
-    ).toBeVisible();
+    await ensureTransactionsEnabled(page);
 
     // Import a one-row statement into a brand-new account. DMY date matches the
     // mapping's default format.

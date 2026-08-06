@@ -8,7 +8,6 @@ test("switching an event to Property sale shows the property picker and labels t
   db,
 }) => {
   await signIn(page);
-  await page.waitForURL("**/dashboard");
 
   const user = await db.user.findFirstOrThrow();
   const start = new Date(Date.UTC(2026, 0, 1));

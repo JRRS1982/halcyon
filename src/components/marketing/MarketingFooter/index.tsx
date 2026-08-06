@@ -25,6 +25,8 @@ export function MarketingFooter() {
             <FootLink href="#how">How it works</FootLink>
             <FootLink href="#features">Features</FootLink>
             <FootLink href="#details">Details</FootLink>
+            {/* The pitch above is a summary; this is the actual manual. */}
+            <FootLink href="/about">Full guide</FootLink>
           </div>
           <div>
             <ColTitle>Legal</ColTitle>
