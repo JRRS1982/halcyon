@@ -33,7 +33,19 @@ export type ColorToken =
   // Chart-only hues. Series colours are graphics rather than text, so they
   // answer to WCAG's 3:1 non-text rule against the surface they sit on.
   | "chartRate"
-  | "chartBudget";
+  | "chartBudget"
+  // The plan's categorical slots — one per asset wrapper. Series colours are
+  // graphics, so they answer to the 3:1 non-text rule, and as a *set* they also
+  // have to stay apart from one another under colour-vision deficiency. Both
+  // schemes are checked by the dataviz palette validator; see the note on
+  // planChartPalette below.
+  | "chartCash"
+  | "chartIsa"
+  | "chartGia"
+  | "chartProperty"
+  | "chartOtherAsset"
+  | "chartPension"
+  | "chartDbPension";
 
 export type Palette = Record<ColorToken, string>;
 
@@ -76,6 +88,13 @@ export const lightPalette: Palette = {
   // failed the 3:1 non-text rule — the line a user is meant to compare against
   // was the faintest thing on the chart.
   chartBudget: "#7E8794",
+  chartCash: "#0E8AA8",
+  chartIsa: "#15803D",
+  chartGia: "#7C3AED",
+  chartProperty: "#B87700",
+  chartOtherAsset: "#BE185D",
+  chartPension: "#1D4ED8",
+  chartDbPension: "#C2410C",
 };
 
 /**
@@ -120,6 +139,13 @@ export const darkPalette: Palette = {
   accent: "#7FA6FF",
   chartRate: "#E9A23B",
   chartBudget: "#828C99",
+  chartCash: "#359DD1",
+  chartIsa: "#5AA33F",
+  chartGia: "#9B7BE0",
+  chartProperty: "#C08329",
+  chartOtherAsset: "#D06B95",
+  chartPension: "#5B8DEF",
+  chartDbPension: "#D96A45",
 };
 
 export const cssVariableName = (token: string) => `--c-${token}`;
@@ -129,3 +155,23 @@ export const paletteToCss = (palette: Palette): string =>
   Object.entries(palette)
     .map(([token, value]) => `  ${cssVariableName(token)}: ${value};`)
     .join("\n");
+
+/**
+ * Why these seven, and what they do not achieve.
+ *
+ * The previous set had two slots (DB pension, Other) sitting below the chroma
+ * floor — they read as grey, which in this app means "no data" — and two
+ * (Cash, Other) below 3:1 against the page, so the faintest series was the one
+ * a user was least likely to recognise. Both schemes now clear the lightness
+ * band, the chroma floor, 3:1 contrast, and adjacent-pair separation under
+ * simulated protanopia, deuteranopia and tritanopia.
+ *
+ * What they do not achieve is all-pairs separation. Seven hues cannot be made
+ * mutually distinguishable under CVD at a lightness that also clears 3:1 on the
+ * page: blue↔violet and amber↔vermillion collide whichever way the set is
+ * chosen, and the validator fails an all-pairs check on as few as four hues
+ * containing both a green and an amber. The remedy is not a better palette —
+ * it is a second channel (texture or dash, as BalanceTrendChart already uses to
+ * tell its categories apart) or fewer simultaneous series. That is a change to
+ * the charts rather than to these values, and is deliberately left alone here.
+ */

@@ -44,6 +44,13 @@ export const theme = {
     accent: cssVar("accent"),
     chartRate: cssVar("chartRate"),
     chartBudget: cssVar("chartBudget"),
+    chartCash: cssVar("chartCash"),
+    chartIsa: cssVar("chartIsa"),
+    chartGia: cssVar("chartGia"),
+    chartProperty: cssVar("chartProperty"),
+    chartOtherAsset: cssVar("chartOtherAsset"),
+    chartPension: cssVar("chartPension"),
+    chartDbPension: cssVar("chartDbPension"),
   },
 
   // Five sizes only. See DESIGN.md → Typography → Hierarchy.
