@@ -1,11 +1,24 @@
-import { amountAxis, makeAmountTick } from "./chartFormat";
+import { amountAxis, makeAmountTick } from "./format";
 
 describe("makeAmountTick", () => {
   const tick = makeAmountTick("GBP");
 
-  it("renders thousands rounded to k with the currency symbol", () => {
-    expect(tick(1500)).toBe("£2k");
+  it("renders thousands as k with the currency symbol", () => {
+    expect(tick(1500)).toBe("£1.5k");
     expect(tick(80000)).toBe("£80k");
+  });
+
+  it("trims a trailing zero rather than printing £3.0k", () => {
+    expect(tick(3000)).toBe("£3k");
+  });
+
+  // The bug this replaced: rounding to whole thousands gave two different
+  // gridlines the same label. The dashboard's cash-flow axis leaves tick
+  // selection to Recharts, so it really does land on values like these.
+  it("gives distinct gridlines distinct labels", () => {
+    const labels = [750, 1500, 2250, 3000].map(tick);
+    expect(labels).toEqual(["£750", "£1.5k", "£2.3k", "£3k"]);
+    expect(new Set(labels).size).toBe(labels.length);
   });
 
   it("renders sub-1000 amounts in full", () => {

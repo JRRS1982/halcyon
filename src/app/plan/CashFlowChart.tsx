@@ -1,6 +1,7 @@
 // src/app/plan/CashFlowChart.tsx
 "use client";
 
+import { amountAxis, makeAmountTick } from "@/lib/charts/format";
 import type { YearProjection } from "@/lib/plan";
 import {
   type CashFlowDatum,
@@ -28,7 +29,6 @@ import {
 } from "recharts";
 import styled, { useTheme } from "styled-components";
 import { PLOT_HEIGHT, PLOT_LEFT_INSET, PLOT_RIGHT_INSET } from "./axisGeometry";
-import { amountAxis, makeAmountTick } from "./chartFormat";
 import { ageReferenceLines } from "./chartRefLines";
 import {
   Key,

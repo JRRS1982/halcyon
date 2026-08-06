@@ -1,6 +1,7 @@
 "use client";
 
 import { ChartLegend } from "@/app/dashboard/ChartLegend";
+import { makeAmountTick } from "@/lib/charts/format";
 import type { CashFlowPoint } from "@/lib/dashboard/series";
 import {
   type NumberFormat,
@@ -39,11 +40,10 @@ export function CashFlowChart({
 }) {
   const theme = useTheme();
 
-  const amountTick = (v: number) => {
-    const sym = symbolFor(currency);
-    if (Math.abs(v) >= 1000) return `${sym}${Math.round(v / 1000)}k`;
-    return `${sym}${v}`;
-  };
+  // Shared with the plan charts. The local copy this replaced rounded to whole
+  // thousands, so an axis reaching £3k drew gridlines at 2250 and 1500 that
+  // both read "£2k".
+  const amountTick = makeAmountTick(currency);
 
   const fmtNet = (n: number) => {
     const sym = symbolFor(currency);
