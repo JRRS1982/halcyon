@@ -1,9 +1,10 @@
 import { IdleTimeout } from "@/components/auth/IdleTimeout";
 import { Footer } from "@/components/ui/Footer";
 import { NavBar } from "@/components/ui/NavBar";
-import { getNavFlags } from "@/lib/settings/server";
+import { getNavFlags, getThemePreference } from "@/lib/settings/server";
 import { StyledComponentsRegistry } from "@/lib/styled";
 import { getCurrentUser } from "@/lib/supabase/user";
+import { themeAttribute, themeCss } from "@/lib/themeCss";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
@@ -24,9 +25,20 @@ export default async function RootLayout({
   const user = await getCurrentUser();
   // One settings read for both nav flags rather than two round-trips.
   const { transactionsEnabled, planVisible } = await getNavFlags(user?.id);
+  // Resolved on the server so the correct scheme is in the very first paint.
+  // Deciding this on the client would mean rendering light, hydrating, then
+  // repainting dark — the flash every dark-mode implementation is judged by.
+  const theme = themeAttribute(await getThemePreference(user?.id));
 
   return (
-    <html lang="en">
+    <html lang="en" data-theme={theme}>
+      <head>
+        {/* Generated from the palettes rather than a static stylesheet, so the
+            two never drift. Inline in <head> so the variables exist before the
+            first paint. */}
+        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: generated from a typed palette in this repo, never from user input. */}
+        <style dangerouslySetInnerHTML={{ __html: themeCss }} />
+      </head>
       <body className={inter.className}>
         {/* First focusable thing on the page, so a keyboard or screen-reader
             user can jump the nav instead of tabbing through it on every route.

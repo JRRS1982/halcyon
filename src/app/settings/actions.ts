@@ -3,6 +3,7 @@
 import { isDashboardChartKey } from "@/lib/dashboard/charts";
 import { prisma } from "@/lib/prisma";
 import { CURRENCY_CODES, NUMBER_FORMATS } from "@/lib/settings/currency";
+import { isThemePreference } from "@/lib/settings/theme";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -110,6 +111,21 @@ export async function togglePlanVisible(enabled: boolean) {
     where: { userId },
     update: { planVisible: enabled },
     create: { userId, planVisible: enabled },
+  });
+  revalidatePath("/", "layout");
+}
+
+// The colour scheme lives on <html>, which the root layout renders — so the
+// whole layout has to revalidate, not just /settings, or the page would save
+// the choice and keep showing the old scheme until a hard refresh.
+export async function setThemePreference(preference: string) {
+  const userId = await requireUserId();
+  if (!isThemePreference(preference)) return;
+
+  await prisma.userSettings.upsert({
+    where: { userId },
+    update: { themePreference: preference },
+    create: { userId, themePreference: preference },
   });
   revalidatePath("/", "layout");
 }

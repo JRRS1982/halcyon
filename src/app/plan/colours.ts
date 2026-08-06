@@ -1,5 +1,6 @@
 // src/app/plan/colours.ts
 import type { ExpenseCategory, IncomeKind, Wrapper } from "@/lib/plan";
+import { theme } from "@/lib/theme";
 
 export const WRAPPER_COLOURS: Record<Wrapper, string> = {
   PENSION: "#1E5BC6",
@@ -23,8 +24,9 @@ export const WRAPPER_LABELS: Record<Wrapper, string> = {
   OTHER: "Other",
 };
 
-export const DEBT_COLOUR = "#B33B3B";
-export const NET_WORTH_COLOUR = "#0F1116";
+export const DEBT_COLOUR = theme.colors.negative;
+// Was #0F1116 — a near-black line, which on a dark page is invisible.
+export const NET_WORTH_COLOUR = theme.colors.ink;
 
 // Cash-flow chart — income sources (positive) and outflows (negative).
 // Drawdowns and contributions are drawn per asset (see ASSET_FLOW_PALETTE), so

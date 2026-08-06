@@ -26,18 +26,19 @@ colors:
   dim: "#717171"
   hairline: "#E5E5E5"
   hairline-strong: "#D4D4D4"
-  hairline-dark: "#1F242C"
+  hairline-band: "#1F242C"
   canvas: "#FFFFFF"
   canvas-soft: "#F7F7F7"
-  canvas-dark: "#0F1116"
-  surface-dark-soft: "#1A1D23"
-  on-dark: "#FFFFFF"
-  body-on-dark: "#A8AFBC"
+  band: "#0F1116"
+  band-soft: "#1A1D23"
+  on-band: "#FFFFFF"
+  body-on-band: "#A8AFBC"
   positive: "#1A7A43"
   negative: "#B33B3B"
   focus: "#0F1116"
   accent: "#1E5BC6"
   chart-rate: "#D97706"
+  chart-budget: "#7E8794"
 
 typography:
   display-xl:
@@ -281,9 +282,9 @@ components:
 
   sheet-row-section:
     description: "Section group header (Income, Expenses). Full-width dark band — the page's primary visual separator. Inter semibold label, amount cells already populated with section roll-ups."
-    backgroundColor: "{colors.canvas-dark}"
-    textColor: "{colors.on-dark}"
-    borderColor: "{colors.hairline-dark}"
+    backgroundColor: "{colors.band}"
+    textColor: "{colors.on-band}"
+    borderColor: "{colors.hairline-band}"
     labelTypography: "{typography.body-md}"
     labelFontWeight: 600
     valueTypography: "{typography.amount-strong}"
@@ -414,7 +415,7 @@ Halcyon is a personal-finance app — budgets, statements, financial documents y
 
 Type is the second decisive voice. Two faces carry every page: **Inter** (loaded via `next/font/google` in `src/app/layout.tsx`) for headlines, body, and amount cells with `font-variant-numeric: tabular-nums`; and a **system monospace** face (`ui-monospace, SF Mono, Menlo, Consolas, monospace`) used **uppercase** for every label that touches data — column headers, section row labels, button labels, eyebrows, status pips, period tabs, the row index column. Headlines are sentence case; everything technical is uppercase mono. That contrast is the brand's tonal joke — the app is serious enough to use a monospace label, modern enough not to put the headline in it.
 
-Surfaces alternate at the row level, not the page level. A page is `{colors.canvas}` (white) end-to-end; within the sheet, `{colors.canvas-dark}` (`#0F1116`) bands sit as full-width section headers between groups of light rows. `{colors.canvas-soft}` is the single soft surface tone — used for the row-index column, the formula bar, column headers, and subtotal rows. `{colors.hairline}` is the one-and-only divider on light surfaces; `{colors.hairline-dark}` plays the same role inside dark bands. Cards and panels are universally lightly rounded (`{rounded.sm}` 4 px) with hairline borders — never floating with shadows.
+Surfaces alternate at the row level, not the page level. A page is `{colors.canvas}` end-to-end; within the sheet, `{colors.band}` bands sit as full-width section headers between groups of ordinary rows. In the light scheme that band is near-black on white; in the dark scheme it is a *lighter* surface than the page. The token is named for its job, not its colour, precisely because it inverts — the reading ("a band groups these rows") is what stays fixed. `{colors.canvas-soft}` is the single soft surface tone — used for the row-index column, the formula bar, column headers, and subtotal rows. `{colors.hairline}` is the one-and-only divider on light surfaces; `{colors.hairline-band}` plays the same role inside dark bands. Cards and panels are universally lightly rounded (`{rounded.sm}` 4 px) with hairline borders — never floating with shadows.
 
 **Key Characteristics:**
 
@@ -437,11 +438,11 @@ Surfaces alternate at the row level, not the page level. A page is `{colors.canv
 
 - **Canvas** (`{colors.canvas}` — `#FFFFFF`): The default page background and the default sheet-cell background.
 - **Canvas Soft** (`{colors.canvas-soft}` — `#F7F7F7`): The single soft surface tone — used for the row-index column, column headers, the formula bar, subtotal rows, and current-period tab highlight.
-- **Canvas Dark** (`{colors.canvas-dark}` — `#0F1116`): The dark fill for section header bands inside the sheet. Slightly warmer than pure navy so it feels less Silicon-Valley-AI, less cold than pure black.
+- **Canvas Dark** (`{colors.band}` — `#0F1116`): The dark fill for section header bands inside the sheet. Slightly warmer than pure navy so it feels less Silicon-Valley-AI, less cold than pure black.
 - **Surface Dark Soft** (`{colors.surface-dark-soft}` — `#1A1D23`): A slightly lighter dark fill — used for the row-index column inside dark section bands.
 - **Hairline** (`{colors.hairline}` — `#E5E5E5`): The default 1 px divider on light surfaces — every sheet cell border, card border, badge border.
 - **Hairline Strong** (`{colors.hairline-strong}` — `#D4D4D4`): A stronger 1 px divider used at structural boundaries — the row-index column's right edge, the column-header row's bottom, subtotal-row top borders.
-- **Hairline Dark** (`{colors.hairline-dark}` — `#1F242C`): 1 px dividers inside `sheet-row-section` dark bands.
+- **Hairline Dark** (`{colors.hairline-band}` — `#1F242C`): 1 px dividers inside `sheet-row-section` dark bands.
 
 ### Text
 
@@ -450,8 +451,8 @@ Surfaces alternate at the row level, not the page level. A page is `{colors.canv
 - **Body** (`{colors.body}` — `#525252`): Secondary text on light surfaces — line-item labels (`label-indent-2`), lead paragraphs, mono-caps eyebrow labels, status-pip text, nav-link inactive state, period-tab month label.
 - **Body Muted** (`{colors.body-muted}` — `#6E6E6E`): A third tier of grey — used for the row-index column digits and period-tab status text.
 - **Dim** (`{colors.dim}` — `#717171`): Reserved for $0 / no-data amount cells. Dimmer than body-muted; signals "this is not data" rather than "this is secondary data".
-- **On Dark** (`{colors.on-dark}` — `#FFFFFF`): All primary text on `{colors.canvas-dark}` and `{colors.primary}` surfaces.
-- **Body On Dark** (`{colors.body-on-dark}` — `#A8AFBC`): Secondary text on dark surfaces.
+- **On Dark** (`{colors.on-band}` — `#FFFFFF`): All primary text on `{colors.band}` and `{colors.primary}` surfaces.
+- **Body On Band** (`{colors.body-on-band}` — `#A8AFBC`): Secondary text on band surfaces.
 
 ### Semantic
 
@@ -459,7 +460,7 @@ A deliberately small semantic palette — sign-only, never decorative.
 
 - **Positive** (`{colors.positive}` — `#1A7A43`): A muted green used **only** for positive variance amounts (under-budget expenses, surplus net income). Never used as a brand tint, button fill, or success banner background. Also the dot colour in `status-pip`.
 - **Negative** (`{colors.negative}` — `#B33B3B`): A muted red used **only** for negative variance amounts and destructive-button text. Never used as a brand tint or hero accent.
-- **Focus** (`{colors.focus}` — `#0F1116`): The 2 px outline ring on the focused **sheet cell** only. Matches `{colors.canvas-dark}` so cell focus reads as "this is where you're committing data". Form inputs outside the sheet take their focus ring from `{colors.accent}` instead — interaction belongs to the accent.
+- **Focus** (`{colors.focus}` — `#0F1116`): The 2 px outline ring on the focused **sheet cell** only. Matches `{colors.band}` so cell focus reads as "this is where you're committing data". Form inputs outside the sheet take their focus ring from `{colors.accent}` instead — interaction belongs to the accent.
 - No explicit warning / info / success colour beyond positive/negative.
 
 ## Typography
@@ -545,6 +546,35 @@ The default sheet cell renders at ~36 px tall (14 px text + 8 px × 2 padding + 
 - **Sheet**: at desktop, all six columns visible. At mobile, the row-index + category columns are sticky-left; amount columns scroll horizontally inside the sheet's rounded container.
 - **Period tabs**: 5-up at desktop, 3-up at tablet, 1-up at mobile. Card chrome stays identical.
 
+## Colour Schemes
+
+Two schemes, both first-class. Every colour token resolves to a CSS custom
+property (`--c-<token>`), so one set of components serves both and the browser
+does the switching.
+
+- **Light** is the default and the scheme the system was designed in.
+- **Dark** is a separate set of values, not a filter over the light ones. Greys
+  chosen against white go muddy on a dark surface, and the sign hues need
+  lightening before they clear the contrast floor.
+
+Surfaces rise in opposite directions. Light: `canvas` (white) → `canvas-soft`
+(header, subtotal and group rows) → `band` (near-black section strips). Dark:
+`canvas` (near-black) → `canvas-soft` → `band` (the lightest of the three).
+
+Which scheme applies is decided by a `data-theme` attribute the server writes
+onto `<html>` from the user's stored preference:
+
+| Preference | Attribute | Result |
+|---|---|---|
+| System (default) | *none* | `prefers-color-scheme` decides, and keeps deciding |
+| Light | `light` | Light, whatever the OS says |
+| Dark | `dark` | Dark, whatever the OS says |
+
+Resolving this on the server is what avoids the flash: a client-side decision
+would paint light, hydrate, then repaint. Every token in both schemes is
+asserted against the 4.5:1 text floor (3:1 for non-text) in
+`src/__tests__/ui/contrast.test.ts`.
+
 ## Elevation & Depth
 
 | Level | Treatment | Use |
@@ -552,9 +582,9 @@ The default sheet cell renders at ~36 px tall (14 px text + 8 px × 2 padding + 
 | Level 0 — Flat | No shadow, no border. | Default page surface. Toolbar tools (single hairline border, no shadow). |
 | Level 1 — Hairline | 1 px solid `{colors.hairline}` on `{colors.canvas}` cards. | `card`, `text-input`, `badge-neutral`, `period-tab`, sheet cells (all four sides). |
 | Level 2 — Hairline Strong | 1 px solid `{colors.hairline-strong}` as a structural boundary. | Bottom of `sheet-row-head`; top of `sheet-row-totals`. |
-| Level 3 — Filled Dark | `{colors.canvas-dark}` fill with internal dividers in `{colors.hairline-dark}`. | `sheet-row-section`. The dark fill is the elevation. |
+| Level 3 — Filled Dark | `{colors.band}` fill with internal dividers in `{colors.hairline-band}`. | `sheet-row-section`. The dark fill is the elevation. |
 | Level 4 — Filled Ink | `{colors.primary}` (`#000000`) fill. | `sheet-row-grand`, `button-primary`, `nav .pill`. The single heaviest treatment. |
-| Level 5 — Soft Drop | `rgba(15, 17, 22, 0.08) 0px 4px 12px 0px` — barely-perceptible shadow tinted with `{colors.canvas-dark}`. | Floating elements only — `toast`, `modal` (modal also uses a scrim). Never on inline cards or sheet rows. |
+| Level 5 — Soft Drop | `rgba(15, 17, 22, 0.08) 0px 4px 12px 0px` — barely-perceptible shadow tinted with `{colors.band}`. | Floating elements only — `toast`, `modal` (modal also uses a scrim). Never on inline cards or sheet rows. |
 
 ### Decorative Depth
 
@@ -641,7 +671,7 @@ The Budget page is built around a single bordered grid — the **sheet**. Every 
 
 **`sheet-row-section`** — a section group header (Income, Expenses).
 
-- Background `{colors.canvas-dark}`, text `{colors.on-dark}`, borders `{colors.hairline-dark}`, padding `{spacing.md} {spacing.md}`. Label set in `{typography.mono-caps}` (uppercase), amount columns set in `{typography.amount-strong}` showing the section roll-up totals. Section bands are the page's primary visual separator.
+- Background `{colors.band}`, text `{colors.on-band}`, borders `{colors.hairline-band}`, padding `{spacing.md} {spacing.md}`. Label set in `{typography.mono-caps}` (uppercase), amount columns set in `{typography.amount-strong}` showing the section roll-up totals. Section bands are the page's primary visual separator.
 
 **`sheet-row-item`** — the default line-item row.
 

@@ -1,6 +1,11 @@
 import "server-only";
 
 import { prisma } from "@/lib/prisma";
+import {
+  DEFAULT_THEME_PREFERENCE,
+  type ThemePreference,
+  isThemePreference,
+} from "@/lib/settings/theme";
 import { getCurrentUser } from "@/lib/supabase/user";
 import { redirect } from "next/navigation";
 import {
@@ -22,6 +27,7 @@ export async function getCurrentUserSettings(): Promise<{
   transfersEnabled: boolean;
   planVisible: boolean;
   hiddenCharts: string[];
+  themePreference: ThemePreference;
 }> {
   const user = await getCurrentUser();
   if (!user) redirect("/sign-in");
@@ -67,6 +73,9 @@ export async function getCurrentUserSettings(): Promise<{
     transfersEnabled: row.transfersEnabled,
     planVisible: row.planVisible,
     hiddenCharts: row.hiddenCharts,
+    themePreference: isThemePreference(row.themePreference)
+      ? row.themePreference
+      : "SYSTEM",
   };
 }
 
@@ -102,6 +111,27 @@ export async function isPlanVisible(userId: string): Promise<boolean> {
     select: { planVisible: true },
   });
   return row?.planVisible ?? true;
+}
+
+/**
+ * The signed-in user's colour-scheme choice, for the root layout.
+ *
+ * Separate from getCurrentUserSettings because the layout renders for
+ * signed-out visitors too, and that function redirects when there is no user.
+ * A visitor with no account follows their OS.
+ */
+export async function getThemePreference(
+  userId: string | undefined,
+): Promise<ThemePreference> {
+  if (!userId) return DEFAULT_THEME_PREFERENCE;
+
+  const row = await prisma.userSettings.findUnique({
+    where: { userId },
+    select: { themePreference: true },
+  });
+  return isThemePreference(row?.themePreference)
+    ? row.themePreference
+    : DEFAULT_THEME_PREFERENCE;
 }
 
 // Both nav flags in a single read. The root layout renders on every request,

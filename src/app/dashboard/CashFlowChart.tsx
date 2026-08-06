@@ -8,6 +8,7 @@ import {
   formatAmount,
   symbolFor,
 } from "@/lib/settings/currency";
+import { theme } from "@/lib/theme";
 import {
   Bar,
   CartesianGrid,
@@ -21,10 +22,13 @@ import {
 } from "recharts";
 import { useTheme } from "styled-components";
 
-const INCOME_COLOR = "#1F8A4C";
-const EXPENSE_COLOR = "#B33B3B";
-const NET_COLOR = "#1E5BC6";
-const RATE_COLOR = "#D97706";
+// These are the app's sign and accent colours, not a chart-only palette, so
+// they read from the tokens — which also makes them adapt to the dark scheme
+// instead of staying at values tuned for white.
+const INCOME_COLOR = theme.colors.positive;
+const EXPENSE_COLOR = theme.colors.negative;
+const NET_COLOR = theme.colors.accent;
+const RATE_COLOR = theme.colors.chartRate;
 const SAVINGS_RATE_NAME = "Savings rate";
 
 // Income vs expense bars per month, with the surplus/deficit as a line and the
