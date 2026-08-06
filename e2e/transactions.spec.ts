@@ -99,3 +99,35 @@ test.describe("transactions journey", () => {
       .toBe(true);
   });
 });
+
+// DESIGN.md → Typography → Amounts: "always show the currency symbol". Editable
+// cells omitted it, so a column read "£3,060" on its computed rows and "3,060"
+// on the rows above them. The symbol appears when the cell is idle and steps
+// aside while it is being edited, so the number the user types is the number
+// the parser sees.
+test.describe("amount cells", () => {
+  test.beforeEach(({ browserName }) => {
+    test.skip(browserName !== "chromium", "journey runs on chromium only");
+  });
+
+  test("carry the currency symbol until focused", async ({ page }) => {
+    await signIn(page);
+    await page.goto("/budget");
+
+    await page.getByRole("button", { name: /\+ income/i }).click();
+    const label = page.getByPlaceholder("Name this row").first();
+    await label.fill("Salary");
+
+    // The budget cell for the row just added.
+    const amount = page.locator('input[inputmode="decimal"]').first();
+    await amount.fill("3060");
+    await amount.blur();
+
+    await expect(amount).toHaveValue(/£/);
+    await expect(amount).toHaveValue("£3,060");
+
+    // Editing hands back the bare number.
+    await amount.focus();
+    await expect(amount).not.toHaveValue(/£/);
+  });
+});

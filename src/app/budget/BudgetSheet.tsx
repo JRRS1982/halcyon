@@ -125,11 +125,12 @@ const CellInput = styled.input<{ $align?: "left" | "right" }>`
 //   - while focused: shows a raw, editable string (plain digits, "." decimal,
 //     no grouping) so typing isn't fought by re-formatting mid-keystroke
 //   - while unfocused: shows the value formatted per the user's number format
-//     (thousands separators + decimals), with no currency symbol
+//     (thousands separators + decimals); the symbol shows only when idle
 //   - onChange emits a parsed number so the debounced save fires per keystroke
 //   - onBlur commits the normalised value
 function AmountInput({
   value,
+  currency,
   numberFormat,
   onCommit,
   onFocus,
@@ -137,6 +138,7 @@ function AmountInput({
   inputRef,
 }: {
   value: number;
+  currency: string;
   numberFormat: NumberFormat;
   onCommit: (n: number) => void;
   onFocus: () => void;
@@ -163,11 +165,18 @@ function AmountInput({
     caretRef.current = null;
   }, [draft, focused]);
 
+  // Unfocused cells show the currency symbol, focused ones don't: DESIGN.md →
+  // Typography → Amounts requires the symbol on any amount on display, and an
+  // idle cell is on display. Focusing hands the user the bare number to edit,
+  // which keeps the symbol out of parseEditable/groupForEditing — those strip
+  // every non-digit and drive the caret restoration, so putting a prefix
+  // through them would complicate the most keyboard-sensitive code in the app
+  // to no benefit the user can see.
   const display = focused
     ? draft
     : value === 0
       ? ""
-      : formatNumber(value, numberFormat);
+      : formatAmount(currency, value, numberFormat);
 
   return (
     <CellInput
@@ -1182,6 +1191,7 @@ export function BudgetSheet({
           budget: {
             value: (
               <AmountInput
+                currency={currency}
                 value={item.budget}
                 numberFormat={numberFormat}
                 inputRef={registerCell(`${item.id}:budget`)}
@@ -1202,6 +1212,7 @@ export function BudgetSheet({
               fmtAmount(item.actual)
             ) : (
               <AmountInput
+                currency={currency}
                 value={item.actual}
                 numberFormat={numberFormat}
                 inputRef={registerCell(`${item.id}:actual`)}
