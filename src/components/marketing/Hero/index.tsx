@@ -8,6 +8,8 @@ import {
   PrimaryLink,
   Section,
   Title,
+  TrustLink,
+  TrustNote,
 } from "./Hero.styled";
 
 export function Hero() {
@@ -27,6 +29,11 @@ export function Hero() {
             <PrimaryLink href="/sign-up">Get started</PrimaryLink>
             <OutlineLink href="/sign-in">Sign in</OutlineLink>
           </CtaRow>
+          <TrustNote>
+            No bank connection, ever. Balanced never asks for your banking login
+            — figures come from a CSV you export yourself. Your data is yours to{" "}
+            <TrustLink href="/about">export or delete</TrustLink> at any time.
+          </TrustNote>
         </div>
         <MarketingShot
           src="/marketing/dashboard.png"

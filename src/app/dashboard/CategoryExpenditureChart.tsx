@@ -1,6 +1,7 @@
 "use client";
 
 import { ChartLegend } from "@/app/dashboard/ChartLegend";
+import { makeAmountTick } from "@/lib/charts/format";
 import { padAxisMax, padAxisMin } from "@/lib/dashboard/axis";
 import {
   type NumberFormat,
@@ -44,11 +45,10 @@ export function CategoryExpenditureChart({
 }) {
   const theme = useTheme();
 
-  const tick = (v: number) => {
-    const sym = symbolFor(currency);
-    if (Math.abs(v) >= 1000) return `${sym}${Math.round(v / 1000)}k`;
-    return `${sym}${v}`;
-  };
+  // Shared with every other chart. Rounding to whole thousands here put the
+  // same label on different gridlines — "£2k" twice in a row on the category
+  // panels — which is the whole reason the shared formatter keeps a decimal.
+  const tick = makeAmountTick(currency);
 
   return (
     <ResponsiveContainer width="100%" height={260}>

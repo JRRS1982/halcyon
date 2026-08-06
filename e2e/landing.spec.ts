@@ -70,3 +70,18 @@ test.describe("Landing page", () => {
     expect(overflow).toBeLessThanOrEqual(1);
   });
 });
+
+test.describe("Trust", () => {
+  // The first objection a personal-finance app meets is "what are you doing
+  // with my bank access". The answer — there is no bank connection — lived in
+  // /about and the privacy notice, while the page that has to overcome the
+  // objection said nothing.
+  test("the hero answers the bank-access objection", async ({ page }) => {
+    await page.goto("/");
+
+    await expect(page.getByText(/no bank connection, ever/i)).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: /export or delete/i }),
+    ).toHaveAttribute("href", "/about");
+  });
+});
