@@ -119,7 +119,7 @@ export const SheetLine = styled.div<{ $tone: "head" | "band" | "row" }>`
     border-bottom: 1px solid ${theme.colors.hairline};
     background: ${
       $tone === "band"
-        ? theme.colors.canvasDark
+        ? theme.colors.band
         : $tone === "head"
           ? theme.colors.canvasSoft
           : theme.colors.canvas
@@ -134,7 +134,7 @@ export const SheetLine = styled.div<{ $tone: "head" | "band" | "row" }>`
       $tone === "band" &&
       css`
       ${Bar} {
-        background: ${theme.colors.hairlineDark};
+        background: ${theme.colors.hairlineBand};
       }
     `
     }

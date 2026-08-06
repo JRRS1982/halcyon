@@ -7,6 +7,7 @@ import {
   formatAmount,
   symbolFor,
 } from "@/lib/settings/currency";
+import { theme } from "@/lib/theme";
 import {
   CartesianGrid,
   Legend,
@@ -26,7 +27,7 @@ export type CategoryPoint = {
   avg: number;
 };
 
-const BUDGET_COLOR = "#9CA3AF";
+const BUDGET_COLOR = theme.colors.chartBudget;
 
 // A single expense category over time: solid = this month's actual, dashed grey
 // = its budget, dotted = the trailing 6-month average.

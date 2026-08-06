@@ -13,8 +13,8 @@ export const Inner = styled.div`
 
 export const Band = styled.section`
   ${({ theme }) => css`
-    background: ${theme.colors.canvasDark};
-    color: ${theme.colors.onDark};
+    background: ${theme.colors.band};
+    color: ${theme.colors.onBand};
     text-align: center;
     padding: ${theme.spacing.section} 0;
   `}
@@ -27,7 +27,7 @@ export const Eyebrow = styled.p`
     font-weight: ${theme.typography.monoCaps.weight};
     text-transform: uppercase;
     letter-spacing: ${theme.typography.monoCaps.letterSpacing};
-    color: ${theme.colors.bodyOnDark};
+    color: ${theme.colors.bodyOnBand};
     margin: 0;
   `}
 `;
@@ -39,7 +39,7 @@ export const Title = styled.h2`
     font-weight: ${theme.typography.displayXl.weight};
     line-height: ${theme.typography.displayXl.lineHeight};
     letter-spacing: ${theme.typography.displayXl.letterSpacing};
-    color: ${theme.colors.onDark};
+    color: ${theme.colors.onBand};
     margin: ${theme.spacing.md} 0 0;
   `}
 `;
@@ -49,7 +49,7 @@ export const Text = styled.p`
     font-family: ${theme.typography.bodyMd.family};
     font-size: ${theme.typography.bodyMd.size};
     line-height: ${theme.typography.bodyMd.lineHeight};
-    color: ${theme.colors.bodyOnDark};
+    color: ${theme.colors.bodyOnBand};
     max-width: 48ch;
     margin: ${theme.spacing.md} auto 0;
   `}

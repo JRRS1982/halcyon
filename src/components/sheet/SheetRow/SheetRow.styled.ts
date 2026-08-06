@@ -55,9 +55,9 @@ export const SectionRow = styled.div`
 
   /* Section band (Income / Expenses): Inter semibold on the dark band. */
   > div {
-    background: ${({ theme }) => theme.colors.canvasDark};
-    color: ${({ theme }) => theme.colors.onDark};
-    border-color: ${({ theme }) => theme.colors.hairlineDark};
+    background: ${({ theme }) => theme.colors.band};
+    color: ${({ theme }) => theme.colors.onBand};
+    border-color: ${({ theme }) => theme.colors.hairlineBand};
     padding-top: ${({ theme }) => theme.spacing.md};
     padding-bottom: ${({ theme }) => theme.spacing.md};
     font-weight: 600;

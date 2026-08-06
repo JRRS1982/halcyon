@@ -2,11 +2,17 @@
 
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
+import {
+  THEME_PREFERENCES,
+  THEME_PREFERENCE_LABELS,
+  type ThemePreference,
+} from "@/lib/settings/theme";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import styled from "styled-components";
 import { SectionHeading } from "./SectionHeading";
 import {
+  setThemePreference,
   togglePlanVisible,
   toggleTransactions,
   toggleTransfers,
@@ -220,6 +226,7 @@ export function SettingsForm({
   transactionsEnabled,
   transfersEnabled,
   planVisible,
+  themePreference,
 }: {
   action: (formData: FormData) => Promise<void>;
   currency: string;
@@ -229,6 +236,7 @@ export function SettingsForm({
   transactionsEnabled: boolean;
   transfersEnabled: boolean;
   planVisible: boolean;
+  themePreference: ThemePreference;
 }) {
   const router = useRouter();
   const [savePending, startSave] = useTransition();
@@ -293,6 +301,21 @@ export function SettingsForm({
   };
 
   // The plan visibility toggle persists immediately (benign; no confirm dialog).
+  // Persists immediately like the other preferences. The scheme itself is
+  // applied by the server on the next render (it writes data-theme onto
+  // <html>), so there is no client-side theme state to keep in sync — which is
+  // also why there is no flash on a fresh load.
+  const [themeValue, setThemeValue] =
+    useState<ThemePreference>(themePreference);
+  const [themePending, startTheme] = useTransition();
+  const onChangeTheme = (next: ThemePreference) => {
+    setThemeValue(next);
+    startTheme(async () => {
+      await setThemePreference(next);
+      router.refresh();
+    });
+  };
+
   const [planOn, setPlanOn] = useState(planVisible);
   const [planPending, startPlan] = useTransition();
   const onTogglePlan = (next: boolean) => {
@@ -354,6 +377,28 @@ export function SettingsForm({
           <SavedNote>{savePending ? "Saving…" : "Saved"}</SavedNote>
         </Row>
       )}
+
+      <SectionHeading>Appearance</SectionHeading>
+      <Field>
+        <FieldLabel>Colour scheme</FieldLabel>
+        <Select
+          name="themePreference"
+          value={themeValue}
+          disabled={themePending}
+          onChange={(event) =>
+            onChangeTheme(event.target.value as ThemePreference)
+          }
+        >
+          {THEME_PREFERENCES.map((preference) => (
+            <option key={preference} value={preference}>
+              {THEME_PREFERENCE_LABELS[preference]}
+            </option>
+          ))}
+        </Select>
+        <FieldHint>
+          Match my system follows your device, and changes with it.
+        </FieldHint>
+      </Field>
 
       <SectionHeading>Transactions</SectionHeading>
       <ToggleField>

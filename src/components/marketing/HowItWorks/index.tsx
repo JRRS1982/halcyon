@@ -64,8 +64,8 @@ export function HowItWorks() {
         <Merge />
         <Stem />
         <Node $solid>
-          <NodeKey $onDark>Step 3 · See where you stand</NodeKey>
-          <NodeText $onDark>
+          <NodeKey $onBand>Step 3 · See where you stand</NodeKey>
+          <NodeText $onBand>
             Either way, the same dashboard lights up: your spending breakdown,
             cash flow, budget variance and net worth — all kept up to date for
             you.

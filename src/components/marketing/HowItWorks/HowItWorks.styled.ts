@@ -14,31 +14,31 @@ export const Node = styled.div<{ $solid?: boolean }>`
     display: inline-block;
     text-align: left;
     max-width: 480px;
-    border: 1px solid ${$solid ? theme.colors.canvasDark : theme.colors.hairline};
-    background: ${$solid ? theme.colors.canvasDark : theme.colors.canvas};
+    border: 1px solid ${$solid ? theme.colors.band : theme.colors.hairline};
+    background: ${$solid ? theme.colors.band : theme.colors.canvas};
     border-radius: ${theme.rounded.sm};
     padding: ${theme.spacing.lg} ${theme.spacing.xl};
   `}
 `;
 
-export const NodeKey = styled.p<{ $onDark?: boolean }>`
-  ${({ theme, $onDark }) => css`
+export const NodeKey = styled.p<{ $onBand?: boolean }>`
+  ${({ theme, $onBand }) => css`
     font-family: ${theme.typography.monoCaps.family};
     font-size: ${theme.typography.monoCaps.size};
     font-weight: ${theme.typography.monoCaps.weight};
     text-transform: uppercase;
     letter-spacing: ${theme.typography.monoCaps.letterSpacing};
-    color: ${$onDark ? theme.colors.onDark : theme.colors.ink};
+    color: ${$onBand ? theme.colors.onBand : theme.colors.ink};
     margin: 0;
   `}
 `;
 
-export const NodeText = styled.p<{ $onDark?: boolean }>`
-  ${({ theme, $onDark }) => css`
+export const NodeText = styled.p<{ $onBand?: boolean }>`
+  ${({ theme, $onBand }) => css`
     font-family: ${theme.typography.bodyMd.family};
     font-size: ${theme.typography.bodyMd.size};
     line-height: ${theme.typography.bodyMd.lineHeight};
-    color: ${$onDark ? theme.colors.bodyOnDark : theme.colors.body};
+    color: ${$onBand ? theme.colors.bodyOnBand : theme.colors.body};
     margin: ${theme.spacing.sm} 0 0;
   `}
 `;
