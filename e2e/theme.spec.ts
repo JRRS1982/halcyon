@@ -84,15 +84,20 @@ test.describe("Colour scheme", () => {
 
     // The whole reason the scheme is resolved on the server. If it were decided
     // after hydration, the first frame would be light and then correct itself.
-    test("a stored dark preference is right on the very first paint", async ({
+    test("a stored dark preference is in the server's HTML, not applied later", async ({
       page,
     }) => {
       await signIn(page);
       await chooseScheme(page, "Dark");
 
-      // Fresh document; read before anything can have hydrated.
-      await page.goto("/budget", { waitUntil: "commit" });
-      await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+      // Asserted against the raw response rather than the live DOM: reading an
+      // attribute mid-navigation races the parser, and the claim here is about
+      // what the *server* sent — if the attribute is in the markup, there is no
+      // frame in which the wrong scheme could paint.
+      const response = await page.request.get("/budget");
+      const html = await response.text();
+
+      expect(html).toContain('data-theme="dark"');
     });
   });
 });

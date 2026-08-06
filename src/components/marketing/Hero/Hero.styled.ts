@@ -52,6 +52,31 @@ export const Lead = styled.p`
   `}
 `;
 
+// Sits under the CTAs, where the eye lands after deciding whether to click.
+// The first objection any personal-finance app meets is "what are you going to
+// do with my bank access", and the honest answer — there isn't any — was
+// buried in /about and the privacy notice while the page that has to overcome
+// the objection said nothing.
+export const TrustNote = styled.p`
+  ${({ theme }) => css`
+    font-family: ${theme.typography.bodyMd.family};
+    font-size: 13px;
+    line-height: 1.5;
+    color: ${theme.colors.body};
+    max-width: 46ch;
+    margin: ${theme.spacing.lg} 0 0;
+  `}
+`;
+
+export const TrustLink = styled(Link)`
+  color: ${({ theme }) => theme.colors.accent};
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+`;
+
 export const CtaRow = styled.div`
   display: flex;
   gap: ${({ theme }) => theme.spacing.md};

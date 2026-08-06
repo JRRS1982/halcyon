@@ -1,6 +1,7 @@
 "use client";
 
 import { ChartLegend } from "@/app/dashboard/ChartLegend";
+import { makeAmountTick } from "@/lib/charts/format";
 import type { BalancePoint } from "@/lib/dashboard/series";
 import {
   type NumberFormat,
@@ -111,20 +112,14 @@ export function BalanceTrendChart({
   const theme = useTheme();
 
   // Compact axis ticks — full precision lives in the tooltip.
-  const tick = (v: number) => {
-    const sym = symbolFor(currency);
-    if (Math.abs(v) >= 1000) return `${sym}${Math.round(v / 1000)}k`;
-    return `${sym}${v}`;
-  };
+  // Shared with every other chart. Rounding to whole thousands here put the
+  // same label on different gridlines — "£2k" twice in a row on the category
+  // panels — which is the whole reason the shared formatter keeps a decimal.
+  const tick = makeAmountTick(currency);
 
-  const fmtNet = (n: number) => {
-    const sym = symbolFor(currency);
-    const sign = n < 0 ? "-" : "";
-    const abs = Math.abs(n);
-    return abs >= 1000
-      ? `${sign}${sym}${Math.round(abs / 1000)}k`
-      : `${sign}${sym}${Math.round(abs)}`;
-  };
+  // Same rounding trap as the axis: every month's net landed on "£1k", so a
+  // row of point labels said nothing at all.
+  const fmtNet = makeAmountTick(currency);
 
   // Net balance marker above each net point: green when net worth is positive,
   // red when liabilities outweigh assets. The exact value stays in the tooltip.

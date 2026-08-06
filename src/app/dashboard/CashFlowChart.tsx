@@ -49,14 +49,9 @@ export function CashFlowChart({
   // both read "£2k".
   const amountTick = makeAmountTick(currency);
 
-  const fmtNet = (n: number) => {
-    const sym = symbolFor(currency);
-    const sign = n < 0 ? "-" : "";
-    const abs = Math.abs(n);
-    return abs >= 1000
-      ? `${sign}${sym}${Math.round(abs / 1000)}k`
-      : `${sign}${sym}${Math.round(abs)}`;
-  };
+  // Same rounding trap as the axis: every month's net landed on "£1k", so a
+  // row of point labels said nothing at all.
+  const fmtNet = makeAmountTick(currency);
 
   // Net figure marker above each net point: green when the month ran a surplus,
   // red when it ran a deficit. The exact value stays in the tooltip.
