@@ -271,11 +271,13 @@ const CellInput = styled.input<{ $align?: "left" | "right" }>`
 // formatted per the user's number format when not.
 function AmountInput({
   value,
+  currency,
   numberFormat,
   onCommit,
   onFocus,
 }: {
   value: number;
+  currency: string;
   numberFormat: NumberFormat;
   onCommit: (n: number) => void;
   onFocus: () => void;
@@ -283,11 +285,18 @@ function AmountInput({
   const [focused, setFocused] = useState(false);
   const [draft, setDraft] = useState("");
 
+  // Unfocused cells show the currency symbol, focused ones don't: DESIGN.md →
+  // Typography → Amounts requires the symbol on any amount on display, and an
+  // idle cell is on display. Focusing hands the user the bare number to edit,
+  // which keeps the symbol out of parseEditable/groupForEditing — those strip
+  // every non-digit and drive the caret restoration, so putting a prefix
+  // through them would complicate the most keyboard-sensitive code in the app
+  // to no benefit the user can see.
   const display = focused
     ? draft
     : value === 0
       ? ""
-      : formatNumber(value, numberFormat);
+      : formatAmount(currency, value, numberFormat);
 
   return (
     <CellInput
@@ -1210,6 +1219,7 @@ export function BalanceSheet({
         }
       >
         <AmountInput
+          currency={currency}
           value={item.value}
           numberFormat={numberFormat}
           onCommit={(v) => editField(item.id, { value: v })}
