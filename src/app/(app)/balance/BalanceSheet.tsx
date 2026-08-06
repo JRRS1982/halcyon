@@ -1362,17 +1362,34 @@ export function BalanceSheet({
             )}
           </PeriodNavWrapper>
         </ToolbarGroup>
+        {/* Adding rows comes first because it is what people do most, and the
+            leftmost group after the period is the one they read. Filling from
+            elsewhere and saving a template are month-level operations, so they
+            sit together after it. */}
+        <ToolbarGroup>
+          <ToolbarTool onClick={() => onAddRow("ASSET", "CURRENT")}>
+            + Asset
+          </ToolbarTool>
+          <ToolbarTool onClick={() => onAddRow("LIABILITY", "CURRENT")}>
+            + Liability
+          </ToolbarTool>
+        </ToolbarGroup>
         <ToolbarGroup>
           <CopyWrapper ref={copyWrapperRef}>
+            {/* "Copy from…" left both ends unsaid — copy what, into where, and
+                "copy" reads as clipboard. This names the direction; the popover
+                names the source. "This month" rather than the label itself, so
+                the button keeps one width as you navigate and the groups after
+                it don't shuffle. */}
             <ToolbarTool
               onClick={() => (copyOpen ? setCopyOpen(false) : openCopy())}
               aria-expanded={copyOpen}
             >
-              ⧉ Copy from…
+              Fill this month from…
             </ToolbarTool>
             {copyOpen && (
-              <CopyPopover aria-label="Copy from another month">
-                <CopyTitle>Copy into {periodState.label}</CopyTitle>
+              <CopyPopover aria-label="Fill this month from another month">
+                <CopyTitle>Fill {periodState.label} from</CopyTitle>
                 {copyList === null ? (
                   <CopyMuted>Loading…</CopyMuted>
                 ) : copyList.length === 0 && !templateExists ? (
@@ -1408,7 +1425,8 @@ export function BalanceSheet({
                       {items.length > 0
                         ? `This replaces the rows in ${periodState.label}. `
                         : ""}
-                      Every asset & liability line copies over, values included.
+                      Every asset & liability line carries over, values
+                      included.
                     </CopyConfirmText>
                     <CopyActions>
                       <CopyButton
@@ -1424,7 +1442,7 @@ export function BalanceSheet({
                         onClick={confirmCopy}
                         disabled={copyBusy}
                       >
-                        {copyBusy ? "Copying…" : "Copy"}
+                        {copyBusy ? "Filling…" : "Fill"}
                       </CopyButton>
                     </CopyActions>
                   </CopyConfirm>
@@ -1438,7 +1456,7 @@ export function BalanceSheet({
               aria-expanded={saveTplOpen}
               disabled={items.length === 0}
             >
-              ⤓ Save as template
+              Save as template
             </ToolbarTool>
             {saveTplOpen && (
               <CopyPopover aria-label="Save this month as your balance template">
@@ -1472,14 +1490,6 @@ export function BalanceSheet({
           </CopyWrapper>
         </ToolbarGroup>
         <ToolbarGroup>
-          <ToolbarTool onClick={() => onAddRow("ASSET", "CURRENT")}>
-            + Asset
-          </ToolbarTool>
-          <ToolbarTool onClick={() => onAddRow("LIABILITY", "CURRENT")}>
-            + Liability
-          </ToolbarTool>
-        </ToolbarGroup>
-        <ToolbarGroup>
           <ToolbarTool onClick={() => onMove("up")} disabled={!canMoveUp}>
             ↑ Move up
           </ToolbarTool>
@@ -1506,8 +1516,8 @@ export function BalanceSheet({
           </ToolbarGroup>
         )}
         <ToolbarGroup>
-          <ToolbarTool onClick={onDelete} disabled={!focusedCell}>
-            × Delete
+          <ToolbarTool onClick={onDelete} disabled={!focusedCell} $danger>
+            × Delete row
           </ToolbarTool>
         </ToolbarGroup>
         <ToolbarSpacer />

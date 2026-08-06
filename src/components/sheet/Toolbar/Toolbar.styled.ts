@@ -35,8 +35,15 @@ export const ToolbarSpacer = styled.div`
   flex: 1;
 `;
 
-export const ToolbarTool = styled.button<{ $active?: boolean }>`
-  ${({ theme, $active }) => css`
+// $danger marks the one control in a toolbar that destroys work. It stays a
+// quiet outline button at rest — a row of red would be shouting, and the
+// button spends most of its life disabled — and only commits to the colour on
+// hover, at the moment the pointer is on it and the warning is still useful.
+export const ToolbarTool = styled.button<{
+  $active?: boolean;
+  $danger?: boolean;
+}>`
+  ${({ theme, $active, $danger }) => css`
     height: 30px;
     padding: 0 ${theme.spacing.md};
     background: ${$active ? theme.colors.primary : theme.colors.canvas};
@@ -60,8 +67,22 @@ export const ToolbarTool = styled.button<{ $active?: boolean }>`
       height: 44px;
     }
 
-    &:hover:not(:disabled) {
-      border-color: ${$active ? theme.colors.primary : theme.colors.ink};
+    &:hover:not(:disabled),
+    &:focus-visible:not(:disabled) {
+      border-color: ${
+        $active
+          ? theme.colors.primary
+          : $danger
+            ? theme.colors.negative
+            : theme.colors.ink
+      };
+      color: ${
+        $active
+          ? theme.colors.onPrimary
+          : $danger
+            ? theme.colors.negative
+            : theme.colors.ink
+      };
     }
 
     &:disabled {
