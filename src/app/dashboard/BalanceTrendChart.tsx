@@ -7,6 +7,7 @@ import {
   formatAmount,
   symbolFor,
 } from "@/lib/settings/currency";
+import { theme } from "@/lib/theme";
 import {
   CartesianGrid,
   Legend,
@@ -25,8 +26,11 @@ export type { BalancePoint };
 // Colour says which side (green = assets, red = liabilities, plotted below
 // zero as debt); the dash pattern says which category. PROPERTY is asset-only.
 // The solid black line on top is the net balance.
-const ASSET_COLOR = "#1F8A4C";
-const LIABILITY_COLOR = "#B33B3B";
+// Same greens and reds as the amount cells — these are the sign colours,
+// not a separate chart palette, so they come from the token rather than
+// being restated and drifting when it changes.
+const ASSET_COLOR = theme.colors.positive;
+const LIABILITY_COLOR = theme.colors.negative;
 const CURRENT_DASH = "8 4";
 const MEDIUM_TERM_DASH = "4 2";
 const LONG_TERM_DASH = "2 3";

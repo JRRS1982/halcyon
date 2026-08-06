@@ -12,10 +12,14 @@ import {
 // Column header row — Category · Budget · Actual.
 export function SheetHeadRow() {
   return (
-    <HeadRow>
-      <SheetCell>Category</SheetCell>
-      <SheetCell align="right">Budget</SheetCell>
-      <SheetCell align="right">Actual</SheetCell>
+    <HeadRow role="row">
+      <SheetCell role="columnheader">Category</SheetCell>
+      <SheetCell role="columnheader" align="right">
+        Budget
+      </SheetCell>
+      <SheetCell role="columnheader" align="right">
+        Actual
+      </SheetCell>
     </HeadRow>
   );
 }
@@ -34,8 +38,8 @@ export function SheetSectionRow({
   amounts: AmountCells;
 }) {
   return (
-    <SectionRow>
-      <SheetCell>{label}</SheetCell>
+    <SectionRow role="row">
+      <SheetCell role="rowheader">{label}</SheetCell>
       <SheetCell align="right">{amounts.budget}</SheetCell>
       <SheetCell align="right">{amounts.actual}</SheetCell>
     </SectionRow>
@@ -53,8 +57,8 @@ export function SheetSubheadRow({
   amounts: AmountCells;
 }) {
   return (
-    <SubheadRow>
-      <SheetCell>{label}</SheetCell>
+    <SubheadRow role="row">
+      <SheetCell role="rowheader">{label}</SheetCell>
       <SheetCell align="right">{amounts.budget}</SheetCell>
       <SheetCell align="right">{amounts.actual}</SheetCell>
     </SubheadRow>
@@ -94,8 +98,12 @@ export function SheetItemRow({
   variant?: "default" | "group";
 }) {
   return (
-    <ItemRow onMouseDown={onSelect} $group={variant === "group"}>
-      <SheetCell indent={depth} focused={focusedCell === "label"}>
+    <ItemRow role="row" onMouseDown={onSelect} $group={variant === "group"}>
+      <SheetCell
+        role="rowheader"
+        indent={depth}
+        focused={focusedCell === "label"}
+      >
         {label}
       </SheetCell>
       <SheetCell
@@ -125,8 +133,8 @@ export function SheetTotalsRow({
   amounts: AmountCells;
 }) {
   return (
-    <TotalsRow>
-      <SheetCell>{label}</SheetCell>
+    <TotalsRow role="row">
+      <SheetCell role="rowheader">{label}</SheetCell>
       <SheetCell align="right">{amounts.budget}</SheetCell>
       <SheetCell align="right">{amounts.actual}</SheetCell>
     </TotalsRow>
@@ -142,8 +150,8 @@ export function SheetGrandRow({
   amounts: AmountCells;
 }) {
   return (
-    <GrandRow>
-      <SheetCell>{label}</SheetCell>
+    <GrandRow role="row">
+      <SheetCell role="rowheader">{label}</SheetCell>
       <SheetCell align="right">{amounts.budget}</SheetCell>
       <SheetCell align="right">{amounts.actual}</SheetCell>
     </GrandRow>

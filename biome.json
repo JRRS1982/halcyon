@@ -26,6 +26,22 @@
       "recommended": true
     }
   },
+  "overrides": [
+    {
+      "include": [
+        "src/components/sheet/**",
+        "src/app/budget/BudgetSheet.tsx",
+        "src/app/balance/BalanceSheet.tsx"
+      ],
+      "linter": {
+        "rules": {
+          "a11y": {
+            "useSemanticElements": "off"
+          }
+        }
+      }
+    }
+  ],
   "organizeImports": {
     "enabled": true
   }

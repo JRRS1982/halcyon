@@ -23,3 +23,38 @@ body {
 .app-content {
   flex: 1 1 auto;
 }
+
+/* The skip-to-content link. Off-screen until focused, then it lands over the
+   nav as a black mono-caps pill matching button-primary.
+
+   Values are literals rather than theme tokens because this is plain CSS that
+   has to render before styled-components hydrates — keep in step with
+   DESIGN.md → components → button-primary if that changes. */
+.skip-link {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 20;
+  /* Moved rather than display:none — a hidden element cannot take focus. */
+  transform: translateY(-200%);
+  padding: 8px 16px;
+  background: #000000;
+  color: #ffffff;
+  border-radius: 4px;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+/* The jump target itself should not draw a focus ring — the user asked to be
+   moved here, they are not navigating to it as a control. */
+.app-content:focus {
+  outline: none;
+}

@@ -28,13 +28,25 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
+        {/* First focusable thing on the page, so a keyboard or screen-reader
+            user can jump the nav instead of tabbing through it on every route.
+            Plain CSS and a plain anchor rather than a styled component: it has
+            to work before hydration, which is when someone tabbing at speed
+            will reach it. */}
+        <a className="skip-link" href="#main-content">
+          Skip to content
+        </a>
         <StyledComponentsRegistry>
           <NavBar
             signedIn={!!user}
             transactionsEnabled={transactionsEnabled}
             planVisible={planVisible}
           />
-          <div className="app-content">{children}</div>
+          {/* tabIndex -1 makes the target programmatically focusable, so the
+              jump actually moves focus rather than only scrolling. */}
+          <div className="app-content" id="main-content" tabIndex={-1}>
+            {children}
+          </div>
           <Footer />
           {user && <IdleTimeout />}
         </StyledComponentsRegistry>

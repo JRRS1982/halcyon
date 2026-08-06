@@ -9,8 +9,17 @@ export const theme = {
     ink: "#000000",
     inkSoft: "#1B1B1B",
     body: "#525252",
-    bodyMuted: "#8A8A8A",
-    dim: "#999999",
+    // bodyMuted and dim carry real text — muted labels, $0 amounts, chart axis
+    // ticks — at 11-13px, so both have to clear 4.5:1. They were #8A8A8A
+    // (3.45:1) and #999999 (2.85:1), failing the minimum in
+    // docs/AccessibilityStandards.md at any size.
+    //
+    // Sized against canvasSoft, not white: the sheet's header, subtotal and
+    // group rows sit on it, so it is the tighter of the two surfaces these
+    // greys have to survive. #717171 is the lightest that clears both, which
+    // keeps `dim` receding as far as it is allowed to.
+    bodyMuted: "#6E6E6E",
+    dim: "#717171",
     hairline: "#E5E5E5",
     hairlineStrong: "#D4D4D4",
     hairlineDark: "#1F242C",
@@ -20,7 +29,10 @@ export const theme = {
     surfaceDarkSoft: "#1A1D23",
     onDark: "#FFFFFF",
     bodyOnDark: "#A8AFBC",
-    positive: "#1F8A4C",
+    // Sign colours double as text on amount cells, so they answer to the same
+    // 4.5:1 floor. The old green (#1F8A4C) sat at 4.38:1 — near enough to look
+    // fine and still fail. Red was already comfortable at 5.8:1.
+    positive: "#1A7A43",
     negative: "#B33B3B",
     focus: "#0F1116",
     // The single highlight accent. Used sparingly — period dates in eyebrows,

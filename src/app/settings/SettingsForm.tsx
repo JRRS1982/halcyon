@@ -12,7 +12,11 @@ import {
   toggleTransfers,
 } from "./actions";
 
-const Shell = styled.main`
+// A section, not the page's <main>. Settings renders five sibling blocks and
+// this is only the first of them — as <main> it left the other four outside the
+// landmark, so a screen reader jumping to the main content reached preferences
+// and nothing else. The page now supplies one <main> around all five.
+const Shell = styled.section`
   max-width: 720px;
   margin: 0 auto;
   padding: ${({ theme }) => theme.spacing["3xl"]}

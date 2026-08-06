@@ -128,8 +128,10 @@ export default async function SettingsPage() {
     label: `${symbol}${NUMBER_FORMAT_SPEC[fmt].example} · ${NUMBER_FORMAT_LABELS[fmt]}`,
   }));
 
+  // One landmark around all five sections. Each supplies its own <section>
+  // and heading, so the page reads as a single region with five parts.
   return (
-    <>
+    <main>
       <SettingsForm
         action={updateSettings}
         currency={currency}
@@ -144,6 +146,6 @@ export default async function SettingsPage() {
       <CategoryManager categories={managedCategories} />
       <AccountManager accounts={managedAccounts} />
       <DataPrivacy />
-    </>
+    </main>
   );
 }
