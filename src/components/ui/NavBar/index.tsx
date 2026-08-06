@@ -28,10 +28,10 @@ type NavItem = { href: string; label: string };
 
 // Ordered by the way the app is actually used, not by importance: import a
 // statement, categorise it, check the budget, update balances, then read the
-// dashboard — the monthly rhythm /about describes. Dashboard sits late because
-// it is the read-only result of the four steps before it, and Plan last of the
-// app pages because it is the long view rather than part of the month.
-// Settings closes the row.
+// dashboard — the rhythm /about describes. Dashboard sits late because it is
+// the read-only result of the four steps before it, and Plan last of the app
+// pages because it is the long view rather than part of the month. Guide and
+// Settings close the row: reference and configuration, not part of the loop.
 //
 // "Home" is intentionally absent: signed-in users are redirected away from "/",
 // so a Home tab would only ever point at a redirect.
@@ -46,6 +46,7 @@ const SIGNED_IN_ITEMS: NavEntry[] = [
   { href: "/balance", label: "Balance" },
   { href: "/dashboard", label: "Dashboard" },
   { href: "/plan", label: "Plan", requires: "plan" },
+  { href: "/about", label: "Guide" },
   { href: "/settings", label: "Settings" },
 ];
 
@@ -55,6 +56,11 @@ const MARKETING_ITEMS: NavItem[] = [
   { href: "#features", label: "Features" },
   { href: "#details", label: "Details" },
 ];
+
+// /about is not behind the auth guard, and it is the best answer to "what is
+// this and how would I use it?" — so it stays in the bar signed out too,
+// including on the pages where the homepage anchors above mean nothing.
+const GUIDE_ITEM: NavItem = { href: "/about", label: "Guide" };
 
 function HamburgerIcon({ open }: { open: boolean }) {
   return (
@@ -97,9 +103,11 @@ export function NavBar({
   // Filtered rather than spliced, so the declared order above is the order
   // rendered and switching a feature on drops it into place.
   const enabled = { transactions: transactionsEnabled, plan: planVisible };
-  const items: NavItem[] = SIGNED_IN_ITEMS.filter(
-    (item) => !item.requires || enabled[item.requires],
-  );
+  const items: NavItem[] = signedIn
+    ? SIGNED_IN_ITEMS.filter((item) => !item.requires || enabled[item.requires])
+    : isHome
+      ? [...MARKETING_ITEMS, GUIDE_ITEM]
+      : [GUIDE_ITEM];
 
   // Navigating away closes the drawer — Next keeps the layout mounted across
   // route changes, so it would otherwise stay open over the new page.
@@ -130,30 +138,22 @@ export function NavBar({
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [menuOpen]);
 
-  const drawerItems = signedIn ? items : isHome ? MARKETING_ITEMS : [];
-
   return (
     <Bar>
       <Brand href="/">Balanced Money</Brand>
 
       <Links>
-        {signedIn
-          ? items.map((item) => (
-              <NavLink
-                key={item.href}
-                href={item.href}
-                $active={pathname === item.href}
-              >
-                {item.label}
-              </NavLink>
-            ))
-          : isHome
-            ? MARKETING_ITEMS.map((item) => (
-                <NavLink key={item.href} href={item.href} $active={false}>
-                  {item.label}
-                </NavLink>
-              ))
-            : null}
+        {/* The in-page anchors never match a pathname, so they are never marked
+            active without needing to say so. */}
+        {items.map((item) => (
+          <NavLink
+            key={item.href}
+            href={item.href}
+            $active={pathname === item.href}
+          >
+            {item.label}
+          </NavLink>
+        ))}
       </Links>
 
       <RightZone>
@@ -186,7 +186,7 @@ export function NavBar({
 
       {menuOpen && (
         <Drawer id="mobile-nav">
-          {drawerItems.map((item) => (
+          {items.map((item) => (
             <DrawerLink
               key={item.href}
               href={item.href}

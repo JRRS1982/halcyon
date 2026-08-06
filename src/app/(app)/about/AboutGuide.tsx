@@ -48,28 +48,27 @@ const Steps = styled.ol`
   border-top: 1px solid ${({ theme }) => theme.colors.hairline};
 `;
 
+// The number used to sit in a 32px gutter, which pushed every step's text
+// right of the prose above it — two left edges on one page, for no reason.
+// The counter now leads the title line instead, so the steps share the
+// paragraphs' margin and the page has a single spine.
 const Step = styled.li`
   ${({ theme }) => css`
     counter-increment: step;
-    display: grid;
-    grid-template-columns: 32px 1fr;
-    gap: ${theme.spacing.lg};
     padding: ${theme.spacing.lg} 0;
     border-bottom: 1px solid ${theme.colors.hairline};
-
-    &::before {
-      content: counter(step);
-      font-family: ${theme.typography.monoCaps.family};
-      font-size: ${theme.typography.monoCaps.size};
-      font-weight: ${theme.typography.monoCaps.weight};
-      letter-spacing: ${theme.typography.monoCaps.letterSpacing};
-      color: ${theme.colors.dim};
-      padding-top: 3px;
-    }
   `}
 `;
 
 const StepTitle = styled.h3`
+  ${({ theme }) => css`
+    &::before {
+      content: counter(step) ". ";
+      font-family: ${theme.typography.monoCaps.family};
+      letter-spacing: ${theme.typography.monoCaps.letterSpacing};
+      color: ${theme.colors.dim};
+    }
+  `}
   margin: 0 0 ${({ theme }) => theme.spacing.xs};
   font-family: ${({ theme }) => theme.typography.bodyMdStrong.family};
   font-size: ${({ theme }) => theme.typography.bodyMdStrong.size};
@@ -83,6 +82,9 @@ const StepBody = styled.p`
   font-size: ${({ theme }) => theme.typography.bodyMd.size};
   line-height: 1.6;
   color: ${({ theme }) => theme.colors.body};
+  /* Same measure as Body: now that the two share a left edge, a different
+     right edge is the remaining thing that makes them look unrelated. */
+  max-width: 68ch;
 `;
 
 const Grid = styled.div`
@@ -220,67 +222,64 @@ export function AboutGuide() {
       </Section>
 
       <Section>
-        <SectionTitle>The monthly rhythm</SectionTitle>
+        <SectionTitle>The rhythm</SectionTitle>
         <Body>
-          Once a month, in this order. The first pass takes a while; after that
-          it's about ten minutes.
+          Five steps, always in this order. The order is the part that matters;
+          how often you sit down is up to you.
+        </Body>
+        <Body>
+          Once a month is the natural fit, because that's how bank statements
+          arrive and how the budget and balance sheets are laid out. But every
+          few months works too — you'll just have more rows to categorise in one
+          go, and the gaps will show as flat stretches in the charts. The first
+          pass takes a while; after that it's about ten minutes each time.
         </Body>
         <Steps>
           <Step>
-            <div>
-              <StepTitle>Import last month's statement</StepTitle>
-              <StepBody>
-                Download a CSV from your bank and drop it into{" "}
-                <InlineLink href="/transactions">Transactions</InlineLink>. Rows
-                you've already imported are detected and skipped, so overlapping
-                exports are safe. If it goes wrong, the whole batch can be
-                undone in one click.
-              </StepBody>
-            </div>
+            <StepTitle>Import last month's statement</StepTitle>
+            <StepBody>
+              Download a CSV from your bank and drop it into{" "}
+              <InlineLink href="/transactions">Transactions</InlineLink>. Rows
+              you've already imported are detected and skipped, so overlapping
+              exports are safe. If it goes wrong, the whole batch can be undone
+              in one click.
+            </StepBody>
           </Step>
           <Step>
-            <div>
-              <StepTitle>Categorise what came in</StepTitle>
-              <StepBody>
-                Give each row a category. Filter to "uncategorised only" and
-                work down the list; select several rows and set them together
-                when they're all the same. This is the step everything else
-                depends on — an uncategorised transaction is invisible to your
-                budget and your charts.
-              </StepBody>
-            </div>
+            <StepTitle>Categorise what came in</StepTitle>
+            <StepBody>
+              Give each row a category. Filter to "uncategorised only" and work
+              down the list; select several rows and set them together when
+              they're all the same. This is the step everything else depends on
+              — an uncategorised transaction is invisible to your budget and
+              your charts.
+            </StepBody>
           </Step>
           <Step>
-            <div>
-              <StepTitle>Read the budget</StepTitle>
-              <StepBody>
-                Open <InlineLink href="/budget">Budget</InlineLink> and compare
-                the two columns. Budget is what you intended; Actual is what the
-                statement says. The gap is the interesting part — and it's
-                usually in Discretionary.
-              </StepBody>
-            </div>
+            <StepTitle>Read the budget</StepTitle>
+            <StepBody>
+              Open <InlineLink href="/budget">Budget</InlineLink> and compare
+              the two columns. Budget is what you intended; Actual is what the
+              statement says. The gap is the interesting part — and it's usually
+              in Discretionary.
+            </StepBody>
           </Step>
           <Step>
-            <div>
-              <StepTitle>Update your balances</StepTitle>
-              <StepBody>
-                On <InlineLink href="/balance">Balance</InlineLink>, put in this
-                month's figures for your accounts, investments, property and
-                debts. It's the one bit of manual typing that stays manual — and
-                it's what makes the net-worth trend real rather than guessed.
-              </StepBody>
-            </div>
+            <StepTitle>Update your balances</StepTitle>
+            <StepBody>
+              On <InlineLink href="/balance">Balance</InlineLink>, put in this
+              month's figures for your accounts, investments, property and
+              debts. It's the one bit of manual typing that stays manual — and
+              it's what makes the net-worth trend real rather than guessed.
+            </StepBody>
           </Step>
           <Step>
-            <div>
-              <StepTitle>Look at the dashboard</StepTitle>
-              <StepBody>
-                <InlineLink href="/dashboard">Dashboard</InlineLink> needs no
-                input — it's built from the four steps above. One month tells
-                you little. Six months tells you almost everything.
-              </StepBody>
-            </div>
+            <StepTitle>Look at the dashboard</StepTitle>
+            <StepBody>
+              <InlineLink href="/dashboard">Dashboard</InlineLink> needs no
+              input — it's built from the four steps above. One month tells you
+              little. Six months tells you almost everything.
+            </StepBody>
           </Step>
         </Steps>
       </Section>

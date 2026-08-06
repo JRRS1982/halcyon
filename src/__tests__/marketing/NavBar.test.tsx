@@ -65,6 +65,18 @@ describe("NavBar", () => {
     );
   });
 
+  // /about is not behind the auth guard, and it is the honest answer to "what
+  // is this?" — so it is reachable from the bar before signing in, on the
+  // homepage and off it.
+  test.each(["/", "/sign-in"])("Guide is in the bar signed out on %s", (at) => {
+    mockPathname = at;
+    renderit({ signedIn: false, transactionsEnabled: false });
+    expect(screen.getByRole("link", { name: /^guide$/i })).toHaveAttribute(
+      "href",
+      "/about",
+    );
+  });
+
   test("signed-in with transactions enabled shows a Transactions link", () => {
     mockPathname = "/dashboard";
     renderit({ signedIn: true, transactionsEnabled: true });
@@ -92,7 +104,7 @@ describe("NavBar", () => {
   // then read the dashboard — rather than putting the read-only view first.
   // Asserted as a sequence because "the links are all present" would pass on
   // any order at all.
-  test("orders the links by the monthly rhythm", () => {
+  test("orders the links by the rhythm, with reference and settings last", () => {
     mockPathname = "/dashboard";
     const { container } = renderit({
       signedIn: true,
@@ -110,6 +122,7 @@ describe("NavBar", () => {
       "/balance",
       "/dashboard",
       "/plan",
+      "/about",
       "/settings",
     ]);
   });
@@ -126,7 +139,13 @@ describe("NavBar", () => {
       a.getAttribute("href"),
     );
 
-    expect(hrefs).toEqual(["/budget", "/balance", "/dashboard", "/settings"]);
+    expect(hrefs).toEqual([
+      "/budget",
+      "/balance",
+      "/dashboard",
+      "/about",
+      "/settings",
+    ]);
   });
 
   // The drawer is the only way to reach the nav below 768px, where the inline

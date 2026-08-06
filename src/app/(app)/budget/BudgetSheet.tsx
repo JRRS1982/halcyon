@@ -1297,17 +1297,32 @@ export function BudgetSheet({
             )}
           </PeriodNavWrapper>
         </ToolbarGroup>
+        {/* Adding rows comes first because it is what people do most, and the
+            leftmost group after the period is the one they read. Filling from
+            elsewhere and saving a template are month-level operations, so they
+            sit together after it. */}
+        <ToolbarGroup>
+          <ToolbarTool onClick={() => onAddRow("INCOME")}>+ Income</ToolbarTool>
+          <ToolbarTool onClick={() => onAddRow("EXPENSE")}>
+            + Expense
+          </ToolbarTool>
+        </ToolbarGroup>
         <ToolbarGroup>
           <CopyWrapper ref={copyWrapperRef}>
+            {/* "Copy from…" left both ends unsaid — copy what, into where, and
+                "copy" reads as clipboard. This names the direction; the popover
+                names the source. "This month" rather than the label itself, so
+                the button keeps one width as you navigate and the groups after
+                it don't shuffle. */}
             <ToolbarTool
               onClick={() => (copyOpen ? setCopyOpen(false) : openCopy())}
               aria-expanded={copyOpen}
             >
-              ⧉ Copy from…
+              Fill this month from…
             </ToolbarTool>
             {copyOpen && (
-              <CopyPopover aria-label="Copy from another month">
-                <CopyTitle>Copy into {periodState.label}</CopyTitle>
+              <CopyPopover aria-label="Fill this month from another month">
+                <CopyTitle>Fill {periodState.label} from</CopyTitle>
                 {copyList === null ? (
                   <CopyMuted>Loading…</CopyMuted>
                 ) : copyList.length === 0 && !templateExists ? (
@@ -1343,7 +1358,7 @@ export function BudgetSheet({
                       {items.length > 0
                         ? `This replaces the rows in ${periodState.label}. `
                         : ""}
-                      Budgeted amounts copy over; actuals reset to 0.
+                      Budgeted amounts carry over; actuals reset to 0.
                     </CopyConfirmText>
                     <CopyActions>
                       <CopyButton
@@ -1359,7 +1374,7 @@ export function BudgetSheet({
                         onClick={confirmCopy}
                         disabled={copyBusy}
                       >
-                        {copyBusy ? "Copying…" : "Copy"}
+                        {copyBusy ? "Filling…" : "Fill"}
                       </CopyButton>
                     </CopyActions>
                   </CopyConfirm>
@@ -1373,7 +1388,7 @@ export function BudgetSheet({
               aria-expanded={saveTplOpen}
               disabled={items.length === 0}
             >
-              ⤓ Save as template
+              Save as template
             </ToolbarTool>
             {saveTplOpen && (
               <CopyPopover aria-label="Save this month as your budget template">
@@ -1405,12 +1420,6 @@ export function BudgetSheet({
               </CopyPopover>
             )}
           </CopyWrapper>
-        </ToolbarGroup>
-        <ToolbarGroup>
-          <ToolbarTool onClick={() => onAddRow("INCOME")}>+ Income</ToolbarTool>
-          <ToolbarTool onClick={() => onAddRow("EXPENSE")}>
-            + Expense
-          </ToolbarTool>
         </ToolbarGroup>
         {focusedItem?.type === "EXPENSE" && (
           <ToolbarGroup>
@@ -1450,7 +1459,7 @@ export function BudgetSheet({
           </ToolbarGroup>
         )}
         <ToolbarGroup>
-          <ToolbarTool onClick={onDelete} disabled={!focusedItem}>
+          <ToolbarTool onClick={onDelete} disabled={!focusedItem} $danger>
             × Delete row
           </ToolbarTool>
         </ToolbarGroup>
