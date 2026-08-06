@@ -30,6 +30,7 @@ export function Hero() {
         </div>
         <MarketingShot
           src="/marketing/dashboard.png"
+          priority
           label="Dashboard"
           caption="Spending by category, cash flow, balance trend, net worth — at a glance"
           alt="The Balanced dashboard showing spending and net-worth charts"

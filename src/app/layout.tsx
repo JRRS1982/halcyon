@@ -1,9 +1,9 @@
 import { IdleTimeout } from "@/components/auth/IdleTimeout";
 import { Footer } from "@/components/ui/Footer";
 import { NavBar } from "@/components/ui/NavBar";
-import { isPlanVisible, isTransactionsEnabled } from "@/lib/settings/server";
+import { getNavFlags } from "@/lib/settings/server";
 import { StyledComponentsRegistry } from "@/lib/styled";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/supabase/user";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
@@ -21,14 +21,9 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const transactionsEnabled = user
-    ? await isTransactionsEnabled(user.id)
-    : false;
-  const planVisible = user ? await isPlanVisible(user.id) : false;
+  const user = await getCurrentUser();
+  // One settings read for both nav flags rather than two round-trips.
+  const { transactionsEnabled, planVisible } = await getNavFlags(user?.id);
 
   return (
     <html lang="en">

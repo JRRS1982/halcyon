@@ -6,7 +6,7 @@ import {
 } from "@/lib/budget/period";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserSettings } from "@/lib/settings/server";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/supabase/user";
 import { netActual } from "@/lib/transactions/actual";
 import { getTransfersByAccount } from "@/lib/transactions/server";
 import type { TransferAccountRow } from "@/lib/transactions/transfers";
@@ -33,10 +33,7 @@ type PageProps = {
 // every time someone rotates through a month they don't end up using.
 export default async function BudgetPage(props: PageProps) {
   const searchParams = await props.searchParams;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) {
     redirect("/sign-in?next=/budget");
   }

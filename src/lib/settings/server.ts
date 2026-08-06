@@ -1,7 +1,7 @@
 import "server-only";
 
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/supabase/user";
 import { redirect } from "next/navigation";
 import {
   type CurrencyCode,
@@ -23,10 +23,7 @@ export async function getCurrentUserSettings(): Promise<{
   planVisible: boolean;
   hiddenCharts: string[];
 }> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) redirect("/sign-in");
 
   // Ensure the app-side profile row exists before any User-referencing write.
@@ -105,4 +102,24 @@ export async function isPlanVisible(userId: string): Promise<boolean> {
     select: { planVisible: true },
   });
   return row?.planVisible ?? true;
+}
+
+// Both nav flags in a single read. The root layout renders on every request,
+// including for signed-out visitors, so it asked for these one at a time — two
+// sequential queries where the columns sit in the same row. Defaults match the
+// single-flag helpers above: transactions off, plan on.
+export async function getNavFlags(userId: string | undefined): Promise<{
+  transactionsEnabled: boolean;
+  planVisible: boolean;
+}> {
+  if (!userId) return { transactionsEnabled: false, planVisible: false };
+
+  const row = await prisma.userSettings.findUnique({
+    where: { userId },
+    select: { transactionsEnabled: true, planVisible: true },
+  });
+  return {
+    transactionsEnabled: row?.transactionsEnabled ?? false,
+    planVisible: row?.planVisible ?? true,
+  };
 }

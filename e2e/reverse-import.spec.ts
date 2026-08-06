@@ -1,4 +1,4 @@
-import { expect, signIn, test } from "./_helpers/fixtures";
+import { expect, importCsv, signIn, test } from "./_helpers/fixtures";
 
 // Reversing an import removes every transaction that import created. The
 // "Undo import…" dialog lists reversible batches (newest preselected) and the
@@ -27,11 +27,7 @@ test.describe("reverse import", () => {
     // Import one transaction into a fresh account.
     await page.goto("/transactions");
     const csv = `date,description,amount\n05/03/2026,${desc},-7.50\n`;
-    await page.locator('input[type="file"]').setInputFiles({
-      name: "reverse-me.csv",
-      mimeType: "text/csv",
-      buffer: Buffer.from(csv),
-    });
+    await importCsv(page, csv, "reverse-me.csv");
     const accountSelect = page
       .locator("select")
       .filter({ has: page.locator("option", { hasText: "New account" }) });

@@ -75,10 +75,59 @@ const KNOWN_USER = { email: "test@example.com", password: "password123" };
 
 // Signs in as the mock Supabase user and waits for the post-login redirect.
 // The app upserts the User/UserSettings profile rows on the first request.
+//
+// Sign-in now lands directly on POST_AUTH_LANDING rather than bouncing off the
+// marketing page, so this waits for the dashboard.
 export async function signIn(page: Page): Promise<void> {
   await page.goto("/sign-in");
   await page.fill("input[name='email']", KNOWN_USER.email);
   await page.fill("input[name='password']", KNOWN_USER.password);
   await page.getByRole("button", { name: "Sign in" }).click();
-  await page.waitForURL("/");
+  await page.waitForURL(/\/dashboard$/);
+}
+
+/**
+ * Uploads a CSV to the import panel and waits for the mapping step to appear.
+ *
+ * Setting files on the input fires a DOM change event. If React has not
+ * finished hydrating the page, no handler is attached yet and that event is
+ * simply lost — the panel never opens and the test sits waiting for a mapping
+ * UI that will never arrive, failing 30s later with no error anywhere. It is
+ * load-dependent, so it shows up as the import specs going "flaky" on a busy
+ * CI runner or a loaded laptop, and it reproduces on master.
+ *
+ * Re-setting the files fires a fresh change event against a now-hydrated tree,
+ * so retrying converges immediately once handlers exist. Real users can't hit
+ * this — nobody picks a file within a few hundred ms of load — so the fix
+ * belongs in the harness rather than the product.
+ */
+export async function importCsv(
+  page: Page,
+  csv: string,
+  // The batch is labelled with the file name in the undo picker, so a spec
+  // asserting on that label needs to choose it.
+  fileName = "statement.csv",
+): Promise<void> {
+  const file = {
+    name: fileName,
+    mimeType: "text/csv",
+    buffer: Buffer.from(csv),
+  };
+  const mappingStep = page.locator("select").filter({
+    has: page.locator("option", { hasText: "New account" }),
+  });
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    await page.locator('input[type="file"]').setInputFiles(file);
+    try {
+      await mappingStep.waitFor({ state: "visible", timeout: 3000 });
+      return;
+    } catch {
+      // Not hydrated yet — clear the selection so re-setting the same file
+      // counts as a change, and try again.
+      await page.locator('input[type="file"]').setInputFiles([]);
+    }
+  }
+
+  throw new Error("Import panel never reached the mapping step");
 }

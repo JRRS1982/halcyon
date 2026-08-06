@@ -1,15 +1,10 @@
 import { LandingPage } from "@/components/marketing/LandingPage";
-import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
 
-export default async function Home() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  // Signed-in users have full app nav; the marketing page is for prospects.
-  if (user) redirect("/dashboard");
-
+// Signed-in users never reach this: the proxy redirects "/" to /dashboard
+// before the request gets here, using the session check it already performs
+// on every request. Doing it there rather than in this component saves a
+// second auth round-trip on every visit to the marketing page — the one page
+// where first-load speed decides whether a prospect stays.
+export default function Home() {
   return <LandingPage />;
 }

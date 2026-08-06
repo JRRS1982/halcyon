@@ -1,4 +1,5 @@
 import { SignInForm } from "@/components/auth/SignInForm";
+import { POST_AUTH_LANDING } from "@/lib/auth/landing";
 
 // Set by the proxy's expiry redirect and by the client-side idle timer. Looking
 // the reason up in a fixed table means an arbitrary `?timeout=` value renders
@@ -14,7 +15,7 @@ type Props = {
 
 export default async function SignInPage(props: Props) {
   const searchParams = await props.searchParams;
-  const next = searchParams.next ?? "/";
+  const next = searchParams.next ?? POST_AUTH_LANDING;
   const notice = searchParams.timeout
     ? TIMEOUT_NOTICES[searchParams.timeout]
     : undefined;

@@ -6,7 +6,7 @@ import {
 } from "@/lib/budget/period";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserSettings } from "@/lib/settings/server";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/supabase/user";
 import { redirect } from "next/navigation";
 import {
   BalanceSheet,
@@ -23,10 +23,7 @@ type PageProps = {
 // its first item — at which point both pages see the real row.
 export default async function BalancePage(props: PageProps) {
   const searchParams = await props.searchParams;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) {
     redirect("/sign-in?next=/balance");
   }

@@ -30,6 +30,22 @@ export const SESSION_TIMEOUT: SessionTimeoutConfig = {
   warnMs: 60 * SECOND,
 };
 
+// The activity cookie must outlive both timeout windows. If the browser dropped
+// it at the idle limit instead, a visit just past that limit would arrive with
+// no cookie — which reads as a fresh session and would silently resurrect the
+// very session the idle limit exists to end. Expiry is decided by
+// `evaluateSession`, never by cookie eviction.
+//
+// Shared rather than private to the proxy because the sign-in action writes
+// this cookie too — see the note there.
+export const activityCookieOptions = {
+  httpOnly: true,
+  sameSite: "lax",
+  secure: process.env.NODE_ENV === "production",
+  path: "/",
+  maxAge: Math.floor(SESSION_TIMEOUT.absoluteMs / 1000),
+} as const;
+
 export type SessionActivity = {
   startedAt: number;
   lastSeenAt: number;

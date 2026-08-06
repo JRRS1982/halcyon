@@ -10,6 +10,14 @@ type MarketingShotProps = {
   label: string;
   /** Optional supporting line in the placeholder. */
   caption?: string;
+  /**
+   * Set on the hero shot only. next/image lazy-loads by default, which for the
+   * above-the-fold screenshot means the browser discovers the page's Largest
+   * Contentful Paint element late and LCP suffers. `priority` preloads it and
+   * drops the lazy attribute. Exactly one image per page should set this —
+   * marking everything priority preloads everything and helps nothing.
+   */
+  priority?: boolean;
 };
 
 export function MarketingShot({
@@ -17,6 +25,7 @@ export function MarketingShot({
   alt,
   label,
   caption,
+  priority = false,
 }: MarketingShotProps) {
   return (
     <Frame>
@@ -25,6 +34,7 @@ export function MarketingShot({
           src={src}
           alt={alt}
           fill
+          priority={priority}
           sizes="(max-width: 760px) 100vw, 50vw"
           style={{ objectFit: "cover" }}
         />
