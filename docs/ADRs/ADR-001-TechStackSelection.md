@@ -42,7 +42,7 @@ I want unit tests, end-to-end tests, and integration tests. I want a database th
 
 ### Hosting & Deployment
 
-- **Vercel**: hosting for the Next.js app. Vercel's Git integration deploys `master` automatically when CI succeeds; instant rollback is available via the Vercel dashboard.
+- **Vercel**: hosting for the Next.js app. Vercel's Git integration deploys `main` automatically when CI succeeds; instant rollback is available via the Vercel dashboard.
 - **No self-hosted production infrastructure.** `Dockerfile.dev` and `compose.yaml` exist for local dev only.
 
 ### Database

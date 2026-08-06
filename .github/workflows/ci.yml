@@ -1,10 +1,13 @@
 name: CI
 
 on:
+  # Both names while the default branch is renamed master -> main. `branches:`
+  # can't be computed, so the old name stays listed until every open PR has been
+  # retargeted, then it goes.
   pull_request:
-    branches: [master]
+    branches: [master, main]
   push:
-    branches: [master]
+    branches: [master, main]
 
 jobs:
   lint-and-test:
@@ -178,15 +181,17 @@ jobs:
           retention-days: 7
 
   # Applies pending Prisma migrations to the production Supabase database.
-  # Runs only on push to master (never on PRs) and only after lint/test and
-  # e2e pass, so prod schema changes are gated on a green build. Vercel is
-  # configured to wait for this workflow before deploying, so the new code
-  # never goes live against an un-migrated schema. Host-agnostic: the deploy
+  # Runs only on push to the default branch (never on PRs) and only after
+  # lint/test and e2e pass, so prod schema changes are gated on a green build.
+  # Vercel is configured to wait for this workflow before deploying, so the new
+  # code never goes live against an un-migrated schema. Host-agnostic: the deploy
   # platform runs no migrations itself.
   migrate-prod:
     runs-on: ubuntu-latest
     needs: [lint-and-test, integration-tests, e2e-tests]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    # "a push to whatever the default branch is", rather than a hard-coded name,
+    # so renaming the branch can't quietly stop production migrations.
+    if: github.event_name == 'push' && github.ref_name == github.event.repository.default_branch
 
     env:
       # Unpooled Supabase connection (port 5432). migrate deploy must use the
