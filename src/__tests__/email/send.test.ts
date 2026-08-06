@@ -1,6 +1,10 @@
-// src/__tests__/email/send.test.ts
 /**
  * @jest-environment node
+ *
+ * The pragma has to be the first comment in the file — jest reads the docblock
+ * at the very top, so a `//` line above it and the block is ignored entirely.
+ * This one was being silently skipped, running under jsdom instead. It passed
+ * either way (mocking global.fetch works in both), but the pragma was a lie.
  */
 
 // The transport reads its config at module scope through emailEnv, so the mock
