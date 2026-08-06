@@ -1,4 +1,4 @@
-import { expect, signIn, test } from "./_helpers/fixtures";
+import { expect, importCsv, signIn, test } from "./_helpers/fixtures";
 
 // Signed-in transactions journey: enable the feature, import a CSV, categorise
 // the row, and confirm it surfaces on the budget. This exercises app logic
@@ -33,11 +33,7 @@ test.describe("transactions journey", () => {
     // mapping's default format.
     await page.goto("/transactions");
     const csv = `date,description,amount\n05/03/2026,${description},-7.50\n`;
-    await page.locator('input[type="file"]').setInputFiles({
-      name: "statement.csv",
-      mimeType: "text/csv",
-      buffer: Buffer.from(csv),
-    });
+    await importCsv(page, csv);
 
     const accountSelect = page
       .locator("select")

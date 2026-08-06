@@ -1,4 +1,4 @@
-import { expect, signIn, test } from "./_helpers/fixtures";
+import { expect, importCsv, signIn, test } from "./_helpers/fixtures";
 
 // Regression: categorising a row while the "Uncategorized only" filter is on
 // must keep the filtered view — the just-categorised row should drop out and
@@ -33,11 +33,7 @@ test.describe("ledger uncategorized filter", () => {
     // Import two uncategorised rows into a fresh account.
     await page.goto("/transactions");
     const csv = `date,description,amount\n05/03/2026,${descA},-7.50\n06/03/2026,${descB},-3.25\n`;
-    await page.locator('input[type="file"]').setInputFiles({
-      name: "statement.csv",
-      mimeType: "text/csv",
-      buffer: Buffer.from(csv),
-    });
+    await importCsv(page, csv);
     const accountSelect = page
       .locator("select")
       .filter({ has: page.locator("option", { hasText: "New account" }) });

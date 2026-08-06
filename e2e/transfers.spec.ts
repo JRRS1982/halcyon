@@ -1,4 +1,4 @@
-import { expect, signIn, test } from "./_helpers/fixtures";
+import { expect, importCsv, signIn, test } from "./_helpers/fixtures";
 
 // Signed-in transfers journey: enable Transactions + Transfers, create a
 // counterparty account in Settings, import a row, tag it as a transfer, and
@@ -48,11 +48,7 @@ test.describe("transfers journey", () => {
     // Import a one-row statement into a brand-new owning account.
     await page.goto("/transactions");
     const csv = `date,description,amount\n05/03/2026,${description},-500.00\n`;
-    await page.locator('input[type="file"]').setInputFiles({
-      name: "statement.csv",
-      mimeType: "text/csv",
-      buffer: Buffer.from(csv),
-    });
+    await importCsv(page, csv);
     const accountSelect = page
       .locator("select")
       .filter({ has: page.locator("option", { hasText: "New account" }) });
