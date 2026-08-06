@@ -21,6 +21,7 @@ import {
   YAxis,
 } from "recharts";
 import { useTheme } from "styled-components";
+import { ChartTextures, wrapperFill } from "./ChartTextures";
 import { PLOT_HEIGHT, PLOT_LEFT_INSET, PLOT_RIGHT_INSET } from "./axisGeometry";
 import { ageReferenceLines } from "./chartRefLines";
 import { StackedTooltip } from "./chartTooltip";
@@ -73,6 +74,7 @@ export function LiquidAssetsChart({
         data={data}
         margin={{ top: 16, right: PLOT_RIGHT_INSET, bottom: 0, left: 8 }}
       >
+        <ChartTextures />
         <CartesianGrid stroke={theme.colors.hairline} vertical={false} />
         <XAxis
           dataKey="age"
@@ -120,8 +122,7 @@ export function LiquidAssetsChart({
             dataKey={w}
             name={WRAPPER_LABELS[w]}
             stackId="liquid"
-            fill={WRAPPER_COLOURS[w]}
-            fillOpacity={0.18}
+            {...wrapperFill(w)}
             stroke={WRAPPER_COLOURS[w]}
             strokeWidth={1}
             strokeOpacity={0.55}
