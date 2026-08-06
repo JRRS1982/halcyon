@@ -1,5 +1,4 @@
 // src/__tests__/marketing/Footer.test.tsx
-import MarketingLayout from "@/app/(marketing)/layout";
 import { Footer } from "@/components/ui/Footer";
 import { theme } from "@/lib/theme";
 import { render, screen } from "@testing-library/react";
@@ -22,16 +21,9 @@ describe("Footer", () => {
     expect(screen.getByRole("link", { name: /terms/i })).toBeInTheDocument();
   });
 
-  // It used to check usePathname and return null on "/", so the landing page's
-  // own MarketingFooter wasn't doubled up. The route groups now say that
-  // structurally: the marketing layout simply doesn't render one. Asserted
-  // here because "the footer knows to hide" and "the layout doesn't include
-  // it" are the same guarantee expressed two ways, and only one of them is
-  // still true.
-  test("is not part of the marketing layout", () => {
-    renderit(<MarketingLayout>{<p>landing</p>}</MarketingLayout>);
-
-    expect(screen.getByText("landing")).toBeInTheDocument();
-    expect(screen.queryByRole("contentinfo")).not.toBeInTheDocument();
-  });
+  // "No footer on the landing page" used to be this component's job — it
+  // checked usePathname and returned null on "/". The route groups now say it
+  // structurally, so there is nothing left here to assert: the guarantee lives
+  // in which layout renders it. Covered by landing.spec.ts, in a browser, where
+  // the real layouts are the ones running.
 });
