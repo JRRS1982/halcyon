@@ -1,4 +1,4 @@
-import type { SerializedPlan } from "@/app/plan/serialized";
+import type { SerializedPlan } from "@/app/(app)/plan/serialized";
 import { serializedToPlanInput } from "./serializedInput";
 
 const plan: SerializedPlan = {

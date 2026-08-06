@@ -22,12 +22,21 @@ export const themeAttribute = (
  * The stylesheet backing every colour token, generated from the palettes so
  * there is one source of truth rather than a hand-maintained copy that drifts.
  *
- * Three rules, and the order matters:
+ * The rules, in order:
  *
  *   1. light values on :root — the default.
  *   2. dark values when the OS asks for dark, *unless* the user has explicitly
  *      chosen light. The :not() is what makes an explicit choice beat the OS.
- *   3. dark values when the user has explicitly chosen dark.
+ *   3. dark values when a stored preference says dark.
+ *
+ * The stored preference is written onto a wrapper *inside* body, not onto
+ * <html> — putting it on <html> would mean the root layout had to read the
+ * session, which is what keeps the marketing page from prerendering. So the
+ * root matches on `:has()` instead of on its own attribute. That matters
+ * beyond the wrapper's own subtree: `color-scheme` and the page background are
+ * the root's to paint, and without this a user whose explicit choice differs
+ * from their OS would get a dark app inside a light scrollbar and a light
+ * overscroll area.
  *
  * `color-scheme` comes along for the ride so form controls, scrollbars and the
  * browser's own UI match the page instead of staying stubbornly light.
@@ -43,14 +52,20 @@ ${paletteToCss(lightPalette)}
 }
 
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
+  :root:not(:has([data-theme="light"])) {
     color-scheme: dark;
 ${paletteToCss(darkPalette)}
   }
 }
 
-:root[data-theme="dark"] {
+:root:has([data-theme="dark"]) {
   color-scheme: dark;
 ${paletteToCss(darkPalette)}
+}
+
+/* The root paints the page, so overscroll and the area behind short pages
+   follow the scheme rather than staying default-white. */
+html {
+  background: var(--c-canvas);
 }
 `.trim();

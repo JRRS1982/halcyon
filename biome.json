@@ -30,8 +30,8 @@
     {
       "include": [
         "src/components/sheet/**",
-        "src/app/budget/BudgetSheet.tsx",
-        "src/app/balance/BalanceSheet.tsx"
+        "src/app/(app)/budget/BudgetSheet.tsx",
+        "src/app/(app)/balance/BalanceSheet.tsx"
       ],
       "linter": {
         "rules": {

@@ -1,5 +1,5 @@
 // src/__tests__/ui/error-boundary.test.tsx
-import AppError from "@/app/error";
+import AppError from "@/app/(app)/error";
 import NotFound from "@/app/not-found";
 import { theme } from "@/lib/theme";
 import { fireEvent, render, screen } from "@testing-library/react";

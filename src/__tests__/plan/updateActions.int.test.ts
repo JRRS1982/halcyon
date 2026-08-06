@@ -2,7 +2,7 @@ import {
   updatePlanAsset,
   updatePlanAssumptions,
   updatePlanLiability,
-} from "@/app/plan/actions";
+} from "@/app/(app)/plan/actions";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
 

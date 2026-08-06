@@ -1,4 +1,4 @@
-import { commitImport, previewImport } from "@/app/transactions/actions";
+import { commitImport, previewImport } from "@/app/(app)/transactions/actions";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
 

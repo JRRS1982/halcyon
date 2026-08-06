@@ -1,4 +1,4 @@
-import { updatePlanEvent } from "@/app/plan/actions";
+import { updatePlanEvent } from "@/app/(app)/plan/actions";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
 

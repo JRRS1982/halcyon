@@ -1,5 +1,5 @@
 // src/__tests__/marketing/home-route.test.tsx
-import Home from "@/app/page";
+import Home from "@/app/(marketing)/page";
 import { theme } from "@/lib/theme";
 import { render } from "@testing-library/react";
 import { ThemeProvider } from "styled-components";

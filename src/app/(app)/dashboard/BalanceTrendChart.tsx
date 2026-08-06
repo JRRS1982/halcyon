@@ -1,6 +1,6 @@
 "use client";
 
-import { ChartLegend } from "@/app/dashboard/ChartLegend";
+import { ChartLegend } from "@/app/(app)/dashboard/ChartLegend";
 import { makeAmountTick } from "@/lib/charts/format";
 import type { BalancePoint } from "@/lib/dashboard/series";
 import {

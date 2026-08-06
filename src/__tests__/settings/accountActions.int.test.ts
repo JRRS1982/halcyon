@@ -2,7 +2,7 @@ import {
   createManagedAccount,
   deleteAccount,
   renameAccount,
-} from "@/app/settings/accountActions";
+} from "@/app/(app)/settings/accountActions";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
 

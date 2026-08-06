@@ -1,4 +1,4 @@
-import { CategoryCombobox } from "@/app/transactions/CategoryCombobox";
+import { CategoryCombobox } from "@/app/(app)/transactions/CategoryCombobox";
 import { theme } from "@/lib/theme";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { ThemeProvider } from "styled-components";

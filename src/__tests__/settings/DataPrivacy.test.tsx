@@ -1,9 +1,9 @@
-import { DataPrivacy } from "@/app/settings/DataPrivacy";
+import { DataPrivacy } from "@/app/(app)/settings/DataPrivacy";
 import { theme } from "@/lib/theme";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { ThemeProvider } from "styled-components";
 
-jest.mock("@/app/settings/dataActions", () => ({
+jest.mock("@/app/(app)/settings/dataActions", () => ({
   exportMyData: jest.fn(async () => "{}"),
   clearMyData: jest.fn(async () => undefined),
   deleteMyAccount: jest.fn(async () => undefined),

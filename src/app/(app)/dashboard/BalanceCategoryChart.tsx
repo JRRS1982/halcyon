@@ -1,14 +1,14 @@
 "use client";
 
-import { ChartLegend } from "@/app/dashboard/ChartLegend";
+import { ChartLegend } from "@/app/(app)/dashboard/ChartLegend";
 import { makeAmountTick } from "@/lib/charts/format";
 import { padAxisMax, padAxisMin } from "@/lib/dashboard/axis";
+import type { ValueAvgPoint } from "@/lib/dashboard/series";
 import {
   type NumberFormat,
   formatAmount,
   symbolFor,
 } from "@/lib/settings/currency";
-import { theme } from "@/lib/theme";
 import {
   CartesianGrid,
   Legend,
@@ -21,24 +21,15 @@ import {
 } from "recharts";
 import { useTheme } from "styled-components";
 
-export type CategoryPoint = {
-  month: string;
-  actual: number;
-  budget: number;
-  avg: number;
-};
-
-const BUDGET_COLOR = theme.colors.chartBudget;
-
-// A single expense category over time: solid = this month's actual, dashed grey
-// = its budget, dotted = the trailing 6-month average.
-export function CategoryExpenditureChart({
+// A single balance category over time: solid line = the month's value, dotted
+// = its trailing 6-month average, both in the category's colour.
+export function BalanceCategoryChart({
   data,
   color,
   currency,
   numberFormat,
 }: {
-  data: CategoryPoint[];
+  data: ValueAvgPoint[];
   color: string;
   currency: string;
   numberFormat: NumberFormat;
@@ -51,7 +42,7 @@ export function CategoryExpenditureChart({
   const tick = makeAmountTick(currency);
 
   return (
-    <ResponsiveContainer width="100%" height={260}>
+    <ResponsiveContainer width="100%" height={240}>
       <LineChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: 4 }}>
         <CartesianGrid stroke={theme.colors.hairline} vertical={false} />
         <XAxis
@@ -82,20 +73,10 @@ export function CategoryExpenditureChart({
         <Legend wrapperStyle={{ fontSize: 12 }} content={<ChartLegend />} />
         <Line
           type="monotone"
-          dataKey="actual"
-          name="Actual"
+          dataKey="value"
+          name="Balance"
           stroke={color}
           strokeWidth={2}
-          dot={false}
-          isAnimationActive={false}
-        />
-        <Line
-          type="monotone"
-          dataKey="budget"
-          name="Budget"
-          stroke={BUDGET_COLOR}
-          strokeWidth={2}
-          strokeDasharray="5 4"
           dot={false}
           isAnimationActive={false}
         />
