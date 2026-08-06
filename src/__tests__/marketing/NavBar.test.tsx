@@ -88,6 +88,47 @@ describe("NavBar", () => {
     ).toBeInTheDocument();
   });
 
+  // The row follows how the app is used — import, categorise, budget, balance,
+  // then read the dashboard — rather than putting the read-only view first.
+  // Asserted as a sequence because "the links are all present" would pass on
+  // any order at all.
+  test("orders the links by the monthly rhythm", () => {
+    mockPathname = "/dashboard";
+    const { container } = renderit({
+      signedIn: true,
+      transactionsEnabled: true,
+      planVisible: true,
+    });
+
+    const hrefs = [...container.querySelectorAll("nav > div a")].map((a) =>
+      a.getAttribute("href"),
+    );
+
+    expect(hrefs).toEqual([
+      "/transactions",
+      "/budget",
+      "/balance",
+      "/dashboard",
+      "/plan",
+      "/settings",
+    ]);
+  });
+
+  test("a disabled feature drops out without disturbing the rest", () => {
+    mockPathname = "/dashboard";
+    const { container } = renderit({
+      signedIn: true,
+      transactionsEnabled: false,
+      planVisible: false,
+    });
+
+    const hrefs = [...container.querySelectorAll("nav > div a")].map((a) =>
+      a.getAttribute("href"),
+    );
+
+    expect(hrefs).toEqual(["/budget", "/balance", "/dashboard", "/settings"]);
+  });
+
   // The drawer is the only way to reach the nav below 768px, where the inline
   // link row and action cluster are display:none. Both sets are always in the
   // DOM and CSS decides which the viewport exposes — jsdom renders at desktop
