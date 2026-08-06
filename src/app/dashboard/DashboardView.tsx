@@ -8,12 +8,14 @@ import {
   type ExpenditurePoint,
   trailingAverageSeries,
 } from "@/lib/dashboard/series";
+import { dashboardSummary } from "@/lib/dashboard/summary";
 import type { NumberFormat } from "@/lib/settings/currency";
 import { theme } from "@/lib/theme";
 import nextDynamic from "next/dynamic";
 import Link from "next/link";
 import styled, { css } from "styled-components";
 import type { BalancePoint } from "./BalanceTrendChart";
+import { SummaryRow } from "./SummaryRow";
 
 // Recharts is ~123KB gzipped — by far the heaviest thing the app ships, and
 // none of it is needed to render the page frame. Loading each chart on demand
@@ -173,14 +175,57 @@ const PanelTitle = styled.h2`
   margin: 0 0 ${({ theme }) => theme.spacing.sm};
 `;
 
-// One-line explainer under a panel title: what the chart shows and why it helps.
-const PanelLead = styled.p`
-  margin: 0 0 ${({ theme }) => theme.spacing.lg};
-  color: ${({ theme }) => theme.colors.dim};
-  font-family: ${({ theme }) => theme.typography.bodyMd.family};
-  font-size: ${({ theme }) => theme.typography.bodyMd.size};
-  line-height: 1.4;
-  max-width: 70ch;
+// What a chart shows and why it helps.
+//
+// These run to three or four lines each, and rendered open they took more
+// vertical space above the fold than the chart they described — the reader met
+// an essay before a single number. Folded into a native <details>, the
+// explanation is one click away and costs one line when closed. Native rather
+// than a popover: it is keyboard accessible, announces its own expanded state,
+// and works before hydration.
+const PanelExplainer = styled.details`
+  ${({ theme }) => css`
+    margin: 0 0 ${theme.spacing.lg};
+    max-width: 70ch;
+    font-family: ${theme.typography.bodyMd.family};
+    font-size: 13px;
+    line-height: 1.5;
+    color: ${theme.colors.body};
+
+    > summary {
+      cursor: pointer;
+      list-style: none;
+      width: fit-content;
+      font-family: ${theme.typography.monoCaps.family};
+      font-size: ${theme.typography.monoCaps.size};
+      font-weight: ${theme.typography.monoCaps.weight};
+      letter-spacing: ${theme.typography.monoCaps.letterSpacing};
+      text-transform: uppercase;
+      color: ${theme.colors.body};
+    }
+
+    /* Safari still paints its own disclosure triangle without this. */
+    > summary::-webkit-details-marker {
+      display: none;
+    }
+
+    > summary::after {
+      content: " +";
+    }
+
+    &[open] > summary::after {
+      content: " −";
+    }
+
+    > summary:focus-visible {
+      outline: 2px solid ${theme.colors.accent};
+      outline-offset: 2px;
+    }
+
+    > p {
+      margin-top: ${theme.spacing.sm};
+    }
+  `}
 `;
 
 // Shown only when the whole dashboard has nothing in it — see `nothingToChart`.
@@ -316,7 +361,10 @@ export function DashboardView({
         {expenditurePanels.map((c) => (
           <Panel key={c.label}>
             <PanelTitle>{c.label}</PanelTitle>
-            <PanelLead>{c.lead}</PanelLead>
+            <PanelExplainer>
+              <summary>What this shows</summary>
+              <p>{c.lead}</p>
+            </PanelExplainer>
             <WhenVisible fallback={<ChartFallback height={180} />}>
               <CategoryExpenditureChart
                 color={c.color}
@@ -347,6 +395,12 @@ export function DashboardView({
     balanceData.length === 0 &&
     expenditurePanels.length === 0;
 
+  const summary = dashboardSummary({
+    balance: balanceData,
+    cashFlow: cashFlowData,
+    expenditure: expenditureData,
+  });
+
   return (
     <Shell>
       <PageHeader
@@ -354,6 +408,15 @@ export function DashboardView({
         title="Dashboard"
         lead="Trends across your tracked months."
       />
+      {/* Suppressed on a first run: four dashes over an empty-state card would
+          be noise, and the card already says what to do. */}
+      {!nothingToChart && (
+        <SummaryRow
+          stats={summary}
+          currency={currency}
+          numberFormat={numberFormat}
+        />
+      )}
       {nothingToChart && (
         <FirstRun>
           <FirstRunTitle>Nothing to chart yet</FirstRunTitle>
@@ -375,13 +438,16 @@ export function DashboardView({
         {shown("cashFlow") && (
           <Panel>
             <PanelTitle>Income vs expenses</PanelTitle>
-            <PanelLead>
-              Money in versus money out each month — income is your net
-              (take-home) figure, after tax and pension. The gap is your surplus
-              or shortfall, and the dashed line tracks the share of income you
-              kept. Each net point is marked with its change from the month
-              before (green ▲ up, red ▼ down).
-            </PanelLead>
+            <PanelExplainer>
+              <summary>What this shows</summary>
+              <p>
+                Money in versus money out each month — income is your net
+                (take-home) figure, after tax and pension. The gap is your
+                surplus or shortfall, and the dashed line tracks the share of
+                income you kept. Each net point is marked with its change from
+                the month before (green ▲ up, red ▼ down).
+              </p>
+            </PanelExplainer>
             {cashFlowData.length > 0 ? (
               <CashFlowChart
                 data={cashFlowData}
@@ -400,13 +466,16 @@ export function DashboardView({
         {shown("balanceTrend") && (
           <Panel>
             <PanelTitle>Balance over time</PanelTitle>
-            <PanelLead>
-              Assets (green) sit above zero and debts (red) below; the dash
-              pattern tells the categories apart, and the solid black line is
-              your net balance — total assets minus what you owe. Each net point
-              is marked with its change from the month before (green ▲ up, red ▼
-              down).
-            </PanelLead>
+            <PanelExplainer>
+              <summary>What this shows</summary>
+              <p>
+                Assets (green) sit above zero and debts (red) below; the dash
+                pattern tells the categories apart, and the solid black line is
+                your net balance — total assets minus what you owe. Each net
+                point is marked with its change from the month before (green ▲
+                up, red ▼ down).
+              </p>
+            </PanelExplainer>
             {balanceData.length > 0 ? (
               <BalanceTrendChart
                 data={balanceData}
@@ -426,9 +495,10 @@ export function DashboardView({
             {balancePanels.map((p) => (
               <Panel key={p.label}>
                 <PanelTitle>{p.label}</PanelTitle>
-                <PanelLead>
-                  {p.label} each month, against the 6-month average.
-                </PanelLead>
+                <PanelExplainer>
+                  <summary>What this shows</summary>
+                  <p>{p.label} each month, against the 6-month average.</p>
+                </PanelExplainer>
                 <WhenVisible fallback={<ChartFallback height={180} />}>
                   <BalanceCategoryChart
                     data={p.series}
