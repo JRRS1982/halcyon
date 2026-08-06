@@ -1182,9 +1182,11 @@ export function BalanceSheet({
   const renderItemRow = (item: SerializedBalanceItem) => (
     <ItemRow
       key={item.id}
+      role="row"
       onMouseDown={() => setFocusedCell({ itemId: item.id, field: "label" })}
     >
       <SheetCell
+        role="rowheader"
         focused={
           focusedCell?.itemId === item.id && focusedCell.field === "label"
         }
@@ -1234,8 +1236,8 @@ export function BalanceSheet({
 
   const renderSection = (type: BalanceType, label: string, total: number) => (
     <>
-      <SectionRow>
-        <SheetCell>{label}</SheetCell>
+      <SectionRow role="row">
+        <SheetCell role="rowheader">{label}</SheetCell>
         <SheetCell align="right">{fmtAmount(total)}</SheetCell>
         <SheetCell />
       </SectionRow>
@@ -1246,8 +1248,8 @@ export function BalanceSheet({
         const help = CATEGORY_HELP[type][c.key];
         return (
           <div key={`${type}-${c.key}`}>
-            <SubheadRow>
-              <SheetCell>
+            <SubheadRow role="row">
+              <SheetCell role="rowheader">
                 <SubheadLabel>
                   {c.label}
                   <InfoButton
@@ -1500,11 +1502,11 @@ export function BalanceSheet({
         </ToolbarGroup>
         <ToolbarSpacer />
       </Toolbar>
-      <Sheet data-sheet-scroller>
+      <Sheet data-sheet-scroller role="table" aria-label="Balance sheet">
         {renderSection("ASSET", "Assets", assetsTotal)}
         {renderSection("LIABILITY", "Liabilities", liabilitiesTotal)}
-        <GrandRow>
-          <SheetCell>Net worth</SheetCell>
+        <GrandRow role="row">
+          <SheetCell role="rowheader">Net worth</SheetCell>
           <SheetCell
             align="right"
             tone={

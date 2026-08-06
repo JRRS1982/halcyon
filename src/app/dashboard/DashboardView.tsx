@@ -9,6 +9,7 @@ import {
   trailingAverageSeries,
 } from "@/lib/dashboard/series";
 import type { NumberFormat } from "@/lib/settings/currency";
+import { theme } from "@/lib/theme";
 import nextDynamic from "next/dynamic";
 import Link from "next/link";
 import styled, { css } from "styled-components";
@@ -45,8 +46,11 @@ const BalanceCategoryChart = nextDynamic(
   { ssr: false, loading: () => <ChartFallback height={180} /> },
 );
 
-const ASSET_COLOR = "#1F8A4C";
-const LIABILITY_COLOR = "#B33B3B";
+// Same greens and reds as the amount cells — these are the sign colours,
+// not a separate chart palette, so they come from the token rather than
+// being restated and drifting when it changes.
+const ASSET_COLOR = theme.colors.positive;
+const LIABILITY_COLOR = theme.colors.negative;
 
 // Per-category balance panels: Current / Medium-term / Long-term for each side.
 // `sign` flips liabilities (stored negated in BalancePoint) back to a positive

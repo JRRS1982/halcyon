@@ -22,8 +22,8 @@ colors:
   ink: "#000000"
   ink-soft: "#1B1B1B"
   body: "#525252"
-  body-muted: "#8A8A8A"
-  dim: "#999999"
+  body-muted: "#6E6E6E"
+  dim: "#717171"
   hairline: "#E5E5E5"
   hairline-strong: "#D4D4D4"
   hairline-dark: "#1F242C"
@@ -33,7 +33,7 @@ colors:
   surface-dark-soft: "#1A1D23"
   on-dark: "#FFFFFF"
   body-on-dark: "#A8AFBC"
-  positive: "#1F8A4C"
+  positive: "#1A7A43"
   negative: "#B33B3B"
   focus: "#0F1116"
   accent: "#1E5BC6"
@@ -423,8 +423,8 @@ Surfaces alternate at the row level, not the page level. A page is `{colors.canv
 - All-caps mono labels in `{typography.mono-caps}` for everything that names data — column headers, section rows, button labels, eyebrows, status pips, period months, the row-index column.
 - The **type scale has five sizes only** — 28, 18, 14, 13, 11 (chart internals may use 11–12px inside the chart surface). New sizes are added by adjusting one of the existing tokens; introducing a sixth is a design decision, not a default.
 - Tabular numerals on every currency amount. Right-aligned in their columns; left-aligned amount cells are forbidden.
-- Positive variance in `{colors.positive}` (`#1F8A4C`); negative in `{colors.negative}` (`#B33B3B`). Sign-only — never as brand colours or button fills.
-- $0 / empty amounts dim to `{colors.dim}` (`#999999`) so they recede from real data.
+- Positive variance in `{colors.positive}` (`#1A7A43`); negative in `{colors.negative}` (`#B33B3B`). Sign-only — never as brand colours or button fills.
+- $0 / empty amounts dim to `{colors.dim}` (`#717171`) so they recede from real data — as far as a 4.5:1 contrast floor allows.
 
 ## Colors
 
@@ -448,8 +448,8 @@ Surfaces alternate at the row level, not the page level. A page is `{colors.canv
 - **Ink** (`{colors.ink}` — `#000000`): Every headline, every primary cell value on light surfaces.
 - **Ink Soft** (`{colors.ink-soft}` — `#1B1B1B`): Reserved for prose body running > 200 characters where pure black feels harsh. Currently unused; available.
 - **Body** (`{colors.body}` — `#525252`): Secondary text on light surfaces — line-item labels (`label-indent-2`), lead paragraphs, mono-caps eyebrow labels, status-pip text, nav-link inactive state, period-tab month label.
-- **Body Muted** (`{colors.body-muted}` — `#8A8A8A`): A third tier of grey — used for the row-index column digits and period-tab status text.
-- **Dim** (`{colors.dim}` — `#999999`): Reserved for $0 / no-data amount cells. Dimmer than body-muted; signals "this is not data" rather than "this is secondary data".
+- **Body Muted** (`{colors.body-muted}` — `#6E6E6E`): A third tier of grey — used for the row-index column digits and period-tab status text.
+- **Dim** (`{colors.dim}` — `#717171`): Reserved for $0 / no-data amount cells. Dimmer than body-muted; signals "this is not data" rather than "this is secondary data".
 - **On Dark** (`{colors.on-dark}` — `#FFFFFF`): All primary text on `{colors.canvas-dark}` and `{colors.primary}` surfaces.
 - **Body On Dark** (`{colors.body-on-dark}` — `#A8AFBC`): Secondary text on dark surfaces.
 
@@ -457,7 +457,7 @@ Surfaces alternate at the row level, not the page level. A page is `{colors.canv
 
 A deliberately small semantic palette — sign-only, never decorative.
 
-- **Positive** (`{colors.positive}` — `#1F8A4C`): A muted green used **only** for positive variance amounts (under-budget expenses, surplus net income). Never used as a brand tint, button fill, or success banner background. Also the dot colour in `status-pip`.
+- **Positive** (`{colors.positive}` — `#1A7A43`): A muted green used **only** for positive variance amounts (under-budget expenses, surplus net income). Never used as a brand tint, button fill, or success banner background. Also the dot colour in `status-pip`.
 - **Negative** (`{colors.negative}` — `#B33B3B`): A muted red used **only** for negative variance amounts and destructive-button text. Never used as a brand tint or hero accent.
 - **Focus** (`{colors.focus}` — `#0F1116`): The 2 px outline ring on the focused **sheet cell** only. Matches `{colors.canvas-dark}` so cell focus reads as "this is where you're committing data". Form inputs outside the sheet take their focus ring from `{colors.accent}` instead — interaction belongs to the accent.
 - No explicit warning / info / success colour beyond positive/negative.
@@ -629,7 +629,7 @@ The Budget page is built around a single bordered grid — the **sheet**. Every 
 
 **`sheet-cell-dim`** — modifier for `sheet-cell-amount` when the value is $0 or empty.
 
-- Text colour swaps to `{colors.dim}` `#999999`. Signals "no data" so a row of zeros doesn't pretend to be real.
+- Text colour swaps to `{colors.dim}` `#717171`. Signals "no data" so a row of zeros doesn't pretend to be real.
 
 **`sheet-cell-focused`** — the active editing cell.
 
