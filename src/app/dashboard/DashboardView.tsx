@@ -9,8 +9,8 @@ import {
   trailingAverageSeries,
 } from "@/lib/dashboard/series";
 import type { NumberFormat } from "@/lib/settings/currency";
-import Link from "next/link";
 import nextDynamic from "next/dynamic";
+import Link from "next/link";
 import styled, { css } from "styled-components";
 import type { BalancePoint } from "./BalanceTrendChart";
 
