@@ -26,22 +26,28 @@ type NavBarProps = {
 
 type NavItem = { href: string; label: string };
 
-// Signed-in app links. "Home" is intentionally absent: signed-in users are
-// redirected away from "/" to "/dashboard", so a Home tab would only point at
-// a redirect. Plan and Transactions are opt-in and slot in before Settings.
-const SIGNED_IN_ITEMS: NavItem[] = [
-  { href: "/dashboard", label: "Dashboard" },
+// Ordered by the way the app is actually used, not by importance: import a
+// statement, categorise it, check the budget, update balances, then read the
+// dashboard — the monthly rhythm /about describes. Dashboard sits late because
+// it is the read-only result of the four steps before it, and Plan last of the
+// app pages because it is the long view rather than part of the month.
+// Settings closes the row.
+//
+// "Home" is intentionally absent: signed-in users are redirected away from "/",
+// so a Home tab would only ever point at a redirect.
+type NavEntry = NavItem & {
+  /** Optional entries appear only when their feature is switched on. */
+  requires?: "transactions" | "plan";
+};
+
+const SIGNED_IN_ITEMS: NavEntry[] = [
+  { href: "/transactions", label: "Transactions", requires: "transactions" },
   { href: "/budget", label: "Budget" },
   { href: "/balance", label: "Balance" },
+  { href: "/dashboard", label: "Dashboard" },
+  { href: "/plan", label: "Plan", requires: "plan" },
   { href: "/settings", label: "Settings" },
 ];
-
-const PLAN_ITEM: NavItem = { href: "/plan", label: "Plan" };
-
-const TRANSACTIONS_ITEM: NavItem = {
-  href: "/transactions",
-  label: "Transactions",
-};
 
 // Homepage-only in-page anchors (the sections only exist on "/").
 const MARKETING_ITEMS: NavItem[] = [
@@ -88,10 +94,12 @@ export function NavBar({
   const [menuOpen, setMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
 
-  const middle: NavItem[] = [...SIGNED_IN_ITEMS.slice(0, -1)]; // Dashboard, Budget, Balance
-  if (planVisible) middle.push(PLAN_ITEM);
-  if (transactionsEnabled) middle.push(TRANSACTIONS_ITEM);
-  const items: NavItem[] = [...middle, ...SIGNED_IN_ITEMS.slice(-1)]; // + Settings
+  // Filtered rather than spliced, so the declared order above is the order
+  // rendered and switching a feature on drops it into place.
+  const enabled = { transactions: transactionsEnabled, plan: planVisible };
+  const items: NavItem[] = SIGNED_IN_ITEMS.filter(
+    (item) => !item.requires || enabled[item.requires],
+  );
 
   // Navigating away closes the drawer — Next keeps the layout mounted across
   // route changes, so it would otherwise stay open over the new page.
