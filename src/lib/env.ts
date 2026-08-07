@@ -23,15 +23,24 @@ const serverSchema = z.object({
 // these. Required-here would mean every contributor and every CI job had to
 // hold a Resend key to run the test suite. Callers check isEmailConfigured()
 // and skip instead — see src/lib/email/send.ts.
+//
+// Blank counts as absent. Docker Compose substitutes an empty string for a
+// variable it cannot resolve, so `- CRON_SECRET=${CRON_SECRET}` in compose.yaml
+// with nothing set delivers "" rather than nothing at all. Without this,
+// `.min(1)` rejects it and the entire app refuses to boot — over a feature that
+// is switched off. An optional variable has to be genuinely optional in every
+// way it can arrive.
+const blankAsAbsent = (value: unknown) => (value === "" ? undefined : value);
+
 const emailSchema = z.object({
-  RESEND_API_KEY: z.string().min(1).optional(),
-  EMAIL_FROM: z.string().min(1).optional(),
+  RESEND_API_KEY: z.preprocess(blankAsAbsent, z.string().min(1).optional()),
+  EMAIL_FROM: z.preprocess(blankAsAbsent, z.string().min(1).optional()),
   // Absolute origin for links in emails. There is no request to derive it from
   // inside a cron job, and a relative URL in an inbox goes nowhere.
-  SITE_URL: z.string().url().optional(),
+  SITE_URL: z.preprocess(blankAsAbsent, z.string().url().optional()),
   // Vercel sends this as a bearer on scheduled invocations. Without it the cron
   // route refuses to run at all rather than standing open — see the route.
-  CRON_SECRET: z.string().min(1).optional(),
+  CRON_SECRET: z.preprocess(blankAsAbsent, z.string().min(1).optional()),
 });
 
 const parse = <T extends z.ZodType>(schema: T, values: unknown): z.infer<T> => {
