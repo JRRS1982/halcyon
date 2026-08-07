@@ -10,7 +10,12 @@ overrides:
   # replaces have no backport. Dev-only tree (`pnpm why brace-expansion --prod`
   # is empty); 5.x still ships a CJS build, so jest/glob/minimatch are fine.
   brace-expansion: ^5.0.9
-  js-yaml: ">=3.15.0 <4.0.0"
+  # GHSA-5p4m-2wfm-xmqj / CVE-2026-59870 (quadratic CPU in !!omap resolution,
+  # published 2026-08-06) is patched in 3.15.1 and 4.3.1 with no backport below
+  # either — so the floor moves by one patch rather than the line changing.
+  # Dev-only tree: it arrives through jest → babel-plugin-istanbul →
+  # @istanbuljs/load-nyc-config, and nothing parses untrusted YAML.
+  js-yaml: ">=3.15.1 <4.0.0"
   fast-uri: ">=3.1.5 <4.0.0"
 
 # Don't re-verify node_modules against the lockfile before `pnpm <script>`.
