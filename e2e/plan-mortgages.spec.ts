@@ -1,4 +1,4 @@
-import { expect, signIn, test } from "./_helpers/fixtures";
+import { expect, signIn, signedInUser, test } from "./_helpers/fixtures";
 
 // Phase 1 first-class mortgages: "Add mortgage" creates a property + mortgage
 // + repayment trio and opens the shared property card (not the plain
@@ -11,7 +11,7 @@ test("add a mortgage opens the property card with a mortgage section", async ({
 
   // createPlan seeds from the most recent month period, so give it one to
   // read (mirrors e2e/plan.spec.ts).
-  const user = await db.user.findFirstOrThrow();
+  const user = await signedInUser(db);
   const start = new Date(Date.UTC(2026, 0, 1));
   const end = new Date(Date.UTC(2026, 0, 31));
   await db.financialPeriod.create({
@@ -80,7 +80,7 @@ test("toggling interest-only persists after reload and hides the repayment field
 }) => {
   await signIn(page);
 
-  const user = await db.user.findFirstOrThrow();
+  const user = await signedInUser(db);
   const start = new Date(Date.UTC(2026, 0, 1));
   const end = new Date(Date.UTC(2026, 0, 31));
   await db.financialPeriod.create({

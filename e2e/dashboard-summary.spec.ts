@@ -3,7 +3,7 @@
 // The dashboard leads with four figures rather than opening on a chart. These
 // need real data in a real browser: the values come from two months of seeded
 // periods, and the hydration check can only be made by loading the page.
-import { expect, signIn, test } from "./_helpers/fixtures";
+import { expect, signIn, signedInUser, test } from "./_helpers/fixtures";
 
 test.describe("Dashboard summary", () => {
   test.beforeEach(({ browserName }) => {
@@ -15,7 +15,7 @@ test.describe("Dashboard summary", () => {
     db,
   }) => {
     await signIn(page);
-    const user = await db.user.findFirstOrThrow();
+    const user = await signedInUser(db);
     // Two months of budget + balance so the KPI row has a delta to show.
     for (const [i, m] of [
       [0, "2026-01"],
@@ -109,7 +109,7 @@ test.describe("Dashboard summary", () => {
     db,
   }) => {
     await signIn(page);
-    const user = await db.user.findFirstOrThrow();
+    const user = await signedInUser(db);
     // Two months of budget + balance so the KPI row has a delta to show.
     for (const [i, m] of [
       [0, "2026-01"],
@@ -199,7 +199,7 @@ test.describe("Dashboard summary", () => {
     page.on("pageerror", (e) => errors.push(e.message));
 
     await signIn(page);
-    const user = await db.user.findFirstOrThrow();
+    const user = await signedInUser(db);
     // Two months of budget + balance so the KPI row has a delta to show.
     for (const [i, m] of [
       [0, "2026-01"],

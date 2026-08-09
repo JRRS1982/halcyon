@@ -1,4 +1,4 @@
-import { expect, signIn, test } from "./_helpers/fixtures";
+import { expect, signIn, signedInUser, test } from "./_helpers/fixtures";
 
 // Phase 3 Task 4: an event's Type can be switched to "Property sale", which
 // swaps the manual Direction/Amount fields for a property picker, and the
@@ -9,7 +9,7 @@ test("switching an event to Property sale shows the property picker and labels t
 }) => {
   await signIn(page);
 
-  const user = await db.user.findFirstOrThrow();
+  const user = await signedInUser(db);
   const start = new Date(Date.UTC(2026, 0, 1));
   const end = new Date(Date.UTC(2026, 0, 31));
   await db.financialPeriod.create({
