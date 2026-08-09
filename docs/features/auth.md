@@ -177,13 +177,31 @@ Two decisions worth knowing before changing any of it:
 | Server-side Supabase client (cookies via `next/headers`) | [`src/lib/supabase/server.ts`](../../src/lib/supabase/server.ts) |
 | Middleware Supabase client + session refresh helper | [`src/lib/supabase/middleware.ts`](../../src/lib/supabase/middleware.ts) |
 | Next.js middleware entry point (`proxy` export) | [`src/proxy.ts`](../../src/proxy.ts) |
-| Sign-in page + server action | [`src/app/sign-in/`](../../src/app/sign-in/) |
-| Sign-up page + server action | [`src/app/sign-up/`](../../src/app/sign-up/) |
+| Sign-in page + server action | [`src/app/(app)/sign-in/`](<../../src/app/(app)/sign-in/>) |
+| Sign-up page + server action | [`src/app/(app)/sign-up/`](<../../src/app/(app)/sign-up/>) |
 | OAuth / magic-link / email-confirmation callback | [`src/app/auth/callback/route.ts`](../../src/app/auth/callback/route.ts) |
 | Sign-out server action | [`src/app/actions.ts`](../../src/app/actions.ts) |
+| Where sign-in lands (`POST_AUTH_LANDING`) | [`src/lib/auth/landing.ts`](../../src/lib/auth/landing.ts) |
 | Profile-row trigger + RLS policies | [`prisma/migrations/20260522130000_supabase_auth_integration/migration.sql`](../../prisma/migrations/20260522130000_supabase_auth_integration/migration.sql) |
-| Account-data server actions (export / clear / delete) | [`src/app/settings/dataActions.ts`](../../src/app/settings/dataActions.ts) |
+| Account-data server actions (export / clear / delete) | [`src/app/(app)/settings/dataActions.ts`](<../../src/app/(app)/settings/dataActions.ts>) |
 | Service-role admin client (account erasure) | [`src/lib/supabase/admin.ts`](../../src/lib/supabase/admin.ts) |
+
+## Where a successful sign-in lands
+
+`/transactions`, not `/dashboard` — the constant is `POST_AUTH_LANDING` in
+[`src/lib/auth/landing.ts`](../../src/lib/auth/landing.ts), and all three entry
+points (the sign-in action, the sign-up flow and `/auth/callback`) default to it.
+An explicit `?next=` always wins, so a user bounced off a protected page still
+returns there.
+
+Transactions rather than the dashboard because the dashboard is derived: it has
+nothing to show until months have been filled in, so sending a new user there
+first shows them an empty product. Transactions is where the work starts.
+
+The redirect is issued directly rather than left to the proxy. The proxy does
+redirect a signed-in visitor away from `/`, but a server action's `redirect()`
+produces an RSC navigation the proxy doesn't intercept — so relying on it left
+users sitting on the marketing page after a successful login.
 
 ## Google OAuth setup
 
@@ -243,7 +261,7 @@ Halcyon's "identity-in-`auth`, profile-in-`public`" split (see top of this doc) 
 
 App data is deleted first, then the identity: a failure mid-way leaves the privacy-critical financial data erased rather than orphaned behind an undeletable login. **Recovery from a partial failure:** if `auth.admin.deleteUser` fails *after* the Prisma transaction has committed, the user's app data is gone but their login still exists (a "zombie" session with no `public."User"` row). To finish the erasure, delete that user manually in the Supabase dashboard (Authentication → Users). The sign-out is best-effort for the same reason — a failed sign-out only leaves a cookie that expires on its own.
 
-Two lighter operations live alongside it (both in `src/app/settings/dataActions.ts`):
+Two lighter operations live alongside it (both in `src/app/(app)/settings/dataActions.ts`):
 
 - **`clearMyData`** — deletes only the financial rows; keeps the login, `UserSettings`, and `Category`.
 - **`exportMyData`** — returns a single JSON document of every user-owned row (GDPR data portability); `Decimal` values are serialised as strings.
