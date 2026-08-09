@@ -101,10 +101,10 @@ clean:
 test:
 	@if [ -n "$(name)" ]; then \
 		echo "Running tests matching: $(name)"; \
-		node --experimental-vm-modules node_modules/jest/bin/jest.js --testNamePattern="$(name)"; \
+		node node_modules/jest/bin/jest.js --testNamePattern="$(name)"; \
 	else \
 		echo "Running all tests"; \
-		node --experimental-vm-modules node_modules/jest/bin/jest.js; \
+		node node_modules/jest/bin/jest.js; \
 	fi
 
 # Unit tests in watch mode
