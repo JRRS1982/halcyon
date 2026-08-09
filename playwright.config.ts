@@ -49,7 +49,10 @@ export default defineConfig({
       command: "node e2e/_mock/supabase.mjs",
       url: `${mockSupabaseURL}/health`,
       reuseExistingServer: !isCI,
-      stdout: "pipe",
+      // stdout left at Playwright's default ("ignore"): the mock logs every
+      // auth request it serves, and signIn() runs in nearly every spec, so
+      // piping it buries the test output. stderr stays piped (also the
+      // default), so anything that actually goes wrong still surfaces.
       stderr: "pipe",
     },
     {
