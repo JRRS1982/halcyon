@@ -4,8 +4,13 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import Link from "next/link";
 import styled, { css } from "styled-components";
 
+// Narrow enough that the container *is* the measure. At 820px the paragraphs
+// stopped at their own 68ch limit while the step rules and panel borders ran on
+// to the full width, so every step ended in a ragged strip of empty page. Sized
+// so a comfortable line length fills the column edge to edge instead — and the
+// two-column panel grid (260px minimum) still fits.
 const Shell = styled.main`
-  max-width: 820px;
+  max-width: 680px;
   margin: 0 auto;
   padding: ${({ theme }) => theme.spacing["3xl"]}
     ${({ theme }) => theme.spacing["2xl"]} ${({ theme }) => theme.spacing["5xl"]};
@@ -35,7 +40,6 @@ const Body = styled.p`
   font-size: ${({ theme }) => theme.typography.bodyMd.size};
   line-height: 1.6;
   color: ${({ theme }) => theme.colors.body};
-  max-width: 68ch;
 `;
 
 // Numbered steps. The marker is the mono-caps voice used for everything
@@ -82,9 +86,6 @@ const StepBody = styled.p`
   font-size: ${({ theme }) => theme.typography.bodyMd.size};
   line-height: 1.6;
   color: ${({ theme }) => theme.colors.body};
-  /* Same measure as Body: now that the two share a left edge, a different
-     right edge is the remaining thing that makes them look unrelated. */
-  max-width: 68ch;
 `;
 
 const Grid = styled.div`
@@ -198,7 +199,7 @@ const SECTIONS: { title: string; body: string }[] = [
   },
 ];
 
-export function AboutGuide() {
+export function Guide() {
   return (
     <Shell>
       <PageHeader

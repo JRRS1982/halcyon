@@ -58,7 +58,10 @@ model UserSettings {
   // shouldn't be something a new user has to discover in Settings first. Only
   // affects rows created from here on — existing users keep their own choice.
   transactionsEnabled Boolean  @default(true)
-  transfersEnabled    Boolean  @default(false)
+  // Defaults true alongside transactions: once statements are imported, money
+  // moved between your own accounts is the first thing that misreads as income
+  // or expense, so the section that nets it out should already be there.
+  transfersEnabled    Boolean  @default(true)
   // Dashboard chart keys the user has switched off (empty = all shown).
   hiddenCharts        String[] @default([])
   planVisible         Boolean  @default(true)

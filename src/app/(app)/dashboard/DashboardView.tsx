@@ -430,7 +430,7 @@ export function DashboardView({
             <FirstRunPrimary href="/transactions">
               Import a statement
             </FirstRunPrimary>
-            <FirstRunSecondary href="/about">Read the guide</FirstRunSecondary>
+            <FirstRunSecondary href="/guide">Read the guide</FirstRunSecondary>
           </FirstRunActions>
         </FirstRun>
       )}

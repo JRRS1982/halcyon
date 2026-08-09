@@ -32,7 +32,7 @@ export function Hero() {
           <TrustNote>
             No bank connection, ever. Balanced never asks for your banking login
             — figures come from a CSV you export yourself. Your data is yours to{" "}
-            <TrustLink href="/about">export or delete</TrustLink> at any time.
+            <TrustLink href="/guide">export or delete</TrustLink> at any time.
           </TrustNote>
         </div>
         <MarketingShot

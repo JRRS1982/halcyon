@@ -15,7 +15,7 @@ describe("Footer", () => {
 
     expect(screen.getByRole("link", { name: /how it works/i })).toHaveAttribute(
       "href",
-      "/about",
+      "/guide",
     );
     expect(screen.getByRole("link", { name: /privacy/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /terms/i })).toBeInTheDocument();
