@@ -13,6 +13,11 @@ describe("getCurrentUserSettings lazy row creation (integration)", () => {
     // here: several callers find no row, all INSERT, and all but one fail with
     // a P2002 unique-constraint violation. An atomic insert (ON CONFLICT DO
     // NOTHING) must let every caller resolve.
+    //
+    // These really are 20 calls despite the React `cache()` around the
+    // function: cache() memoises within a request scope, and there is no such
+    // scope outside a render — so here it passes straight through, which is
+    // exactly the concurrency this test is about.
     const results = await Promise.all(
       Array.from({ length: 20 }, () => getCurrentUserSettings()),
     );
