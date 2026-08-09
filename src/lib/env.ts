@@ -43,17 +43,31 @@ const emailSchema = z.object({
   CRON_SECRET: z.preprocess(blankAsAbsent, z.string().min(1).optional()),
 });
 
-const parse = <T extends z.ZodType>(schema: T, values: unknown): z.infer<T> => {
+const parse = <T extends z.ZodType>(
+  schema: T,
+  values: Record<string, unknown>,
+): z.infer<T> => {
   const result = schema.safeParse(values);
-  if (!result.success) {
-    const missing = result.error.issues
-      .map((issue) => issue.path.join("."))
-      .join(", ");
-    throw new Error(
-      `Invalid environment variables: ${missing}. See .env.example.`,
-    );
-  }
-  return result.data;
+  if (result.success) return result.data;
+
+  // Empty is worth telling apart from absent: Docker Compose substitutes an
+  // empty string for a variable it can't resolve (it warns "Defaulting to a
+  // blank string" and starts the container anyway), so a blank one means this
+  // checkout has no .env — not that nothing passes the value through.
+  //
+  // Never the value itself; two of these are secrets and boot errors get pasted
+  // into chats.
+  const faults = result.error.issues.map((issue) => {
+    const key = issue.path.join(".");
+    const value = values[key];
+    if (value === undefined) return `${key} (not set)`;
+    if (value === "") return `${key} (empty)`;
+    return `${key} (${issue.message})`;
+  });
+
+  throw new Error(
+    `Invalid environment variables: ${faults.join(", ")}. See .env.example.`,
+  );
 };
 
 // Per-key references (not a loop) so Next can statically inline NEXT_PUBLIC_*.
