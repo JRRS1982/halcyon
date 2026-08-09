@@ -7,7 +7,7 @@ import styled, { css } from "styled-components";
 // Four tiles across on a wide screen, folding to two and then one. Hairline
 // boxes on canvas — the same chrome as the chart panels below, so the row reads
 // as part of the page rather than a banner stuck on top.
-const Row = styled.div`
+const Row = styled.section`
   display: grid;
   gap: ${({ theme }) => theme.spacing.lg};
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -120,7 +120,11 @@ export function SummaryRow({
   numberFormat: NumberFormat;
 }) {
   return (
-    <Row>
+    // Named so the four figures are addressable as a unit — by a screen reader
+    // moving through the page, and by a test that needs "Savings rate" the
+    // headline rather than "Savings rate" the cash-flow series in a chart
+    // legend further down, which is the same string.
+    <Row aria-label="Key figures">
       {stats.map((stat) => {
         const delta = formatDelta(stat, currency, numberFormat);
         return (

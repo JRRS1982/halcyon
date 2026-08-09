@@ -87,6 +87,52 @@ export async function signIn(page: Page): Promise<void> {
 }
 
 /**
+ * Loads a route in a brand-new tab, sharing the current session.
+ *
+ * For "does this survive a full load", which was previously page.reload() and
+ * failed on firefox with NS_BINDING_ABORTED — Firefox's way of saying our
+ * navigation was cancelled by a later one. After a commit-on-keyup the plan
+ * page is not idle: its handler awaits the server action and then calls
+ * router.refresh() (src/app/(app)/plan/usePlanProjection.ts), and under
+ * `next dev` the route may still be compiling. Waiting for the refresh to land
+ * first was not enough — reloading a page the app is still driving keeps losing
+ * that race, and only on firefox, since chromium and webkit resolve the reload
+ * regardless.
+ *
+ * A new tab sidesteps the argument entirely rather than trying to win it. It
+ * proves exactly what the reload was there to prove — the server now renders
+ * the committed value — with no navigation of its own to collide with. The
+ * caller closes it.
+ */
+export async function openFresh(page: Page, path: string): Promise<Page> {
+  const fresh = await page.context().newPage();
+  await fresh.goto(path);
+  return fresh;
+}
+
+/**
+ * The signed-in user's profile row, once the app has actually written it.
+ *
+ * Nothing in signIn() creates this row: it appears as a side effect of the
+ * first authenticated server render, where getCurrentUserSettings inserts
+ * User + UserSettings (src/lib/settings/server.ts). waitForURL resolves on the
+ * client-side navigation, which can win the race against that insert
+ * committing — so a bare findFirstOrThrow() straight after signIn() throws
+ * "No record was found" on a loaded runner, and passes everywhere else.
+ *
+ * Polling is the honest expression of what the test needs: the row exists
+ * shortly, not instantly.
+ */
+export async function signedInUser(db: PrismaClient) {
+  await expect
+    .poll(() => db.user.count(), {
+      message: "waiting for the app to create the User profile row",
+    })
+    .toBeGreaterThan(0);
+  return await db.user.findFirstOrThrow();
+}
+
+/**
  * Uploads a CSV to the import panel and waits for the mapping step to appear.
  *
  * Setting files on the input fires a DOM change event. If React has not

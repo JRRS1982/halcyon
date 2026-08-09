@@ -12,13 +12,23 @@ export default defineConfig({
   testDir: "./e2e",
   // Auth tests share an in-memory user store in the mock; run serially.
   fullyParallel: false,
+  // `.only` is a legitimate local tool and a disaster in CI, where it would
+  // quietly narrow the run to one test and still report green.
   forbidOnly: isCI,
-  retries: isCI ? 2 : 0,
+  // No second chances anywhere: a test that needs one is a test to fix. This is
+  // also what keeps a local run and a CI run comparable — retries were the last
+  // thing that made them disagree.
+  retries: 0,
+  // Belt and braces: retries can still be turned on from the command line, and
+  // this makes sure a test rescued by one still fails the run.
+  failOnFlakyTests: true,
   workers: 1,
   reporter: [["html", { open: "never" }]],
   use: {
     baseURL,
-    trace: "on-first-retry",
+    // Not "on-first-retry": with retries off there is no retry to trace on, and
+    // a failure with no trace is a failure you debug twice.
+    trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
   projects: [
@@ -31,31 +41,38 @@ export default defineConfig({
         },
       },
     },
-    ...(isCI
-      ? [
-          {
-            name: "firefox",
-            use: { ...devices["Desktop Firefox"] },
-          },
-          {
-            name: "webkit",
-            use: { ...devices["Desktop Safari"] },
-          },
-        ]
-      : []),
+    {
+      name: "firefox",
+      use: { ...devices["Desktop Firefox"] },
+    },
+    {
+      name: "webkit",
+      use: { ...devices["Desktop Safari"] },
+    },
   ],
   webServer: [
     {
       command: "node e2e/_mock/supabase.mjs",
       url: `${mockSupabaseURL}/health`,
-      reuseExistingServer: !isCI,
-      stdout: "pipe",
+      // Never reuse: a second local run used to silently attach to the first
+      // one's servers and then truncate halcyon_test underneath it, which reads
+      // as random tests failing in both runs. Now the second run stops with
+      // "port already in use", which is the truth.
+      reuseExistingServer: false,
+      // stdout left at Playwright's default ("ignore"): the mock logs every
+      // auth request it serves, and signIn() runs in nearly every spec, so
+      // piping it buries the test output. stderr stays piped (also the
+      // default), so anything that actually goes wrong still surfaces.
       stderr: "pipe",
     },
     {
       command: `pnpm next dev -p ${testAppPort}`,
       url: baseURL,
-      reuseExistingServer: !isCI,
+      // Never reuse: a second local run used to silently attach to the first
+      // one's servers and then truncate halcyon_test underneath it, which reads
+      // as random tests failing in both runs. Now the second run stops with
+      // "port already in use", which is the truth.
+      reuseExistingServer: false,
       timeout: 120_000,
       env: {
         // Point the app at the mock Supabase instead of the real project.

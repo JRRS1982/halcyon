@@ -77,6 +77,8 @@ export const getCurrentUserSettings = cache(
     planVisible: boolean;
     hiddenCharts: string[];
     themePreference: ThemePreference;
+    monthlyReminderEnabled: boolean;
+    monthlyReminderDay: number;
   }> => {
     const user = await getCurrentUser();
     if (!user) redirect("/sign-in");
@@ -98,6 +100,8 @@ export const getCurrentUserSettings = cache(
       themePreference: isThemePreference(row.themePreference)
         ? row.themePreference
         : "SYSTEM",
+      monthlyReminderEnabled: row.monthlyReminderEnabled,
+      monthlyReminderDay: row.monthlyReminderDay,
     };
   },
 );

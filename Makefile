@@ -101,10 +101,10 @@ clean:
 test:
 	@if [ -n "$(name)" ]; then \
 		echo "Running tests matching: $(name)"; \
-		node --experimental-vm-modules node_modules/jest/bin/jest.js --testNamePattern="$(name)"; \
+		node node_modules/jest/bin/jest.js --testNamePattern="$(name)"; \
 	else \
 		echo "Running all tests"; \
-		node --experimental-vm-modules node_modules/jest/bin/jest.js; \
+		node node_modules/jest/bin/jest.js; \
 	fi
 
 # Unit tests in watch mode
@@ -134,18 +134,26 @@ ifeq ($(CI),)
 endif
 
 # E2E tests (Playwright). Brings the local test DB up first.
+# Runs every browser CI runs — chromium, firefox and webkit — unless you name
+# one. Needs all three installed once: `pnpm exec playwright install`.
 # Usage:
-#   make test-e2e                              # all specs, all browsers (local: chromium)
-#   make test-e2e name="transfers journey"     # only specs/tests matching the grep
+#   make test-e2e                                    # all three browsers
+#   make test-e2e browser=firefox                    # just that browser
+#   make test-e2e name="transfers journey"           # only specs/tests matching the grep
+#   make test-e2e browser=webkit name="theme"        # both filters
 # Call Playwright directly via `pnpm exec`: `pnpm test:e2e -- --grep` would pass
 # a bare `--` to Playwright, which then reads `--grep` as a positional file
 # filter ("No tests found") rather than the grep option.
-test-e2e: e2e-db
-ifdef name
-	pnpm exec playwright test --grep "$(name)"
-else
-	pnpm test:e2e
+E2E_ARGS :=
+ifdef browser
+E2E_ARGS += --project=$(browser)
 endif
+ifdef name
+E2E_ARGS += --grep "$(name)"
+endif
+
+test-e2e: e2e-db
+	pnpm exec playwright test $(E2E_ARGS)
 
 # E2E tests with UI
 test-e2e-ui:

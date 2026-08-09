@@ -6,6 +6,15 @@ on:
   push:
     branches: [master]
 
+# GitHub already sets CI=true on every step, so this changes nothing today. It
+# is declared because two things here read it and neither should rest on a
+# platform default: playwright.config.ts uses it for forbidOnly, and the
+# Makefile's e2e-db target skips starting a local Postgres when it is set.
+# Keeping the name `CI` rather than something clearer is deliberate — pnpm,
+# Next and Playwright all key off that exact name.
+env:
+  CI: true
+
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest

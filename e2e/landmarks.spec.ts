@@ -53,10 +53,6 @@ test.describe("Skip to content", () => {
 });
 
 test.describe("Landmarks", () => {
-  test.beforeEach(({ browserName }) => {
-    test.skip(browserName !== "chromium", "structure check runs once");
-  });
-
   test("signed-out routes expose exactly one main", async ({ page }) => {
     for (const path of SIGNED_OUT) {
       await page.goto(path);
@@ -97,10 +93,6 @@ test.describe("Landmarks", () => {
 });
 
 test.describe("Sheet semantics", () => {
-  test.beforeEach(({ browserName }) => {
-    test.skip(browserName !== "chromium", "structure check runs once");
-  });
-
   // Without these the sheet is a stream of numbers with nothing tying an
   // amount to its row or its column.
   test("the budget sheet exposes a table with named columns", async ({

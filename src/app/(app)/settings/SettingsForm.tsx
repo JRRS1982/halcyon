@@ -3,6 +3,11 @@
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
 import {
+  REMINDER_DAYS,
+  REMINDER_DAY_LABELS,
+  type ReminderDay,
+} from "@/lib/email/reminder";
+import {
   THEME_PREFERENCES,
   THEME_PREFERENCE_LABELS,
   type ThemePreference,
@@ -12,7 +17,9 @@ import { useRef, useState, useTransition } from "react";
 import styled from "styled-components";
 import { SectionHeading } from "./SectionHeading";
 import {
+  setMonthlyReminderDay,
   setThemePreference,
+  toggleMonthlyReminder,
   togglePlanVisible,
   toggleTransactions,
   toggleTransfers,
@@ -227,6 +234,8 @@ export function SettingsForm({
   transfersEnabled,
   planVisible,
   themePreference,
+  monthlyReminderEnabled,
+  monthlyReminderDay,
 }: {
   action: (formData: FormData) => Promise<void>;
   currency: string;
@@ -237,6 +246,8 @@ export function SettingsForm({
   transfersEnabled: boolean;
   planVisible: boolean;
   themePreference: ThemePreference;
+  monthlyReminderEnabled: boolean;
+  monthlyReminderDay: number;
 }) {
   const router = useRouter();
   const [savePending, startSave] = useTransition();
@@ -312,6 +323,29 @@ export function SettingsForm({
     setThemeValue(next);
     startTheme(async () => {
       await setThemePreference(next);
+      router.refresh();
+    });
+  };
+
+  // The reminder is the only thing the app does that reaches the user
+  // unprompted, so it is opt-in and persists the moment it's switched — no Save
+  // button standing between someone and turning email off.
+  const [reminderOn, setReminderOn] = useState(monthlyReminderEnabled);
+  const [reminderPending, startReminder] = useTransition();
+  const onToggleReminder = (next: boolean) => {
+    setReminderOn(next);
+    startReminder(async () => {
+      await toggleMonthlyReminder(next);
+      router.refresh();
+    });
+  };
+
+  const [reminderDay, setReminderDay] = useState(monthlyReminderDay);
+  const [dayPending, startDay] = useTransition();
+  const onChangeReminderDay = (next: ReminderDay) => {
+    setReminderDay(next);
+    startDay(async () => {
+      await setMonthlyReminderDay(next);
       router.refresh();
     });
   };
@@ -467,6 +501,53 @@ export function SettingsForm({
           <SwitchTrack />
         </SwitchControl>
       </ToggleField>
+
+      <SectionHeading>Reminders</SectionHeading>
+      <ToggleField>
+        <ToggleText>
+          <FieldLabel>Monthly reminder email</FieldLabel>
+          <FieldHint>
+            One email a month saying your statement should be ready — nothing
+            more. It carries no figures, no balances and no category names; your
+            numbers stay behind your login. Off unless you turn it on, and every
+            email has a one-click way out.
+          </FieldHint>
+        </ToggleText>
+        <SwitchControl>
+          <SwitchInput
+            type="checkbox"
+            aria-label="Monthly reminder email"
+            checked={reminderOn}
+            disabled={reminderPending}
+            onChange={(event) => onToggleReminder(event.target.checked)}
+          />
+          <SwitchTrack />
+        </SwitchControl>
+      </ToggleField>
+
+      {reminderOn && (
+        <Field>
+          <FieldLabel>Send on</FieldLabel>
+          <Select
+            name="monthlyReminderDay"
+            value={String(reminderDay)}
+            disabled={dayPending}
+            onChange={(event) =>
+              onChangeReminderDay(Number(event.target.value) as ReminderDay)
+            }
+          >
+            {REMINDER_DAYS.map((day) => (
+              <option key={day} value={day}>
+                {REMINDER_DAY_LABELS[day]}
+              </option>
+            ))}
+          </Select>
+          <FieldHint>
+            Pick a day a few days after your statement usually closes, so
+            there's something to import when it arrives.
+          </FieldHint>
+        </Field>
+      )}
 
       {confirming && (
         <Overlay

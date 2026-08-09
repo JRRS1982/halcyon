@@ -1,16 +1,58 @@
-# Halcyon
+# Balanced Money
 
 [![CI](https://github.com/JRRS1982/halcyon/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/JRRS1982/halcyon/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-This is a web application for managing personal finance, built to be easy to use and understand.
+**Personal finance, made clear.** Live at **<https://balanced.money>**.
 
-Please see the [Playbook](docs/Playbook.md) for more information on the project, along with the [docs](docs/) directory for more information on the architecture and design.
+Most people trying to get a grip on their money build a spreadsheet, then
+quietly abandon it around month three. Balanced Money is that spreadsheet with
+the boring parts already done: the structure, the formulas, and the charts. You
+still bring the numbers — what you don't have to do is decide how to organise
+them.
+
+It never connects to your bank. There is no Open Banking link and no third party
+with read access to your accounts: figures get in via a CSV you export yourself,
+or by typing.
+
+> The repository is named **halcyon**; the product it ships is **Balanced
+> Money**. Same thing — the repo name predates the brand.
+
+![The dashboard](public/marketing/dashboard.png)
+
+## What it does
+
+| | |
+| --- | --- |
+| **Transactions** | Export a CSV from your bank and drop it in. Rows you've already imported are detected and skipped, so overlapping exports are safe, and every import is a batch you can undo in one click. Tag each row with a category. |
+| **Budget** | What you meant to spend, month by month, split into Fixed, Variable and Discretionary. Once transactions are categorised the actual column fills itself in beside your plan. An optional transfers panel keeps money moved between your own accounts out of income and expenses. |
+| **Balance** | What you own and what you owe, sorted by how soon it matters — current, medium-term, long-term, property. The bottom line is your net worth. |
+| **Dashboard** | Read-only, and derived: cash flow, savings rate, spending by category and net worth over time, all drawn from the months filled in elsewhere. |
+| **Plan** | The long view. Project income, spending, property, mortgages and pensions decades ahead to see whether the money lasts. Independent of the month-to-month figures. |
+| **Settings** | Currency and number format, light/dark/system, which charts appear, categories and accounts — plus a full JSON export of your data and a permanent delete. |
+
+There is a guide at [`/about`](https://balanced.money/about) explaining the
+monthly rhythm the app is built around, reachable without an account.
+
+<details>
+<summary>More screenshots</summary>
+
+![Budget](public/marketing/budget.png)
+![Balance](public/marketing/balance.png)
+![Transactions](public/marketing/transactions.png)
+
+</details>
+
+## Project docs
+
+Built as a learning project, and documented like one. Start with the
+[Playbook](docs/Playbook.md) for how it was approached, or the
+[docs](docs/) directory for architecture and design.
 
 ## Deployment
 
 - **Development**: <http://localhost:3210/> (`pnpm dev` or `make up`).
-- **Production**: <https://halcyon-silk.vercel.app>.
+- **Production**: <https://balanced.money> (also served on the Vercel default domain, <https://halcyon-silk.vercel.app>).
 - **Hosting**: [Vercel](https://vercel.com) runs the Next.js app (App Router server components + route handlers + middleware). [Supabase](https://supabase.com) provides managed Postgres and Auth. See [ADR-001](docs/ADRs/ADR-001-TechStackSelection.md) for the rationale.
 - **Pipeline**: pushes to `master` trigger GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) which runs `biome ci`, `tsc --noEmit`, Jest, and Playwright on Node 22 + pnpm 11. Vercel watches `master` independently and ships the build to production once its own build passes.
 - **Database migrations**: applied by GitHub Actions, not by the host. The `migrate-prod` job in [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs `prisma migrate deploy` against the production `DIRECT_URL` (unpooled Supabase connection, port 5432, supplied via the `PROD_DIRECT_URL` repo secret) — but only on push to `master` and only after lint/test + e2e pass. Vercel is configured to wait for this workflow before deploying, so the new code never goes live against an un-migrated schema. Migrations are forward-only; to undo, write a corrective migration. Manual fallback: `pnpm exec prisma migrate deploy` with `DIRECT_URL` set.
@@ -65,10 +107,6 @@ I have done my best, with the support of AI to put a comprehensive set of docume
 - [Data Privacy Statement](docs/DataPrivacyStatement.md)
 - [Design System (DESIGN.md)](DESIGN.md)
 - [Accessibility Standards](docs/AccessibilityStandards.md)
-
-## Demo
-
-Insert gif or link to a demo of the project.
 
 ## Testing
 
@@ -148,7 +186,7 @@ Landing-page screenshots live in `public/marketing/` (`dashboard.png`, `budget.p
 The capture runs entirely locally against the e2e stack: the mock auth server, the `halcyon_test` database, and a dev server. Nothing touches cloud Supabase or production data, and the script signs itself in and seeds its own twelve months of demo data, so there is no session to set up by hand.
 
 ```bash
-docker start halcyon-db-1                     # or: make db-up
+make e2e-db                                   # local Postgres, migrated
 node e2e/_mock/supabase.mjs &                 # mock auth on :54321
 
 NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321 \
@@ -171,4 +209,5 @@ Contributions are always welcome! Please open a pull request or issue to discuss
 
 ## Feedback
 
-If you have any feedback, please reach out to us at <fake@fake.com>
+Issues and pull requests are welcome on
+[GitHub](https://github.com/JRRS1982/halcyon/issues).
