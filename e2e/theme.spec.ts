@@ -29,10 +29,6 @@ const chooseScheme = async (
 };
 
 test.describe("Colour scheme", () => {
-  test.beforeEach(({ browserName }) => {
-    test.skip(browserName !== "chromium", "journey runs on chromium only");
-  });
-
   test.describe("following the system", () => {
     test.use({ colorScheme: "dark" });
 
