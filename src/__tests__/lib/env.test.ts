@@ -23,12 +23,18 @@ const VALID: Record<(typeof KEYS)[number], string> = {
   DATABASE_URL: "postgresql://postgres:postgres@db:5432/halcyon",
 };
 
-const original = { ...process.env };
+// Suffixed names, not the bare `original`/`load`: this file and
+// src/__tests__/email/env.test.ts both load env.ts dynamically so each case can
+// doctor process.env first, which leaves neither with a top-level import or
+// export. TypeScript then treats both as global scripts sharing one scope, and
+// identical helper names collide (TS2451). `export {}` would fix that but
+// Biome forbids exports in test files.
+const originalEnv = { ...process.env };
 
 // `delete` rather than assigning undefined: process.env coerces, so
 // `process.env.FOO = undefined` stores the string "undefined", which parses
 // fine and would quietly defeat the "not set" case.
-const load = (overrides: Partial<Record<(typeof KEYS)[number], string>>) => {
+const loadEnv = (overrides: Partial<Record<(typeof KEYS)[number], string>>) => {
   jest.resetModules();
   for (const key of KEYS) delete process.env[key];
   for (const [key, value] of Object.entries(overrides))
@@ -40,7 +46,7 @@ const failureFor = async (
   overrides: Partial<Record<(typeof KEYS)[number], string>>,
 ) => {
   try {
-    await load(overrides);
+    await loadEnv(overrides);
   } catch (error) {
     return (error as Error).message;
   }
@@ -48,12 +54,12 @@ const failureFor = async (
 };
 
 afterEach(() => {
-  process.env = { ...original };
+  process.env = { ...originalEnv };
 });
 
 describe("env validation", () => {
   test("parses a complete environment", async () => {
-    const { env } = await load(VALID);
+    const { env } = await loadEnv(VALID);
 
     expect(env.NEXT_PUBLIC_SUPABASE_URL).toBe(VALID.NEXT_PUBLIC_SUPABASE_URL);
     expect(env.DATABASE_URL).toBe(VALID.DATABASE_URL);
