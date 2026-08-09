@@ -1,6 +1,6 @@
 import {
   expect,
-  reloadSettled,
+  openFresh,
   signIn,
   signedInUser,
   test,
@@ -142,12 +142,11 @@ test("plan: dragging an event marker (keyboard) persists its age", async ({
   await expect(marker).toHaveAttribute("aria-valuenow", String(before + 1));
 
   await committed;
-  // `committed` is what proves the write landed; reloadSettled only handles the
-  // reload itself being cancelled by the app's own post-action navigation.
-  await reloadSettled(page);
+  const fresh = await openFresh(page, "/plan");
   await expect(
-    page.getByRole("slider", { name: /new car age/i }),
+    fresh.getByRole("slider", { name: /new car age/i }),
   ).toHaveAttribute("aria-valuenow", String(before + 1));
+  await fresh.close();
 });
 
 // Draggable bar edges: the seeded Salary income renders start/end grip handles
@@ -218,10 +217,11 @@ test("plan: dragging a bar's end handle (keyboard) persists the age", async ({
   await expect(handle).toHaveAttribute("aria-valuenow", String(before - 1));
 
   await committed;
-  await reloadSettled(page);
+  const fresh = await openFresh(page, "/plan");
   await expect(
-    page.getByRole("slider", { name: /salary end age/i }),
+    fresh.getByRole("slider", { name: /salary end age/i }),
   ).toHaveAttribute("aria-valuenow", String(before - 1));
+  await fresh.close();
 });
 
 // Phase 2c /plan editing loop, end-to-end through the browser:
