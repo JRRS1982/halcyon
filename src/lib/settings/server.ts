@@ -28,6 +28,8 @@ export async function getCurrentUserSettings(): Promise<{
   planVisible: boolean;
   hiddenCharts: string[];
   themePreference: ThemePreference;
+  monthlyReminderEnabled: boolean;
+  monthlyReminderDay: number;
 }> {
   const user = await getCurrentUser();
   if (!user) redirect("/sign-in");
@@ -76,6 +78,8 @@ export async function getCurrentUserSettings(): Promise<{
     themePreference: isThemePreference(row.themePreference)
       ? row.themePreference
       : "SYSTEM",
+    monthlyReminderEnabled: row.monthlyReminderEnabled,
+    monthlyReminderDay: row.monthlyReminderDay,
   };
 }
 

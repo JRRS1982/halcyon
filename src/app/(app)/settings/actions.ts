@@ -1,6 +1,8 @@
 "use server";
 
 import { isDashboardChartKey } from "@/lib/dashboard/charts";
+import { reminderDaySchema } from "@/lib/email/reminder";
+import { ensureUnsubscribeToken } from "@/lib/email/subscriptions";
 import { prisma } from "@/lib/prisma";
 import { CURRENCY_CODES, NUMBER_FORMATS } from "@/lib/settings/currency";
 import { isThemePreference } from "@/lib/settings/theme";
@@ -128,4 +130,36 @@ export async function setThemePreference(preference: string) {
     create: { userId, themePreference: preference },
   });
   revalidatePath("/", "layout");
+}
+
+// Turns the monthly reminder on or off.
+//
+// Enabling mints the unsubscribe token in the same breath, so the token always
+// exists before any email could carry a link to it — the cron skips a
+// subscription with no token rather than sending mail nobody can escape.
+export async function toggleMonthlyReminder(enabled: boolean) {
+  const userId = await requireUserId();
+
+  await prisma.userSettings.upsert({
+    where: { userId },
+    update: { monthlyReminderEnabled: enabled },
+    create: { userId, monthlyReminderEnabled: enabled },
+  });
+  if (enabled) await ensureUnsubscribeToken(userId);
+
+  revalidatePath("/settings");
+}
+
+// Which day of the month the reminder goes out on.
+export async function setMonthlyReminderDay(day: number) {
+  const userId = await requireUserId();
+  const parsed = reminderDaySchema.safeParse(day);
+  if (!parsed.success) return;
+
+  await prisma.userSettings.upsert({
+    where: { userId },
+    update: { monthlyReminderDay: parsed.data },
+    create: { userId, monthlyReminderDay: parsed.data },
+  });
+  revalidatePath("/settings");
 }

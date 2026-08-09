@@ -1,4 +1,10 @@
-import { expect, signIn, test } from "./_helpers/fixtures";
+import {
+  expect,
+  reloadSettled,
+  signIn,
+  signedInUser,
+  test,
+} from "./_helpers/fixtures";
 
 // Fees / charges % field round-trips: open asset drawer, expand the Growth
 // section, set feePct to 0.5, blur → persists after router.refresh().
@@ -8,7 +14,7 @@ test("plan: asset fees field round-trips through the drawer", async ({
 }) => {
   await signIn(page);
 
-  const user = await db.user.findFirstOrThrow();
+  const user = await signedInUser(db);
   const start = new Date(Date.UTC(2026, 0, 1));
   const end = new Date(Date.UTC(2026, 0, 31));
   await db.financialPeriod.create({
@@ -78,7 +84,7 @@ test("plan: dragging an event marker (keyboard) persists its age", async ({
 }) => {
   await signIn(page);
 
-  const user = await db.user.findFirstOrThrow();
+  const user = await signedInUser(db);
   const start = new Date(Date.UTC(2026, 0, 1));
   const end = new Date(Date.UTC(2026, 0, 31));
   await db.financialPeriod.create({
@@ -136,7 +142,9 @@ test("plan: dragging an event marker (keyboard) persists its age", async ({
   await expect(marker).toHaveAttribute("aria-valuenow", String(before + 1));
 
   await committed;
-  await page.reload();
+  // `committed` is what proves the write landed; reloadSettled only handles the
+  // reload itself being cancelled by the app's own post-action navigation.
+  await reloadSettled(page);
   await expect(
     page.getByRole("slider", { name: /new car age/i }),
   ).toHaveAttribute("aria-valuenow", String(before + 1));
@@ -152,7 +160,7 @@ test("plan: dragging a bar's end handle (keyboard) persists the age", async ({
 }) => {
   await signIn(page);
 
-  const user = await db.user.findFirstOrThrow();
+  const user = await signedInUser(db);
   const start = new Date(Date.UTC(2026, 0, 1));
   const end = new Date(Date.UTC(2026, 0, 31));
   await db.financialPeriod.create({
@@ -210,7 +218,7 @@ test("plan: dragging a bar's end handle (keyboard) persists the age", async ({
   await expect(handle).toHaveAttribute("aria-valuenow", String(before - 1));
 
   await committed;
-  await page.reload();
+  await reloadSettled(page);
   await expect(
     page.getByRole("slider", { name: /salary end age/i }),
   ).toHaveAttribute("aria-valuenow", String(before - 1));
@@ -233,7 +241,7 @@ test("plan: create, edit assumptions/assets, and the data-loss guard holds", asy
 
   // Seed one month period with a balance ASSET + an income, so createPlan has
   // something to seed the plan from (an editable asset row + a verdict).
-  const user = await db.user.findFirstOrThrow();
+  const user = await signedInUser(db);
   const start = new Date(Date.UTC(2026, 0, 1));
   const end = new Date(Date.UTC(2026, 0, 31));
   await db.financialPeriod.create({
