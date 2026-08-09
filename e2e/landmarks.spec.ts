@@ -9,7 +9,7 @@ const SIGNED_OUT = [
   "/",
   "/sign-in",
   "/sign-up",
-  "/about",
+  "/guide",
   "/privacy",
   "/terms",
 ];

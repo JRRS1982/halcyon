@@ -1,5 +1,5 @@
-// src/__tests__/marketing/about.test.tsx
-import { AboutGuide } from "@/app/(app)/about/AboutGuide";
+// src/__tests__/marketing/guide.test.tsx
+import { Guide } from "@/app/(app)/guide/Guide";
 import { theme } from "@/lib/theme";
 import { render, screen, within } from "@testing-library/react";
 import { ThemeProvider } from "styled-components";
@@ -7,11 +7,11 @@ import { ThemeProvider } from "styled-components";
 const renderit = () =>
   render(
     <ThemeProvider theme={theme}>
-      <AboutGuide />
+      <Guide />
     </ThemeProvider>,
   );
 
-describe("About guide", () => {
+describe("Guide", () => {
   test("leads with what the app is", () => {
     renderit();
     expect(
