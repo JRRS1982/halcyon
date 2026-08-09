@@ -27,7 +27,7 @@ The app is well past scaffold stage — the core features are built, shipped to 
 - `sign-in/`, `sign-up/`, `auth/callback/` — Supabase Auth pages + OAuth callback; shared UI in `src/components/auth/`
 - marketing landing page (`page.tsx` → `src/components/marketing/`), plus `privacy/` and `terms/` public pages
 
-Shared UI primitives are in `src/components/ui/` (Button, Card, NavBar, …) and the spreadsheet-style grid in `src/components/sheet/`. The Prisma schema has 11 models (User, UserSettings, FinancialPeriod, FinancialItem, BalanceItem, BudgetTemplateItem, BalanceTemplateItem, Category, Account, ImportBatch, Transaction) — documented in `docs/DataModels/DataModels.md`. ADR-001/002 describe the intended architecture; the feature map above is what's actually built.
+Shared UI primitives are in `src/components/ui/` (Button, Card, NavBar, …) and the spreadsheet-style grid in `src/components/sheet/`. The Prisma schema has 17 models — the eleven core ones (User, UserSettings, FinancialPeriod, FinancialItem, BalanceItem, BudgetTemplateItem, BalanceTemplateItem, Category, Account, ImportBatch, Transaction), documented in `docs/DataModels/DataModels.md`, plus the six the Plan feature owns (Plan, PlanAsset, PlanLiability, PlanIncome, PlanExpense, PlanEvent), which that document does not yet cover. ADR-001/002 describe the intended architecture; the feature map above is what's actually built.
 
 ## Common commands
 
@@ -80,7 +80,10 @@ There is no longer a self-hosted production setup — `Dockerfile.prod`, `compos
   - `integration-tests` — `pnpm test:int` against a Postgres service (`postgres/postgres`, `halcyon_test`)
   - `e2e-tests` — `playwright install --with-deps chromium`, `pnpm test:e2e`, backed by a Postgres service (`test/test`, `halcyon_test`) + the mock Supabase auth server
   - `migrate-prod` — on push to `master` only, gated on the three above; runs `prisma migrate deploy` against production Supabase (`PROD_DIRECT_URL` secret). Vercel waits for this workflow before deploying, so code never goes live against an un-migrated schema. Rollback is one-click in the Vercel dashboard.
-- **Merging PRs**: the repo is private on the GitHub Free plan, so there is no branch protection — nothing forces CI to pass before merge, and `gh pr merge --auto` merges *immediately* (auto-merge only waits when checks are required). Always wait for green checks before merging: `gh pr checks <n> --watch`, then `gh pr merge <n> --merge --delete-branch`. Never use `--auto`.
+- **Merging PRs**: the repo is **public**, and a repository **ruleset** named `master` is active on the default branch (`gh api repos/JRRS1982/halcyon/rulesets`). It requires four status checks — `lint-and-test`, `e2e-tests`, `integration-tests`, `migrate-prod` — and blocks deletion and non-fast-forward pushes. There are no bypass actors, so this applies to the owner too: a PR whose checks haven't passed reports `mergeStateStatus: BLOCKED` and cannot be merged by any means, including the API.
+  - Because checks are genuinely required, `gh pr merge <n> --merge --auto --delete-branch` behaves correctly — it queues and fires when the checks go green. It is the right default, not a hazard. (`--auto` only merges immediately on repos where nothing is required.)
+  - `gh pr checks <n> --watch` then a plain `--merge` is equally fine when you're waiting anyway.
+  - `migrate-prod` is required but only *runs* on a push to the default branch; on a PR it reports as skipped, which the ruleset accepts.
 
 ## Code style (from .ai/code-style.md)
 
