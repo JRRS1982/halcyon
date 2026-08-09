@@ -17,6 +17,12 @@ overrides:
   # @istanbuljs/load-nyc-config, and nothing parses untrusted YAML.
   js-yaml: ">=3.15.1 <4.0.0"
   fast-uri: ">=3.1.5 <4.0.0"
+  # GHSA-2v37-7h3g-55p8 (a custom generator with size 0 loops forever) is
+  # patched in 3.3.17; the 3.x line runs to 3.3.18 and is still maintained as
+  # `legacy`, so the floor moves and the line stays put. Unlike the overrides
+  # above this one is in the production tree — next → postcss → nanoid — though
+  # postcss only mints source-map ids with it and never sees user input.
+  nanoid: ">=3.3.17 <4.0.0"
 
 # Don't re-verify node_modules against the lockfile before `pnpm <script>`.
 # pnpm 11 added this pre-run check (pnpm 10 had none); in the dev container the
