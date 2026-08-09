@@ -11,10 +11,6 @@ const PHONE = { width: 390, height: 844 };
 test.describe("Sheets on a phone", () => {
   test.use({ viewport: PHONE });
 
-  test.beforeEach(({ browserName }) => {
-    test.skip(browserName !== "chromium", "journey runs on chromium only");
-  });
-
   test("the budget sheet pans horizontally with the category column pinned", async ({
     page,
   }) => {

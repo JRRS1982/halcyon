@@ -87,31 +87,27 @@ export async function signIn(page: Page): Promise<void> {
 }
 
 /**
- * page.reload(), tolerant of Firefox's NS_BINDING_ABORTED.
+ * Loads a route in a brand-new tab, sharing the current session.
  *
- * NS_BINDING_ABORTED is not a failure of the page — it is Firefox saying "the
- * request I was making got cancelled", which is what happens when a second
- * navigation starts while the first is in flight. After a commit-on-keyup
- * server action the app is still busy: a revalidated RSC payload is on its way,
- * and under `next dev` the route may still be compiling. If any of that turns
- * into a navigation of the app's own, our reload is the one cancelled. Chromium
- * and WebKit resolve the reload regardless, which is why only the firefox
- * project ever broke, and only in CI — locally the routes are already warm.
+ * For "does this survive a full load", which was previously page.reload() and
+ * failed on firefox with NS_BINDING_ABORTED — Firefox's way of saying our
+ * navigation was cancelled by a later one. After a commit-on-keyup the plan
+ * page is not idle: its handler awaits the server action and then calls
+ * router.refresh() (src/app/(app)/plan/usePlanProjection.ts), and under
+ * `next dev` the route may still be compiling. Waiting for the refresh to land
+ * first was not enough — reloading a page the app is still driving keeps losing
+ * that race, and only on firefox, since chromium and webkit resolve the reload
+ * regardless.
  *
- * Letting the network go quiet first shrinks the window; retrying the reload
- * closes it. Neither changes what the caller asserts afterwards: the page is
- * re-fetched from the server either way, which is the whole point of the
- * reload. Same reasoning as importCsv below — the flaw is in driving a browser
- * from the outside, so the fix belongs in the harness, not the product.
+ * A new tab sidesteps the argument entirely rather than trying to win it. It
+ * proves exactly what the reload was there to prove — the server now renders
+ * the committed value — with no navigation of its own to collide with. The
+ * caller closes it.
  */
-export async function reloadSettled(page: Page): Promise<void> {
-  await page.waitForLoadState("networkidle");
-  try {
-    await page.reload();
-  } catch (error) {
-    if (!String(error).includes("NS_BINDING_ABORTED")) throw error;
-    await page.reload();
-  }
+export async function openFresh(page: Page, path: string): Promise<Page> {
+  const fresh = await page.context().newPage();
+  await fresh.goto(path);
+  return fresh;
 }
 
 /**

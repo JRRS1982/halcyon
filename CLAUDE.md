@@ -48,7 +48,7 @@ Single test (Make wrappers pass through a name filter):
 
 - `make test name=<pattern>` — Jest `--testNamePattern`
 - `make test-watch name=<pattern>` — same in watch
-- `make test-e2e name=<pattern>` — Playwright `--grep`
+- `make test-e2e name=<pattern>` — Playwright `--grep`. Add `browser=firefox|webkit|chromium` to narrow to one engine (`--project`); with neither, all three run, exactly as CI does.
 
 Docker workflow (Make is the primary interface — `make` alone runs `down` then `up`, a bare attached start; `make build` does the full from-scratch setup: rebuild images, start detached, migrate, seed, then tail logs):
 
@@ -74,11 +74,13 @@ There is no longer a self-hosted production setup — `Dockerfile.prod`, `compos
 - **Testing layout**:
   - Jest runs against `src/` only — `jest.config.ts` excludes `e2e/` and `.next/` from both test discovery and coverage.
   - Playwright tests live in `e2e/`. Auth tests use a mock Supabase Auth server (`e2e/_mock/supabase.mjs`) rather than a real Supabase project. `playwright.config.ts` runs the mock + a Next.js dev server on port `3100` with env vars pointing at the mock (so it doesn't accidentally hit production).
+  - **Browser coverage — and the tests deliberately skipped.** All three engines (chromium, firefox, webkit) run every spec, locally and in CI, and there are no retries: a test that fails once fails the build. The exception is **15 tests that carry `test.skip(browserName !== "chromium", …)`** and so report as skipped on the other two engines — 30 of the ~54 skips in a run summary. They are the server-action journeys: `transactions`, `transfers`, `reminder`, `dashboard-summary`, `ledger-filter`, `reverse-import`, `marketing-redirect`. Each is ~10s of form-filling that ends in a Prisma write, and running the same server action through three engines tests the same server code three times. **Nothing is unrun** — every skipped test executes on chromium in the same job; the skip line is the same tests counted again for engines that were never meant to run them.
+    - When adding a spec, gate it **only** if it is a server-action journey. Never gate anything asserting on CSS, layout, focus order, the accessibility tree or colour scheme — engines genuinely differ there, and a webkit-only regression would ship silently. `theme`, `mobile-sheet` and the `landmarks` structure checks were gated for a while and are not any more, for exactly that reason.
   - Real Postgres is **not** mocked. Prisma-touching **integration tests** (`*.int.test.ts`, node env, `jest.integration.config.ts`, run via `pnpm test:int`) execute the real server actions against a real `halcyon_test` database — only the Supabase auth boundary + next cache/navigation are mocked. The unit run excludes `*.int.test.ts`. `pnpm test:int` pins `DATABASE_URL` at `halcyon_test` with a hard guard; never point it at a real DB.
 - **CI/CD**: GitHub Actions `.github/workflows/ci.yml` has four jobs:
   - `lint-and-test` — `pnpm check`, `pnpm typecheck`, `pnpm test:coverage`
   - `integration-tests` — `pnpm test:int` against a Postgres service (`postgres/postgres`, `halcyon_test`)
-  - `e2e-tests` — `playwright install --with-deps chromium`, `pnpm test:e2e`, backed by a Postgres service (`test/test`, `halcyon_test`) + the mock Supabase auth server
+  - `e2e-tests` — `playwright install --with-deps` (all three engines, not just chromium), `pnpm test:e2e`, backed by a Postgres service (`test/test`, `halcyon_test`) + the mock Supabase auth server
   - `migrate-prod` — on push to `master` only, gated on the three above; runs `prisma migrate deploy` against production Supabase (`PROD_DIRECT_URL` secret). Vercel waits for this workflow before deploying, so code never goes live against an un-migrated schema. Rollback is one-click in the Vercel dashboard.
 - **Merging PRs**: the repo is **public**, and a repository **ruleset** named `master` is active on the default branch (`gh api repos/JRRS1982/halcyon/rulesets`). It requires four status checks — `lint-and-test`, `e2e-tests`, `integration-tests`, `migrate-prod` — and blocks deletion and non-fast-forward pushes. There are no bypass actors, so this applies to the owner too: a PR whose checks haven't passed reports `mergeStateStatus: BLOCKED` and cannot be merged by any means, including the API.
   - Because checks are genuinely required, `gh pr merge <n> --merge --auto --delete-branch` behaves correctly — it queues and fires when the checks go green. It is the right default, not a hazard. (`--auto` only merges immediately on repos where nothing is required.)
