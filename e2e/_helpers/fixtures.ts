@@ -87,6 +87,56 @@ export async function signIn(page: Page): Promise<void> {
 }
 
 /**
+ * page.reload(), tolerant of Firefox's NS_BINDING_ABORTED.
+ *
+ * NS_BINDING_ABORTED is not a failure of the page — it is Firefox saying "the
+ * request I was making got cancelled", which is what happens when a second
+ * navigation starts while the first is in flight. After a commit-on-keyup
+ * server action the app is still busy: a revalidated RSC payload is on its way,
+ * and under `next dev` the route may still be compiling. If any of that turns
+ * into a navigation of the app's own, our reload is the one cancelled. Chromium
+ * and WebKit resolve the reload regardless, which is why only the firefox
+ * project ever broke, and only in CI — locally the routes are already warm.
+ *
+ * Letting the network go quiet first shrinks the window; retrying the reload
+ * closes it. Neither changes what the caller asserts afterwards: the page is
+ * re-fetched from the server either way, which is the whole point of the
+ * reload. Same reasoning as importCsv below — the flaw is in driving a browser
+ * from the outside, so the fix belongs in the harness, not the product.
+ */
+export async function reloadSettled(page: Page): Promise<void> {
+  await page.waitForLoadState("networkidle");
+  try {
+    await page.reload();
+  } catch (error) {
+    if (!String(error).includes("NS_BINDING_ABORTED")) throw error;
+    await page.reload();
+  }
+}
+
+/**
+ * The signed-in user's profile row, once the app has actually written it.
+ *
+ * Nothing in signIn() creates this row: it appears as a side effect of the
+ * first authenticated server render, where getCurrentUserSettings inserts
+ * User + UserSettings (src/lib/settings/server.ts). waitForURL resolves on the
+ * client-side navigation, which can win the race against that insert
+ * committing — so a bare findFirstOrThrow() straight after signIn() throws
+ * "No record was found" on a loaded runner, and passes everywhere else.
+ *
+ * Polling is the honest expression of what the test needs: the row exists
+ * shortly, not instantly.
+ */
+export async function signedInUser(db: PrismaClient) {
+  await expect
+    .poll(() => db.user.count(), {
+      message: "waiting for the app to create the User profile row",
+    })
+    .toBeGreaterThan(0);
+  return await db.user.findFirstOrThrow();
+}
+
+/**
  * Uploads a CSV to the import panel and waits for the mapping step to appear.
  *
  * Setting files on the input fires a DOM change event. If React has not

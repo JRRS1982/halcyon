@@ -23,6 +23,7 @@ The app is well past scaffold stage — the core features are built, shipped to 
 - `balance/` — per-period assets/liabilities/net-worth sheet; `src/lib/balance/`
 - `transactions/` — ledger, CSV import (dedupe + reversible batches), categorize; feature-gated by a Settings toggle; `src/lib/transactions/`
 - `settings/` — preferences, chart visibility, category management, account management, transactions/transfers toggles, and data export / account deletion (`DataPrivacy`); `src/lib/settings/`
+- `unsubscribe/` — the monthly reminder's opt-out, reachable without a session; the reminder itself lives in `src/lib/email/` with the job at `src/app/api/cron/monthly-reminder/`. Off by default, opt-in from Settings, and carries no financial data — see [`docs/features/reminders.md`](docs/features/reminders.md)
 - `sign-in/`, `sign-up/`, `auth/callback/` — Supabase Auth pages + OAuth callback; shared UI in `src/components/auth/`
 - marketing landing page (`page.tsx` → `src/components/marketing/`), plus `privacy/` and `terms/` public pages
 

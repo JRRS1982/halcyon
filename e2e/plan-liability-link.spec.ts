@@ -1,6 +1,6 @@
 import type { Page } from "@playwright/test";
 import type { PrismaClient } from "@prisma/client";
-import { expect, signIn, test } from "./_helpers/fixtures";
+import { expect, signIn, signedInUser, test } from "./_helpers/fixtures";
 
 // Acceptance tests for the mortgage liability <-> repayment-expense link
 // (feat/plan-liability-expense-link). These guard the end-to-end UI flows that
@@ -13,7 +13,7 @@ import { expect, signIn, test } from "./_helpers/fixtures";
 async function seedAndCreatePlan(page: Page, db: PrismaClient): Promise<void> {
   await signIn(page);
 
-  const user = await db.user.findFirstOrThrow();
+  const user = await signedInUser(db);
   const start = new Date(Date.UTC(2026, 0, 1));
   const end = new Date(Date.UTC(2026, 0, 31));
   await db.financialPeriod.create({

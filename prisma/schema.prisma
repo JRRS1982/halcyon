@@ -67,8 +67,27 @@ model UserSettings {
   // the boundary by zod. SYSTEM means "write no data-theme attribute and let
   // prefers-color-scheme decide", which is why it is the default.
   themePreference     String   @default("SYSTEM")
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+
+  // Monthly reminder email. Off by default and never inferred from sign-up:
+  // this is the one thing the app does that reaches the user unprompted, so it
+  // is opt-in (UK GDPR Art. 6 consent) and the record of that consent is this
+  // column plus its updatedAt.
+  monthlyReminderEnabled Boolean   @default(false)
+  // Day of the month to send on. Statements close on different days per bank,
+  // so a fixed date would arrive before there was anything to import for a lot
+  // of people. Constrained to 1 | 8 | 15 | 22 at the boundary by zod and by a
+  // check constraint in the migration.
+  monthlyReminderDay     Int       @default(1)
+  // Last send, for idempotency: the cron runs daily, so this is what stops a
+  // second run on the same date sending twice. Compared by calendar month.
+  monthlyReminderSentAt  DateTime?
+  // Bearer for the unsubscribe link. Random per user rather than a signed
+  // userId, so unsubscribing never needs a secret in the URL's signature and
+  // revoking is a single-row update. Null until the reminder is first enabled.
+  unsubscribeToken       String?   @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
