@@ -27,7 +27,9 @@ The app is well past scaffold stage — the core features are built, shipped to 
 - `sign-in/`, `sign-up/`, `auth/callback/` — Supabase Auth pages + OAuth callback; shared UI in `src/components/auth/`
 - marketing landing page (`page.tsx` → `src/components/marketing/`), plus `privacy/` and `terms/` public pages
 
-Shared UI primitives are in `src/components/ui/` (Button, Card, NavBar, …) and the spreadsheet-style grid in `src/components/sheet/`. The Prisma schema has 17 models — the eleven core ones (User, UserSettings, FinancialPeriod, FinancialItem, BalanceItem, BudgetTemplateItem, BalanceTemplateItem, Category, Account, ImportBatch, Transaction), documented in `docs/DataModels/DataModels.md`, plus the six the Plan feature owns (Plan, PlanAsset, PlanLiability, PlanIncome, PlanExpense, PlanEvent), which that document does not yet cover. ADR-001/002 describe the intended architecture; the feature map above is what's actually built.
+Shared UI primitives are in `src/components/ui/` (Button, Card, NavBar, …) and the spreadsheet-style grid in `src/components/sheet/`. The Prisma schema has 17 models — eleven core (User, UserSettings, FinancialPeriod, FinancialItem, BalanceItem, BudgetTemplateItem, BalanceTemplateItem, Category, Account, ImportBatch, Transaction) plus the six the Plan feature owns (Plan, PlanAsset, PlanLiability, PlanIncome, PlanExpense, PlanEvent). `docs/DataModels/DataModels.md` covers what each is for and how ownership flows; the schema itself is the reference for columns.
+
+**New accounts are seeded with default categories, accounts and a £0 budget sheet** for the current month (`src/lib/onboarding/defaults.ts`, written by `provisionUserSettings`). The starter period is the *current* month, so anything reading "the latest period" — dashboard KPIs, `createPlan` — sees it; e2e specs that seed their own month must call `clearStarterPeriods` first. See [`docs/features/onboarding.md`](docs/features/onboarding.md). ADR-001/002 describe the intended architecture; the feature map above is what's actually built.
 
 ## Common commands
 
