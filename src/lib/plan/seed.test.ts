@@ -106,6 +106,52 @@ describe("seedPlanChildren", () => {
     expect(r.liabilities.map((l) => l.label)).toEqual(["Mortgage"]);
   });
 
+  it("skips budget rows with a zero (or negative) budget", () => {
+    // A new account's first budget sheet is pre-filled with £0 starter rows, so
+    // creating a plan before filling any of them in would otherwise seed a
+    // table of empty income and expense lines.
+    const r = seedPlanChildren(
+      [],
+      [
+        {
+          type: "INCOME",
+          incomeCategory: "SALARY",
+          category: null,
+          label: "Salary",
+          budget: 4000,
+          sourceCategoryId: null,
+        },
+        {
+          type: "INCOME",
+          incomeCategory: "SIDE_INCOME",
+          category: null,
+          label: "Side Income",
+          budget: 0,
+          sourceCategoryId: null,
+        },
+        {
+          type: "EXPENSE",
+          incomeCategory: null,
+          category: "FIXED",
+          label: "Council Tax",
+          budget: 180,
+          sourceCategoryId: null,
+        },
+        {
+          type: "EXPENSE",
+          incomeCategory: null,
+          category: "VARIABLE",
+          label: "Groceries",
+          budget: 0,
+          sourceCategoryId: null,
+        },
+      ],
+      65,
+    );
+    expect(r.incomes.map((i) => i.label)).toEqual(["Salary"]);
+    expect(r.expenses.map((e) => e.label)).toEqual(["Council Tax"]);
+  });
+
   it("maps balance liabilities to PlanLiabilities with an inferred interest rate", () => {
     const r = seedPlanChildren(
       [

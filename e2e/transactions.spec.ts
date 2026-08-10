@@ -117,11 +117,15 @@ test.describe("amount cells", () => {
     await page.goto("/budget");
 
     await page.getByRole("button", { name: /\+ income/i }).click();
-    const label = page.getByPlaceholder("Name this row").first();
-    await label.fill("Salary");
+    // The sheet already has the starter rows a new account is provisioned with,
+    // so the row this test adds is the last one, not the first — `.first()`
+    // would silently type into a starter row instead and pass for the wrong
+    // reason.
+    const label = page.getByPlaceholder("Name this row").last();
+    await label.fill("Bonus");
 
     // The budget cell for the row just added.
-    const amount = page.locator('input[inputmode="decimal"]').first();
+    const amount = page.locator('input[inputmode="decimal"]').last();
     await amount.fill("3060");
     await amount.blur();
 
