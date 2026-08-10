@@ -2,17 +2,18 @@
 
 import { randomUUID } from "node:crypto";
 import { buildCopiedItems } from "@/lib/budget/copyPeriod";
+import { ensurePeriodForMonthIn } from "@/lib/budget/ensurePeriod";
 import { currentMonthRange, monthRangeFor } from "@/lib/budget/period";
 import {
   type CopyBudgetTemplateInput,
   type CopyPeriodFromInput,
-  type CreateItemInput,
+  type CreateItemForMonthInput,
   type DeleteItemInput,
   type SaveBudgetTemplateInput,
   type UpdateItemInput,
   copyBudgetTemplateSchema,
   copyPeriodFromSchema,
-  createItemSchema,
+  createItemForMonthSchema,
   deleteItemSchema,
   saveBudgetTemplateSchema,
   updateItemSchema,
@@ -64,58 +65,30 @@ export async function ensurePeriodForMonth(year: number, month: number) {
 }
 
 // Shared implementation. Pulled out so the public actions stay declarative.
+//
+// Takes the Prisma client rather than closing over the global one, so callers
+// that need the period and something else to succeed or fail together can pass
+// a transaction client — see createItemForMonth.
 async function ensurePeriodForMonthInternal(
   startDate: Date,
   endDate: Date,
   label: string,
 ) {
   const userId = await requireUserId();
-
-  const existing = await prisma.financialPeriod.findUnique({
-    where: {
-      userId_granularity_startDate: {
-        userId,
-        granularity: "MONTH",
-        startDate,
-      },
-    },
-  });
-  if (existing) return existing;
-
-  return prisma.financialPeriod.create({
-    data: {
-      userId,
-      granularity: "MONTH",
-      startDate,
-      endDate,
-      label,
-    },
-  });
+  return ensurePeriodForMonthIn(prisma, userId, { startDate, endDate, label });
 }
 
-export async function createItem(input: CreateItemInput) {
+// Adds a row to a month, creating that month's FinancialPeriod if this is the
+// first row in it.
+//
+// One action rather than ensurePeriodForMonth followed by createItem: those ran
+// as two requests from the sheet, so navigating between them left a period row
+// with nothing in it — a month that looks visited but is empty. One transaction
+// also halves the round trips on the slowest interaction in the sheet.
+export async function createItemForMonth(input: CreateItemForMonthInput) {
   const userId = await requireUserId();
-  const parsed = createItemSchema.parse(input);
-
-  // Verify the period belongs to this user. Server-side Prisma bypasses RLS
-  // so app-level userId scoping is the boundary.
-  const period = await prisma.financialPeriod.findFirst({
-    where: { id: parsed.periodId, userId, deletedAt: null },
-  });
-  if (!period) {
-    throw new Error("Period not found");
-  }
-
-  // New row's sortOrder = max(sortOrder) + 1 within (periodId, type).
-  const last = await prisma.financialItem.findFirst({
-    where: {
-      periodId: parsed.periodId,
-      type: parsed.type,
-      deletedAt: null,
-    },
-    orderBy: { sortOrder: "desc" },
-    select: { sortOrder: true },
-  });
+  const parsed = createItemForMonthSchema.parse(input);
+  const range = monthRangeFor(parsed.year, parsed.month);
 
   // Income rows get an incomeCategory; expense rows get a category.
   const category =
@@ -123,18 +96,29 @@ export async function createItem(input: CreateItemInput) {
   const incomeCategory =
     parsed.type === "INCOME" ? (parsed.incomeCategory ?? "OTHER") : null;
 
-  return toClientItem(
-    await prisma.financialItem.create({
+  return prisma.$transaction(async (tx) => {
+    const period = await ensurePeriodForMonthIn(tx, userId, range);
+
+    // New row's sortOrder = max(sortOrder) + 1 within (periodId, type).
+    const last = await tx.financialItem.findFirst({
+      where: { periodId: period.id, type: parsed.type, deletedAt: null },
+      orderBy: { sortOrder: "desc" },
+      select: { sortOrder: true },
+    });
+
+    const item = await tx.financialItem.create({
       data: {
-        periodId: parsed.periodId,
+        periodId: period.id,
         type: parsed.type,
         category,
         incomeCategory,
         label: parsed.label,
         sortOrder: (last?.sortOrder ?? 0) + 1,
       },
-    }),
-  );
+    });
+
+    return { periodId: period.id, item: toClientItem(item) };
+  });
 }
 
 export async function updateItem(input: UpdateItemInput) {

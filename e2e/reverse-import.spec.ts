@@ -4,6 +4,7 @@ import {
   importCsv,
   signIn,
   test,
+  withServerAction,
 } from "./_helpers/fixtures";
 
 // Reversing an import removes every transaction that import created. The
@@ -45,10 +46,11 @@ test.describe("reverse import", () => {
     await expect(
       picker.locator("option", { hasText: "reverse-me.csv" }),
     ).toHaveCount(1);
-    await page.getByRole("button", { name: /Reverse import/ }).click();
+    await withServerAction(page, () =>
+      page.getByRole("button", { name: /Reverse import/ }).click(),
+    );
 
     await expect(page.getByText(/Reversed import/)).toBeVisible();
-    await page.waitForLoadState("networkidle");
     await expect(page.locator("tr", { hasText: desc })).toHaveCount(0);
 
     // The reversed batch has left the picker.

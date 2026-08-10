@@ -4,6 +4,7 @@ import {
   importCsv,
   signIn,
   test,
+  withServerAction,
 } from "./_helpers/fixtures";
 
 // Signed-in transactions journey: import a CSV, categorise the row, and
@@ -72,11 +73,12 @@ test.describe("transactions journey", () => {
     const row = page.locator("tr", { hasText: description });
     await row.getByRole("button", { name: /Uncategorized/ }).click();
     await page.getByPlaceholder("Type to search or create…").fill(category);
-    await page.getByRole("button", { name: "Create & assign" }).click();
-    // The row's category cell now shows the new category; let the server write
-    // settle before navigating away.
+    await withServerAction(page, () =>
+      page.getByRole("button", { name: "Create & assign" }).click(),
+    );
+    // The cell updates optimistically, so this alone would not prove the write
+    // landed — withServerAction above is what makes it safe to navigate.
     await expect(row.getByText(category)).toBeVisible();
-    await page.waitForLoadState("networkidle");
 
     // The categorised spend surfaces on that month's budget (force-show). The
     // budget label is an editable input, so match by value.

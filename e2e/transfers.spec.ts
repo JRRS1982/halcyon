@@ -4,6 +4,7 @@ import {
   importCsv,
   signIn,
   test,
+  withServerAction,
 } from "./_helpers/fixtures";
 
 // Signed-in transfers journey: enable Transactions + Transfers, create a
@@ -66,9 +67,10 @@ test.describe("transfers journey", () => {
     // The combobox popover is rendered inside the row, so scope to it — the
     // counterparty name also appears as an <option> in the import account select.
     await row.getByText("Transfer ▸").click();
-    await row.getByText(counterparty, { exact: true }).click();
+    await withServerAction(page, () =>
+      row.getByText(counterparty, { exact: true }).click(),
+    );
     await expect(row.getByText(/Transfer (to|from)/)).toBeVisible();
-    await page.waitForLoadState("networkidle");
 
     // The budget Transfers section lists the owning account's net for the month
     // and never appears in income/expense.

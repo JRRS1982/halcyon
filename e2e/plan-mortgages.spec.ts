@@ -1,4 +1,11 @@
-import { expect, signIn, signedInUser, test } from "./_helpers/fixtures";
+import {
+  expect,
+  openFresh,
+  signIn,
+  signedInUser,
+  test,
+  withServerAction,
+} from "./_helpers/fixtures";
 
 // Phase 1 first-class mortgages: "Add mortgage" creates a property + mortgage
 // + repayment trio and opens the shared property card (not the plain
@@ -55,8 +62,9 @@ test("add a mortgage opens the property card with a mortgage section", async ({
 
   // "Add mortgage" lives in the Liabilities card.
   const liabilityPanel = page.locator("section", { hasText: "Liabilities" });
-  await liabilityPanel.getByRole("button", { name: "+ Add mortgage" }).click();
-  await page.waitForLoadState("networkidle");
+  await withServerAction(page, () =>
+    liabilityPanel.getByRole("button", { name: "+ Add mortgage" }).click(),
+  );
 
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
@@ -121,8 +129,9 @@ test("toggling interest-only persists after reload and hides the repayment field
   await expect(page.getByRole("heading", { name: "Your plan" })).toBeVisible();
 
   const liabilityPanel = page.locator("section", { hasText: "Liabilities" });
-  await liabilityPanel.getByRole("button", { name: "+ Add mortgage" }).click();
-  await page.waitForLoadState("networkidle");
+  await withServerAction(page, () =>
+    liabilityPanel.getByRole("button", { name: "+ Add mortgage" }).click(),
+  );
 
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
@@ -132,25 +141,28 @@ test("toggling interest-only persists after reload and hides the repayment field
     name: /interest-only/i,
   });
   await expect(interestOnly).not.toBeChecked();
-  await interestOnly.click();
+  // Commit-on-change persists via updatePlanLiability; wait for that write to
+  // answer rather than for the checkbox, which flips optimistically.
+  await withServerAction(page, () => interestOnly.click());
   await expect(interestOnly).toBeChecked();
   await expect(dialog.getByLabel(/repayment \/mo/i)).not.toBeVisible();
 
-  // Commit-on-change persists via updatePlanLiability + router.refresh(); wait
-  // for that round-trip to settle before reloading, else the reload can race
-  // the write and read the stale value back.
-  await page.waitForLoadState("networkidle");
-  await page.reload();
+  // A fresh tab rather than page.reload(): the commit is followed by
+  // router.refresh(), and reloading into that navigation is what firefox
+  // reports as NS_BINDING_ABORTED (see openFresh). The write has already
+  // answered, so what loads here is the persisted state.
+  const fresh = await openFresh(page, "/plan");
 
   // Reopen the property card via its Assets row ("New property" is the
   // default label createPlanProperty assigns).
-  const assetsPanel = page.locator("section", { hasText: "Assets" });
+  const assetsPanel = fresh.locator("section", { hasText: "Assets" });
   await assetsPanel.getByRole("button", { name: /new property/i }).click();
 
-  const reopened = page.getByRole("dialog");
+  const reopened = fresh.getByRole("dialog");
   await expect(reopened).toBeVisible();
   await expect(
     reopened.getByRole("checkbox", { name: /interest-only/i }),
   ).toBeChecked();
   await expect(reopened.getByLabel(/repayment \/mo/i)).not.toBeVisible();
+  await fresh.close();
 });

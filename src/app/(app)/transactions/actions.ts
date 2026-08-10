@@ -441,27 +441,59 @@ export async function setTransactionTransfer(
   revalidatePath("/dashboard");
 }
 
-const createAccountSchema = z.object({
+const createAccountAndTransferSchema = z.object({
+  transactionId: z.string().uuid(),
   name: z.string().trim().min(1).max(120),
 });
 
 // Creates an account inline from the ledger transfer picker (when the user has
-// none yet) and returns it for immediate assignment.
-export async function createAccount(
-  input: z.input<typeof createAccountSchema>,
+// none yet) and tags the transaction as a transfer to it, in one call.
+//
+// One action, not createAccount followed by setTransactionTransfer: the ledger
+// updated optimistically between the two, so a user who navigated in that gap
+// had the second request cancelled and ended up with a new account and an
+// untagged transaction, having been shown the opposite. One round trip removes
+// the window, and one database transaction means a failed tag leaves no
+// orphaned account behind.
+export async function createAccountAndTransfer(
+  input: z.input<typeof createAccountAndTransferSchema>,
 ): Promise<{ id: string; name: string }> {
   const userId = await requireTransactionsEnabled();
-  const { name } = createAccountSchema.parse(input);
-  const created = await prisma.account.create({
-    data: { userId, name: cleanLabel(name) },
-    select: { id: true, name: true },
+  const { transactionId, name } = createAccountAndTransferSchema.parse(input);
+
+  const created = await prisma.$transaction(async (tx) => {
+    const account = await tx.account.create({
+      data: { userId, name: cleanLabel(name) },
+      select: { id: true, name: true },
+    });
+
+    const transaction = await tx.transaction.findFirst({
+      where: { id: transactionId, userId, deletedAt: null },
+      select: { accountId: true },
+    });
+    if (!transaction) throw new Error("Transaction not found");
+    if (transaction.accountId === account.id) {
+      throw new Error("A transfer must be to a different account");
+    }
+
+    await tx.transaction.updateMany({
+      where: { id: transactionId, userId, deletedAt: null },
+      // Transfer and category are mutually exclusive — see setTransactionTransfer.
+      data: { transferAccountId: account.id, categoryId: null },
+    });
+
+    return account;
   });
+
   revalidatePath("/transactions");
   revalidatePath("/settings");
+  revalidatePath("/budget");
+  revalidatePath("/dashboard");
   return created;
 }
 
-const createCategorySchema = z.object({
+const createAndAssignCategorySchema = z.object({
+  transactionId: z.string().uuid(),
   label: z.string().trim().min(1).max(120),
   type: z.enum(["INCOME", "EXPENSE"]),
   // The budget section/bucket this category belongs to, so it can be placed on
@@ -469,21 +501,49 @@ const createCategorySchema = z.object({
   bucket: z.string().nullable().optional(),
 });
 
-// Creates a new category for inline assignment from the ledger. The bucket
+// Creates a category and assigns it to a transaction, in one call. The bucket
 // (section) is stored in `category` for expenses or `incomeCategory` for
 // income, mirroring how budget line items carry their section.
-export async function createCategory(
-  input: z.input<typeof createCategorySchema>,
+//
+// One action, not createCategory followed by setTransactionCategory: the ledger
+// showed the row as categorised as soon as the first returned, so a user who
+// navigated before the second landed had it cancelled — left with a category
+// that exists, a transaction that was never categorised, and a screen that had
+// already told them otherwise. One database transaction also means a failed
+// assignment rolls the category back rather than orphaning it.
+export async function createAndAssignCategory(
+  input: z.input<typeof createAndAssignCategorySchema>,
 ): Promise<LedgerCategory> {
   const userId = await requireTransactionsEnabled();
-  const { label, type, bucket } = createCategorySchema.parse(input);
+  const { transactionId, label, type, bucket } =
+    createAndAssignCategorySchema.parse(input);
   const { category, incomeCategory } = bucketFields(type, bucket);
 
-  const created = await prisma.category.create({
-    data: { userId, label: cleanLabel(label), type, category, incomeCategory },
-    select: { id: true, label: true, type: true },
+  const created = await prisma.$transaction(async (tx) => {
+    const newCategory = await tx.category.create({
+      data: {
+        userId,
+        label: cleanLabel(label),
+        type,
+        category,
+        incomeCategory,
+      },
+      select: { id: true, label: true, type: true },
+    });
+
+    const result = await tx.transaction.updateMany({
+      where: { id: transactionId, userId, deletedAt: null },
+      // Category and transfer are mutually exclusive — see setTransactionCategory.
+      data: { categoryId: newCategory.id, transferAccountId: null },
+    });
+    if (result.count === 0) throw new Error("Transaction not found");
+
+    return newCategory;
   });
+
+  revalidatePath("/transactions");
   revalidatePath("/budget");
+  revalidatePath("/dashboard");
   return {
     id: created.id,
     label: created.label,
