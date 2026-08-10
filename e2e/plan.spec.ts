@@ -4,6 +4,7 @@ import {
   signIn,
   signedInUser,
   test,
+  withServerAction,
 } from "./_helpers/fixtures";
 
 // Fees / charges % field round-trips: open asset drawer, expand the Growth
@@ -400,10 +401,11 @@ test("plan: create, edit assumptions/assets, and the data-loss guard holds", asy
 
   // A liability added via the add button appears on the timeline too.
   const liabilityPanel = page.locator("section", { hasText: "Liabilities" });
-  await liabilityPanel.getByRole("button", { name: "+ Add liability" }).click();
-  // Wait for the create + router.refresh() round-trip so the new bar has
-  // rendered on the timeline before asserting.
-  await page.waitForLoadState("networkidle");
+  // Wait for the create to answer so the new bar has rendered on the timeline
+  // before asserting.
+  await withServerAction(page, () =>
+    liabilityPanel.getByRole("button", { name: "+ Add liability" }).click(),
+  );
   await expect(timeline.getByText("New liability")).toBeVisible();
 
   await page.screenshot({ path: "test-results/plan-1b.png", fullPage: true });

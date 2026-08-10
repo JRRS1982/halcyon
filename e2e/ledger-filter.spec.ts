@@ -4,6 +4,7 @@ import {
   importCsv,
   signIn,
   test,
+  withServerAction,
 } from "./_helpers/fixtures";
 
 // Regression: categorising a row while the "Uncategorized only" filter is on
@@ -58,11 +59,12 @@ test.describe("ledger uncategorized filter", () => {
     // Categorise row A (create + assign).
     await rowA.getByRole("button", { name: /Uncategorized/ }).click();
     await page.getByPlaceholder("Type to search or create…").fill(category);
-    await page.getByRole("button", { name: "Create & assign" }).click();
+    await withServerAction(page, () =>
+      page.getByRole("button", { name: "Create & assign" }).click(),
+    );
 
-    // After the server revalidation settles, A must be gone (now categorised)
-    // and B must remain — the filter must survive the re-render.
-    await page.waitForLoadState("networkidle");
+    // Once the write has answered, A must be gone (now categorised) and B must
+    // remain — the filter must survive the re-render.
     await expect(rowB).toHaveCount(1);
     await expect(rowA).toHaveCount(0);
   });

@@ -1,4 +1,9 @@
-import { type Page, test as base, expect } from "@playwright/test";
+import {
+  type Page,
+  type Request,
+  test as base,
+  expect,
+} from "@playwright/test";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 
@@ -84,6 +89,99 @@ export async function signIn(page: Page): Promise<void> {
   await page.fill("input[name='password']", KNOWN_USER.password);
   await page.getByRole("button", { name: "Sign in" }).click();
   await page.waitForURL(/\/transactions$/);
+}
+
+/**
+ * Runs an interaction and waits for the writes it sets off to finish.
+ *
+ * The problem: these forms update optimistically, so the new value is on screen
+ * before the server has been told. Navigate or reload at that point and the
+ * browser cancels the request in flight (the dev server logs "destination
+ * stream closed early"), so the next assertion reads a database that was never
+ * written. `waitForLoadState("networkidle")` was standing in for this in twelve
+ * places and cannot do the job: it can settle in a quiet window before the
+ * request has even been issued.
+ *
+ * What counts as a write: a POST carrying Next's `next-action` header. That
+ * separates real actions from the RSC refresh that follows one (a GET with
+ * `rsc: 1`) and from the page's other traffic.
+ *
+ * Why "nothing in flight for a moment" and not "the response arrived": one
+ * click can fire several actions in sequence, and a helper that waits for a
+ * single response returns in the gap between them. That is what kept the
+ * categorise test navigating away before its second write landed — since fixed
+ * in the product, but adding a budget row still awaits ensurePeriodForMonth and
+ * then createItem (BudgetSheet.tsx), so the shape is not going away and no
+ * caller should have to know how many actions a button fires.
+ */
+export async function withServerAction<T>(
+  page: Page,
+  interact: () => Promise<T>,
+): Promise<T> {
+  let inFlight = 0;
+  let lastChange = 0;
+
+  // Only requests this call counted may decrement it. An action already in
+  // flight when we attached — the previous step's, still finishing — would
+  // otherwise fire `requestfinished` with no matching increment, leaving the
+  // count at -1 and the wait unsatisfiable. That is browser-shaped rather than
+  // random: the same action takes ~1.5s on chromium and ~3s on webkit, so the
+  // overlap only shows up on the slower engines.
+  const counted = new Set<Request>();
+  let seen = 0;
+
+  const started = (request: Request) => {
+    if (request.method() !== "POST") return;
+    if (request.headers()["next-action"] === undefined) return;
+    counted.add(request);
+    seen += 1;
+    inFlight += 1;
+    lastChange = Date.now();
+  };
+  const ended = (request: Request) => {
+    if (!counted.delete(request)) return;
+    inFlight -= 1;
+    lastChange = Date.now();
+  };
+
+  page.on("request", started);
+  page.on("requestfinished", ended);
+  page.on("requestfailed", ended);
+
+  try {
+    const result = await interact();
+    // lastChange > 0 means at least one action was seen, so an interaction that
+    // writes nothing fails here rather than passing on an empty quiet window.
+    try {
+      await expect
+        .poll(
+          () =>
+            lastChange > 0 && inFlight === 0 && Date.now() - lastChange > 250,
+          {
+            // Not the default expect timeout (5s): under `next dev` the first
+            // visit to a heavy route compiles it, and the plan actions
+            // routinely take longer than that.
+            timeout: 15_000,
+          },
+        )
+        .toBe(true);
+    } catch {
+      // The poll's own message says only "expected true, got false", which
+      // leaves you guessing between "nothing ever fired" and "something never
+      // finished" — a distinction worth several runs of debugging.
+      throw new Error(
+        `Server actions did not settle — ${seen} started, ${inFlight} still in flight, ` +
+          (lastChange === 0
+            ? "none ever started"
+            : `${Date.now() - lastChange}ms since one last changed state`),
+      );
+    }
+    return result;
+  } finally {
+    page.off("request", started);
+    page.off("requestfinished", ended);
+    page.off("requestfailed", ended);
+  }
 }
 
 /**
