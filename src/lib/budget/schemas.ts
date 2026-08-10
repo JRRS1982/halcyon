@@ -22,6 +22,18 @@ export const createItemSchema = z.object({
   label: z.string().trim().max(120),
 });
 
+// The sheet's "+ Income" / "+ Expense" buttons, which address the period by
+// month rather than id — the row may be the first thing in a month that has no
+// FinancialPeriod row yet.
+export const createItemForMonthSchema = z.object({
+  year: z.number().int(),
+  month: z.number().int().min(0).max(11),
+  type: itemTypeSchema,
+  category: expenseCategorySchema.nullable().optional(),
+  incomeCategory: incomeCategorySchema.nullable().optional(),
+  label: z.string().trim().max(120),
+});
+
 export const updateItemSchema = z
   .object({
     itemId: z.string().uuid(),
@@ -61,6 +73,7 @@ export const copyBudgetTemplateSchema = z.object({
 });
 
 export type CreateItemInput = z.infer<typeof createItemSchema>;
+export type CreateItemForMonthInput = z.infer<typeof createItemForMonthSchema>;
 export type UpdateItemInput = z.infer<typeof updateItemSchema>;
 export type DeleteItemInput = z.infer<typeof deleteItemSchema>;
 export type CopyPeriodFromInput = z.infer<typeof copyPeriodFromSchema>;
