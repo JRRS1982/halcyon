@@ -1,138 +1,86 @@
 # Data Models
 
-This document describes the data models for the application, and the relationships between them.
+**`prisma/schema.prisma` is the source of truth for columns.** It carries the
+comments explaining the non-obvious ones, and it cannot drift from the database.
+This document covers what the schema can't say for itself: what each table is
+*for*, how ownership flows, and where the auth boundary sits.
 
-It has been really helpful to plan this in advance of coding the project. It will make it quicker to write code, and i have confidence it will lead to less debugging and refactoring later.
-
-> **Revision history**
->
-> - 2026-06-10 — Rewritten to match the **implemented** schema (`prisma/schema.prisma`). The earlier draft described a hierarchical `Financial Document` / `Financial Item` design with a `parentId` tree and an `Audit Log` table; none of that was built. The shipped model is a flat, period-based budget/balance schema plus a transactions subsystem (11 models in total).
-> - 2026-05-22 — Reworked for the move to Supabase Auth (see [ADR-002](../ADRs/ADR-002-SecurityArchitecture.md)). The original design assumed NextAuth.js + bcrypt and included `Account`, `VerificationToken`, and `PasswordResetToken` tables, plus auth-specific columns on `User` (`password`, `failedLoginAttempts`, `accountLockedAt`, `passwordChangedAt`). Supabase's `auth.users` now owns those, so the application schema only holds profile and domain data keyed to `auth.users(id)`.
+> Columns were listed here until 2026-08-10 and had already fallen behind the
+> schema in several places, so they were removed rather than repaired. If you
+> want to know a table's shape, read the schema.
 
 ## Auth boundary
 
-> The end-to-end sequence (sign-up, sign-in, sign-out, authenticated request) is documented in [docs/features/auth.md](../features/auth.md) with Mermaid diagrams.
+Supabase Auth owns identity, in the Postgres `auth` schema (managed by Supabase,
+not by our migrations). The end-to-end sequences are in
+[features/auth.md](../features/auth.md); the decision is
+[ADR-002](../ADRs/ADR-002-SecurityArchitecture.md).
 
-Supabase Auth lives in the Postgres `auth` schema (managed by Supabase, not in our migrations). Relevant facts:
+- `auth.users` is authoritative for email, password, verification state, MFA and
+  OAuth identities. **The app never writes to it** — everything goes through
+  Supabase Auth APIs via `@supabase/ssr`.
+- `public.User` is our profile row, keyed 1:1 to `auth.users(id)`. Domain data
+  only.
+- **Email addresses are not stored in our tables.** Read them from the session,
+  or from `auth.admin` when a job needs one. The monthly reminder does the
+  latter; that is not a precedent for copying them.
 
-- `auth.users(id uuid PK)` — Supabase's authoritative user row. Holds email, encrypted password (Argon2), email confirmation state, last sign-in, MFA factors, OAuth identities.
-- We never write to `auth.users` from the app — sign-up, sign-in, password reset, email verification, OAuth callbacks all go through Supabase Auth APIs (via `@supabase/ssr`).
-- The application's own user row is `public.User`, keyed to `auth.users(id)` via a `uuid` FK. Anything domain-specific (profile, preferences, soft-delete, app-level audit) lives there.
+Consequently there is no `VerificationToken` or `PasswordResetToken` table, and
+no password or lockout columns on `User` — Supabase owns all of it. Note that
+the `Account` model *is* in the schema but is unrelated to auth: it is a user's
+**bank account**.
 
-This means several tables from the original design no longer exist in our schema:
+## The tables
 
-- ❌ `Account` (NextAuth's per-provider OAuth row) — Supabase tracks OAuth identities in `auth.identities`. (The schema *does* have an `Account` model today, but it is unrelated — it represents a user's **bank account** for transactions; see §9.)
-- ❌ `VerificationToken` — Supabase handles email verification tokens internally.
-- ❌ `PasswordResetToken` — Supabase handles password reset tokens internally.
+Every table below is owned by exactly one user, directly via `userId` or through
+a parent. Most carry `deletedAt` for soft deletion.
 
-## Tables (application schema)
+### Budget and balance
 
-### 1. User
+| Table | What it's for |
+|---|---|
+| `User` | profile row; the owner every other table hangs off |
+| `UserSettings` | per-user preferences and feature flags, created lazily on first read |
+| `FinancialPeriod` | one month (or week/quarter/year), the shared spine for `/budget` and `/balance` — both hang off the same period row. Unique per `(userId, granularity, startDate)` |
+| `FinancialItem` | a budget row in a period: income or expense, budgeted vs actual |
+| `BalanceItem` | a balance-sheet row in a period: asset or liability |
+| `BudgetTemplateItem`, `BalanceTemplateItem` | a saved "★ Template" set to copy into any month |
 
-A profile row keyed 1:1 to `auth.users`. Holds the domain data that's ours, not Supabase's.
+### Transactions
 
-- `id` (PK, uuid) — equals `auth.users.id` (FK)
-- `username` — optional public handle
-- `name` — display name (mirrored from Supabase user metadata; convenience for queries/joins)
-- `image` — avatar URL (mirrored from Supabase user metadata)
-- `timezone` — e.g. `"Europe/London"`, default `"UTC"`
-- `status` — `ACTIVE | SUSPENDED | DELETED` (application-level status; independent of Supabase's `banned_until`)
-- `lastActiveAt` — last time the user interacted with the app (drives auto-logout / "active" badging)
-- `createdAt`, `updatedAt`
+| Table | What it's for |
+|---|---|
+| `Category` | the stable taxonomy a transaction is filed under, and what a `FinancialItem` links to. See [features/onboarding.md](../features/onboarding.md) for what a new account starts with |
+| `Account` | where money sits — current, savings, ISA, SIPP. Named as a transfer counterparty too |
+| `ImportBatch` | one CSV import, so it can be reversed as a unit |
+| `Transaction` | an imported or manual line: date, signed amount, description, optional category and counterparty account |
 
-Notes:
+`FinancialItem.categoryId` is nullable on purpose: a free-typed budget row has no
+category, and `label` stays the fallback either way.
 
-- Password, failed-login counters, account-lock state, password-change-at — all **gone**; Supabase Auth owns them.
-- `email` is intentionally not duplicated here; read it from the Supabase session or `auth.users` via a view if needed for joins.
+### Plan
 
-### 2. UserSettings
+The forecasting feature (`src/lib/plan/`). A `Plan` is per user; everything else
+is per plan and cascades from it.
 
-Per-user app preferences, keyed 1:1 to `User`. Lazily upserted on first read — there is no guaranteed row for every user.
+| Table | What it's for |
+|---|---|
+| `Plan` | the user's projection: date of birth, retirement age, assumptions |
+| `PlanAsset` | a pot or property, with a tax wrapper that drives withdrawal tax |
+| `PlanLiability` | a debt; optionally linked to the `PlanAsset` it is secured on (a mortgage) |
+| `PlanIncome`, `PlanExpense` | recurring flows. An expense may be the repayment leg of a liability |
+| `PlanEvent` | a one-off at an age — a lump sum, or the sale of a linked property |
 
-- `userId` (PK, FK → User.id)
-- `currency` — display currency, default `"GBP"`
-- `numberFormat` — number-format preset, default `"COMMA_0"`
-- `transactionsEnabled` — feature flag for the Transactions feature (default on)
-- `transfersEnabled` — feature flag for the Transfers section (default on)
-- `hiddenCharts` — `string[]` of dashboard chart keys the user has switched off (empty = all shown)
-- `createdAt`, `updatedAt`
+Those three optional links (mortgage → property, repayment → liability, sale →
+property) are what make a mortgage behave as one thing across three tables. They
+are `SetNull` on delete, so removing a property leaves its debt rather than
+silently deleting it.
 
-### 3. FinancialPeriod
+A new plan is seeded from the user's most recent period — see
+`src/lib/plan/seed.ts`, and the warning about the starter month in
+[features/onboarding.md](../features/onboarding.md).
 
-A budget / statement period belonging to one user — the shared spine for both `/budget` and `/balance`, so a given month's budget items and balance items hang off the same period row.
-
-- `id` (PK, uuid), `userId` (FK → User.id)
-- `granularity` — `WEEK | MONTH | QUARTER | YEAR`, default `MONTH`
-- `startDate`, `endDate` (dates), `label`
-- `createdAt`, `updatedAt`, `deletedAt` (soft delete)
-- Unique on `(userId, granularity, startDate)`
-
-### 4. FinancialItem
-
-A single **budget** line item inside a period. A flat list — no `parentId` tree; items belong to a period and a category bucket.
-
-- `id` (PK), `periodId` (FK → FinancialPeriod)
-- `categoryId` (FK → Category, nullable) — links to the stable Category when set; `label` stays the source of truth when unlinked
-- `type` — `INCOME | EXPENSE`
-- `category` — `ExpenseCategory` (`FIXED | VARIABLE | DISCRETIONARY`), only on expense items
-- `incomeCategory` — `IncomeCategory` (`SALARY | SIDE_INCOME | INVESTMENTS | PENSIONS | OTHER`), only on income items
-- `label`, `budget` & `actual` (Decimal 12,2), `sortOrder`
-- `createdAt`, `updatedAt`, `deletedAt`
-
-### 5. BalanceItem
-
-A **balance-sheet** line item, also belonging to a `FinancialPeriod` (so `/budget` and `/balance` for a month share the period). Flat — the category buckets replace hierarchy.
-
-- `id` (PK), `periodId` (FK)
-- `type` — `ASSET | LIABILITY`
-- `category` — `BalanceItemCategory` (`CURRENT | MEDIUM_TERM | LONG_TERM | PROPERTY | OTHER`)
-- `label`, `value` (Decimal 14,2), `notes` (free-form)
-- `sortOrder`, `createdAt`, `updatedAt`, `deletedAt`
-
-### 6. BudgetTemplateItem & 7. BalanceTemplateItem
-
-Reusable template rows owned directly by a user (not tied to a period). "Save this month as template" snapshots a month into these; "Copy from → Template" seeds a new month from them.
-
-- **BudgetTemplateItem** — like FinancialItem but with **no `actual`** (a template is the plan, not spending): `userId`, `type`, `category`/`incomeCategory`, `label`, `budget`, `sortOrder`, timestamps, `deletedAt`.
-- **BalanceTemplateItem** — like BalanceItem: `userId`, `type`, `category`, `label`, `value`, `notes`, `sortOrder`, timestamps, `deletedAt`.
-
-### 8. Category
-
-A stable, user-owned spending/earning category — the spine both the budget and transactions hang off. Curated in Settings (rename / merge / archive); a rename touches one row and propagates by id.
-
-- `id` (PK), `userId` (FK)
-- `type` — `INCOME | EXPENSE`; `category`/`incomeCategory` bucket mirrors FinancialItem
-- `label` (mutable), `sortOrder`
-- `createdAt`, `updatedAt`, `deletedAt`
-
-### 9. Account
-
-A user's **bank account** a statement was imported from (unrelated to NextAuth's OAuth `Account`). Picked or created at import time; managed in Settings. Lightweight by design — no per-account balances in v1, just a label to scope/filter transactions and dedup.
-
-- `id` (PK), `userId` (FK)
-- `name`, `type` (nullable)
-- `createdAt`, `updatedAt`, `deletedAt`
-
-### 10. ImportBatch
-
-One CSV import run. Groups the transactions it created so the whole import can be reversed — the batch's live transactions are soft-deleted and the batch is stamped `reversedAt`.
-
-- `id` (PK), `userId` (FK), `accountId` (FK)
-- `fileName` (nullable), `createdAt`, `reversedAt` (nullable)
-
-### 11. Transaction
-
-An imported (or hand-entered) bank transaction. `amount` is stored **signed**; the linked Category's type routes income vs expense (see `src/lib/transactions/actual.ts`). No `periodId` — the `date` derives the budget month on the fly.
-
-- `id` (PK), `userId` (FK), `accountId` (FK)
-- `categoryId` (FK → Category, nullable) — uncategorized spend is surfaced, never auto-bucketed
-- `transferAccountId` (FK → Account, nullable) — the other side of a transfer
-- `importBatchId` (FK → ImportBatch, nullable)
-- `date`, `amount` (Decimal 14,2), `description`, `note` (nullable)
-- `extra` — JSON; extra CSV columns kept at import time, keyed by header label
-- `createdAt`, `updatedAt`, `deletedAt`
-
-## Entity Relationship Diagram
+## Ownership and access
 
 ```mermaid
 erDiagram
@@ -145,147 +93,37 @@ erDiagram
     USER ||--o{ TRANSACTION : owns
     USER ||--o{ BUDGET_TEMPLATE_ITEM : owns
     USER ||--o{ BALANCE_TEMPLATE_ITEM : owns
+    USER ||--o{ PLAN : owns
     FINANCIAL_PERIOD ||--o{ FINANCIAL_ITEM : "budget rows"
     FINANCIAL_PERIOD ||--o{ BALANCE_ITEM : "balance rows"
     CATEGORY ||--o{ FINANCIAL_ITEM : "linked (nullable)"
-    CATEGORY ||--o{ TRANSACTION : "linked (nullable)"
-    ACCOUNT ||--o{ TRANSACTION : "source account"
+    CATEGORY ||--o{ TRANSACTION : "categorises"
+    ACCOUNT ||--o{ TRANSACTION : "holds"
     ACCOUNT ||--o{ TRANSACTION : "transfer counterparty"
     ACCOUNT ||--o{ IMPORT_BATCH : "imported into"
-    IMPORT_BATCH ||--o{ TRANSACTION : "created"
-
-    AUTH_USERS {
-      uuid id PK "Supabase-managed (auth schema)"
-      string email "Supabase-managed"
-      string encrypted_password "Supabase-managed (Argon2)"
-      datetime email_confirmed_at "Supabase-managed"
-      datetime last_sign_in_at "Supabase-managed"
-    }
-
-    USER {
-      uuid id PK "FK to auth.users.id"
-      string username "Optional public handle"
-      string name "Display name"
-      string image "Avatar URL"
-      string timezone "Default 'UTC'"
-      string status "ACTIVE, SUSPENDED, DELETED"
-      datetime lastActiveAt
-      datetime createdAt
-      datetime updatedAt
-    }
-
-    USER_SETTINGS {
-      uuid userId PK "FK to User.id"
-      string currency "Default USD"
-      string numberFormat "Default COMMA_0"
-      boolean transactionsEnabled
-      boolean transfersEnabled
-      stringArray hiddenCharts "Dashboard charts switched off"
-      datetime createdAt
-      datetime updatedAt
-    }
-
-    FINANCIAL_PERIOD {
-      uuid id PK
-      uuid userId FK
-      string granularity "WEEK, MONTH, QUARTER, YEAR"
-      date startDate
-      date endDate
-      string label
-      datetime deletedAt "nullable soft-delete"
-    }
-
-    FINANCIAL_ITEM {
-      uuid id PK
-      uuid periodId FK
-      uuid categoryId FK "nullable"
-      string type "INCOME, EXPENSE"
-      string category "ExpenseCategory, nullable"
-      string incomeCategory "IncomeCategory, nullable"
-      string label
-      decimal budget
-      decimal actual
-      integer sortOrder
-      datetime deletedAt "nullable soft-delete"
-    }
-
-    BALANCE_ITEM {
-      uuid id PK
-      uuid periodId FK
-      string type "ASSET, LIABILITY"
-      string category "CURRENT, MEDIUM_TERM, LONG_TERM, PROPERTY, OTHER"
-      string label
-      decimal value
-      string notes "nullable"
-      integer sortOrder
-      datetime deletedAt "nullable soft-delete"
-    }
-
-    BUDGET_TEMPLATE_ITEM {
-      uuid id PK
-      uuid userId FK
-      string type "INCOME, EXPENSE"
-      string label
-      decimal budget "no actual - plan only"
-      integer sortOrder
-      datetime deletedAt "nullable soft-delete"
-    }
-
-    BALANCE_TEMPLATE_ITEM {
-      uuid id PK
-      uuid userId FK
-      string type "ASSET, LIABILITY"
-      string category
-      string label
-      decimal value
-      integer sortOrder
-      datetime deletedAt "nullable soft-delete"
-    }
-
-    CATEGORY {
-      uuid id PK
-      uuid userId FK
-      string type "INCOME, EXPENSE"
-      string category "ExpenseCategory, nullable"
-      string incomeCategory "IncomeCategory, nullable"
-      string label "Mutable; rename propagates by id"
-      integer sortOrder
-      datetime deletedAt "nullable soft-delete"
-    }
-
-    ACCOUNT {
-      uuid id PK
-      uuid userId FK
-      string name "Bank account label"
-      string type "nullable"
-      datetime deletedAt "nullable soft-delete"
-    }
-
-    IMPORT_BATCH {
-      uuid id PK
-      uuid userId FK
-      uuid accountId FK
-      string fileName "nullable"
-      datetime createdAt
-      datetime reversedAt "nullable; set when import reversed"
-    }
-
-    TRANSACTION {
-      uuid id PK
-      uuid userId FK
-      uuid accountId FK
-      uuid categoryId FK "nullable"
-      uuid transferAccountId FK "nullable; other side of transfer"
-      uuid importBatchId FK "nullable"
-      date date "derives the budget month"
-      decimal amount "signed"
-      string description
-      string note "nullable"
-      json extra "nullable; kept CSV columns"
-      datetime deletedAt "nullable soft-delete"
-    }
+    IMPORT_BATCH ||--o{ TRANSACTION : "imported as"
+    PLAN ||--o{ PLAN_ASSET : has
+    PLAN ||--o{ PLAN_LIABILITY : has
+    PLAN ||--o{ PLAN_INCOME : has
+    PLAN ||--o{ PLAN_EXPENSE : has
+    PLAN ||--o{ PLAN_EVENT : has
+    PLAN_ASSET ||--o| PLAN_LIABILITY : "mortgage on"
+    PLAN_LIABILITY ||--o| PLAN_EXPENSE : "repaid by"
+    PLAN_ASSET ||--o{ PLAN_EVENT : "sold by"
 ```
 
-## Row Level Security
+**Application-level `userId` filtering is the authorization boundary.**
+Server-side Prisma connects with a role that bypasses RLS, so every query must
+filter by the signed-in user. RLS policies exist on every table as
+defence-in-depth, limiting rows to `userId = auth.uid()` (period- and
+plan-scoped tables resolve ownership through their parent) — they become the
+real fence only if a future feature queries Supabase from the client. When you
+add a user-owned model, write both. See
+[features/row-level-security.md](../features/row-level-security.md) and
+[ADR-002](../ADRs/ADR-002-SecurityArchitecture.md).
 
-Every table in the application schema (`User`, `UserSettings`, `FinancialPeriod`, `FinancialItem`, `BalanceItem`, `BudgetTemplateItem`, `BalanceTemplateItem`, `Category`, `Account`, `ImportBatch`, `Transaction`) has RLS enabled with a policy that limits rows to `userId = auth.uid()` (period-scoped tables like `FinancialItem`/`BalanceItem` resolve ownership through their parent `FinancialPeriod`). RLS is defence-in-depth — server-side Prisma queries bypass RLS, so the primary authorization boundary is still application-level `userId` filtering. See [ADR-002](../ADRs/ADR-002-SecurityArchitecture.md).
+> **Why the schema looks like this.** An earlier draft had a hierarchical
+> `FinancialDocument`/`FinancialItem` tree with `parentId`, plus an audit-log
+> table. None of it was built; the shipped design is flat and period-based. An
+> earlier version also assumed NextAuth + bcrypt, which
+> [ADR-002](../ADRs/ADR-002-SecurityArchitecture.md) replaced with Supabase Auth.
