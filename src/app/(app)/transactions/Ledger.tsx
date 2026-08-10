@@ -320,7 +320,11 @@ const NoteArea = styled.textarea`
   }
 `;
 
-// Appears between the controls and the table while rows are selected.
+// Sits between the controls and the table whenever there are rows. It used to
+// mount only while something was selected, which pushed the whole table down on
+// the first tick and yanked it back on the last — the jump was the length of
+// this bar. Permanently in flow, idle-but-inert when nothing is selected, it
+// reads as the ledger's toolbar (DESIGN.md → Toolbar) and never moves anything.
 const BulkBar = styled.section`
   display: flex;
   align-items: center;
@@ -333,13 +337,16 @@ const BulkBar = styled.section`
   background: ${({ theme }) => theme.colors.canvasSoft};
 `;
 
-const BulkCount = styled.span`
+// Doubles as the bar's label: the selection count when there is one, the
+// prompt that explains the bar when there isn't — dimmed, since nothing here
+// is actionable yet.
+const BulkCount = styled.span<{ $idle: boolean }>`
   font-family: ${({ theme }) => theme.typography.monoCaps.family};
   font-size: ${({ theme }) => theme.typography.monoCaps.size};
   font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
   letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
   text-transform: uppercase;
-  color: ${({ theme }) => theme.colors.body};
+  color: ${({ $idle, theme }) => ($idle ? theme.colors.dim : theme.colors.body)};
 `;
 
 const BulkSelect = styled.select`
@@ -350,6 +357,11 @@ const BulkSelect = styled.select`
   background: ${({ theme }) => theme.colors.canvas};
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
   font-size: 13px;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 `;
 
 // Destructive per DESIGN.md: outline with red text, never one-click.
@@ -383,6 +395,11 @@ const GhostButton = styled.button`
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
   font-size: ${({ theme }) => theme.typography.bodyMd.size};
   cursor: pointer;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 `;
 
 const Overlay = styled.div`
@@ -623,6 +640,8 @@ export function Ledger({
   const sortMark = (key: SortColumn) =>
     sortColumn === key ? (sortDir === "desc" ? " ↓" : " ↑") : "";
 
+  const hasSelection = selected.size > 0;
+
   const allOnPageSelected =
     items.length > 0 && items.every((t) => selected.has(t.id));
 
@@ -720,11 +739,18 @@ export function Ledger({
         />
       </Controls>
 
-      {selected.size > 0 && (
+      {/* Only alongside rows — a toolbar for selecting from an empty table
+          would be its own kind of noise. */}
+      {items.length > 0 && (
         <BulkBar aria-label="Bulk actions">
-          <BulkCount>{selected.size} selected</BulkCount>
+          <BulkCount $idle={!hasSelection}>
+            {hasSelection
+              ? `${selected.size} selected`
+              : "Select rows to categorize or delete"}
+          </BulkCount>
           <BulkSelect
             value=""
+            disabled={!hasSelection}
             onChange={(e) => onBulkCategorise(e.target.value)}
             aria-label="Set category for selected transactions"
           >
@@ -738,10 +764,18 @@ export function Ledger({
               </option>
             ))}
           </BulkSelect>
-          <DangerButton type="button" onClick={() => setConfirmDelete(true)}>
+          <DangerButton
+            type="button"
+            disabled={!hasSelection}
+            onClick={() => setConfirmDelete(true)}
+          >
             Delete…
           </DangerButton>
-          <GhostButton type="button" onClick={() => setSelected(new Set())}>
+          <GhostButton
+            type="button"
+            disabled={!hasSelection}
+            onClick={() => setSelected(new Set())}
+          >
             Clear selection
           </GhostButton>
         </BulkBar>
@@ -756,7 +790,7 @@ export function Ledger({
               No transactions yet — import a statement above. First time?{" "}
               {/* This is where new users now land, so it's the one empty state
                   most likely to be someone's first screen. */}
-              <EmptyLink href="/about">See how it works</EmptyLink>.
+              <EmptyLink href="/guide">See how it works</EmptyLink>.
             </>
           )}
         </Empty>

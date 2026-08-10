@@ -1,7 +1,7 @@
 import { IdleTimeout } from "@/components/auth/IdleTimeout";
 import { Footer } from "@/components/ui/Footer";
 import { NavBar } from "@/components/ui/NavBar";
-import { getNavFlags, getThemePreference } from "@/lib/settings/server";
+import { getLayoutSettings } from "@/lib/settings/server";
 import { getCurrentUser } from "@/lib/supabase/user";
 import { themeAttribute } from "@/lib/themeCss";
 
@@ -18,12 +18,15 @@ export default async function AppLayout({
   children: React.ReactNode;
 }) {
   const user = await getCurrentUser();
-  // One settings read for both nav flags rather than two round-trips.
-  const { transactionsEnabled, planVisible } = await getNavFlags(user?.id);
-  // Resolved on the server so the correct scheme is in the very first paint.
-  // Deciding this on the client would mean rendering light, hydrating, then
-  // repainting dark — the flash every dark-mode implementation is judged by.
-  const theme = themeAttribute(await getThemePreference(user?.id));
+  // One settings read for the nav flags and the colour scheme alike — they are
+  // three columns of the same row, so asking separately was three round-trips
+  // for one row. The scheme is resolved on the server so the correct one is in
+  // the very first paint: deciding it on the client would mean rendering light,
+  // hydrating, then repainting dark — the flash every dark-mode implementation
+  // is judged by.
+  const { transactionsEnabled, planVisible, themePreference } =
+    await getLayoutSettings(user?.id);
+  const theme = themeAttribute(themePreference);
 
   // The scheme sits on a wrapper rather than on <html>, because <html> belongs
   // to the root layout and moving the session up there is exactly what this

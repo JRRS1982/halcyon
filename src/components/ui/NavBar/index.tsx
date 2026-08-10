@@ -26,12 +26,14 @@ type NavBarProps = {
 
 type NavItem = { href: string; label: string };
 
-// Ordered by the way the app is actually used, not by importance: import a
-// statement, categorise it, check the budget, update balances, then read the
-// dashboard — the rhythm /about describes. Dashboard sits late because it is
-// the read-only result of the four steps before it, and Plan last of the app
-// pages because it is the long view rather than part of the month. Guide and
-// Settings close the row: reference and configuration, not part of the loop.
+// Guide leads: it is the page that explains the order of everything after it,
+// so it should be the first thing read rather than something found at the end
+// of the row once you are already lost. The rest are ordered by the way the app
+// is actually used, not by importance: import a statement, categorise it, check
+// the budget, update balances, then read the dashboard — the rhythm /guide
+// describes. Dashboard sits late because it is the read-only result of the four
+// steps before it, Plan after it because it is the long view rather than part
+// of the month, and Settings last as configuration rather than part of the loop.
 //
 // "Home" is intentionally absent: signed-in users are redirected away from "/",
 // so a Home tab would only ever point at a redirect.
@@ -41,12 +43,12 @@ type NavEntry = NavItem & {
 };
 
 const SIGNED_IN_ITEMS: NavEntry[] = [
+  { href: "/guide", label: "Guide" },
   { href: "/transactions", label: "Transactions", requires: "transactions" },
   { href: "/budget", label: "Budget" },
   { href: "/balance", label: "Balance" },
   { href: "/dashboard", label: "Dashboard" },
   { href: "/plan", label: "Plan", requires: "plan" },
-  { href: "/about", label: "Guide" },
   { href: "/settings", label: "Settings" },
 ];
 
@@ -57,10 +59,10 @@ const MARKETING_ITEMS: NavItem[] = [
   { href: "#details", label: "Details" },
 ];
 
-// /about is not behind the auth guard, and it is the best answer to "what is
+// /guide is not behind the auth guard, and it is the best answer to "what is
 // this and how would I use it?" — so it stays in the bar signed out too,
 // including on the pages where the homepage anchors above mean nothing.
-const GUIDE_ITEM: NavItem = { href: "/about", label: "Guide" };
+const GUIDE_ITEM: NavItem = { href: "/guide", label: "Guide" };
 
 function HamburgerIcon({ open }: { open: boolean }) {
   return (
@@ -106,7 +108,7 @@ export function NavBar({
   const items: NavItem[] = signedIn
     ? SIGNED_IN_ITEMS.filter((item) => !item.requires || enabled[item.requires])
     : isHome
-      ? [...MARKETING_ITEMS, GUIDE_ITEM]
+      ? [GUIDE_ITEM, ...MARKETING_ITEMS]
       : [GUIDE_ITEM];
 
   // Navigating away closes the drawer — Next keeps the layout mounted across

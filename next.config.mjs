@@ -13,6 +13,12 @@ const nextConfig = {
     // encode, and the rest fall back to WebP automatically.
     formats: ["image/avif", "image/webp"],
   },
+  // The guide lived at /about first. It is a public page, so the old path is
+  // in browser histories and anywhere it was ever shared — a permanent
+  // redirect keeps those working and tells crawlers which URL is the real one.
+  async redirects() {
+    return [{ source: "/about", destination: "/guide", permanent: true }];
+  },
   experimental: {
     serverActions: {
       // CSV import posts parsed rows as JSON, which outgrows the 1MB default

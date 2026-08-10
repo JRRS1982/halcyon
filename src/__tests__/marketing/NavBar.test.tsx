@@ -65,7 +65,7 @@ describe("NavBar", () => {
     );
   });
 
-  // /about is not behind the auth guard, and it is the honest answer to "what
+  // /guide is not behind the auth guard, and it is the honest answer to "what
   // is this?" — so it is reachable from the bar before signing in, on the
   // homepage and off it.
   test.each(["/", "/sign-in"])("Guide is in the bar signed out on %s", (at) => {
@@ -73,7 +73,7 @@ describe("NavBar", () => {
     renderit({ signedIn: false, transactionsEnabled: false });
     expect(screen.getByRole("link", { name: /^guide$/i })).toHaveAttribute(
       "href",
-      "/about",
+      "/guide",
     );
   });
 
@@ -100,11 +100,12 @@ describe("NavBar", () => {
     ).toBeInTheDocument();
   });
 
-  // The row follows how the app is used — import, categorise, budget, balance,
-  // then read the dashboard — rather than putting the read-only view first.
-  // Asserted as a sequence because "the links are all present" would pass on
-  // any order at all.
-  test("orders the links by the rhythm, with reference and settings last", () => {
+  // Guide leads, because it is the page explaining the order of everything
+  // after it. The rest follow how the app is used — import, categorise, budget,
+  // balance, then read the dashboard — rather than putting the read-only view
+  // first. Asserted as a sequence because "the links are all present" would
+  // pass on any order at all.
+  test("leads with the guide, then orders the links by the rhythm", () => {
     mockPathname = "/dashboard";
     const { container } = renderit({
       signedIn: true,
@@ -117,12 +118,12 @@ describe("NavBar", () => {
     );
 
     expect(hrefs).toEqual([
+      "/guide",
       "/transactions",
       "/budget",
       "/balance",
       "/dashboard",
       "/plan",
-      "/about",
       "/settings",
     ]);
   });
@@ -140,10 +141,10 @@ describe("NavBar", () => {
     );
 
     expect(hrefs).toEqual([
+      "/guide",
       "/budget",
       "/balance",
       "/dashboard",
-      "/about",
       "/settings",
     ]);
   });

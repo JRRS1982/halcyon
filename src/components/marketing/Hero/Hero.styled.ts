@@ -55,7 +55,7 @@ export const Lead = styled.p`
 // Sits under the CTAs, where the eye lands after deciding whether to click.
 // The first objection any personal-finance app meets is "what are you going to
 // do with my bank access", and the honest answer — there isn't any — was
-// buried in /about and the privacy notice while the page that has to overcome
+// buried in /guide and the privacy notice while the page that has to overcome
 // the objection said nothing.
 export const TrustNote = styled.p`
   ${({ theme }) => css`

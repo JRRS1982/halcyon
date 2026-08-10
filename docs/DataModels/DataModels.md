@@ -50,10 +50,10 @@ Notes:
 Per-user app preferences, keyed 1:1 to `User`. Lazily upserted on first read — there is no guaranteed row for every user.
 
 - `userId` (PK, FK → User.id)
-- `currency` — display currency, default `"USD"`
+- `currency` — display currency, default `"GBP"`
 - `numberFormat` — number-format preset, default `"COMMA_0"`
-- `transactionsEnabled` — feature flag for the Transactions feature (default off)
-- `transfersEnabled` — feature flag for the Transfers section (default off)
+- `transactionsEnabled` — feature flag for the Transactions feature (default on)
+- `transfersEnabled` — feature flag for the Transfers section (default on)
 - `hiddenCharts` — `string[]` of dashboard chart keys the user has switched off (empty = all shown)
 - `createdAt`, `updatedAt`
 

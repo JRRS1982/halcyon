@@ -28,13 +28,15 @@ test.describe("transfers journey", () => {
 
     await signIn(page);
 
-    // Settings: enable Transactions (toggle opens a confirm dialog) then
-    // Transfers (immediate, no dialog). The clean-DB fixture guarantees both
-    // start off.
+    // Settings: both flags now default on, so this asserts the state the
+    // journey needs rather than switching it — and still switches it on if a
+    // future default moves back.
     await ensureTransactionsEnabled(page);
 
     const transfersToggle = page.getByRole("checkbox", { name: "Transfers" });
-    await transfersToggle.check({ force: true });
+    if (!(await transfersToggle.isChecked())) {
+      await transfersToggle.check({ force: true });
+    }
     await expect(transfersToggle).toBeChecked();
 
     // Create the counterparty account in Settings (AccountManager). The Add
