@@ -1,6 +1,12 @@
 import type { Page } from "@playwright/test";
 import type { PrismaClient } from "@prisma/client";
-import { expect, signIn, signedInUser, test } from "./_helpers/fixtures";
+import {
+  clearStarterPeriods,
+  expect,
+  signIn,
+  signedInUser,
+  test,
+} from "./_helpers/fixtures";
 
 // Acceptance tests for the mortgage liability <-> repayment-expense link
 // (feat/plan-liability-expense-link). These guard the end-to-end UI flows that
@@ -14,6 +20,10 @@ async function seedAndCreatePlan(page: Page, db: PrismaClient): Promise<void> {
   await signIn(page);
 
   const user = await signedInUser(db);
+  // A plan seeds from the most recent month period, so the starter sheet a new
+  // account is provisioned with has to go — otherwise it, and not the period
+  // seeded below, is what the plan is built from.
+  await clearStarterPeriods(db, user.id);
   const start = new Date(Date.UTC(2026, 0, 1));
   const end = new Date(Date.UTC(2026, 0, 31));
   await db.financialPeriod.create({

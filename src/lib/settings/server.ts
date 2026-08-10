@@ -1,6 +1,7 @@
 import "server-only";
 
 import { randomUUID } from "node:crypto";
+import { ensurePeriodForMonthIn } from "@/lib/budget/ensurePeriod";
 import { currentMonthRange } from "@/lib/budget/period";
 import { bucketFields } from "@/lib/categories/buckets";
 import {
@@ -102,16 +103,7 @@ async function seedStarterData(
   });
 
   const byLabel = new Map(categories.map((c) => [c.label, c]));
-  const range = currentMonthRange();
-  const period = await tx.financialPeriod.create({
-    data: {
-      userId,
-      granularity: "MONTH",
-      startDate: range.startDate,
-      endDate: range.endDate,
-      label: range.label,
-    },
-  });
+  const period = await ensurePeriodForMonthIn(tx, userId, currentMonthRange());
 
   await tx.financialItem.createMany({
     data: STARTER_BUDGET_CATEGORIES.map((starter, sortOrder) => {

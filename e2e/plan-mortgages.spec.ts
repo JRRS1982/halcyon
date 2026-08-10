@@ -1,4 +1,5 @@
 import {
+  clearStarterPeriods,
   expect,
   openFresh,
   signIn,
@@ -19,6 +20,10 @@ test("add a mortgage opens the property card with a mortgage section", async ({
   // createPlan seeds from the most recent month period, so give it one to
   // read (mirrors e2e/plan.spec.ts).
   const user = await signedInUser(db);
+  // A plan seeds from the most recent month period, so the starter sheet a new
+  // account is provisioned with has to go — otherwise it, and not the period
+  // seeded below, is what the plan is built from.
+  await clearStarterPeriods(db, user.id);
   const start = new Date(Date.UTC(2026, 0, 1));
   const end = new Date(Date.UTC(2026, 0, 31));
   await db.financialPeriod.create({
@@ -89,6 +94,10 @@ test("toggling interest-only persists after reload and hides the repayment field
   await signIn(page);
 
   const user = await signedInUser(db);
+  // A plan seeds from the most recent month period, so the starter sheet a new
+  // account is provisioned with has to go — otherwise it, and not the period
+  // seeded below, is what the plan is built from.
+  await clearStarterPeriods(db, user.id);
   const start = new Date(Date.UTC(2026, 0, 1));
   const end = new Date(Date.UTC(2026, 0, 31));
   await db.financialPeriod.create({
