@@ -169,11 +169,12 @@ export async function withServerAction<T>(
       // The poll's own message says only "expected true, got false", which
       // leaves you guessing between "nothing ever fired" and "something never
       // finished" — a distinction worth several runs of debugging.
+      const sinceLastChange =
+        lastChange === 0
+          ? "none ever started"
+          : `${Date.now() - lastChange}ms since one last changed state`;
       throw new Error(
-        `Server actions did not settle — ${seen} started, ${inFlight} still in flight, ` +
-          (lastChange === 0
-            ? "none ever started"
-            : `${Date.now() - lastChange}ms since one last changed state`),
+        `Server actions did not settle — ${seen} started, ${inFlight} still in flight, ${sinceLastChange}`,
       );
     }
     return result;
