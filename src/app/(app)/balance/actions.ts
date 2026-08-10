@@ -5,7 +5,7 @@ import { computeMove } from "@/lib/balance/reorder";
 import {
   type CopyBalancePeriodFromInput,
   type CopyBalanceTemplateInput,
-  type CreateBalanceItemInput,
+  type CreateBalanceItemForMonthInput,
   type DeleteBalanceItemInput,
   type MoveBalanceItemInput,
   type SaveBalanceTemplateInput,
@@ -13,13 +13,15 @@ import {
   type UpdateBalanceItemInput,
   copyBalancePeriodFromSchema,
   copyBalanceTemplateSchema,
-  createBalanceItemSchema,
+  createBalanceItemForMonthSchema,
   deleteBalanceItemSchema,
   moveBalanceItemSchema,
   saveBalanceTemplateSchema,
   setBalanceItemSectionSchema,
   updateBalanceItemSchema,
 } from "@/lib/balance/schemas";
+import { ensurePeriodForMonthIn } from "@/lib/budget/ensurePeriod";
+import { monthRangeFor } from "@/lib/budget/period";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
@@ -39,39 +41,45 @@ async function requireUserId(): Promise<string> {
   return user.id;
 }
 
-export async function createBalanceItem(input: CreateBalanceItemInput) {
+// Adds a row to a month, creating that month's FinancialPeriod if this is the
+// first row in it.
+//
+// One action rather than ensurePeriodForMonth followed by createBalanceItem:
+// those ran as two requests from the sheet, so navigating between them left a
+// period row with nothing in it — a month that looks visited but is empty.
+export async function createBalanceItemForMonth(
+  input: CreateBalanceItemForMonthInput,
+) {
   const userId = await requireUserId();
-  const parsed = createBalanceItemSchema.parse(input);
+  const parsed = createBalanceItemForMonthSchema.parse(input);
+  const range = monthRangeFor(parsed.year, parsed.month);
 
-  // Verify the period belongs to this user. Server-side Prisma bypasses RLS
-  // so app-level userId scoping is the boundary.
-  const period = await prisma.financialPeriod.findFirst({
-    where: { id: parsed.periodId, userId, deletedAt: null },
-  });
-  if (!period) {
-    throw new Error("Period not found");
-  }
+  return prisma.$transaction(async (tx) => {
+    const period = await ensurePeriodForMonthIn(tx, userId, range);
 
-  // sortOrder appends at the end of the (period, type, category) bucket.
-  const last = await prisma.balanceItem.findFirst({
-    where: {
-      periodId: parsed.periodId,
-      type: parsed.type,
-      category: parsed.category,
-      deletedAt: null,
-    },
-    orderBy: { sortOrder: "desc" },
-    select: { sortOrder: true },
-  });
+    // sortOrder appends at the end of the (period, type, category) bucket.
+    const last = await tx.balanceItem.findFirst({
+      where: {
+        periodId: period.id,
+        type: parsed.type,
+        category: parsed.category,
+        deletedAt: null,
+      },
+      orderBy: { sortOrder: "desc" },
+      select: { sortOrder: true },
+    });
 
-  return prisma.balanceItem.create({
-    data: {
-      periodId: parsed.periodId,
-      type: parsed.type,
-      category: parsed.category,
-      label: parsed.label,
-      sortOrder: (last?.sortOrder ?? 0) + 1,
-    },
+    const item = await tx.balanceItem.create({
+      data: {
+        periodId: period.id,
+        type: parsed.type,
+        category: parsed.category,
+        label: parsed.label,
+        sortOrder: (last?.sortOrder ?? 0) + 1,
+      },
+    });
+
+    return { periodId: period.id, item };
   });
 }
 

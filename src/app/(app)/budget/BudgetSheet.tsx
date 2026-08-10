@@ -55,9 +55,8 @@ import styled from "styled-components";
 import {
   copyBudgetTemplateInto,
   copyPeriodFrom,
-  createItem,
+  createItemForMonth,
   deleteItem,
-  ensurePeriodForMonth,
   listCopyablePeriods,
   saveBudgetTemplate,
   updateItem,
@@ -986,19 +985,18 @@ export function BudgetSheet({
         pendingSavesRef.current += 1;
         setPendingCount(pendingSavesRef.current);
         try {
-          // Lazy: if the period doesn't have a DB row yet (virtual), create
-          // it now. Once it has an id, subsequent adds reuse that id.
-          let pid = periodState.id;
-          if (!pid) {
-            const real = await ensurePeriodForMonth(year, month);
-            pid = real.id;
-            setPeriodState((prev) => ({ ...prev, id: real.id }));
-          }
-          const created = await createItem({
-            periodId: pid,
+          // The period row is created lazily, with the first item that needs
+          // it — one action, so a month can never end up with a period and no
+          // rows. Once it exists, subsequent adds reuse the id it returns.
+          const { periodId, item: created } = await createItemForMonth({
+            year,
+            month,
             type,
             label: "",
           });
+          if (!periodState.id) {
+            setPeriodState((prev) => ({ ...prev, id: periodId }));
+          }
           setItems((prev) => [
             ...prev,
             {

@@ -40,11 +40,10 @@ import {
   useTransition,
 } from "react";
 import styled, { css } from "styled-components";
-import { ensurePeriodForMonth } from "../budget/actions";
 import {
   copyBalancePeriodFrom,
   copyBalanceTemplateInto,
-  createBalanceItem,
+  createBalanceItemForMonth,
   deleteBalanceItem,
   listCopyableBalancePeriods,
   moveBalanceItem,
@@ -966,18 +965,19 @@ export function BalanceSheet({
         pendingSavesRef.current += 1;
         setPendingCount(pendingSavesRef.current);
         try {
-          let pid = periodState.id;
-          if (!pid) {
-            const real = await ensurePeriodForMonth(year, month);
-            pid = real.id;
-            setPeriodState((prev) => ({ ...prev, id: real.id }));
-          }
-          const created = await createBalanceItem({
-            periodId: pid,
+          // The period row is created lazily, with the first item that needs
+          // it — one action, so a month can never end up with a period and no
+          // rows. Once it exists, subsequent adds reuse the id it returns.
+          const { periodId, item: created } = await createBalanceItemForMonth({
+            year,
+            month,
             type,
             category,
             label: "",
           });
+          if (!periodState.id) {
+            setPeriodState((prev) => ({ ...prev, id: periodId }));
+          }
           setItems((prev) => [
             ...prev,
             {

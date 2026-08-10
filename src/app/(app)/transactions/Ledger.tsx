@@ -21,8 +21,8 @@ import { CategoryCombobox, type NewCategoryInput } from "./CategoryCombobox";
 import {
   bulkDeleteTransactions,
   bulkSetTransactionCategory,
-  createAccount,
-  createCategory,
+  createAccountAndTransfer,
+  createAndAssignCategory,
   setTransactionCategory,
   setTransactionNote,
   setTransactionTransfer,
@@ -610,12 +610,11 @@ export function Ledger({
 
   const onCreateAccountAndTransfer = (transactionId: string, name: string) => {
     startTransition(async () => {
-      const created = await createAccount({ name });
+      const created = await createAccountAndTransfer({ transactionId, name });
       setAccounts((prev) =>
         [...prev, created].sort((a, b) => a.name.localeCompare(b.name)),
       );
       applyTransfer(transactionId, created.id);
-      await setTransactionTransfer({ transactionId, accountId: created.id });
     });
   };
 
@@ -624,7 +623,10 @@ export function Ledger({
     input: NewCategoryInput,
   ) => {
     startTransition(async () => {
-      const created = await createCategory(input);
+      const created = await createAndAssignCategory({
+        transactionId,
+        ...input,
+      });
       setCategories((prev) =>
         [...prev, created].sort(
           (a, b) =>
@@ -632,10 +634,6 @@ export function Ledger({
         ),
       );
       applyAssignment(transactionId, created.id);
-      await setTransactionCategory({
-        transactionId,
-        categoryId: created.id,
-      });
     });
   };
 
