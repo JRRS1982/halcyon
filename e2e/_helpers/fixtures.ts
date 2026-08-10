@@ -133,6 +133,26 @@ export async function signedInUser(db: PrismaClient) {
 }
 
 /**
+ * Removes the starter budget sheet a new account is provisioned with.
+ *
+ * Signing in seeds the current month with £0 rows from the default categories
+ * (src/lib/onboarding/defaults.ts). For a spec that seeds its own months and
+ * then asserts on a derived figure, that starter month is a real recorded month
+ * the derivation includes — and it is the *latest* one, so anything reading the
+ * most recent point (the dashboard KPIs) reads zeros instead of the fixture.
+ *
+ * Deleting the periods cascades to their items and leaves the categories and
+ * accounts in place, so the spec owns the whole picture without pretending a
+ * new account has no defaults.
+ */
+export async function clearStarterPeriods(
+  db: PrismaClient,
+  userId: string,
+): Promise<void> {
+  await db.financialPeriod.deleteMany({ where: { userId } });
+}
+
+/**
  * Uploads a CSV to the import panel and waits for the mapping step to appear.
  *
  * Setting files on the input fires a DOM change event. If React has not

@@ -153,6 +153,12 @@ export function seedPlanChildren(
   const incomes: SeededIncome[] = [];
   const expenses: SeededExpense[] = [];
   for (const f of financialItems) {
+    // Same reasoning as the zero-value balance items above: a row budgeted at
+    // nothing carries no signal into the projection. This matters now a new
+    // account's first budget sheet arrives pre-filled with £0 starter rows
+    // (src/lib/onboarding/defaults.ts) — seeding those verbatim would open the
+    // plan on a table of empty lines.
+    if (f.budget <= 0) continue;
     if (f.type === "INCOME") {
       const kind = f.incomeCategory
         ? INCOME_KIND_BY_BUCKET[f.incomeCategory]

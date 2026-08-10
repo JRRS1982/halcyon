@@ -1,5 +1,13 @@
 import "server-only";
 
+import { randomUUID } from "node:crypto";
+import { currentMonthRange } from "@/lib/budget/period";
+import { bucketFields } from "@/lib/categories/buckets";
+import {
+  DEFAULT_ACCOUNTS,
+  DEFAULT_CATEGORIES,
+  STARTER_BUDGET_CATEGORIES,
+} from "@/lib/onboarding/defaults";
 import { prisma } from "@/lib/prisma";
 import {
   DEFAULT_THEME_PREFERENCE,
@@ -7,6 +15,7 @@ import {
   isThemePreference,
 } from "@/lib/settings/theme";
 import { getCurrentUser } from "@/lib/supabase/user";
+import type { Prisma } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 import {
@@ -42,16 +51,86 @@ import {
 // which `TRUNCATE "User" CASCADE`s between tests — a truncate landing between
 // two separate statements (for an in-flight request) would delete the User
 // before UserSettings references it. User first, since UserSettings FKs it.
+//
+// The starter data (categories, accounts, first budget sheet) goes in the same
+// transaction, gated on the UserSettings insert having actually happened. That
+// gate is load-bearing: `skipDuplicates` can dedupe User and UserSettings
+// because their primary key is the userId, but nothing makes a category unique
+// per user, so two concurrent first-time requests would each insert a full set
+// and the user would open Settings to every category twice. `createMany`
+// returns the row count, so the request that created the settings row is the
+// one that seeds; the loser sees 0 and leaves it alone.
 async function provisionUserSettings(userId: string) {
-  await prisma.$transaction([
-    prisma.user.createMany({ data: [{ id: userId }], skipDuplicates: true }),
-    prisma.userSettings.createMany({
+  await prisma.$transaction(async (tx) => {
+    await tx.user.createMany({ data: [{ id: userId }], skipDuplicates: true });
+    const { count } = await tx.userSettings.createMany({
       data: [{ userId }],
       skipDuplicates: true,
-    }),
-  ]);
+    });
+    // Lost the race — a concurrent request is seeding this user right now.
+    if (count === 0) return;
+    await seedStarterData(tx, userId);
+  });
 
   return prisma.userSettings.findUniqueOrThrow({ where: { userId } });
+}
+
+// Writes the default categories and accounts, plus the current month's budget
+// sheet as £0 rows, for a user who has just been created.
+//
+// Category ids are generated here rather than left to the database default, so
+// the budget rows can carry `categoryId` without reading the categories back —
+// which keeps the whole thing to three statements inside the caller's
+// transaction. The link matters: a categoryId-linked row is what lets the
+// transactions feature overlay a computed actual on it later.
+async function seedStarterData(
+  tx: Prisma.TransactionClient,
+  userId: string,
+): Promise<void> {
+  const categories = DEFAULT_CATEGORIES.map((c, sortOrder) => ({
+    id: randomUUID(),
+    userId,
+    label: c.label,
+    type: c.type,
+    sortOrder,
+    ...bucketFields(c.type, c.bucket),
+  }));
+
+  await tx.category.createMany({ data: categories });
+  await tx.account.createMany({
+    data: DEFAULT_ACCOUNTS.map((name) => ({ userId, name })),
+  });
+
+  const byLabel = new Map(categories.map((c) => [c.label, c]));
+  const range = currentMonthRange();
+  const period = await tx.financialPeriod.create({
+    data: {
+      userId,
+      granularity: "MONTH",
+      startDate: range.startDate,
+      endDate: range.endDate,
+      label: range.label,
+    },
+  });
+
+  await tx.financialItem.createMany({
+    data: STARTER_BUDGET_CATEGORIES.map((starter, sortOrder) => {
+      const category = byLabel.get(starter.label);
+      if (!category) {
+        throw new Error(`Starter budget category missing: ${starter.label}`);
+      }
+      return {
+        periodId: period.id,
+        categoryId: category.id,
+        type: category.type,
+        category: category.category,
+        incomeCategory: category.incomeCategory,
+        label: category.label,
+        budget: 0,
+        sortOrder,
+      };
+    }),
+  });
 }
 
 // Returns the signed-in user's settings, creating the row lazily on first

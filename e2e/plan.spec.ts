@@ -1,4 +1,5 @@
 import {
+  clearStarterPeriods,
   expect,
   openFresh,
   signIn,
@@ -15,6 +16,10 @@ test("plan: asset fees field round-trips through the drawer", async ({
   await signIn(page);
 
   const user = await signedInUser(db);
+  // A plan seeds from the most recent month period, so the starter sheet a new
+  // account is provisioned with has to go — it is more recent than the period
+  // seeded below, and carries no balance items to build assets from.
+  await clearStarterPeriods(db, user.id);
   const start = new Date(Date.UTC(2026, 0, 1));
   const end = new Date(Date.UTC(2026, 0, 31));
   await db.financialPeriod.create({
@@ -85,6 +90,10 @@ test("plan: dragging an event marker (keyboard) persists its age", async ({
   await signIn(page);
 
   const user = await signedInUser(db);
+  // A plan seeds from the most recent month period, so the starter sheet a new
+  // account is provisioned with has to go — it is more recent than the period
+  // seeded below, and carries no balance items to build assets from.
+  await clearStarterPeriods(db, user.id);
   const start = new Date(Date.UTC(2026, 0, 1));
   const end = new Date(Date.UTC(2026, 0, 31));
   await db.financialPeriod.create({
@@ -160,6 +169,10 @@ test("plan: dragging a bar's end handle (keyboard) persists the age", async ({
   await signIn(page);
 
   const user = await signedInUser(db);
+  // A plan seeds from the most recent month period, so the starter sheet a new
+  // account is provisioned with has to go — it is more recent than the period
+  // seeded below, and carries no balance items to build assets from.
+  await clearStarterPeriods(db, user.id);
   const start = new Date(Date.UTC(2026, 0, 1));
   const end = new Date(Date.UTC(2026, 0, 31));
   await db.financialPeriod.create({
@@ -242,6 +255,10 @@ test("plan: create, edit assumptions/assets, and the data-loss guard holds", asy
   // Seed one month period with a balance ASSET + an income, so createPlan has
   // something to seed the plan from (an editable asset row + a verdict).
   const user = await signedInUser(db);
+  // A plan seeds from the most recent month period, so the starter sheet a new
+  // account is provisioned with has to go — it is more recent than the period
+  // seeded below, and carries no balance items to build assets from.
+  await clearStarterPeriods(db, user.id);
   const start = new Date(Date.UTC(2026, 0, 1));
   const end = new Date(Date.UTC(2026, 0, 31));
   await db.financialPeriod.create({

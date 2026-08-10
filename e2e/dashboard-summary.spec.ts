@@ -3,7 +3,13 @@
 // The dashboard leads with four figures rather than opening on a chart. These
 // need real data in a real browser: the values come from two months of seeded
 // periods, and the hydration check can only be made by loading the page.
-import { expect, signIn, signedInUser, test } from "./_helpers/fixtures";
+import {
+  clearStarterPeriods,
+  expect,
+  signIn,
+  signedInUser,
+  test,
+} from "./_helpers/fixtures";
 
 test.describe("Dashboard summary", () => {
   test.beforeEach(({ browserName }) => {
@@ -16,6 +22,10 @@ test.describe("Dashboard summary", () => {
   }) => {
     await signIn(page);
     const user = await signedInUser(db);
+    // These figures are derived from the latest recorded month, so the starter
+    // sheet a new account is provisioned with has to go: it is more recent than
+    // the fixture below and would be the month the KPIs report on.
+    await clearStarterPeriods(db, user.id);
     // Two months of budget + balance so the KPI row has a delta to show.
     for (const [i, m] of [
       [0, "2026-01"],
@@ -116,6 +126,10 @@ test.describe("Dashboard summary", () => {
   }) => {
     await signIn(page);
     const user = await signedInUser(db);
+    // These figures are derived from the latest recorded month, so the starter
+    // sheet a new account is provisioned with has to go: it is more recent than
+    // the fixture below and would be the month the KPIs report on.
+    await clearStarterPeriods(db, user.id);
     // Two months of budget + balance so the KPI row has a delta to show.
     for (const [i, m] of [
       [0, "2026-01"],
@@ -206,6 +220,10 @@ test.describe("Dashboard summary", () => {
 
     await signIn(page);
     const user = await signedInUser(db);
+    // These figures are derived from the latest recorded month, so the starter
+    // sheet a new account is provisioned with has to go: it is more recent than
+    // the fixture below and would be the month the KPIs report on.
+    await clearStarterPeriods(db, user.id);
     // Two months of budget + balance so the KPI row has a delta to show.
     for (const [i, m] of [
       [0, "2026-01"],
