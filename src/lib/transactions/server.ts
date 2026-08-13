@@ -249,6 +249,36 @@ export async function countUncategorized(userId: string): Promise<number> {
   });
 }
 
+// Signed transaction amounts per category in a date range, for overlaying
+// computed actuals onto budget rows (via netActual). Categories with no
+// transactions are simply absent from the map.
+export async function getAmountsByCategory(
+  userId: string,
+  categoryIds: string[],
+  start: Date,
+  end: Date,
+): Promise<Map<string, number[]>> {
+  const amounts = new Map<string, number[]>();
+  if (categoryIds.length === 0) return amounts;
+
+  const txns = await prisma.transaction.findMany({
+    where: {
+      userId,
+      deletedAt: null,
+      categoryId: { in: categoryIds },
+      date: { gte: start, lte: end },
+    },
+    select: { categoryId: true, amount: true },
+  });
+  for (const tx of txns) {
+    if (!tx.categoryId) continue;
+    const arr = amounts.get(tx.categoryId) ?? [];
+    arr.push(Number(tx.amount));
+    amounts.set(tx.categoryId, arr);
+  }
+  return amounts;
+}
+
 // Per-account transfer flow for a period: signed net plus counterparty
 // breakdown. Only transfer-tagged rows (transferAccountId set) participate, so
 // income/expense is untouched. The owning account keys each row (see

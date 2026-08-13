@@ -799,9 +799,7 @@ export function BudgetSheet({
                 targetMonth: month,
               });
         setPeriodState((prev) => ({ ...prev, id: result.periodId }));
-        // Copied rows aren't category-linked yet (carry categoryId forward is a
-        // follow-up); they show as unlinked until categorised.
-        setItems(result.items.map((it) => ({ ...it, categoryId: null })));
+        setItems(result.items);
         setFocusedCell(null);
         setLastSavedAt(new Date());
         setSaveError(null);

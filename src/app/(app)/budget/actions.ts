@@ -1,7 +1,7 @@
 "use server";
 
 import { randomUUID } from "node:crypto";
-import { buildCopiedItems } from "@/lib/budget/copyPeriod";
+import { buildCopiedItems, type CopiedItem } from "@/lib/budget/copyPeriod";
 import { ensurePeriodForMonthIn } from "@/lib/budget/ensurePeriod";
 import { currentMonthRange, monthRangeFor } from "@/lib/budget/period";
 import {
@@ -19,6 +19,8 @@ import {
   updateItemSchema,
 } from "@/lib/budget/schemas";
 import { prisma } from "@/lib/prisma";
+import { netActual } from "@/lib/transactions/actual";
+import { getAmountsByCategory } from "@/lib/transactions/server";
 import { createClient } from "@/lib/supabase/server";
 import type { FinancialItem } from "@prisma/client";
 import { redirect } from "next/navigation";
@@ -231,6 +233,7 @@ export async function copyPeriodFrom(input: CopyPeriodFromInput) {
       type: true,
       category: true,
       incomeCategory: true,
+      categoryId: true,
       label: true,
       budget: true,
       sortOrder: true,
@@ -254,6 +257,7 @@ export async function copyPeriodFrom(input: CopyPeriodFromInput) {
         type: it.type,
         category: it.category,
         incomeCategory: it.incomeCategory,
+        categoryId: it.categoryId,
         label: it.label,
         budget: it.budget,
         actual: it.actual,
@@ -262,7 +266,38 @@ export async function copyPeriodFrom(input: CopyPeriodFromInput) {
     }),
   ]);
 
-  return { periodId: target.id, items: copied };
+  return {
+    periodId: target.id,
+    items: await withComputedActuals(userId, copied, range),
+  };
+}
+
+// In transactions mode a row's actual is computed from its category's
+// transactions, not the stored column — mirror the budget page's overlay so
+// the client can adopt the returned rows without a refetch showing 0s.
+async function withComputedActuals(
+  userId: string,
+  items: CopiedItem[],
+  range: { startDate: Date; endDate: Date },
+): Promise<CopiedItem[]> {
+  const settings = await prisma.userSettings.findUnique({
+    where: { userId },
+    select: { transactionsEnabled: true },
+  });
+  if (!settings?.transactionsEnabled) return items;
+
+  const amounts = await getAmountsByCategory(
+    userId,
+    items.map((i) => i.categoryId).filter((id): id is string => id !== null),
+    range.startDate,
+    range.endDate,
+  );
+  return items.map((i) => ({
+    ...i,
+    actual: i.categoryId
+      ? netActual(amounts.get(i.categoryId) ?? [], i.type)
+      : 0,
+  }));
 }
 
 // Snapshot a month's rows into the user's reusable budget template, replacing
@@ -287,6 +322,7 @@ export async function saveBudgetTemplate(input: SaveBudgetTemplateInput) {
       type: true,
       category: true,
       incomeCategory: true,
+      categoryId: true,
       label: true,
       budget: true,
       sortOrder: true,
@@ -350,8 +386,15 @@ export async function copyBudgetTemplateInto(input: CopyBudgetTemplateInput) {
     range.label,
   );
 
+  // BudgetTemplateItem has no category link, so template-sourced rows start
+  // unlinked; the budget page's force-show materialises linked rows for any
+  // category with spend this month.
   const copied = buildCopiedItems(
-    templateItems.map((it) => ({ ...it, budget: Number(it.budget) })),
+    templateItems.map((it) => ({
+      ...it,
+      budget: Number(it.budget),
+      categoryId: null,
+    })),
     randomUUID,
   );
 

@@ -14,6 +14,7 @@ const src = (
   type: "EXPENSE",
   category: "FIXED",
   incomeCategory: null,
+  categoryId: null,
   label: id,
   budget: 100,
   sortOrder: 0,
@@ -32,6 +33,15 @@ describe("buildCopiedItems", () => {
     const copied = buildCopiedItems([src("a", { budget: 250 })], seqIds());
     expect(copied[0]?.budget).toBe(250);
     expect(copied[0]?.actual).toBe(0);
+  });
+
+  test("carries categoryId so transaction actuals stay attached", () => {
+    const copied = buildCopiedItems(
+      [src("linked", { categoryId: "cat-1" }), src("unlinked")],
+      seqIds(),
+    );
+    expect(copied[0]?.categoryId).toBe("cat-1");
+    expect(copied[1]?.categoryId).toBeNull();
   });
 
   test("keeps type, category, incomeCategory, label and sortOrder", () => {
