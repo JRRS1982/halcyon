@@ -89,9 +89,7 @@ describe("CategoryCombobox flat grouped list", () => {
     const input = openPopup();
 
     fireEvent.change(input, { target: { value: "sa" } });
-    expect(
-      screen.getByRole("option", { name: /salary/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /salary/i })).toBeInTheDocument();
     expect(
       screen.getByRole("option", { name: /savings/i }),
     ).toBeInTheDocument();

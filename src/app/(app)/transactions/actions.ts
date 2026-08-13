@@ -407,6 +407,45 @@ export async function bulkDeleteTransactions(
   return { deleted: result.count };
 }
 
+const bulkSetTransferSchema = z.object({
+  transactionIds: z.array(z.string().uuid()).min(1).max(500),
+  accountId: z.string().uuid(),
+});
+
+// Bulk form of setTransactionTransfer: tags many transactions as transfers to
+// the same counterparty account. Rows that belong to the target account are
+// skipped — a transfer to itself is meaningless — as is any id that isn't the
+// signed-in user's. Returns how many rows actually changed so the caller can
+// be honest about skips.
+export async function bulkSetTransactionTransfer(
+  input: z.input<typeof bulkSetTransferSchema>,
+): Promise<{ updated: number }> {
+  const userId = await requireTransactionsEnabled();
+  const { transactionIds, accountId } = bulkSetTransferSchema.parse(input);
+
+  const account = await prisma.account.findFirst({
+    where: { id: accountId, userId, deletedAt: null },
+    select: { id: true },
+  });
+  if (!account) throw new Error("Account not found");
+
+  const result = await prisma.transaction.updateMany({
+    where: {
+      id: { in: transactionIds },
+      userId,
+      deletedAt: null,
+      accountId: { not: accountId },
+    },
+    // Transfer and category are mutually exclusive — see setTransactionTransfer.
+    data: { transferAccountId: accountId, categoryId: null },
+  });
+
+  revalidatePath("/transactions");
+  revalidatePath("/budget");
+  revalidatePath("/dashboard");
+  return { updated: result.count };
+}
+
 const setTransferSchema = z.object({
   transactionId: z.string().uuid(),
   accountId: z.string().uuid(),
@@ -449,12 +488,12 @@ export async function setTransactionTransfer(
 }
 
 const createAccountAndTransferSchema = z.object({
-  transactionId: z.string().uuid(),
+  transactionIds: z.array(z.string().uuid()).min(1).max(500),
   name: z.string().trim().min(1).max(120),
 });
 
 // Creates an account inline from the ledger transfer picker (when the user has
-// none yet) and tags the transaction as a transfer to it, in one call.
+// none yet) and tags the transaction(s) as transfers to it, in one call.
 //
 // One action, not createAccount followed by setTransactionTransfer: the ledger
 // updated optimistically between the two, so a user who navigated in that gap
@@ -466,7 +505,7 @@ export async function createAccountAndTransfer(
   input: z.input<typeof createAccountAndTransferSchema>,
 ): Promise<{ id: string; name: string }> {
   const userId = await requireTransactionsEnabled();
-  const { transactionId, name } = createAccountAndTransferSchema.parse(input);
+  const { transactionIds, name } = createAccountAndTransferSchema.parse(input);
 
   const created = await prisma.$transaction(async (tx) => {
     const account = await tx.account.create({
@@ -474,20 +513,14 @@ export async function createAccountAndTransfer(
       select: { id: true, name: true },
     });
 
-    const transaction = await tx.transaction.findFirst({
-      where: { id: transactionId, userId, deletedAt: null },
-      select: { accountId: true },
-    });
-    if (!transaction) throw new Error("Transaction not found");
-    if (transaction.accountId === account.id) {
-      throw new Error("A transfer must be to a different account");
-    }
-
-    await tx.transaction.updateMany({
-      where: { id: transactionId, userId, deletedAt: null },
+    // A freshly-created account can't own any existing transaction, so no
+    // self-transfer check is needed here (unlike setTransactionTransfer).
+    const result = await tx.transaction.updateMany({
+      where: { id: { in: transactionIds }, userId, deletedAt: null },
       // Transfer and category are mutually exclusive — see setTransactionTransfer.
       data: { transferAccountId: account.id, categoryId: null },
     });
+    if (result.count === 0) throw new Error("Transaction not found");
 
     return account;
   });
@@ -500,7 +533,7 @@ export async function createAccountAndTransfer(
 }
 
 const createAndAssignCategorySchema = z.object({
-  transactionId: z.string().uuid(),
+  transactionIds: z.array(z.string().uuid()).min(1).max(500),
   label: z.string().trim().min(1).max(120),
   type: z.enum(["INCOME", "EXPENSE"]),
   // The budget section/bucket this category belongs to, so it can be placed on
@@ -508,9 +541,10 @@ const createAndAssignCategorySchema = z.object({
   bucket: z.string().nullable().optional(),
 });
 
-// Creates a category and assigns it to a transaction, in one call. The bucket
-// (section) is stored in `category` for expenses or `incomeCategory` for
-// income, mirroring how budget line items carry their section.
+// Creates a category and assigns it to the given transaction(s), in one call.
+// The bucket (section) is stored in `category` for expenses or
+// `incomeCategory` for income, mirroring how budget line items carry their
+// section.
 //
 // One action, not createCategory followed by setTransactionCategory: the ledger
 // showed the row as categorised as soon as the first returned, so a user who
@@ -522,7 +556,7 @@ export async function createAndAssignCategory(
   input: z.input<typeof createAndAssignCategorySchema>,
 ): Promise<LedgerCategory> {
   const userId = await requireTransactionsEnabled();
-  const { transactionId, label, type, bucket } =
+  const { transactionIds, label, type, bucket } =
     createAndAssignCategorySchema.parse(input);
   const { category, incomeCategory } = bucketFields(type, bucket);
 
@@ -539,7 +573,7 @@ export async function createAndAssignCategory(
     });
 
     const result = await tx.transaction.updateMany({
-      where: { id: transactionId, userId, deletedAt: null },
+      where: { id: { in: transactionIds }, userId, deletedAt: null },
       // Category and transfer are mutually exclusive — see setTransactionCategory.
       data: { categoryId: newCategory.id, transferAccountId: null },
     });

@@ -35,7 +35,7 @@ describe("createAndAssignCategory (integration)", () => {
     const { transaction } = await seedTransaction();
 
     const created = await createAndAssignCategory({
-      transactionId: transaction.id,
+      transactionIds: [transaction.id],
       label: "Coffee shops",
       type: "EXPENSE",
       bucket: "VARIABLE",
@@ -60,7 +60,7 @@ describe("createAndAssignCategory (integration)", () => {
     });
 
     await createAndAssignCategory({
-      transactionId: transaction.id,
+      transactionIds: [transaction.id],
       label: "Coffee shops",
       type: "EXPENSE",
       bucket: "VARIABLE",
@@ -92,7 +92,7 @@ describe("createAndAssignCategory (integration)", () => {
 
     await expect(
       createAndAssignCategory({
-        transactionId: theirs.id,
+        transactionIds: [theirs.id],
         label: "Sneaky",
         type: "EXPENSE",
         bucket: "VARIABLE",
@@ -114,7 +114,7 @@ describe("createAccountAndTransfer (integration)", () => {
     const { transaction } = await seedTransaction();
 
     const created = await createAccountAndTransfer({
-      transactionId: transaction.id,
+      transactionIds: [transaction.id],
       name: "Savings",
     });
 
@@ -143,7 +143,7 @@ describe("createAccountAndTransfer (integration)", () => {
     });
 
     await expect(
-      createAccountAndTransfer({ transactionId: theirs.id, name: "Sneaky" }),
+      createAccountAndTransfer({ transactionIds: [theirs.id], name: "Sneaky" }),
     ).rejects.toThrow(/Transaction not found/);
 
     expect(

@@ -171,6 +171,13 @@ type Props = {
   defaultType: "EXPENSE" | "INCOME";
   transfersEnabled: boolean;
   disabled?: boolean;
+  // Trigger text when nothing is chosen; defaults to "— Uncategorized —".
+  placeholder?: string;
+  // Offer the "— Uncategorized —" clear option even when value is null (the
+  // bulk bar always shows it: a mixed selection can still be cleared).
+  alwaysClearable?: boolean;
+  // Accessible name for the trigger button (e.g. the bulk bar's purpose).
+  triggerLabel?: string;
   onSelect: (categoryId: string | null) => void;
   onCreate: (input: NewCategoryInput) => void;
   onTransfer: (accountId: string) => void;
@@ -201,6 +208,9 @@ export function CategoryCombobox({
   defaultType,
   transfersEnabled,
   disabled,
+  placeholder = "— Uncategorized —",
+  alwaysClearable = false,
+  triggerLabel,
   onSelect,
   onCreate,
   onTransfer,
@@ -287,7 +297,7 @@ export function CategoryCombobox({
     {
       heading: null,
       options:
-        value !== null
+        value !== null || alwaysClearable
           ? [
               {
                 key: "__clear__",
@@ -413,6 +423,7 @@ export function CategoryCombobox({
       <Trigger
         type="button"
         disabled={disabled}
+        aria-label={triggerLabel}
         onClick={() => setOpen((o) => !o)}
       >
         {current ? (
@@ -424,7 +435,7 @@ export function CategoryCombobox({
             <Muted>Transfer {transferWord}</Muted> {transferAccount.name}
           </>
         ) : (
-          <Muted>— Uncategorized —</Muted>
+          <Muted>{placeholder}</Muted>
         )}
       </Trigger>
 

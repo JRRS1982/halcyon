@@ -9,12 +9,12 @@ import {
 } from "@/lib/dashboard/series";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserSettings } from "@/lib/settings/server";
+import { getCurrentUser } from "@/lib/supabase/user";
 import {
   amountsByMonthAndCategory,
   monthCategoryKey,
   netActual,
 } from "@/lib/transactions/actual";
-import { getCurrentUser } from "@/lib/supabase/user";
 import { redirect } from "next/navigation";
 import { DashboardView } from "./DashboardView";
 
@@ -79,7 +79,13 @@ export default async function DashboardPage() {
           })
         ).flatMap((t) =>
           t.categoryId
-            ? [{ categoryId: t.categoryId, amount: Number(t.amount), date: t.date }]
+            ? [
+                {
+                  categoryId: t.categoryId,
+                  amount: Number(t.amount),
+                  date: t.date,
+                },
+              ]
             : [],
         ),
       )
