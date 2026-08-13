@@ -26,6 +26,13 @@ test.describe("Dashboard summary", () => {
     // sheet a new account is provisioned with has to go: it is more recent than
     // the fixture below and would be the month the KPIs report on.
     await clearStarterPeriods(db, user.id);
+    // The fixture types actuals straight into the sheet — a manual-mode user.
+    // With transactions on (the default), actuals are computed from
+    // transactions instead and the stored column would read as £0 everywhere.
+    await db.userSettings.update({
+      where: { userId: user.id },
+      data: { transactionsEnabled: false },
+    });
     // Two months of budget + balance so the KPI row has a delta to show.
     for (const [i, m] of [
       [0, "2026-01"],
