@@ -110,6 +110,29 @@ describe("guessMapping", () => {
     expect(guess.hasHeader).toBe(true);
     expect(["DMY", "MDY", "YMD"]).toContain(guess.dateFormat);
   });
+
+  test("keeps every unmapped column by default", () => {
+    const guess = guessMapping([
+      "Date",
+      "Description",
+      "Amount",
+      "Type",
+      "Reference",
+    ]);
+    expect(guess.extraColumns).toEqual([3, 4]);
+  });
+
+  test("keeps no columns when the core three cover the file", () => {
+    const guess = guessMapping(["Date", "Description", "Amount"]);
+    expect(guess.extraColumns).toEqual([]);
+  });
+
+  test("caps the kept columns at the import limit on very wide files", () => {
+    const headers = Array.from({ length: 30 }, (_, i) => `col${i}`);
+    const guess = guessMapping(headers);
+    expect(guess.extraColumns).toHaveLength(20);
+    expect(guess.extraColumns?.[0]).toBe(3);
+  });
 });
 
 describe("mapRows extra columns", () => {

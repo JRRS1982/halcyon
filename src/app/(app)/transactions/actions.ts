@@ -5,7 +5,11 @@ import { cleanLabel } from "@/lib/categories/normalize";
 import { prisma } from "@/lib/prisma";
 import { requireTransactionsEnabled } from "@/lib/settings/server";
 import { transactionFingerprint } from "@/lib/transactions/dedupe";
-import { type ColumnMapping, mapRows } from "@/lib/transactions/import";
+import {
+  type ColumnMapping,
+  MAX_EXTRA_COLUMNS,
+  mapRows,
+} from "@/lib/transactions/import";
 import { MAX_IMPORT_ROWS } from "@/lib/transactions/limits";
 import type { LedgerCategory } from "@/lib/transactions/server";
 import { revalidatePath } from "next/cache";
@@ -17,7 +21,10 @@ const mappingSchema = z.object({
   descriptionColumn: z.number().int().min(0),
   dateFormat: z.enum(["DMY", "MDY", "YMD"]),
   hasHeader: z.boolean(),
-  extraColumns: z.array(z.number().int().min(0)).max(20).optional(),
+  extraColumns: z
+    .array(z.number().int().min(0))
+    .max(MAX_EXTRA_COLUMNS)
+    .optional(),
 });
 
 const importSchema = z.object({
