@@ -63,8 +63,19 @@ const List = styled.ul`
   list-style: none;
   margin: 0;
   padding: 0;
-  max-height: 220px;
+  max-height: 260px;
   overflow-y: auto;
+`;
+
+const GroupHeading = styled.li`
+  padding: ${({ theme }) => theme.spacing.xs}
+    ${({ theme }) => theme.spacing.md};
+  font-family: ${({ theme }) => theme.typography.bodyMd.family};
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: ${({ theme }) => theme.colors.dim};
+  background: ${({ theme }) => theme.colors.canvasSoft};
 `;
 
 const Option = styled.li<{ $active?: boolean }>`
@@ -83,6 +94,21 @@ const Option = styled.li<{ $active?: boolean }>`
   &:hover {
     background: ${({ theme }) => theme.colors.canvasSoft};
   }
+`;
+
+// One colour per option kind, so the eye can split income / spend / transfers
+// without reading the metadata column.
+export type OptionTone = "income" | "expense" | "transfer";
+
+const OptionLabel = styled.span<{ $tone?: OptionTone }>`
+  color: ${({ $tone, theme }) =>
+    $tone === "income"
+      ? theme.colors.positive
+      : $tone === "expense"
+        ? theme.colors.negative
+        : $tone === "transfer"
+          ? theme.colors.accent
+          : theme.colors.ink};
 `;
 
 const OptionMeta = styled.span`
@@ -139,6 +165,8 @@ type Props = {
   accounts: LedgerAccount[];
   value: string | null;
   transferAccountId: string | null;
+  // Account(s) the shown transaction(s) belong to; excluded as transfer
+  // targets for a single row, kept but skipped server-side for bulk.
   ownAccountId: string;
   defaultType: "EXPENSE" | "INCOME";
   transfersEnabled: boolean;
@@ -148,6 +176,21 @@ type Props = {
   onTransfer: (accountId: string) => void;
   onCreateAccount: (name: string) => void;
 };
+
+// A row the keyboard can land on, in render order. `label`/`tone`/`meta`
+// drive the <Option> below; `run` is what Enter or a click does.
+type NavOption = {
+  key: string;
+  label: React.ReactNode;
+  tone?: OptionTone;
+  meta?: string;
+  run: () => void;
+};
+
+const byLabel = (a: { label: string }, b: { label: string }) =>
+  a.label.localeCompare(b.label);
+const byName = (a: { name: string }, b: { name: string }) =>
+  a.name.localeCompare(b.name);
 
 export function CategoryCombobox({
   categories,
@@ -164,7 +207,6 @@ export function CategoryCombobox({
   onCreateAccount,
 }: Props) {
   const [open, setOpen] = useState(false);
-  const [panel, setPanel] = useState<"category" | "transfer">("category");
   const [query, setQuery] = useState("");
   // Index into the keyboard-navigable options below; -1 means none highlighted.
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -177,27 +219,32 @@ export function CategoryCombobox({
   const transferAccount =
     accounts.find((a) => a.id === transferAccountId) ?? null;
   const trimmed = query.trim();
-  const matches = trimmed
-    ? categories.filter((c) =>
-        c.label.toLowerCase().includes(trimmed.toLowerCase()),
-      )
+  const needle = trimmed.toLowerCase();
+
+  const matching = trimmed
+    ? categories.filter((c) => c.label.toLowerCase().includes(needle))
     : categories;
-  const exact = categories.some(
-    (c) => c.label.toLowerCase() === trimmed.toLowerCase(),
-  );
+  const incomeMatches = matching
+    .filter((c) => c.type === "INCOME")
+    .sort(byLabel);
+  const expenseMatches = matching
+    .filter((c) => c.type === "EXPENSE")
+    .sort(byLabel);
+  const exact = categories.some((c) => c.label.toLowerCase() === needle);
   const canCreate = trimmed.length > 0 && !exact;
 
-  // Transfer panel: pickable accounts exclude the transaction's own account.
-  const transferable = accounts.filter((a) => a.id !== ownAccountId);
+  // Transfer targets exclude the transaction's own account.
+  const transferable = transfersEnabled
+    ? accounts.filter((a) => a.id !== ownAccountId).sort(byName)
+    : [];
   const accountMatches = trimmed
-    ? transferable.filter((a) =>
-        a.name.toLowerCase().includes(trimmed.toLowerCase()),
-      )
+    ? transferable.filter((a) => a.name.toLowerCase().includes(needle))
     : transferable;
   const accountExact = transferable.some(
-    (a) => a.name.toLowerCase() === trimmed.toLowerCase(),
+    (a) => a.name.toLowerCase() === needle,
   );
-  const canCreateAccount = trimmed.length > 0 && !accountExact;
+  const canCreateAccount =
+    transfersEnabled && trimmed.length > 0 && !accountExact;
 
   const bucketOptions =
     newType === "EXPENSE" ? EXPENSE_BUCKETS : INCOME_BUCKETS;
@@ -216,7 +263,6 @@ export function CategoryCombobox({
 
   const close = () => {
     setOpen(false);
-    setPanel("category");
     setQuery("");
     setActiveIndex(-1);
   };
@@ -231,37 +277,75 @@ export function CategoryCombobox({
     close();
   };
 
-  const openTransferPanel = () => {
-    setPanel("transfer");
-    setQuery("");
-    setActiveIndex(-1);
-  };
+  // Sign decides the direction word: an outflow is a transfer "to" the other
+  // account, an inflow is a transfer "from" it.
+  const transferWord = defaultType === "EXPENSE" ? "to" : "from";
 
-  const backToCategories = () => {
-    setPanel("category");
-    setQuery("");
-    setActiveIndex(-1);
-  };
-
-  // Flat list of keyboard-navigable options, in render order. Indices here
-  // must line up with the ids assigned to <Option> elements below.
-  const navOptions: { run: () => void }[] =
-    panel === "category"
-      ? [
-          ...(value !== null ? [{ run: () => choose(null) }] : []),
-          ...(transfersEnabled ? [{ run: openTransferPanel }] : []),
-          ...matches.map((c) => ({ run: () => choose(c.id) })),
-        ]
-      : [
-          { run: backToCategories },
-          ...accountMatches.map((a) => ({ run: () => chooseAccount(a.id) })),
-        ];
-
-  // Index of the first option <Option> rendered for `matches` / the accounts.
-  const staticCount =
-    panel === "category"
-      ? (value !== null ? 1 : 0) + (transfersEnabled ? 1 : 0)
-      : 1;
+  // One flat list: clear, then the three colour-coded groups, each
+  // alphabetical, plus the inline create-account row when nothing matches.
+  const groups: { heading: string | null; options: NavOption[] }[] = [
+    {
+      heading: null,
+      options:
+        value !== null
+          ? [
+              {
+                key: "__clear__",
+                label: <span>— Uncategorized —</span>,
+                run: () => choose(null),
+              },
+            ]
+          : [],
+    },
+    {
+      heading: "Income",
+      options: incomeMatches.map((c) => ({
+        key: c.id,
+        label: <OptionLabel $tone="income">{c.label}</OptionLabel>,
+        meta: c.section,
+        run: () => choose(c.id),
+      })),
+    },
+    {
+      heading: "Expenses",
+      options: expenseMatches.map((c) => ({
+        key: c.id,
+        label: <OptionLabel $tone="expense">{c.label}</OptionLabel>,
+        meta: c.section,
+        run: () => choose(c.id),
+      })),
+    },
+    {
+      heading: "Transfers",
+      options: [
+        ...accountMatches.map((a) => ({
+          key: a.id,
+          label: <OptionLabel $tone="transfer">{a.name}</OptionLabel>,
+          meta: `transfer ${transferWord}`,
+          run: () => chooseAccount(a.id),
+        })),
+        ...(canCreateAccount
+          ? [
+              {
+                key: "__new_account__",
+                label: (
+                  <OptionLabel $tone="transfer">
+                    ＋ New account “{trimmed}”
+                  </OptionLabel>
+                ),
+                meta: `transfer ${transferWord}`,
+                run: () => {
+                  onCreateAccount(trimmed);
+                  close();
+                },
+              },
+            ]
+          : []),
+      ],
+    },
+  ];
+  const navOptions = groups.flatMap((g) => g.options);
+  const nothingMatches = navOptions.length === 0;
 
   const onSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
@@ -281,13 +365,14 @@ export function CategoryCombobox({
         active.run();
         return;
       }
-      // No highlight: a typed query commits its first match, otherwise the
-      // popup just closes.
-      if (trimmed && panel === "category" && matches[0]) {
-        choose(matches[0].id);
+      // No highlight: a typed query commits its first match — categories
+      // before transfer accounts — otherwise the popup just closes.
+      const first = incomeMatches[0] ?? expenseMatches[0];
+      if (trimmed && first) {
+        choose(first.id);
         return;
       }
-      if (trimmed && panel === "transfer" && accountMatches[0]) {
+      if (trimmed && accountMatches[0]) {
         chooseAccount(accountMatches[0].id);
         return;
       }
@@ -315,14 +400,9 @@ export function CategoryCombobox({
     close();
   };
 
-  const submitCreateAccount = () => {
-    onCreateAccount(trimmed);
-    close();
-  };
-
-  // Sign decides the direction word: an outflow is a transfer "to" the other
-  // account, an inflow is a transfer "from" it.
-  const transferWord = defaultType === "EXPENSE" ? "to" : "from";
+  // Options are rendered per group but keyboard-indexed across the whole
+  // list, so ids must advance with a running offset.
+  let renderedIndex = -1;
 
   return (
     <Wrap
@@ -360,172 +440,98 @@ export function CategoryCombobox({
             aria-activedescendant={
               activeIndex >= 0 ? `${listboxId}-opt-${activeIndex}` : undefined
             }
-            placeholder={
-              panel === "transfer"
-                ? "Search or create an account…"
-                : "Type to search or create…"
-            }
+            placeholder="Type to search or create…"
             onChange={(e) => {
               setQuery(e.target.value);
               setActiveIndex(-1);
-              if (panel === "category") startCreate();
+              startCreate();
             }}
             onKeyDown={onSearchKeyDown}
           />
 
-          {panel === "category" ? (
-            <>
-              {/* biome-ignore lint/a11y/useSemanticElements: WAI-ARIA combobox pattern; a native <select> cannot host the search/create UI */}
-              <List id={listboxId} role="listbox">
-                {value !== null && (
-                  <Option
-                    id={`${listboxId}-opt-0`}
-                    // biome-ignore lint/a11y/useSemanticElements: WAI-ARIA combobox pattern; a native <select> cannot host the search/create UI
-                    role="option"
-                    aria-selected={activeIndex === 0}
-                    $active={activeIndex === 0}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => choose(null)}
-                  >
-                    <span>— Uncategorized —</span>
-                  </Option>
-                )}
-                {transfersEnabled && (
-                  <Option
-                    id={`${listboxId}-opt-${value !== null ? 1 : 0}`}
-                    // biome-ignore lint/a11y/useSemanticElements: WAI-ARIA combobox pattern; a native <select> cannot host the search/create UI
-                    role="option"
-                    aria-selected={activeIndex === (value !== null ? 1 : 0)}
-                    $active={activeIndex === (value !== null ? 1 : 0)}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={openTransferPanel}
-                  >
-                    <span>Transfer ▸</span>
-                    <OptionMeta>to / from an account</OptionMeta>
-                  </Option>
-                )}
-                {matches.map((c, i) => (
-                  <Option
-                    key={c.id}
-                    id={`${listboxId}-opt-${staticCount + i}`}
-                    // biome-ignore lint/a11y/useSemanticElements: WAI-ARIA combobox pattern; a native <select> cannot host the search/create UI
-                    role="option"
-                    aria-selected={activeIndex === staticCount + i}
-                    $active={activeIndex === staticCount + i}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => choose(c.id)}
-                  >
-                    <span>{c.label}</span>
-                    <OptionMeta>
-                      {c.section} · {c.type === "INCOME" ? "in" : "out"}
-                    </OptionMeta>
-                  </Option>
-                ))}
-                {matches.length === 0 && !canCreate && (
-                  <Option as="li" style={{ cursor: "default" }}>
-                    <Muted>No matches</Muted>
-                  </Option>
-                )}
-              </List>
+          {/* biome-ignore lint/a11y/useSemanticElements: WAI-ARIA combobox pattern; a native <select> cannot host the search/create UI */}
+          <List id={listboxId} role="listbox">
+            {groups.map((group) => {
+              if (group.options.length === 0) return null;
+              return (
+                <li key={group.heading ?? "__top__"} role="presentation">
+                  <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+                    {group.heading && (
+                      <GroupHeading role="presentation">
+                        {group.heading}
+                      </GroupHeading>
+                    )}
+                    {group.options.map((option) => {
+                      renderedIndex += 1;
+                      const index = renderedIndex;
+                      return (
+                        <Option
+                          key={option.key}
+                          id={`${listboxId}-opt-${index}`}
+                          // biome-ignore lint/a11y/useSemanticElements: WAI-ARIA combobox pattern; a native <select> cannot host the search/create UI
+                          role="option"
+                          aria-selected={activeIndex === index}
+                          $active={activeIndex === index}
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={option.run}
+                        >
+                          {option.label}
+                          {option.meta && (
+                            <OptionMeta>{option.meta}</OptionMeta>
+                          )}
+                        </Option>
+                      );
+                    })}
+                  </ul>
+                </li>
+              );
+            })}
+            {nothingMatches && !canCreate && (
+              <Option as="li" style={{ cursor: "default" }}>
+                <Muted>No matches</Muted>
+              </Option>
+            )}
+          </List>
 
-              {canCreate && (
-                <CreatePanel>
-                  <span style={{ fontSize: 13 }}>
-                    Create <strong>“{trimmed}”</strong> in:
-                  </span>
-                  <CreateLine>
-                    <MiniSelect
-                      value={newType}
-                      onChange={(e) => {
-                        const t = e.target.value as "EXPENSE" | "INCOME";
-                        setNewType(t);
-                        setNewBucket(
-                          (t === "EXPENSE"
-                            ? EXPENSE_BUCKETS
-                            : INCOME_BUCKETS)[0].value,
-                        );
-                      }}
-                    >
-                      <option value="EXPENSE">Expense</option>
-                      <option value="INCOME">Income</option>
-                    </MiniSelect>
-                    <MiniSelect
-                      value={newBucket}
-                      onChange={(e) => setNewBucket(e.target.value)}
-                    >
-                      {bucketOptions.map((b) => (
-                        <option key={b.value} value={b.value}>
-                          {b.label}
-                        </option>
-                      ))}
-                    </MiniSelect>
-                  </CreateLine>
-                  <CreateButton
-                    type="button"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={submitCreate}
-                  >
-                    Create &amp; assign
-                  </CreateButton>
-                </CreatePanel>
-              )}
-            </>
-          ) : (
-            <>
-              {/* biome-ignore lint/a11y/useSemanticElements: WAI-ARIA combobox pattern; a native <select> cannot host the search/create UI */}
-              <List id={listboxId} role="listbox">
-                <Option
-                  id={`${listboxId}-opt-0`}
-                  // biome-ignore lint/a11y/useSemanticElements: WAI-ARIA combobox pattern; a native <select> cannot host the search/create UI
-                  role="option"
-                  aria-selected={activeIndex === 0}
-                  $active={activeIndex === 0}
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={backToCategories}
+          {canCreate && (
+            <CreatePanel>
+              <span style={{ fontSize: 13 }}>
+                Create <strong>“{trimmed}”</strong> in:
+              </span>
+              <CreateLine>
+                <MiniSelect
+                  value={newType}
+                  onChange={(e) => {
+                    const t = e.target.value as "EXPENSE" | "INCOME";
+                    setNewType(t);
+                    setNewBucket(
+                      (t === "EXPENSE" ? EXPENSE_BUCKETS : INCOME_BUCKETS)[0]
+                        .value,
+                    );
+                  }}
                 >
-                  <Muted>◂ Back to categories</Muted>
-                </Option>
-                {accountMatches.map((a, i) => (
-                  <Option
-                    key={a.id}
-                    id={`${listboxId}-opt-${1 + i}`}
-                    // biome-ignore lint/a11y/useSemanticElements: WAI-ARIA combobox pattern; a native <select> cannot host the search/create UI
-                    role="option"
-                    aria-selected={activeIndex === 1 + i}
-                    $active={activeIndex === 1 + i}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => chooseAccount(a.id)}
-                  >
-                    <span>{a.name}</span>
-                    <OptionMeta>{transferWord}</OptionMeta>
-                  </Option>
-                ))}
-                {accountMatches.length === 0 && !canCreateAccount && (
-                  <Option as="li" style={{ cursor: "default" }}>
-                    <Muted>
-                      {transferable.length === 0
-                        ? "No accounts yet — type a name to create one"
-                        : "No matches"}
-                    </Muted>
-                  </Option>
-                )}
-              </List>
-
-              {canCreateAccount && (
-                <CreatePanel>
-                  <span style={{ fontSize: 13 }}>
-                    Create account <strong>“{trimmed}”</strong>
-                  </span>
-                  <CreateButton
-                    type="button"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={submitCreateAccount}
-                  >
-                    Create &amp; assign
-                  </CreateButton>
-                </CreatePanel>
-              )}
-            </>
+                  <option value="EXPENSE">Expense</option>
+                  <option value="INCOME">Income</option>
+                </MiniSelect>
+                <MiniSelect
+                  value={newBucket}
+                  onChange={(e) => setNewBucket(e.target.value)}
+                >
+                  {bucketOptions.map((b) => (
+                    <option key={b.value} value={b.value}>
+                      {b.label}
+                    </option>
+                  ))}
+                </MiniSelect>
+              </CreateLine>
+              <CreateButton
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={submitCreate}
+              >
+                Create &amp; assign
+              </CreateButton>
+            </CreatePanel>
           )}
         </Popover>
       )}
