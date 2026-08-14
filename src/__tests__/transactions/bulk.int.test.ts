@@ -1,6 +1,7 @@
 import {
   bulkDeleteTransactions,
   bulkSetTransactionCategory,
+  bulkSetTransactionTransfer,
 } from "@/app/(app)/transactions/actions";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
@@ -121,6 +122,80 @@ describe("bulkSetTransactionCategory (integration)", () => {
         categoryId: foreignCat.id,
       }),
     ).rejects.toThrow("Category not found");
+  });
+});
+
+describe("bulkSetTransactionTransfer (integration)", () => {
+  test("tags every selected row as a transfer and clears categories", async () => {
+    const { cat, mine } = await seed();
+    await bulkSetTransactionCategory({
+      transactionIds: mine.map((t) => t.id),
+      categoryId: cat.id,
+    });
+    const counterparty = await prisma.account.create({
+      data: { userId: TEST_USER_ID, name: "Savings" },
+    });
+
+    const res = await bulkSetTransactionTransfer({
+      transactionIds: mine.map((t) => t.id),
+      accountId: counterparty.id,
+    });
+
+    expect(res.updated).toBe(3);
+    const rows = await prisma.transaction.findMany({
+      where: { userId: TEST_USER_ID },
+    });
+    expect(rows.every((t) => t.transferAccountId === counterparty.id)).toBe(
+      true,
+    );
+    expect(rows.every((t) => t.categoryId === null)).toBe(true);
+  });
+
+  test("skips rows that belong to the target account (self-transfer)", async () => {
+    const { account, mine } = await seed();
+
+    const res = await bulkSetTransactionTransfer({
+      transactionIds: mine.map((t) => t.id),
+      accountId: account.id,
+    });
+
+    expect(res.updated).toBe(0);
+    const rows = await prisma.transaction.findMany({
+      where: { userId: TEST_USER_ID },
+    });
+    expect(rows.every((t) => t.transferAccountId === null)).toBe(true);
+  });
+
+  test("skips transactions owned by another user", async () => {
+    const { theirs } = await seed();
+    const counterparty = await prisma.account.create({
+      data: { userId: TEST_USER_ID, name: "Savings" },
+    });
+
+    const res = await bulkSetTransactionTransfer({
+      transactionIds: [theirs.id],
+      accountId: counterparty.id,
+    });
+
+    expect(res.updated).toBe(0);
+    const row = await prisma.transaction.findUnique({
+      where: { id: theirs.id },
+    });
+    expect(row?.transferAccountId).toBeNull();
+  });
+
+  test("rejects an account belonging to another user", async () => {
+    const { mine } = await seed();
+    const foreignAccount = await prisma.account.create({
+      data: { userId: OTHER_USER_ID, name: "Theirs" },
+    });
+
+    await expect(
+      bulkSetTransactionTransfer({
+        transactionIds: mine.map((t) => t.id),
+        accountId: foreignAccount.id,
+      }),
+    ).rejects.toThrow("Account not found");
   });
 });
 

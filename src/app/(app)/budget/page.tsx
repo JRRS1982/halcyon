@@ -8,7 +8,10 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUserSettings } from "@/lib/settings/server";
 import { getCurrentUser } from "@/lib/supabase/user";
 import { netActual } from "@/lib/transactions/actual";
-import { getTransfersByAccount } from "@/lib/transactions/server";
+import {
+  getAmountsByCategory,
+  getTransfersByAccount,
+} from "@/lib/transactions/server";
 import type { TransferAccountRow } from "@/lib/transactions/transfers";
 import { redirect } from "next/navigation";
 import {
@@ -160,29 +163,17 @@ export default async function BudgetPage(props: PageProps) {
   // transactions in this month (see src/lib/transactions/actual.ts) rather than
   // the manually-typed value. The stored `actual` column is left untouched — we
   // only overlay the computed figure for display.
-  const amountsByCategory = new Map<string, number[]>();
-  if (transactionsEnabled && period) {
-    const categoryIds = items
-      .map((i) => i.categoryId)
-      .filter((id): id is string => id !== null);
-    if (categoryIds.length > 0) {
-      const txns = await prisma.transaction.findMany({
-        where: {
-          userId: user.id,
-          deletedAt: null,
-          categoryId: { in: categoryIds },
-          date: { gte: range.startDate, lte: range.endDate },
-        },
-        select: { categoryId: true, amount: true },
-      });
-      for (const tx of txns) {
-        if (!tx.categoryId) continue;
-        const arr = amountsByCategory.get(tx.categoryId) ?? [];
-        arr.push(Number(tx.amount));
-        amountsByCategory.set(tx.categoryId, arr);
-      }
-    }
-  }
+  const amountsByCategory =
+    transactionsEnabled && period
+      ? await getAmountsByCategory(
+          user.id,
+          items
+            .map((i) => i.categoryId)
+            .filter((id): id is string => id !== null),
+          range.startDate,
+          range.endDate,
+        )
+      : new Map<string, number[]>();
 
   const serializedItems: SerializedItem[] = items.map((i) => ({
     id: i.id,

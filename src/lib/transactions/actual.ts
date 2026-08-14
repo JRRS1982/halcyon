@@ -13,3 +13,32 @@ export function netActual(amounts: number[], type: ItemType): number {
   const rounded = Math.round(oriented * 100) / 100;
   return rounded === 0 ? 0 : rounded;
 }
+
+export type DatedCategoryAmount = {
+  categoryId: string;
+  amount: number;
+  date: Date;
+};
+
+// Key for one category's amounts within one calendar month. Both transaction
+// dates and period start dates resolve to the same key via the UTC month.
+export function monthCategoryKey(date: Date, categoryId: string): string {
+  return `${date.getUTCFullYear()}-${date.getUTCMonth()}:${categoryId}`;
+}
+
+// Buckets signed transaction amounts by (UTC month, category), so a multi-month
+// window can be overlaid onto budget rows with one query — each period's item
+// looks up monthCategoryKey(period.startDate, item.categoryId) and feeds the
+// amounts to netActual.
+export function amountsByMonthAndCategory(
+  txns: DatedCategoryAmount[],
+): Map<string, number[]> {
+  const grouped = new Map<string, number[]>();
+  for (const tx of txns) {
+    const key = monthCategoryKey(tx.date, tx.categoryId);
+    const arr = grouped.get(key) ?? [];
+    arr.push(tx.amount);
+    grouped.set(key, arr);
+  }
+  return grouped;
+}

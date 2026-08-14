@@ -9,6 +9,9 @@ export type CopyableItem = {
     | "PENSIONS"
     | "OTHER"
     | null;
+  // Link to the user's Category, when the source row has one. Carrying it
+  // over is what keeps transaction-computed actuals attached to the copy.
+  categoryId: string | null;
   label: string;
   budget: number;
   sortOrder: number;
@@ -28,6 +31,7 @@ export function buildCopiedItems(
     type: item.type,
     category: item.category,
     incomeCategory: item.incomeCategory,
+    categoryId: item.categoryId,
     label: item.label,
     budget: item.budget,
     actual: 0,

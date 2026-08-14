@@ -10,6 +10,11 @@ import {
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserSettings } from "@/lib/settings/server";
 import { getCurrentUser } from "@/lib/supabase/user";
+import {
+  amountsByMonthAndCategory,
+  monthCategoryKey,
+  netActual,
+} from "@/lib/transactions/actual";
 import { redirect } from "next/navigation";
 import { DashboardView } from "./DashboardView";
 
@@ -25,7 +30,7 @@ export default async function DashboardPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/sign-in?next=/dashboard");
 
-  const { currency, numberFormat, hiddenCharts } =
+  const { currency, numberFormat, hiddenCharts, transactionsEnabled } =
     await getCurrentUserSettings();
 
   const now = currentMonthRange();
@@ -55,6 +60,52 @@ export default async function DashboardPage() {
     `${MONTH_LABELS_SHORT[date.getUTCMonth()]} ${String(
       date.getUTCFullYear(),
     ).slice(2)}`;
+
+  // In transactions mode the stored `actual` column is dead data — the budget
+  // page computes actuals from transactions as a display overlay and never
+  // writes them back. Mirror that overlay here (one query for the whole
+  // window) so every chart reports what was actually spent and received.
+  const txAmounts = transactionsEnabled
+    ? amountsByMonthAndCategory(
+        (
+          await prisma.transaction.findMany({
+            where: {
+              userId: user.id,
+              deletedAt: null,
+              categoryId: { not: null },
+              date: { gte: windowStart },
+            },
+            select: { categoryId: true, amount: true, date: true },
+          })
+        ).flatMap((t) =>
+          t.categoryId
+            ? [
+                {
+                  categoryId: t.categoryId,
+                  amount: Number(t.amount),
+                  date: t.date,
+                },
+              ]
+            : [],
+        ),
+      )
+    : new Map<string, number[]>();
+
+  type OverlayableItem = {
+    type: "INCOME" | "EXPENSE";
+    categoryId: string | null;
+    actual: unknown;
+  };
+  const actualFor = (periodStart: Date, item: OverlayableItem): number =>
+    transactionsEnabled
+      ? netActual(
+          item.categoryId
+            ? (txAmounts.get(monthCategoryKey(periodStart, item.categoryId)) ??
+                [])
+            : [],
+          item.type,
+        )
+      : Number(item.actual);
 
   // ─── Balance series: one point per month that has balance data ────────────
   const balanceSums: BalanceSums[] = [];
@@ -107,7 +158,7 @@ export default async function DashboardPage() {
         id: i.id,
         type: i.type,
         budget: Number(i.budget),
-        actual: Number(i.actual),
+        actual: actualFor(p.startDate, i),
       })),
     );
     const cat = {
@@ -158,7 +209,7 @@ export default async function DashboardPage() {
         id: i.id,
         type: i.type,
         budget: Number(i.budget),
-        actual: Number(i.actual),
+        actual: actualFor(p.startDate, i),
       })),
     );
 

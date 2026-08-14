@@ -15,12 +15,13 @@ import type {
 } from "@/lib/transactions/server";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Fragment, useEffect, useState, useTransition } from "react";
+import { Fragment, useEffect, useRef, useState, useTransition } from "react";
 import styled from "styled-components";
 import { CategoryCombobox, type NewCategoryInput } from "./CategoryCombobox";
 import {
   bulkDeleteTransactions,
   bulkSetTransactionCategory,
+  bulkSetTransactionTransfer,
   createAccountAndTransfer,
   createAndAssignCategory,
   setTransactionCategory,
@@ -349,21 +350,6 @@ const BulkCount = styled.span<{ $idle: boolean }>`
   color: ${({ $idle, theme }) => ($idle ? theme.colors.dim : theme.colors.body)};
 `;
 
-const BulkSelect = styled.select`
-  padding: ${({ theme }) => theme.spacing.sm}
-    ${({ theme }) => theme.spacing.md};
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  background: ${({ theme }) => theme.colors.canvas};
-  font-family: ${({ theme }) => theme.typography.bodyMd.family};
-  font-size: 13px;
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-`;
-
 // Destructive per DESIGN.md: outline with red text, never one-click.
 const DangerButton = styled.button`
   padding: ${({ theme }) => theme.spacing.sm}
@@ -488,6 +474,7 @@ export function Ledger({
   const [accounts, setAccounts] = useState(initialAccounts);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
   // Which row's detail panel (kept import columns + editable note) is open.
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
@@ -610,7 +597,10 @@ export function Ledger({
 
   const onCreateAccountAndTransfer = (transactionId: string, name: string) => {
     startTransition(async () => {
-      const created = await createAccountAndTransfer({ transactionId, name });
+      const created = await createAccountAndTransfer({
+        transactionIds: [transactionId],
+        name,
+      });
       setAccounts((prev) =>
         [...prev, created].sort((a, b) => a.name.localeCompare(b.name)),
       );
@@ -624,7 +614,7 @@ export function Ledger({
   ) => {
     startTransition(async () => {
       const created = await createAndAssignCategory({
-        transactionId,
+        transactionIds: [transactionId],
         ...input,
       });
       setCategories((prev) =>
@@ -658,11 +648,19 @@ export function Ledger({
       allOnPageSelected ? new Set() : new Set(items.map((t) => t.id)),
     );
 
+  // The categorize-select-categorize loop: once a batch is categorised, clear
+  // the search and put the cursor back in it so the next merchant can be
+  // typed straight away.
+  const resetSearchForNextBatch = () => {
+    setSearch("");
+    runSearch("");
+    searchRef.current?.focus();
+  };
+
   // Applies a category to every selected row, optimistically, then commits in
   // one server round-trip. Mirrors the single-row behaviour under the
   // "uncategorized only" filter: newly categorised rows leave the list.
-  const onBulkCategorise = (value: string) => {
-    const categoryId = value === "__clear__" ? null : value;
+  const onBulkCategorise = (categoryId: string | null) => {
     const ids = Array.from(selected);
     setItems((prev) =>
       onlyUncategorized && categoryId !== null
@@ -677,6 +675,86 @@ export function Ledger({
     startTransition(async () => {
       await bulkSetTransactionCategory({ transactionIds: ids, categoryId });
     });
+    resetSearchForNextBatch();
+  };
+
+  // Tags every selected row as a transfer to `accountId`, optimistically.
+  // Rows that belong to the target account are left untouched — the server
+  // skips them too (a transfer to itself is meaningless).
+  const onBulkTransfer = (accountId: string) => {
+    const ids = items
+      .filter((t) => selected.has(t.id) && t.accountId !== accountId)
+      .map((t) => t.id);
+    const changed = new Set(ids);
+    setItems((prev) =>
+      onlyUncategorized
+        ? prev.filter((t) => !changed.has(t.id))
+        : prev.map((t) =>
+            changed.has(t.id)
+              ? { ...t, transferAccountId: accountId, categoryId: null }
+              : t,
+          ),
+    );
+    setSelected(new Set());
+    if (ids.length > 0) {
+      startTransition(async () => {
+        await bulkSetTransactionTransfer({ transactionIds: ids, accountId });
+      });
+    }
+    resetSearchForNextBatch();
+  };
+
+  // Bulk mirrors of the combobox's create affordances: one action creates the
+  // category/account and tags the whole selection.
+  const onBulkCreateAndAssign = (input: NewCategoryInput) => {
+    const ids = Array.from(selected);
+    setSelected(new Set());
+    startTransition(async () => {
+      const created = await createAndAssignCategory({
+        transactionIds: ids,
+        ...input,
+      });
+      setCategories((prev) =>
+        [...prev, created].sort(
+          (a, b) =>
+            a.type.localeCompare(b.type) || a.label.localeCompare(b.label),
+        ),
+      );
+      setItems((prev) =>
+        onlyUncategorized
+          ? prev.filter((t) => !ids.includes(t.id))
+          : prev.map((t) =>
+              ids.includes(t.id)
+                ? { ...t, categoryId: created.id, transferAccountId: null }
+                : t,
+            ),
+      );
+    });
+    resetSearchForNextBatch();
+  };
+
+  const onBulkCreateAccountAndTransfer = (name: string) => {
+    const ids = Array.from(selected);
+    setSelected(new Set());
+    startTransition(async () => {
+      const created = await createAccountAndTransfer({
+        transactionIds: ids,
+        name,
+      });
+      setAccounts((prev) =>
+        [...prev, created].sort((a, b) => a.name.localeCompare(b.name)),
+      );
+      setItems((prev) =>
+        onlyUncategorized
+          ? prev.filter((t) => !ids.includes(t.id))
+          : prev.map((t) =>
+              ids.includes(t.id)
+                ? { ...t, transferAccountId: created.id, categoryId: null }
+                : t,
+            ),
+      );
+    });
+    resetSearchForNextBatch();
   };
 
   const toggleExpanded = (tx: LedgerTransaction) => {
@@ -733,6 +811,7 @@ export function Ledger({
           Uncategorized only
         </Toggle>
         <Search
+          ref={searchRef}
           value={search}
           onChange={(e) => onSearch(e.target.value)}
           placeholder="Search description…"
@@ -748,22 +827,25 @@ export function Ledger({
               ? `${selected.size} selected`
               : "Select rows to categorize or delete"}
           </BulkCount>
-          <BulkSelect
-            value=""
+          <CategoryCombobox
+            categories={categories}
+            accounts={accounts}
+            value={null}
+            transferAccountId={null}
+            // Bulk selections can span accounts, so no account is excluded
+            // here; the server skips any row already owned by the target.
+            ownAccountId=""
+            defaultType="EXPENSE"
+            transfersEnabled={transfersEnabled}
             disabled={!hasSelection}
-            onChange={(e) => onBulkCategorise(e.target.value)}
-            aria-label="Set category for selected transactions"
-          >
-            <option value="" disabled>
-              Set category…
-            </option>
-            <option value="__clear__">— Uncategorized —</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.label} · {c.section}
-              </option>
-            ))}
-          </BulkSelect>
+            placeholder="Set category…"
+            alwaysClearable
+            triggerLabel="Set category for selected transactions"
+            onSelect={onBulkCategorise}
+            onCreate={onBulkCreateAndAssign}
+            onTransfer={onBulkTransfer}
+            onCreateAccount={onBulkCreateAccountAndTransfer}
+          />
           <DangerButton
             type="button"
             disabled={!hasSelection}

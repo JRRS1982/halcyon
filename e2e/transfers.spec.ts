@@ -60,15 +60,14 @@ test.describe("transfers journey", () => {
     await page.getByRole("button", { name: /Import 1 transaction/ }).click();
     await expect(page.getByText(/Imported 1/)).toBeVisible();
 
-    // Tag the row as a transfer: open the combobox → Transfer ▸ → pick the
-    // counterparty account.
+    // Tag the row as a transfer: open the combobox and pick the counterparty
+    // from the inline Transfers group.
     const row = page.locator("tr", { hasText: description });
     await row.getByRole("button", { name: /Uncategorized/ }).click();
     // The combobox popover is rendered inside the row, so scope to it — the
     // counterparty name also appears as an <option> in the import account select.
-    await row.getByText("Transfer ▸").click();
     await withServerAction(page, () =>
-      row.getByText(counterparty, { exact: true }).click(),
+      row.getByRole("option", { name: counterparty }).click(),
     );
     await expect(row.getByText(/Transfer (to|from)/)).toBeVisible();
 

@@ -6,6 +6,7 @@ import {
   signIn,
   signedInUser,
   test,
+  withServerAction,
 } from "./_helpers/fixtures";
 
 // Acceptance tests for the mortgage liability <-> repayment-expense link
@@ -153,9 +154,14 @@ test("plan: deleting a liability cascades — its linked repayment expense disap
   await seedAndCreatePlan(page, db);
   const drawer = await addMortgage(page);
 
-  await drawer
-    .getByRole("button", { name: /track repayment as an expense/i })
-    .click();
+  // Wrapped so the link's revalidation fully lands before the next click —
+  // a re-render arriving mid-click swallows it and the drawer never reopens
+  // (fails on firefox under full-suite load).
+  await withServerAction(page, () =>
+    drawer
+      .getByRole("button", { name: /track repayment as an expense/i })
+      .click(),
+  );
   await expect(drawer.getByText(/repayment managed by/i)).toBeVisible();
   await page.keyboard.press("Escape");
 

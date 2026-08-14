@@ -3,20 +3,22 @@ import { theme } from "@/lib/theme";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { ThemeProvider } from "styled-components";
 
+// Deliberately unsorted so the alphabetical-within-group ordering is asserted,
+// not inherited from the fixture.
 const categories = [
+  { id: "c2", label: "Rent", type: "EXPENSE" as const, section: "Fixed" },
   {
     id: "c1",
     label: "Groceries",
     type: "EXPENSE" as const,
     section: "Variable",
   },
-  { id: "c2", label: "Rent", type: "EXPENSE" as const, section: "Fixed" },
-  { id: "c3", label: "Salary", type: "INCOME" as const, section: "Income" },
+  { id: "c3", label: "Salary", type: "INCOME" as const, section: "Pay" },
 ];
 
 const accounts = [
-  { id: "a1", name: "Current" },
   { id: "a2", name: "Savings" },
+  { id: "a1", name: "Current" },
 ];
 
 const renderit = (overrides: Record<string, unknown> = {}) => {
@@ -48,10 +50,66 @@ const openPopup = () => {
   return screen.getByRole("combobox");
 };
 
+describe("CategoryCombobox flat grouped list", () => {
+  test("renders income, expenses then transfers as one list with headings", () => {
+    renderit({ transfersEnabled: true });
+    openPopup();
+
+    expect(screen.getByText("Income")).toBeInTheDocument();
+    expect(screen.getByText("Expenses")).toBeInTheDocument();
+    expect(screen.getByText("Transfers")).toBeInTheDocument();
+
+    const options = screen.getAllByRole("option").map((o) => o.textContent);
+    // Income first, then expenses alphabetical, then the other accounts.
+    expect(options[0]).toMatch(/salary/i);
+    expect(options[1]).toMatch(/groceries/i);
+    expect(options[2]).toMatch(/rent/i);
+    expect(options[3]).toMatch(/savings/i);
+  });
+
+  test("transfer group excludes the transaction's own account", () => {
+    renderit({ transfersEnabled: true });
+    openPopup();
+    expect(
+      screen.queryByRole("option", { name: /current/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  test("no transfer group when transfers are disabled", () => {
+    renderit();
+    openPopup();
+    expect(screen.queryByText("Transfers")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("option", { name: /savings/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  test("typing filters categories and accounts together", () => {
+    renderit({ transfersEnabled: true });
+    const input = openPopup();
+
+    fireEvent.change(input, { target: { value: "sa" } });
+    expect(screen.getByRole("option", { name: /salary/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("option", { name: /savings/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("option", { name: /rent/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Expenses")).not.toBeInTheDocument();
+  });
+});
+
 describe("CategoryCombobox keyboard navigation", () => {
-  test("ArrowDown moves the active option through the list and wraps", () => {
+  test("ArrowDown moves through the grouped list in order and wraps", () => {
     renderit();
     const input = openPopup();
+
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    expect(screen.getByRole("option", { name: /salary/i })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
 
     fireEvent.keyDown(input, { key: "ArrowDown" });
     expect(screen.getByRole("option", { name: /groceries/i })).toHaveAttribute(
@@ -65,27 +123,26 @@ describe("CategoryCombobox keyboard navigation", () => {
       "true",
     );
 
-    // Two more presses wrap past the last option back to the first.
+    // One more press wraps past the last option back to the first.
     fireEvent.keyDown(input, { key: "ArrowDown" });
-    fireEvent.keyDown(input, { key: "ArrowDown" });
-    expect(screen.getByRole("option", { name: /groceries/i })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
-  });
-
-  test("ArrowUp from no selection jumps to the last option", () => {
-    renderit();
-    const input = openPopup();
-
-    fireEvent.keyDown(input, { key: "ArrowUp" });
     expect(screen.getByRole("option", { name: /salary/i })).toHaveAttribute(
       "aria-selected",
       "true",
     );
   });
 
-  test("Enter commits the highlighted option and closes the popup", () => {
+  test("ArrowUp from no selection jumps to the last option", () => {
+    renderit({ transfersEnabled: true });
+    const input = openPopup();
+
+    fireEvent.keyDown(input, { key: "ArrowUp" });
+    expect(screen.getByRole("option", { name: /savings/i })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
+
+  test("Enter commits the highlighted category and closes the popup", () => {
     const { onSelect } = renderit();
     const input = openPopup();
 
@@ -93,7 +150,18 @@ describe("CategoryCombobox keyboard navigation", () => {
     fireEvent.keyDown(input, { key: "ArrowDown" });
     fireEvent.keyDown(input, { key: "Enter" });
 
-    expect(onSelect).toHaveBeenCalledWith("c2");
+    expect(onSelect).toHaveBeenCalledWith("c1");
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+  });
+
+  test("Enter on a highlighted account commits the transfer", () => {
+    const { onTransfer } = renderit({ transfersEnabled: true });
+    const input = openPopup();
+
+    fireEvent.keyDown(input, { key: "ArrowUp" });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(onTransfer).toHaveBeenCalledWith("a2");
     expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
   });
 
@@ -106,6 +174,16 @@ describe("CategoryCombobox keyboard navigation", () => {
 
     expect(onSelect).toHaveBeenCalledWith("c3");
     expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+  });
+
+  test("Enter with an account-only query and no highlight commits the transfer", () => {
+    const { onTransfer } = renderit({ transfersEnabled: true });
+    const input = openPopup();
+
+    fireEvent.change(input, { target: { value: "savi" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(onTransfer).toHaveBeenCalledWith("a2");
   });
 
   test("Enter with no query and no highlight just closes", () => {
@@ -144,43 +222,14 @@ describe("CategoryCombobox keyboard navigation", () => {
     ).not.toBeInTheDocument();
   });
 
-  test("static options (Transfer) participate in keyboard order", () => {
-    renderit({ transfersEnabled: true });
-    const input = openPopup();
-
-    fireEvent.keyDown(input, { key: "ArrowDown" });
-    expect(screen.getByRole("option", { name: /transfer/i })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
-
-    // Enter on "Transfer ▸" switches to the account panel rather than closing.
-    fireEvent.keyDown(input, { key: "Enter" });
-    expect(screen.getByRole("combobox")).toBeInTheDocument();
-    expect(
-      screen.getByRole("option", { name: /back to categories/i }),
-    ).toBeInTheDocument();
-
-    // Accounts other than the transaction's own are navigable.
-    fireEvent.keyDown(input, { key: "ArrowDown" });
-    fireEvent.keyDown(input, { key: "ArrowDown" });
-    expect(screen.getByRole("option", { name: /savings/i })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
-  });
-
-  test("Enter on a highlighted account commits the transfer", () => {
-    const { onTransfer } = renderit({ transfersEnabled: true });
-    const input = openPopup();
+  test("the clear option participates when a value is set", () => {
+    const { onSelect } = renderit({ value: "c1" });
+    fireEvent.click(screen.getByRole("button", { name: /groceries/i }));
+    const input = screen.getByRole("combobox");
 
     fireEvent.keyDown(input, { key: "ArrowDown" });
     fireEvent.keyDown(input, { key: "Enter" });
-    fireEvent.keyDown(input, { key: "ArrowDown" });
-    fireEvent.keyDown(input, { key: "ArrowDown" });
-    fireEvent.keyDown(input, { key: "Enter" });
 
-    expect(onTransfer).toHaveBeenCalledWith("a2");
-    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+    expect(onSelect).toHaveBeenCalledWith(null);
   });
 });

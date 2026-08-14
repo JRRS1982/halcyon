@@ -18,6 +18,10 @@ export type ColumnMapping = {
   extraColumns?: number[];
 };
 
+// Upper bound on how many unmapped columns one import can keep; the
+// importTransactions schema enforces the same limit server-side.
+export const MAX_EXTRA_COLUMNS = 20;
+
 export type MappedRow = {
   index: number;
   raw: string[];
@@ -53,14 +57,25 @@ function findColumn(
 
 // Best-effort guess of which columns hold the date / amount / description from
 // the header row, so the import UI can pre-fill the mapping. Falls back to the
-// first three columns. The user always confirms/overrides before importing.
+// first three columns. Every unmapped column starts ticked under "Also keep" —
+// discarding data is the choice that should take a deliberate untick. The user
+// always confirms/overrides before importing.
 export function guessMapping(headers: string[]): ColumnMapping {
+  const dateColumn = findColumn(headers, DATE_HINTS, 0);
+  const descriptionColumn = findColumn(headers, DESCRIPTION_HINTS, 1);
+  const amountColumn = findColumn(headers, AMOUNT_HINTS, 2);
+  const core = [dateColumn, descriptionColumn, amountColumn];
+
   return {
-    dateColumn: findColumn(headers, DATE_HINTS, 0),
-    descriptionColumn: findColumn(headers, DESCRIPTION_HINTS, 1),
-    amountColumn: findColumn(headers, AMOUNT_HINTS, 2),
+    dateColumn,
+    descriptionColumn,
+    amountColumn,
     dateFormat: "DMY",
     hasHeader: true,
+    extraColumns: headers
+      .map((_, i) => i)
+      .filter((i) => !core.includes(i))
+      .slice(0, MAX_EXTRA_COLUMNS),
   };
 }
 
