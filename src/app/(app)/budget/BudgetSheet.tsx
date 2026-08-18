@@ -12,6 +12,7 @@ import {
   Toolbar,
   ToolbarGroup,
   ToolbarPeriodLabel,
+  ToolbarSelect,
   ToolbarSpacer,
   ToolbarTool,
 } from "@/components/sheet/Toolbar";
@@ -293,23 +294,6 @@ const InfoBody = styled.div`
     font-size: ${theme.typography.bodyMd.size};
     line-height: ${theme.typography.bodyMd.lineHeight};
     color: ${theme.colors.body};
-  `}
-`;
-
-// Toolbar category control, shown only when a top-level expense row is focused.
-const CategorySelect = styled.select`
-  ${({ theme }) => `
-    border: 1px solid ${theme.colors.hairline};
-    border-radius: ${theme.rounded.sm};
-    background: ${theme.colors.canvas};
-    color: ${theme.colors.ink};
-    font-family: ${theme.typography.monoCaps.family};
-    font-size: ${theme.typography.monoCaps.size};
-    font-weight: ${theme.typography.monoCaps.weight};
-    letter-spacing: ${theme.typography.monoCaps.letterSpacing};
-    text-transform: uppercase;
-    padding: ${theme.spacing.xs} ${theme.spacing.sm};
-    cursor: pointer;
   `}
 `;
 
@@ -1418,8 +1402,8 @@ export function BudgetSheet({
           </CopyWrapper>
         </ToolbarGroup>
         {focusedItem?.type === "EXPENSE" && (
-          <ToolbarGroup>
-            <CategorySelect
+          <ToolbarGroup $rowScoped $engaged>
+            <ToolbarSelect
               aria-label="Expense category"
               value={focusedItem.category ?? "FIXED"}
               onChange={(e) =>
@@ -1431,12 +1415,12 @@ export function BudgetSheet({
                   {c.label}
                 </option>
               ))}
-            </CategorySelect>
+            </ToolbarSelect>
           </ToolbarGroup>
         )}
         {focusedItem?.type === "INCOME" && (
-          <ToolbarGroup>
-            <CategorySelect
+          <ToolbarGroup $rowScoped $engaged>
+            <ToolbarSelect
               aria-label="Income category"
               value={focusedItem.incomeCategory ?? "OTHER"}
               onChange={(e) =>
@@ -1451,10 +1435,10 @@ export function BudgetSheet({
                   {c.label}
                 </option>
               ))}
-            </CategorySelect>
+            </ToolbarSelect>
           </ToolbarGroup>
         )}
-        <ToolbarGroup>
+        <ToolbarGroup $rowScoped $engaged={!!focusedItem}>
           <ToolbarTool onClick={onDelete} disabled={!focusedItem} $danger>
             × Delete row
           </ToolbarTool>

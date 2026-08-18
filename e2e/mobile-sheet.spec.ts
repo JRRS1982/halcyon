@@ -40,6 +40,22 @@ test.describe("Sheets on a phone", () => {
     expect(after?.x).toBeCloseTo(before?.x ?? 0, 0);
   });
 
+  test("row tools stay out of the toolbar until a row is focused", async ({
+    page,
+  }) => {
+    await signIn(page);
+    await page.goto("/budget");
+
+    // At rest the delete tool would only ever be disabled, so on a phone it
+    // is not in the toolbar at all.
+    const deleteRow = page.getByRole("button", { name: /delete row/i });
+    await expect(deleteRow).toBeHidden();
+
+    // Adding a row focuses it, and the row-scoped tools appear with it.
+    await page.getByRole("button", { name: /\+ expense/i }).click();
+    await expect(deleteRow).toBeVisible();
+  });
+
   test("the page itself never scrolls horizontally", async ({ page }) => {
     await signIn(page);
 
