@@ -18,9 +18,11 @@ describe("MarketingFooter", () => {
     expect(
       screen.getByRole("link", { name: /terms of service/i }),
     ).toHaveAttribute("href", "/terms");
-    expect(screen.getByRole("link", { name: /data privacy/i })).toHaveAttribute(
-      "href",
-      "/privacy",
-    );
+    expect(
+      screen.getByRole("link", { name: /privacy policy/i }),
+    ).toHaveAttribute("href", "/privacy");
+    expect(
+      screen.getByRole("link", { name: /cookie policy/i }),
+    ).toHaveAttribute("href", "/cookies");
   });
 });

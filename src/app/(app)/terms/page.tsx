@@ -7,7 +7,7 @@ export default function TermsPage() {
     >
       <h1>Terms of Service</h1>
       <p>
-        <em>Effective date: 24 July 2026</em>
+        <em>Effective date: 18 August 2026</em>
       </p>
       <p>
         These terms govern your use of Balanced Money (&ldquo;the
@@ -16,11 +16,29 @@ export default function TermsPage() {
         agree, do not use the Service.
       </p>
 
+      <h2>Who we are</h2>
+      <p>
+        Balanced Money is a personal finance service operated from the United
+        Kingdom and available at balanced.money. You can contact us about
+        anything in these terms at{" "}
+        <a href="mailto:hello@balanced.money">hello@balanced.money</a>.
+      </p>
+
       <h2>The Service</h2>
       <p>
         Balanced Money is a personal finance tracking tool. It lets you record
-        budgets, balances, and transactions, and view reports based on the
-        figures you enter. The Service is currently provided free of charge.
+        budgets, balances, transactions, and plans, and view reports based on
+        the figures you enter. The Service is currently provided free of charge.
+      </p>
+
+      <h2>Fees</h2>
+      <p>
+        The Service is free. We hold no payment details, there are no
+        subscriptions, and nothing renews. If we ever introduce paid features,
+        we will tell you clearly in advance, any charge will require your
+        explicit agreement, nothing will auto-renew without a reminder sent
+        before it does, and cancelling will never take more effort than signing
+        up did.
       </p>
 
       <h2>Not financial advice</h2>
@@ -60,6 +78,15 @@ export default function TermsPage() {
         cannot be undone. To the maximum extent permitted by law, we accept no
         liability for any loss of, damage to, or unauthorised access to data you
         store in the Service.
+      </p>
+
+      <h2>Intellectual property</h2>
+      <p>
+        The Service — its code, design, and content, other than the data you
+        enter — belongs to us or our licensors. We grant you a personal,
+        non-exclusive, non-transferable right to use it for managing your own
+        finances. You may not copy, resell, or offer the Service to others as
+        your own.
       </p>
 
       <h2>Acceptable use</h2>
@@ -118,8 +145,9 @@ export default function TermsPage() {
       <h2>Privacy</h2>
       <p>
         Our handling of personal data is described in the{" "}
-        <a href="/privacy">Privacy Policy</a>, which forms part of your
-        agreement with us.
+        <a href="/privacy">Privacy Policy</a> and{" "}
+        <a href="/cookies">Cookie Policy</a>, which form part of your agreement
+        with us.
       </p>
 
       <h2>Changes to these terms</h2>
@@ -136,6 +164,12 @@ export default function TermsPage() {
         These terms are governed by the law of England and Wales, and the courts
         of England and Wales have exclusive jurisdiction, except where the law
         of the country you live in provides otherwise for consumers.
+      </p>
+
+      <h2>Contact</h2>
+      <p>
+        Questions about these terms:{" "}
+        <a href="mailto:hello@balanced.money">hello@balanced.money</a>.
       </p>
     </main>
   );
