@@ -1,18 +1,24 @@
 import { SectionHeading } from "@/components/marketing/SectionHeading";
 import {
   Badge,
-  Branch,
-  BranchCard,
-  BranchText,
-  BranchTitle,
-  Fork,
-  Merge,
-  Node,
-  NodeKey,
-  NodeText,
+  FinaleCard,
+  FinaleKey,
+  FinaleText,
+  Flow,
+  Loop,
+  LoopList,
+  Marker,
+  OptionCard,
+  OptionText,
+  OptionTitle,
+  Options,
+  ReturnLabel,
+  ReturnPath,
   Section,
-  Stem,
-  Tree,
+  SetupStep,
+  Step,
+  StepKey,
+  StepText,
 } from "./HowItWorks.styled";
 
 export function HowItWorks() {
@@ -20,58 +26,95 @@ export function HowItWorks() {
     <Section id="how">
       <SectionHeading
         eyebrow="How it works"
-        title="One simple path. You pick how hands-on."
-        lead="Set things up once, then choose how your numbers get in. Balanced guides you either way — and you can switch whenever you like."
+        title="Set up once. Then a few minutes a month."
+        lead="Balanced is built around a monthly habit: enter what happened, see what it means, adjust. The loop below is the whole method."
       />
-      <Tree>
-        <Node>
-          <NodeKey>Step 1 · Set up</NodeKey>
-          <NodeText>
-            Add your accounts and the categories that match how you actually
-            spend. Balanced suggests a sensible starting set.
-          </NodeText>
-        </Node>
-        <Stem />
-        <Node>
-          <NodeKey>Step 2 · Enter your values — two ways</NodeKey>
-          <NodeText>
-            Choose the approach that suits you. Both fill in the same budget and
-            balance, so the rest of the app just works.
-          </NodeText>
-        </Node>
-        <Stem />
-        <Fork />
-        <Branch>
-          <BranchCard>
-            <Badge $accent>Option A · Transactions on</Badge>
-            <BranchTitle>Let your statements do the work</BranchTitle>
-            <BranchText>
-              Import a bank statement and Balanced sorts every transaction into
-              categories, then fills your budget actuals and balances for you.
-              &ldquo;Where did it all go?&rdquo; answers itself.
-            </BranchText>
-          </BranchCard>
-          <BranchCard>
-            <Badge>Option B · Manual</Badge>
-            <BranchTitle>Type the figures in yourself</BranchTitle>
-            <BranchText>
-              Prefer to stay hands-on, or not connect a bank? Enter your numbers
-              straight into the budget and balance sheets. No imports — just a
-              clean, guided place to keep them.
-            </BranchText>
-          </BranchCard>
-        </Branch>
-        <Merge />
-        <Stem />
-        <Node $solid>
-          <NodeKey $onBand>Step 3 · See where you stand</NodeKey>
-          <NodeText $onBand>
-            Either way, the same dashboard lights up: your spending breakdown,
-            cash flow, budget variance and net worth — all kept up to date for
-            you.
-          </NodeText>
-        </Node>
-      </Tree>
+      <Flow>
+        <SetupStep>
+          <Marker $outline aria-hidden>
+            00
+          </Marker>
+          <div>
+            <StepKey>Setup · once</StepKey>
+            <StepText>
+              Add your accounts, the categories that match how you spend, the
+              budget you want to hold yourself to, and the assets and debts you
+              want to watch. Balanced seeds a sensible starting set — refine it
+              as you go.
+            </StepText>
+          </div>
+        </SetupStep>
+        <Loop>
+          <ReturnPath aria-hidden>
+            <ReturnLabel>Repeat monthly</ReturnLabel>
+          </ReturnPath>
+          <LoopList>
+            <Step>
+              <Marker aria-hidden>01</Marker>
+              <div>
+                <StepKey>Step 1 · Enter your month — two ways</StepKey>
+                <StepText>
+                  Get the month&apos;s numbers in however suits you. When
+                  something doesn&apos;t fit, add a category on the spot — the
+                  sheet learns the shape of your spending.
+                </StepText>
+                <Options>
+                  <OptionCard>
+                    <Badge $accent>Option A · Transactions on</Badge>
+                    <OptionTitle>Let your statements do the work</OptionTitle>
+                    <OptionText>
+                      Import a bank statement and Balanced sorts every
+                      transaction into categories, then fills your budget
+                      actuals for you.
+                    </OptionText>
+                  </OptionCard>
+                  <OptionCard>
+                    <Badge>Option B · Manual</Badge>
+                    <OptionTitle>Type the figures in yourself</OptionTitle>
+                    <OptionText>
+                      Prefer to stay hands-on, or not connect a bank? Enter your
+                      numbers straight into the budget sheet — no imports.
+                    </OptionText>
+                  </OptionCard>
+                </Options>
+              </div>
+            </Step>
+            <Step>
+              <Marker aria-hidden>02</Marker>
+              <div>
+                <StepKey>Step 2 · Compare plan to reality</StepKey>
+                <StepText>
+                  Your categorised spending lands beside the budget you set. The
+                  overspends are impossible to miss — and that gap is the
+                  lesson.
+                </StepText>
+              </div>
+            </Step>
+            <Step>
+              <Marker aria-hidden>03</Marker>
+              <div>
+                <StepKey>Step 3 · Update your balances</StepKey>
+                <StepText>
+                  Tick through the assets and debts you track — a few minutes to
+                  a fresh net worth on the balance sheet.
+                </StepText>
+              </div>
+            </Step>
+            <Step>
+              <Marker aria-hidden>04</Marker>
+              <FinaleCard>
+                <FinaleKey>Step 4 · See where you stand</FinaleKey>
+                <FinaleText>
+                  The dashboard tells the month&apos;s story — spending, cash
+                  flow, net worth — and the plan shows whether you&apos;re still
+                  on track for your goals. Then close the month and live your
+                  life; an optional email nudges you when the next one is ready.
+                </FinaleText>
+              </FinaleCard>
+            </Step>
+          </LoopList>
+        </Loop>
+      </Flow>
     </Section>
   );
 }
