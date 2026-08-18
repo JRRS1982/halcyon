@@ -166,10 +166,13 @@ export function toTimelineModel(input: {
     labelLevel: refLevels.get(r.label) ?? 0,
   }));
 
+  // The start age always gets a tick; the 5-year marks then skip any that land
+  // within two years of it — a 44 next to a 45 renders as one smudge at every
+  // realistic plot width.
   const ticks: TimelineTick[] = [{ age: minAge, leftPct: 0 }];
   if (span > 0) {
     for (let age = Math.ceil(minAge / 5) * 5; age <= maxAge; age += 5) {
-      if (age !== minAge) ticks.push({ age, leftPct: pct(age) });
+      if (age - minAge >= 3) ticks.push({ age, leftPct: pct(age) });
     }
   }
 

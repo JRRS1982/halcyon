@@ -8,6 +8,14 @@
 // label-gutter width and the chart's (margin.left + YAxis width).
 export const PLOT_LEFT_INSET = 140;
 
+// On a phone the 140px gutter is dead space — it exists to give the timeline's
+// row labels room and keep the chart's Y axis aligned with them, but at 390px
+// it eats a third of the card. This narrower inset still fits the chart's
+// widest Y label ("−£500k") and an ellipsized timeline row label; both panels
+// swap to it below the same breakpoint so their plots stay aligned.
+export const PLOT_LEFT_INSET_PHONE = 64;
+export const PHONE_PLOT_QUERY = "(max-width: 767px)";
+
 // Plot ends this far from the content-box right (the chart's margin.right and the
 // timeline track's right inset).
 export const PLOT_RIGHT_INSET = 16;

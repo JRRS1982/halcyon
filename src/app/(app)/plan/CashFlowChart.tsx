@@ -28,7 +28,7 @@ import {
   YAxis,
 } from "recharts";
 import styled, { useTheme } from "styled-components";
-import { PLOT_HEIGHT, PLOT_LEFT_INSET, PLOT_RIGHT_INSET } from "./axisGeometry";
+import { PLOT_HEIGHT, PLOT_RIGHT_INSET } from "./axisGeometry";
 import { ageReferenceLines } from "./chartRefLines";
 import {
   Key,
@@ -47,6 +47,7 @@ import {
   NET_WORTH_COLOUR,
   OUTFLOW_COLOURS,
 } from "./colours";
+import { usePlotLeftInset } from "./usePlotLeftInset";
 
 const TipNet = styled(TipRow)<{ $negative: boolean }>`
   font-weight: 600;
@@ -162,6 +163,7 @@ export function CashFlowChart({
   statePensionAge: number | null;
   expectedDeathAge: number | null;
 }) {
+  const plotLeftInset = usePlotLeftInset();
   const theme = useTheme();
   const data = toCashFlowChartData(years);
   const { income, outflow, withdrawals, contributions } = cashFlowKeysPresent(
@@ -233,7 +235,7 @@ export function CashFlowChart({
           axisLine={{ stroke: theme.colors.hairline }}
         />
         <YAxis
-          width={PLOT_LEFT_INSET - 8}
+          width={plotLeftInset - 8}
           domain={domain}
           ticks={ticks}
           tick={{ fontSize: 11, fill: theme.colors.body }}

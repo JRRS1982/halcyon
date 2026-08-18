@@ -44,23 +44,34 @@ export function ageReferenceLines({
       emphasis: theme.colors.negative,
     });
 
-  return marks.map(({ label, age, emphasis }, i) => (
-    <ReferenceLine
-      key={label}
-      x={age}
-      stroke={emphasis ?? theme.colors.hairlineStrong}
-      strokeDasharray={emphasis ? undefined : "4 3"}
-      strokeWidth={emphasis ? 1.5 : 1}
-      label={{
-        value: label,
-        // Horizontal, and staggered top vs bottom: the marker ages are often
-        // only a couple of years apart, so alternating vertical ends keeps the
-        // labels from colliding. Horizontal also avoids the clipping a rotated
-        // label suffered against the chart's small top margin.
-        position: i % 2 === 0 ? "insideTopLeft" : "insideBottomLeft",
-        fontSize: 10,
-        fill: emphasis ?? theme.colors.dim,
-      }}
-    />
-  ));
+  return marks.map(({ label, age, emphasis }, i) => {
+    // A mark in the last stretch of the range writes its label on the other
+    // side of the line — "Life expectancy" hangs off the plot's edge otherwise.
+    const nearRightEdge = (age - minAge) / Math.max(1, maxAge - minAge) > 0.7;
+    return (
+      <ReferenceLine
+        key={label}
+        x={age}
+        stroke={emphasis ?? theme.colors.hairlineStrong}
+        strokeDasharray={emphasis ? undefined : "4 3"}
+        strokeWidth={emphasis ? 1.5 : 1}
+        label={{
+          value: label,
+          // Horizontal, and staggered top vs bottom: the marker ages are often
+          // only a couple of years apart, so alternating vertical ends keeps the
+          // labels from colliding. Horizontal also avoids the clipping a rotated
+          // label suffered against the chart's small top margin.
+          position: nearRightEdge
+            ? i % 2 === 0
+              ? "insideTopRight"
+              : "insideBottomRight"
+            : i % 2 === 0
+              ? "insideTopLeft"
+              : "insideBottomLeft",
+          fontSize: 10,
+          fill: emphasis ?? theme.colors.dim,
+        }}
+      />
+    );
+  });
 }

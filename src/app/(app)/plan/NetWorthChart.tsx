@@ -23,7 +23,7 @@ import {
 } from "recharts";
 import { useTheme } from "styled-components";
 import { ChartTextures, wrapperFill } from "./ChartTextures";
-import { PLOT_HEIGHT, PLOT_LEFT_INSET, PLOT_RIGHT_INSET } from "./axisGeometry";
+import { PLOT_HEIGHT, PLOT_RIGHT_INSET } from "./axisGeometry";
 import { ageReferenceLines } from "./chartRefLines";
 import { StackedTooltip } from "./chartTooltip";
 import {
@@ -32,6 +32,7 @@ import {
   WRAPPER_COLOURS,
   WRAPPER_LABELS,
 } from "./colours";
+import { usePlotLeftInset } from "./usePlotLeftInset";
 
 export function NetWorthChart({
   low,
@@ -52,6 +53,7 @@ export function NetWorthChart({
   statePensionAge: number | null;
   expectedDeathAge: number | null;
 }) {
+  const plotLeftInset = usePlotLeftInset();
   const theme = useTheme();
   const data = toNetWorthBandData(low, mid, high);
   const wrappers = wrappersPresent(data);
@@ -90,7 +92,7 @@ export function NetWorthChart({
           axisLine={{ stroke: theme.colors.hairline }}
         />
         <YAxis
-          width={PLOT_LEFT_INSET - 8}
+          width={plotLeftInset - 8}
           domain={domain}
           ticks={ticks}
           tick={{ fontSize: 11, fill: theme.colors.body }}
