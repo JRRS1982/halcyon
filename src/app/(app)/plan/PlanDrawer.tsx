@@ -45,6 +45,44 @@ const Sheet = styled.dialog<{ $open: boolean }>`
   @media (prefers-reduced-motion: reduce) {
     transition: none;
   }
+
+  /* On a phone the editor is a bottom sheet: full width, slid up from the
+     bottom edge where the thumb already is, rather than a desktop dialog
+     shrunk to fit. The grab strip above the header carries drag-to-dismiss. */
+  @media (max-width: 767px) {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    max-height: 85dvh;
+    border: 0;
+    border-top: 1px solid ${({ theme }) => theme.colors.hairline};
+    border-radius: ${({ theme }) => theme.rounded.sm}
+      ${({ theme }) => theme.rounded.sm} 0 0;
+    box-shadow: 0 -16px 48px rgba(15, 17, 22, 0.22);
+    transform: translateY(${({ $open }) => ($open ? "0%" : "100%")});
+  }
+`;
+
+// Grab strip at the top of the phone sheet — the visual affordance for
+// drag-to-dismiss, hidden on desktop where the close button does that job.
+const GripStrip = styled.div`
+  display: none;
+
+  @media (max-width: 767px) {
+    display: flex;
+    justify-content: center;
+    padding: ${({ theme }) => theme.spacing.sm} 0
+      ${({ theme }) => theme.spacing.xs};
+    touch-action: none;
+    cursor: grab;
+  }
+`;
+const Grip = styled.span`
+  width: 36px;
+  height: 4px;
+  border-radius: ${({ theme }) => theme.rounded.full};
+  background: ${({ theme }) => theme.colors.hairlineStrong};
 `;
 const Head = styled.div`
   display: flex;
@@ -91,6 +129,13 @@ const Foot = styled.div`
   padding: ${({ theme }) => theme.spacing.md} ${({ theme }) => theme.spacing.xl};
   border-top: 1px solid ${({ theme }) => theme.colors.hairline};
   background: ${({ theme }) => theme.colors.canvasSoft};
+
+  /* Keep the footer clear of the iPhone home indicator. */
+  @media (max-width: 767px) {
+    padding-bottom: calc(
+      ${({ theme }) => theme.spacing.md} + env(safe-area-inset-bottom)
+    );
+  }
 `;
 const Live = styled.span`
   display: inline-flex;
@@ -130,6 +175,25 @@ const SectionBody = styled.div`
   display: grid;
   gap: ${({ theme }) => theme.spacing.md};
 `;
+// What a closed section would show if opened ("7% · 0.5% fee"), so collapsed-
+// by-default stays honest — a non-default value is visible without a tap.
+// Plain body face: these are values, not chrome, inside a mono-caps header.
+const SectionSummary = styled.span`
+  font-family: ${({ theme }) => theme.typography.bodyMd.family};
+  font-size: 12px;
+  text-transform: none;
+  letter-spacing: normal;
+  color: ${({ theme }) => theme.colors.body};
+  margin-left: auto;
+  padding-left: ${({ theme }) => theme.spacing.md};
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`;
+const SectionMark = styled.span`
+  flex: none;
+  padding-left: ${({ theme }) => theme.spacing.md};
+`;
 const FieldWrap = styled.label`
   display: grid;
   gap: ${({ theme }) => theme.spacing.xs};
@@ -140,10 +204,12 @@ const FieldWrap = styled.label`
 export function DrawerSection({
   title,
   defaultOpen = false,
+  summary,
   children,
 }: {
   title: string;
   defaultOpen?: boolean;
+  summary?: string;
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -155,7 +221,13 @@ export function DrawerSection({
         onClick={() => setOpen((o) => !o)}
       >
         {title}
-        <span aria-hidden="true">{open ? "−" : "+"}</span>
+        {/* aria-hidden: a visual preview only — kept out of the accessible
+            name so the button stays "Terms", not "Terms 4% · 1,200/mo"; the
+            canonical value is announced inside the section once opened. */}
+        {!open && summary ? (
+          <SectionSummary aria-hidden="true">{summary}</SectionSummary>
+        ) : null}
+        <SectionMark aria-hidden="true">{open ? "−" : "+"}</SectionMark>
       </SectionHead>
       {open ? <SectionBody>{children}</SectionBody> : null}
     </SectionWrap>
@@ -246,6 +318,26 @@ export function PlanDrawer({
     };
   }, [open]);
 
+  // Drag-to-dismiss for the phone sheet: pulling the grab strip down slides
+  // the sheet with the finger (transition suspended so it tracks 1:1); past
+  // the threshold on release it closes, otherwise it springs back. Scoped to
+  // the strip so it never fights the body's own scrolling.
+  const dragFrom = useRef<number | null>(null);
+  const dragTo = (dy: number) => {
+    const sheet = sheetRef.current;
+    if (!sheet) return;
+    sheet.style.transition = "none";
+    sheet.style.transform = `translateY(${Math.max(0, dy)}px)`;
+  };
+  const endDrag = (dy: number) => {
+    const sheet = sheetRef.current;
+    dragFrom.current = null;
+    if (!sheet) return;
+    sheet.style.transition = "";
+    sheet.style.transform = "";
+    if (dy > 90) onCloseRef.current();
+  };
+
   return (
     <>
       <Scrim
@@ -264,6 +356,24 @@ export function PlanDrawer({
       >
         {open ? (
           <>
+            <GripStrip
+              data-testid="plan-drawer-grip"
+              onPointerDown={(e) => {
+                dragFrom.current = e.clientY;
+                e.currentTarget.setPointerCapture(e.pointerId);
+              }}
+              onPointerMove={(e) => {
+                if (dragFrom.current === null) return;
+                dragTo(e.clientY - dragFrom.current);
+              }}
+              onPointerUp={(e) => {
+                if (dragFrom.current === null) return;
+                endDrag(e.clientY - dragFrom.current);
+              }}
+              onPointerCancel={() => endDrag(0)}
+            >
+              <Grip />
+            </GripStrip>
             <Head>
               <div>
                 {eyebrow ? <Eyebrow>{eyebrow}</Eyebrow> : null}

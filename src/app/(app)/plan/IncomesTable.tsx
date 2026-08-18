@@ -98,7 +98,10 @@ export function IncomeFields({ income }: { income: SerializedPlanIncome }) {
           />
         </Field>
       </DrawerSection>
-      <DrawerSection title="Timing">
+      <DrawerSection
+        title="Timing"
+        summary={`${income.startAge ?? "now"} → ${income.endAge ?? "plan end"}`}
+      >
         <Field label="Start age (blank = from now)">
           <NumberCell
             value={income.startAge}
@@ -114,7 +117,14 @@ export function IncomeFields({ income }: { income: SerializedPlanIncome }) {
           />
         </Field>
       </DrawerSection>
-      <DrawerSection title="Growth">
+      <DrawerSection
+        title="Growth"
+        summary={
+          income.growthKind === "FIXED"
+            ? `${income.growthPct ?? 0}%`
+            : income.growthKind.toLowerCase().replace("_", " ")
+        }
+      >
         <Field label="Grows by">
           <SelectCell
             value={income.growthKind}
@@ -133,7 +143,10 @@ export function IncomeFields({ income }: { income: SerializedPlanIncome }) {
           </Field>
         ) : null}
       </DrawerSection>
-      <DrawerSection title="Tax">
+      <DrawerSection
+        title="Tax"
+        summary={income.taxable ? "taxable" : "tax-free"}
+      >
         <Field label="Taxable">
           <BoolCell
             value={income.taxable}

@@ -138,7 +138,16 @@ export function LiabilityFields({
           />
         </Field>
       </DrawerSection>
-      <DrawerSection title="Terms">
+      <DrawerSection
+        title="Terms"
+        summary={`${liability.interestPct}%${
+          linkedExpense
+            ? ` · ${Math.round(linkedExpense.annualAmount / 12).toLocaleString()}/mo`
+            : liability.monthlyRepayment > 0
+              ? ` · ${liability.monthlyRepayment.toLocaleString()}/mo`
+              : ""
+        }${liability.interestOnly ? " · interest-only" : ""}`}
+      >
         <Field label="Interest %">
           <NumberCell
             value={liability.interestPct}
