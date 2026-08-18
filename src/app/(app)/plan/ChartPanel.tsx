@@ -75,6 +75,18 @@ const Caption = styled.p`
   color: ${({ theme }) => theme.colors.body};
 `;
 
+// On a phone the 140px label gutter (PLOT_LEFT_INSET) leaves almost no plot
+// width, so the chart keeps a working width and pans inside the card — the
+// same treatment the timeline and the sheets give wide content. 480px matches
+// the timeline's Plot floor so the two panels pan over the same span.
+const ChartScroller = styled.div`
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+`;
+const ChartArea = styled.div`
+  min-width: 480px;
+`;
+
 export function ChartPanel({
   low,
   mid,
@@ -112,40 +124,44 @@ export function ChartPanel({
         ))}
       </Switcher>
       <Caption>{DESCRIPTIONS[view]}</Caption>
-      {view === "networth" && (
-        <NetWorthChart
-          low={low}
-          mid={mid}
-          high={high}
-          currency={currency}
-          numberFormat={numberFormat}
-          retirementAge={retirementAge}
-          statePensionAge={statePensionAge}
-          expectedDeathAge={expectedDeathAge}
-        />
-      )}
-      {view === "cashflow" && (
-        <CashFlowChart
-          years={mid}
-          currency={currency}
-          numberFormat={numberFormat}
-          retirementAge={retirementAge}
-          statePensionAge={statePensionAge}
-          expectedDeathAge={expectedDeathAge}
-        />
-      )}
-      {view === "liquid" && (
-        <LiquidAssetsChart
-          low={low}
-          mid={mid}
-          high={high}
-          currency={currency}
-          numberFormat={numberFormat}
-          retirementAge={retirementAge}
-          statePensionAge={statePensionAge}
-          expectedDeathAge={expectedDeathAge}
-        />
-      )}
+      <ChartScroller data-chart-scroller>
+        <ChartArea>
+          {view === "networth" && (
+            <NetWorthChart
+              low={low}
+              mid={mid}
+              high={high}
+              currency={currency}
+              numberFormat={numberFormat}
+              retirementAge={retirementAge}
+              statePensionAge={statePensionAge}
+              expectedDeathAge={expectedDeathAge}
+            />
+          )}
+          {view === "cashflow" && (
+            <CashFlowChart
+              years={mid}
+              currency={currency}
+              numberFormat={numberFormat}
+              retirementAge={retirementAge}
+              statePensionAge={statePensionAge}
+              expectedDeathAge={expectedDeathAge}
+            />
+          )}
+          {view === "liquid" && (
+            <LiquidAssetsChart
+              low={low}
+              mid={mid}
+              high={high}
+              currency={currency}
+              numberFormat={numberFormat}
+              retirementAge={retirementAge}
+              statePensionAge={statePensionAge}
+              expectedDeathAge={expectedDeathAge}
+            />
+          )}
+        </ChartArea>
+      </ChartScroller>
     </PlanCard>
   );
 }
