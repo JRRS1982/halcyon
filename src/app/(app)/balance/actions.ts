@@ -24,8 +24,16 @@ import { ensurePeriodForMonthIn } from "@/lib/budget/ensurePeriod";
 import { monthRangeFor } from "@/lib/budget/period";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
+import type { BalanceItem } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { ensurePeriodForMonth } from "../budget/actions";
+
+// Prisma `Decimal` can't cross the server→client boundary (it serialises to
+// `{}`); the balance sheet consumes value as a number, so coerce it before
+// returning a mutated item to the client. Mirrors budget/actions.ts.
+function toClientItem(item: BalanceItem) {
+  return { ...item, value: Number(item.value) };
+}
 
 // Mirrors the auth gate in src/app/budget/actions.ts — every action enforces
 // auth independently. Middleware also guards /balance but we never trust a
@@ -79,7 +87,7 @@ export async function createBalanceItemForMonth(
       },
     });
 
-    return { periodId: period.id, item };
+    return { periodId: period.id, item: toClientItem(item) };
   });
 }
 
@@ -95,14 +103,16 @@ export async function updateBalanceItem(input: UpdateBalanceItemInput) {
     throw new Error("Item not found");
   }
 
-  return prisma.balanceItem.update({
-    where: { id: parsed.itemId },
-    data: {
-      ...(parsed.label !== undefined && { label: parsed.label }),
-      ...(parsed.value !== undefined && { value: parsed.value }),
-      ...(parsed.notes !== undefined && { notes: parsed.notes }),
-    },
-  });
+  return toClientItem(
+    await prisma.balanceItem.update({
+      where: { id: parsed.itemId },
+      data: {
+        ...(parsed.label !== undefined && { label: parsed.label }),
+        ...(parsed.value !== undefined && { value: parsed.value }),
+        ...(parsed.notes !== undefined && { notes: parsed.notes }),
+      },
+    }),
+  );
 }
 
 // Move an item one slot up or down, crossing category / type boundaries
@@ -168,7 +178,7 @@ export async function setBalanceItemSection(input: SetBalanceItemSectionInput) {
   }
 
   if (item.type === parsed.type && item.category === parsed.category) {
-    return item;
+    return toClientItem(item);
   }
 
   const last = await prisma.balanceItem.findFirst({
@@ -182,14 +192,16 @@ export async function setBalanceItemSection(input: SetBalanceItemSectionInput) {
     select: { sortOrder: true },
   });
 
-  return prisma.balanceItem.update({
-    where: { id: parsed.itemId },
-    data: {
-      type: parsed.type,
-      category: parsed.category,
-      sortOrder: (last?.sortOrder ?? 0) + 1,
-    },
-  });
+  return toClientItem(
+    await prisma.balanceItem.update({
+      where: { id: parsed.itemId },
+      data: {
+        type: parsed.type,
+        category: parsed.category,
+        sortOrder: (last?.sortOrder ?? 0) + 1,
+      },
+    }),
+  );
 }
 
 // Soft-delete a single balance item. No descendants — balance rows are flat.
