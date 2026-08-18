@@ -11,8 +11,16 @@ export const ToolbarWrapper = styled.div`
   `}
 `;
 
-export const ToolbarGroup = styled.div`
-  ${({ theme }) => css`
+// $rowScoped marks a group of tools that act on the focused row (delete,
+// move, section pickers). On a phone those leave the resting toolbar and
+// appear only while a row is focused ($engaged) — a permanently visible
+// disabled button spends a whole toolbar row saying nothing. Desktop keeps
+// every group visible.
+export const ToolbarGroup = styled.div<{
+  $rowScoped?: boolean;
+  $engaged?: boolean;
+}>`
+  ${({ theme, $rowScoped, $engaged }) => css`
     display: flex;
     flex-wrap: wrap;
     gap: ${theme.spacing.xs};
@@ -23,10 +31,33 @@ export const ToolbarGroup = styled.div`
       border-right: none;
     }
 
-    /* Wrapped rows make the vertical group dividers read as clutter. */
+    /* On a phone each resting group becomes one full-width row of evenly
+       stretched controls — ragged flex-wrap (and the group dividers) read as
+       clutter. Row-scoped groups instead pack together onto shared rows, so
+       focusing a row costs as little sheet height as possible. */
     @media (max-width: 767px) {
       padding-right: 0;
       border-right: none;
+      ${
+        $rowScoped
+          ? css`
+            ${$engaged ? "" : "display: none;"}
+            flex: 1 1 auto;
+          `
+          : "width: 100%;"
+      }
+
+      & > * {
+        flex: 1;
+      }
+
+      /* Popover-anchor wrappers pass the stretch through to their button. */
+      & > div {
+        display: flex;
+      }
+      & > div > button {
+        flex: 1;
+      }
     }
   `}
 `;

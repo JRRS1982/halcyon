@@ -1418,7 +1418,7 @@ export function BudgetSheet({
           </CopyWrapper>
         </ToolbarGroup>
         {focusedItem?.type === "EXPENSE" && (
-          <ToolbarGroup>
+          <ToolbarGroup $rowScoped $engaged>
             <CategorySelect
               aria-label="Expense category"
               value={focusedItem.category ?? "FIXED"}
@@ -1435,7 +1435,7 @@ export function BudgetSheet({
           </ToolbarGroup>
         )}
         {focusedItem?.type === "INCOME" && (
-          <ToolbarGroup>
+          <ToolbarGroup $rowScoped $engaged>
             <CategorySelect
               aria-label="Income category"
               value={focusedItem.incomeCategory ?? "OTHER"}
@@ -1454,7 +1454,7 @@ export function BudgetSheet({
             </CategorySelect>
           </ToolbarGroup>
         )}
-        <ToolbarGroup>
+        <ToolbarGroup $rowScoped $engaged={!!focusedItem}>
           <ToolbarTool onClick={onDelete} disabled={!focusedItem} $danger>
             × Delete row
           </ToolbarTool>

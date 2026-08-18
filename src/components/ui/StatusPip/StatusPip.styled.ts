@@ -35,8 +35,14 @@ export const PipWrapper = styled.span`
     min-width: 132px;
     justify-content: flex-end;
 
+    /* On a phone the pip is status, not a control — the chip chrome made it
+       read as one more button in the wrapped toolbar. Bare mono-caps text. */
     @media (max-width: 767px) {
-      height: 44px;
+      height: auto;
+      min-width: 0;
+      padding: 0;
+      border: none;
+      background: none;
     }
   `}
 `;

@@ -1489,7 +1489,7 @@ export function BalanceSheet({
             )}
           </CopyWrapper>
         </ToolbarGroup>
-        <ToolbarGroup>
+        <ToolbarGroup $rowScoped $engaged={!!focusedCell}>
           <ToolbarTool onClick={() => onMove("up")} disabled={!canMoveUp}>
             ↑ Move up
           </ToolbarTool>
@@ -1498,7 +1498,7 @@ export function BalanceSheet({
           </ToolbarTool>
         </ToolbarGroup>
         {focusedItem && (
-          <ToolbarGroup>
+          <ToolbarGroup $rowScoped $engaged>
             <SectionSelect
               aria-label="Move to section"
               value={`${focusedItem.type}:${focusedItem.category}`}
@@ -1515,7 +1515,7 @@ export function BalanceSheet({
             </SectionSelect>
           </ToolbarGroup>
         )}
-        <ToolbarGroup>
+        <ToolbarGroup $rowScoped $engaged={!!focusedCell}>
           <ToolbarTool onClick={onDelete} disabled={!focusedCell} $danger>
             × Delete row
           </ToolbarTool>
