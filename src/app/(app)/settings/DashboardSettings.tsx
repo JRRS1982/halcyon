@@ -3,14 +3,13 @@
 import { DASHBOARD_CHARTS } from "@/lib/dashboard/charts";
 import { useState, useTransition } from "react";
 import styled from "styled-components";
-import { SectionHeading } from "./SectionHeading";
+import { SectionHeading, SettingsCard } from "./SectionHeading";
 import { setChartVisibility } from "./actions";
 
 const Shell = styled.section`
   max-width: 720px;
   margin: 0 auto;
-  padding: 0 ${({ theme }) => theme.spacing["2xl"]}
-    ${({ theme }) => theme.spacing["5xl"]};
+  padding: 0 ${({ theme }) => theme.spacing["2xl"]};
   /* DESIGN.md → Layout → Grid & Container: gutters drop to 16px on mobile. */
   @media (max-width: 767px) {
     padding-left: ${({ theme }) => theme.spacing.lg};
@@ -108,22 +107,24 @@ export function DashboardSettings({
 
   return (
     <Shell>
-      <SectionHeading>Dashboard</SectionHeading>
-      <Lead>Choose which charts appear on your dashboard.</Lead>
-      {DASHBOARD_CHARTS.map((chart) => (
-        <ToggleRow key={chart.key}>
-          {chart.label}
-          <SwitchControl>
-            <SwitchInput
-              type="checkbox"
-              checked={!hidden.has(chart.key)}
-              disabled={pending}
-              onChange={(event) => toggle(chart.key, event.target.checked)}
-            />
-            <SwitchTrack />
-          </SwitchControl>
-        </ToggleRow>
-      ))}
+      <SettingsCard>
+        <SectionHeading>Dashboard</SectionHeading>
+        <Lead>Choose which charts appear on your dashboard.</Lead>
+        {DASHBOARD_CHARTS.map((chart) => (
+          <ToggleRow key={chart.key}>
+            {chart.label}
+            <SwitchControl>
+              <SwitchInput
+                type="checkbox"
+                checked={!hidden.has(chart.key)}
+                disabled={pending}
+                onChange={(event) => toggle(chart.key, event.target.checked)}
+              />
+              <SwitchTrack />
+            </SwitchControl>
+          </ToggleRow>
+        ))}
+      </SettingsCard>
     </Shell>
   );
 }

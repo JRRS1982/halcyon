@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/Button";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import styled from "styled-components";
-import { SectionHeading } from "./SectionHeading";
+import { SectionHeading, SettingsCard } from "./SectionHeading";
 import { clearMyData, deleteMyAccount, exportMyData } from "./dataActions";
 
 const Shell = styled.section`
@@ -170,127 +170,129 @@ export function DataPrivacy() {
 
   return (
     <Shell>
-      <SectionHeading>Your data</SectionHeading>
-      <Lead>
-        Export, clear, or delete the data Halcyon holds about you. Export and
-        clear affect only your financial records. Deleting your account is
-        permanent and removes everything, including your login.
-      </Lead>
+      <SettingsCard>
+        <SectionHeading>Your data</SectionHeading>
+        <Lead>
+          Export, clear, or delete the data Halcyon holds about you. Export and
+          clear affect only your financial records. Deleting your account is
+          permanent and removes everything, including your login.
+        </Lead>
 
-      <Group>
-        <GroupText>
-          Download everything Halcyon stores about you as JSON.
-        </GroupText>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onExport}
-          disabled={pending}
-        >
-          Export my data
-        </Button>
-      </Group>
-
-      {mode === "clear" ? (
-        <WarningBox role="alertdialog" aria-label="Confirm clear data">
-          <WarningTitle>⚠ Delete all financial records?</WarningTitle>
-          <WarningText>
-            Your transactions, accounts, budgets, and balances will be
-            permanently removed. Your login, settings, and categories stay. This
-            can&rsquo;t be undone.
-          </WarningText>
-          <Actions>
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={onClear}
-              disabled={pending}
-            >
-              Clear my data
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={cancel}
-              disabled={pending}
-            >
-              Cancel
-            </Button>
-          </Actions>
-        </WarningBox>
-      ) : (
         <Group>
           <GroupText>
-            Delete all your transactions, accounts, budgets, and balances. Your
-            login, settings, and categories stay.
+            Download everything Halcyon stores about you as JSON.
           </GroupText>
           <Button
             type="button"
             variant="outline"
-            onClick={() => start("clear")}
+            onClick={onExport}
             disabled={pending}
           >
-            Clear my data
+            Export my data
           </Button>
         </Group>
-      )}
 
-      {mode === "delete" ? (
-        <WarningBox role="alertdialog" aria-label="Confirm delete account">
-          <WarningTitle>⚠ Permanently delete your account?</WarningTitle>
-          <WarningText>
-            This removes your account and all associated data, including your
-            login. This cannot be undone.
-          </WarningText>
-          <ConfirmField>
-            <ConfirmLabel htmlFor="confirm-delete">
-              Type DELETE to confirm
-            </ConfirmLabel>
-            <ConfirmInput
-              id="confirm-delete"
-              value={confirmText}
-              onChange={(e) => setConfirmText(e.target.value)}
-              placeholder="Type DELETE to confirm"
-              aria-label="Type DELETE to confirm account deletion"
-            />
-          </ConfirmField>
-          <Actions>
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={onDelete}
-              disabled={pending || confirmText !== "DELETE"}
-            >
-              Delete my account
-            </Button>
+        {mode === "clear" ? (
+          <WarningBox role="alertdialog" aria-label="Confirm clear data">
+            <WarningTitle>⚠ Delete all financial records?</WarningTitle>
+            <WarningText>
+              Your transactions, accounts, budgets, and balances will be
+              permanently removed. Your login, settings, and categories stay.
+              This can&rsquo;t be undone.
+            </WarningText>
+            <Actions>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={onClear}
+                disabled={pending}
+              >
+                Clear my data
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={cancel}
+                disabled={pending}
+              >
+                Cancel
+              </Button>
+            </Actions>
+          </WarningBox>
+        ) : (
+          <Group>
+            <GroupText>
+              Delete all your transactions, accounts, budgets, and balances.
+              Your login, settings, and categories stay.
+            </GroupText>
             <Button
               type="button"
               variant="outline"
-              onClick={cancel}
+              onClick={() => start("clear")}
               disabled={pending}
             >
-              Cancel
+              Clear my data
             </Button>
-          </Actions>
-        </WarningBox>
-      ) : (
-        <Group>
-          <GroupText>
-            Permanently delete your account and all associated data, including
-            your login. This cannot be undone.
-          </GroupText>
-          <Button
-            type="button"
-            variant="destructive"
-            onClick={() => start("delete")}
-            disabled={pending}
-          >
-            Delete my account
-          </Button>
-        </Group>
-      )}
+          </Group>
+        )}
 
-      {error && <Alert role="alert">{error}</Alert>}
+        {mode === "delete" ? (
+          <WarningBox role="alertdialog" aria-label="Confirm delete account">
+            <WarningTitle>⚠ Permanently delete your account?</WarningTitle>
+            <WarningText>
+              This removes your account and all associated data, including your
+              login. This cannot be undone.
+            </WarningText>
+            <ConfirmField>
+              <ConfirmLabel htmlFor="confirm-delete">
+                Type DELETE to confirm
+              </ConfirmLabel>
+              <ConfirmInput
+                id="confirm-delete"
+                value={confirmText}
+                onChange={(e) => setConfirmText(e.target.value)}
+                placeholder="Type DELETE to confirm"
+                aria-label="Type DELETE to confirm account deletion"
+              />
+            </ConfirmField>
+            <Actions>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={onDelete}
+                disabled={pending || confirmText !== "DELETE"}
+              >
+                Delete my account
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={cancel}
+                disabled={pending}
+              >
+                Cancel
+              </Button>
+            </Actions>
+          </WarningBox>
+        ) : (
+          <Group>
+            <GroupText>
+              Permanently delete your account and all associated data, including
+              your login. This cannot be undone.
+            </GroupText>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => start("delete")}
+              disabled={pending}
+            >
+              Delete my account
+            </Button>
+          </Group>
+        )}
+
+        {error && <Alert role="alert">{error}</Alert>}
+      </SettingsCard>
     </Shell>
   );
 }

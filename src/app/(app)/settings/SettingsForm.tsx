@@ -15,7 +15,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import styled from "styled-components";
-import { SectionHeading } from "./SectionHeading";
+import { SectionHeading, SettingsCard } from "./SectionHeading";
 import {
   setMonthlyReminderDay,
   setThemePreference,
@@ -33,7 +33,7 @@ const Shell = styled.section`
   max-width: 720px;
   margin: 0 auto;
   padding: ${({ theme }) => theme.spacing["3xl"]}
-    ${({ theme }) => theme.spacing["2xl"]} ${({ theme }) => theme.spacing["5xl"]};
+    ${({ theme }) => theme.spacing["2xl"]} 0;
   /* DESIGN.md → Layout → Grid & Container: gutters drop to 16px on mobile. */
   @media (max-width: 767px) {
     padding-left: ${({ theme }) => theme.spacing.lg};
@@ -367,187 +367,197 @@ export function SettingsForm({
         title="Settings"
         lead="App-wide preferences for your account."
       />
-      <SectionHeading>Format</SectionHeading>
-      <Field>
-        <FieldLabel>Currency</FieldLabel>
-        <Select
-          name="currency"
-          value={currencyValue}
-          disabled={savePending}
-          onChange={(event) => {
-            const next = event.target.value;
-            setCurrencyValue(next);
-            persistFormat(next, numberFormatValue);
-          }}
-        >
-          {currencyOptions.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </Select>
-      </Field>
-      <Field>
-        <FieldLabel>Number format</FieldLabel>
-        <Select
-          name="numberFormat"
-          value={numberFormatValue}
-          disabled={savePending}
-          onChange={(event) => {
-            const next = event.target.value;
-            setNumberFormatValue(next);
-            persistFormat(currencyValue, next);
-          }}
-        >
-          {numberFormatOptions.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </Select>
-      </Field>
-      {(savePending || justSaved) && (
-        <Row>
-          <SavedNote>{savePending ? "Saving…" : "Saved"}</SavedNote>
-        </Row>
-      )}
-
-      <SectionHeading>Appearance</SectionHeading>
-      <Field>
-        <FieldLabel>Colour scheme</FieldLabel>
-        <Select
-          name="themePreference"
-          value={themeValue}
-          disabled={themePending}
-          onChange={(event) =>
-            onChangeTheme(event.target.value as ThemePreference)
-          }
-        >
-          {THEME_PREFERENCES.map((preference) => (
-            <option key={preference} value={preference}>
-              {THEME_PREFERENCE_LABELS[preference]}
-            </option>
-          ))}
-        </Select>
-        <FieldHint>
-          Match my system follows your device, and changes with it.
-        </FieldHint>
-      </Field>
-
-      <SectionHeading>Transactions</SectionHeading>
-      <ToggleField>
-        <ToggleText>
-          <FieldHint>
-            Tracking every transaction gives you the deepest understanding of
-            where your money actually goes — but it takes time and effort, and
-            it’s entirely your choice whether that’s worth it. Turn this on to
-            add the Transactions page and import bank statements; each budget
-            category’s actual is then summed from its categorized transactions
-            rather than typed by hand. Leave it off to keep entering actuals
-            yourself.
-          </FieldHint>
-        </ToggleText>
-        <SwitchControl>
-          <SwitchInput
-            type="checkbox"
-            aria-label="Transactions"
-            checked={enabled}
-            disabled={togglePending}
-            onChange={(event) => onToggle(event.target.checked)}
-          />
-          <SwitchTrack />
-        </SwitchControl>
-      </ToggleField>
-
-      <ToggleField>
-        <ToggleText>
-          <FieldLabel>Transfers</FieldLabel>
-          <FieldHint>
-            Adds a Transfers section to the budget that totals money moved
-            between your own accounts (e.g. Current → ISA) — kept out of income
-            and expenses. Tag a transaction as a transfer from the Transactions
-            page. Needs Transactions switched on.
-          </FieldHint>
-        </ToggleText>
-        <SwitchControl>
-          <SwitchInput
-            type="checkbox"
-            aria-label="Transfers"
-            checked={transfersOn}
-            disabled={transfersPending || !enabled}
-            onChange={(event) => onToggleTransfers(event.target.checked)}
-          />
-          <SwitchTrack />
-        </SwitchControl>
-      </ToggleField>
-
-      <SectionHeading>Plan</SectionHeading>
-      <ToggleField>
-        <ToggleText>
-          <FieldLabel>Show Plan in nav</FieldLabel>
-          <FieldHint>
-            Hide the Plan tab from the navigation. Your plan and its data are
-            kept.
-          </FieldHint>
-        </ToggleText>
-        <SwitchControl>
-          <SwitchInput
-            type="checkbox"
-            aria-label="Show Plan in nav"
-            checked={planOn}
-            disabled={planPending}
-            onChange={(event) => onTogglePlan(event.target.checked)}
-          />
-          <SwitchTrack />
-        </SwitchControl>
-      </ToggleField>
-
-      <SectionHeading>Reminders</SectionHeading>
-      <ToggleField>
-        <ToggleText>
-          <FieldLabel>Monthly reminder email</FieldLabel>
-          <FieldHint>
-            One email a month saying your statement should be ready — nothing
-            more. It carries no figures, no balances and no category names; your
-            numbers stay behind your login. Off unless you turn it on, and every
-            email has a one-click way out.
-          </FieldHint>
-        </ToggleText>
-        <SwitchControl>
-          <SwitchInput
-            type="checkbox"
-            aria-label="Monthly reminder email"
-            checked={reminderOn}
-            disabled={reminderPending}
-            onChange={(event) => onToggleReminder(event.target.checked)}
-          />
-          <SwitchTrack />
-        </SwitchControl>
-      </ToggleField>
-
-      {reminderOn && (
+      <SettingsCard>
+        <SectionHeading>Format</SectionHeading>
         <Field>
-          <FieldLabel>Send on</FieldLabel>
+          <FieldLabel>Currency</FieldLabel>
           <Select
-            name="monthlyReminderDay"
-            value={String(reminderDay)}
-            disabled={dayPending}
+            name="currency"
+            value={currencyValue}
+            disabled={savePending}
+            onChange={(event) => {
+              const next = event.target.value;
+              setCurrencyValue(next);
+              persistFormat(next, numberFormatValue);
+            }}
+          >
+            {currencyOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field>
+          <FieldLabel>Number format</FieldLabel>
+          <Select
+            name="numberFormat"
+            value={numberFormatValue}
+            disabled={savePending}
+            onChange={(event) => {
+              const next = event.target.value;
+              setNumberFormatValue(next);
+              persistFormat(currencyValue, next);
+            }}
+          >
+            {numberFormatOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        {(savePending || justSaved) && (
+          <Row>
+            <SavedNote>{savePending ? "Saving…" : "Saved"}</SavedNote>
+          </Row>
+        )}
+      </SettingsCard>
+
+      <SettingsCard>
+        <SectionHeading>Appearance</SectionHeading>
+        <Field>
+          <FieldLabel>Colour scheme</FieldLabel>
+          <Select
+            name="themePreference"
+            value={themeValue}
+            disabled={themePending}
             onChange={(event) =>
-              onChangeReminderDay(Number(event.target.value) as ReminderDay)
+              onChangeTheme(event.target.value as ThemePreference)
             }
           >
-            {REMINDER_DAYS.map((day) => (
-              <option key={day} value={day}>
-                {REMINDER_DAY_LABELS[day]}
+            {THEME_PREFERENCES.map((preference) => (
+              <option key={preference} value={preference}>
+                {THEME_PREFERENCE_LABELS[preference]}
               </option>
             ))}
           </Select>
           <FieldHint>
-            Pick a day a few days after your statement usually closes, so
-            there's something to import when it arrives.
+            Match my system follows your device, and changes with it.
           </FieldHint>
         </Field>
-      )}
+      </SettingsCard>
+
+      <SettingsCard>
+        <SectionHeading>Transactions</SectionHeading>
+        <ToggleField>
+          <ToggleText>
+            <FieldHint>
+              Tracking every transaction gives you the deepest understanding of
+              where your money actually goes — but it takes time and effort, and
+              it’s entirely your choice whether that’s worth it. Turn this on to
+              add the Transactions page and import bank statements; each budget
+              category’s actual is then summed from its categorized transactions
+              rather than typed by hand. Leave it off to keep entering actuals
+              yourself.
+            </FieldHint>
+          </ToggleText>
+          <SwitchControl>
+            <SwitchInput
+              type="checkbox"
+              aria-label="Transactions"
+              checked={enabled}
+              disabled={togglePending}
+              onChange={(event) => onToggle(event.target.checked)}
+            />
+            <SwitchTrack />
+          </SwitchControl>
+        </ToggleField>
+
+        <ToggleField>
+          <ToggleText>
+            <FieldLabel>Transfers</FieldLabel>
+            <FieldHint>
+              Adds a Transfers section to the budget that totals money moved
+              between your own accounts (e.g. Current → ISA) — kept out of
+              income and expenses. Tag a transaction as a transfer from the
+              Transactions page. Needs Transactions switched on.
+            </FieldHint>
+          </ToggleText>
+          <SwitchControl>
+            <SwitchInput
+              type="checkbox"
+              aria-label="Transfers"
+              checked={transfersOn}
+              disabled={transfersPending || !enabled}
+              onChange={(event) => onToggleTransfers(event.target.checked)}
+            />
+            <SwitchTrack />
+          </SwitchControl>
+        </ToggleField>
+      </SettingsCard>
+
+      <SettingsCard>
+        <SectionHeading>Plan</SectionHeading>
+        <ToggleField>
+          <ToggleText>
+            <FieldLabel>Show Plan in nav</FieldLabel>
+            <FieldHint>
+              Hide the Plan tab from the navigation. Your plan and its data are
+              kept.
+            </FieldHint>
+          </ToggleText>
+          <SwitchControl>
+            <SwitchInput
+              type="checkbox"
+              aria-label="Show Plan in nav"
+              checked={planOn}
+              disabled={planPending}
+              onChange={(event) => onTogglePlan(event.target.checked)}
+            />
+            <SwitchTrack />
+          </SwitchControl>
+        </ToggleField>
+      </SettingsCard>
+
+      <SettingsCard>
+        <SectionHeading>Reminders</SectionHeading>
+        <ToggleField>
+          <ToggleText>
+            <FieldLabel>Monthly reminder email</FieldLabel>
+            <FieldHint>
+              One email a month saying your statement should be ready — nothing
+              more. It carries no figures, no balances and no category names;
+              your numbers stay behind your login. Off unless you turn it on,
+              and every email has a one-click way out.
+            </FieldHint>
+          </ToggleText>
+          <SwitchControl>
+            <SwitchInput
+              type="checkbox"
+              aria-label="Monthly reminder email"
+              checked={reminderOn}
+              disabled={reminderPending}
+              onChange={(event) => onToggleReminder(event.target.checked)}
+            />
+            <SwitchTrack />
+          </SwitchControl>
+        </ToggleField>
+
+        {reminderOn && (
+          <Field>
+            <FieldLabel>Send on</FieldLabel>
+            <Select
+              name="monthlyReminderDay"
+              value={String(reminderDay)}
+              disabled={dayPending}
+              onChange={(event) =>
+                onChangeReminderDay(Number(event.target.value) as ReminderDay)
+              }
+            >
+              {REMINDER_DAYS.map((day) => (
+                <option key={day} value={day}>
+                  {REMINDER_DAY_LABELS[day]}
+                </option>
+              ))}
+            </Select>
+            <FieldHint>
+              Pick a day a few days after your statement usually closes, so
+              there's something to import when it arrives.
+            </FieldHint>
+          </Field>
+        )}
+      </SettingsCard>
 
       {confirming && (
         <Overlay
