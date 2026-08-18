@@ -71,10 +71,18 @@ test.describe("Plan on a phone", () => {
     await expect(dialog).toBeVisible();
 
     // Full width, flush with the bottom edge — a sheet, not a floating card.
+    // Polled: toBeVisible fires the moment the slide-up transition starts, so
+    // a one-shot measurement on a slow runner catches the sheet mid-slide
+    // with residual translateY.
+    await expect
+      .poll(async () => {
+        const b = await dialog.boundingBox();
+        return b ? Math.round(b.y + b.height) : -1;
+      })
+      .toBe(PHONE.height);
     const box = await dialog.boundingBox();
     expect(box?.x).toBeCloseTo(0, 0);
     expect(box?.width).toBeCloseTo(PHONE.width, 0);
-    expect((box?.y ?? 0) + (box?.height ?? 0)).toBeCloseTo(PHONE.height, 0);
 
     // Pulling the grab strip past the threshold dismisses it.
     const grip = await page.getByTestId("plan-drawer-grip").boundingBox();
