@@ -6,6 +6,7 @@ import {
   Toolbar,
   ToolbarGroup,
   ToolbarPeriodLabel,
+  ToolbarSelect,
   ToolbarSpacer,
   ToolbarTool,
 } from "@/components/sheet/Toolbar";
@@ -329,24 +330,6 @@ function AmountInput({
     />
   );
 }
-
-// Toolbar control for moving the focused row into another section. Mirrors
-// /budget's CategorySelect styling.
-const SectionSelect = styled.select`
-  ${({ theme }) => `
-    border: 1px solid ${theme.colors.hairline};
-    border-radius: ${theme.rounded.sm};
-    background: ${theme.colors.canvas};
-    color: ${theme.colors.ink};
-    font-family: ${theme.typography.monoCaps.family};
-    font-size: ${theme.typography.monoCaps.size};
-    font-weight: ${theme.typography.monoCaps.weight};
-    letter-spacing: ${theme.typography.monoCaps.letterSpacing};
-    text-transform: uppercase;
-    padding: ${theme.spacing.xs} ${theme.spacing.sm};
-    cursor: pointer;
-  `}
-`;
 
 // ─── Page chrome ────────────────────────────────────────────────────────────
 
@@ -1499,7 +1482,7 @@ export function BalanceSheet({
         </ToolbarGroup>
         {focusedItem && (
           <ToolbarGroup $rowScoped $engaged>
-            <SectionSelect
+            <ToolbarSelect
               aria-label="Move to section"
               value={`${focusedItem.type}:${focusedItem.category}`}
               onChange={(e) => {
@@ -1512,7 +1495,7 @@ export function BalanceSheet({
                   {s.label}
                 </option>
               ))}
-            </SectionSelect>
+            </ToolbarSelect>
           </ToolbarGroup>
         )}
         <ToolbarGroup $rowScoped $engaged={!!focusedCell}>

@@ -93,9 +93,11 @@ export const ToolbarTool = styled.button<{
     align-items: center;
     justify-content: center;
 
-    /* Mobile tap target (DESIGN.md: ≥44px on touch rows). */
+    /* Toolbar chips sit at 34px on a phone — shorter than the general ≥44px
+       button rule (DESIGN.md → Buttons) because each control stretches to a
+       full-width row share, so the horizontal hit area does the work. */
     @media (max-width: 767px) {
-      height: 44px;
+      height: 34px;
     }
 
     &:hover:not(:disabled),
@@ -119,6 +121,29 @@ export const ToolbarTool = styled.button<{
     &:disabled {
       opacity: 0.5;
       cursor: not-allowed;
+    }
+  `}
+`;
+
+// Toolbar <select> (category/section pickers). Same chrome and heights as
+// ToolbarTool so a select never reads shorter than the buttons beside it.
+export const ToolbarSelect = styled.select`
+  ${({ theme }) => css`
+    height: 30px;
+    padding: 0 ${theme.spacing.sm};
+    border: 1px solid ${theme.colors.hairline};
+    border-radius: ${theme.rounded.sm};
+    background: ${theme.colors.canvas};
+    color: ${theme.colors.ink};
+    font-family: ${theme.typography.monoCaps.family};
+    font-size: ${theme.typography.monoCaps.size};
+    font-weight: ${theme.typography.monoCaps.weight};
+    letter-spacing: ${theme.typography.monoCaps.letterSpacing};
+    text-transform: uppercase;
+    cursor: pointer;
+
+    @media (max-width: 767px) {
+      height: 34px;
     }
   `}
 `;
