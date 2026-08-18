@@ -18,9 +18,10 @@ repo, that contradiction is itself a risk. It was replaced with this pointer.
 - The only personal data held is the account email address and the financial
   figures the user enters (including, if they use Plan, their date of birth).
 - No analytics, tracking, advertising, profiling, or AI anywhere.
-- Processors: Supabase (DB + auth), Vercel (hosting), Resend (email — address
-  only, opt-in reminder only). Name any new processor in the Privacy Policy
-  before shipping it.
+- Processors: Supabase (DB + auth), Vercel (hosting), Resend (outbound email —
+  address only, opt-in reminder only), ImprovMX (inbound contact-email
+  forwarding — see `docs/features/contact-email.md`). Name any new processor
+  in the Privacy Policy before shipping it.
 - Only strictly-necessary first-party cookies (Supabase session, `bm_activity`
   timeout cookie, transient OAuth PKCE) — which is why there is no consent
   banner. A new cookie must be added to the Cookie Policy first; anything
@@ -31,5 +32,6 @@ repo, that contradiction is itself a risk. It was replaced with this pointer.
   extend `src/__tests__/settings/dataActions.int.test.ts` — the privacy policy
   promises "everything", so an omitted table makes the policy false.
 
-Owner to-dos tracked elsewhere: ICO registration, Supabase/Vercel DPA records,
-and standing up the `hello@balanced.money` contact inbox named in the policies.
+Owner to-dos tracked elsewhere: ICO registration and Supabase/Vercel DPA
+records. The `hello@balanced.money` contact address named in the policies is
+live (ImprovMX forwarding, verified 2026-08-18).

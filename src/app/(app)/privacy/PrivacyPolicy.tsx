@@ -40,8 +40,8 @@ export function PrivacyPolicy() {
             never sell or share your data for marketing.
           </li>
           <li>
-            Three service providers process data on our behalf — Supabase,
-            Vercel, and Resend — and only to run the service.
+            Four service providers process data on our behalf — Supabase,
+            Vercel, Resend, and ImprovMX — and only to run the service.
           </li>
           <li>
             You can export, clear, or permanently delete everything yourself, at
@@ -160,9 +160,10 @@ export function PrivacyPolicy() {
       <LegalSection>
         <LegalHeading>Who processes your data</LegalHeading>
         <LegalBody>
-          We run the service on three specialist providers. Each acts as our
-          data processor: they may only process your data on our instructions,
-          under a data processing agreement, and never for their own purposes.
+          We run the service on a small set of specialist providers. Each acts
+          as our data processor: they may only process your data on our
+          instructions, under a data processing agreement, and never for their
+          own purposes.
         </LegalBody>
         <LegalTableWrap>
           <LegalTable>
@@ -195,6 +196,14 @@ export function PrivacyPolicy() {
                 <td>
                   Your email address only, and only if you turn the monthly
                   reminder on — never your financial data
+                </td>
+              </tr>
+              <tr>
+                <td>ImprovMX</td>
+                <td>Forwards email sent to our contact address</td>
+                <td>
+                  Only what you choose to email us — the sender address and
+                  message content — never anything from your account
                 </td>
               </tr>
             </tbody>
