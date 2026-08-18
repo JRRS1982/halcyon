@@ -19,8 +19,11 @@ async function requireUserId(): Promise<string> {
 
 // Deletes every FINANCIAL row for a user, in FK-safe order. Transactions go
 // first because Transaction.transferAccount is onDelete: Restrict — an account
-// can't be removed while a transfer still points at it. Does NOT touch User,
-// UserSettings, or Category. Returns the ops for a single $transaction.
+// can't be removed while a transfer still points at it. Plans cascade to their
+// child rows (assets, liabilities, incomes, expenses, events) and accounts
+// cascade to their import batches, so neither needs its own deleteMany. Does
+// NOT touch User, UserSettings, or Category. Returns the ops for a single
+// $transaction.
 function financialDeletes(userId: string) {
   return [
     prisma.transaction.deleteMany({ where: { userId } }),
@@ -30,6 +33,7 @@ function financialDeletes(userId: string) {
     prisma.account.deleteMany({ where: { userId } }),
     prisma.budgetTemplateItem.deleteMany({ where: { userId } }),
     prisma.balanceTemplateItem.deleteMany({ where: { userId } }),
+    prisma.plan.deleteMany({ where: { userId } }),
   ];
 }
 
@@ -46,6 +50,8 @@ export async function exportMyData(): Promise<string> {
     budgetTemplateItems,
     balanceTemplateItems,
     transactions,
+    importBatches,
+    plans,
   ] = await Promise.all([
     prisma.user.findUnique({ where: { id: userId } }),
     prisma.userSettings.findUnique({ where: { userId } }),
@@ -57,11 +63,24 @@ export async function exportMyData(): Promise<string> {
     prisma.budgetTemplateItem.findMany({ where: { userId } }),
     prisma.balanceTemplateItem.findMany({ where: { userId } }),
     prisma.transaction.findMany({ where: { userId } }),
+    prisma.importBatch.findMany({ where: { userId } }),
+    prisma.plan.findMany({
+      where: { userId },
+      include: {
+        assets: true,
+        liabilities: true,
+        incomes: true,
+        expenses: true,
+        events: true,
+      },
+    }),
   ]);
 
   return serializeExport({
     exportedAt: new Date().toISOString(),
-    schemaVersion: 1,
+    // v2 added importBatches and plans (with their nested rows), so "export my
+    // data" really is everything the database holds for the user.
+    schemaVersion: 2,
     user,
     settings,
     categories,
@@ -72,6 +91,8 @@ export async function exportMyData(): Promise<string> {
     budgetTemplateItems,
     balanceTemplateItems,
     transactions,
+    importBatches,
+    plans,
   });
 }
 
@@ -82,6 +103,7 @@ export async function clearMyData(): Promise<void> {
   revalidatePath("/budget");
   revalidatePath("/balance");
   revalidatePath("/transactions");
+  revalidatePath("/plan");
   revalidatePath("/settings");
 }
 

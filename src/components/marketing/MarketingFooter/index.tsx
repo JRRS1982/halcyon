@@ -31,7 +31,8 @@ export function MarketingFooter() {
           <div>
             <ColTitle>Legal</ColTitle>
             <FootLink href="/terms">Terms of Service</FootLink>
-            <FootLink href="/privacy">Data Privacy</FootLink>
+            <FootLink href="/privacy">Privacy Policy</FootLink>
+            <FootLink href="/cookies">Cookie Policy</FootLink>
           </div>
         </Grid>
       </Inner>

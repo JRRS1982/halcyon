@@ -28,9 +28,17 @@ export function SignUpForm({ error, success }: SignUpFormProps) {
       title="Create your account"
       lead="A clear home for your money — in a couple of minutes."
       footnote={
-        <Footnote>
-          Already have an account? <FootLink href="/sign-in">Sign in</FootLink>
-        </Footnote>
+        <>
+          <Footnote>
+            By creating an account — with email or Google — you agree to the{" "}
+            <FootLink href="/terms">Terms of Service</FootLink> and acknowledge
+            the <FootLink href="/privacy">Privacy Policy</FootLink>.
+          </Footnote>
+          <Footnote>
+            Already have an account?{" "}
+            <FootLink href="/sign-in">Sign in</FootLink>
+          </Footnote>
+        </>
       }
     >
       {error && <Alert role="alert">{error}</Alert>}

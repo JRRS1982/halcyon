@@ -12,7 +12,7 @@ flowchart LR
         SU["/sign-up"]
         CB["/auth/callback"]
         ABOUT["/about — the guide"]
-        LEGAL["/privacy · /terms"]
+        LEGAL["/privacy · /cookies · /terms"]
     end
 
     subgraph guarded ["Behind the auth guard"]
@@ -89,6 +89,7 @@ Reachable without a session.
 | `/auth/callback` | Route handler. Exchanges the one-time `code` from OAuth, magic links and email confirmation for a session. |
 | `/about` | The guide — what the app is for, the monthly rhythm, and what each section does. Deliberately public: it is the honest answer to "what is this?" before signing up. |
 | `/privacy` | Privacy notice. |
+| `/cookies` | Cookie policy — every cookie the app sets, named, with purpose and lifetime. |
 | `/terms` | Terms of service. |
 
 ## Behind the auth guard

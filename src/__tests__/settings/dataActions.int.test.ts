@@ -55,14 +55,32 @@ async function seedFinancialData(userId: string) {
       value: 500,
     },
   });
+  const batch = await prisma.importBatch.create({
+    data: { userId, accountId: account.id, fileName: "statement.csv" },
+  });
   await prisma.transaction.create({
     data: {
       userId,
       accountId: account.id,
       categoryId: category.id,
+      importBatchId: batch.id,
       date: new Date("2026-03-02"),
       amount: -25.5,
       description: "Groceries",
+    },
+  });
+  await prisma.plan.create({
+    data: {
+      userId,
+      dateOfBirth: new Date("1990-01-01"),
+      retirementAge: 65,
+      assets: { create: { label: "ISA", openingValue: 10_000 } },
+      liabilities: { create: { label: "Mortgage", openingBalance: 100_000 } },
+      incomes: { create: { label: "Salary", kind: "SALARY" } },
+      expenses: { create: { label: "Living costs", annualAmount: 12_000 } },
+      events: {
+        create: { label: "Inheritance", age: 50, direction: "INFLOW" },
+      },
     },
   });
 }
@@ -83,6 +101,14 @@ describe("exportMyData (integration)", () => {
     expect(dump.balanceItems).toHaveLength(1);
     expect(dump.transactions).toHaveLength(1);
     expect(dump.transactions[0].amount).toBe("-25.5");
+    expect(dump.importBatches).toHaveLength(1);
+    expect(dump.importBatches[0].fileName).toBe("statement.csv");
+    expect(dump.plans).toHaveLength(1);
+    expect(dump.plans[0].assets).toHaveLength(1);
+    expect(dump.plans[0].liabilities).toHaveLength(1);
+    expect(dump.plans[0].incomes).toHaveLength(1);
+    expect(dump.plans[0].expenses).toHaveLength(1);
+    expect(dump.plans[0].events).toHaveLength(1);
     expect(
       dump.accounts.every((a: { userId: string }) => a.userId === TEST_USER_ID),
     ).toBe(true);
@@ -115,6 +141,17 @@ describe("clearMyData (integration)", () => {
         where: { period: { userId: TEST_USER_ID } },
       }),
     ).toBe(0);
+    expect(
+      await prisma.importBatch.count({ where: { userId: TEST_USER_ID } }),
+    ).toBe(0);
+    expect(await prisma.plan.count({ where: { userId: TEST_USER_ID } })).toBe(
+      0,
+    );
+    expect(
+      await prisma.planAsset.count({
+        where: { plan: { userId: TEST_USER_ID } },
+      }),
+    ).toBe(0);
 
     // Kept:
     expect(
@@ -140,6 +177,9 @@ describe("clearMyData (integration)", () => {
     expect(
       await prisma.account.count({ where: { userId: OTHER_USER_ID } }),
     ).toBe(1);
+    expect(await prisma.plan.count({ where: { userId: OTHER_USER_ID } })).toBe(
+      1,
+    );
   });
 });
 
@@ -178,6 +218,12 @@ describe("deleteMyAccount (integration)", () => {
         where: { userId: TEST_USER_ID },
       }),
     ).toBe(0);
+    expect(
+      await prisma.importBatch.count({ where: { userId: TEST_USER_ID } }),
+    ).toBe(0);
+    expect(await prisma.plan.count({ where: { userId: TEST_USER_ID } })).toBe(
+      0,
+    );
   });
 
   test("does not touch another user's rows", async () => {

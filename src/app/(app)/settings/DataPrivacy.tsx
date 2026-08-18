@@ -196,9 +196,9 @@ export function DataPrivacy() {
           <WarningBox role="alertdialog" aria-label="Confirm clear data">
             <WarningTitle>⚠ Delete all financial records?</WarningTitle>
             <WarningText>
-              Your transactions, accounts, budgets, and balances will be
-              permanently removed. Your login, settings, and categories stay.
-              This can&rsquo;t be undone.
+              Your transactions, imports, accounts, budgets, balances, and plans
+              will be permanently removed. Your login, settings, and categories
+              stay. This can&rsquo;t be undone.
             </WarningText>
             <Actions>
               <Button
@@ -222,8 +222,8 @@ export function DataPrivacy() {
         ) : (
           <Group>
             <GroupText>
-              Delete all your transactions, accounts, budgets, and balances.
-              Your login, settings, and categories stay.
+              Delete all your transactions, imports, accounts, budgets,
+              balances, and plans. Your login, settings, and categories stay.
             </GroupText>
             <Button
               type="button"
