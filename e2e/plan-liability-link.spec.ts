@@ -60,7 +60,13 @@ async function seedAndCreatePlan(page: Page, db: PrismaClient): Promise<void> {
   await page.goto("/plan");
   await page.waitForLoadState("networkidle");
   await page.locator("input[type='date']").fill("1986-06-01");
-  await page.getByRole("button", { name: /create my plan/i }).click();
+  // Wrapped so createPlan's write + revalidation fully land before any test
+  // clicks into the page — a re-render arriving mid-click swallows the click
+  // and the drawer it should open never appears (firefox under full-suite
+  // load; the same failure mode as the link click below).
+  await withServerAction(page, () =>
+    page.getByRole("button", { name: /create my plan/i }).click(),
+  );
   await expect(page.getByRole("heading", { name: "Your plan" })).toBeVisible();
 }
 

@@ -74,11 +74,16 @@ const Stats = styled.dl`
   padding-left: ${({ theme }) => theme.spacing["2xl"]};
   border-left: 1px solid ${({ theme }) => theme.colors.hairline};
 
+  /* A phone can't fit three nowrap figures in one row — grid them two-up
+     instead of pushing the whole page sideways. */
   @media (max-width: 640px) {
     padding-left: 0;
     padding-top: ${({ theme }) => theme.spacing.lg};
     border-left: 0;
     border-top: 1px solid ${({ theme }) => theme.colors.hairline};
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: ${({ theme }) => theme.spacing.lg};
   }
 `;
 
@@ -92,6 +97,15 @@ const Stat = styled.div`
     margin-left: ${({ theme }) => theme.spacing["2xl"]};
     padding-left: ${({ theme }) => theme.spacing["2xl"]};
     border-left: 1px solid ${({ theme }) => theme.colors.hairline};
+  }
+
+  /* The grid's gap replaces the divider spacing on a phone. */
+  @media (max-width: 640px) {
+    & + & {
+      margin-left: 0;
+      padding-left: 0;
+      border-left: 0;
+    }
   }
 `;
 
@@ -110,6 +124,12 @@ const StatVal = styled.dd<{ $danger?: boolean }>`
   font-weight: 500;
   letter-spacing: -0.012em;
   white-space: nowrap;
+
+  /* In the phone's half-width grid cell the "· age 95" suffix wraps under the
+     figure rather than forcing the cell wider. */
+  @media (max-width: 640px) {
+    white-space: normal;
+  }
   color: ${({ theme, $danger }) =>
     $danger ? theme.colors.negative : theme.colors.ink};
 
