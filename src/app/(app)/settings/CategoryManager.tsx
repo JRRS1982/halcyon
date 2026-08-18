@@ -5,7 +5,7 @@ import { EXPENSE_BUCKETS, INCOME_BUCKETS } from "@/lib/categories/buckets";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import styled from "styled-components";
-import { SectionHeading } from "./SectionHeading";
+import { SectionHeading, SettingsCard } from "./SectionHeading";
 import {
   createManagedCategory,
   deleteCategory,
@@ -25,8 +25,7 @@ export type ManagedCategory = {
 const Shell = styled.section`
   max-width: 720px;
   margin: 0 auto;
-  padding: 0 ${({ theme }) => theme.spacing["2xl"]}
-    ${({ theme }) => theme.spacing["5xl"]};
+  padding: 0 ${({ theme }) => theme.spacing["2xl"]};
   /* DESIGN.md → Layout → Grid & Container: gutters drop to 16px on mobile. */
   @media (max-width: 767px) {
     padding-left: ${({ theme }) => theme.spacing.lg};
@@ -125,6 +124,20 @@ const TextButton = styled.button<{ $danger?: boolean }>`
   &:disabled {
     color: ${({ theme }) => theme.colors.dim};
     cursor: default;
+  }
+`;
+
+// The row's action cluster. Inline after the meta on desktop; on a phone it
+// takes a full second line, right-aligned, instead of wrapping raggedly with
+// one action orphaned per line.
+const RowActions = styled.span`
+  display: flex;
+  gap: ${({ theme }) => theme.spacing.xs};
+  margin-left: auto;
+
+  @media (max-width: 767px) {
+    flex-basis: 100%;
+    justify-content: flex-end;
   }
 `;
 
@@ -343,25 +356,27 @@ export function CategoryManager({
         <Meta>
           {c.section} · {c.txnCount} txns
         </Meta>
-        <TextButton type="button" onClick={() => startEdit(c)}>
-          Edit
-        </TextButton>
-        <TextButton
-          type="button"
-          onClick={() => {
-            setMode({ kind: "merge", id: c.id });
-            setMergeTarget("");
-          }}
-        >
-          Merge
-        </TextButton>
-        <TextButton
-          type="button"
-          $danger
-          onClick={() => setMode({ kind: "delete", id: c.id })}
-        >
-          Delete
-        </TextButton>
+        <RowActions>
+          <TextButton type="button" onClick={() => startEdit(c)}>
+            Edit
+          </TextButton>
+          <TextButton
+            type="button"
+            onClick={() => {
+              setMode({ kind: "merge", id: c.id });
+              setMergeTarget("");
+            }}
+          >
+            Merge
+          </TextButton>
+          <TextButton
+            type="button"
+            $danger
+            onClick={() => setMode({ kind: "delete", id: c.id })}
+          >
+            Delete
+          </TextButton>
+        </RowActions>
       </Row>
     );
   };
@@ -378,61 +393,64 @@ export function CategoryManager({
 
   return (
     <Shell>
-      <SectionHeading>Categories</SectionHeading>
-      <Lead>
-        Categories group your budget lines and transactions. Rename, re-section,
-        merge duplicates, or remove ones you no longer use (history is kept).
-      </Lead>
+      <SettingsCard>
+        <SectionHeading>Categories</SectionHeading>
+        <Lead>
+          Categories group your budget lines and transactions. Rename,
+          re-section, merge duplicates, or remove ones you no longer use
+          (history is kept).
+        </Lead>
 
-      <CreateRow>
-        <Input
-          value={newLabel}
-          onChange={(e) => setNewLabel(e.target.value)}
-          placeholder="New category…"
-        />
-        <Select
-          value={newType}
-          onChange={(e) => {
-            const t = e.target.value as "EXPENSE" | "INCOME";
-            setNewType(t);
-            setNewBucket(bucketsFor(t)[0].value);
-          }}
-        >
-          <option value="EXPENSE">Expense</option>
-          <option value="INCOME">Income</option>
-        </Select>
-        <SectionSelect
-          type={newType}
-          value={newBucket}
-          onChange={setNewBucket}
-        />
-        <Button type="button" onClick={onCreate} disabled={pending}>
-          Add
-        </Button>
-      </CreateRow>
+        <CreateRow>
+          <Input
+            value={newLabel}
+            onChange={(e) => setNewLabel(e.target.value)}
+            placeholder="New category…"
+          />
+          <Select
+            value={newType}
+            onChange={(e) => {
+              const t = e.target.value as "EXPENSE" | "INCOME";
+              setNewType(t);
+              setNewBucket(bucketsFor(t)[0].value);
+            }}
+          >
+            <option value="EXPENSE">Expense</option>
+            <option value="INCOME">Income</option>
+          </Select>
+          <SectionSelect
+            type={newType}
+            value={newBucket}
+            onChange={setNewBucket}
+          />
+          <Button type="button" onClick={onCreate} disabled={pending}>
+            Add
+          </Button>
+        </CreateRow>
 
-      {categories.length > 0 && (
-        <Search
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search categories…"
-        />
-      )}
+        {categories.length > 0 && (
+          <Search
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search categories…"
+          />
+        )}
 
-      {categories.length === 0 ? (
-        <Empty>
-          No categories yet — they appear as you budget and categorise.
-        </Empty>
-      ) : typeGroups.length === 0 ? (
-        <Empty>No categories match “{query}”.</Empty>
-      ) : (
-        typeGroups.map((g) => (
-          <div key={g.type}>
-            <TypeHeader>{g.label}</TypeHeader>
-            {g.items.map(renderRow)}
-          </div>
-        ))
-      )}
+        {categories.length === 0 ? (
+          <Empty>
+            No categories yet — they appear as you budget and categorise.
+          </Empty>
+        ) : typeGroups.length === 0 ? (
+          <Empty>No categories match “{query}”.</Empty>
+        ) : (
+          typeGroups.map((g) => (
+            <div key={g.type}>
+              <TypeHeader>{g.label}</TypeHeader>
+              {g.items.map(renderRow)}
+            </div>
+          ))
+        )}
+      </SettingsCard>
     </Shell>
   );
 }

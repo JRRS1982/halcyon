@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/Button";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import styled from "styled-components";
-import { SectionHeading } from "./SectionHeading";
+import { SectionHeading, SettingsCard } from "./SectionHeading";
 import {
   createManagedAccount,
   deleteAccount,
@@ -23,8 +23,7 @@ export type ManagedAccount = {
 const Shell = styled.section`
   max-width: 720px;
   margin: 0 auto;
-  padding: 0 ${({ theme }) => theme.spacing["2xl"]}
-    ${({ theme }) => theme.spacing["5xl"]};
+  padding: 0 ${({ theme }) => theme.spacing["2xl"]};
   /* DESIGN.md → Layout → Grid & Container: gutters drop to 16px on mobile. */
   @media (max-width: 767px) {
     padding-left: ${({ theme }) => theme.spacing.lg};
@@ -88,6 +87,20 @@ const TextButton = styled.button<{ $danger?: boolean }>`
   &:disabled {
     color: ${({ theme }) => theme.colors.dim};
     cursor: default;
+  }
+`;
+
+// The row's action cluster. Inline after the meta on desktop; on a phone it
+// takes a full second line, right-aligned, instead of wrapping raggedly with
+// one action orphaned per line.
+const RowActions = styled.span`
+  display: flex;
+  gap: ${({ theme }) => theme.spacing.xs};
+  margin-left: auto;
+
+  @media (max-width: 767px) {
+    flex-basis: 100%;
+    justify-content: flex-end;
   }
 `;
 
@@ -193,55 +206,59 @@ export function AccountManager({
       <Row key={a.id}>
         <Grow>{a.name}</Grow>
         <Meta>{referenced} txns</Meta>
-        <TextButton
-          type="button"
-          onClick={() => {
-            setMode({ kind: "edit", id: a.id });
-            setEditName(a.name);
-          }}
-        >
-          Edit
-        </TextButton>
-        <TextButton
-          type="button"
-          $danger
-          onClick={() => setMode({ kind: "delete", id: a.id })}
-        >
-          Delete
-        </TextButton>
+        <RowActions>
+          <TextButton
+            type="button"
+            onClick={() => {
+              setMode({ kind: "edit", id: a.id });
+              setEditName(a.name);
+            }}
+          >
+            Edit
+          </TextButton>
+          <TextButton
+            type="button"
+            $danger
+            onClick={() => setMode({ kind: "delete", id: a.id })}
+          >
+            Delete
+          </TextButton>
+        </RowActions>
       </Row>
     );
   };
 
   return (
     <Shell>
-      <SectionHeading>Accounts</SectionHeading>
-      <Lead>
-        Accounts are where your money sits — current, savings, ISA, SIPP. Import
-        statements against them, and name them when tagging a transfer. An
-        account can’t be deleted while it still has transactions.
-      </Lead>
+      <SettingsCard>
+        <SectionHeading>Accounts</SectionHeading>
+        <Lead>
+          Accounts are where your money sits — current, savings, ISA, SIPP.
+          Import statements against them, and name them when tagging a transfer.
+          An account can’t be deleted while it still has transactions.
+        </Lead>
 
-      <CreateRow>
-        <Input
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          placeholder="New account…"
-        />
-        <Button type="button" onClick={onCreate} disabled={pending}>
-          Add
-        </Button>
-      </CreateRow>
+        <CreateRow>
+          <Input
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            placeholder="New account…"
+          />
+          <Button type="button" onClick={onCreate} disabled={pending}>
+            Add
+          </Button>
+        </CreateRow>
 
-      {accounts.length === 0 ? (
-        <Empty>
-          No accounts yet — add one above or create one while importing.
-        </Empty>
-      ) : (
-        [...accounts]
-          .sort((a, b) => a.name.localeCompare(b.name))
-          .map(renderRow)
-      )}
+        {accounts.length === 0 ? (
+          <Empty>
+            No accounts yet — add one above or create one while importing.
+          </Empty>
+        ) : (
+          [...accounts]
+            .sort((a, b) => a.name.localeCompare(b.name))
+            .map(renderRow)
+        )}
+      </SettingsCard>
     </Shell>
   );
 }
