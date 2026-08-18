@@ -34,9 +34,12 @@ import {
 type Account = { id: string; name: string };
 
 // The modal body: everything between the title and the action row stacks with
-// the same rhythm the old inline panel used.
+// the same rhythm the old inline panel used. The same minmax(0, …) clamp as
+// the dialog's own grid — without it this inner grid re-introduces the
+// intrinsic-width stretch the dialog clamp just removed.
 const ModalBody = styled.div`
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: ${({ theme }) => theme.spacing.xl};
 `;
 
@@ -150,12 +153,17 @@ const Th = styled.th`
   border-bottom: 1px solid ${({ theme }) => theme.colors.hairline};
   color: ${({ theme }) => theme.colors.dim};
   font-weight: 600;
+  white-space: nowrap;
 `;
 
+// nowrap: the preview shows statement rows as records — a date broken across
+// two lines reads as noise. The table keeps its natural width and pans inside
+// PreviewScroll instead.
 const Td = styled.td<{ $bad?: boolean }>`
   padding: ${({ theme }) => theme.spacing.sm};
   border-bottom: 1px solid ${({ theme }) => theme.colors.hairline};
   color: ${({ $bad, theme }) => ($bad ? theme.colors.dim : theme.colors.ink)};
+  white-space: nowrap;
 `;
 
 const Summary = styled.p`
@@ -212,6 +220,11 @@ const Overlay = styled.div`
 
 const Dialog = styled.dialog`
   display: grid;
+  /* minmax(0, …): without the 0 floor, any child's intrinsic width (the
+     preview table's nowrap rows, the two-column map grid) stretches the track
+     wider than the dialog and everything to the right is clipped off a phone
+     screen. Clamped, wide children wrap or pan inside their own scrollers. */
+  grid-template-columns: minmax(0, 1fr);
   gap: ${({ theme }) => theme.spacing.lg};
   width: 100%;
   max-width: 460px;
@@ -236,9 +249,14 @@ const ConfirmOverlay = styled(Overlay)`
   z-index: 60;
 `;
 
+// min-width: 0 — the dialog is a grid, and a grid item's default min-width
+// lets the preview table's intrinsic width force the whole track wider than
+// the dialog. On a phone that pushed every other row (the mapping selects
+// included) past the dialog's clipped edge. Zeroed, the table pans in here.
 const PreviewScroll = styled.div`
   max-height: 240px;
   overflow: auto;
+  min-width: 0;
 `;
 
 // Post-import confirmation, anchored bottom-right per DESIGN.md's toast spec.
@@ -284,8 +302,12 @@ const DupRow = styled.label`
   cursor: pointer;
 `;
 
+// flex-wrap: the primary's label carries the count and account name ("Import 3
+// transactions into Current Account"), which outgrows a phone row — wrapped,
+// Cancel keeps its place instead of being shoved off the dialog's edge.
 const DialogActions = styled.div`
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: ${({ theme }) => theme.spacing.md};
 `;
