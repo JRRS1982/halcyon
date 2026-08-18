@@ -168,6 +168,13 @@ const Td = styled.td`
   vertical-align: middle;
 `;
 
+// Date and account cells: a date broken across two lines ("2026-08-" / "05")
+// reads as noise, and the table pans horizontally anyway — these cells keep
+// their content whole and let the scroller absorb the width.
+const TdNowrap = styled(Td)`
+  white-space: nowrap;
+`;
+
 const Amount = styled.td<{ $negative: boolean }>`
   padding: ${({ theme }) => theme.spacing.sm};
   border-bottom: 1px solid ${({ theme }) => theme.colors.hairline};
@@ -942,9 +949,9 @@ export function Ledger({
                         aria-label={`Select ${tx.description}`}
                       />
                     </TdCheck>
-                    <Td>{tx.date.slice(0, 10)}</Td>
+                    <TdNowrap>{tx.date.slice(0, 10)}</TdNowrap>
                     <Td>{tx.description}</Td>
-                    <Td>{tx.accountName}</Td>
+                    <TdNowrap>{tx.accountName}</TdNowrap>
                     <Amount $negative={tx.amount < 0}>
                       {tx.amount.toFixed(2)}
                     </Amount>

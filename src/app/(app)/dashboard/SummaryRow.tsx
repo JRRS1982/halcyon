@@ -4,14 +4,22 @@ import type { SummaryStat } from "@/lib/dashboard/summary";
 import { type NumberFormat, formatAmount } from "@/lib/settings/currency";
 import styled, { css } from "styled-components";
 
-// Four tiles across on a wide screen, folding to two and then one. Hairline
-// boxes on canvas — the same chrome as the chart panels below, so the row reads
-// as part of the page rather than a banner stuck on top.
+// Four tiles across on a wide screen, folding to two and then two-by-two.
+// Hairline boxes on canvas — the same chrome as the chart panels below, so the
+// row reads as part of the page rather than a banner stuck on top.
 const Row = styled.section`
   display: grid;
   gap: ${({ theme }) => theme.spacing.lg};
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   margin-top: ${({ theme }) => theme.spacing["2xl"]};
+
+  /* The 180px floor only fits one column on a phone, and four stacked tiles
+     each holding a single number push the charts a whole screen down. Two-up
+     halves that. */
+  @media (max-width: 767px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: ${({ theme }) => theme.spacing.sm};
+  }
 `;
 
 const Tile = styled.div`
