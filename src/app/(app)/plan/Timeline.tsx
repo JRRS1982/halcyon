@@ -10,7 +10,12 @@ import {
 } from "@/lib/plan/timelineData";
 import styled, { useTheme } from "styled-components";
 import { PlanCard } from "./PlanCard";
-import { PLOT_LEFT_INSET, PLOT_RIGHT_INSET } from "./axisGeometry";
+import {
+  PHONE_PLOT_QUERY,
+  PLOT_LEFT_INSET,
+  PLOT_LEFT_INSET_PHONE,
+  PLOT_RIGHT_INSET,
+} from "./axisGeometry";
 import { DEBT_COLOUR, INCOME_COLOURS, OUTFLOW_COLOURS } from "./colours";
 import type { StreamOverride } from "./liveBand";
 import type {
@@ -30,8 +35,11 @@ const INCOME = INCOME_COLOURS as Record<string, string>;
 const OUTFLOW = OUTFLOW_COLOURS as Record<string, string>;
 
 // Width of the left label gutter — single source so the bar tracks and the
-// reference-line overlay share one coordinate space and stay aligned.
+// reference-line overlay share one coordinate space and stay aligned. Narrows
+// on a phone (with the charts' Y axis) so the plot keeps most of the card;
+// row labels ellipsize into the smaller column.
 const GUTTER = `${PLOT_LEFT_INSET}px`;
+const GUTTER_PHONE = `${PLOT_LEFT_INSET_PHONE}px`;
 
 const Panel = styled(PlanCard)`
   overflow-x: auto;
@@ -52,6 +60,10 @@ const Rows = styled.div`
   align-items: center;
   row-gap: ${({ theme }) => theme.spacing.xs};
   padding-right: ${PLOT_RIGHT_INSET}px;
+
+  @media ${PHONE_PLOT_QUERY} {
+    grid-template-columns: ${GUTTER_PHONE} 1fr;
+  }
 `;
 const GroupLabel = styled.div`
   grid-column: 1 / -1;
@@ -140,6 +152,10 @@ const Overlay = styled.div`
   top: 0;
   bottom: 0;
   pointer-events: none;
+
+  @media ${PHONE_PLOT_QUERY} {
+    left: ${GUTTER_PHONE};
+  }
 `;
 const RefLine = styled.div`
   position: absolute;
@@ -153,10 +169,12 @@ const GuideLine = styled.div`
   bottom: 0;
   border-left: 1px solid ${({ theme }) => theme.colors.hairline};
 `;
-const RefLabel = styled.span<{ $level: number }>`
+// $flip: a mark near the plot's right edge writes its label to the LEFT of
+// the line — "Life expectancy" hangs off the card otherwise.
+const RefLabel = styled.span<{ $level: number; $flip: boolean }>`
   position: absolute;
   top: ${({ $level }) => $level * 13}px;
-  left: 4px;
+  ${({ $flip }) => ($flip ? "right: 4px;" : "left: 4px;")}
   font-size: 10px;
   color: ${({ theme }) => theme.colors.dim};
   white-space: nowrap;
@@ -470,7 +488,9 @@ export function Timeline({
                 style={{ left: `${r.leftPct}%` }}
                 title={`${r.label} (age ${r.age})`}
               >
-                <RefLabel $level={r.labelLevel}>{r.label}</RefLabel>
+                <RefLabel $level={r.labelLevel} $flip={r.leftPct > 70}>
+                  {r.label}
+                </RefLabel>
               </RefLine>
             ))}
             {model.events.map((m) => (

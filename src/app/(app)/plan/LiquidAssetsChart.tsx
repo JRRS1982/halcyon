@@ -22,10 +22,11 @@ import {
 } from "recharts";
 import { useTheme } from "styled-components";
 import { ChartTextures, wrapperFill } from "./ChartTextures";
-import { PLOT_HEIGHT, PLOT_LEFT_INSET, PLOT_RIGHT_INSET } from "./axisGeometry";
+import { PLOT_HEIGHT, PLOT_RIGHT_INSET } from "./axisGeometry";
 import { ageReferenceLines } from "./chartRefLines";
 import { StackedTooltip } from "./chartTooltip";
 import { NET_WORTH_COLOUR, WRAPPER_COLOURS, WRAPPER_LABELS } from "./colours";
+import { usePlotLeftInset } from "./usePlotLeftInset";
 
 // Drawdownable pots stacked over time, with a total line so depletion in
 // retirement is legible. Same wrapper colours as the net-worth chart.
@@ -48,6 +49,7 @@ export function LiquidAssetsChart({
   statePensionAge: number | null;
   expectedDeathAge: number | null;
 }) {
+  const plotLeftInset = usePlotLeftInset();
   const theme = useTheme();
   const data = toLiquidAssetsBandData(low, mid, high);
   const wrappers = liquidWrappersPresent(data);
@@ -83,7 +85,7 @@ export function LiquidAssetsChart({
           axisLine={{ stroke: theme.colors.hairline }}
         />
         <YAxis
-          width={PLOT_LEFT_INSET - 8}
+          width={plotLeftInset - 8}
           domain={domain}
           ticks={ticks}
           tick={{ fontSize: 11, fill: theme.colors.body }}

@@ -177,6 +177,13 @@ describe("toTimelineModel", () => {
     ]);
   });
 
+  it("drops a 5-year tick crowding the start age", () => {
+    const m = toTimelineModel({ ...base, minAge: 44, maxAge: 95 });
+    expect(m.ticks.map((t) => t.age)).toEqual([
+      44, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95,
+    ]);
+  });
+
   it("guards a degenerate single-year range (no divide-by-zero)", () => {
     const m = toTimelineModel({
       ...base,
