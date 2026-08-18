@@ -59,7 +59,14 @@ test.describe("Sheets on a phone", () => {
   test("the page itself never scrolls horizontally", async ({ page }) => {
     await signIn(page);
 
-    for (const path of ["/budget", "/balance", "/dashboard", "/settings"]) {
+    for (const path of [
+      "/budget",
+      "/balance",
+      "/dashboard",
+      "/settings",
+      "/transactions",
+      "/guide",
+    ]) {
       await page.goto(path);
       const overflows = await page.evaluate(
         () => document.documentElement.scrollWidth > window.innerWidth,
