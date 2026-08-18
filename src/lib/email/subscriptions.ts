@@ -27,6 +27,7 @@ export async function enabledSubscriptions(): Promise<ReminderSubscription[]> {
       monthlyReminderDay: true,
       monthlyReminderSentAt: true,
       unsubscribeToken: true,
+      transactionsEnabled: true,
     },
   });
 }

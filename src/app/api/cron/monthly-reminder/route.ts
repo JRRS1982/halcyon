@@ -94,6 +94,7 @@ export async function GET(request: Request) {
       siteUrl,
       unsubscribeToken: subscription.unsubscribeToken,
       now,
+      transactionsEnabled: subscription.transactionsEnabled,
     });
 
     const result = await sendEmail({
