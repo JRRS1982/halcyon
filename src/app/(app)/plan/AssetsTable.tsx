@@ -95,7 +95,14 @@ export function AssetFields({ asset }: { asset: SerializedPlanAsset }) {
           />
         </Field>
       </DrawerSection>
-      <DrawerSection title="Growth">
+      <DrawerSection
+        title="Growth"
+        summary={
+          (asset.expectedReturnPct !== null
+            ? `${asset.expectedReturnPct}%`
+            : "default") + (asset.feePct > 0 ? ` · ${asset.feePct}% fee` : "")
+        }
+      >
         <Field label="Expected return %">
           <NumberCell
             value={asset.expectedReturnPct}
@@ -112,7 +119,14 @@ export function AssetFields({ asset }: { asset: SerializedPlanAsset }) {
           />
         </Field>
       </DrawerSection>
-      <DrawerSection title="Contributions">
+      <DrawerSection
+        title="Contributions"
+        summary={
+          asset.annualContribution > 0
+            ? `${asset.annualContribution.toLocaleString()}/yr`
+            : "none"
+        }
+      >
         <Field label="Amount /yr">
           <NumberCell
             value={asset.annualContribution}
@@ -132,7 +146,10 @@ export function AssetFields({ asset }: { asset: SerializedPlanAsset }) {
           />
         </Field>
       </DrawerSection>
-      <DrawerSection title="Drawdown">
+      <DrawerSection
+        title="Drawdown"
+        summary={`order ${asset.drawdownPriority}`}
+      >
         <Field label="Draw order">
           <NumberCell
             value={asset.drawdownPriority}

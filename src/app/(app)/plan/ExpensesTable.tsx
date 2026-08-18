@@ -132,7 +132,10 @@ export function ExpenseFields({
         </Field>
       </DrawerSection>
       {managedBy ? null : (
-        <DrawerSection title="Timing">
+        <DrawerSection
+          title="Timing"
+          summary={`${expense.startAge ?? "now"} → ${expense.endAge ?? "plan end"}`}
+        >
           <Field label="Start age (blank = from now)">
             <NumberCell
               value={expense.startAge}
@@ -149,7 +152,10 @@ export function ExpenseFields({
           </Field>
         </DrawerSection>
       )}
-      <DrawerSection title="Inflation">
+      <DrawerSection
+        title="Inflation"
+        summary={expense.inflationLinked ? "linked" : "fixed"}
+      >
         <Field label="Inflation-linked">
           <BoolCell
             value={expense.inflationLinked}
