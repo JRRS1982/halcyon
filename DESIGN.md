@@ -534,7 +534,7 @@ Surface contrast does most of the separation. The sheet does not introduce visua
 
 #### Touch Targets
 
-The mono-caps button label is set at 11 px; combined with `{spacing.sm}` 8 px vertical and `{spacing.lg}` 16 px horizontal padding, the primary pill renders at ~30 px tall on desktop. On mobile viewports, button height is inflated to ≥ 44 px through extra vertical padding inside the touch row.
+The mono-caps button label is set at 11 px; combined with `{spacing.sm}` 8 px vertical and `{spacing.lg}` 16 px horizontal padding, the primary pill renders at ~30 px tall on desktop. On mobile viewports, button height is inflated to ≥ 44 px through extra vertical padding inside the touch row. Exception: the sheet-toolbar chips (buttons and selects alike) sit at 34 px on mobile — each stretches to a full-width row share, so the horizontal hit area carries the tap target and the shorter chip keeps the toolbar from crowding the sheet.
 
 The default sheet cell renders at ~36 px tall (14 px text + 8 px × 2 padding + line-height). On mobile, cell padding bumps to `{spacing.md}` 12 px vertical for a comfortable ≥ 44 px tap target.
 
