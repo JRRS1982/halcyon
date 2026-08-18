@@ -34,13 +34,19 @@ const Muted = styled.span`
   color: ${({ theme }) => theme.colors.dim};
 `;
 
-const Popover = styled.div`
+// Anchored under the trigger, flipping to the trigger's right edge when a
+// left-anchored popover would poke past the viewport — otherwise the browser
+// scrolls the whole page sideways to reach the focused search input (a 280px
+// popover on a 375px phone did exactly that from the bulk bar). Width is
+// clamped so it fits even when neither anchor has 280px of room.
+const POPOVER_WIDTH = 280;
+
+const Popover = styled.div<{ $align: "left" | "right" }>`
   position: absolute;
   z-index: 30;
   top: calc(100% + 2px);
-  left: 0;
-  width: 280px;
-  max-width: 80vw;
+  ${({ $align }) => ($align === "right" ? "right: 0;" : "left: 0;")}
+  width: min(${POPOVER_WIDTH}px, calc(100vw - 24px));
   background: ${({ theme }) => theme.colors.canvas};
   border: 1px solid ${({ theme }) => theme.colors.hairlineStrong};
   border-radius: ${({ theme }) => theme.rounded.sm};
@@ -217,13 +223,29 @@ export function CategoryCombobox({
   onCreateAccount,
 }: Props) {
   const [open, setOpen] = useState(false);
+  const [align, setAlign] = useState<"left" | "right">("left");
   const [query, setQuery] = useState("");
   // Index into the keyboard-navigable options below; -1 means none highlighted.
   const [activeIndex, setActiveIndex] = useState(-1);
   const [newType, setNewType] = useState<"EXPENSE" | "INCOME">(defaultType);
   const [newBucket, setNewBucket] = useState<string>("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
   const listboxId = useId();
+
+  // Measured at open (not render): the trigger can sit anywhere — a table cell
+  // mid-pan, the bulk bar — so the anchor is a property of the moment.
+  const toggleOpen = () => {
+    if (!open) {
+      const rect = wrapRef.current?.getBoundingClientRect();
+      setAlign(
+        rect && rect.left + POPOVER_WIDTH > window.innerWidth - 12
+          ? "right"
+          : "left",
+      );
+    }
+    setOpen((o) => !o);
+  };
 
   const current = categories.find((c) => c.id === value) ?? null;
   const transferAccount =
@@ -416,6 +438,7 @@ export function CategoryCombobox({
 
   return (
     <Wrap
+      ref={wrapRef}
       onBlur={(e) => {
         if (!e.currentTarget.contains(e.relatedTarget as Node | null)) close();
       }}
@@ -424,7 +447,7 @@ export function CategoryCombobox({
         type="button"
         disabled={disabled}
         aria-label={triggerLabel}
-        onClick={() => setOpen((o) => !o)}
+        onClick={toggleOpen}
       >
         {current ? (
           <>
@@ -440,7 +463,11 @@ export function CategoryCombobox({
       </Trigger>
 
       {open && (
-        <Popover>
+        <Popover
+          $align={align}
+          data-align={align}
+          data-testid="combobox-popover"
+        >
           <SearchInput
             ref={inputRef}
             value={query}

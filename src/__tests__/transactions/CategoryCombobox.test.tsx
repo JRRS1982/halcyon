@@ -50,6 +50,49 @@ const openPopup = () => {
   return screen.getByRole("combobox");
 };
 
+describe("CategoryCombobox popover placement", () => {
+  const mockWrapRect = (left: number, right: number) => {
+    jest
+      .spyOn(HTMLDivElement.prototype, "getBoundingClientRect")
+      .mockReturnValue({
+        left,
+        right,
+        top: 0,
+        bottom: 0,
+        width: right - left,
+        height: 0,
+        x: left,
+        y: 0,
+        toJSON: () => ({}),
+      } as DOMRect);
+  };
+
+  afterEach(() => jest.restoreAllMocks());
+
+  test("anchors left when there is room to the right", () => {
+    // jsdom viewport is 1024px wide; a trigger at x=100 fits a 280px popover.
+    mockWrapRect(100, 300);
+    renderit();
+    openPopup();
+    expect(screen.getByTestId("combobox-popover")).toHaveAttribute(
+      "data-align",
+      "left",
+    );
+  });
+
+  test("anchors right when left-anchoring would overflow the viewport", () => {
+    // Trigger near the right edge: 100 + 280 > 1024 fails, so use a phone-ish
+    // position — right edge at 1010, left at 810; 810 + 280 > 1024 - 12.
+    mockWrapRect(810, 1010);
+    renderit();
+    openPopup();
+    expect(screen.getByTestId("combobox-popover")).toHaveAttribute(
+      "data-align",
+      "right",
+    );
+  });
+});
+
 describe("CategoryCombobox flat grouped list", () => {
   test("renders income, expenses then transfers as one list with headings", () => {
     renderit({ transfersEnabled: true });

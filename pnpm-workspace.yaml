@@ -17,6 +17,13 @@ overrides:
   # @istanbuljs/load-nyc-config, and nothing parses untrusted YAML.
   js-yaml: ">=3.15.1 <4.0.0"
   fast-uri: ">=3.1.5 <4.0.0"
+  # GHSA-ggr8-5vv4-36mx / CVE-2026-40345 (stack exhaustion merging recursive
+  # object graphs, published 2026-08-16) is patched only in 8.0.0 — a major
+  # bump with no 7.x backport; the breaking changes are type renames and Map
+  # merge semantics that @prisma/config's plain-object config merging never
+  # touches. Tree: prisma → @prisma/config → deepmerge-ts, which merges our own
+  # prisma.config.ts at CLI/config-load time and never sees untrusted input.
+  deepmerge-ts@<8.0.0: ^8.0.1
   # GHSA-2v37-7h3g-55p8 (a custom generator with size 0 loops forever) is
   # patched in 3.3.17; the 3.x line runs to 3.3.18 and is still maintained as
   # `legacy`, so the floor moves and the line stays put. Unlike the overrides

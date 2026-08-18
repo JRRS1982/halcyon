@@ -16,7 +16,7 @@ import type {
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Fragment, useEffect, useRef, useState, useTransition } from "react";
-import styled from "styled-components";
+import styled, { css } from "styled-components";
 import { CategoryCombobox, type NewCategoryInput } from "./CategoryCombobox";
 import {
   bulkDeleteTransactions,
@@ -192,11 +192,39 @@ const EmptyLink = styled(Link)`
   }
 `;
 
-// Checkbox column header — unlike the data columns it doesn't sort.
+// While the table pans on a phone, the selection column stays pinned so a
+// bulk workflow can keep ticking rows with the category column in view — the
+// same sticky-left treatment the budget/balance sheets give their category
+// cell (SheetRow.styled). Opaque background so panning columns slide under it.
+const stickySelect = css`
+  @media (max-width: 991px) {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: ${({ theme }) => theme.colors.canvas};
+  }
+`;
+
+// Narrow non-sorting header — the notes spacer column. Deliberately not
+// sticky: only the selection column pins (ThSelect below); this one sits at
+// the table's far edge and would ride over the pinned checkbox at full pan.
 const ThCheck = styled.th`
   width: 28px;
   padding: ${({ theme }) => theme.spacing.sm};
   border-bottom: 1px solid ${({ theme }) => theme.colors.hairline};
+`;
+
+// Select-all header cell; pins with its column, see stickySelect.
+const ThSelect = styled(ThCheck)`
+  ${stickySelect}
+`;
+
+// Checkbox cell in each row; see stickySelect.
+const TdCheck = styled.td`
+  padding: ${({ theme }) => theme.spacing.sm};
+  border-bottom: 1px solid ${({ theme }) => theme.colors.hairline};
+  vertical-align: middle;
+  ${stickySelect}
 `;
 
 // Toggles the per-transaction detail panel. Accent when there's something
@@ -877,18 +905,18 @@ export function Ledger({
           )}
         </Empty>
       ) : (
-        <TableScroll>
+        <TableScroll data-ledger-scroller>
           <Table>
             <thead>
               <tr>
-                <ThCheck>
+                <ThSelect>
                   <input
                     type="checkbox"
                     checked={allOnPageSelected}
                     onChange={toggleAllOnPage}
                     aria-label="Select all transactions on this page"
                   />
-                </ThCheck>
+                </ThSelect>
                 {COLUMNS.map((col) => (
                   <Th
                     key={col.key}
@@ -906,14 +934,14 @@ export function Ledger({
               {items.map((tx) => (
                 <Fragment key={tx.id}>
                   <tr>
-                    <Td>
+                    <TdCheck>
                       <input
                         type="checkbox"
                         checked={selected.has(tx.id)}
                         onChange={() => toggleRow(tx.id)}
                         aria-label={`Select ${tx.description}`}
                       />
-                    </Td>
+                    </TdCheck>
                     <Td>{tx.date.slice(0, 10)}</Td>
                     <Td>{tx.description}</Td>
                     <Td>{tx.accountName}</Td>
