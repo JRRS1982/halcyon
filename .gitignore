@@ -63,5 +63,7 @@ pnpm-debug.log*
 *.sw?
 
 .env.production
-.env.development
 .env.test
+# .env.development is committed on purpose (local docker values only) — see the
+# header in that file. Do NOT add it here: it is already tracked, so a gitignore
+# entry has no effect on it and only misleads.

@@ -10,7 +10,10 @@ import {
   MAX_EXTRA_COLUMNS,
   mapRows,
 } from "@/lib/transactions/import";
-import { MAX_IMPORT_ROWS } from "@/lib/transactions/limits";
+import {
+  MAX_IMPORT_ROWS,
+  MAX_TRANSACTIONS_PER_USER,
+} from "@/lib/transactions/limits";
 import {
   MEMORY_WINDOW,
   buildCategoryMemory,
@@ -188,6 +191,19 @@ export async function commitImport(input: CommitInput): Promise<ImportResult> {
 
   let autoCategorised = 0;
   if (toInsert.length > 0) {
+    // Bound the total a single user can accumulate across all imports. Counting
+    // live rows (deletedAt: null) keeps reversed/deleted batches from counting
+    // against the cap, and fails closed: if the count query throws, the import
+    // does not proceed.
+    const existing = await prisma.transaction.count({
+      where: { userId, deletedAt: null },
+    });
+    if (existing + toInsert.length > MAX_TRANSACTIONS_PER_USER) {
+      throw new Error(
+        `Import would exceed the ${MAX_TRANSACTIONS_PER_USER.toLocaleString()} transaction limit`,
+      );
+    }
+
     // Categorisation memory: how the user filed each merchant last time.
     // Rebuilt from recent history on every import (nothing stored), and
     // restricted to live categories so a deleted one is never resurrected.
@@ -410,6 +426,19 @@ export async function createTransaction(
       select: { id: true },
     });
     if (!category) throw new Error("Category not found");
+  }
+
+  // The same per-user ceiling commitImport enforces. Quick-add is a second
+  // write path into the same table, and a loop over it grows that table just
+  // as effectively as a loop over the import — a cap on one route only is not
+  // a cap.
+  const existing = await prisma.transaction.count({
+    where: { userId, deletedAt: null },
+  });
+  if (existing + 1 > MAX_TRANSACTIONS_PER_USER) {
+    throw new Error(
+      `You have reached the ${MAX_TRANSACTIONS_PER_USER.toLocaleString()} transaction limit`,
+    );
   }
 
   const created = await prisma.transaction.create({

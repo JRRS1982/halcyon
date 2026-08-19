@@ -43,6 +43,20 @@ const emailSchema = z.object({
   CRON_SECRET: z.preprocess(blankAsAbsent, z.string().min(1).optional()),
 });
 
+// App-side rate limiter (src/lib/rateLimit). Optional like the email vars: when
+// either is absent the limiter no-ops, so local dev, CI and preview deploys run
+// without a Redis. Blank counts as absent for the same Docker Compose reason.
+const rateLimitSchema = z.object({
+  UPSTASH_REDIS_REST_URL: z.preprocess(
+    blankAsAbsent,
+    z.string().url().optional(),
+  ),
+  UPSTASH_REDIS_REST_TOKEN: z.preprocess(
+    blankAsAbsent,
+    z.string().min(1).optional(),
+  ),
+});
+
 const parse = <T extends z.ZodType>(
   schema: T,
   values: Record<string, unknown>,
@@ -98,5 +112,13 @@ export const emailEnv: z.infer<typeof emailSchema> = isServer
       EMAIL_FROM: process.env.EMAIL_FROM,
       SITE_URL: process.env.SITE_URL,
       CRON_SECRET: process.env.CRON_SECRET,
+    })
+  : {};
+
+// Separate and optional, for the same reasons as emailEnv above.
+export const rateLimitEnv: z.infer<typeof rateLimitSchema> = isServer
+  ? parse(rateLimitSchema, {
+      UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
+      UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
     })
   : {};
