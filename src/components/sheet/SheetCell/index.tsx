@@ -35,6 +35,9 @@ export type SheetCellProps = {
   focused?: boolean;
   indent?: number;
   role?: SheetCellRole;
+  // Native tooltip, for cells whose tone needs a why (e.g. carried-over
+  // balance values).
+  title?: string;
   children?: ReactNode;
 };
 
@@ -44,11 +47,13 @@ export function SheetCell({
   focused = false,
   indent = 0,
   role = "cell",
+  title,
   children,
 }: SheetCellProps) {
   return (
     <CellWrapper
       role={role}
+      title={title}
       $align={align}
       $tone={tone}
       $focused={focused}
