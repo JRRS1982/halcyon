@@ -329,6 +329,65 @@ export async function setTransactionCategory(
   revalidatePath("/dashboard");
 }
 
+const createTransactionSchema = z.object({
+  accountId: z.string().uuid(),
+  // A plain calendar date from the form's date input; parsed at UTC midnight
+  // to match how imports store statement dates.
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  description: z.string().trim().min(1).max(300),
+  // Bank-signed, like imported rows: negative for money out, positive for
+  // money in. Zero records nothing and is refused.
+  amount: z
+    .number()
+    .finite()
+    .refine((v) => v !== 0, { message: "Amount can't be zero" }),
+  categoryId: z.string().uuid().nullable(),
+});
+
+export type CreateTransactionInput = z.input<typeof createTransactionSchema>;
+
+// Quick-add: one transaction typed straight into the ledger — cash spend, a
+// mid-month capture, anything that shouldn't wait for the next statement.
+// Not part of any import batch, so reverse-import never touches it.
+export async function createTransaction(
+  input: CreateTransactionInput,
+): Promise<{ id: string }> {
+  const userId = await requireTransactionsEnabled();
+  const parsed = createTransactionSchema.parse(input);
+
+  const account = await prisma.account.findFirst({
+    where: { id: parsed.accountId, userId, deletedAt: null },
+    select: { id: true },
+  });
+  if (!account) throw new Error("Account not found");
+
+  if (parsed.categoryId) {
+    const category = await prisma.category.findFirst({
+      where: { id: parsed.categoryId, userId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!category) throw new Error("Category not found");
+  }
+
+  const created = await prisma.transaction.create({
+    data: {
+      userId,
+      accountId: account.id,
+      date: new Date(`${parsed.date}T00:00:00.000Z`),
+      amount: parsed.amount,
+      description: parsed.description,
+      categoryId: parsed.categoryId,
+    },
+    select: { id: true },
+  });
+
+  revalidatePath("/transactions");
+  revalidatePath("/budget");
+  revalidatePath("/dashboard");
+
+  return created;
+}
+
 const setNoteSchema = z.object({
   transactionId: z.string().uuid(),
   note: z.string().trim().max(2000),
