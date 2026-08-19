@@ -120,26 +120,32 @@ jobs:
 
   e2e-tests:
     runs-on: ubuntu-latest
+    # The official Playwright image, pinned to the version in pnpm-lock.yaml —
+    # the two must move together, since the browsers are baked in and Playwright
+    # refuses to drive a build it wasn't shipped with.
+    #
+    # This exists to delete a failure mode rather than to save time. Installing
+    # browsers on a bare runner means `--with-deps`, which means `apt-get`, and
+    # on 2026-08-19 a degraded Ubuntu mirror made that step take 16-24 minutes
+    # on five separate runs across four PRs — sometimes hanging outright,
+    # sometimes finishing so late the suite was killed mid-run. The image ships
+    # the browsers and every system library they need, so there is no apt call
+    # left to be slow.
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.0-noble
+
     # A wedged runner once sat for GitHub's 6h default before being killed, so
     # this stays bounded; the suite itself takes ~11 minutes.
-    #
-    # The headroom over that is deliberate. `timeout-minutes` covers the whole
-    # job, so slow setup is paid for out of the tests' budget: on 2026-08-19 a
-    # degraded Ubuntu mirror made browser installation take 16-20 minutes on
-    # three separate runs, each time leaving too little for a 246-test suite
-    # and killing it mid-run — which GitHub reports as `cancelled`, reading
-    # exactly like a test failure.
-    #
-    # Sized so that even a worst-case-but-working install (capped at 22 below)
-    # still leaves the suite comfortably more than it needs.
-    timeout-minutes: 45
+    timeout-minutes: 30
 
     # Authed pages (e.g. the dashboard) server-render Prisma queries, so e2e
-    # needs a real Postgres. Credentials match playwright.config.ts's
-    # DATABASE_URL (postgresql://test:test@localhost:5432/halcyon_test).
+    # needs a real Postgres. The host is the *service name*, not localhost:
+    # this job runs inside a container, so the service is a sibling container
+    # on the job's network rather than a port on the runner. playwright.config
+    # inherits these for the app server it spawns.
     env:
-      DATABASE_URL: postgresql://test:test@localhost:5432/halcyon_test
-      DIRECT_URL: postgresql://test:test@localhost:5432/halcyon_test
+      DATABASE_URL: postgresql://test:test@postgres:5432/halcyon_test
+      DIRECT_URL: postgresql://test:test@postgres:5432/halcyon_test
 
     services:
       postgres:
@@ -171,36 +177,6 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-
-      # The browser binaries are ~500MB across the three engines and change
-      # only when the Playwright dependency does, so key the cache on the
-      # lockfile. A hit turns the step below into a no-op download.
-      - name: Cache Playwright browsers
-        id: playwright-cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
-
-      - name: Install Playwright browsers
-        # All three engines run in CI (chromium + firefox + webkit); --with-deps
-        # also installs the required system libraries. Run unconditionally even
-        # on a cache hit: the browsers are then already present (so this is
-        # quick), but the apt-installed system libraries are not — they live in
-        # /usr/lib on the runner image, which is not cached.
-        #
-        # Its own timeout, because the apt call here is the single flakiest
-        # part of CI (a dead Ubuntu mirror has hung it for 24 minutes) and
-        # without a step-level bound a hang is silently charged to the test run
-        # instead of being reported as what it is.
-        #
-        # 22, not something tight: this takes ~2-3 minutes when healthy but was
-        # observed completing legitimately in 20m05s on a degraded mirror, and
-        # a cap under that would convert a slow-but-working run into a failure
-        # — trading one false signal for another. The point is to bound a hang
-        # and attribute it correctly, not to police how slow apt is today.
-        timeout-minutes: 22
-        run: pnpm exec playwright install --with-deps
 
       # Only apply the schema — do NOT run `pnpm db:seed`. That seed is a
       # local-dev tool (it provisions a loginable demo user via the cloud

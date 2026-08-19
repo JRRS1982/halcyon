@@ -84,8 +84,18 @@ export default defineConfig({
         SUPABASE_SECRET_KEY: "sb_secret_test_key_for_e2e",
         // Prisma needs *something*; nothing in the auth flow touches the DB
         // via Prisma, so a fake URL is fine.
-        DATABASE_URL: "postgresql://test:test@localhost:5432/halcyon_test",
-        DIRECT_URL: "postgresql://test:test@localhost:5432/halcyon_test",
+        //
+        // Inherited when set, because the host isn't always localhost: the CI
+        // e2e job runs inside the Playwright container, where the Postgres
+        // service is reachable by its service name rather than over the
+        // runner's loopback. The literal stays the default so a local
+        // `pnpm test:e2e` needs no environment at all.
+        DATABASE_URL:
+          process.env.DATABASE_URL ??
+          "postgresql://test:test@localhost:5432/halcyon_test",
+        DIRECT_URL:
+          process.env.DIRECT_URL ??
+          "postgresql://test:test@localhost:5432/halcyon_test",
         NEXT_TELEMETRY_DISABLED: "1",
       },
     },
