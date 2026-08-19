@@ -66,9 +66,27 @@ test.describe("Plan on a phone", () => {
     await seedInfeasiblePlan(db, user.id);
 
     await page.goto("/plan");
-    await page.getByRole("button", { name: /SIPP/ }).click();
+
+    // Opening is retried, not clicked once. The row is a server-rendered
+    // button, so Playwright judges it actionable — visible, stable, enabled —
+    // the moment it paints, which is before React has hydrated the page and
+    // attached the handler that opens the sheet. A click in that window is
+    // swallowed: nothing happens, and the test then fails on a dialog that was
+    // never asked to open. It surfaced on webkit under CI load, where
+    // hydration lags furthest behind first paint, and blocked two unrelated
+    // PRs before being tracked down.
+    //
+    // Guarded on visibility so a slow-but-successful open isn't clicked a
+    // second time. Same reasoning as signedInUser's poll: the row becomes
+    // interactive shortly, not instantly, and saying so is more honest than
+    // widening a timeout.
     const dialog = page.getByRole("dialog");
-    await expect(dialog).toBeVisible();
+    await expect(async () => {
+      if (!(await dialog.isVisible())) {
+        await page.getByRole("button", { name: /SIPP/ }).click();
+      }
+      await expect(dialog).toBeVisible({ timeout: 2000 });
+    }).toPass({ timeout: 20000 });
 
     // Full width, flush with the bottom edge — a sheet, not a floating card.
     // Polled: toBeVisible fires the moment the slide-up transition starts, so
