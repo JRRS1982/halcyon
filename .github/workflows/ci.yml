@@ -121,8 +121,14 @@ jobs:
   e2e-tests:
     runs-on: ubuntu-latest
     # A wedged runner once sat for GitHub's 6h default before being killed;
-    # a healthy run takes ~11 minutes.
-    timeout-minutes: 25
+    # a healthy run takes ~11 minutes. The headroom over that is deliberate:
+    # `timeout-minutes` covers the whole job, so when setup is slow it eats the
+    # budget the tests need. On 2026-08-19 a degraded apt mirror made browser
+    # installation take 16m47s, leaving 7 minutes for a 246-test suite and
+    # killing it mid-run — which GitHub then reports as `cancelled`, reading
+    # exactly like a test failure. The install step now has its own, tighter
+    # timeout below so that failure surfaces as itself.
+    timeout-minutes: 35
 
     # Authed pages (e.g. the dashboard) server-render Prisma queries, so e2e
     # needs a real Postgres. Credentials match playwright.config.ts's
@@ -162,9 +168,29 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # The browser binaries are ~500MB across the three engines and change
+      # only when the Playwright dependency does, so key the cache on the
+      # lockfile. A hit turns the step below into a no-op download.
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
       - name: Install Playwright browsers
         # All three engines run in CI (chromium + firefox + webkit); --with-deps
-        # also installs the required system libraries.
+        # also installs the required system libraries. Run unconditionally even
+        # on a cache hit: the browsers are then already present (so this is
+        # quick), but the apt-installed system libraries are not — they live in
+        # /usr/lib on the runner image, which is not cached.
+        #
+        # Its own timeout, well above the ~2-3 minutes this takes when healthy:
+        # the apt step here is the single flakiest part of CI (a dead Ubuntu
+        # mirror has hung it for 24 minutes), and without a step-level bound a
+        # hang is silently charged to the test run instead of being reported as
+        # what it is.
+        timeout-minutes: 10
         run: pnpm exec playwright install --with-deps
 
       # Only apply the schema — do NOT run `pnpm db:seed`. That seed is a
