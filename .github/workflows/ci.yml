@@ -145,28 +145,24 @@ jobs:
     # container, so the database is a sibling container on the job's network
     # rather than a port on the runner.
     #
-    # One database, three names, because three different processes read three
-    # different variables:
+    # Three programs read three different variable names, and in production
+    # they hold three different values:
     #
-    #   DATABASE_URL      the app — playwright.config passes it to the Next
-    #                     server it spawns. In production this is the *pooled*
-    #                     connection (port 6543).
-    #   DIRECT_URL        prisma.config.ts, for `migrate deploy`. In production
-    #                     this is the direct connection (5432), because
-    #                     migrations cannot run through the pooler.
+    #   DATABASE_URL      the app (src/lib/env.ts) — playwright.config passes
+    #                     it to the Next server it spawns. Pooled (6543) in prod.
+    #   DIRECT_URL        prisma.config.ts, for `migrate deploy`. Direct (5432)
+    #                     in prod, because migrations cannot use the pooler.
     #   E2E_DATABASE_URL  the specs' own Prisma client. Quarantined on purpose:
-    #                     see e2e/_helpers/fixtures.ts, which refuses to read
-    #                     DATABASE_URL so a production value can never reach a
-    #                     TRUNCATE.
+    #                     e2e/_helpers/fixtures.ts refuses to read DATABASE_URL
+    #                     so a production value can never reach its TRUNCATE.
     #
-    # They only coincide here because CI has a single, disposable database. The
-    # literal is repeated because GitHub gives no way not to: entries in a job's
-    # `env` cannot reference each other, and workflow files do not support YAML
-    # anchors.
+    # Here they all address the one disposable CI database, so the URL is
+    # written once and the other two are derived from it on the steps that need
+    # them. Job-level `env` entries cannot reference each other, but step-level
+    # ones can read the `env` context — which is why the derivation lives down
+    # in the steps rather than up here.
     env:
       DATABASE_URL: postgresql://test:test@postgres:5432/halcyon_test
-      DIRECT_URL: postgresql://test:test@postgres:5432/halcyon_test
-      E2E_DATABASE_URL: postgresql://test:test@postgres:5432/halcyon_test
 
     services:
       postgres:
@@ -206,6 +202,8 @@ jobs:
       # the User/UserSettings rows on first request, then create accounts,
       # categories and transactions through the UI per test.
       - name: Apply migrations to test database
+        env:
+          DIRECT_URL: ${{ env.DATABASE_URL }}
         run: pnpm prisma migrate deploy
 
       # E2E tests run against a mock Supabase server (e2e/_mock/supabase.mjs)
@@ -214,6 +212,8 @@ jobs:
       # queries (e.g. the dashboard's user-settings lookup); no real Supabase
       # project is touched.
       - name: Run E2E tests
+        env:
+          E2E_DATABASE_URL: ${{ env.DATABASE_URL }}
         run: pnpm test:e2e
 
       - name: Upload Playwright report
