@@ -27,4 +27,15 @@ describe("HowItWorks", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/see where you stand/i)).toBeInTheDocument();
   });
+
+  test("renders a one-time setup step and a four-step monthly loop", () => {
+    renderit();
+    expect(screen.getByText(/setup · once/i)).toBeInTheDocument();
+    expect(screen.getByRole("list")).toBeInTheDocument();
+    expect(screen.getAllByRole("listitem")).toHaveLength(4);
+    for (const marker of ["01", "02", "03", "04"]) {
+      expect(screen.getByText(marker)).toBeInTheDocument();
+    }
+    expect(screen.getByText(/repeat monthly/i)).toBeInTheDocument();
+  });
 });

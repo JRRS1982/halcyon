@@ -52,7 +52,7 @@ export function FeatureShowcase({
   const image = <MarketingShot {...shot} />;
 
   return (
-    <Row>
+    <Row $imageSide={imageSide}>
       {imageSide === "left" ? (
         <>
           {image}
