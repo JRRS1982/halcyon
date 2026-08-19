@@ -26,7 +26,15 @@ const TEST_DB_URL =
   process.env.E2E_DATABASE_URL ??
   "postgresql://test:test@localhost:5432/halcyon_test";
 
-const LOCAL_HOSTS = ["localhost", "127.0.0.1", "db"];
+// "db" is the Compose service; "postgres" is the same idea in CI, where the
+// e2e job runs inside the Playwright container and the database is a sibling
+// container addressed by service name rather than over loopback.
+//
+// Widening this list does not weaken the guard that matters. Both conditions
+// below must hold, and the database-name check is the one standing between a
+// stray production URL and a TRUNCATE: prod is Supabase, whose database is
+// named `postgres`, so it fails on the name no matter what host it arrives on.
+const LOCAL_HOSTS = ["localhost", "127.0.0.1", "db", "postgres"];
 
 // Refuse to truncate anything that isn't the local test database, so a stray
 // prod DATABASE_URL in the environment can never be wiped.
