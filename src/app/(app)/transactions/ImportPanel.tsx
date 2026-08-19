@@ -771,6 +771,9 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
       {result && (
         <Toast aria-live="polite">
           Imported {result.imported} into {result.accountName}
+          {result.autoCategorised > 0
+            ? `, ${result.autoCategorised} auto-categorised`
+            : ""}
           {result.duplicates > 0
             ? `, skipped ${result.duplicates} duplicate(s)`
             : ""}

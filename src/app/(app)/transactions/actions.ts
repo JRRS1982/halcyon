@@ -11,6 +11,11 @@ import {
   mapRows,
 } from "@/lib/transactions/import";
 import { MAX_IMPORT_ROWS } from "@/lib/transactions/limits";
+import {
+  MEMORY_WINDOW,
+  buildCategoryMemory,
+  descriptionKey,
+} from "@/lib/transactions/memory";
 import type { LedgerCategory } from "@/lib/transactions/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -65,6 +70,9 @@ export type ImportResult = {
   imported: number;
   duplicates: number;
   invalid: number;
+  // How many imported rows were filed automatically from the user's own
+  // categorisation history.
+  autoCategorised: number;
   accountName: string;
 };
 
@@ -178,23 +186,57 @@ export async function commitImport(input: CommitInput): Promise<ImportResult> {
   const skip = new Set(skipIndexes);
   const toInsert = valid.filter((row) => !skip.has(row.index));
 
+  let autoCategorised = 0;
   if (toInsert.length > 0) {
+    // Categorisation memory: how the user filed each merchant last time.
+    // Rebuilt from recent history on every import (nothing stored), and
+    // restricted to live categories so a deleted one is never resurrected.
+    const history = await prisma.transaction.findMany({
+      where: {
+        userId,
+        deletedAt: null,
+        categoryId: { not: null },
+        category: { deletedAt: null },
+      },
+      orderBy: { date: "desc" },
+      take: MEMORY_WINDOW,
+      select: { description: true, categoryId: true, date: true },
+    });
+    const memory = buildCategoryMemory(
+      history.flatMap((tx) =>
+        tx.categoryId
+          ? [
+              {
+                description: tx.description,
+                categoryId: tx.categoryId,
+                date: tx.date,
+              },
+            ]
+          : [],
+      ),
+    );
+
     // The batch groups this run's rows so the whole import can be reversed.
     const batch = await prisma.importBatch.create({
       data: { userId, accountId: account.id, fileName: fileName ?? null },
       select: { id: true },
     });
     await prisma.transaction.createMany({
-      data: toInsert.map((row) => ({
-        userId,
-        accountId: account.id,
-        importBatchId: batch.id,
-        date: row.date as Date,
-        amount: row.amount as number,
-        description: row.description,
-        // Kept CSV columns, keyed by header label (undefined leaves NULL).
-        extra: row.extra ?? undefined,
-      })),
+      data: toInsert.map((row) => {
+        const categoryId = memory.get(descriptionKey(row.description)) ?? null;
+        if (categoryId) autoCategorised += 1;
+        return {
+          userId,
+          accountId: account.id,
+          importBatchId: batch.id,
+          date: row.date as Date,
+          amount: row.amount as number,
+          description: row.description,
+          categoryId,
+          // Kept CSV columns, keyed by header label (undefined leaves NULL).
+          extra: row.extra ?? undefined,
+        };
+      }),
     });
   }
 
@@ -208,6 +250,7 @@ export async function commitImport(input: CommitInput): Promise<ImportResult> {
     imported: toInsert.length,
     duplicates: valid.length - toInsert.length,
     invalid: invalidCount,
+    autoCategorised,
     accountName: account.name,
   };
 }
