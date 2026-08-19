@@ -1,5 +1,6 @@
 import { MONTH_LABELS_SHORT, currentMonthRange } from "@/lib/budget/period";
 import { computeRollups } from "@/lib/budget/totals";
+import { monthChecklist } from "@/lib/dashboard/checklist";
 import {
   type BalanceSums,
   type ExpenditurePoint,
@@ -15,6 +16,7 @@ import {
   monthCategoryKey,
   netActual,
 } from "@/lib/transactions/actual";
+import { countUncategorized } from "@/lib/transactions/server";
 import { redirect } from "next/navigation";
 import { DashboardView } from "./DashboardView";
 
@@ -225,6 +227,21 @@ export default async function DashboardPage() {
   }
   const cashFlowData = cashFlowSeries(cashFlowInput);
 
+  // ─── This-month checklist: the monthly loop as state ──────────────────────
+  // Derived almost entirely from the periods already loaded; the only extra
+  // read is the uncategorized count, and only in transactions mode.
+  const currentPeriod = periods.find(
+    (p) => p.startDate.getTime() === now.startDate.getTime(),
+  );
+  const checklist = monthChecklist({
+    transactionsEnabled,
+    hasBudgetItems: (currentPeriod?.items.length ?? 0) > 0,
+    hasBalanceItems: (currentPeriod?.balanceItems.length ?? 0) > 0,
+    uncategorizedCount: transactionsEnabled
+      ? await countUncategorized(user.id)
+      : 0,
+  });
+
   return (
     <DashboardView
       balanceData={balanceData}
@@ -233,6 +250,8 @@ export default async function DashboardPage() {
       currency={currency}
       numberFormat={numberFormat}
       hiddenCharts={hiddenCharts}
+      checklist={checklist}
+      checklistMonth={now.label}
     />
   );
 }

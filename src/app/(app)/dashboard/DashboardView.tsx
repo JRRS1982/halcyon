@@ -3,6 +3,7 @@
 import { ChartFallback } from "@/components/ui/ChartFallback";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { WhenVisible } from "@/components/ui/WhenVisible";
+import type { Checklist } from "@/lib/dashboard/checklist";
 import {
   type CashFlowPoint,
   type ExpenditurePoint,
@@ -15,6 +16,7 @@ import nextDynamic from "next/dynamic";
 import Link from "next/link";
 import styled, { css } from "styled-components";
 import type { BalancePoint } from "./BalanceTrendChart";
+import { MonthChecklist } from "./MonthChecklist";
 import { SummaryRow } from "./SummaryRow";
 
 // Recharts is ~123KB gzipped — by far the heaviest thing the app ships, and
@@ -318,6 +320,8 @@ export function DashboardView({
   currency,
   numberFormat,
   hiddenCharts = [],
+  checklist,
+  checklistMonth,
 }: {
   balanceData: BalancePoint[];
   expenditureData: ExpenditurePoint[];
@@ -325,6 +329,8 @@ export function DashboardView({
   currency: string;
   numberFormat: NumberFormat;
   hiddenCharts?: string[];
+  checklist: Checklist;
+  checklistMonth: string;
 }) {
   const shown = (key: string) => !hiddenCharts.includes(key);
   // Per-category balance series with trailing average, dropping categories that
@@ -411,11 +417,14 @@ export function DashboardView({
       {/* Suppressed on a first run: four dashes over an empty-state card would
           be noise, and the card already says what to do. */}
       {!nothingToChart && (
-        <SummaryRow
-          stats={summary}
-          currency={currency}
-          numberFormat={numberFormat}
-        />
+        <>
+          <MonthChecklist checklist={checklist} monthLabel={checklistMonth} />
+          <SummaryRow
+            stats={summary}
+            currency={currency}
+            numberFormat={numberFormat}
+          />
+        </>
       )}
       {nothingToChart && (
         <FirstRun>
