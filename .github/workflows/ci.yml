@@ -214,6 +214,14 @@ jobs:
       - name: Run E2E tests
         env:
           E2E_DATABASE_URL: ${{ env.DATABASE_URL }}
+          # Firefox refuses to start when $HOME belongs to someone else, and in
+          # a container job that is exactly the situation: the step runs as
+          # root while $HOME is /github/home, owned by the image's pwuser.
+          # ("Running Nightly as root in a regular user's session is not
+          # supported.") Playwright's own error text prescribes this variable.
+          # Scoped to this step so the rest of the job keeps the HOME that
+          # actions/setup-node and pnpm set their caches up against.
+          HOME: /root
         run: pnpm test:e2e
 
       - name: Upload Playwright report
