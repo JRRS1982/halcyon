@@ -139,17 +139,33 @@ jobs:
     timeout-minutes: 30
 
     # Authed pages (e.g. the dashboard) server-render Prisma queries, so e2e
-    # needs a real Postgres. The host is the *service name*, not localhost:
-    # this job runs inside a container, so the service is a sibling container
-    # on the job's network rather than a port on the runner. playwright.config
-    # inherits these for the app server it spawns.
+    # needs a real Postgres.
+    #
+    # The host is the *service name*, not localhost: this job runs inside a
+    # container, so the database is a sibling container on the job's network
+    # rather than a port on the runner.
+    #
+    # One database, three names, because three different processes read three
+    # different variables:
+    #
+    #   DATABASE_URL      the app — playwright.config passes it to the Next
+    #                     server it spawns. In production this is the *pooled*
+    #                     connection (port 6543).
+    #   DIRECT_URL        prisma.config.ts, for `migrate deploy`. In production
+    #                     this is the direct connection (5432), because
+    #                     migrations cannot run through the pooler.
+    #   E2E_DATABASE_URL  the specs' own Prisma client. Quarantined on purpose:
+    #                     see e2e/_helpers/fixtures.ts, which refuses to read
+    #                     DATABASE_URL so a production value can never reach a
+    #                     TRUNCATE.
+    #
+    # They only coincide here because CI has a single, disposable database. The
+    # literal is repeated because GitHub gives no way not to: entries in a job's
+    # `env` cannot reference each other, and workflow files do not support YAML
+    # anchors.
     env:
       DATABASE_URL: postgresql://test:test@postgres:5432/halcyon_test
       DIRECT_URL: postgresql://test:test@postgres:5432/halcyon_test
-      # The specs' own Prisma client reads this rather than DATABASE_URL — see
-      # the comment in e2e/_helpers/fixtures.ts, which explains why it refuses
-      # to inherit that variable — and its guard only accepts a local-ish host
-      # with a halcyon_test database.
       E2E_DATABASE_URL: postgresql://test:test@postgres:5432/halcyon_test
 
     services:
