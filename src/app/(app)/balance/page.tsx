@@ -80,6 +80,7 @@ export default async function BalancePage(props: PageProps) {
     value: Number(i.value),
     notes: i.notes,
     sortOrder: i.sortOrder,
+    carriedOver: i.carriedOver,
   }));
 
   const hasTemplate =

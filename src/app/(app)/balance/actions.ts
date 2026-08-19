@@ -108,7 +108,12 @@ export async function updateBalanceItem(input: UpdateBalanceItemInput) {
       where: { id: parsed.itemId },
       data: {
         ...(parsed.label !== undefined && { label: parsed.label }),
-        ...(parsed.value !== undefined && { value: parsed.value }),
+        // Editing the value is what confirms a carried-over number as this
+        // month's — label or notes edits leave the flag alone.
+        ...(parsed.value !== undefined && {
+          value: parsed.value,
+          carriedOver: false,
+        }),
         ...(parsed.notes !== undefined && { notes: parsed.notes }),
       },
     }),
@@ -289,6 +294,8 @@ export async function copyBalancePeriodFrom(input: CopyBalancePeriodFromInput) {
     value: Number(it.value),
     notes: it.notes,
     sortOrder: it.sortOrder,
+    // The clone holds a number the user hasn't confirmed for this month yet.
+    carriedOver: true,
   }));
 
   await prisma.$transaction([
@@ -306,6 +313,7 @@ export async function copyBalancePeriodFrom(input: CopyBalancePeriodFromInput) {
         value: it.value,
         notes: it.notes,
         sortOrder: it.sortOrder,
+        carriedOver: it.carriedOver,
       })),
     }),
   ]);
@@ -397,6 +405,8 @@ export async function copyBalanceTemplateInto(input: CopyBalanceTemplateInput) {
     value: Number(it.value),
     notes: it.notes,
     sortOrder: it.sortOrder,
+    // The clone holds a number the user hasn't confirmed for this month yet.
+    carriedOver: true,
   }));
 
   await prisma.$transaction([
@@ -414,6 +424,7 @@ export async function copyBalanceTemplateInto(input: CopyBalanceTemplateInput) {
         value: it.value,
         notes: it.notes,
         sortOrder: it.sortOrder,
+        carriedOver: it.carriedOver,
       })),
     }),
   ]);
