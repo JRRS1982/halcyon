@@ -120,15 +120,19 @@ jobs:
 
   e2e-tests:
     runs-on: ubuntu-latest
-    # A wedged runner once sat for GitHub's 6h default before being killed;
-    # a healthy run takes ~11 minutes. The headroom over that is deliberate:
-    # `timeout-minutes` covers the whole job, so when setup is slow it eats the
-    # budget the tests need. On 2026-08-19 a degraded apt mirror made browser
-    # installation take 16m47s, leaving 7 minutes for a 246-test suite and
-    # killing it mid-run — which GitHub then reports as `cancelled`, reading
-    # exactly like a test failure. The install step now has its own, tighter
-    # timeout below so that failure surfaces as itself.
-    timeout-minutes: 35
+    # A wedged runner once sat for GitHub's 6h default before being killed, so
+    # this stays bounded; the suite itself takes ~11 minutes.
+    #
+    # The headroom over that is deliberate. `timeout-minutes` covers the whole
+    # job, so slow setup is paid for out of the tests' budget: on 2026-08-19 a
+    # degraded Ubuntu mirror made browser installation take 16-20 minutes on
+    # three separate runs, each time leaving too little for a 246-test suite
+    # and killing it mid-run — which GitHub reports as `cancelled`, reading
+    # exactly like a test failure.
+    #
+    # Sized so that even a worst-case-but-working install (capped at 22 below)
+    # still leaves the suite comfortably more than it needs.
+    timeout-minutes: 45
 
     # Authed pages (e.g. the dashboard) server-render Prisma queries, so e2e
     # needs a real Postgres. Credentials match playwright.config.ts's
@@ -185,12 +189,17 @@ jobs:
         # quick), but the apt-installed system libraries are not — they live in
         # /usr/lib on the runner image, which is not cached.
         #
-        # Its own timeout, well above the ~2-3 minutes this takes when healthy:
-        # the apt step here is the single flakiest part of CI (a dead Ubuntu
-        # mirror has hung it for 24 minutes), and without a step-level bound a
-        # hang is silently charged to the test run instead of being reported as
-        # what it is.
-        timeout-minutes: 10
+        # Its own timeout, because the apt call here is the single flakiest
+        # part of CI (a dead Ubuntu mirror has hung it for 24 minutes) and
+        # without a step-level bound a hang is silently charged to the test run
+        # instead of being reported as what it is.
+        #
+        # 22, not something tight: this takes ~2-3 minutes when healthy but was
+        # observed completing legitimately in 20m05s on a degraded mirror, and
+        # a cap under that would convert a slow-but-working run into a failure
+        # — trading one false signal for another. The point is to bound a hang
+        # and attribute it correctly, not to police how slow apt is today.
+        timeout-minutes: 22
         run: pnpm exec playwright install --with-deps
 
       # Only apply the schema — do NOT run `pnpm db:seed`. That seed is a
