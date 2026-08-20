@@ -14,9 +14,13 @@ describe("Footer", () => {
   test("carries the guide and the legal links", () => {
     renderit(<Footer />);
 
-    expect(screen.getByRole("link", { name: /how it works/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /^guide$/i })).toHaveAttribute(
       "href",
       "/guide",
+    );
+    expect(screen.getByRole("link", { name: /engineering/i })).toHaveAttribute(
+      "href",
+      "/how-its-built",
     );
     expect(screen.getByRole("link", { name: /privacy/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /terms/i })).toBeInTheDocument();

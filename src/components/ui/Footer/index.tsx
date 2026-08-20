@@ -18,7 +18,9 @@ export function Footer() {
       <Copy>Balanced Money</Copy>
       {/* Present on every app page: the guide is reference material, and the
           moment someone needs it is the moment something confused them. */}
-      <FooterLink href="/guide">How it works</FooterLink>
+      <FooterLink href="/guide">Guide</FooterLink>
+      {/* Public, like the guide — no session needed to read it. */}
+      <FooterLink href="/how-its-built">Engineering</FooterLink>
       <FooterLink href="/privacy">Privacy</FooterLink>
       <FooterLink href="/cookies">Cookies</FooterLink>
       <FooterLink href="/terms">Terms</FooterLink>

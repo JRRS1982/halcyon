@@ -27,6 +27,11 @@ export function MarketingFooter() {
             <FootLink href="#details">Details</FootLink>
             {/* The pitch above is a summary; this is the actual manual. */}
             <FootLink href="/guide">Full guide</FootLink>
+            {/* For the readers who want the engineering, not the pitch.
+                Labelled "Engineering" rather than by its page title: "How
+                it's built" one line under "How it works" reads as the same
+                link twice. */}
+            <FootLink href="/how-its-built">Engineering</FootLink>
           </div>
           <div>
             <ColTitle>Legal</ColTitle>
