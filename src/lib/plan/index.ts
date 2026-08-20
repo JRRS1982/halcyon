@@ -1,7 +1,6 @@
 // src/lib/plan/index.ts
 export { project, projectWithBand } from "./project";
-export { incomeTax, grossUp, isTaxableOnWithdrawal } from "./tax";
-export { WRAPPERS } from "./types";
+export { grossUp, incomeTax, isTaxableOnWithdrawal } from "./tax";
 export type {
   AssetBalance,
   AssetInput,
@@ -21,3 +20,4 @@ export type {
   Wrapper,
   YearProjection,
 } from "./types";
+export { WRAPPERS } from "./types";

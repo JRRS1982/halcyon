@@ -1,8 +1,8 @@
 "use client";
 
-import { PageHeader } from "@/components/ui/PageHeader";
 import Link from "next/link";
 import styled, { css } from "styled-components";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 const Shell = styled.main`
   max-width: 720px;

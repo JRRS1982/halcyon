@@ -1,8 +1,9 @@
 /** @jest-environment jsdom */
-import { theme } from "@/lib/theme";
+
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { ThemeProvider } from "styled-components";
+import { theme } from "@/lib/theme";
 import { DrawerSection, PlanDrawer } from "./PlanDrawer";
 
 const renderWithTheme = (ui: ReactElement) =>

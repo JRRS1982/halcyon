@@ -1,4 +1,5 @@
 import { timingSafeEqual } from "node:crypto";
+import { NextResponse } from "next/server";
 import { buildReminder, isReminderDue } from "@/lib/email/reminder";
 import { isEmailConfigured, sendEmail } from "@/lib/email/send";
 import {
@@ -7,7 +8,6 @@ import {
 } from "@/lib/email/subscriptions";
 import { emailEnv } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { NextResponse } from "next/server";
 
 /**
  * The monthly reminder job. Vercel Cron hits this once a day; it sends to the

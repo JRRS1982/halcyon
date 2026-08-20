@@ -1,8 +1,9 @@
 // src/__tests__/marketing/DetailGrid.test.tsx
-import { DetailGrid } from "@/components/marketing/DetailGrid";
-import { theme } from "@/lib/theme";
+
 import { render, screen } from "@testing-library/react";
 import { ThemeProvider } from "styled-components";
+import { DetailGrid } from "@/components/marketing/DetailGrid";
+import { theme } from "@/lib/theme";
 
 const renderit = () =>
   render(

@@ -1,8 +1,9 @@
 // src/__tests__/marketing/FeatureShowcase.test.tsx
-import { FeatureShowcase } from "@/components/marketing/FeatureShowcase";
-import { theme } from "@/lib/theme";
+
 import { render, screen, within } from "@testing-library/react";
 import { ThemeProvider } from "styled-components";
+import { FeatureShowcase } from "@/components/marketing/FeatureShowcase";
+import { theme } from "@/lib/theme";
 
 const baseProps = {
   eyebrow: "Budget",

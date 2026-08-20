@@ -1,14 +1,5 @@
 "use client";
 
-import { ChartLegend } from "@/app/(app)/dashboard/ChartLegend";
-import { makeAmountTick } from "@/lib/charts/format";
-import { padAxisMax, padAxisMin } from "@/lib/dashboard/axis";
-import type { ValueAvgPoint } from "@/lib/dashboard/series";
-import {
-  type NumberFormat,
-  formatAmount,
-  symbolFor,
-} from "@/lib/settings/currency";
 import {
   CartesianGrid,
   Legend,
@@ -20,6 +11,11 @@ import {
   YAxis,
 } from "recharts";
 import { useTheme } from "styled-components";
+import { ChartLegend } from "@/app/(app)/dashboard/ChartLegend";
+import { makeAmountTick } from "@/lib/charts/format";
+import { padAxisMax, padAxisMin } from "@/lib/dashboard/axis";
+import type { ValueAvgPoint } from "@/lib/dashboard/series";
+import { formatAmount, type NumberFormat } from "@/lib/settings/currency";
 
 // A single balance category over time: solid line = the month's value, dotted
 // = its trailing 6-month average, both in the category's colour.

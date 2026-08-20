@@ -1,17 +1,17 @@
 "use client";
 
-import { Button } from "@/components/ui/Button";
-import { EXPENSE_BUCKETS, INCOME_BUCKETS } from "@/lib/categories/buckets";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import styled from "styled-components";
-import { SectionHeading, SettingsCard } from "./SectionHeading";
+import { Button } from "@/components/ui/Button";
+import { EXPENSE_BUCKETS, INCOME_BUCKETS } from "@/lib/categories/buckets";
 import {
   createManagedCategory,
   deleteCategory,
   mergeCategories,
   updateCategory,
 } from "./categoryActions";
+import { SectionHeading, SettingsCard } from "./SectionHeading";
 
 export type ManagedCategory = {
   id: string;

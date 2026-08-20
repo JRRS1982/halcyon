@@ -1,8 +1,8 @@
 "use client";
 
-import { PageHeader } from "@/components/ui/PageHeader";
 import Link from "next/link";
 import styled, { css } from "styled-components";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 // Narrow enough that the container *is* the measure. At 820px the paragraphs
 // stopped at their own 68ch limit while the step rules and panel borders ran on

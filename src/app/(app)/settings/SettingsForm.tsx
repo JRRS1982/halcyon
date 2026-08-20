@@ -1,21 +1,20 @@
 "use client";
 
-import { Button } from "@/components/ui/Button";
-import { PageHeader } from "@/components/ui/PageHeader";
-import {
-  REMINDER_DAYS,
-  REMINDER_DAY_LABELS,
-  type ReminderDay,
-} from "@/lib/email/reminder";
-import {
-  THEME_PREFERENCES,
-  THEME_PREFERENCE_LABELS,
-  type ThemePreference,
-} from "@/lib/settings/theme";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import styled from "styled-components";
-import { SectionHeading, SettingsCard } from "./SectionHeading";
+import { Button } from "@/components/ui/Button";
+import { PageHeader } from "@/components/ui/PageHeader";
+import {
+  REMINDER_DAY_LABELS,
+  REMINDER_DAYS,
+  type ReminderDay,
+} from "@/lib/email/reminder";
+import {
+  THEME_PREFERENCE_LABELS,
+  THEME_PREFERENCES,
+  type ThemePreference,
+} from "@/lib/settings/theme";
 import {
   setMonthlyReminderDay,
   setThemePreference,
@@ -24,6 +23,7 @@ import {
   toggleTransactions,
   toggleTransfers,
 } from "./actions";
+import { SectionHeading, SettingsCard } from "./SectionHeading";
 
 // A section, not the page's <main>. Settings renders five sibling blocks and
 // this is only the first of them — as <main> it left the other four outside the

@@ -1,6 +1,6 @@
 import "server-only";
-import { env } from "@/lib/env";
 import { createClient } from "@supabase/supabase-js";
+import { env } from "@/lib/env";
 
 // Service-role Supabase client. SERVER-ONLY — never import from a client
 // component. The `server-only` import above makes an accidental client import

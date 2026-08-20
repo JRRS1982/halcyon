@@ -1,9 +1,9 @@
 "use client";
 
-import { signOut } from "@/app/actions";
-import { Button } from "@/components/ui/Button";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { signOut } from "@/app/actions";
+import { Button } from "@/components/ui/Button";
 import {
   Bar,
   Brand,

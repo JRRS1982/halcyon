@@ -1,5 +1,5 @@
 // src/lib/plan/engine.integration.test.ts
-import { type PlanInput, type YearProjection, project } from "./index";
+import { type PlanInput, project, type YearProjection } from "./index";
 
 const plan: PlanInput = {
   currentAge: 50,

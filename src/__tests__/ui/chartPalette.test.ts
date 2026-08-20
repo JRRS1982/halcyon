@@ -7,7 +7,7 @@
 //
 // Reads the palettes directly: theme.colors resolves to var(--c-…) at runtime,
 // and a CSS variable name has no colour.
-import { type Palette, darkPalette, lightPalette } from "@/lib/palette";
+import { darkPalette, lightPalette, type Palette } from "@/lib/palette";
 
 const WRAPPER_TOKENS = [
   "chartCash",

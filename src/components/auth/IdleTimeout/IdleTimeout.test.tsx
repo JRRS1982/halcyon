@@ -1,7 +1,7 @@
-import type { SessionTimeoutConfig } from "@/lib/auth/sessionTimeout";
-import { theme } from "@/lib/theme";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { ThemeProvider } from "styled-components";
+import type { SessionTimeoutConfig } from "@/lib/auth/sessionTimeout";
+import { theme } from "@/lib/theme";
 import { IdleTimeout } from ".";
 
 const refresh = jest.fn();

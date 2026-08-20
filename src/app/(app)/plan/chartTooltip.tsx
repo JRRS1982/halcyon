@@ -1,9 +1,9 @@
 // src/app/plan/chartTooltip.tsx
 "use client";
 
-import { type StackSummary, summariseStack } from "@/lib/plan/chartData";
-import { type NumberFormat, formatAmount } from "@/lib/settings/currency";
 import styled from "styled-components";
+import { type StackSummary, summariseStack } from "@/lib/plan/chartData";
+import { formatAmount, type NumberFormat } from "@/lib/settings/currency";
 
 // Shared tooltip primitives for the plan charts, so the cash-flow, net-worth and
 // liquid-assets readouts stay one system (dataviz: line keys not boxes, values

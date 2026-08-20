@@ -1,8 +1,9 @@
 // src/__tests__/marketing/SectionHeading.test.tsx
-import { SectionHeading } from "@/components/marketing/SectionHeading";
-import { theme } from "@/lib/theme";
+
 import { render, screen } from "@testing-library/react";
 import { ThemeProvider } from "styled-components";
+import { SectionHeading } from "@/components/marketing/SectionHeading";
+import { theme } from "@/lib/theme";
 
 const renderit = (props: { eyebrow: string; title: string; lead?: string }) =>
   render(

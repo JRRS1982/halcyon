@@ -1,8 +1,8 @@
 "use client";
 
-import type { SummaryStat } from "@/lib/dashboard/summary";
-import { type NumberFormat, formatAmount } from "@/lib/settings/currency";
 import styled, { css } from "styled-components";
+import type { SummaryStat } from "@/lib/dashboard/summary";
+import { formatAmount, type NumberFormat } from "@/lib/settings/currency";
 
 // Four tiles across on a wide screen, folding to two and then two-by-two.
 // Hairline boxes on canvas — the same chrome as the chart panels below, so the

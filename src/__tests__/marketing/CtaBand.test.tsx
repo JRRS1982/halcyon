@@ -1,8 +1,9 @@
 // src/__tests__/marketing/CtaBand.test.tsx
-import { CtaBand } from "@/components/marketing/CtaBand";
-import { theme } from "@/lib/theme";
+
 import { render, screen } from "@testing-library/react";
 import { ThemeProvider } from "styled-components";
+import { CtaBand } from "@/components/marketing/CtaBand";
+import { theme } from "@/lib/theme";
 
 const renderit = () =>
   render(

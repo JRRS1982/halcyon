@@ -1,5 +1,5 @@
-import { updateSession } from "@/lib/supabase/middleware";
 import type { NextRequest } from "next/server";
+import { updateSession } from "@/lib/supabase/middleware";
 
 // Next 16 renamed middleware to proxy (src/proxy.ts, `proxy` export). This is
 // the route-protection boundary: it refreshes the Supabase session and

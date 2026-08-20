@@ -1,5 +1,7 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useId, useRef } from "react";
 import { signOutIdle } from "@/app/actions";
 import { Button } from "@/components/ui/Button";
 import {
@@ -7,8 +9,6 @@ import {
   type SessionTimeoutConfig,
 } from "@/lib/auth/sessionTimeout";
 import { useIdleTimer } from "@/lib/hooks/useIdleTimer";
-import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useId, useRef } from "react";
 import {
   Actions,
   Body,

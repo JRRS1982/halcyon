@@ -21,9 +21,9 @@ jest.mock("@/lib/env", () => ({
   },
 }));
 
+import { NextRequest } from "next/server";
 import { POST_AUTH_LANDING } from "@/lib/auth/landing";
 import { updateSession } from "@/lib/supabase/middleware";
-import { NextRequest } from "next/server";
 
 const requestFor = (path: string) =>
   new NextRequest(new URL(`http://localhost:3000${path}`));
@@ -73,13 +73,13 @@ describe("proxy redirects", () => {
 
   // The redirect is scoped to exactly "/" — it must not catch other public
   // pages a signed-in user may legitimately want to read.
-  test.each(["/privacy", "/terms"])(
-    "does not bounce a signed-in visitor away from %s",
-    async (path) => {
-      signedIn();
-      const res = await updateSession(requestFor(path));
+  test.each([
+    "/privacy",
+    "/terms",
+  ])("does not bounce a signed-in visitor away from %s", async (path) => {
+    signedIn();
+    const res = await updateSession(requestFor(path));
 
-      expect(res.headers.get("location")).toBeNull();
-    },
-  );
+    expect(res.headers.get("location")).toBeNull();
+  });
 });

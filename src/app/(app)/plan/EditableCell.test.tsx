@@ -1,8 +1,9 @@
 /** @jest-environment jsdom */
-import { theme } from "@/lib/theme";
+
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { ThemeProvider } from "styled-components";
+import { theme } from "@/lib/theme";
 import { NumberCell, TextCell } from "./EditableCell";
 
 const renderWithTheme = (ui: ReactElement) =>

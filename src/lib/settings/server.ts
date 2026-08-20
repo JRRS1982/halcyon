@@ -1,6 +1,9 @@
 import "server-only";
 
 import { randomUUID } from "node:crypto";
+import type { Prisma } from "@prisma/client";
+import { redirect } from "next/navigation";
+import { cache } from "react";
 import { ensurePeriodForMonthIn } from "@/lib/budget/ensurePeriod";
 import { currentMonthRange } from "@/lib/budget/period";
 import { bucketFields } from "@/lib/categories/buckets";
@@ -12,20 +15,17 @@ import {
 import { prisma } from "@/lib/prisma";
 import {
   DEFAULT_THEME_PREFERENCE,
-  type ThemePreference,
   isThemePreference,
+  type ThemePreference,
 } from "@/lib/settings/theme";
 import { getCurrentUser } from "@/lib/supabase/user";
-import type { Prisma } from "@prisma/client";
-import { redirect } from "next/navigation";
-import { cache } from "react";
 import {
   type CurrencyCode,
   DEFAULT_CURRENCY,
   DEFAULT_NUMBER_FORMAT,
-  type NumberFormat,
   isCurrencyCode,
   isNumberFormat,
+  type NumberFormat,
 } from "./currency";
 
 // Creates the app-side profile + settings rows for a user who has neither yet,

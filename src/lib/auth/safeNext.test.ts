@@ -1,12 +1,14 @@
 import { safeNext } from "./safeNext";
 
 describe("safeNext", () => {
-  it.each(["/dashboard", "/budget?ym=2026-03", "/plan#assets", "/"])(
-    "allows in-app path %s",
-    (path) => {
-      expect(safeNext(path)).toBe(path);
-    },
-  );
+  it.each([
+    "/dashboard",
+    "/budget?ym=2026-03",
+    "/plan#assets",
+    "/",
+  ])("allows in-app path %s", (path) => {
+    expect(safeNext(path)).toBe(path);
+  });
 
   it.each([
     ["//evil.com", "protocol-relative"],

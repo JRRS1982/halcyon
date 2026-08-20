@@ -1,31 +1,31 @@
 "use server";
 
 import { randomUUID } from "node:crypto";
+import type { BalanceItem } from "@prisma/client";
+import { redirect } from "next/navigation";
 import { computeMove } from "@/lib/balance/reorder";
 import {
   type CopyBalancePeriodFromInput,
   type CopyBalanceTemplateInput,
   type CreateBalanceItemForMonthInput,
-  type DeleteBalanceItemInput,
-  type MoveBalanceItemInput,
-  type SaveBalanceTemplateInput,
-  type SetBalanceItemSectionInput,
-  type UpdateBalanceItemInput,
   copyBalancePeriodFromSchema,
   copyBalanceTemplateSchema,
   createBalanceItemForMonthSchema,
+  type DeleteBalanceItemInput,
   deleteBalanceItemSchema,
+  type MoveBalanceItemInput,
   moveBalanceItemSchema,
+  type SaveBalanceTemplateInput,
+  type SetBalanceItemSectionInput,
   saveBalanceTemplateSchema,
   setBalanceItemSectionSchema,
+  type UpdateBalanceItemInput,
   updateBalanceItemSchema,
 } from "@/lib/balance/schemas";
 import { ensurePeriodForMonthIn } from "@/lib/budget/ensurePeriod";
 import { monthRangeFor } from "@/lib/budget/period";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
-import type { BalanceItem } from "@prisma/client";
-import { redirect } from "next/navigation";
 import { ensurePeriodForMonth } from "../budget/actions";
 
 // Prisma `Decimal` can't cross the server→client boundary (it serialises to

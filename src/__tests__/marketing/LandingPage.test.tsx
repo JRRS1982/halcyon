@@ -1,8 +1,9 @@
 // src/__tests__/marketing/LandingPage.test.tsx
-import { LandingPage } from "@/components/marketing/LandingPage";
-import { theme } from "@/lib/theme";
+
 import { render, screen } from "@testing-library/react";
 import { ThemeProvider } from "styled-components";
+import { LandingPage } from "@/components/marketing/LandingPage";
+import { theme } from "@/lib/theme";
 
 const renderit = () =>
   render(

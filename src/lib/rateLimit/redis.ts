@@ -1,5 +1,5 @@
-import { rateLimitEnv } from "@/lib/env";
 import { Redis } from "@upstash/redis";
+import { rateLimitEnv } from "@/lib/env";
 
 // The Redis store behind the rate limiter, kept separate from the policy in
 // index.ts so the transport can be swapped without touching call sites.

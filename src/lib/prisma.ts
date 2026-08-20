@@ -1,6 +1,6 @@
-import { env } from "@/lib/env";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
+import { env } from "@/lib/env";
 
 // Singleton — Next.js dev hot-reload would otherwise create a new PrismaClient
 // per code reload and exhaust the connection pool. Stash on globalThis in

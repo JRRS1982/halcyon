@@ -186,17 +186,14 @@ describe("seedPlanChildren", () => {
     ["Home balance", "LONG_TERM", 4.5],
     ["Store account", "CURRENT", 18],
     ["Misc debt", "OTHER", 5],
-  ] as const)(
-    "infers interest for %s (%s) → %s%",
-    (label, category, interestPct) => {
-      const r = seedPlanChildren(
-        [{ id: "l", type: "LIABILITY", category, label, value: 1000 }],
-        [],
-        65,
-      );
-      expect(r.liabilities[0]?.interestPct).toBe(interestPct);
-    },
-  );
+  ] as const)("infers interest for %s (%s) → %s%", (label, category, interestPct) => {
+    const r = seedPlanChildren(
+      [{ id: "l", type: "LIABILITY", category, label, value: 1000 }],
+      [],
+      65,
+    );
+    expect(r.liabilities[0]?.interestPct).toBe(interestPct);
+  });
 
   it("maps income items by kind, salary ends at retirement, amount = budget x 12", () => {
     const r = seedPlanChildren(

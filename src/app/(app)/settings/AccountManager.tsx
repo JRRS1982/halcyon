@@ -1,15 +1,15 @@
 "use client";
 
-import { Button } from "@/components/ui/Button";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import styled from "styled-components";
-import { SectionHeading, SettingsCard } from "./SectionHeading";
+import { Button } from "@/components/ui/Button";
 import {
   createManagedAccount,
   deleteAccount,
   renameAccount,
 } from "./accountActions";
+import { SectionHeading, SettingsCard } from "./SectionHeading";
 
 export type ManagedAccount = {
   id: string;
@@ -120,11 +120,7 @@ const Empty = styled.p`
 
 type Mode = { kind: "edit" | "delete"; id: string } | null;
 
-export function AccountManager({
-  accounts,
-}: {
-  accounts: ManagedAccount[];
-}) {
+export function AccountManager({ accounts }: { accounts: ManagedAccount[] }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [mode, setMode] = useState<Mode>(null);

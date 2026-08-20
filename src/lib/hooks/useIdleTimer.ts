@@ -1,12 +1,12 @@
 "use client";
 
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   type IdleState,
+  idleStateAt,
   SESSION_TIMEOUT,
   type SessionTimeoutConfig,
-  idleStateAt,
 } from "@/lib/auth/sessionTimeout";
-import { useCallback, useEffect, useRef, useState } from "react";
 
 // What counts as "the user is still here". Deliberately excludes mousemove: a
 // nudged desk should not hold a finance session open overnight.

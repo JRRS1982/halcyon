@@ -1,8 +1,9 @@
 // src/__tests__/marketing/Hero.test.tsx
-import { Hero } from "@/components/marketing/Hero";
-import { theme } from "@/lib/theme";
+
 import { render, screen } from "@testing-library/react";
 import { ThemeProvider } from "styled-components";
+import { Hero } from "@/components/marketing/Hero";
+import { theme } from "@/lib/theme";
 
 const renderit = () =>
   render(

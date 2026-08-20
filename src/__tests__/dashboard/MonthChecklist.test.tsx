@@ -1,9 +1,10 @@
 // src/__tests__/dashboard/MonthChecklist.test.tsx
+
+import { render, screen } from "@testing-library/react";
+import { ThemeProvider } from "styled-components";
 import { MonthChecklist } from "@/app/(app)/dashboard/MonthChecklist";
 import { monthChecklist } from "@/lib/dashboard/checklist";
 import { theme } from "@/lib/theme";
-import { render, screen } from "@testing-library/react";
-import { ThemeProvider } from "styled-components";
 
 const renderChecklist = (checklist: ReturnType<typeof monthChecklist>) =>
   render(

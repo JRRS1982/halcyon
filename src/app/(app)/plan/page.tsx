@@ -1,12 +1,13 @@
 // src/app/plan/page.tsx
+
+import { redirect } from "next/navigation";
 import { projectWithBand } from "@/lib/plan";
 import { toPlanInput, toTodaysMoneyBand } from "@/lib/plan/toPlanInput";
 import { getCurrentUserSettings } from "@/lib/settings/server";
 import { getCurrentUser } from "@/lib/supabase/user";
-import { redirect } from "next/navigation";
+import { getPrimaryPlan } from "./actions";
 import { CreatePlanForm } from "./CreatePlanForm";
 import { PlanView } from "./PlanView";
-import { getPrimaryPlan } from "./actions";
 import type { SerializedPlan } from "./serialized";
 
 export default async function PlanPage() {

@@ -1,13 +1,16 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { z } from "zod";
 import {
+  deleteRowSchema,
   type UpdatePlanAssetInput,
   type UpdatePlanAssumptionsInput,
   type UpdatePlanEventInput,
   type UpdatePlanExpenseInput,
   type UpdatePlanIncomeInput,
   type UpdatePlanLiabilityInput,
-  deleteRowSchema,
   updatePlanAssetSchema,
   updatePlanAssumptionsSchema,
   updatePlanEventSchema,
@@ -22,9 +25,6 @@ import {
 } from "@/lib/plan/seed";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
-import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-import { z } from "zod";
 
 async function requireUserId(): Promise<string> {
   const supabase = await createClient();
@@ -214,7 +214,7 @@ export async function updatePlanLiability(
       },
       select: { wrapper: true },
     });
-    if (!asset || asset.wrapper !== "PROPERTY")
+    if (asset?.wrapper !== "PROPERTY")
       throw new Error("Linked asset must be a property");
   }
 
@@ -673,7 +673,7 @@ export async function updatePlanEvent(
       },
       select: { wrapper: true },
     });
-    if (!asset || asset.wrapper !== "PROPERTY")
+    if (asset?.wrapper !== "PROPERTY")
       throw new Error("Sale must reference a property");
   }
 

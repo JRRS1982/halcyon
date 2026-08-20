@@ -1,8 +1,8 @@
+import { NextResponse } from "next/server";
 import { POST_AUTH_LANDING } from "@/lib/auth/landing";
 import { safeNext } from "@/lib/auth/safeNext";
 import { log } from "@/lib/log";
 import { createClient } from "@/lib/supabase/server";
-import { NextResponse } from "next/server";
 
 // Called by Supabase Auth after email confirmation, magic-link click, or OAuth
 // provider redirect. Exchanges the one-time `code` query param for a session

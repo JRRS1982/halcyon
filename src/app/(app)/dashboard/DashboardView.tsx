@@ -1,5 +1,8 @@
 "use client";
 
+import nextDynamic from "next/dynamic";
+import Link from "next/link";
+import styled, { css } from "styled-components";
 import { ChartFallback } from "@/components/ui/ChartFallback";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { WhenVisible } from "@/components/ui/WhenVisible";
@@ -12,9 +15,6 @@ import {
 import { dashboardSummary } from "@/lib/dashboard/summary";
 import type { NumberFormat } from "@/lib/settings/currency";
 import { theme } from "@/lib/theme";
-import nextDynamic from "next/dynamic";
-import Link from "next/link";
-import styled, { css } from "styled-components";
 import type { BalancePoint } from "./BalanceTrendChart";
 import { MonthChecklist } from "./MonthChecklist";
 import { SummaryRow } from "./SummaryRow";

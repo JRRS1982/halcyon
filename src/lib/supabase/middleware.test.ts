@@ -1,13 +1,14 @@
 /**
  * @jest-environment node
  */
+
+import { NextRequest } from "next/server";
 import {
   ACTIVITY_COOKIE,
-  SESSION_TIMEOUT,
   parseActivity,
+  SESSION_TIMEOUT,
   serializeActivity,
 } from "@/lib/auth/sessionTimeout";
-import { NextRequest } from "next/server";
 import { updateSession } from "./middleware";
 
 jest.mock("@/lib/env", () => ({

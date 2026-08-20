@@ -1,22 +1,13 @@
 // src/app/plan/PlanView.tsx
 "use client";
 
-import type { BandedProjection } from "@/lib/plan";
-import type { NumberFormat } from "@/lib/settings/currency";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import styled from "styled-components";
+import type { BandedProjection } from "@/lib/plan";
+import type { NumberFormat } from "@/lib/settings/currency";
 import { AssetFields, AssetsTable } from "./AssetsTable";
 import { AssumptionsPanel } from "./AssumptionsPanel";
-import { ChartPanel } from "./ChartPanel";
-import { EventFields, EventsTable } from "./EventsTable";
-import { ExpenseFields, ExpensesTable } from "./ExpensesTable";
-import { IncomeFields, IncomesTable } from "./IncomesTable";
-import { LiabilitiesTable, LiabilityFields } from "./LiabilitiesTable";
-import { PlanDrawer } from "./PlanDrawer";
-import { PropertyFields } from "./PropertyFields";
-import { Timeline } from "./Timeline";
-import { VerdictBanner } from "./VerdictBanner";
 import {
   deletePlanAsset,
   deletePlanEvent,
@@ -24,8 +15,17 @@ import {
   deletePlanIncome,
   deletePlanLiability,
 } from "./actions";
+import { ChartPanel } from "./ChartPanel";
+import { EventFields, EventsTable } from "./EventsTable";
+import { ExpenseFields, ExpensesTable } from "./ExpensesTable";
+import { IncomeFields, IncomesTable } from "./IncomesTable";
+import { LiabilitiesTable, LiabilityFields } from "./LiabilitiesTable";
+import { PlanDrawer } from "./PlanDrawer";
+import { PropertyFields } from "./PropertyFields";
 import type { SerializedPlan } from "./serialized";
+import { Timeline } from "./Timeline";
 import { usePlanProjection } from "./usePlanProjection";
+import { VerdictBanner } from "./VerdictBanner";
 
 type Kind = "asset" | "liability" | "income" | "expense" | "event";
 

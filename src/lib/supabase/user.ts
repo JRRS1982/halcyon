@@ -1,8 +1,8 @@
 import "server-only";
 
-import { createClient } from "@/lib/supabase/server";
 import type { User } from "@supabase/supabase-js";
 import { cache } from "react";
+import { createClient } from "@/lib/supabase/server";
 
 /**
  * The signed-in user for the current request, or null.

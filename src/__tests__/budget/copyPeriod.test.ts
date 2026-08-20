@@ -1,4 +1,4 @@
-import { type CopyableItem, buildCopiedItems } from "@/lib/budget/copyPeriod";
+import { buildCopiedItems, type CopyableItem } from "@/lib/budget/copyPeriod";
 
 // Deterministic id generator so assertions can name the new ids.
 const seqIds = () => {

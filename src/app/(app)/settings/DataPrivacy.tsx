@@ -1,11 +1,11 @@
 "use client";
 
-import { Button } from "@/components/ui/Button";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import styled from "styled-components";
-import { SectionHeading, SettingsCard } from "./SectionHeading";
+import { Button } from "@/components/ui/Button";
 import { clearMyData, deleteMyAccount, exportMyData } from "./dataActions";
+import { SectionHeading, SettingsCard } from "./SectionHeading";
 
 const Shell = styled.section`
   max-width: 720px;

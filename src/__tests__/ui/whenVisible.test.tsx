@@ -1,7 +1,8 @@
 // src/__tests__/ui/whenVisible.test.tsx
-import { WhenVisible } from "@/components/ui/WhenVisible";
+
 import { act, render, screen } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
+import { WhenVisible } from "@/components/ui/WhenVisible";
 
 const subject = (
   <WhenVisible fallback={<span>placeholder</span>}>

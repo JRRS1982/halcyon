@@ -18,12 +18,11 @@ const COLOUR_COLLISIONS: [Wrapper, Wrapper][] = [
 ];
 
 describe("plan chart textures", () => {
-  test.each(COLOUR_COLLISIONS)(
-    "%s and %s are separated by texture, not just hue",
-    (a, b) => {
-      expect(WRAPPER_TEXTURES[a]).not.toBe(WRAPPER_TEXTURES[b]);
-    },
-  );
+  test.each(
+    COLOUR_COLLISIONS,
+  )("%s and %s are separated by texture, not just hue", (a, b) => {
+    expect(WRAPPER_TEXTURES[a]).not.toBe(WRAPPER_TEXTURES[b]);
+  });
 
   // A pattern fill has to opt out of the area's own fillOpacity: the tint is
   // already baked into the pattern, and multiplying the two fades the hatch to

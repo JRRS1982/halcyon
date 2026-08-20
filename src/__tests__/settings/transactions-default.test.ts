@@ -5,7 +5,7 @@
 // schema and the migration disagree, new users get the feature in one code
 // path and not the other — a difference nothing else in the test suite would
 // notice.
-import { readFileSync, readdirSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const PRISMA_DIR = join(process.cwd(), "prisma");

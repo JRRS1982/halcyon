@@ -1,16 +1,16 @@
 // src/app/plan/ExpensesTable.tsx
 "use client";
 
-import type { ExpenseCategory } from "@/lib/plan";
-import { type NumberFormat, formatAmount } from "@/lib/settings/currency";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import styled from "styled-components";
+import type { ExpenseCategory } from "@/lib/plan";
+import { formatAmount, type NumberFormat } from "@/lib/settings/currency";
+import { createPlanExpense, updatePlanExpense } from "./actions";
 import { BoolCell, NumberCell, SelectCell, TextCell } from "./EditableCell";
 import { DrawerSection, Field } from "./PlanDrawer";
 import { AddRowButton } from "./RowControls";
 import { SummaryList, SummaryRow } from "./SummaryRow";
-import { createPlanExpense, updatePlanExpense } from "./actions";
 import type {
   SerializedPlanExpense,
   SerializedPlanLiability,
