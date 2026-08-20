@@ -35,7 +35,13 @@ export default async function AppLayout({
   // — including everyone on the marketing page — fall through to the media
   // query in themeCss.
   return (
-    <div data-theme={theme} style={theme ? { colorScheme: theme } : undefined}>
+    // app-shell keeps body's sticky-footer flex running through this wrapper —
+    // see globals.css. Without it the footer rides up on short pages.
+    <div
+      className="app-shell"
+      data-theme={theme}
+      style={theme ? { colorScheme: theme } : undefined}
+    >
       <NavBar
         signedIn={!!user}
         transactionsEnabled={transactionsEnabled}

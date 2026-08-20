@@ -139,16 +139,38 @@ const TableScroll = styled.div`
   }
 `;
 
+// `table-layout: fixed` and the colgroup below are what stop the ledger jumping
+// when a row's details open. Under auto layout the detail row's colSpan=7 cell
+// throws its own min-content width into the column algorithm, so expanding a
+// row re-measured every column at once — the date cell grew, the description
+// cell shrank and wrapped, and every row below shifted sideways. Fixed layout
+// ignores spanning cells entirely: the columns are whatever the colgroup says,
+// open or closed. The mobile floor rises with it, because fixed columns no
+// longer compress to fit and description needs room left over inside it.
 const Table = styled.table`
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
   font-size: 13px;
 
   @media (max-width: 991px) {
-    min-width: 720px;
+    min-width: 940px;
   }
 `;
+
+// In header order. Description is the only `auto` one, so it absorbs whatever
+// the viewport has spare — every other column keeps the width its content
+// actually needs.
+const COLUMN_WIDTHS: [column: string, width: string][] = [
+  ["select", "36px"],
+  ["date", "100px"],
+  ["description", "auto"],
+  ["account", "132px"],
+  ["amount", "96px"],
+  ["category", "236px"],
+  ["note", "76px"],
+];
 
 const Th = styled.th<{ $align?: "right" }>`
   text-align: ${({ $align }) => ($align === "right" ? "right" : "left")};
@@ -161,6 +183,19 @@ const Th = styled.th<{ $align?: "right" }>`
   white-space: nowrap;
 `;
 
+// Clicking a row's plain data cells — date, description, account, amount —
+// selects it. The checkbox is a 13px target, and picking the row it sits in is
+// what the click was aimed at. The three things that own their own click (the
+// checkbox, the category combobox, the details toggle) stop the event so a
+// click there still does only its own job.
+const Row = styled.tr`
+  cursor: pointer;
+
+  &:hover {
+    background: ${({ theme }) => theme.colors.canvasSoft};
+  }
+`;
+
 const Td = styled.td`
   padding: ${({ theme }) => theme.spacing.sm};
   border-bottom: 1px solid ${({ theme }) => theme.colors.hairline};
@@ -170,9 +205,13 @@ const Td = styled.td`
 
 // Date and account cells: a date broken across two lines ("2026-08-" / "05")
 // reads as noise, and the table pans horizontally anyway — these cells keep
-// their content whole and let the scroller absorb the width.
+// their content whole. Their columns are fixed-width (see COLUMN_WIDTHS), so an
+// account name longer than its column ellipsizes rather than spilling into the
+// amount beside it; the cell carries a title so the full name is still readable.
 const TdNowrap = styled(Td)`
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 `;
 
 const Amount = styled.td<{ $negative: boolean }>`
@@ -914,6 +953,11 @@ export function Ledger({
       ) : (
         <TableScroll data-ledger-scroller>
           <Table>
+            <colgroup>
+              {COLUMN_WIDTHS.map(([column, width]) => (
+                <col key={column} style={{ width }} />
+              ))}
+            </colgroup>
             <thead>
               <tr>
                 <ThSelect>
@@ -940,22 +984,25 @@ export function Ledger({
             <tbody>
               {items.map((tx) => (
                 <Fragment key={tx.id}>
-                  <tr>
+                  <Row onClick={() => toggleRow(tx.id)}>
                     <TdCheck>
                       <input
                         type="checkbox"
                         checked={selected.has(tx.id)}
                         onChange={() => toggleRow(tx.id)}
+                        // Without this the change handler and the row's click
+                        // handler both fire and cancel each other out.
+                        onClick={(e) => e.stopPropagation()}
                         aria-label={`Select ${tx.description}`}
                       />
                     </TdCheck>
                     <TdNowrap>{tx.date.slice(0, 10)}</TdNowrap>
                     <Td>{tx.description}</Td>
-                    <TdNowrap>{tx.accountName}</TdNowrap>
+                    <TdNowrap title={tx.accountName}>{tx.accountName}</TdNowrap>
                     <Amount $negative={tx.amount < 0}>
                       {tx.amount.toFixed(2)}
                     </Amount>
-                    <Td>
+                    <Td onClick={(e) => e.stopPropagation()}>
                       <CategoryCombobox
                         categories={categories}
                         accounts={accounts}
@@ -972,7 +1019,7 @@ export function Ledger({
                         }
                       />
                     </Td>
-                    <Td>
+                    <Td onClick={(e) => e.stopPropagation()}>
                       <NoteToggle
                         type="button"
                         $has={Boolean(tx.note || tx.extra)}
@@ -982,7 +1029,7 @@ export function Ledger({
                         {tx.note ? "Note ●" : tx.extra ? "Details" : "+ Note"}
                       </NoteToggle>
                     </Td>
-                  </tr>
+                  </Row>
                   {expandedId === tx.id && (
                     <tr>
                       <DetailTd colSpan={7}>

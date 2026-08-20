@@ -65,12 +65,29 @@ const Rows = styled.div`
     grid-template-columns: ${GUTTER_PHONE} 1fr;
   }
 `;
-const GroupLabel = styled.div`
+// A lane heading, not a row. It used to be Inter 12/600 dim against row labels
+// of Inter 13/400 body — near enough that "Income" read as another stream. It
+// is chrome around the plot, so it takes the mono-caps eyebrow treatment
+// (DESIGN.md → typography → mono-caps) and a hairline rule that closes the
+// group above it. $first suppresses the rule on the topmost group, which has
+// nothing to close.
+const GroupLabel = styled.div<{ $first: boolean }>`
   grid-column: 1 / -1;
-  font-size: 12px;
-  font-weight: 600;
+  font-family: ${({ theme }) => theme.typography.monoCaps.family};
+  font-size: ${({ theme }) => theme.typography.monoCaps.size};
+  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
+  line-height: ${({ theme }) => theme.typography.monoCaps.lineHeight};
+  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
+  text-transform: uppercase;
   color: ${({ theme }) => theme.colors.dim};
-  margin-top: ${({ theme }) => theme.spacing.sm};
+  ${({ $first, theme }) =>
+    $first
+      ? ""
+      : `
+  margin-top: ${theme.spacing.md};
+  padding-top: ${theme.spacing.md};
+  border-top: 1px solid ${theme.colors.hairline};
+  `}
 `;
 const RowLabel = styled.div`
   font-size: 13px;
@@ -419,8 +436,11 @@ export function Timeline({
     ["Expenses", model.bars.expense],
     ["Liabilities", model.bars.liability],
   ];
-  const hasContent =
-    groups.some(([, bars]) => bars.length > 0) || model.events.length > 0;
+  // Only the lanes that have something in them get a heading, so the index a
+  // group renders at — not its position in `groups` — decides whether it is
+  // the first one and skips the closing rule.
+  const filledGroups = groups.filter(([, bars]) => bars.length > 0);
+  const hasContent = filledGroups.length > 0 || model.events.length > 0;
 
   return (
     <Panel>
@@ -428,44 +448,42 @@ export function Timeline({
       {hasContent ? (
         <Plot>
           <Rows>
-            {groups.map(([label, bars]) =>
-              bars.length === 0 ? null : (
-                <div key={label} style={{ display: "contents" }}>
-                  <GroupLabel>{label}</GroupLabel>
-                  {bars.map((b) => (
-                    <div key={b.id} style={{ display: "contents" }}>
-                      <RowLabel title={b.label}>{b.label}</RowLabel>
-                      <Track>
-                        <Bar
-                          style={{
-                            left: `${b.leftPct}%`,
-                            width: `${b.widthPct}%`,
-                            background: barColour(b),
-                          }}
-                          title={`${b.label}: ${b.startAge}–${b.endAge}`}
-                        />
-                        <BarHandle
-                          bar={b}
-                          edge="start"
-                          minAge={minAge}
-                          maxAge={maxAge}
-                          onInput={onStreamInput}
-                          onCommit={onStreamCommit}
-                        />
-                        <BarHandle
-                          bar={b}
-                          edge="end"
-                          minAge={minAge}
-                          maxAge={maxAge}
-                          onInput={onStreamInput}
-                          onCommit={onStreamCommit}
-                        />
-                      </Track>
-                    </div>
-                  ))}
-                </div>
-              ),
-            )}
+            {filledGroups.map(([label, bars], groupIndex) => (
+              <div key={label} style={{ display: "contents" }}>
+                <GroupLabel $first={groupIndex === 0}>{label}</GroupLabel>
+                {bars.map((b) => (
+                  <div key={b.id} style={{ display: "contents" }}>
+                    <RowLabel title={b.label}>{b.label}</RowLabel>
+                    <Track>
+                      <Bar
+                        style={{
+                          left: `${b.leftPct}%`,
+                          width: `${b.widthPct}%`,
+                          background: barColour(b),
+                        }}
+                        title={`${b.label}: ${b.startAge}–${b.endAge}`}
+                      />
+                      <BarHandle
+                        bar={b}
+                        edge="start"
+                        minAge={minAge}
+                        maxAge={maxAge}
+                        onInput={onStreamInput}
+                        onCommit={onStreamCommit}
+                      />
+                      <BarHandle
+                        bar={b}
+                        edge="end"
+                        minAge={minAge}
+                        maxAge={maxAge}
+                        onInput={onStreamInput}
+                        onCommit={onStreamCommit}
+                      />
+                    </Track>
+                  </div>
+                ))}
+              </div>
+            ))}
             <RowLabel />
             <Track>
               {model.ticks.map((t) => (
