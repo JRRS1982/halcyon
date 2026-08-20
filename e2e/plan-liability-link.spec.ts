@@ -95,9 +95,18 @@ test("plan: link a repayment expense — managed drawer, list badge, then unlink
 
   // Link: "Track repayment as an expense" creates the expense and switches the
   // drawer to it.
-  await drawer
-    .getByRole("button", { name: /track repayment as an expense/i })
-    .click();
+  //
+  // Barriered for the same reason the two tests below barrier this identical
+  // click: it fires linkRepaymentExpense, and the assertion that follows reads
+  // a drawer that only switches once that write and its revalidation have
+  // landed. Left bare, it failed under full-suite load while passing 3/3 in
+  // isolation — the signature of a missing write barrier rather than a slow
+  // assertion.
+  await withServerAction(page, () =>
+    drawer
+      .getByRole("button", { name: /track repayment as an expense/i })
+      .click(),
+  );
 
   // The managed expense drawer: shows the "managed by <liability>" note, and
   // hides both the manual Remove control and the whole Timing section (timing
