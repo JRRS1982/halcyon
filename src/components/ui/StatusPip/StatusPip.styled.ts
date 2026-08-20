@@ -31,9 +31,12 @@ export const PipWrapper = styled.span`
     gap: ${theme.spacing.sm};
     line-height: 1;
     /* Reserve a stable width so the pill doesn't resize as its label cycles
-       (Saving… → Saved just now → Saved 3m ago → Up to date). */
+       (Saving… → Saved just now → Saved 3m ago → Up to date). The slack that
+       reserve leaves on a short label is shared between both ends rather than
+       pushed to one — flex-end parked "Up to date" against the right edge
+       behind 45px of empty pill, which read as a spacing bug. */
     min-width: 132px;
-    justify-content: flex-end;
+    justify-content: center;
 
     /* On a phone the pip is status, not a control — the chip chrome made it
        read as one more button in the wrapped toolbar. Bare mono-caps text. */

@@ -20,6 +20,16 @@ body {
   min-height: 100vh;
 }
 
+/* The (app) layout wraps everything in a colour-scheme div, which sits between
+   body and the content — so the sticky-footer flex has to continue through it.
+   Without this the growing element has no flex parent to grow in and the footer
+   rides up the page on short routes (sign-in, sign-up). */
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+}
+
 .app-content {
   flex: 1 1 auto;
 }
