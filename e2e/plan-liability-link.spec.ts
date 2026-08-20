@@ -3,6 +3,7 @@ import type { PrismaClient } from "@prisma/client";
 import {
   clearStarterPeriods,
   expect,
+  openFresh,
   signedInUser,
   signIn,
   test,
@@ -214,13 +215,22 @@ test("plan: a liability's start handle drags (keyboard) and persists", async ({
   const before = Number(await handle.getAttribute("aria-valuenow"));
 
   await handle.focus();
-  await page.keyboard.press("ArrowRight");
+  // The keypress moves the handle *and* commits on keyup, so the write has to
+  // be awaited before anything navigates. Reloading here unbarriered cancelled
+  // the request in flight — the dev server logs "destination stream closed
+  // early" — and the fresh page then read the old age straight from the
+  // database. It failed on firefox in CI while passing everywhere locally,
+  // which is the signature openFresh's docstring describes.
+  await withServerAction(page, () => page.keyboard.press("ArrowRight"));
   await expect(handle).toHaveAttribute("aria-valuenow", String(before + 1));
 
-  // Commit-on-keyup persists; the new start age survives a full reload.
+  // Commit-on-keyup persists; the new start age survives a full load. A new
+  // tab rather than page.reload(): reloading a page the app is still driving
+  // loses a race with its own router.refresh() (openFresh, fixtures.ts).
   await expect(page.getByRole("heading", { name: "Your plan" })).toBeVisible();
-  await page.reload();
+  const fresh = await openFresh(page, "/plan");
   await expect(
-    page.getByRole("slider", { name: /New liability start age/i }),
+    fresh.getByRole("slider", { name: /New liability start age/i }),
   ).toHaveAttribute("aria-valuenow", String(before + 1));
+  await fresh.close();
 });
