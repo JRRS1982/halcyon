@@ -1,7 +1,8 @@
 /** @jest-environment jsdom */
-import { theme } from "@/lib/theme";
+
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ThemeProvider } from "styled-components";
+import { theme } from "@/lib/theme";
 import { EventFields, EventsTable } from "./EventsTable";
 
 const updatePlanEvent = jest.fn().mockResolvedValue(undefined);

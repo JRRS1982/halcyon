@@ -1,9 +1,9 @@
 "use client";
 
-import { type NumberFormat, formatAmount } from "@/lib/settings/currency";
-import type { TransferAccountRow } from "@/lib/transactions/transfers";
 import { useState } from "react";
 import styled from "styled-components";
+import { formatAmount, type NumberFormat } from "@/lib/settings/currency";
+import type { TransferAccountRow } from "@/lib/transactions/transfers";
 
 const Section = styled.section`
   max-width: 960px;

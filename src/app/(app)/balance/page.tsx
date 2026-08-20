@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import {
   currentMonthRange,
   formatYm,
@@ -7,7 +8,6 @@ import {
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserSettings } from "@/lib/settings/server";
 import { getCurrentUser } from "@/lib/supabase/user";
-import { redirect } from "next/navigation";
 import {
   BalanceSheet,
   type SerializedBalanceItem,

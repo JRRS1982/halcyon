@@ -18,7 +18,7 @@
 // skipped on local Docker Postgres, which means a live pg_tables assertion
 // could never pass locally.
 
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const PRISMA_DIR = join(process.cwd(), "prisma");

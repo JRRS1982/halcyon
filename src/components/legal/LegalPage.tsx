@@ -1,9 +1,9 @@
 "use client";
 
-import { PageHeader } from "@/components/ui/PageHeader";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import styled, { css } from "styled-components";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 // Shared shell for the long-form legal pages (/privacy, /cookies, /terms).
 // Mirrors the guide's measure-as-container approach: 680px is a comfortable

@@ -1,11 +1,11 @@
 "use server";
 
-import { cleanLabel } from "@/lib/categories/normalize";
-import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { cleanLabel } from "@/lib/categories/normalize";
+import { prisma } from "@/lib/prisma";
+import { createClient } from "@/lib/supabase/server";
 
 // Accounts are managed in Settings and exist independently of the transactions
 // feature toggle, so these gate on auth only.

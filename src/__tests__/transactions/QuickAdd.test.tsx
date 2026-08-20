@@ -1,8 +1,9 @@
 // src/__tests__/transactions/QuickAdd.test.tsx
-import { QuickAdd } from "@/app/(app)/transactions/QuickAdd";
-import { theme } from "@/lib/theme";
+
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ThemeProvider } from "styled-components";
+import { QuickAdd } from "@/app/(app)/transactions/QuickAdd";
+import { theme } from "@/lib/theme";
 
 const refresh = jest.fn();
 jest.mock("next/navigation", () => ({

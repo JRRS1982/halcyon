@@ -1,21 +1,21 @@
 // src/app/plan/AssetsTable.tsx
 "use client";
 
-import { WRAPPERS } from "@/lib/plan";
-import { type NumberFormat, formatAmount } from "@/lib/settings/currency";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import styled from "styled-components";
-import { NumberCell, SelectCell, TextCell } from "./EditableCell";
-import { MortgageBadge } from "./MortgageBadge";
-import { DrawerSection, Field } from "./PlanDrawer";
-import { AddRowButton } from "./RowControls";
-import { SummaryList, SummaryRow } from "./SummaryRow";
+import { WRAPPERS } from "@/lib/plan";
+import { formatAmount, type NumberFormat } from "@/lib/settings/currency";
 import {
   createPlanAsset,
   createPlanProperty,
   updatePlanAsset,
 } from "./actions";
+import { NumberCell, SelectCell, TextCell } from "./EditableCell";
+import { MortgageBadge } from "./MortgageBadge";
+import { DrawerSection, Field } from "./PlanDrawer";
+import { AddRowButton } from "./RowControls";
+import { SummaryList, SummaryRow } from "./SummaryRow";
 import type { SerializedPlanAsset } from "./serialized";
 
 const Panel = styled.section`

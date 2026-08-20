@@ -1,8 +1,8 @@
 "use server";
 
-import { unsubscribeByToken } from "@/lib/email/subscriptions";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { unsubscribeByToken } from "@/lib/email/subscriptions";
 
 /**
  * The visible unsubscribe, from the button on /unsubscribe.

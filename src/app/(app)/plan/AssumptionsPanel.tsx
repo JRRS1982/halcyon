@@ -4,8 +4,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import styled from "styled-components";
-import { NumberCell, TextCell } from "./EditableCell";
 import { updatePlanAssumptions } from "./actions";
+import { NumberCell, TextCell } from "./EditableCell";
 import type { SerializedPlanAssumptions } from "./serialized";
 
 const Panel = styled.section`
@@ -40,7 +40,9 @@ const Err = styled.p`
 
 export function AssumptionsPanel({
   assumptions,
-}: { assumptions: SerializedPlanAssumptions }) {
+}: {
+  assumptions: SerializedPlanAssumptions;
+}) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
 

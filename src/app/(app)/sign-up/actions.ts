@@ -1,12 +1,12 @@
 "use server";
 
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { signUpSchema } from "@/lib/auth/schemas";
 import { clientIp } from "@/lib/http/clientIp";
 import { log } from "@/lib/log";
 import { withinRateLimit } from "@/lib/rateLimit";
 import { createClient } from "@/lib/supabase/server";
-import { headers } from "next/headers";
-import { redirect } from "next/navigation";
 
 export const signUp = async (formData: FormData) => {
   const parsed = signUpSchema.safeParse({

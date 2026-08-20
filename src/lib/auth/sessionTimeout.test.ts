@@ -1,10 +1,10 @@
 import {
-  type SessionActivity,
-  type SessionTimeoutConfig,
   evaluateSession,
   idleStateAt,
   nextActivity,
   parseActivity,
+  type SessionActivity,
+  type SessionTimeoutConfig,
   serializeActivity,
 } from "./sessionTimeout";
 

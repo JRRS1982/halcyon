@@ -3,18 +3,18 @@ import { prisma } from "@/lib/prisma";
 import {
   CURRENCY_CODES,
   CURRENCY_META,
-  NUMBER_FORMATS,
   NUMBER_FORMAT_SPEC,
+  NUMBER_FORMATS,
   symbolFor,
 } from "@/lib/settings/currency";
 import { getCurrentUserSettings } from "@/lib/settings/server";
 import { getOrProvisionCategories } from "@/lib/transactions/server";
 import { AccountManager, type ManagedAccount } from "./AccountManager";
+import { updateSettings } from "./actions";
 import { CategoryManager, type ManagedCategory } from "./CategoryManager";
 import { DashboardSettings } from "./DashboardSettings";
 import { DataPrivacy } from "./DataPrivacy";
 import { SettingsForm } from "./SettingsForm";
-import { updateSettings } from "./actions";
 
 // Human labels for each number-format preset (the structural description; the
 // live example is appended with the user's currency symbol below).

@@ -1,11 +1,5 @@
 // src/lib/plan/toPlanInput.ts
-import type {
-  BandedProjection,
-  BandedVerdict,
-  Growth,
-  PlanInput,
-  PlanProjection,
-} from "@/lib/plan";
+
 import type {
   Plan,
   PlanAsset,
@@ -14,6 +8,13 @@ import type {
   PlanIncome,
   PlanLiability,
 } from "@prisma/client";
+import type {
+  BandedProjection,
+  BandedVerdict,
+  Growth,
+  PlanInput,
+  PlanProjection,
+} from "@/lib/plan";
 
 export type PlanWithChildren = Plan & {
   assets: PlanAsset[];

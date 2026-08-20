@@ -1,10 +1,10 @@
 // src/app/plan/VerdictBanner.tsx
 "use client";
 
+import styled from "styled-components";
 import type { BandedVerdict, YearProjection } from "@/lib/plan";
 import { LIQUID_WRAPPERS } from "@/lib/plan/chartData";
-import { type NumberFormat, formatAmount } from "@/lib/settings/currency";
-import styled from "styled-components";
+import { formatAmount, type NumberFormat } from "@/lib/settings/currency";
 
 // The verdict is the page's headline answer ("can I retire, does it last?"), so
 // it reads as a status card: a colour rail + status eyebrow + plain-language

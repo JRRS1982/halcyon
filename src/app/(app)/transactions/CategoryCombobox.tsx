@@ -1,9 +1,9 @@
 "use client";
 
-import { EXPENSE_BUCKETS, INCOME_BUCKETS } from "@/lib/categories/buckets";
-import type { LedgerCategory } from "@/lib/transactions/server";
 import { useEffect, useId, useRef, useState } from "react";
 import styled from "styled-components";
+import { EXPENSE_BUCKETS, INCOME_BUCKETS } from "@/lib/categories/buckets";
+import type { LedgerCategory } from "@/lib/transactions/server";
 
 const Wrap = styled.div`
   position: relative;
@@ -487,7 +487,6 @@ export function CategoryCombobox({
             onKeyDown={onSearchKeyDown}
           />
 
-          {/* biome-ignore lint/a11y/useSemanticElements: WAI-ARIA combobox pattern; a native <select> cannot host the search/create UI */}
           <List id={listboxId} role="listbox">
             {groups.map((group) => {
               if (group.options.length === 0) return null;
@@ -506,7 +505,6 @@ export function CategoryCombobox({
                         <Option
                           key={option.key}
                           id={`${listboxId}-opt-${index}`}
-                          // biome-ignore lint/a11y/useSemanticElements: WAI-ARIA combobox pattern; a native <select> cannot host the search/create UI
                           role="option"
                           aria-selected={activeIndex === index}
                           $active={activeIndex === index}

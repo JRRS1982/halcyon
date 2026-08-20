@@ -1,19 +1,21 @@
 {
-  "$schema": "https://biomejs.dev/schemas/1.5.0/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.5.3/schema.json",
   "files": {
-    "ignore": [
-      ".next",
-      "node_modules",
-      "dist",
-      "build",
-      "*.min.js",
-      "coverage",
-      "playwright-report",
-      "test-results",
-      ".claude",
-      ".agents",
-      ".pnpm-store",
-      ".vscode"
+    "includes": [
+      "**",
+      "!**/.next",
+      "!**/node_modules",
+      "!**/dist",
+      "!**/build",
+      "!**/*.min.js",
+      "!**/coverage",
+      "!**/playwright-report",
+      "!**/test-results",
+      "!**/.claude",
+      "!**/.agents",
+      "!**/.pnpm-store",
+      "!**/.vscode",
+      "!**/*.svg"
     ]
   },
   "formatter": {
@@ -23,15 +25,15 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true
+      "preset": "recommended"
     }
   },
   "overrides": [
     {
-      "include": [
-        "src/components/sheet/**",
-        "src/app/(app)/budget/BudgetSheet.tsx",
-        "src/app/(app)/balance/BalanceSheet.tsx"
+      "includes": [
+        "**/src/components/sheet/**",
+        "**/src/app/(app)/budget/BudgetSheet.tsx",
+        "**/src/app/(app)/balance/BalanceSheet.tsx"
       ],
       "linter": {
         "rules": {
@@ -42,7 +44,11 @@
       }
     }
   ],
-  "organizeImports": {
-    "enabled": true
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
   }
 }

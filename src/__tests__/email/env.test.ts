@@ -47,14 +47,13 @@ describe("optional mail + cron env", () => {
    * `.min(1)` rejected it and the whole app refused to boot — over a feature
    * that is switched off.
    */
-  test.each(OPTIONAL)(
-    "a blank %s reads as absent, not invalid",
-    async (key) => {
-      const { emailEnv } = await load({ [key]: "" });
+  test.each(
+    OPTIONAL,
+  )("a blank %s reads as absent, not invalid", async (key) => {
+    const { emailEnv } = await load({ [key]: "" });
 
-      expect(emailEnv[key as keyof typeof emailEnv]).toBeUndefined();
-    },
-  );
+    expect(emailEnv[key as keyof typeof emailEnv]).toBeUndefined();
+  });
 
   test("every optional var blank at once still boots", async () => {
     const blanks = Object.fromEntries(OPTIONAL.map((k) => [k, ""]));

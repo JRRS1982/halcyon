@@ -1,11 +1,11 @@
 // src/__tests__/email/reminder.test.ts
 import {
-  REMINDER_DAYS,
-  REMINDER_RETRY_DAYS,
-  type ReminderSubscription,
   buildReminder,
   isReminderDue,
   previousMonthLabel,
+  REMINDER_DAYS,
+  REMINDER_RETRY_DAYS,
+  type ReminderSubscription,
   reminderDaySchema,
 } from "@/lib/email/reminder";
 

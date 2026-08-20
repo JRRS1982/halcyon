@@ -1,5 +1,5 @@
-import { unsubscribeByToken } from "@/lib/email/subscriptions";
 import { NextResponse } from "next/server";
+import { unsubscribeByToken } from "@/lib/email/subscriptions";
 
 /**
  * RFC 8058 one-click unsubscribe.

@@ -1,5 +1,5 @@
 import nextConfig from "../../../next.config.mjs";
-import { MAX_IMPORT_FILE_MB, MAX_IMPORT_ROWS, importLimitHint } from "./limits";
+import { importLimitHint, MAX_IMPORT_FILE_MB, MAX_IMPORT_ROWS } from "./limits";
 
 describe("import limits", () => {
   // The client rejects files over MAX_IMPORT_FILE_BYTES, but the server action

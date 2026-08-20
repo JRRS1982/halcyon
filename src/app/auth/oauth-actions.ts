@@ -1,8 +1,8 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
 
 // Initiates the Google OAuth flow. Supabase returns a URL pointing at Google's
 // consent screen; we redirect the browser there. Google then redirects back to

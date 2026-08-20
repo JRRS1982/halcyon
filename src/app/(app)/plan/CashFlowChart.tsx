@@ -1,20 +1,6 @@
 // src/app/plan/CashFlowChart.tsx
 "use client";
 
-import { amountAxis, makeAmountTick } from "@/lib/charts/format";
-import type { YearProjection } from "@/lib/plan";
-import {
-  type CashFlowDatum,
-  type CashFlowTooltipRow,
-  type IncomeFlowKey,
-  type OutflowKey,
-  cashFlowAmount,
-  cashFlowKeysPresent,
-  liquidDepletionAge,
-  summariseCashFlow,
-  toCashFlowChartData,
-} from "@/lib/plan/chartData";
-import { type NumberFormat, formatAmount } from "@/lib/settings/currency";
 import {
   Bar,
   CartesianGrid,
@@ -28,6 +14,20 @@ import {
   YAxis,
 } from "recharts";
 import styled, { useTheme } from "styled-components";
+import { amountAxis, makeAmountTick } from "@/lib/charts/format";
+import type { YearProjection } from "@/lib/plan";
+import {
+  type CashFlowDatum,
+  type CashFlowTooltipRow,
+  cashFlowAmount,
+  cashFlowKeysPresent,
+  type IncomeFlowKey,
+  liquidDepletionAge,
+  type OutflowKey,
+  summariseCashFlow,
+  toCashFlowChartData,
+} from "@/lib/plan/chartData";
+import { formatAmount, type NumberFormat } from "@/lib/settings/currency";
 import { PLOT_HEIGHT, PLOT_RIGHT_INSET } from "./axisGeometry";
 import { ageReferenceLines } from "./chartRefLines";
 import {

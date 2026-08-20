@@ -1,8 +1,9 @@
 // src/__tests__/marketing/Footer.test.tsx
-import { Footer } from "@/components/ui/Footer";
-import { theme } from "@/lib/theme";
+
 import { render, screen } from "@testing-library/react";
 import { ThemeProvider } from "styled-components";
+import { Footer } from "@/components/ui/Footer";
+import { theme } from "@/lib/theme";
 
 jest.mock("next/navigation", () => ({ usePathname: () => "/dashboard" }));
 

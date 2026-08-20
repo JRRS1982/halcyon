@@ -1,15 +1,14 @@
 // src/app/plan/Timeline.tsx
 "use client";
 
+import styled, { useTheme } from "styled-components";
 import {
-  type TimelineBar,
-  type TimelineMarker,
   ageFromOffset,
   clampHandle,
+  type TimelineBar,
+  type TimelineMarker,
   toTimelineModel,
 } from "@/lib/plan/timelineData";
-import styled, { useTheme } from "styled-components";
-import { PlanCard } from "./PlanCard";
 import {
   PHONE_PLOT_QUERY,
   PLOT_LEFT_INSET,
@@ -18,6 +17,7 @@ import {
 } from "./axisGeometry";
 import { DEBT_COLOUR, INCOME_COLOURS, OUTFLOW_COLOURS } from "./colours";
 import type { StreamOverride } from "./liveBand";
+import { PlanCard } from "./PlanCard";
 import type {
   SerializedPlanEvent,
   SerializedPlanExpense,

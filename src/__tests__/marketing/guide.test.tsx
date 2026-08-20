@@ -1,8 +1,9 @@
 // src/__tests__/marketing/guide.test.tsx
-import { Guide } from "@/app/(app)/guide/Guide";
-import { theme } from "@/lib/theme";
+
 import { render, screen, within } from "@testing-library/react";
 import { ThemeProvider } from "styled-components";
+import { Guide } from "@/app/(app)/guide/Guide";
+import { theme } from "@/lib/theme";
 
 const renderit = () =>
   render(

@@ -1,10 +1,10 @@
 "use client";
 
-import { DASHBOARD_CHARTS } from "@/lib/dashboard/charts";
 import { useState, useTransition } from "react";
 import styled from "styled-components";
-import { SectionHeading, SettingsCard } from "./SectionHeading";
+import { DASHBOARD_CHARTS } from "@/lib/dashboard/charts";
 import { setChartVisibility } from "./actions";
+import { SectionHeading, SettingsCard } from "./SectionHeading";
 
 const Shell = styled.section`
   max-width: 720px;

@@ -1,7 +1,7 @@
-import { DataPrivacy } from "@/app/(app)/settings/DataPrivacy";
-import { theme } from "@/lib/theme";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { ThemeProvider } from "styled-components";
+import { DataPrivacy } from "@/app/(app)/settings/DataPrivacy";
+import { theme } from "@/lib/theme";
 
 jest.mock("@/app/(app)/settings/dataActions", () => ({
   exportMyData: jest.fn(async () => "{}"),

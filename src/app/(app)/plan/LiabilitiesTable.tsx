@@ -1,15 +1,10 @@
 // src/app/plan/LiabilitiesTable.tsx
 "use client";
 
-import { type NumberFormat, formatAmount } from "@/lib/settings/currency";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import styled from "styled-components";
-import { NumberCell, TextCell } from "./EditableCell";
-import { MortgageBadge } from "./MortgageBadge";
-import { DrawerSection, Field } from "./PlanDrawer";
-import { AddRowButton } from "./RowControls";
-import { SummaryList, SummaryRow } from "./SummaryRow";
+import { formatAmount, type NumberFormat } from "@/lib/settings/currency";
 import {
   createMortgage,
   createPlanLiability,
@@ -17,6 +12,11 @@ import {
   unlinkRepaymentExpense,
   updatePlanLiability,
 } from "./actions";
+import { NumberCell, TextCell } from "./EditableCell";
+import { MortgageBadge } from "./MortgageBadge";
+import { DrawerSection, Field } from "./PlanDrawer";
+import { AddRowButton } from "./RowControls";
+import { SummaryList, SummaryRow } from "./SummaryRow";
 import type {
   SerializedPlanExpense,
   SerializedPlanLiability,

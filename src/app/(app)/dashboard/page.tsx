@@ -1,12 +1,13 @@
-import { MONTH_LABELS_SHORT, currentMonthRange } from "@/lib/budget/period";
+import { redirect } from "next/navigation";
+import { currentMonthRange, MONTH_LABELS_SHORT } from "@/lib/budget/period";
 import { computeRollups } from "@/lib/budget/totals";
 import { monthChecklist } from "@/lib/dashboard/checklist";
 import {
   type BalanceSums,
-  type ExpenditurePoint,
-  type MonthFlow,
   balanceSeries,
   cashFlowSeries,
+  type ExpenditurePoint,
+  type MonthFlow,
 } from "@/lib/dashboard/series";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserSettings } from "@/lib/settings/server";
@@ -17,7 +18,6 @@ import {
   netActual,
 } from "@/lib/transactions/actual";
 import { countUncategorized } from "@/lib/transactions/server";
-import { redirect } from "next/navigation";
 import { DashboardView } from "./DashboardView";
 
 const WINDOW_MONTHS = 12;

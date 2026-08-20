@@ -6,7 +6,7 @@
 // balance sheets get, see mobile-sheet.spec.ts). Layout-only, so it runs on
 // every engine; the rows are seeded straight into the database rather than
 // through the import journey.
-import { expect, signIn, signedInUser, test } from "./_helpers/fixtures";
+import { expect, signedInUser, signIn, test } from "./_helpers/fixtures";
 
 const PHONE = { width: 390, height: 844 };
 

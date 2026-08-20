@@ -10,7 +10,7 @@
 // Reads the palettes directly, not `theme.colors` — those resolve to
 // `var(--c-…)` at runtime so the browser can switch schemes, and a CSS variable
 // name has no luminance.
-import { type Palette, darkPalette, lightPalette } from "@/lib/palette";
+import { darkPalette, lightPalette, type Palette } from "@/lib/palette";
 
 // WCAG 2.1 relative luminance. Channels are gamma-expanded, then weighted for
 // the eye's sensitivity — which is why green moves the number far more than

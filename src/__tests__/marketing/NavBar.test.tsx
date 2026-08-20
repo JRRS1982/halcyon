@@ -1,8 +1,9 @@
 // src/__tests__/marketing/NavBar.test.tsx
-import { NavBar } from "@/components/ui/NavBar";
-import { theme } from "@/lib/theme";
+
 import { fireEvent, render, screen } from "@testing-library/react";
 import { ThemeProvider } from "styled-components";
+import { NavBar } from "@/components/ui/NavBar";
+import { theme } from "@/lib/theme";
 
 let mockPathname = "/";
 jest.mock("next/navigation", () => ({

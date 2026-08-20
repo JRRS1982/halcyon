@@ -1,8 +1,9 @@
 // src/__tests__/marketing/MarketingFooter.test.tsx
-import { MarketingFooter } from "@/components/marketing/MarketingFooter";
-import { theme } from "@/lib/theme";
+
 import { render, screen } from "@testing-library/react";
 import { ThemeProvider } from "styled-components";
+import { MarketingFooter } from "@/components/marketing/MarketingFooter";
+import { theme } from "@/lib/theme";
 
 const renderit = () =>
   render(

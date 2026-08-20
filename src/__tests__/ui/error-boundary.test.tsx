@@ -1,9 +1,10 @@
 // src/__tests__/ui/error-boundary.test.tsx
+
+import { fireEvent, render, screen } from "@testing-library/react";
+import { ThemeProvider } from "styled-components";
 import AppError from "@/app/(app)/error";
 import NotFound from "@/app/not-found";
 import { theme } from "@/lib/theme";
-import { fireEvent, render, screen } from "@testing-library/react";
-import { ThemeProvider } from "styled-components";
 
 const renderit = (ui: React.ReactElement) =>
   render(<ThemeProvider theme={theme}>{ui}</ThemeProvider>);

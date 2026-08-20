@@ -1,5 +1,5 @@
-import type { SessionTimeoutConfig } from "@/lib/auth/sessionTimeout";
 import { act, renderHook } from "@testing-library/react";
+import type { SessionTimeoutConfig } from "@/lib/auth/sessionTimeout";
 import { useIdleTimer } from "./useIdleTimer";
 
 const config: SessionTimeoutConfig = {

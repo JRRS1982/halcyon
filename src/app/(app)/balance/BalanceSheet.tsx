@@ -1,5 +1,15 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
+import styled, { css } from "styled-components";
 import { Sheet } from "@/components/sheet/Sheet";
 import { SheetCell } from "@/components/sheet/SheetCell";
 import {
@@ -19,28 +29,17 @@ import {
   computeMove,
 } from "@/lib/balance/reorder";
 import {
-  MONTH_LABELS_SHORT,
   formatYm,
+  MONTH_LABELS_SHORT,
   nextMonth,
   previousMonth,
 } from "@/lib/budget/period";
 import { useDebouncedCallback } from "@/lib/hooks/useDebouncedCallback";
 import {
+  formatAmount,
   NUMBER_FORMAT_SPEC,
   type NumberFormat,
-  formatAmount,
-  formatNumber,
 } from "@/lib/settings/currency";
-import { useRouter } from "next/navigation";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useTransition,
-} from "react";
-import styled, { css } from "styled-components";
 import {
   copyBalancePeriodFrom,
   copyBalanceTemplateInto,
@@ -62,7 +61,7 @@ export type SerializedPeriod = {
   endDate: string;
 };
 
-export type { BalanceType, BalanceCategory };
+export type { BalanceCategory, BalanceType };
 
 export type SerializedBalanceItem = {
   id: string;

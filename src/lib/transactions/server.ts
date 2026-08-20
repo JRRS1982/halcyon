@@ -4,7 +4,7 @@ import { sectionLabel } from "@/lib/categories/buckets";
 import { categoryKey, cleanLabel } from "@/lib/categories/normalize";
 import { prisma } from "@/lib/prisma";
 import { PAGE_SIZE } from "./pagination";
-import { type TransferAccountRow, netTransfersByAccount } from "./transfers";
+import { netTransfersByAccount, type TransferAccountRow } from "./transfers";
 
 export type LedgerCategory = {
   id: string;

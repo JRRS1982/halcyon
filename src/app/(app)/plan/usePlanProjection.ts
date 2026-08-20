@@ -1,9 +1,9 @@
 // src/app/plan/usePlanProjection.ts
 "use client";
 
-import type { BandedProjection } from "@/lib/plan";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { BandedProjection } from "@/lib/plan";
 import {
   updatePlanAssumptions,
   updatePlanEvent,
@@ -13,9 +13,9 @@ import {
 } from "./actions";
 import {
   type AssumptionOverrides,
+  computeLiveBand,
   type LiveOverrides,
   type StreamOverride,
-  computeLiveBand,
   withStreamAges,
 } from "./liveBand";
 import type {

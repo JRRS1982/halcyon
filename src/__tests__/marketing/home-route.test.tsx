@@ -1,8 +1,9 @@
 // src/__tests__/marketing/home-route.test.tsx
-import Home from "@/app/(marketing)/page";
-import { theme } from "@/lib/theme";
+
 import { render } from "@testing-library/react";
 import { ThemeProvider } from "styled-components";
+import Home from "@/app/(marketing)/page";
+import { theme } from "@/lib/theme";
 
 // "/" no longer performs its own session check — the proxy redirects signed-in
 // visitors before the request reaches this component, which saves a second

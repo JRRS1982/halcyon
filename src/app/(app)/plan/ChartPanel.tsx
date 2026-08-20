@@ -1,12 +1,12 @@
 // src/app/plan/ChartPanel.tsx
 "use client";
 
-import { ChartFallback } from "@/components/ui/ChartFallback";
-import type { YearProjection } from "@/lib/plan";
-import type { NumberFormat } from "@/lib/settings/currency";
 import nextDynamic from "next/dynamic";
 import { useState } from "react";
 import styled from "styled-components";
+import { ChartFallback } from "@/components/ui/ChartFallback";
+import type { YearProjection } from "@/lib/plan";
+import type { NumberFormat } from "@/lib/settings/currency";
 import { PlanCard } from "./PlanCard";
 
 // Only one of the three views is ever on screen, but all three used to be in

@@ -1,14 +1,6 @@
 // src/app/plan/LiquidAssetsChart.tsx
 "use client";
 
-import { amountAxis, makeAmountTick } from "@/lib/charts/format";
-import type { YearProjection } from "@/lib/plan";
-import {
-  liquidDepletionAge,
-  liquidWrappersPresent,
-  toLiquidAssetsBandData,
-} from "@/lib/plan/chartData";
-import type { NumberFormat } from "@/lib/settings/currency";
 import {
   Area,
   CartesianGrid,
@@ -21,8 +13,16 @@ import {
   YAxis,
 } from "recharts";
 import { useTheme } from "styled-components";
-import { ChartTextures, wrapperFill } from "./ChartTextures";
+import { amountAxis, makeAmountTick } from "@/lib/charts/format";
+import type { YearProjection } from "@/lib/plan";
+import {
+  liquidDepletionAge,
+  liquidWrappersPresent,
+  toLiquidAssetsBandData,
+} from "@/lib/plan/chartData";
+import type { NumberFormat } from "@/lib/settings/currency";
 import { PLOT_HEIGHT, PLOT_RIGHT_INSET } from "./axisGeometry";
+import { ChartTextures, wrapperFill } from "./ChartTextures";
 import { ageReferenceLines } from "./chartRefLines";
 import { StackedTooltip } from "./chartTooltip";
 import { NET_WORTH_COLOUR, WRAPPER_COLOURS, WRAPPER_LABELS } from "./colours";

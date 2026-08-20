@@ -12,7 +12,7 @@
 // of income and expenses corrects a reading rather than revealing anything, so
 // the third test here is the mirror image of its counterpart — it asserts the
 // UPDATE is present rather than absent.
-import { readFileSync, readdirSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const PRISMA_DIR = join(process.cwd(), "prisma");

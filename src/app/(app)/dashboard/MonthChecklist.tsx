@@ -1,8 +1,8 @@
 "use client";
 
-import type { Checklist } from "@/lib/dashboard/checklist";
 import Link from "next/link";
 import styled, { css } from "styled-components";
+import type { Checklist } from "@/lib/dashboard/checklist";
 
 // The monthly loop, as state: which stages of this month are done and where
 // to go for the ones that aren't. Same hairline chrome as the summary tiles
@@ -78,10 +78,6 @@ const TodoLink = styled(Link)`
   &:hover {
     text-decoration: underline;
   }
-`;
-
-const AllDone = styled.span`
-  color: ${({ theme }) => theme.colors.body};
 `;
 
 type MonthChecklistProps = {

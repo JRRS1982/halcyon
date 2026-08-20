@@ -1,5 +1,5 @@
-import { SESSION_TIMEOUT } from "@/lib/auth/sessionTimeout";
 import { expect, test } from "@playwright/test";
+import { SESSION_TIMEOUT } from "@/lib/auth/sessionTimeout";
 
 // The mock Supabase server is pre-seeded with this user.
 const KNOWN_USER = { email: "test@example.com", password: "password123" };

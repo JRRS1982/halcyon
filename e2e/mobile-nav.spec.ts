@@ -3,7 +3,7 @@
 // Viewport-dependent behaviour that jsdom can't judge: below 768px the inline
 // link row collapses and the hamburger drawer becomes the only way to navigate.
 // Runs against the public pages, so it needs no database.
-import { type Page, expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
 // iPhone 12/13/14 logical width — the narrow end of what we support.
 const PHONE = { width: 390, height: 844 };

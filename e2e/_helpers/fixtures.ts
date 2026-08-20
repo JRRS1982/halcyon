@@ -1,8 +1,8 @@
 import {
-  type Page,
-  type Request,
   test as base,
   expect,
+  type Page,
+  type Request,
 } from "@playwright/test";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";

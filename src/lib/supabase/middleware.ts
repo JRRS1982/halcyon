@@ -1,16 +1,16 @@
+import { createServerClient } from "@supabase/ssr";
+import { type NextRequest, NextResponse } from "next/server";
 import { POST_AUTH_LANDING } from "@/lib/auth/landing";
 import {
   ACTIVITY_COOKIE,
-  SESSION_TIMEOUT,
   activityCookieOptions,
   evaluateSession,
   nextActivity,
   parseActivity,
+  SESSION_TIMEOUT,
   serializeActivity,
 } from "@/lib/auth/sessionTimeout";
 import { env } from "@/lib/env";
-import { createServerClient } from "@supabase/ssr";
-import { type NextRequest, NextResponse } from "next/server";
 
 // Called from `src/proxy.ts` on every request. Refreshes the Supabase
 // session cookies so that server components see a current user, enforces the

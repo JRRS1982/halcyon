@@ -332,7 +332,7 @@ const ENERGY_BY_MONTH = [165, 150, 120, 95, 80, 72, 70, 72, 85, 110, 140, 160];
 // bills come out of the Joint Account (funded by a monthly transfer from
 // Current); personal spend stays on the Current Account.
 function transactionsForMonth(
-  year: number,
+  _year: number,
   month: number,
   monthIndex: number,
 ): PlannedTxn[] {

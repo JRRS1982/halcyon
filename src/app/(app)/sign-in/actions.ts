@@ -1,5 +1,7 @@
 "use server";
 
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { DEMO_EMAIL, DEMO_PASSWORD } from "@/lib/auth/demo";
 import { POST_AUTH_LANDING } from "@/lib/auth/landing";
 import { safeNext } from "@/lib/auth/safeNext";
@@ -13,8 +15,6 @@ import {
 import { clientIp } from "@/lib/http/clientIp";
 import { withinRateLimit } from "@/lib/rateLimit";
 import { createClient } from "@/lib/supabase/server";
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
 
 // Starts the session-timeout clock at the moment the session is created.
 //

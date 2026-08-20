@@ -6,8 +6,8 @@
 import {
   clearStarterPeriods,
   expect,
-  signIn,
   signedInUser,
+  signIn,
   test,
 } from "./_helpers/fixtures";
 

@@ -1,14 +1,5 @@
 "use client";
 
-import { ChartLegend } from "@/app/(app)/dashboard/ChartLegend";
-import { makeAmountTick } from "@/lib/charts/format";
-import type { BalancePoint } from "@/lib/dashboard/series";
-import {
-  type NumberFormat,
-  formatAmount,
-  symbolFor,
-} from "@/lib/settings/currency";
-import { theme } from "@/lib/theme";
 import {
   CartesianGrid,
   Legend,
@@ -21,6 +12,11 @@ import {
   YAxis,
 } from "recharts";
 import { useTheme } from "styled-components";
+import { ChartLegend } from "@/app/(app)/dashboard/ChartLegend";
+import { makeAmountTick } from "@/lib/charts/format";
+import type { BalancePoint } from "@/lib/dashboard/series";
+import { formatAmount, type NumberFormat } from "@/lib/settings/currency";
+import { theme } from "@/lib/theme";
 
 export type { BalancePoint };
 

@@ -1,8 +1,9 @@
 // src/__tests__/marketing/MarketingShot.test.tsx
-import { MarketingShot } from "@/components/marketing/MarketingShot";
-import { theme } from "@/lib/theme";
+
 import { render, screen } from "@testing-library/react";
 import { ThemeProvider } from "styled-components";
+import { MarketingShot } from "@/components/marketing/MarketingShot";
+import { theme } from "@/lib/theme";
 
 const renderit = (props: Parameters<typeof MarketingShot>[0]) =>
   render(

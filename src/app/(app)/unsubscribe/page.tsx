@@ -1,7 +1,7 @@
-import { unsubscribeTokenExists } from "@/lib/email/subscriptions";
 import type { Metadata } from "next";
-import { UnsubscribePanel } from "./UnsubscribePanel";
+import { unsubscribeTokenExists } from "@/lib/email/subscriptions";
 import { confirmUnsubscribe } from "./actions";
+import { UnsubscribePanel } from "./UnsubscribePanel";
 
 export const metadata: Metadata = {
   title: "Unsubscribe · Balanced Money",

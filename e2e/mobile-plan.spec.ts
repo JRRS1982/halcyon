@@ -10,7 +10,7 @@
 // plan.spec.ts, and webkit's phone-sized date input doesn't take fill() —
 // so this stays a layout test and runs on every engine.
 import type { PrismaClient } from "@prisma/client";
-import { expect, signIn, signedInUser, test } from "./_helpers/fixtures";
+import { expect, signedInUser, signIn, test } from "./_helpers/fixtures";
 
 const PHONE = { width: 390, height: 844 };
 

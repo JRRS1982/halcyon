@@ -1,7 +1,7 @@
-import { env } from "@/lib/env";
-import { clientIp } from "@/lib/http/clientIp";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { env } from "@/lib/env";
+import { clientIp } from "@/lib/http/clientIp";
 
 // The app runs on Vercel, so every call to Supabase Auth leaves from one of a
 // small pool of egress IPs. Left alone, Supabase's per-IP rate limits (sign-up

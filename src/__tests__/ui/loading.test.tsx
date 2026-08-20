@@ -1,4 +1,7 @@
 // src/__tests__/ui/loading.test.tsx
+
+import { render, screen } from "@testing-library/react";
+import { ThemeProvider } from "styled-components";
 import BalanceLoading from "@/app/(app)/balance/loading";
 import BudgetLoading from "@/app/(app)/budget/loading";
 import DashboardLoading from "@/app/(app)/dashboard/loading";
@@ -6,8 +9,6 @@ import PlanLoading from "@/app/(app)/plan/loading";
 import SettingsLoading from "@/app/(app)/settings/loading";
 import TransactionsLoading from "@/app/(app)/transactions/loading";
 import { theme } from "@/lib/theme";
-import { render, screen } from "@testing-library/react";
-import { ThemeProvider } from "styled-components";
 
 const renderit = (ui: React.ReactElement) =>
   render(<ThemeProvider theme={theme}>{ui}</ThemeProvider>);

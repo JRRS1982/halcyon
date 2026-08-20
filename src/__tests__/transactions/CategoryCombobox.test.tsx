@@ -1,7 +1,7 @@
-import { CategoryCombobox } from "@/app/(app)/transactions/CategoryCombobox";
-import { theme } from "@/lib/theme";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { ThemeProvider } from "styled-components";
+import { CategoryCombobox } from "@/app/(app)/transactions/CategoryCombobox";
+import { theme } from "@/lib/theme";
 
 // Deliberately unsorted so the alphabetical-within-group ordering is asserted,
 // not inherited from the fixture.

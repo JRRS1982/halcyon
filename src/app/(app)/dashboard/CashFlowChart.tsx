@@ -1,14 +1,5 @@
 "use client";
 
-import { ChartLegend } from "@/app/(app)/dashboard/ChartLegend";
-import { makeAmountTick } from "@/lib/charts/format";
-import type { CashFlowPoint } from "@/lib/dashboard/series";
-import {
-  type NumberFormat,
-  formatAmount,
-  symbolFor,
-} from "@/lib/settings/currency";
-import { theme } from "@/lib/theme";
 import {
   Bar,
   CartesianGrid,
@@ -21,6 +12,11 @@ import {
   YAxis,
 } from "recharts";
 import { useTheme } from "styled-components";
+import { ChartLegend } from "@/app/(app)/dashboard/ChartLegend";
+import { makeAmountTick } from "@/lib/charts/format";
+import type { CashFlowPoint } from "@/lib/dashboard/series";
+import { formatAmount, type NumberFormat } from "@/lib/settings/currency";
+import { theme } from "@/lib/theme";
 
 // These are the app's sign and accent colours, not a chart-only palette, so
 // they read from the tokens — which also makes them adapt to the dark scheme

@@ -1,8 +1,9 @@
 // src/__tests__/marketing/HowItWorks.test.tsx
-import { HowItWorks } from "@/components/marketing/HowItWorks";
-import { theme } from "@/lib/theme";
+
 import { render, screen } from "@testing-library/react";
 import { ThemeProvider } from "styled-components";
+import { HowItWorks } from "@/components/marketing/HowItWorks";
+import { theme } from "@/lib/theme";
 
 const renderit = () =>
   render(
