@@ -72,6 +72,9 @@ export type SerializedBalanceItem = {
   value: number;
   notes: string | null;
   sortOrder: number;
+  // Cloned by copy-from and not yet confirmed by a value edit — the number is
+  // last month's, shown dimmed until the user touches it.
+  carriedOver: boolean;
 };
 
 type FocusedCell = {
@@ -249,6 +252,15 @@ const GrandRow = styled.div`
 `;
 
 // ─── Styled in-cell inputs ──────────────────────────────────────────────────
+
+// Shown while any row still holds a copied-forward value, so the dimmed
+// numbers read as "provisional" rather than "styling".
+const CarriedNote = styled.p`
+  margin: 0 0 ${({ theme }) => theme.spacing.sm};
+  font-family: ${({ theme }) => theme.typography.bodyMd.family};
+  font-size: 13px;
+  color: ${({ theme }) => theme.colors.body};
+`;
 
 const CellInput = styled.input<{ $align?: "left" | "right" }>`
   border: none;
@@ -935,7 +947,17 @@ export function BalanceSheet({
       patch: { label?: string; value?: number; notes?: string | null },
     ) => {
       setItems((prev) =>
-        prev.map((it) => (it.id === itemId ? { ...it, ...patch } : it)),
+        prev.map((it) =>
+          it.id === itemId
+            ? {
+                ...it,
+                ...patch,
+                // A value edit confirms a carried-over number as this month's;
+                // mirrors the server's updateBalanceItem.
+                ...(patch.value !== undefined && { carriedOver: false }),
+              }
+            : it,
+        ),
       );
       debouncedUpdate(itemId, patch);
     },
@@ -971,6 +993,7 @@ export function BalanceSheet({
               value: Number(created.value),
               notes: created.notes,
               sortOrder: created.sortOrder,
+              carriedOver: false,
             },
           ]);
           setFocusedCell({ itemId: created.id, field: "label" });
@@ -1196,7 +1219,12 @@ export function BalanceSheet({
       </SheetCell>
       <SheetCell
         align="right"
-        tone={item.value === 0 ? "dim" : "default"}
+        tone={item.value === 0 || item.carriedOver ? "dim" : "default"}
+        title={
+          item.carriedOver
+            ? "Carried over from the month you copied — edit to confirm it's still right"
+            : undefined
+        }
         focused={
           focusedCell?.itemId === item.id && focusedCell.field === "value"
         }
@@ -1408,8 +1436,8 @@ export function BalanceSheet({
                       {items.length > 0
                         ? `This replaces the rows in ${periodState.label}. `
                         : ""}
-                      Every asset & liability line carries over, values
-                      included.
+                      Every asset & liability line carries over, values included
+                      — carried values show dimmed until you update each one.
                     </CopyConfirmText>
                     <CopyActions>
                       <CopyButton
@@ -1505,6 +1533,12 @@ export function BalanceSheet({
         </ToolbarGroup>
         <ToolbarSpacer />
       </Toolbar>
+      {items.some((it) => it.carriedOver) && (
+        <CarriedNote>
+          Dimmed values were carried over by the copy — update each one to
+          confirm it&apos;s still right this month.
+        </CarriedNote>
+      )}
       <Sheet data-sheet-scroller role="table" aria-label="Balance sheet">
         {renderSection("ASSET", "Assets", assetsTotal)}
         {renderSection("LIABILITY", "Liabilities", liabilitiesTotal)}

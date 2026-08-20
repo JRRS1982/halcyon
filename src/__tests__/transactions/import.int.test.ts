@@ -97,4 +97,80 @@ describe("import (integration)", () => {
     expect(preview.duplicates).toHaveLength(0);
     expect(preview.validCount).toBe(2);
   });
+
+  describe("categorisation memory", () => {
+    const seedCategorisedHistory = async () => {
+      const account = await prisma.account.create({
+        data: { userId: TEST_USER_ID, name: "History" },
+      });
+      const groceries = await prisma.category.create({
+        data: { userId: TEST_USER_ID, type: "EXPENSE", label: "Groceries" },
+      });
+      await prisma.transaction.create({
+        data: {
+          userId: TEST_USER_ID,
+          accountId: account.id,
+          date: new Date("2026-02-10T00:00:00.000Z"),
+          amount: -12,
+          description: "TESCO STORES 3421",
+          categoryId: groceries.id,
+        },
+      });
+      return { account, groceries };
+    };
+
+    test("an import files repeat merchants the way they were filed last time", async () => {
+      const { account, groceries } = await seedCategorisedHistory();
+
+      const res = await commitImport({
+        accountId: account.id,
+        newAccountName: null,
+        rows: [
+          ["date", "desc", "amount"],
+          ["2026-03-05", "TESCO STORES 9999", "-15"],
+          ["2026-03-06", "BRAND NEW PLACE", "-20"],
+        ],
+        mapping,
+        skipIndexes: [],
+      });
+
+      expect(res.imported).toBe(2);
+      expect(res.autoCategorised).toBe(1);
+
+      const tesco = await prisma.transaction.findFirst({
+        where: { userId: TEST_USER_ID, description: "TESCO STORES 9999" },
+      });
+      expect(tesco?.categoryId).toBe(groceries.id);
+
+      const novel = await prisma.transaction.findFirst({
+        where: { userId: TEST_USER_ID, description: "BRAND NEW PLACE" },
+      });
+      expect(novel?.categoryId).toBeNull();
+    });
+
+    test("a deleted category is never resurrected by an import", async () => {
+      const { account, groceries } = await seedCategorisedHistory();
+      await prisma.category.update({
+        where: { id: groceries.id },
+        data: { deletedAt: new Date() },
+      });
+
+      const res = await commitImport({
+        accountId: account.id,
+        newAccountName: null,
+        rows: [
+          ["date", "desc", "amount"],
+          ["2026-03-05", "TESCO STORES 9999", "-15"],
+        ],
+        mapping,
+        skipIndexes: [],
+      });
+
+      expect(res.autoCategorised).toBe(0);
+      const tesco = await prisma.transaction.findFirst({
+        where: { userId: TEST_USER_ID, description: "TESCO STORES 9999" },
+      });
+      expect(tesco?.categoryId).toBeNull();
+    });
+  });
 });

@@ -10,7 +10,15 @@ import {
   MAX_EXTRA_COLUMNS,
   mapRows,
 } from "@/lib/transactions/import";
-import { MAX_IMPORT_ROWS } from "@/lib/transactions/limits";
+import {
+  MAX_IMPORT_ROWS,
+  MAX_TRANSACTIONS_PER_USER,
+} from "@/lib/transactions/limits";
+import {
+  MEMORY_WINDOW,
+  buildCategoryMemory,
+  descriptionKey,
+} from "@/lib/transactions/memory";
 import type { LedgerCategory } from "@/lib/transactions/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -65,6 +73,9 @@ export type ImportResult = {
   imported: number;
   duplicates: number;
   invalid: number;
+  // How many imported rows were filed automatically from the user's own
+  // categorisation history.
+  autoCategorised: number;
   accountName: string;
 };
 
@@ -178,23 +189,70 @@ export async function commitImport(input: CommitInput): Promise<ImportResult> {
   const skip = new Set(skipIndexes);
   const toInsert = valid.filter((row) => !skip.has(row.index));
 
+  let autoCategorised = 0;
   if (toInsert.length > 0) {
+    // Bound the total a single user can accumulate across all imports. Counting
+    // live rows (deletedAt: null) keeps reversed/deleted batches from counting
+    // against the cap, and fails closed: if the count query throws, the import
+    // does not proceed.
+    const existing = await prisma.transaction.count({
+      where: { userId, deletedAt: null },
+    });
+    if (existing + toInsert.length > MAX_TRANSACTIONS_PER_USER) {
+      throw new Error(
+        `Import would exceed the ${MAX_TRANSACTIONS_PER_USER.toLocaleString()} transaction limit`,
+      );
+    }
+
+    // Categorisation memory: how the user filed each merchant last time.
+    // Rebuilt from recent history on every import (nothing stored), and
+    // restricted to live categories so a deleted one is never resurrected.
+    const history = await prisma.transaction.findMany({
+      where: {
+        userId,
+        deletedAt: null,
+        categoryId: { not: null },
+        category: { deletedAt: null },
+      },
+      orderBy: { date: "desc" },
+      take: MEMORY_WINDOW,
+      select: { description: true, categoryId: true, date: true },
+    });
+    const memory = buildCategoryMemory(
+      history.flatMap((tx) =>
+        tx.categoryId
+          ? [
+              {
+                description: tx.description,
+                categoryId: tx.categoryId,
+                date: tx.date,
+              },
+            ]
+          : [],
+      ),
+    );
+
     // The batch groups this run's rows so the whole import can be reversed.
     const batch = await prisma.importBatch.create({
       data: { userId, accountId: account.id, fileName: fileName ?? null },
       select: { id: true },
     });
     await prisma.transaction.createMany({
-      data: toInsert.map((row) => ({
-        userId,
-        accountId: account.id,
-        importBatchId: batch.id,
-        date: row.date as Date,
-        amount: row.amount as number,
-        description: row.description,
-        // Kept CSV columns, keyed by header label (undefined leaves NULL).
-        extra: row.extra ?? undefined,
-      })),
+      data: toInsert.map((row) => {
+        const categoryId = memory.get(descriptionKey(row.description)) ?? null;
+        if (categoryId) autoCategorised += 1;
+        return {
+          userId,
+          accountId: account.id,
+          importBatchId: batch.id,
+          date: row.date as Date,
+          amount: row.amount as number,
+          description: row.description,
+          categoryId,
+          // Kept CSV columns, keyed by header label (undefined leaves NULL).
+          extra: row.extra ?? undefined,
+        };
+      }),
     });
   }
 
@@ -208,6 +266,7 @@ export async function commitImport(input: CommitInput): Promise<ImportResult> {
     imported: toInsert.length,
     duplicates: valid.length - toInsert.length,
     invalid: invalidCount,
+    autoCategorised,
     accountName: account.name,
   };
 }
@@ -327,6 +386,78 @@ export async function setTransactionCategory(
   revalidatePath("/transactions");
   revalidatePath("/budget");
   revalidatePath("/dashboard");
+}
+
+const createTransactionSchema = z.object({
+  accountId: z.string().uuid(),
+  // A plain calendar date from the form's date input; parsed at UTC midnight
+  // to match how imports store statement dates.
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  description: z.string().trim().min(1).max(300),
+  // Bank-signed, like imported rows: negative for money out, positive for
+  // money in. Zero records nothing and is refused.
+  amount: z
+    .number()
+    .finite()
+    .refine((v) => v !== 0, { message: "Amount can't be zero" }),
+  categoryId: z.string().uuid().nullable(),
+});
+
+export type CreateTransactionInput = z.input<typeof createTransactionSchema>;
+
+// Quick-add: one transaction typed straight into the ledger — cash spend, a
+// mid-month capture, anything that shouldn't wait for the next statement.
+// Not part of any import batch, so reverse-import never touches it.
+export async function createTransaction(
+  input: CreateTransactionInput,
+): Promise<{ id: string }> {
+  const userId = await requireTransactionsEnabled();
+  const parsed = createTransactionSchema.parse(input);
+
+  const account = await prisma.account.findFirst({
+    where: { id: parsed.accountId, userId, deletedAt: null },
+    select: { id: true },
+  });
+  if (!account) throw new Error("Account not found");
+
+  if (parsed.categoryId) {
+    const category = await prisma.category.findFirst({
+      where: { id: parsed.categoryId, userId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!category) throw new Error("Category not found");
+  }
+
+  // The same per-user ceiling commitImport enforces. Quick-add is a second
+  // write path into the same table, and a loop over it grows that table just
+  // as effectively as a loop over the import — a cap on one route only is not
+  // a cap.
+  const existing = await prisma.transaction.count({
+    where: { userId, deletedAt: null },
+  });
+  if (existing + 1 > MAX_TRANSACTIONS_PER_USER) {
+    throw new Error(
+      `You have reached the ${MAX_TRANSACTIONS_PER_USER.toLocaleString()} transaction limit`,
+    );
+  }
+
+  const created = await prisma.transaction.create({
+    data: {
+      userId,
+      accountId: account.id,
+      date: new Date(`${parsed.date}T00:00:00.000Z`),
+      amount: parsed.amount,
+      description: parsed.description,
+      categoryId: parsed.categoryId,
+    },
+    select: { id: true },
+  });
+
+  revalidatePath("/transactions");
+  revalidatePath("/budget");
+  revalidatePath("/dashboard");
+
+  return created;
 }
 
 const setNoteSchema = z.object({

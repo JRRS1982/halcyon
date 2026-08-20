@@ -98,8 +98,11 @@ export function PrivacyPolicy() {
         <LegalBody>
           <strong>Technical data.</strong> Our hosting providers keep standard,
           short-lived server logs (such as IP address, browser type, and request
-          times) for security and operations. We do not use these to identify or
-          profile you.
+          times) for security and operations. To limit repeated sign-in and
+          sign-up attempts and prevent abuse, we also process your IP address
+          transiently — stored only as a one-way hash for a few minutes and then
+          discarded, never as your actual address. We do not use any of this to
+          identify or profile you.
         </LegalBody>
         <LegalBody>
           <strong>What we do not collect:</strong> no analytics or usage

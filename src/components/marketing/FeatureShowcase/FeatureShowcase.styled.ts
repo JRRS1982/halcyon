@@ -1,9 +1,12 @@
 import styled, { css } from "styled-components";
 
-export const Row = styled.section`
+export const Row = styled.section<{ $imageSide: "left" | "right" }>`
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: ${({ theme }) => theme.spacing.section};
+  grid-template-columns: ${({ $imageSide }) =>
+    $imageSide === "left"
+      ? "minmax(0, 7fr) minmax(0, 5fr)"
+      : "minmax(0, 5fr) minmax(0, 7fr)"};
+  gap: ${({ theme }) => theme.spacing["5xl"]};
   align-items: center;
   padding: ${({ theme }) => `${theme.spacing["5xl"]} 0`};
 

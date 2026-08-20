@@ -10,6 +10,8 @@ import {
   nextActivity,
   serializeActivity,
 } from "@/lib/auth/sessionTimeout";
+import { clientIp } from "@/lib/http/clientIp";
+import { withinRateLimit } from "@/lib/rateLimit";
 import { createClient } from "@/lib/supabase/server";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -42,6 +44,12 @@ export const signIn = async (formData: FormData) => {
     const message =
       parsed.error.issues[0]?.message ?? "Invalid form submission";
     redirect(`/sign-in?error=${encodeURIComponent(message)}`);
+  }
+
+  if (!(await withinRateLimit("sign-in", await clientIp()))) {
+    redirect(
+      `/sign-in?error=${encodeURIComponent("Too many attempts. Please wait a minute and try again.")}`,
+    );
   }
 
   const supabase = await createClient();

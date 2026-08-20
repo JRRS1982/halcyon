@@ -120,16 +120,49 @@ jobs:
 
   e2e-tests:
     runs-on: ubuntu-latest
-    # A wedged runner once sat for GitHub's 6h default before being killed;
-    # a healthy run takes ~11 minutes.
-    timeout-minutes: 25
+    # The official Playwright image, pinned to the version in pnpm-lock.yaml —
+    # the two must move together, since the browsers are baked in and Playwright
+    # refuses to drive a build it wasn't shipped with.
+    #
+    # This exists to delete a failure mode rather than to save time. Installing
+    # browsers on a bare runner means `--with-deps`, which means `apt-get`, and
+    # on 2026-08-19 a degraded Ubuntu mirror made that step take 16-24 minutes
+    # on five separate runs across four PRs — sometimes hanging outright,
+    # sometimes finishing so late the suite was killed mid-run. The image ships
+    # the browsers and every system library they need, so there is no apt call
+    # left to be slow.
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.0-noble
+
+    # A wedged runner once sat for GitHub's 6h default before being killed, so
+    # this stays bounded; the suite itself takes ~11 minutes.
+    timeout-minutes: 30
 
     # Authed pages (e.g. the dashboard) server-render Prisma queries, so e2e
-    # needs a real Postgres. Credentials match playwright.config.ts's
-    # DATABASE_URL (postgresql://test:test@localhost:5432/halcyon_test).
+    # needs a real Postgres.
+    #
+    # The host is the *service name*, not localhost: this job runs inside a
+    # container, so the database is a sibling container on the job's network
+    # rather than a port on the runner.
+    #
+    # Three programs read three different variable names, and in production
+    # they hold three different values:
+    #
+    #   DATABASE_URL      the app (src/lib/env.ts) — playwright.config passes
+    #                     it to the Next server it spawns. Pooled (6543) in prod.
+    #   DIRECT_URL        prisma.config.ts, for `migrate deploy`. Direct (5432)
+    #                     in prod, because migrations cannot use the pooler.
+    #   E2E_DATABASE_URL  the specs' own Prisma client. Quarantined on purpose:
+    #                     e2e/_helpers/fixtures.ts refuses to read DATABASE_URL
+    #                     so a production value can never reach its TRUNCATE.
+    #
+    # Here they all address the one disposable CI database, so the URL is
+    # written once and the other two are derived from it on the steps that need
+    # them. Job-level `env` entries cannot reference each other, but step-level
+    # ones can read the `env` context — which is why the derivation lives down
+    # in the steps rather than up here.
     env:
-      DATABASE_URL: postgresql://test:test@localhost:5432/halcyon_test
-      DIRECT_URL: postgresql://test:test@localhost:5432/halcyon_test
+      DATABASE_URL: postgresql://test:test@postgres:5432/halcyon_test
 
     services:
       postgres:
@@ -162,11 +195,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Install Playwright browsers
-        # All three engines run in CI (chromium + firefox + webkit); --with-deps
-        # also installs the required system libraries.
-        run: pnpm exec playwright install --with-deps
-
       # Only apply the schema — do NOT run `pnpm db:seed`. That seed is a
       # local-dev tool (it provisions a loginable demo user via the cloud
       # Supabase admin API, which CI has no creds for). The e2e specs manage
@@ -174,6 +202,8 @@ jobs:
       # the User/UserSettings rows on first request, then create accounts,
       # categories and transactions through the UI per test.
       - name: Apply migrations to test database
+        env:
+          DIRECT_URL: ${{ env.DATABASE_URL }}
         run: pnpm prisma migrate deploy
 
       # E2E tests run against a mock Supabase server (e2e/_mock/supabase.mjs)
@@ -182,6 +212,16 @@ jobs:
       # queries (e.g. the dashboard's user-settings lookup); no real Supabase
       # project is touched.
       - name: Run E2E tests
+        env:
+          E2E_DATABASE_URL: ${{ env.DATABASE_URL }}
+          # Firefox refuses to start when $HOME belongs to someone else, and in
+          # a container job that is exactly the situation: the step runs as
+          # root while $HOME is /github/home, owned by the image's pwuser.
+          # ("Running Nightly as root in a regular user's session is not
+          # supported.") Playwright's own error text prescribes this variable.
+          # Scoped to this step so the rest of the job keeps the HOME that
+          # actions/setup-node and pnpm set their caches up against.
+          HOME: /root
         run: pnpm test:e2e
 
       - name: Upload Playwright report

@@ -6,6 +6,7 @@ import type { LedgerCategory, LedgerPage } from "@/lib/transactions/server";
 import styled from "styled-components";
 import { ImportPanel } from "./ImportPanel";
 import { Ledger } from "./Ledger";
+import { QuickAdd } from "./QuickAdd";
 import { ReverseImport } from "./ReverseImport";
 
 type Account = { id: string; name: string };
@@ -45,6 +46,7 @@ export function TransactionsView({
         lead="Import bank statements and categorize spending against your budget."
         actions={
           <>
+            <QuickAdd accounts={accounts} categories={categories} />
             <ReverseImport />
             <ImportPanel accounts={accounts} />
           </>

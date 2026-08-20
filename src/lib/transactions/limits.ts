@@ -10,6 +10,14 @@
 export const MAX_IMPORT_ROWS = 5000;
 export const MAX_IMPORT_FILE_BYTES = 2 * 1024 * 1024;
 
+// Per-user ceiling on stored (live) transactions. Per-import size is already
+// bounded by MAX_IMPORT_ROWS, but the number of imports was not — a signed-in
+// account could loop the commit action and grow the shared Transaction table
+// without limit, inflating storage/backup cost and degrading every query that
+// scans it (dashboard, budget actuals, export). Sizing: decades of multi-account
+// history sit far below this, so it only ever bites automated abuse.
+export const MAX_TRANSACTIONS_PER_USER = 250_000;
+
 export const MAX_IMPORT_FILE_MB = MAX_IMPORT_FILE_BYTES / (1024 * 1024);
 
 // Shown next to the file picker and reused in the rejection messages so the

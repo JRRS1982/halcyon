@@ -35,6 +35,7 @@ export type ReminderSubscription = {
   monthlyReminderDay: number;
   monthlyReminderSentAt: Date | null;
   unsubscribeToken: string | null;
+  transactionsEnabled: boolean;
 };
 
 /**
@@ -129,16 +130,24 @@ export function buildReminder({
   siteUrl,
   unsubscribeToken,
   now,
+  transactionsEnabled,
 }: {
   siteUrl: string;
   unsubscribeToken: string;
   now: Date;
+  transactionsEnabled: boolean;
 }): ReminderMessage {
   const base = siteUrl.replace(/\/$/, "");
   const month = previousMonthLabel(now);
-  const signInUrl = `${base}/sign-in`;
+  // The CTA lands on the work itself: middleware sends a signed-out visitor
+  // through /sign-in?next=... and back, and a signed-in one straight there.
+  // Which page IS the work depends on the user's mode — the import flow when
+  // transactions are on, the budget sheet when they type figures in manually.
+  const ctaUrl = transactionsEnabled
+    ? `${base}/transactions`
+    : `${base}/budget`;
   const unsubscribeUrl = `${base}/unsubscribe?token=${encodeURIComponent(unsubscribeToken)}`;
-  const guideUrl = `${base}/about`;
+  const guideUrl = `${base}/guide`;
 
   const subject = `${month} is ready to log`;
 
@@ -148,7 +157,7 @@ export function buildReminder({
     "The usual five minutes: import it, categorise what came in, check the",
     "budget, update your balances, then look at the dashboard.",
     "",
-    `Sign in: ${signInUrl}`,
+    `Log ${month}: ${ctaUrl}`,
     `How it works: ${guideUrl}`,
     "",
     "---",
@@ -170,7 +179,7 @@ export function buildReminder({
       <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#3d3d3d;">${month} is done, so your statement should be available to download.</p>
       <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#3d3d3d;">The usual five minutes: import it, categorise what came in, check the budget, update your balances, then look at the dashboard.</p>
       <p style="margin:0 0 32px;">
-        <a href="${signInUrl}" style="display:inline-block;background:#1a1a1a;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:4px;font-size:14px;">Sign in to Balanced Money</a>
+        <a href="${ctaUrl}" style="display:inline-block;background:#1a1a1a;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:4px;font-size:14px;">Log ${month}</a>
       </p>
       <p style="margin:0 0 32px;font-size:14px;line-height:1.6;color:#3d3d3d;">Not sure what to do first? <a href="${guideUrl}" style="color:#3d3d3d;">Read the guide</a>.</p>
       <hr style="border:none;border-top:1px solid #e5e5e5;margin:0 0 16px;" />

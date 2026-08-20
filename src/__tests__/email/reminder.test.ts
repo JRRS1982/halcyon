@@ -19,6 +19,7 @@ const subscription = (
   monthlyReminderDay: 8,
   monthlyReminderSentAt: null,
   unsubscribeToken: "tok",
+  transactionsEnabled: true,
   ...overrides,
 });
 
@@ -107,6 +108,7 @@ describe("buildReminder", () => {
     siteUrl: "https://balanced.money/",
     unsubscribeToken: "tok-123",
     now: at("2026-09-08"),
+    transactionsEnabled: true,
   });
 
   test("is about the month that just finished", () => {
@@ -149,8 +151,37 @@ describe("buildReminder", () => {
   // A relative link in an inbox goes nowhere, and a doubled slash breaks the
   // token match on some clients that normalise URLs.
   test("builds absolute links without a doubled slash", () => {
-    expect(message.html).toContain("https://balanced.money/sign-in");
+    expect(message.html).toContain("https://balanced.money/transactions");
     expect(message.html).not.toContain("balanced.money//");
+  });
+
+  // The CTA lands on the work, not on the sign-in form: middleware sends a
+  // signed-out visitor through /sign-in?next=... and back, and a signed-in one
+  // straight there. Which page IS the work depends on the user's mode.
+  test("the call to action deep-links to the import flow when transactions are on", () => {
+    expect(message.text).toContain("https://balanced.money/transactions");
+    expect(message.html).toContain("https://balanced.money/transactions");
+  });
+
+  test("the call to action deep-links to the budget sheet for manual users", () => {
+    const manual = buildReminder({
+      siteUrl: "https://balanced.money",
+      unsubscribeToken: "tok-123",
+      now: at("2026-09-08"),
+      transactionsEnabled: false,
+    });
+    expect(manual.text).toContain("https://balanced.money/budget");
+    expect(manual.html).toContain("https://balanced.money/budget");
+    expect(manual.html).not.toContain("/transactions");
+  });
+
+  // /about does not exist — the guide lives at /guide. Asserted because the
+  // 404 shipped once already.
+  test("the guide link points at the route that exists", () => {
+    expect(message.text).toContain("https://balanced.money/guide");
+    expect(message.html).toContain("https://balanced.money/guide");
+    expect(message.text).not.toContain("/about");
+    expect(message.html).not.toContain("/about");
   });
 
   test("says why the reader is receiving it", () => {
