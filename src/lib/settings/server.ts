@@ -236,14 +236,21 @@ export async function getLayoutSettings(userId: string | undefined): Promise<{
       themePreference: DEFAULT_THEME_PREFERENCE,
     };
 
-  const row = await prisma.userSettings.findUnique({
-    where: { userId },
-    select: {
-      transactionsEnabled: true,
-      planVisible: true,
-      themePreference: true,
-    },
-  });
+  // Provisions on a miss, exactly as getCurrentUserSettings does. A read-only
+  // lookup here reported `transactionsEnabled: false` for any user whose row
+  // did not exist yet, so the nav rendered without the Transactions link while
+  // the page beside it created the row and rendered fine — wrong on a new
+  // user's very first authenticated page, and intermittently wrong afterwards
+  // whenever a render observed the row before that insert had committed.
+  const row =
+    (await prisma.userSettings.findUnique({
+      where: { userId },
+      select: {
+        transactionsEnabled: true,
+        planVisible: true,
+        themePreference: true,
+      },
+    })) ?? (await provisionUserSettings(userId));
   return {
     transactionsEnabled: row?.transactionsEnabled ?? false,
     planVisible: row?.planVisible ?? true,
