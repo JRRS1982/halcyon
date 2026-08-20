@@ -312,6 +312,54 @@ export async function importCsv(
 // the toggle-and-confirm when the setting is off, so a spec reads as "this
 // journey needs transactions" rather than silently depending on the default,
 // and keeps working if that default ever changes again.
+/**
+ * Creates a plan through the form, waiting for each of the three things that
+ * have to be true in turn.
+ *
+ * "Create my plan" is `disabled={pending || !dob}` and the date field is
+ * controlled with `value={dob}`, starting empty (CreatePlanForm.tsx) — so the
+ * field's React onChange is the only thing that can enable the button, and a
+ * fill() landing before hydration is discarded when React reconciles the
+ * controlled value back to "".
+ *
+ * All three waits earn their place, which is worth stating because it was
+ * measured the hard way. Eight sites did `waitForLoadState("networkidle")` then
+ * filled and clicked, and replacing that settle with an explicit
+ * fill-until-enabled retry took the plan suite from 0 failures to 12 — and to
+ * 20 with the click left unbarriered. Every test still passed in isolation:
+ * what broke was the *next* test, because a write still in flight when the
+ * cleanDb fixture truncates leaks state across the boundary. So:
+ *
+ *  - the settle stays. It cannot *prove* hydration, but it does wait for the
+ *    page to stop moving, and removing it is what caused the regression.
+ *  - the retry is added on top, so the precondition the test depends on is
+ *    stated rather than assumed, and a slow hydrate is survivable.
+ *  - the click is barriered, so createPlan's write and revalidation have
+ *    landed before the test proceeds or the fixture truncates. Seven of the
+ *    eight sites had no barrier at all.
+ */
+export async function createPlanWithDob(
+  page: Page,
+  dob = "1986-06-01",
+): Promise<void> {
+  await page.waitForLoadState("networkidle");
+
+  const dateField = page.locator("input[type='date']");
+  const create = page.getByRole("button", { name: /create my plan/i });
+
+  await expect(async () => {
+    await dateField.fill(dob);
+    await expect(create).toBeEnabled({ timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
+
+  await withServerAction(page, () => create.click());
+  // Widened for the same reason withServerAction is: under `next dev` the
+  // first visit to /plan compiles it.
+  await expect(page.getByRole("heading", { name: "Your plan" })).toBeVisible({
+    timeout: 15_000,
+  });
+}
+
 export async function ensureTransactionsEnabled(page: Page): Promise<void> {
   await page.goto("/settings");
   const toggle = page.getByRole("checkbox", { name: "Transactions" });

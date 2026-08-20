@@ -1,5 +1,6 @@
 import {
   clearStarterPeriods,
+  createPlanWithDob,
   expect,
   signedInUser,
   signIn,
@@ -54,11 +55,7 @@ test("switching an event to Property sale shows the property picker and labels t
   });
 
   await page.goto("/plan");
-  await page.waitForLoadState("networkidle");
-  await page.locator("input[type='date']").fill("1986-06-01");
-  await page.getByRole("button", { name: /create my plan/i }).click();
-
-  await expect(page.getByRole("heading", { name: "Your plan" })).toBeVisible();
+  await createPlanWithDob(page);
 
   // Add a property (via "Add mortgage", which creates the property + mortgage
   // + repayment trio) so the Events picker has something to offer.
