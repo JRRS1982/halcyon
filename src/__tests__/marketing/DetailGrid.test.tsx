@@ -18,10 +18,33 @@ describe("DetailGrid", () => {
     expect(container.querySelector("#details")).toBeInTheDocument();
   });
 
-  test("renders the six detail items including transfers and live-sync", () => {
+  test("keeps the original detail items", () => {
     renderit();
-    expect(screen.getByText("Transfers aren't spending")).toBeInTheDocument();
-    expect(screen.getByText("Live & in sync")).toBeInTheDocument();
-    expect(screen.getByText("Your data, yours")).toBeInTheDocument();
+    for (const key of [
+      "Transfers aren't spending",
+      "Live & in sync",
+      "Duplicate-safe imports",
+      "Reversible imports",
+      "Notes & original detail",
+      "Your data, yours",
+    ]) {
+      expect(screen.getByText(key)).toBeInTheDocument();
+    }
+  });
+
+  test("groups fifteen items under five headings", () => {
+    const { container } = renderit();
+    expect(container.querySelectorAll("h3")).toHaveLength(5);
+    // Each group is exactly one row of the three-up grid.
+    expect(screen.getAllByRole("heading", { level: 3 })).toHaveLength(5);
+  });
+
+  test("covers the features the app has grown since launch", () => {
+    renderit();
+    expect(screen.getByText("It learns your merchants")).toBeInTheDocument();
+    expect(screen.getByText("Carried-over values say so")).toBeInTheDocument();
+    expect(
+      screen.getByText("An email with no numbers in it"),
+    ).toBeInTheDocument();
   });
 });

@@ -19,6 +19,20 @@ export const Section = styled.section`
   `}
 `;
 
+// Fifteen cells in one uninterrupted grid is a wall to scan, so each group
+// gets its own labelled block of three — one row at desktop width.
+export const GroupTitle = styled.h3`
+  ${({ theme }) => css`
+    font-family: ${theme.typography.monoCaps.family};
+    font-size: ${theme.typography.monoCaps.size};
+    font-weight: ${theme.typography.monoCaps.weight};
+    text-transform: uppercase;
+    letter-spacing: ${theme.typography.monoCaps.letterSpacing};
+    color: ${theme.colors.body};
+    margin: ${theme.spacing["4xl"]} 0 ${theme.spacing.md};
+  `}
+`;
+
 export const Grid = styled.div`
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -27,7 +41,6 @@ export const Grid = styled.div`
   border: 1px solid ${({ theme }) => theme.colors.hairline};
   border-radius: ${({ theme }) => theme.rounded.sm};
   overflow: hidden;
-  margin-top: ${({ theme }) => theme.spacing["4xl"]};
 
   @media (max-width: 760px) {
     grid-template-columns: 1fr;
