@@ -1,5 +1,6 @@
 import {
   clearStarterPeriods,
+  createPlanWithDob,
   expect,
   openFresh,
   signedInUser,
@@ -59,11 +60,7 @@ test("add a mortgage opens the property card with a mortgage section", async ({
   await page.goto("/plan");
   // Wait for hydration: the "Create my plan" button stays disabled until the
   // date field's onChange sets state, which needs the client bundle attached.
-  await page.waitForLoadState("networkidle");
-  await page.locator("input[type='date']").fill("1986-06-01");
-  await page.getByRole("button", { name: /create my plan/i }).click();
-
-  await expect(page.getByRole("heading", { name: "Your plan" })).toBeVisible();
+  await createPlanWithDob(page);
 
   // "Add mortgage" lives in the Liabilities card.
   const liabilityPanel = page.locator("section", { hasText: "Liabilities" });
@@ -131,11 +128,7 @@ test("toggling interest-only persists after reload and hides the repayment field
   });
 
   await page.goto("/plan");
-  await page.waitForLoadState("networkidle");
-  await page.locator("input[type='date']").fill("1986-06-01");
-  await page.getByRole("button", { name: /create my plan/i }).click();
-
-  await expect(page.getByRole("heading", { name: "Your plan" })).toBeVisible();
+  await createPlanWithDob(page);
 
   const liabilityPanel = page.locator("section", { hasText: "Liabilities" });
   await withServerAction(page, () =>
