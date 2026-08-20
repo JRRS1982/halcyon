@@ -2,7 +2,9 @@ import type { Page } from "@playwright/test";
 import type { PrismaClient } from "@prisma/client";
 import {
   clearStarterPeriods,
+  createPlanWithDob,
   expect,
+  openFresh,
   signedInUser,
   signIn,
   test,
@@ -58,16 +60,7 @@ async function seedAndCreatePlan(page: Page, db: PrismaClient): Promise<void> {
   });
 
   await page.goto("/plan");
-  await page.waitForLoadState("networkidle");
-  await page.locator("input[type='date']").fill("1986-06-01");
-  // Wrapped so createPlan's write + revalidation fully land before any test
-  // clicks into the page — a re-render arriving mid-click swallows the click
-  // and the drawer it should open never appears (firefox under full-suite
-  // load; the same failure mode as the link click below).
-  await withServerAction(page, () =>
-    page.getByRole("button", { name: /create my plan/i }).click(),
-  );
-  await expect(page.getByRole("heading", { name: "Your plan" })).toBeVisible();
+  await createPlanWithDob(page);
 }
 
 // Adds a liability via the panel button (which opens its drawer), then sets a
@@ -102,9 +95,18 @@ test("plan: link a repayment expense — managed drawer, list badge, then unlink
 
   // Link: "Track repayment as an expense" creates the expense and switches the
   // drawer to it.
-  await drawer
-    .getByRole("button", { name: /track repayment as an expense/i })
-    .click();
+  //
+  // Barriered for the same reason the two tests below barrier this identical
+  // click: it fires linkRepaymentExpense, and the assertion that follows reads
+  // a drawer that only switches once that write and its revalidation have
+  // landed. Left bare, it failed under full-suite load while passing 3/3 in
+  // isolation — the signature of a missing write barrier rather than a slow
+  // assertion.
+  await withServerAction(page, () =>
+    drawer
+      .getByRole("button", { name: /track repayment as an expense/i })
+      .click(),
+  );
 
   // The managed expense drawer: shows the "managed by <liability>" note, and
   // hides both the manual Remove control and the whole Timing section (timing
@@ -214,13 +216,22 @@ test("plan: a liability's start handle drags (keyboard) and persists", async ({
   const before = Number(await handle.getAttribute("aria-valuenow"));
 
   await handle.focus();
-  await page.keyboard.press("ArrowRight");
+  // The keypress moves the handle *and* commits on keyup, so the write has to
+  // be awaited before anything navigates. Reloading here unbarriered cancelled
+  // the request in flight — the dev server logs "destination stream closed
+  // early" — and the fresh page then read the old age straight from the
+  // database. It failed on firefox in CI while passing everywhere locally,
+  // which is the signature openFresh's docstring describes.
+  await withServerAction(page, () => page.keyboard.press("ArrowRight"));
   await expect(handle).toHaveAttribute("aria-valuenow", String(before + 1));
 
-  // Commit-on-keyup persists; the new start age survives a full reload.
+  // Commit-on-keyup persists; the new start age survives a full load. A new
+  // tab rather than page.reload(): reloading a page the app is still driving
+  // loses a race with its own router.refresh() (openFresh, fixtures.ts).
   await expect(page.getByRole("heading", { name: "Your plan" })).toBeVisible();
-  await page.reload();
+  const fresh = await openFresh(page, "/plan");
   await expect(
-    page.getByRole("slider", { name: /New liability start age/i }),
+    fresh.getByRole("slider", { name: /New liability start age/i }),
   ).toHaveAttribute("aria-valuenow", String(before + 1));
+  await fresh.close();
 });

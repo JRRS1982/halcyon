@@ -1,5 +1,6 @@
 import {
   clearStarterPeriods,
+  createPlanWithDob,
   expect,
   openFresh,
   signedInUser,
@@ -56,11 +57,7 @@ test("plan: asset fees field round-trips through the drawer", async ({
   await page.goto("/plan");
   // Wait for hydration: the "Create my plan" button stays disabled until the
   // date field's onChange sets state, which needs the client bundle attached.
-  await page.waitForLoadState("networkidle");
-  await page.locator("input[type='date']").fill("1986-06-01");
-  await page.getByRole("button", { name: /create my plan/i }).click();
-
-  await expect(page.getByRole("heading", { name: "Your plan" })).toBeVisible();
+  await createPlanWithDob(page);
 
   // Open the seeded asset's drawer (summary row → dialog).
   const assetPanel = page.locator("section", { hasText: "Assets" });
@@ -128,11 +125,7 @@ test("plan: dragging an event marker (keyboard) persists its age", async ({
   });
 
   await page.goto("/plan");
-  await page.waitForLoadState("networkidle");
-  await page.locator("input[type='date']").fill("1986-06-01");
-  await page.getByRole("button", { name: /create my plan/i }).click();
-
-  await expect(page.getByRole("heading", { name: "Your plan" })).toBeVisible();
+  await createPlanWithDob(page);
 
   // The seeded "New car" event renders a slider marker on the timeline.
   const marker = page.getByRole("slider", { name: /new car age/i });
@@ -207,11 +200,7 @@ test("plan: dragging a bar's end handle (keyboard) persists the age", async ({
   });
 
   await page.goto("/plan");
-  await page.waitForLoadState("networkidle");
-  await page.locator("input[type='date']").fill("1986-06-01");
-  await page.getByRole("button", { name: /create my plan/i }).click();
-
-  await expect(page.getByRole("heading", { name: "Your plan" })).toBeVisible();
+  await createPlanWithDob(page);
 
   // The seeded Salary income's end handle (salary ends at the retirement age).
   const handle = page.getByRole("slider", { name: /salary end age/i });
@@ -295,11 +284,7 @@ test("plan: create, edit assumptions/assets, and the data-loss guard holds", asy
   // Now navigate to /plan (no plan yet → create form). createPlan reads the
   // seeded period on submit.
   await page.goto("/plan");
-  // Wait for hydration: the "Create my plan" button stays disabled until the
-  // date field's onChange sets state, which needs the client bundle attached.
-  await page.waitForLoadState("networkidle");
-  await page.locator("input[type='date']").fill("1986-06-01");
-  await page.getByRole("button", { name: /create my plan/i }).click();
+  await createPlanWithDob(page);
 
   // Plan renders: title, verdict banner, the net-worth chart (svg), and editors.
   await expect(page.getByRole("heading", { name: "Your plan" })).toBeVisible();
