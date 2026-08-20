@@ -78,6 +78,15 @@ describe("NavBar", () => {
     );
   });
 
+  // ...but not on the guide itself, where it would point at the current page.
+  test("Guide is not in the bar when the guide is the page", () => {
+    mockPathname = "/guide";
+    renderit({ signedIn: false, transactionsEnabled: false });
+    expect(
+      screen.queryByRole("link", { name: /^guide$/i }),
+    ).not.toBeInTheDocument();
+  });
+
   test("signed-in with transactions enabled shows a Transactions link", () => {
     mockPathname = "/dashboard";
     renderit({ signedIn: true, transactionsEnabled: true });

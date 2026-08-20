@@ -99,6 +99,11 @@ export function NavBar({
 }: NavBarProps) {
   const pathname = usePathname();
   const isHome = pathname === "/";
+  // Signed out, GUIDE_ITEM is the whole bar off the homepage — and on the guide
+  // that makes it a link to the page being read. Dropped there, leaving the
+  // brand. The signed-in bar keeps its Guide entry: it is primary navigation,
+  // and removing one item on one route would shift every other link sideways.
+  const isGuide = pathname === "/guide";
   const [menuOpen, setMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -109,7 +114,9 @@ export function NavBar({
     ? SIGNED_IN_ITEMS.filter((item) => !item.requires || enabled[item.requires])
     : isHome
       ? [GUIDE_ITEM, ...MARKETING_ITEMS]
-      : [GUIDE_ITEM];
+      : isGuide
+        ? []
+        : [GUIDE_ITEM];
 
   // Navigating away closes the drawer — Next keeps the layout mounted across
   // route changes, so it would otherwise stay open over the new page.

@@ -25,5 +25,9 @@ describe("MarketingFooter", () => {
     expect(
       screen.getByRole("link", { name: /cookie policy/i }),
     ).toHaveAttribute("href", "/cookies");
+    expect(screen.getByRole("link", { name: /engineering/i })).toHaveAttribute(
+      "href",
+      "/how-its-built",
+    );
   });
 });

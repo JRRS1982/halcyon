@@ -12,6 +12,7 @@ flowchart LR
         SU["/sign-up"]
         CB["/auth/callback"]
         ABOUT["/about — the guide"]
+        BUILT["/how-its-built — the engineering tour"]
         LEGAL["/privacy · /cookies · /terms"]
     end
 
@@ -27,6 +28,7 @@ flowchart LR
     HOME --> SI
     HOME --> SU
     HOME --> ABOUT
+    HOME --> BUILT
     HOME --> LEGAL
     SI --> CB
     SU --> CB
@@ -88,6 +90,7 @@ Reachable without a session.
 | `/sign-up` | Account creation. Supabase Auth owns the password and the confirmation email. |
 | `/auth/callback` | Route handler. Exchanges the one-time `code` from OAuth, magic links and email confirmation for a session. |
 | `/about` | The guide — what the app is for, the monthly rhythm, and what each section does. Deliberately public: it is the honest answer to "what is this?" before signing up. |
+| `/how-its-built` | The engineering tour — every feature of the build, with what it does, why it matters and how it is implemented. Public on purpose: it is the page to hand to someone who wants to know whether this is trustworthy. |
 | `/privacy` | Privacy notice. |
 | `/cookies` | Cookie policy — every cookie the app sets, named, with purpose and lifetime. |
 | `/terms` | Terms of service. |

@@ -5,11 +5,13 @@ import type { ReactNode } from "react";
 import styled, { css } from "styled-components";
 import { PageHeader } from "@/components/ui/PageHeader";
 
-// Shared shell for the long-form legal pages (/privacy, /cookies, /terms).
+// Shared shell for the long-form pages (/privacy, /cookies, /terms, and
+// /how-its-built, which borrows the primitives below without the "Effective
+// <date>" eyebrow that LegalPage hard-codes).
 // Mirrors the guide's measure-as-container approach: 680px is a comfortable
 // line length for bodyMd, so paragraphs fill the column instead of stopping
 // short of rules and tables.
-const Shell = styled.main`
+export const LegalShell = styled.main`
   max-width: 680px;
   margin: 0 auto;
   padding: ${({ theme }) => theme.spacing["3xl"]}
@@ -156,9 +158,9 @@ type LegalPageProps = {
 
 export function LegalPage({ title, effectiveDate, children }: LegalPageProps) {
   return (
-    <Shell>
+    <LegalShell>
       <PageHeader eyebrow={`Effective ${effectiveDate}`} title={title} />
       {children}
-    </Shell>
+    </LegalShell>
   );
 }

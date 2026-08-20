@@ -130,6 +130,7 @@ const InlineLink = styled(Link)`
 const Actions = styled.div`
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: ${({ theme }) => theme.spacing.md};
   margin-top: ${({ theme }) => theme.spacing.xl};
 `;
