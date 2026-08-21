@@ -8,10 +8,6 @@ import {
   nextSortOrder,
 } from "@/lib/accounts/creation";
 import {
-  accountIdsForDeletion,
-  deletionRefusalMessage,
-} from "@/lib/accounts/deletion";
-import {
   type AccountDeletionCounts,
   type AccountIdInput,
   accountIdSchema,
@@ -22,6 +18,7 @@ import {
 } from "@/lib/accounts/schemas";
 import { ensurePeriodForMonthIn } from "@/lib/budget/ensurePeriod";
 import { monthRangeFor } from "@/lib/budget/period";
+import { cleanLabel } from "@/lib/categories/normalize";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 
@@ -105,6 +102,8 @@ export async function createAccountWithBalance(
   const parsed = createAccountWithBalanceSchema.parse(input);
   const range = monthRangeFor(parsed.year, parsed.month);
 
+  const name = cleanLabel(parsed.name);
+
   const result = await prisma.$transaction(async (tx) => {
     const period = await ensurePeriodForMonthIn(tx, userId, range);
 
@@ -129,18 +128,19 @@ export async function createAccountWithBalance(
         accountId: account.id,
         type: parsed.type,
         category: parsed.category,
-        label: account.name,
+        label: name,
         value: parsed.value,
         sortOrder: nextSortOrder(last?.sortOrder),
       },
     });
 
     if (parsed.mortgage) {
-      // A different (type, category) bucket from the property's own row —
-      // PROPERTY is asset-only, mortgage debt files under long-term
-      // liabilities (see BalanceSheet.tsx and prisma/schema.prisma) — so its
-      // sortOrder is computed against that bucket, not appended onto the
-      // asset row's.
+      const mortgageName = cleanLabel(parsed.mortgage.name);
+
+      // buildMortgageAccountData always classifies this as a LONG_TERM
+      // liability, a different bucket from the property's own row, so its
+      // sortOrder is computed against that bucket rather than appended onto
+      // the asset row's.
       const lastLiability = await tx.balanceItem.findFirst({
         where: {
           periodId: period.id,
@@ -166,7 +166,7 @@ export async function createAccountWithBalance(
           accountId: mortgage.id,
           type: "LIABILITY",
           category: "LONG_TERM",
-          label: mortgage.name,
+          label: mortgageName,
           value: parsed.mortgage.value,
           sortOrder: nextSortOrder(lastLiability?.sortOrder),
         },
@@ -280,7 +280,7 @@ export async function deleteAccountEverywhere(
   const partnerId = alsoLinked
     ? await resolveLinkedPartnerId(userId, accountId)
     : null;
-  const ids = accountIdsForDeletion(accountId, partnerId);
+  const ids = partnerId ? [accountId, partnerId] : [accountId];
 
   const blockingTransfers = await prisma.transaction.count({
     where: {
@@ -290,8 +290,11 @@ export async function deleteAccountEverywhere(
       accountId: { notIn: ids },
     },
   });
-  const refusal = deletionRefusalMessage(blockingTransfers);
-  if (refusal) throw new Error(refusal);
+  if (blockingTransfers > 0) {
+    throw new Error(
+      "This account still has transactions. Reassign or remove them first.",
+    );
+  }
 
   await prisma.$transaction(async (tx) => {
     // The account's own ledger goes too — "delete it everywhere" means it,

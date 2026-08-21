@@ -1,5 +1,4 @@
 import type {
-  AccountKind,
   BalanceItemCategory,
   BalanceItemType,
   PlanAssetWrapper,
@@ -19,28 +18,10 @@ type MortgageInput = {
   canImportTransactions: boolean;
 };
 
-export type AccountCreateData = {
-  name: string;
-  kind: AccountKind;
-  category: BalanceItemCategory;
-  wrapper: PlanAssetWrapper | null;
-  canImportTransactions: boolean;
-};
-
-export type MortgageAccountCreateData = {
-  name: string;
-  kind: "LIABILITY";
-  category: "LONG_TERM";
-  wrapper: null;
-  canImportTransactions: boolean;
-};
-
 // What the primary account (the ISA, the property, the plain liability)
 // gets written with. A tax wrapper describes what you own, not what you
 // owe — meaningless on a liability, so only an asset entry carries one.
-export function buildPrimaryAccountData(
-  input: PrimaryAccountInput,
-): AccountCreateData {
+export function buildPrimaryAccountData(input: PrimaryAccountInput) {
   return {
     name: cleanLabel(input.name),
     kind: input.type,
@@ -55,13 +36,11 @@ export function buildPrimaryAccountData(
 // asset-only, mortgage debt files under long-term liabilities (see
 // BalanceSheet.tsx and prisma/schema.prisma), and a debt never carries a
 // tax wrapper.
-export function buildMortgageAccountData(
-  mortgage: MortgageInput,
-): MortgageAccountCreateData {
+export function buildMortgageAccountData(mortgage: MortgageInput) {
   return {
     name: cleanLabel(mortgage.name),
-    kind: "LIABILITY",
-    category: "LONG_TERM",
+    kind: "LIABILITY" as const,
+    category: "LONG_TERM" as const,
     wrapper: null,
     canImportTransactions: mortgage.canImportTransactions,
   };
