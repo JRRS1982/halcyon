@@ -3,6 +3,7 @@
 import { randomUUID } from "node:crypto";
 import type { BalanceItem } from "@prisma/client";
 import { redirect } from "next/navigation";
+import { toCarriedOverRows } from "@/lib/balance/copyRows";
 import { computeMove } from "@/lib/balance/reorder";
 import {
   type CopyBalancePeriodFromInput,
@@ -287,18 +288,7 @@ export async function copyBalancePeriodFrom(input: CopyBalancePeriodFromInput) {
     },
   });
 
-  const copied = sourceItems.map((it) => ({
-    id: randomUUID(),
-    type: it.type,
-    category: it.category,
-    label: it.label,
-    value: Number(it.value),
-    notes: it.notes,
-    sortOrder: it.sortOrder,
-    accountId: it.accountId,
-    // The clone holds a number the user hasn't confirmed for this month yet.
-    carriedOver: true,
-  }));
+  const copied = toCarriedOverRows(sourceItems);
 
   await prisma.$transaction([
     prisma.balanceItem.updateMany({
@@ -306,18 +296,7 @@ export async function copyBalancePeriodFrom(input: CopyBalancePeriodFromInput) {
       data: { deletedAt: new Date() },
     }),
     prisma.balanceItem.createMany({
-      data: copied.map((it) => ({
-        id: it.id,
-        periodId: target.id,
-        type: it.type,
-        category: it.category,
-        label: it.label,
-        value: it.value,
-        notes: it.notes,
-        sortOrder: it.sortOrder,
-        carriedOver: it.carriedOver,
-        accountId: it.accountId,
-      })),
+      data: copied.map((it) => ({ ...it, periodId: target.id })),
     }),
   ]);
 
@@ -403,18 +382,7 @@ export async function copyBalanceTemplateInto(input: CopyBalanceTemplateInput) {
     parsed.targetMonth,
   );
 
-  const copied = templateItems.map((it) => ({
-    id: randomUUID(),
-    type: it.type,
-    category: it.category,
-    label: it.label,
-    value: Number(it.value),
-    notes: it.notes,
-    sortOrder: it.sortOrder,
-    accountId: it.accountId,
-    // The clone holds a number the user hasn't confirmed for this month yet.
-    carriedOver: true,
-  }));
+  const copied = toCarriedOverRows(templateItems);
 
   await prisma.$transaction([
     prisma.balanceItem.updateMany({
@@ -422,18 +390,7 @@ export async function copyBalanceTemplateInto(input: CopyBalanceTemplateInput) {
       data: { deletedAt: new Date() },
     }),
     prisma.balanceItem.createMany({
-      data: copied.map((it) => ({
-        id: it.id,
-        periodId: target.id,
-        type: it.type,
-        category: it.category,
-        label: it.label,
-        value: it.value,
-        notes: it.notes,
-        sortOrder: it.sortOrder,
-        carriedOver: it.carriedOver,
-        accountId: it.accountId,
-      })),
+      data: copied.map((it) => ({ ...it, periodId: target.id })),
     }),
   ]);
 

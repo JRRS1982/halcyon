@@ -3,6 +3,15 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
+  buildMortgageAccountData,
+  buildPrimaryAccountData,
+  nextSortOrder,
+} from "@/lib/accounts/creation";
+import {
+  accountIdsForDeletion,
+  deletionRefusalMessage,
+} from "@/lib/accounts/deletion";
+import {
   type AccountDeletionCounts,
   type AccountIdInput,
   accountIdSchema,
@@ -13,7 +22,6 @@ import {
 } from "@/lib/accounts/schemas";
 import { ensurePeriodForMonthIn } from "@/lib/budget/ensurePeriod";
 import { monthRangeFor } from "@/lib/budget/period";
-import { cleanLabel } from "@/lib/categories/normalize";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 
@@ -96,13 +104,10 @@ export async function createAccountWithBalance(
   const userId = await requireUserId();
   const parsed = createAccountWithBalanceSchema.parse(input);
   const range = monthRangeFor(parsed.year, parsed.month);
-  const name = cleanLabel(parsed.name);
 
   const result = await prisma.$transaction(async (tx) => {
     const period = await ensurePeriodForMonthIn(tx, userId, range);
 
-    // sortOrder appends at the end of the (period, type, category) bucket —
-    // the same convention createBalanceItemForMonth uses.
     const last = await tx.balanceItem.findFirst({
       where: {
         periodId: period.id,
@@ -115,16 +120,7 @@ export async function createAccountWithBalance(
     });
 
     const account = await tx.account.create({
-      data: {
-        userId,
-        name,
-        kind: parsed.type,
-        category: parsed.category,
-        // A tax wrapper describes what you own, not what you owe — meaningless
-        // on a liability, so only an asset entry carries one.
-        wrapper: parsed.type === "ASSET" ? parsed.wrapper : null,
-        canImportTransactions: parsed.canImportTransactions,
-      },
+      data: { userId, ...buildPrimaryAccountData(parsed) },
     });
 
     await tx.balanceItem.create({
@@ -133,15 +129,13 @@ export async function createAccountWithBalance(
         accountId: account.id,
         type: parsed.type,
         category: parsed.category,
-        label: name,
+        label: account.name,
         value: parsed.value,
-        sortOrder: (last?.sortOrder ?? 0) + 1,
+        sortOrder: nextSortOrder(last?.sortOrder),
       },
     });
 
     if (parsed.mortgage) {
-      const mortgageName = cleanLabel(parsed.mortgage.name);
-
       // A different (type, category) bucket from the property's own row —
       // PROPERTY is asset-only, mortgage debt files under long-term
       // liabilities (see BalanceSheet.tsx and prisma/schema.prisma) — so its
@@ -161,11 +155,7 @@ export async function createAccountWithBalance(
       const mortgage = await tx.account.create({
         data: {
           userId,
-          name: mortgageName,
-          kind: "LIABILITY",
-          category: "LONG_TERM",
-          wrapper: null,
-          canImportTransactions: parsed.mortgage.canImportTransactions,
+          ...buildMortgageAccountData(parsed.mortgage),
           linkedAccountId: account.id,
         },
       });
@@ -176,9 +166,9 @@ export async function createAccountWithBalance(
           accountId: mortgage.id,
           type: "LIABILITY",
           category: "LONG_TERM",
-          label: mortgageName,
+          label: mortgage.name,
           value: parsed.mortgage.value,
-          sortOrder: (lastLiability?.sortOrder ?? 0) + 1,
+          sortOrder: nextSortOrder(lastLiability?.sortOrder),
         },
       });
     }
@@ -290,7 +280,7 @@ export async function deleteAccountEverywhere(
   const partnerId = alsoLinked
     ? await resolveLinkedPartnerId(userId, accountId)
     : null;
-  const ids = partnerId ? [accountId, partnerId] : [accountId];
+  const ids = accountIdsForDeletion(accountId, partnerId);
 
   const blockingTransfers = await prisma.transaction.count({
     where: {
@@ -300,11 +290,8 @@ export async function deleteAccountEverywhere(
       accountId: { notIn: ids },
     },
   });
-  if (blockingTransfers > 0) {
-    throw new Error(
-      "This account still has transactions. Reassign or remove them first.",
-    );
-  }
+  const refusal = deletionRefusalMessage(blockingTransfers);
+  if (refusal) throw new Error(refusal);
 
   await prisma.$transaction(async (tx) => {
     // The account's own ledger goes too — "delete it everywhere" means it,
