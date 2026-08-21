@@ -186,6 +186,36 @@ describe("account actions (integration)", () => {
     expect(counts.importBatches).toBe(1);
   });
 
+  it("counts a reversed transaction too, because the delete removes it regardless", async () => {
+    const { accountId } = await createAccountWithBalance(isaInput);
+    await prisma.transaction.create({
+      data: {
+        userId: TEST_USER_ID,
+        accountId,
+        date: new Date("2026-03-01"),
+        amount: -20,
+        description: "Coffee",
+      },
+    });
+    await prisma.transaction.create({
+      data: {
+        userId: TEST_USER_ID,
+        accountId,
+        date: new Date("2026-03-02"),
+        amount: -15,
+        description: "Reversed import row",
+        deletedAt: new Date(),
+      },
+    });
+
+    const counts = await accountDeletionCounts({ accountId });
+
+    // The delete below removes the account's own transactions unconditionally
+    // (deletedAt isn't part of that filter), so the count that's meant to
+    // describe what's about to be destroyed must include both.
+    expect(counts.transactions).toBe(2);
+  });
+
   it("deleting everywhere removes every observation", async () => {
     const { accountId } = await createAccountWithBalance(isaInput);
 
@@ -276,6 +306,41 @@ describe("account actions (integration)", () => {
     expect(
       await prisma.account.count({ where: { userId: TEST_USER_ID } }),
     ).toBe(0);
+  });
+
+  // reverseImport soft-deletes a batch's transactions without clearing their
+  // transferAccountId (src/app/(app)/transactions/actions.ts), so a
+  // surviving account can carry a dead transaction that still points at the
+  // account being hard-deleted here. The refusal above only ever sees live
+  // rows, so this one must be neutralised inside the transaction instead —
+  // otherwise the account delete hits the schema's Restrict FK and throws a
+  // raw P2003.
+  it("hard-deletes an account even when a reversed transaction elsewhere still names it as the transfer counterparty", async () => {
+    const { accountId } = await createAccountWithBalance(isaInput);
+    const other = await prisma.account.create({
+      data: { userId: TEST_USER_ID, name: "Current", kind: "NONE" },
+    });
+    const reversedTransfer = await prisma.transaction.create({
+      data: {
+        userId: TEST_USER_ID,
+        accountId: other.id,
+        transferAccountId: accountId,
+        date: new Date("2026-03-01"),
+        amount: -100,
+        description: "Transfer to ISA",
+        deletedAt: new Date(),
+      },
+    });
+
+    await deleteAccountEverywhere({ accountId, alsoLinked: false });
+
+    expect(
+      await prisma.account.findUnique({ where: { id: accountId } }),
+    ).toBeNull();
+    const survivor = await prisma.transaction.findUniqueOrThrow({
+      where: { id: reversedTransfer.id },
+    });
+    expect(survivor.transferAccountId).toBeNull();
   });
 
   it("takes the linked mortgage only when asked", async () => {

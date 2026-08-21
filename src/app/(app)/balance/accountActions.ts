@@ -233,7 +233,7 @@ export async function accountDeletionCounts(
     await Promise.all([
       prisma.balanceItem.count({ where: { accountId, deletedAt: null } }),
       prisma.financialItem.count({ where: { accountId, deletedAt: null } }),
-      prisma.transaction.count({ where: { accountId, deletedAt: null } }),
+      prisma.transaction.count({ where: { accountId } }),
       prisma.importBatch.count({ where: { accountId } }),
       resolveLinkedPartnerId(userId, accountId),
     ]);
@@ -311,16 +311,34 @@ export async function deleteAccountEverywhere(
     // not just the balance sheet. Deleted explicitly (rather than left to the
     // schema's Cascade) so accountDeletionCounts above can report the size of
     // what's about to happen.
-    await tx.transaction.deleteMany({ where: { accountId: { in: ids } } });
-    await tx.importBatch.deleteMany({ where: { accountId: { in: ids } } });
+    await tx.transaction.deleteMany({
+      where: { accountId: { in: ids }, userId },
+    });
+    await tx.importBatch.deleteMany({
+      where: { accountId: { in: ids }, userId },
+    });
+    // A soft-deleted transaction on some other, surviving account can still
+    // carry a transferAccountId pointing at one of these ids — reverseImport
+    // soft-deletes without clearing it. The refusal above only ever fires on
+    // a live one, so any survivor here is already soft-deleted; clear the
+    // reference rather than let it hit the schema's Restrict on the account
+    // delete below.
+    await tx.transaction.updateMany({
+      where: {
+        userId,
+        transferAccountId: { in: ids },
+        accountId: { notIn: ids },
+      },
+      data: { transferAccountId: null },
+    });
     // Rows already soft-deleted are left alone here — the FK's own
     // ON DELETE SET NULL clears their accountId when the account goes,
     // which is exactly the behaviour under test elsewhere in this suite.
     await tx.balanceItem.deleteMany({
-      where: { accountId: { in: ids }, deletedAt: null },
+      where: { accountId: { in: ids }, deletedAt: null, period: { userId } },
     });
     await tx.financialItem.deleteMany({
-      where: { accountId: { in: ids }, deletedAt: null },
+      where: { accountId: { in: ids }, deletedAt: null, period: { userId } },
     });
     // Break links in both directions before deleting, so no survivor is left
     // pointing at a row that is about to disappear.
