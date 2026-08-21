@@ -992,7 +992,11 @@ export function BalanceSheet({
     [],
   );
 
-  const debouncedUpdate = useDebouncedCallback(performUpdate, 500);
+  const debouncedUpdate = useDebouncedCallback(
+    performUpdate,
+    500,
+    (itemId) => itemId,
+  );
 
   const editField = useCallback(
     (

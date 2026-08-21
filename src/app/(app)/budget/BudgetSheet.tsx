@@ -897,7 +897,11 @@ export function BudgetSheet({
     [],
   );
 
-  const debouncedUpdate = useDebouncedCallback(performUpdate, 500);
+  const debouncedUpdate = useDebouncedCallback(
+    performUpdate,
+    500,
+    (itemId) => itemId,
+  );
 
   // Optimistic patch + debounced save.
   const editField = useCallback(
