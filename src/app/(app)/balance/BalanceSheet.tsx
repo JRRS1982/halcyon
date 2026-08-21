@@ -40,10 +40,10 @@ import {
   NUMBER_FORMAT_SPEC,
   type NumberFormat,
 } from "@/lib/settings/currency";
+import { AddAccountDrawer } from "./AddAccountDrawer";
 import {
   copyBalancePeriodFrom,
   copyBalanceTemplateInto,
-  createBalanceItemForMonth,
   deleteBalanceItem,
   listCopyableBalancePeriods,
   moveBalanceItem,
@@ -685,6 +685,39 @@ export function BalanceSheet({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const [now, setNow] = useState(() => new Date());
+  const [addOpen, setAddOpen] = useState(false);
+  const router = useRouter();
+
+  // Adopt fresh server data whenever the page re-renders with the same
+  // (year, month) — a router.refresh() after a mutation the drawer made,
+  // whose result carries only { periodId, accountId } and not the row(s) it
+  // created. Mirrors transactions/Ledger.tsx's identical "adopt on refresh"
+  // effect; the page passes a new `initialItems` array only when its own
+  // server-side query re-ran, so this never fires mid-edit.
+  useEffect(() => {
+    setItems(initialItems);
+  }, [initialItems]);
+  useEffect(() => {
+    setPeriodState(period);
+  }, [period]);
+
+  // The drawer only reports { periodId, accountId } — not the row(s) it
+  // created (a mortgaged property is two) — so rather than guess their
+  // shape, ask the server to re-render and adopt its answer via the effects
+  // above. Setting periodState.id immediately (as the old add-row handler
+  // did) keeps "Save as template" / "Fill from…" usable before that refresh
+  // lands.
+  const onAccountCreated = useCallback(
+    (result: { periodId: string; accountId: string }) => {
+      if (!periodState.id) {
+        setPeriodState((prev) => ({ ...prev, id: result.periodId }));
+      }
+      setLastSavedAt(new Date());
+      setSaveError(null);
+      router.refresh();
+    },
+    [periodState.id, router],
+  );
 
   // Per-subhead info popover. Fixed-positioned at the clicked icon's rect so
   // it escapes the Sheet's overflow:hidden clipping.
@@ -716,8 +749,6 @@ export function BalanceSheet({
   }, [openInfo]);
 
   // ─── Period nav ───────────────────────────────────────────────────────────
-
-  const router = useRouter();
 
   const today = useMemo(() => {
     const d = new Date();
@@ -892,23 +923,6 @@ export function BalanceSheet({
     });
   }, [periodState.id]);
 
-  // ─── Auto-focus on add ────────────────────────────────────────────────────
-
-  const [pendingFocusItemId, setPendingFocusItemId] = useState<string | null>(
-    null,
-  );
-  const labelInputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
-
-  useEffect(() => {
-    if (!pendingFocusItemId) return;
-    const input = labelInputRefs.current.get(pendingFocusItemId);
-    if (input) {
-      input.focus();
-      input.select();
-      setPendingFocusItemId(null);
-    }
-  }, [pendingFocusItemId]);
-
   // Tick "Saved Xs ago" every 5s.
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 5000);
@@ -961,53 +975,6 @@ export function BalanceSheet({
       debouncedUpdate(itemId, patch);
     },
     [debouncedUpdate],
-  );
-
-  const onAddRow = useCallback(
-    (type: BalanceType, category: BalanceCategory) => {
-      startTransition(async () => {
-        pendingSavesRef.current += 1;
-        setPendingCount(pendingSavesRef.current);
-        try {
-          // The period row is created lazily, with the first item that needs
-          // it — one action, so a month can never end up with a period and no
-          // rows. Once it exists, subsequent adds reuse the id it returns.
-          const { periodId, item: created } = await createBalanceItemForMonth({
-            year,
-            month,
-            type,
-            category,
-            label: "",
-          });
-          if (!periodState.id) {
-            setPeriodState((prev) => ({ ...prev, id: periodId }));
-          }
-          setItems((prev) => [
-            ...prev,
-            {
-              id: created.id,
-              type: created.type,
-              category: created.category,
-              label: created.label,
-              value: Number(created.value),
-              notes: created.notes,
-              sortOrder: created.sortOrder,
-              carriedOver: false,
-            },
-          ]);
-          setFocusedCell({ itemId: created.id, field: "label" });
-          setPendingFocusItemId(created.id);
-          setLastSavedAt(new Date());
-          setSaveError(null);
-        } catch (e) {
-          setSaveError(e instanceof Error ? e.message : "Add row failed");
-        } finally {
-          pendingSavesRef.current = Math.max(0, pendingSavesRef.current - 1);
-          setPendingCount(pendingSavesRef.current);
-        }
-      });
-    },
-    [periodState.id, year, month],
   );
 
   const onDelete = useCallback(() => {
@@ -1206,10 +1173,6 @@ export function BalanceSheet({
         }
       >
         <CellInput
-          ref={(el) => {
-            if (el) labelInputRefs.current.set(item.id, el);
-            else labelInputRefs.current.delete(item.id);
-          }}
           value={item.label}
           placeholder="Name this item"
           onChange={(e) => editField(item.id, { label: e.target.value })}
@@ -1377,12 +1340,7 @@ export function BalanceSheet({
             elsewhere and saving a template are month-level operations, so they
             sit together after it. */}
         <ToolbarGroup>
-          <ToolbarTool onClick={() => onAddRow("ASSET", "CURRENT")}>
-            + Asset
-          </ToolbarTool>
-          <ToolbarTool onClick={() => onAddRow("LIABILITY", "CURRENT")}>
-            + Liability
-          </ToolbarTool>
+          <ToolbarTool onClick={() => setAddOpen(true)}>+ Add</ToolbarTool>
         </ToolbarGroup>
         <ToolbarGroup>
           <CopyWrapper ref={copyWrapperRef}>
@@ -1567,6 +1525,13 @@ export function BalanceSheet({
           <InfoBody>{openInfo.body}</InfoBody>
         </InfoPopover>
       )}
+      <AddAccountDrawer
+        open={addOpen}
+        year={year}
+        month={month}
+        onClose={() => setAddOpen(false)}
+        onCreated={onAccountCreated}
+      />
     </PageShell>
   );
 }
