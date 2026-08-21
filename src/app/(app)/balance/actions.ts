@@ -283,6 +283,7 @@ export async function copyBalancePeriodFrom(input: CopyBalancePeriodFromInput) {
       value: true,
       notes: true,
       sortOrder: true,
+      accountId: true,
     },
   });
 
@@ -294,6 +295,7 @@ export async function copyBalancePeriodFrom(input: CopyBalancePeriodFromInput) {
     value: Number(it.value),
     notes: it.notes,
     sortOrder: it.sortOrder,
+    accountId: it.accountId,
     // The clone holds a number the user hasn't confirmed for this month yet.
     carriedOver: true,
   }));
@@ -314,6 +316,7 @@ export async function copyBalancePeriodFrom(input: CopyBalancePeriodFromInput) {
         notes: it.notes,
         sortOrder: it.sortOrder,
         carriedOver: it.carriedOver,
+        accountId: it.accountId,
       })),
     }),
   ]);
