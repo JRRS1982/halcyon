@@ -70,5 +70,16 @@ export type AccountDeletionCounts = {
   budgetRows: number;
   transactions: number;
   importBatches: number;
-  linked: { accountId: string; name: string; latestValue: number } | null;
+  // The linked property/mortgage's own rows — deleteAccountEverywhere with
+  // alsoLinked:true destroys these too, so a caller stating the size of that
+  // delete needs them alongside the primary account's counts above.
+  linked: {
+    accountId: string;
+    name: string;
+    latestValue: number;
+    months: number;
+    budgetRows: number;
+    transactions: number;
+    importBatches: number;
+  } | null;
 };

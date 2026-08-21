@@ -232,15 +232,34 @@ export async function accountDeletionCounts(
     return { months, budgetRows, transactions, importBatches, linked: null };
   }
 
-  const partner = await prisma.account.findFirstOrThrow({
-    where: { id: partnerId, userId },
-    select: { id: true, name: true },
-  });
-  const latest = await prisma.balanceItem.findFirst({
-    where: { accountId: partnerId, deletedAt: null },
-    orderBy: { period: { startDate: "desc" } },
-    select: { value: true },
-  });
+  const [
+    partner,
+    latest,
+    partnerMonths,
+    partnerBudgetRows,
+    partnerTransactions,
+    partnerImportBatches,
+  ] = await Promise.all([
+    prisma.account.findFirstOrThrow({
+      where: { id: partnerId, userId },
+      select: { id: true, name: true },
+    }),
+    prisma.balanceItem.findFirst({
+      where: { accountId: partnerId, deletedAt: null },
+      orderBy: { period: { startDate: "desc" } },
+      select: { value: true },
+    }),
+    // The partner's own counts — a paired delete (alsoLinked: true) destroys
+    // these too, so the size of that delete is incomplete without them.
+    prisma.balanceItem.count({
+      where: { accountId: partnerId, deletedAt: null },
+    }),
+    prisma.financialItem.count({
+      where: { accountId: partnerId, deletedAt: null },
+    }),
+    prisma.transaction.count({ where: { accountId: partnerId } }),
+    prisma.importBatch.count({ where: { accountId: partnerId } }),
+  ]);
 
   return {
     months,
@@ -251,6 +270,10 @@ export async function accountDeletionCounts(
       accountId: partner.id,
       name: partner.name,
       latestValue: Number(latest?.value ?? 0),
+      months: partnerMonths,
+      budgetRows: partnerBudgetRows,
+      transactions: partnerTransactions,
+      importBatches: partnerImportBatches,
     },
   };
 }

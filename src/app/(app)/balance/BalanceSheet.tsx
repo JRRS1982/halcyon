@@ -22,6 +22,8 @@ import {
 } from "@/components/sheet/Toolbar";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusPip, type StatusPipState } from "@/components/ui/StatusPip";
+import { isPropertyRow } from "@/lib/accounts/deletion";
+import type { AccountDeletionCounts } from "@/lib/accounts/schemas";
 import {
   type BalanceCategory,
   type BalanceType,
@@ -42,6 +44,7 @@ import {
   type NumberFormat,
 } from "@/lib/settings/currency";
 import { AddAccountDrawer } from "./AddAccountDrawer";
+import { accountDeletionCounts } from "./accountActions";
 import {
   copyBalancePeriodFrom,
   copyBalanceTemplateInto,
@@ -52,6 +55,7 @@ import {
   setBalanceItemSection,
   updateBalanceItem,
 } from "./actions";
+import { DeleteAccountPanel } from "./DeleteAccountPanel";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -75,6 +79,11 @@ export type SerializedBalanceItem = {
   // Cloned by copy-from and not yet confirmed by a value edit — the number is
   // last month's, shown dimmed until the user touches it.
   carriedOver: boolean;
+  // Set once the row has been backfilled onto (or created from) a durable
+  // Account — null/undefined for legacy rows that predate that migration
+  // (or callers that predate this field), which keep the old free-typed
+  // delete instead of opening the delete panel.
+  accountId?: string | null;
 };
 
 type FocusedCell = {
@@ -431,6 +440,29 @@ const PeriodNavWrapper = styled.div`
   display: inline-flex;
   align-items: center;
   gap: ${({ theme }) => theme.spacing.xs};
+`;
+
+// Centers the DeleteAccountPanel over the sheet — a row's delete control can
+// be scrolled out of view by the time its counts have loaded, so the panel
+// floats rather than rendering inline where the row was.
+const DeleteScrim = styled.div`
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: ${({ theme }) => theme.spacing.lg};
+  background: rgba(15, 17, 22, 0.22);
+`;
+
+const DeleteModal = styled.div`
+  width: min(480px, 100%);
+  max-height: 88vh;
+  overflow-y: auto;
+  background: ${({ theme }) => theme.colors.canvas};
+  border-radius: ${({ theme }) => theme.rounded.sm};
+  box-shadow: 0 24px 64px rgba(15, 17, 22, 0.22);
 `;
 
 const PickerPopover = styled.div`
@@ -1025,9 +1057,47 @@ export function BalanceSheet({
     [debouncedUpdate],
   );
 
+  // A row backed by a durable Account (Task 4+) opens the two-mode delete
+  // panel instead of an immediate delete — soft-delete-by-default, and the
+  // one hard delete in the app needs the size of what it removes stated up
+  // front. Legacy rows (accountId null/undefined, pre-backfill) keep
+  // today's direct delete so nothing breaks for a user who hasn't migrated.
+  const [deletePanel, setDeletePanel] = useState<{
+    accountId: string;
+    name: string;
+    isProperty: boolean;
+    counts: AccountDeletionCounts;
+  } | null>(null);
+  const [deleteCountsLoading, setDeleteCountsLoading] = useState(false);
+
   const onDelete = useCallback(() => {
     if (!focusedCell) return;
     const target = focusedCell.itemId;
+    const row = items.find((it) => it.id === target);
+
+    if (row?.accountId) {
+      const { accountId, type, category, label } = row;
+      setDeleteCountsLoading(true);
+      startTransition(async () => {
+        try {
+          const counts = await accountDeletionCounts({ accountId });
+          setDeletePanel({
+            accountId,
+            name: label,
+            isProperty: isPropertyRow(type, category),
+            counts,
+          });
+        } catch (e) {
+          setSaveError(
+            e instanceof Error ? e.message : "Couldn't load delete details",
+          );
+        } finally {
+          setDeleteCountsLoading(false);
+        }
+      });
+      return;
+    }
+
     startTransition(async () => {
       pendingSavesRef.current += 1;
       setPendingCount(pendingSavesRef.current);
@@ -1047,6 +1117,14 @@ export function BalanceSheet({
       }
     });
   }, [focusedCell, items]);
+
+  const closeDeletePanel = useCallback(() => setDeletePanel(null), []);
+
+  const onDeleteDone = useCallback(() => {
+    setDeletePanel(null);
+    setFocusedCell(null);
+    router.refresh();
+  }, [router]);
 
   // Move the focused row up / down. computeMove handles crossing the
   // category and Asset/Liability boundaries one slot at a time. Optimistic:
@@ -1534,8 +1612,12 @@ export function BalanceSheet({
           </ToolbarGroup>
         )}
         <ToolbarGroup $rowScoped $engaged={!!focusedCell}>
-          <ToolbarTool onClick={onDelete} disabled={!focusedCell} $danger>
-            × Delete row
+          <ToolbarTool
+            onClick={onDelete}
+            disabled={!focusedCell || deleteCountsLoading}
+            $danger
+          >
+            {deleteCountsLoading ? "× Delete row…" : "× Delete row"}
           </ToolbarTool>
         </ToolbarGroup>
         <ToolbarSpacer />
@@ -1582,6 +1664,20 @@ export function BalanceSheet({
         onClose={() => setAddOpen(false)}
         onCreated={onAccountCreated}
       />
+      {deletePanel && (
+        <DeleteScrim>
+          <DeleteModal>
+            <DeleteAccountPanel
+              accountId={deletePanel.accountId}
+              name={deletePanel.name}
+              counts={deletePanel.counts}
+              isProperty={deletePanel.isProperty}
+              onClose={closeDeletePanel}
+              onDone={onDeleteDone}
+            />
+          </DeleteModal>
+        </DeleteScrim>
+      )}
     </PageShell>
   );
 }
