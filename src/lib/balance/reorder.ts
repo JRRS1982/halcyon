@@ -25,6 +25,20 @@ export const BUCKET_ORDER: { type: BalanceType; category: BalanceCategory }[] =
     { type: "LIABILITY", category: "OTHER" },
   ];
 
+// PROPERTY is asset-only: mortgage debt files under Long-term liabilities
+// instead (createAccountWithBalance hardcodes that — see
+// accounts/creation.ts), so no UI surface should ever offer or render
+// "Liabilities · Property". One definition shared by every place that
+// builds a category picker (BalanceSheet.tsx's section dropdown and its own
+// rendered subheads, AddAccountDrawer.tsx's Section field) rather than each
+// re-stating the same filter.
+export function isValidBalanceCategory(
+  type: BalanceType,
+  category: BalanceCategory,
+): boolean {
+  return !(type === "LIABILITY" && category === "PROPERTY");
+}
+
 function bucketIndex(type: BalanceType, category: BalanceCategory): number {
   return BUCKET_ORDER.findIndex(
     (b) => b.type === type && b.category === category,

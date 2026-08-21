@@ -17,15 +17,28 @@ function isNumericInput(raw: string): boolean {
   return raw.trim() !== "" && Number.isFinite(Number(raw));
 }
 
-// What the "Import statements to this account" checkbox starts on. A
-// decision, not a derivation: once the user touches the checkbox directly,
-// their choice sticks and this function is never consulted again for that
-// draft, however type or section change afterwards.
+// What the "Import statements to this account" checkbox starts on, for a
+// fresh (type, section) combination that the user hasn't touched yet.
 export function defaultCanImportTransactions(
   type: BalanceType,
   category: BalanceCategory | null,
 ): boolean {
   return type === "ASSET" && category !== "PROPERTY";
+}
+
+// What the checkbox should read after `type` or `category` changes. A
+// decision, not a derivation: once the user has touched the checkbox
+// directly, their choice sticks — a later type/section change never
+// overrides it, even to a combination whose fresh default disagrees with
+// what's currently checked. Untouched, it always mirrors the fresh default
+// for wherever the draft has just moved to.
+export function resolveCanImportTransactions(
+  current: boolean,
+  touched: boolean,
+  type: BalanceType,
+  category: BalanceCategory | null,
+): boolean {
+  return touched ? current : defaultCanImportTransactions(type, category);
 }
 
 // Whether the draft has everything createAccountWithBalance needs. Section

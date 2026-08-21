@@ -27,6 +27,7 @@ import {
   type BalanceType,
   canMove,
   computeMove,
+  isValidBalanceCategory,
 } from "@/lib/balance/reorder";
 import {
   formatYm,
@@ -100,15 +101,12 @@ const SECTIONS: {
   category: BalanceCategory;
   label: string;
 }[] = (["ASSET", "LIABILITY"] as const).flatMap((type) =>
-  CATEGORIES
-    // PROPERTY is asset-only; mortgage debt belongs in Long-term liabilities.
-    .filter((c) => !(type === "LIABILITY" && c.key === "PROPERTY"))
-    .map((c) => ({
-      value: `${type}:${c.key}`,
-      type,
-      category: c.key,
-      label: `${type === "ASSET" ? "Assets" : "Liabilities"} · ${c.label}`,
-    })),
+  CATEGORIES.filter((c) => isValidBalanceCategory(type, c.key)).map((c) => ({
+    value: `${type}:${c.key}`,
+    type,
+    category: c.key,
+    label: `${type === "ASSET" ? "Assets" : "Liabilities"} · ${c.label}`,
+  })),
 );
 
 // Guidance shown in the per-subhead info popover. Plain-English, UK-flavoured
@@ -692,14 +690,46 @@ export function BalanceSheet({
   // (year, month) — a router.refresh() after a mutation the drawer made,
   // whose result carries only { periodId, accountId } and not the row(s) it
   // created. Mirrors transactions/Ledger.tsx's identical "adopt on refresh"
-  // effect; the page passes a new `initialItems` array only when its own
-  // server-side query re-ran, so this never fires mid-edit.
+  // effect, but — unlike Ledger — a cell edit here can be mid-flight
+  // (debouncedUpdate, below) when a refresh lands, so adoption is skipped
+  // while pendingSavesRef says a write is outstanding: otherwise the
+  // server's pre-write snapshot would silently overwrite the optimistic
+  // edit still showing on screen (the write itself still lands in the DB —
+  // only the display would be wrong, with nothing to correct it).
+  //
+  // Known residual gap: pendingSavesRef only increments once the 500ms
+  // debounce fires and the network call actually starts, not from the
+  // keystroke that scheduled it. A refresh landing inside that debounce
+  // window (edit, then submit the drawer within ~500ms) still isn't caught
+  // here — closing that would mean changing when pendingSavesRef increments,
+  // which also shifts the status pip's "Saving…" timing, a behaviour change
+  // beyond what this fix is for. Narrow and not addressed by this change.
+  const pendingAdoptRef = useRef(false);
   useEffect(() => {
+    if (pendingSavesRef.current > 0) {
+      pendingAdoptRef.current = true;
+      return;
+    }
     setItems(initialItems);
   }, [initialItems]);
   useEffect(() => {
+    if (pendingSavesRef.current > 0) {
+      pendingAdoptRef.current = true;
+      return;
+    }
     setPeriodState(period);
   }, [period]);
+  // A refresh deferred above because a write was in flight is never retried
+  // on its own — nothing else re-requests it. Once the in-flight save
+  // finishes (pendingCount back to 0), ask the server again so the drawer's
+  // new row still shows up this session instead of staying invisible until
+  // an unrelated navigation happens to remount the page.
+  useEffect(() => {
+    if (pendingCount === 0 && pendingAdoptRef.current) {
+      pendingAdoptRef.current = false;
+      router.refresh();
+    }
+  }, [pendingCount, router]);
 
   // The drawer only reports { periodId, accountId } — not the row(s) it
   // created (a mortgaged property is two) — so rather than guess their
@@ -1224,46 +1254,48 @@ export function BalanceSheet({
         <SheetCell align="right">{fmtAmount(total)}</SheetCell>
         <SheetCell />
       </SectionRow>
-      {CATEGORIES.filter(
-        (c) => !(type === "LIABILITY" && c.key === "PROPERTY"),
-      ).map((c) => {
-        const bucket = groups[type][c.key];
-        const help = CATEGORY_HELP[type][c.key];
-        return (
-          <div key={`${type}-${c.key}`}>
-            <SubheadRow role="row">
-              <SheetCell role="rowheader">
-                <SubheadLabel>
-                  {c.label}
-                  <InfoButton
-                    type="button"
-                    data-info-root
-                    aria-label={`What goes in ${help.title}?`}
-                    onClick={(e) => {
-                      const r = e.currentTarget.getBoundingClientRect();
-                      setOpenInfo((cur) =>
-                        cur?.title === help.title
-                          ? null
-                          : {
-                              title: help.title,
-                              body: help.body,
-                              top: r.bottom + 6,
-                              left: Math.min(r.left, window.innerWidth - 296),
-                            },
-                      );
-                    }}
-                  >
-                    i
-                  </InfoButton>
-                </SubheadLabel>
-              </SheetCell>
-              <SheetCell align="right">{fmtAmount(bucket.subtotal)}</SheetCell>
-              <SheetCell />
-            </SubheadRow>
-            {bucket.rows.map(renderItemRow)}
-          </div>
-        );
-      })}
+      {CATEGORIES.filter((c) => isValidBalanceCategory(type, c.key)).map(
+        (c) => {
+          const bucket = groups[type][c.key];
+          const help = CATEGORY_HELP[type][c.key];
+          return (
+            <div key={`${type}-${c.key}`}>
+              <SubheadRow role="row">
+                <SheetCell role="rowheader">
+                  <SubheadLabel>
+                    {c.label}
+                    <InfoButton
+                      type="button"
+                      data-info-root
+                      aria-label={`What goes in ${help.title}?`}
+                      onClick={(e) => {
+                        const r = e.currentTarget.getBoundingClientRect();
+                        setOpenInfo((cur) =>
+                          cur?.title === help.title
+                            ? null
+                            : {
+                                title: help.title,
+                                body: help.body,
+                                top: r.bottom + 6,
+                                left: Math.min(r.left, window.innerWidth - 296),
+                              },
+                        );
+                      }}
+                    >
+                      i
+                    </InfoButton>
+                  </SubheadLabel>
+                </SheetCell>
+                <SheetCell align="right">
+                  {fmtAmount(bucket.subtotal)}
+                </SheetCell>
+                <SheetCell />
+              </SubheadRow>
+              {bucket.rows.map(renderItemRow)}
+            </div>
+          );
+        },
+      )}
     </>
   );
 

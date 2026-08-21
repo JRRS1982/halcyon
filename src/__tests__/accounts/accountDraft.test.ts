@@ -1,6 +1,7 @@
 import {
   canSubmitAccountDraft,
   defaultCanImportTransactions,
+  resolveCanImportTransactions,
 } from "@/lib/accounts/accountDraft";
 
 describe("defaultCanImportTransactions", () => {
@@ -16,6 +17,38 @@ describe("defaultCanImportTransactions", () => {
 
   test("a property asset defaults off — a property isn't a statement-import account", () => {
     expect(defaultCanImportTransactions("ASSET", "PROPERTY")).toBe(false);
+  });
+});
+
+describe("resolveCanImportTransactions", () => {
+  test("untouched: always mirrors the fresh default for the new type/section", () => {
+    expect(resolveCanImportTransactions(true, false, "LIABILITY", null)).toBe(
+      false,
+    );
+    expect(resolveCanImportTransactions(false, false, "ASSET", "CURRENT")).toBe(
+      true,
+    );
+    expect(resolveCanImportTransactions(true, false, "ASSET", "PROPERTY")).toBe(
+      false,
+    );
+  });
+
+  // The subtlest rule the brief calls out: once touched, a type/section
+  // change that would otherwise flip the fresh default must not un-check
+  // (or re-check) the box behind the user's back.
+  test("touched on, then switched to a section/type whose fresh default is off — the override sticks", () => {
+    expect(
+      resolveCanImportTransactions(true, true, "LIABILITY", "LONG_TERM"),
+    ).toBe(true);
+    expect(resolveCanImportTransactions(true, true, "ASSET", "PROPERTY")).toBe(
+      true,
+    );
+  });
+
+  test("touched off, then switched to a section/type whose fresh default is on — the override sticks", () => {
+    expect(resolveCanImportTransactions(false, true, "ASSET", "CURRENT")).toBe(
+      false,
+    );
   });
 });
 

@@ -13,13 +13,17 @@ import { Button } from "@/components/ui/Button";
 import {
   type AccountDraft,
   canSubmitAccountDraft,
-  defaultCanImportTransactions,
+  resolveCanImportTransactions,
 } from "@/lib/accounts/accountDraft";
 import {
   accountWrapperSchema,
   type CreateAccountWithBalanceInput,
 } from "@/lib/accounts/schemas";
-import type { BalanceCategory, BalanceType } from "@/lib/balance/reorder";
+import {
+  type BalanceCategory,
+  type BalanceType,
+  isValidBalanceCategory,
+} from "@/lib/balance/reorder";
 import { balanceItemCategorySchema } from "@/lib/balance/schemas";
 import { createAccountWithBalance } from "./accountActions";
 
@@ -37,12 +41,12 @@ const SECTION_LABELS: Record<BalanceCategory, string> = {
   OTHER: "Other",
 };
 
-// PROPERTY is asset-only — a mortgage files under Long-term liabilities
-// instead (createAccountWithBalance hardcodes that), so a liability's Section
-// field never offers it. Mirrors BalanceSheet.tsx's own CATEGORIES.filter.
+// PROPERTY is asset-only, so a liability's Section field never offers it —
+// shares isValidBalanceCategory with BalanceSheet.tsx's own section picker
+// and its rendered subheads rather than re-stating the same rule here too.
 function sectionOptionsFor(type: BalanceType): BalanceCategory[] {
-  return balanceItemCategorySchema.options.filter(
-    (c) => !(type === "LIABILITY" && c === "PROPERTY"),
+  return balanceItemCategorySchema.options.filter((c) =>
+    isValidBalanceCategory(type, c),
   );
 }
 
@@ -267,20 +271,27 @@ export function AddAccountDrawer({
   const [pending, startTransition] = useTransition();
 
   const selectType = (next: BalanceType) => {
+    // PROPERTY is asset-only — switching to LIABILITY while it's selected
+    // leaves no valid option selected, so the section resets rather than
+    // silently keeping an invalid value.
+    const nextCategory =
+      next === "LIABILITY" && category === "PROPERTY" ? null : category;
     setType(next);
-    if (!importTouched) {
-      setCanImportTransactions(defaultCanImportTransactions(next, category));
-    }
-    if (next === "LIABILITY" && category === "PROPERTY") {
-      setCategory(null);
+    setCategory(nextCategory);
+    setCanImportTransactions((current) =>
+      resolveCanImportTransactions(current, importTouched, next, nextCategory),
+    );
+    if (nextCategory !== category) {
       setHasMortgage(false);
     }
   };
 
   const selectCategory = (next: BalanceCategory) => {
     setCategory(next);
-    if (!importTouched && type) {
-      setCanImportTransactions(defaultCanImportTransactions(type, next));
+    if (type) {
+      setCanImportTransactions((current) =>
+        resolveCanImportTransactions(current, importTouched, type, next),
+      );
     }
     if (next !== "PROPERTY") {
       setHasMortgage(false);
@@ -317,6 +328,14 @@ export function AddAccountDrawer({
     setError(null);
   };
 
+  // Every way of leaving the drawer without submitting — the × button, the
+  // Cancel button, Esc, and clicking the scrim — clears the draft too, so
+  // reopening starts blank rather than showing what was typed last time.
+  const handleClose = () => {
+    resetForm();
+    onClose();
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit || !type || !category) return;
@@ -344,9 +363,8 @@ export function AddAccountDrawer({
               }
             : null,
         });
-        resetForm();
         onCreated(result);
-        onClose();
+        handleClose();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Could not add account");
       }
@@ -356,8 +374,8 @@ export function AddAccountDrawer({
   // While open: Esc closes; Tab is trapped within the sheet; body scroll is
   // locked; focus moves into the sheet. On close, focus returns to the
   // element that opened the drawer. Mirrors plan/PlanDrawer.tsx.
-  const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
+  const onCloseRef = useRef(handleClose);
+  onCloseRef.current = handleClose;
 
   useEffect(() => {
     if (!open) return;
@@ -403,7 +421,7 @@ export function AddAccountDrawer({
 
   return (
     <>
-      <Scrim $open={open} onClick={onClose} aria-hidden="true" />
+      <Scrim $open={open} onClick={handleClose} aria-hidden="true" />
       <Sheet
         ref={sheetRef}
         $open={open}
@@ -419,7 +437,7 @@ export function AddAccountDrawer({
                 <Eyebrow>Balance sheet</Eyebrow>
                 <Title id={titleId}>Add an account</Title>
               </div>
-              <CloseBtn type="button" aria-label="Close" onClick={onClose}>
+              <CloseBtn type="button" aria-label="Close" onClick={handleClose}>
                 {"×"}
               </CloseBtn>
             </Head>
@@ -547,7 +565,7 @@ export function AddAccountDrawer({
               ) : null}
             </Body>
             <Foot>
-              <Button type="button" variant="outline" onClick={onClose}>
+              <Button type="button" variant="outline" onClick={handleClose}>
                 Cancel
               </Button>
               <Button
