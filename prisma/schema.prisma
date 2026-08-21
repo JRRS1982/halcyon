@@ -184,12 +184,15 @@ model FinancialItem {
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
   deletedAt      DateTime?
+  accountId      String?          @db.Uuid
 
   period         FinancialPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
   linkedCategory Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  account        Account?        @relation(fields: [accountId], references: [id], onDelete: SetNull)
 
   @@index([periodId, type, sortOrder])
   @@index([categoryId])
+  @@index([accountId])
 }
 
 // Balance sheet line items belonging to a FinancialPeriod (shared with the
@@ -198,25 +201,28 @@ model FinancialItem {
 // buckets (CURRENT / LONG_TERM / OTHER) replace hierarchy. Notes is free-
 // form context attached to the row.
 model BalanceItem {
-  id        String              @id @default(uuid()) @db.Uuid
-  periodId  String              @db.Uuid
-  type      BalanceItemType
-  category  BalanceItemCategory
-  label     String
-  value     Decimal             @default(0) @db.Decimal(14, 2)
-  notes     String?
-  sortOrder Int                 @default(0)
+  id          String              @id @default(uuid()) @db.Uuid
+  periodId    String              @db.Uuid
+  type        BalanceItemType
+  category    BalanceItemCategory
+  label       String
+  value       Decimal             @default(0) @db.Decimal(14, 2)
+  notes       String?
+  sortOrder   Int                 @default(0)
   // True on rows cloned by copy-from (a previous month or the template):
   // the value is last month's number, shown provisionally until the user
   // confirms it by editing the value, which clears the flag.
-  carriedOver Boolean           @default(false)
-  createdAt DateTime            @default(now())
-  updatedAt DateTime            @updatedAt
-  deletedAt DateTime?
+  carriedOver Boolean             @default(false)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  deletedAt   DateTime?
+  accountId   String?             @db.Uuid
 
-  period FinancialPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  period  FinancialPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  account Account?        @relation(fields: [accountId], references: [id], onDelete: SetNull)
 
   @@index([periodId, type, category, sortOrder])
+  @@index([accountId])
 }
 
 // A reusable budget template row, owned directly by a user (not tied to a
@@ -286,24 +292,51 @@ model Category {
   @@index([userId, type, sortOrder])
 }
 
-// A bank account a statement was imported from. Picked or created at import
-// time; managed in Settings. Lightweight by design — v1 has no per-account
-// balances, just a label to scope and filter transactions (and dedup).
-model Account {
-  id        String    @id @default(uuid()) @db.Uuid
-  userId    String    @db.Uuid
-  name      String
-  type      String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+// What this account is on a balance sheet. NONE is a plain transaction
+// account that is not itself an asset or a liability line.
+enum AccountKind {
+  ASSET
+  LIABILITY
+  NONE
+}
 
-  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transactions  Transaction[] @relation("AccountTransactions")
-  transfersFrom Transaction[] @relation("TransferCounterparty")
-  importBatches ImportBatch[]
+// The durable registry for everything a user owns or owes — a bank account,
+// an ISA, a mortgage. Picked or created at import time and managed in
+// Settings; also the identity a BalanceItem observes month to month and a
+// PlanAsset/PlanLiability attaches its assumptions to.
+model Account {
+  id                    String               @id @default(uuid()) @db.Uuid
+  userId                String               @db.Uuid
+  name                  String
+  kind                  AccountKind          @default(NONE)
+  // Term bucket and tax wrapper reuse the balance-sheet and plan enums rather
+  // than introducing parallel ones. Null on a plain transaction account.
+  category              BalanceItemCategory?
+  wrapper               PlanAssetWrapper?
+  // The user's choice, not a derived fact: plenty of mortgage providers issue
+  // statements. `kind` supplies only the initial default at creation time and
+  // never overrides it afterwards. Gates the CSV-import target picker and the
+  // ledger's account filter, and nothing else — the transfer counterparty
+  // picker filters on `kind != NONE`.
+  canImportTransactions Boolean              @default(true)
+  // Mortgage ↔ property. A fact about the house, not about one plan, which is
+  // why it lives here rather than on PlanLiability.
+  linkedAccountId       String?              @unique @db.Uuid
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+  deletedAt             DateTime?
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions   Transaction[]   @relation("AccountTransactions")
+  transfersFrom  Transaction[]   @relation("TransferCounterparty")
+  importBatches  ImportBatch[]
+  balanceItems   BalanceItem[]
+  financialItems FinancialItem[]
+  linkedAccount  Account?        @relation("AccountLink", fields: [linkedAccountId], references: [id], onDelete: SetNull)
+  linkedBy       Account?        @relation("AccountLink")
 
   @@index([userId])
+  @@index([userId, kind])
 }
 
 // One CSV import run. Groups the transactions it created so the whole import
