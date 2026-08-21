@@ -19,7 +19,6 @@ import {
   setMonthlyReminderDay,
   setThemePreference,
   toggleMonthlyReminder,
-  togglePlanVisible,
   toggleTransactions,
   toggleTransfers,
 } from "./actions";
@@ -232,7 +231,6 @@ export function SettingsForm({
   numberFormatOptions,
   transactionsEnabled,
   transfersEnabled,
-  planVisible,
   themePreference,
   monthlyReminderEnabled,
   monthlyReminderDay,
@@ -244,7 +242,6 @@ export function SettingsForm({
   numberFormatOptions: SelectOption[];
   transactionsEnabled: boolean;
   transfersEnabled: boolean;
-  planVisible: boolean;
   themePreference: ThemePreference;
   monthlyReminderEnabled: boolean;
   monthlyReminderDay: number;
@@ -311,7 +308,6 @@ export function SettingsForm({
     });
   };
 
-  // The plan visibility toggle persists immediately (benign; no confirm dialog).
   // Persists immediately like the other preferences. The scheme itself is
   // applied by the server on the next render (it writes data-theme onto
   // <html>), so there is no client-side theme state to keep in sync — which is
@@ -346,16 +342,6 @@ export function SettingsForm({
     setReminderDay(next);
     startDay(async () => {
       await setMonthlyReminderDay(next);
-      router.refresh();
-    });
-  };
-
-  const [planOn, setPlanOn] = useState(planVisible);
-  const [planPending, startPlan] = useTransition();
-  const onTogglePlan = (next: boolean) => {
-    setPlanOn(next);
-    startPlan(async () => {
-      await togglePlanVisible(next);
       router.refresh();
     });
   };
@@ -481,29 +467,6 @@ export function SettingsForm({
               checked={transfersOn}
               disabled={transfersPending || !enabled}
               onChange={(event) => onToggleTransfers(event.target.checked)}
-            />
-            <SwitchTrack />
-          </SwitchControl>
-        </ToggleField>
-      </SettingsCard>
-
-      <SettingsCard>
-        <SectionHeading>Plan</SectionHeading>
-        <ToggleField>
-          <ToggleText>
-            <FieldLabel>Show Plan in nav</FieldLabel>
-            <FieldHint>
-              Hide the Plan tab from the navigation. Your plan and its data are
-              kept.
-            </FieldHint>
-          </ToggleText>
-          <SwitchControl>
-            <SwitchInput
-              type="checkbox"
-              aria-label="Show Plan in nav"
-              checked={planOn}
-              disabled={planPending}
-              onChange={(event) => onTogglePlan(event.target.checked)}
             />
             <SwitchTrack />
           </SwitchControl>

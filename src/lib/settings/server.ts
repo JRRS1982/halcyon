@@ -145,7 +145,6 @@ export const getCurrentUserSettings = cache(
     numberFormat: NumberFormat;
     transactionsEnabled: boolean;
     transfersEnabled: boolean;
-    planVisible: boolean;
     hiddenCharts: string[];
     themePreference: ThemePreference;
     monthlyReminderEnabled: boolean;
@@ -166,7 +165,6 @@ export const getCurrentUserSettings = cache(
         : DEFAULT_NUMBER_FORMAT,
       transactionsEnabled: row.transactionsEnabled,
       transfersEnabled: row.transfersEnabled,
-      planVisible: row.planVisible,
       hiddenCharts: row.hiddenCharts,
       themePreference: isThemePreference(row.themePreference)
         ? row.themePreference
@@ -200,17 +198,6 @@ export async function isTransactionsEnabled(userId: string): Promise<boolean> {
   return row?.transactionsEnabled ?? false;
 }
 
-// Whether the signed-in user has the Plan nav link visible. Used by the root
-// layout to decide whether to show the Plan nav link. Defaults true (the Plan
-// feature is on by default). Returns true when there's no settings row yet.
-export async function isPlanVisible(userId: string): Promise<boolean> {
-  const row = await prisma.userSettings.findUnique({
-    where: { userId },
-    select: { planVisible: true },
-  });
-  return row?.planVisible ?? true;
-}
-
 /**
  * Everything the app layout needs about a visitor, in one read: which nav links
  * to show and which colour scheme to paint.
@@ -222,17 +209,15 @@ export async function isPlanVisible(userId: string): Promise<boolean> {
  * One query rather than two. The layout renders on every request and used to
  * ask in two goes — first the nav flags, then the theme — which is two
  * sequential round trips for three columns of the same row. Defaults match the
- * single-flag helpers above: transactions off, plan on.
+ * single-flag helper above: transactions off.
  */
 export async function getLayoutSettings(userId: string | undefined): Promise<{
   transactionsEnabled: boolean;
-  planVisible: boolean;
   themePreference: ThemePreference;
 }> {
   if (!userId)
     return {
       transactionsEnabled: false,
-      planVisible: false,
       themePreference: DEFAULT_THEME_PREFERENCE,
     };
 
@@ -247,13 +232,11 @@ export async function getLayoutSettings(userId: string | undefined): Promise<{
       where: { userId },
       select: {
         transactionsEnabled: true,
-        planVisible: true,
         themePreference: true,
       },
     })) ?? (await provisionUserSettings(userId));
   return {
     transactionsEnabled: row?.transactionsEnabled ?? false,
-    planVisible: row?.planVisible ?? true,
     themePreference: isThemePreference(row?.themePreference)
       ? row.themePreference
       : DEFAULT_THEME_PREFERENCE,

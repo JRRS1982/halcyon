@@ -18,14 +18,15 @@ export default async function AppLayout({
   children: React.ReactNode;
 }) {
   const user = await getCurrentUser();
-  // One settings read for the nav flags and the colour scheme alike — they are
-  // three columns of the same row, so asking separately was three round-trips
+  // One settings read for the nav flag and the colour scheme alike — they are
+  // two columns of the same row, so asking separately was two round-trips
   // for one row. The scheme is resolved on the server so the correct one is in
   // the very first paint: deciding it on the client would mean rendering light,
   // hydrating, then repainting dark — the flash every dark-mode implementation
   // is judged by.
-  const { transactionsEnabled, planVisible, themePreference } =
-    await getLayoutSettings(user?.id);
+  const { transactionsEnabled, themePreference } = await getLayoutSettings(
+    user?.id,
+  );
   const theme = themeAttribute(themePreference);
 
   // The scheme sits on a wrapper rather than on <html>, because <html> belongs
@@ -42,11 +43,7 @@ export default async function AppLayout({
       data-theme={theme}
       style={theme ? { colorScheme: theme } : undefined}
     >
-      <NavBar
-        signedIn={!!user}
-        transactionsEnabled={transactionsEnabled}
-        planVisible={planVisible}
-      />
+      <NavBar signedIn={!!user} transactionsEnabled={transactionsEnabled} />
       {/* tabIndex -1 makes the skip link's target programmatically focusable,
           so the jump moves focus rather than only scrolling. */}
       <div className="app-content" id="main-content" tabIndex={-1}>
