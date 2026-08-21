@@ -23,6 +23,13 @@ const renderDrawer = () =>
   );
 
 describe("AddAccountDrawer", () => {
+  // Order-independence: the "clears the draft on cancel" test below asserts
+  // created was NOT called, which would false-fail if it ran after the
+  // "submits the account..." test's real call without this reset.
+  beforeEach(() => {
+    created.mockClear();
+  });
+
   test("asks what is being added before anything else", () => {
     renderDrawer();
     expect(screen.getByRole("radio", { name: /asset/i })).toBeInTheDocument();
@@ -127,5 +134,20 @@ describe("AddAccountDrawer", () => {
     fireEvent.click(screen.getByRole("radio", { name: /liability/i }));
     fireEvent.click(screen.getByRole("radio", { name: /asset/i }));
     expect(screen.getByLabelText(/import statements/i)).not.toBeChecked();
+  });
+
+  // Regression test for a fix reviewed in round 1: closing without
+  // submitting must clear the draft, not just hide it.
+  test("clears the draft on cancel, without submitting", () => {
+    renderDrawer();
+
+    fireEvent.click(screen.getByRole("radio", { name: /asset/i }));
+    fireEvent.change(screen.getByLabelText(/name/i), {
+      target: { value: "Draft I will abandon" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
+
+    expect(screen.queryByLabelText(/name/i)).not.toBeInTheDocument();
+    expect(created).not.toHaveBeenCalled();
   });
 });
