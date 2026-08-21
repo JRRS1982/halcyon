@@ -282,4 +282,128 @@ describe("backfillAccountsForUser (integration)", () => {
     );
     expect(liabilityAccount?.wrapper).toBeNull();
   });
+
+  async function seedHomeAndMortgageBalances() {
+    const mar = await seedMonth("March 2026", "2026-03-01", "2026-03-31");
+    await prisma.balanceItem.createMany({
+      data: [
+        {
+          periodId: mar.id,
+          type: "ASSET",
+          category: "PROPERTY",
+          label: "Home",
+          value: 420000,
+        },
+        {
+          periodId: mar.id,
+          type: "LIABILITY",
+          category: "LONG_TERM",
+          label: "Mortgage",
+          value: 184200,
+        },
+      ],
+    });
+  }
+
+  async function seedMortgagePlan() {
+    const plan = await prisma.plan.create({
+      data: {
+        userId: TEST_USER_ID,
+        dateOfBirth: new Date("1986-06-01"),
+        retirementAge: 65,
+      },
+    });
+    const property = await prisma.planAsset.create({
+      data: {
+        planId: plan.id,
+        label: "Home",
+        wrapper: "PROPERTY",
+        openingValue: 420000,
+      },
+    });
+    const liability = await prisma.planLiability.create({
+      data: {
+        planId: plan.id,
+        label: "Mortgage",
+        openingBalance: 184200,
+        linkedAssetId: property.id,
+      },
+    });
+    return { plan, property, liability };
+  }
+
+  it("lifts a PlanLiability.linkedAssetId pairing onto Account.linkedAccountId", async () => {
+    await seedHomeAndMortgageBalances();
+    await seedMortgagePlan();
+
+    await backfillAccountsForUser(TEST_USER_ID);
+
+    const accounts = await prisma.account.findMany({
+      where: { userId: TEST_USER_ID },
+    });
+    const home = accounts.find((a) => a.name === "Home");
+    const mortgage = accounts.find((a) => a.name === "Mortgage");
+    expect(home).toBeDefined();
+    expect(mortgage).toBeDefined();
+    expect(mortgage?.linkedAccountId).toBe(home?.id);
+  });
+
+  it("is idempotent for mortgage links — a second run neither duplicates nor re-links", async () => {
+    await seedHomeAndMortgageBalances();
+    await seedMortgagePlan();
+
+    await backfillAccountsForUser(TEST_USER_ID);
+    const afterFirst = await prisma.account.findMany({
+      where: { userId: TEST_USER_ID },
+    });
+    const homeId = afterFirst.find((a) => a.name === "Home")?.id;
+
+    const second = await backfillAccountsForUser(TEST_USER_ID);
+
+    expect(second).toEqual({ accountsCreated: 0, itemsLinked: 0 });
+    const afterSecond = await prisma.account.findMany({
+      where: { userId: TEST_USER_ID },
+    });
+    expect(afterSecond).toHaveLength(2);
+    const mortgage = afterSecond.find((a) => a.name === "Mortgage");
+    expect(mortgage?.linkedAccountId).toBe(homeId);
+  });
+
+  it("backfills cleanly with every linkedAccountId null when the user has no Plan", async () => {
+    await seedHomeAndMortgageBalances();
+
+    const result = await backfillAccountsForUser(TEST_USER_ID);
+
+    expect(result.accountsCreated).toBe(2);
+    const accounts = await prisma.account.findMany({
+      where: { userId: TEST_USER_ID },
+    });
+    expect(accounts.every((a) => a.linkedAccountId === null)).toBe(true);
+  });
+
+  it("leaves the mortgage unlinked when the linked PlanAsset has no matching account", async () => {
+    // Only the mortgage has a balance row — "Home" was never entered on the
+    // balance sheet, so no account exists for the property side of the pair.
+    const mar = await seedMonth("March 2026", "2026-03-01", "2026-03-31");
+    await prisma.balanceItem.create({
+      data: {
+        periodId: mar.id,
+        type: "LIABILITY",
+        category: "LONG_TERM",
+        label: "Mortgage",
+        value: 184200,
+      },
+    });
+    await seedMortgagePlan();
+
+    const result = await backfillAccountsForUser(TEST_USER_ID);
+
+    expect(result.accountsCreated).toBe(1);
+    const accounts = await prisma.account.findMany({
+      where: { userId: TEST_USER_ID },
+    });
+    expect(accounts).toHaveLength(1);
+    const mortgage = accounts.find((a) => a.name === "Mortgage");
+    expect(mortgage?.linkedAccountId).toBeNull();
+  });
 });

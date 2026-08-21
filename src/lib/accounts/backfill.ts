@@ -15,7 +15,116 @@ const KIND_BY_BALANCE_TYPE: Record<BalanceItemType, AccountKind> = {
 const keyFor = (type: BalanceItemType, label: string): string =>
   `${type}::${label.trim().toLowerCase()}`;
 
-type ExistingAccount = { id: string; name: string; kind: AccountKind };
+type ExistingAccount = {
+  id: string;
+  name: string;
+  kind: AccountKind;
+  linkedAccountId: string | null;
+};
+
+type MortgageLinkCandidate = {
+  liabilityAccountId: string;
+  liabilityAccountLinkedAccountId: string | null;
+  propertyAccountId: string;
+};
+
+// Decides which mortgage -> property links are safe to write, given what's
+// already on file. Never overwrites a link that's already set (a second run
+// must fight nothing), and never lets two liability accounts claim the same
+// property or one liability account claim two properties — Account.linkedAccountId
+// is @unique, so a second claim on an already-claimed side is dropped here
+// rather than left to blow up as a database error.
+function resolveMortgageLinks(
+  candidates: MortgageLinkCandidate[],
+  alreadyLinkedPropertyIds: ReadonlySet<string>,
+): { liabilityAccountId: string; propertyAccountId: string }[] {
+  const claimedProperties = new Set(alreadyLinkedPropertyIds);
+  const claimedLiabilities = new Set<string>();
+  const links: { liabilityAccountId: string; propertyAccountId: string }[] = [];
+
+  for (const candidate of candidates) {
+    if (candidate.liabilityAccountLinkedAccountId !== null) continue;
+    if (claimedLiabilities.has(candidate.liabilityAccountId)) continue;
+    if (claimedProperties.has(candidate.propertyAccountId)) continue;
+    claimedProperties.add(candidate.propertyAccountId);
+    claimedLiabilities.add(candidate.liabilityAccountId);
+    links.push({
+      liabilityAccountId: candidate.liabilityAccountId,
+      propertyAccountId: candidate.propertyAccountId,
+    });
+  }
+
+  return links;
+}
+
+/**
+ * Lifts `PlanLiability.linkedAssetId` pairings onto `Account.linkedAccountId`,
+ * matching each side to an account by the same normalised (kind, label) key
+ * the balance-item backfill above already uses — the plan row's `label`
+ * against the account's `name`. A pairing whose asset or liability side has
+ * no matching account (no balance row ever created one) is left unlinked
+ * rather than guessed at.
+ */
+async function linkMortgagesToProperties(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  existingByName: Map<string, ExistingAccount[]>,
+): Promise<void> {
+  const pairings = await tx.planLiability.findMany({
+    where: {
+      deletedAt: null,
+      linkedAssetId: { not: null },
+      plan: { userId, deletedAt: null },
+    },
+    select: {
+      label: true,
+      linkedAsset: { select: { label: true, deletedAt: true } },
+    },
+  });
+  if (pairings.length === 0) return;
+
+  const accountByKey = new Map<string, ExistingAccount>();
+  for (const bucket of existingByName.values()) {
+    for (const account of bucket) {
+      if (account.kind === "NONE") continue;
+      accountByKey.set(keyFor(account.kind, account.name), account);
+    }
+  }
+
+  const candidates: MortgageLinkCandidate[] = [];
+  for (const pairing of pairings) {
+    if (!pairing.linkedAsset || pairing.linkedAsset.deletedAt !== null) {
+      continue;
+    }
+    const liabilityAccount = accountByKey.get(
+      keyFor("LIABILITY", pairing.label),
+    );
+    const propertyAccount = accountByKey.get(
+      keyFor("ASSET", pairing.linkedAsset.label),
+    );
+    if (!liabilityAccount || !propertyAccount) continue;
+
+    candidates.push({
+      liabilityAccountId: liabilityAccount.id,
+      liabilityAccountLinkedAccountId: liabilityAccount.linkedAccountId,
+      propertyAccountId: propertyAccount.id,
+    });
+  }
+
+  const alreadyLinkedPropertyIds = new Set(
+    [...accountByKey.values()]
+      .map((a) => a.linkedAccountId)
+      .filter((id): id is string => id !== null),
+  );
+
+  const links = resolveMortgageLinks(candidates, alreadyLinkedPropertyIds);
+  for (const link of links) {
+    await tx.account.update({
+      where: { id: link.liabilityAccountId },
+      data: { linkedAccountId: link.propertyAccountId },
+    });
+  }
+}
 
 /**
  * Give every unlinked balance row an Account, creating one per distinct
@@ -49,12 +158,11 @@ async function runBackfill(
     orderBy: { createdAt: "asc" },
     select: { id: true, type: true, category: true, label: true },
   });
-  if (items.length === 0) return { accountsCreated: 0, itemsLinked: 0 };
 
   const existing = await tx.account.findMany({
     where: { userId, deletedAt: null },
     orderBy: { createdAt: "asc" },
-    select: { id: true, name: true, kind: true },
+    select: { id: true, name: true, kind: true, linkedAccountId: true },
   });
 
   // Grouped by name rather than a single best match, because nothing stops a
@@ -132,7 +240,12 @@ async function runBackfill(
         });
         accountsCreated += 1;
         accountId = created.id;
-        candidates.push({ id: created.id, name: item.label.trim(), kind });
+        candidates.push({
+          id: created.id,
+          name: item.label.trim(),
+          kind,
+          linkedAccountId: null,
+        });
         existingByName.set(nameKey, candidates);
       }
       resolved.set(key, accountId);
@@ -144,6 +257,8 @@ async function runBackfill(
     });
     itemsLinked += 1;
   }
+
+  await linkMortgagesToProperties(tx, userId, existingByName);
 
   return { accountsCreated, itemsLinked };
 }
