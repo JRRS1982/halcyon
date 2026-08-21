@@ -22,7 +22,7 @@ type ExistingAccount = {
   linkedAccountId: string | null;
 };
 
-type MortgageLinkCandidate = {
+export type MortgageLinkCandidate = {
   liabilityAccountId: string;
   liabilityAccountLinkedAccountId: string | null;
   propertyAccountId: string;
@@ -33,8 +33,14 @@ type MortgageLinkCandidate = {
 // must fight nothing), and never lets two liability accounts claim the same
 // property or one liability account claim two properties — Account.linkedAccountId
 // is @unique, so a second claim on an already-claimed side is dropped here
-// rather than left to blow up as a database error.
-function resolveMortgageLinks(
+// rather than left to blow up as a database error. `alreadyLinkedPropertyIds`
+// must come from an unfiltered read of every account's *current*
+// `linkedAccountId` (ignoring `deletedAt`, `kind`, and name-collision dedup)
+// — an archived mortgage still holds its link (see resolveLinkedPartnerId's
+// own comment in accountActions.ts), and the unique index enforces this
+// regardless of soft-delete state. Exported for direct unit testing — the
+// arbitration here is the part worth testing without a database.
+export function resolveMortgageLinks(
   candidates: MortgageLinkCandidate[],
   alreadyLinkedPropertyIds: ReadonlySet<string>,
 ): { liabilityAccountId: string; propertyAccountId: string }[] {
@@ -58,11 +64,18 @@ function resolveMortgageLinks(
 }
 
 /**
- * Lifts `PlanLiability.linkedAssetId` pairings onto `Account.linkedAccountId`,
- * matching each side to an account by the same normalised (kind, label) key
- * the balance-item backfill above already uses — the plan row's `label`
- * against the account's `name`. A pairing whose asset or liability side has
- * no matching account (no balance row ever created one) is left unlinked
+ * Lifts `PlanLiability.linkedAssetId` pairings onto `Account.linkedAccountId`.
+ *
+ * The property side is resolved via `PlanAsset.sourceBalanceItemId` first —
+ * a fact rather than a guess, populated whenever the plan asset was seeded
+ * from the balance sheet (src/lib/plan/seed.ts) — and only falls back to the
+ * same normalised (kind, label) key the balance-item backfill above already
+ * uses when `sourceBalanceItemId` is null. `PlanLiability` has no equivalent
+ * source field, so the liability side is always label-matched; a liability
+ * relabelled independently of its plan row after seeding could in principle
+ * pair with the wrong property — a known, accepted residual risk (see the
+ * task report). A pairing whose asset or liability side still has no
+ * matching account (no balance row ever created one) is left unlinked
  * rather than guessed at.
  */
 async function linkMortgagesToProperties(
@@ -76,19 +89,49 @@ async function linkMortgagesToProperties(
       linkedAssetId: { not: null },
       plan: { userId, deletedAt: null },
     },
+    // Deterministic winner when two pairings contend for one property or
+    // one liability account (see resolveMortgageLinks) — first-created
+    // wins, matching the balance-item loop above rather than leaving it to
+    // whatever order Postgres happens to return.
+    orderBy: { createdAt: "asc" },
     select: {
       label: true,
-      linkedAsset: { select: { label: true, deletedAt: true } },
+      linkedAsset: {
+        select: { label: true, deletedAt: true, sourceBalanceItemId: true },
+      },
     },
   });
   if (pairings.length === 0) return;
 
+  // First-wins, matching the balance-item loop's `candidates.find` above:
+  // each bucket is already createdAt-ascending, so keeping only the first
+  // account seen per (kind, label) key picks the oldest, same as that loop.
   const accountByKey = new Map<string, ExistingAccount>();
   for (const bucket of existingByName.values()) {
     for (const account of bucket) {
       if (account.kind === "NONE") continue;
-      accountByKey.set(keyFor(account.kind, account.name), account);
+      const key = keyFor(account.kind, account.name);
+      if (!accountByKey.has(key)) accountByKey.set(key, account);
     }
+  }
+
+  const sourceItemIds = pairings
+    .map((p) => p.linkedAsset?.sourceBalanceItemId)
+    .filter((id): id is string => id != null);
+  const sourceItems =
+    sourceItemIds.length > 0
+      ? await tx.balanceItem.findMany({
+          where: {
+            id: { in: sourceItemIds },
+            deletedAt: null,
+            period: { userId, deletedAt: null },
+          },
+          select: { id: true, accountId: true },
+        })
+      : [];
+  const accountIdBySourceItem = new Map<string, string>();
+  for (const item of sourceItems) {
+    if (item.accountId) accountIdBySourceItem.set(item.id, item.accountId);
   }
 
   const candidates: MortgageLinkCandidate[] = [];
@@ -99,20 +142,29 @@ async function linkMortgagesToProperties(
     const liabilityAccount = accountByKey.get(
       keyFor("LIABILITY", pairing.label),
     );
-    const propertyAccount = accountByKey.get(
-      keyFor("ASSET", pairing.linkedAsset.label),
-    );
-    if (!liabilityAccount || !propertyAccount) continue;
+    const propertyAccountId = pairing.linkedAsset.sourceBalanceItemId
+      ? accountIdBySourceItem.get(pairing.linkedAsset.sourceBalanceItemId)
+      : accountByKey.get(keyFor("ASSET", pairing.linkedAsset.label))?.id;
+    if (!liabilityAccount || !propertyAccountId) continue;
 
     candidates.push({
       liabilityAccountId: liabilityAccount.id,
       liabilityAccountLinkedAccountId: liabilityAccount.linkedAccountId,
-      propertyAccountId: propertyAccount.id,
+      propertyAccountId,
     });
   }
 
+  // Deliberately unfiltered by `deletedAt`, `kind` or name — see
+  // resolveMortgageLinks' comment. An archived liability account still holds
+  // its link and still occupies the unique index; existingByName can't see
+  // it (it only reads `deletedAt: null`), so this reads the database again
+  // rather than reusing that map.
+  const alreadyLinked = await tx.account.findMany({
+    where: { userId, linkedAccountId: { not: null } },
+    select: { linkedAccountId: true },
+  });
   const alreadyLinkedPropertyIds = new Set(
-    [...accountByKey.values()]
+    alreadyLinked
       .map((a) => a.linkedAccountId)
       .filter((id): id is string => id !== null),
   );
