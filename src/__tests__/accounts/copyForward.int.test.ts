@@ -1,5 +1,9 @@
 import { createAccountWithBalance } from "@/app/(app)/balance/accountActions";
-import { copyBalancePeriodFrom } from "@/app/(app)/balance/actions";
+import {
+  copyBalancePeriodFrom,
+  copyBalanceTemplateInto,
+  saveBalanceTemplate,
+} from "@/app/(app)/balance/actions";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
 
@@ -33,5 +37,31 @@ describe("balance copy-forward (integration)", () => {
     expect(copied.accountId).toBe(accountId);
     // Still a number the user has not confirmed for April.
     expect(copied.carriedOver).toBe(true);
+  });
+
+  it("carries the account link through a saved template", async () => {
+    const { accountId, periodId } = await createAccountWithBalance({
+      year: 2026,
+      month: 2,
+      name: "Vanguard ISA",
+      type: "ASSET",
+      category: "LONG_TERM",
+      wrapper: "ISA",
+      value: 42300,
+      canImportTransactions: false,
+      mortgage: null,
+    });
+
+    await saveBalanceTemplate({ sourcePeriodId: periodId });
+    await copyBalanceTemplateInto({ targetYear: 2026, targetMonth: 5 });
+
+    const june = await prisma.financialPeriod.findFirstOrThrow({
+      where: { userId: TEST_USER_ID, startDate: new Date("2026-06-01") },
+    });
+    const copied = await prisma.balanceItem.findFirstOrThrow({
+      where: { periodId: june.id },
+    });
+
+    expect(copied.accountId).toBe(accountId);
   });
 });

@@ -348,6 +348,7 @@ export async function saveBalanceTemplate(input: SaveBalanceTemplateInput) {
       value: true,
       notes: true,
       sortOrder: true,
+      accountId: true,
     },
   });
 
@@ -360,6 +361,7 @@ export async function saveBalanceTemplate(input: SaveBalanceTemplateInput) {
     value: Number(it.value),
     notes: it.notes,
     sortOrder: it.sortOrder,
+    accountId: it.accountId,
   }));
 
   await prisma.$transaction([
@@ -389,6 +391,7 @@ export async function copyBalanceTemplateInto(input: CopyBalanceTemplateInput) {
       value: true,
       notes: true,
       sortOrder: true,
+      accountId: true,
     },
   });
   if (templateItems.length === 0) {
@@ -408,6 +411,7 @@ export async function copyBalanceTemplateInto(input: CopyBalanceTemplateInput) {
     value: Number(it.value),
     notes: it.notes,
     sortOrder: it.sortOrder,
+    accountId: it.accountId,
     // The clone holds a number the user hasn't confirmed for this month yet.
     carriedOver: true,
   }));
@@ -428,6 +432,7 @@ export async function copyBalanceTemplateInto(input: CopyBalanceTemplateInput) {
         notes: it.notes,
         sortOrder: it.sortOrder,
         carriedOver: it.carriedOver,
+        accountId: it.accountId,
       })),
     }),
   ]);

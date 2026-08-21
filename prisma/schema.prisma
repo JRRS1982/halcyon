@@ -261,10 +261,13 @@ model BalanceTemplateItem {
   createdAt DateTime            @default(now())
   updatedAt DateTime            @updatedAt
   deletedAt DateTime?
+  accountId String?             @db.Uuid
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
 
   @@index([userId, type, category, sortOrder])
+  @@index([accountId])
 }
 
 // A stable, user-owned spending/earning category — the spine both the budget
@@ -326,14 +329,15 @@ model Account {
   updatedAt             DateTime             @updatedAt
   deletedAt             DateTime?
 
-  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transactions   Transaction[]   @relation("AccountTransactions")
-  transfersFrom  Transaction[]   @relation("TransferCounterparty")
-  importBatches  ImportBatch[]
-  balanceItems   BalanceItem[]
-  financialItems FinancialItem[]
-  linkedAccount  Account?        @relation("AccountLink", fields: [linkedAccountId], references: [id], onDelete: SetNull)
-  linkedBy       Account?        @relation("AccountLink")
+  user                 User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions         Transaction[]         @relation("AccountTransactions")
+  transfersFrom        Transaction[]         @relation("TransferCounterparty")
+  importBatches        ImportBatch[]
+  balanceItems         BalanceItem[]
+  financialItems       FinancialItem[]
+  balanceTemplateItems BalanceTemplateItem[]
+  linkedAccount        Account?              @relation("AccountLink", fields: [linkedAccountId], references: [id], onDelete: SetNull)
+  linkedBy             Account?              @relation("AccountLink")
 
   @@index([userId])
   @@index([userId, kind])
