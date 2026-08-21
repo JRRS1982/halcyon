@@ -13,6 +13,7 @@ import {
 } from "@/lib/accounts/schemas";
 import { ensurePeriodForMonthIn } from "@/lib/budget/ensurePeriod";
 import { monthRangeFor } from "@/lib/budget/period";
+import { cleanLabel } from "@/lib/categories/normalize";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 
@@ -29,6 +30,7 @@ function revalidateAll() {
   revalidatePath("/balance");
   revalidatePath("/settings");
   revalidatePath("/dashboard");
+  revalidatePath("/transactions");
 }
 
 // Throws unless the account is the caller's. Every action starts here — the
@@ -39,6 +41,46 @@ async function requireOwnedAccount(userId: string, accountId: string) {
   });
   if (!account) throw new Error("Account not found");
   return account;
+}
+
+// Resolves the id of the account linked to `accountId`, in either direction —
+// the link is one-directional in the schema (`linkedAccountId`) but symmetric
+// in meaning: this account may point at its partner, or be pointed at by it.
+//
+// Scoped to `userId` on every read, including the final one. The value
+// stored in `linkedAccountId` is not itself trustworthy cross-tenant data —
+// nothing but this action's own write path currently keeps it pointed at a
+// same-user sibling, and that's a convention, not a constraint the database
+// enforces. A future feature that lets a user link accounts by picking an id
+// would write straight into this column, so the last read re-verifies
+// ownership rather than trusting the column's value.
+//
+// Neither direction filters on the partner's archived state: an archived
+// partner is still linked, so both a size-checking dialog and a "delete the
+// linked account too" gesture should still find it.
+async function resolveLinkedPartnerId(
+  userId: string,
+  accountId: string,
+): Promise<string | null> {
+  const [own, pointedAtBy] = await Promise.all([
+    prisma.account.findFirst({
+      where: { id: accountId, userId },
+      select: { linkedAccountId: true },
+    }),
+    prisma.account.findFirst({
+      where: { userId, linkedAccountId: accountId },
+      select: { id: true },
+    }),
+  ]);
+
+  const candidateId = own?.linkedAccountId ?? pointedAtBy?.id ?? null;
+  if (!candidateId) return null;
+
+  const partner = await prisma.account.findFirst({
+    where: { id: candidateId, userId },
+    select: { id: true },
+  });
+  return partner?.id ?? null;
 }
 
 /**
@@ -54,10 +96,13 @@ export async function createAccountWithBalance(
   const userId = await requireUserId();
   const parsed = createAccountWithBalanceSchema.parse(input);
   const range = monthRangeFor(parsed.year, parsed.month);
+  const name = cleanLabel(parsed.name);
 
   const result = await prisma.$transaction(async (tx) => {
     const period = await ensurePeriodForMonthIn(tx, userId, range);
 
+    // sortOrder appends at the end of the (period, type, category) bucket —
+    // the same convention createBalanceItemForMonth uses.
     const last = await tx.balanceItem.findFirst({
       where: {
         periodId: period.id,
@@ -68,15 +113,16 @@ export async function createAccountWithBalance(
       orderBy: { sortOrder: "desc" },
       select: { sortOrder: true },
     });
-    let sortOrder = (last?.sortOrder ?? 0) + 1;
 
     const account = await tx.account.create({
       data: {
         userId,
-        name: parsed.name,
+        name,
         kind: parsed.type,
         category: parsed.category,
-        wrapper: parsed.wrapper,
+        // A tax wrapper describes what you own, not what you owe — meaningless
+        // on a liability, so only an asset entry carries one.
+        wrapper: parsed.type === "ASSET" ? parsed.wrapper : null,
         canImportTransactions: parsed.canImportTransactions,
       },
     });
@@ -87,33 +133,52 @@ export async function createAccountWithBalance(
         accountId: account.id,
         type: parsed.type,
         category: parsed.category,
-        label: parsed.name,
+        label: name,
         value: parsed.value,
-        sortOrder,
+        sortOrder: (last?.sortOrder ?? 0) + 1,
       },
     });
 
     if (parsed.mortgage) {
+      const mortgageName = cleanLabel(parsed.mortgage.name);
+
+      // A different (type, category) bucket from the property's own row —
+      // PROPERTY is asset-only, mortgage debt files under long-term
+      // liabilities (see BalanceSheet.tsx and prisma/schema.prisma) — so its
+      // sortOrder is computed against that bucket, not appended onto the
+      // asset row's.
+      const lastLiability = await tx.balanceItem.findFirst({
+        where: {
+          periodId: period.id,
+          type: "LIABILITY",
+          category: "LONG_TERM",
+          deletedAt: null,
+        },
+        orderBy: { sortOrder: "desc" },
+        select: { sortOrder: true },
+      });
+
       const mortgage = await tx.account.create({
         data: {
           userId,
-          name: parsed.mortgage.name,
+          name: mortgageName,
           kind: "LIABILITY",
-          category: parsed.category,
+          category: "LONG_TERM",
+          wrapper: null,
           canImportTransactions: parsed.mortgage.canImportTransactions,
           linkedAccountId: account.id,
         },
       });
-      sortOrder += 1;
+
       await tx.balanceItem.create({
         data: {
           periodId: period.id,
           accountId: mortgage.id,
           type: "LIABILITY",
-          category: parsed.category,
-          label: parsed.mortgage.name,
+          category: "LONG_TERM",
+          label: mortgageName,
           value: parsed.mortgage.value,
-          sortOrder,
+          sortOrder: (lastLiability?.sortOrder ?? 0) + 1,
         },
       });
     }
@@ -126,34 +191,37 @@ export async function createAccountWithBalance(
 }
 
 // Stop tracking: the account leaves next month's sheet and the pickers, and
-// every observation already recorded stays exactly where it is.
+// every observation already recorded stays exactly where it is. A single
+// statement rather than check-then-act: the `userId` filter on the update
+// itself is the ownership check, so there's no gap between proving ownership
+// and acting on it.
 export async function archiveAccount(input: AccountIdInput): Promise<void> {
   const userId = await requireUserId();
   const { accountId } = accountIdSchema.parse(input);
-  await requireOwnedAccount(userId, accountId);
 
-  await prisma.account.update({
-    where: { id: accountId },
+  const result = await prisma.account.updateMany({
+    where: { id: accountId, userId },
     data: { deletedAt: new Date() },
   });
+  if (result.count === 0) throw new Error("Account not found");
   revalidateAll();
 }
 
 export async function restoreAccount(input: AccountIdInput): Promise<void> {
   const userId = await requireUserId();
   const { accountId } = accountIdSchema.parse(input);
-  await requireOwnedAccount(userId, accountId);
 
-  await prisma.account.update({
-    where: { id: accountId },
+  const result = await prisma.account.updateMany({
+    where: { id: accountId, userId },
     data: { deletedAt: null },
   });
+  if (result.count === 0) throw new Error("Account not found");
   revalidateAll();
 }
 
-// What the confirmation panel says out loud. "Removes all 14 monthly values" is
-// a very different sentence from "are you sure?", and it is the one that stops
-// the mistake.
+// What the confirmation panel says out loud. "Removes all 14 monthly values
+// and 6 imported transactions" is a very different sentence from "are you
+// sure?", and it is the one that stops the mistake.
 export async function accountDeletionCounts(
   input: AccountIdInput,
 ): Promise<AccountDeletionCounts> {
@@ -161,26 +229,21 @@ export async function accountDeletionCounts(
   const { accountId } = accountIdSchema.parse(input);
   await requireOwnedAccount(userId, accountId);
 
-  // The link is one-directional in the schema but symmetric in meaning: this
-  // account may point at its partner, or be pointed at by it. Check both.
-  const [months, budgetRows, own, pointedAtBy] = await Promise.all([
-    prisma.balanceItem.count({ where: { accountId, deletedAt: null } }),
-    prisma.financialItem.count({ where: { accountId, deletedAt: null } }),
-    prisma.account.findUniqueOrThrow({
-      where: { id: accountId },
-      select: { linkedAccountId: true },
-    }),
-    prisma.account.findFirst({
-      where: { userId, deletedAt: null, linkedAccountId: accountId },
-      select: { id: true },
-    }),
-  ]);
+  const [months, budgetRows, transactions, importBatches, partnerId] =
+    await Promise.all([
+      prisma.balanceItem.count({ where: { accountId, deletedAt: null } }),
+      prisma.financialItem.count({ where: { accountId, deletedAt: null } }),
+      prisma.transaction.count({ where: { accountId, deletedAt: null } }),
+      prisma.importBatch.count({ where: { accountId } }),
+      resolveLinkedPartnerId(userId, accountId),
+    ]);
 
-  const partnerId = own.linkedAccountId ?? pointedAtBy?.id ?? null;
-  if (!partnerId) return { months, budgetRows, linked: null };
+  if (!partnerId) {
+    return { months, budgetRows, transactions, importBatches, linked: null };
+  }
 
-  const partner = await prisma.account.findUniqueOrThrow({
-    where: { id: partnerId },
+  const partner = await prisma.account.findFirstOrThrow({
+    where: { id: partnerId, userId },
     select: { id: true, name: true },
   });
   const latest = await prisma.balanceItem.findFirst({
@@ -192,6 +255,8 @@ export async function accountDeletionCounts(
   return {
     months,
     budgetRows,
+    transactions,
+    importBatches,
     linked: {
       accountId: partner.id,
       name: partner.name,
@@ -201,9 +266,19 @@ export async function accountDeletionCounts(
 }
 
 /**
- * Remove the account and every trace of it. One transaction, so a linked pair
- * cannot half-succeed. Unticking the partner clears its link rather than
- * leaving it pointing at a row that no longer exists.
+ * Remove the account and every trace of it: its balance/budget history, its
+ * imported ledger, and — when asked — its linked property or mortgage. One
+ * transaction, so a linked pair cannot half-succeed. Unticking the partner
+ * clears its link rather than leaving it pointing at a row that no longer
+ * exists.
+ *
+ * Refuses outright if some other account's transaction still names this
+ * account (or the partner, when deleting both) as its transfer counterparty:
+ * deleting that reference would either destroy a ledger the user never asked
+ * to touch, or hit the `Restrict` the schema puts on
+ * `Transaction.transferAccount` specifically so this can't happen silently.
+ * A transaction that belongs to one of the accounts being deleted doesn't
+ * count — it's leaving too.
  */
 export async function deleteAccountEverywhere(
   input: DeleteAccountEverywhereInput,
@@ -212,15 +287,41 @@ export async function deleteAccountEverywhere(
   const { accountId, alsoLinked } = deleteAccountEverywhereSchema.parse(input);
   await requireOwnedAccount(userId, accountId);
 
-  const counts = await accountDeletionCounts({ accountId });
-  const ids =
-    alsoLinked && counts.linked
-      ? [accountId, counts.linked.accountId]
-      : [accountId];
+  const partnerId = alsoLinked
+    ? await resolveLinkedPartnerId(userId, accountId)
+    : null;
+  const ids = partnerId ? [accountId, partnerId] : [accountId];
+
+  const blockingTransfers = await prisma.transaction.count({
+    where: {
+      userId,
+      deletedAt: null,
+      transferAccountId: { in: ids },
+      accountId: { notIn: ids },
+    },
+  });
+  if (blockingTransfers > 0) {
+    throw new Error(
+      "This account still has transactions. Reassign or remove them first.",
+    );
+  }
 
   await prisma.$transaction(async (tx) => {
-    await tx.balanceItem.deleteMany({ where: { accountId: { in: ids } } });
-    await tx.financialItem.deleteMany({ where: { accountId: { in: ids } } });
+    // The account's own ledger goes too — "delete it everywhere" means it,
+    // not just the balance sheet. Deleted explicitly (rather than left to the
+    // schema's Cascade) so accountDeletionCounts above can report the size of
+    // what's about to happen.
+    await tx.transaction.deleteMany({ where: { accountId: { in: ids } } });
+    await tx.importBatch.deleteMany({ where: { accountId: { in: ids } } });
+    // Rows already soft-deleted are left alone here — the FK's own
+    // ON DELETE SET NULL clears their accountId when the account goes,
+    // which is exactly the behaviour under test elsewhere in this suite.
+    await tx.balanceItem.deleteMany({
+      where: { accountId: { in: ids }, deletedAt: null },
+    });
+    await tx.financialItem.deleteMany({
+      where: { accountId: { in: ids }, deletedAt: null },
+    });
     // Break links in both directions before deleting, so no survivor is left
     // pointing at a row that is about to disappear.
     await tx.account.updateMany({
@@ -228,7 +329,7 @@ export async function deleteAccountEverywhere(
       data: { linkedAccountId: null },
     });
     await tx.account.updateMany({
-      where: { id: { in: ids } },
+      where: { id: { in: ids }, userId },
       data: { linkedAccountId: null },
     });
     await tx.account.deleteMany({ where: { id: { in: ids }, userId } });
