@@ -2,9 +2,12 @@ import {
   createManagedAccount,
   deleteAccount,
   renameAccount,
+  setAccountImports,
 } from "@/app/(app)/settings/accountActions";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
+
+const OTHER_USER_ID = "00000000-0000-0000-0000-0000000000bb";
 
 describe("account CRUD (integration)", () => {
   test("creates and renames an account", async () => {
@@ -66,5 +69,40 @@ describe("account CRUD (integration)", () => {
     await expect(
       deleteAccount({ accountId: counterparty.id }),
     ).rejects.toThrow();
+  });
+
+  test("turns imports on for an account, changeable after creation", async () => {
+    const acct = await prisma.account.create({
+      data: {
+        userId: TEST_USER_ID,
+        name: "Halifax mortgage",
+        canImportTransactions: false,
+      },
+    });
+    await setAccountImports({ accountId: acct.id, enabled: true });
+    const after = await prisma.account.findUniqueOrThrow({
+      where: { id: acct.id },
+    });
+    expect(after.canImportTransactions).toBe(true);
+  });
+
+  // ADR-002: the server role bypasses RLS, so this userId-scoped update is the
+  // only fence — proven here by attempting to touch another user's account.
+  test("refuses to touch another user's account", async () => {
+    await prisma.user.create({ data: { id: OTHER_USER_ID } });
+    const theirs = await prisma.account.create({
+      data: {
+        userId: OTHER_USER_ID,
+        name: "Their ISA",
+        canImportTransactions: false,
+      },
+    });
+    await expect(
+      setAccountImports({ accountId: theirs.id, enabled: true }),
+    ).rejects.toThrow();
+    const after = await prisma.account.findUniqueOrThrow({
+      where: { id: theirs.id },
+    });
+    expect(after.canImportTransactions).toBe(false);
   });
 });

@@ -84,11 +84,18 @@ export default async function SettingsPage() {
 
   // Accounts with both reference counts, so the manager can block deletion of an
   // account that still owns transactions or is named as a transfer counterparty.
-  const accountRows = await prisma.account.findMany({
-    where: { userId, deletedAt: null },
-    orderBy: { name: "asc" },
-    select: { id: true, name: true },
-  });
+  const [accountRows, archivedAccounts] = await Promise.all([
+    prisma.account.findMany({
+      where: { userId, deletedAt: null },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, canImportTransactions: true },
+    }),
+    prisma.account.findMany({
+      where: { userId, deletedAt: { not: null } },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
+  ]);
   const [ownedCounts, counterpartyCounts] = await Promise.all([
     prisma.transaction.groupBy({
       by: ["accountId"],
@@ -113,6 +120,7 @@ export default async function SettingsPage() {
     name: a.name,
     ownedCount: ownedByAccount[a.id] ?? 0,
     counterpartyCount: counterpartyByAccount[a.id] ?? 0,
+    canImportTransactions: a.canImportTransactions,
   }));
 
   const currencyOptions = CURRENCY_CODES.map((code) => {
@@ -148,7 +156,7 @@ export default async function SettingsPage() {
       />
       <DashboardSettings hiddenCharts={hiddenCharts} />
       <CategoryManager categories={managedCategories} />
-      <AccountManager accounts={managedAccounts} />
+      <AccountManager accounts={managedAccounts} archived={archivedAccounts} />
       <DataPrivacy />
     </main>
   );

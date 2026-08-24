@@ -3,11 +3,13 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import styled from "styled-components";
+import { restoreAccount } from "@/app/(app)/balance/accountActions";
 import { Button } from "@/components/ui/Button";
 import {
   createManagedAccount,
   deleteAccount,
   renameAccount,
+  setAccountImports,
 } from "./accountActions";
 import { SectionHeading, SettingsCard } from "./SectionHeading";
 
@@ -18,7 +20,11 @@ export type ManagedAccount = {
   ownedCount: number;
   // Transactions naming this account as a transfer counterparty.
   counterpartyCount: number;
+  // Absent on accounts predating this field's read; treated as off.
+  canImportTransactions?: boolean;
 };
+
+export type ArchivedAccount = { id: string; name: string };
 
 const Shell = styled.section`
   max-width: 720px;
@@ -90,6 +96,16 @@ const TextButton = styled.button<{ $danger?: boolean }>`
   }
 `;
 
+const ImportToggle = styled.label`
+  display: flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.xs};
+  font-family: ${({ theme }) => theme.typography.bodyMd.family};
+  font-size: 13px;
+  color: ${({ theme }) => theme.colors.body};
+  white-space: nowrap;
+`;
+
 // The row's action cluster. Inline after the meta on desktop; on a phone it
 // takes a full second line, right-aligned, instead of wrapping raggedly with
 // one action orphaned per line.
@@ -120,7 +136,13 @@ const Empty = styled.p`
 
 type Mode = { kind: "edit" | "delete"; id: string } | null;
 
-export function AccountManager({ accounts }: { accounts: ManagedAccount[] }) {
+export function AccountManager({
+  accounts,
+  archived,
+}: {
+  accounts: ManagedAccount[];
+  archived: ArchivedAccount[];
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [mode, setMode] = useState<Mode>(null);
@@ -203,6 +225,22 @@ export function AccountManager({ accounts }: { accounts: ManagedAccount[] }) {
         <Grow>{a.name}</Grow>
         <Meta>{referenced} txns</Meta>
         <RowActions>
+          <ImportToggle>
+            <input
+              type="checkbox"
+              checked={a.canImportTransactions ?? false}
+              disabled={pending}
+              onChange={(e) =>
+                run(() =>
+                  setAccountImports({
+                    accountId: a.id,
+                    enabled: e.target.checked,
+                  }),
+                )
+              }
+            />
+            Import statements
+          </ImportToggle>
           <TextButton
             type="button"
             onClick={() => {
@@ -253,6 +291,28 @@ export function AccountManager({ accounts }: { accounts: ManagedAccount[] }) {
           [...accounts]
             .sort((a, b) => a.name.localeCompare(b.name))
             .map(renderRow)
+        )}
+
+        {archived.length > 0 && (
+          <>
+            <SectionHeading>Archived</SectionHeading>
+            {[...archived]
+              .sort((a, b) => a.name.localeCompare(b.name))
+              .map((a) => (
+                <Row key={a.id}>
+                  <Grow>{a.name}</Grow>
+                  <TextButton
+                    type="button"
+                    disabled={pending}
+                    onClick={() =>
+                      run(() => restoreAccount({ accountId: a.id }))
+                    }
+                  >
+                    Restore
+                  </TextButton>
+                </Row>
+              ))}
+          </>
         )}
       </SettingsCard>
     </Shell>
