@@ -1,5 +1,5 @@
 // src/__tests__/balance/BalanceSheet.test.tsx
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ThemeProvider } from "styled-components";
 import {
   BalanceSheet,
@@ -14,10 +14,11 @@ jest.mock("next/navigation", () => ({
   useRouter: () => ({ push: jest.fn(), refresh }),
 }));
 
+const deleteBalanceItem = jest.fn();
 jest.mock("@/app/(app)/balance/actions", () => ({
   copyBalancePeriodFrom: jest.fn(),
   copyBalanceTemplateInto: jest.fn(),
-  deleteBalanceItem: jest.fn(),
+  deleteBalanceItem: (...args: unknown[]) => deleteBalanceItem(...args),
   listCopyableBalancePeriods: jest.fn().mockResolvedValue([]),
   moveBalanceItem: jest.fn(),
   saveBalanceTemplate: jest.fn(),
@@ -27,8 +28,10 @@ jest.mock("@/app/(app)/balance/actions", () => ({
   updateBalanceItem: jest.fn(() => new Promise(() => {})),
 }));
 
+const accountDeletionCounts = jest.fn();
 jest.mock("@/app/(app)/balance/accountActions", () => ({
   createAccountWithBalance: jest.fn(),
+  accountDeletionCounts: (...args: unknown[]) => accountDeletionCounts(...args),
 }));
 
 const period: SerializedPeriod = {
@@ -105,5 +108,54 @@ describe("BalanceSheet — refresh adoption vs. an unsaved edit", () => {
     );
 
     expect(amountInput.value).toBe(formatAmount("GBP", 200, "COMMA_0"));
+  });
+});
+
+describe("BalanceSheet — onDelete branches on accountId", () => {
+  beforeEach(() => {
+    deleteBalanceItem.mockClear();
+    accountDeletionCounts.mockClear();
+  });
+
+  // The hard risk this pins: a row backed by a durable Account must go
+  // through the counts-then-confirm panel, never straight to
+  // deleteBalanceItem — that path skips the "how much history does this
+  // remove" step entirely.
+  test("a row with an accountId opens the delete panel instead of deleting directly", async () => {
+    accountDeletionCounts.mockResolvedValue({
+      months: 3,
+      budgetRows: 1,
+      transactions: 0,
+      importBatches: 0,
+      linked: null,
+    });
+    const item: SerializedBalanceItem = { ...baseItem, accountId: "account-1" };
+    renderSheet([item]);
+
+    fireEvent.focus(screen.getByDisplayValue(item.label));
+    fireEvent.click(screen.getByRole("button", { name: /delete row/i }));
+
+    expect(await screen.findByRole("alertdialog")).toBeInTheDocument();
+    expect(accountDeletionCounts).toHaveBeenCalledWith({
+      accountId: "account-1",
+    });
+    expect(deleteBalanceItem).not.toHaveBeenCalled();
+  });
+
+  // The other hard risk: a legacy row that predates the backfill (no
+  // accountId at all) must keep the old direct-delete path — it must never
+  // reach the panel, which would fetch counts for an account that doesn't
+  // exist.
+  test("a legacy row with no accountId still deletes directly, bypassing the panel", async () => {
+    renderSheet([baseItem]);
+
+    fireEvent.focus(screen.getByDisplayValue(baseItem.label));
+    fireEvent.click(screen.getByRole("button", { name: /delete row/i }));
+
+    await waitFor(() =>
+      expect(deleteBalanceItem).toHaveBeenCalledWith({ itemId: baseItem.id }),
+    );
+    expect(accountDeletionCounts).not.toHaveBeenCalled();
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
   });
 });

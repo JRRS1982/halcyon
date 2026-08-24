@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ThemeProvider } from "styled-components";
 import { DeleteAccountPanel } from "@/app/(app)/balance/DeleteAccountPanel";
 import { theme } from "@/lib/theme";
@@ -47,10 +47,12 @@ describe("DeleteAccountPanel", () => {
     expect(screen.getByRole("radio", { name: /stop tracking/i })).toBeChecked();
   });
 
-  test("stop tracking archives without demanding confirmation text", () => {
+  test("stop tracking archives without demanding confirmation text", async () => {
     renderPanel();
     fireEvent.click(screen.getByRole("button", { name: /^delete$/i }));
-    expect(archive).toHaveBeenCalledWith({ accountId: "a1" });
+    await waitFor(() =>
+      expect(archive).toHaveBeenCalledWith({ accountId: "a1" }),
+    );
   });
 
   test("delete everywhere is blocked until DELETE is typed", () => {
@@ -90,7 +92,7 @@ describe("DeleteAccountPanel", () => {
     expect(screen.getByLabelText(/also delete "home"/i)).not.toBeChecked();
   });
 
-  test("passes the partner choice through", () => {
+  test("passes the partner choice through", async () => {
     renderPanel({ name: "Home", counts: linkedCounts, isProperty: true });
     fireEvent.click(
       screen.getByRole("radio", { name: /delete it everywhere/i }),
@@ -100,9 +102,11 @@ describe("DeleteAccountPanel", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /^delete$/i }));
 
-    expect(deleteEverywhere).toHaveBeenCalledWith({
-      accountId: "a1",
-      alsoLinked: true,
-    });
+    await waitFor(() =>
+      expect(deleteEverywhere).toHaveBeenCalledWith({
+        accountId: "a1",
+        alsoLinked: true,
+      }),
+    );
   });
 });

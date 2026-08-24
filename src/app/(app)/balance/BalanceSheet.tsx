@@ -1126,6 +1126,57 @@ export function BalanceSheet({
     router.refresh();
   }, [router]);
 
+  // The delete panel is an alertdialog over the sheet, so it gets the same
+  // focus management as AddAccountDrawer.tsx's Sheet (itself adapted from
+  // plan/PlanDrawer.tsx): Esc closes; Tab is trapped inside the modal; body
+  // scroll is locked; focus moves into the modal on open and back to
+  // whatever triggered it on close.
+  const deleteModalRef = useRef<HTMLDivElement>(null);
+  const closeDeletePanelRef = useRef(closeDeletePanel);
+  closeDeletePanelRef.current = closeDeletePanel;
+
+  useEffect(() => {
+    if (!deletePanel) return;
+    const modal = deleteModalRef.current;
+    const trigger =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        closeDeletePanelRef.current();
+        return;
+      }
+      if (e.key !== "Tab" || !modal) return;
+      const focusables = modal.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (!first || !last) return;
+      const active = document.activeElement;
+      if (e.shiftKey && active === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    modal?.focus();
+
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+      trigger?.focus();
+    };
+  }, [deletePanel]);
+
   // Move the focused row up / down. computeMove handles crossing the
   // category and Asset/Liability boundaries one slot at a time. Optimistic:
   // apply locally, then persist; revert on error.
@@ -1665,8 +1716,12 @@ export function BalanceSheet({
         onCreated={onAccountCreated}
       />
       {deletePanel && (
-        <DeleteScrim>
-          <DeleteModal>
+        <DeleteScrim
+          onClick={(e) => {
+            if (e.target === e.currentTarget) closeDeletePanel();
+          }}
+        >
+          <DeleteModal ref={deleteModalRef} tabIndex={-1}>
             <DeleteAccountPanel
               accountId={deletePanel.accountId}
               name={deletePanel.name}

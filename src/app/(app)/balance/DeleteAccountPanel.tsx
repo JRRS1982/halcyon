@@ -222,9 +222,8 @@ export function DeleteAccountPanel({
               type="checkbox"
               checked={alsoLinked}
               onChange={(e) => setAlsoLinked(e.target.checked)}
-              aria-label={`Also delete "${linked.name}"`}
             />
-            Also delete &ldquo;{linked.name}&rdquo;
+            Also delete &quot;{linked.name}&quot;
           </CheckboxLabel>
           <Text>Currently valued at {money(linked.latestValue)}.</Text>
           {mode === "everywhere" && alsoLinked && (
@@ -254,6 +253,7 @@ export function DeleteAccountPanel({
             value={confirmText}
             onChange={(e) => setConfirmText(e.target.value)}
             placeholder="Type DELETE to confirm"
+            aria-label={`Type DELETE to confirm deleting "${name}"`}
           />
         </ConfirmField>
       )}
