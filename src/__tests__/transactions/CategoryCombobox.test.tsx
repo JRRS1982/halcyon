@@ -28,7 +28,7 @@ const renderit = (overrides: Record<string, unknown> = {}) => {
     <ThemeProvider theme={theme}>
       <CategoryCombobox
         categories={categories}
-        accounts={accounts}
+        transferAccounts={accounts}
         value={null}
         transferAccountId={null}
         ownAccountId="a1"

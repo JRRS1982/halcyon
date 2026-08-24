@@ -521,7 +521,11 @@ type LedgerProps = {
   // The URL-derived query this page was rendered for.
   query: LedgerUrlQuery;
   categories: LedgerCategory[];
-  accounts: LedgerAccount[];
+  // The full, unfiltered account list — not gated by canImportTransactions.
+  // Used only as transfer targets and to resolve a row's transferAccountId to
+  // a display name; deliberately not the importable-only list the page also
+  // queries for the import picker and quick-add.
+  transferAccounts: LedgerAccount[];
   uncategorizedCount: number;
   transfersEnabled: boolean;
 };
@@ -530,7 +534,7 @@ export function Ledger({
   page,
   query,
   categories: initialCategories,
-  accounts: initialAccounts,
+  transferAccounts: initialTransferAccounts,
   uncategorizedCount,
   transfersEnabled,
 }: LedgerProps) {
@@ -545,7 +549,9 @@ export function Ledger({
   // the navigation round-trips.
   const [uncatChecked, setUncatChecked] = useState(query.onlyUncategorized);
   const [categories, setCategories] = useState(initialCategories);
-  const [accounts, setAccounts] = useState(initialAccounts);
+  const [transferAccounts, setTransferAccounts] = useState(
+    initialTransferAccounts,
+  );
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmDelete, setConfirmDelete] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -565,8 +571,8 @@ export function Ledger({
 
   useEffect(() => {
     setCategories(initialCategories);
-    setAccounts(initialAccounts);
-  }, [initialCategories, initialAccounts]);
+    setTransferAccounts(initialTransferAccounts);
+  }, [initialCategories, initialTransferAccounts]);
 
   // Keep the search box and filter switch in step with the URL (e.g.
   // back/forward navigation).
@@ -675,7 +681,7 @@ export function Ledger({
         transactionIds: [transactionId],
         name,
       });
-      setAccounts((prev) =>
+      setTransferAccounts((prev) =>
         [...prev, created].sort((a, b) => a.name.localeCompare(b.name)),
       );
       applyTransfer(transactionId, created.id);
@@ -815,7 +821,7 @@ export function Ledger({
         transactionIds: ids,
         name,
       });
-      setAccounts((prev) =>
+      setTransferAccounts((prev) =>
         [...prev, created].sort((a, b) => a.name.localeCompare(b.name)),
       );
       setItems((prev) =>
@@ -903,7 +909,7 @@ export function Ledger({
           </BulkCount>
           <CategoryCombobox
             categories={categories}
-            accounts={accounts}
+            transferAccounts={transferAccounts}
             value={null}
             transferAccountId={null}
             // Bulk selections can span accounts, so no account is excluded
@@ -1005,7 +1011,7 @@ export function Ledger({
                     <Td onClick={(e) => e.stopPropagation()}>
                       <CategoryCombobox
                         categories={categories}
-                        accounts={accounts}
+                        transferAccounts={transferAccounts}
                         value={tx.categoryId}
                         transferAccountId={tx.transferAccountId}
                         ownAccountId={tx.accountId}
