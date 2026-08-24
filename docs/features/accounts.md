@@ -139,12 +139,16 @@ applies to.
    `PlanLiability` matching residual" below for how the two sides of that
    pairing are resolved differently.
 
-**It's idempotent.** A second run reads only rows with `accountId: null` and
-only creates an account when no matching one exists, so it reports
-`0 accounts created, 0 rows linked` (the script's final summary line phrases
-it as "N accounts created, N balance rows linked") and touches nothing. This
-is safe by construction, not by convention — there's no "already ran" flag to
-get out of sync.
+**It's idempotent — for runs that don't overlap.** A second, later run reads
+only rows with `accountId: null` and only creates an account when no matching
+one exists, so it reports `0 accounts created, 0 rows linked` (the script's
+final summary line phrases it as "N accounts created, N balance rows linked")
+and touches nothing. This is safe by construction, not by convention — there's
+no "already ran" flag to get out of sync. It is **not** safe against two runs
+*for the same user* overlapping in time: there's no advisory lock, so two
+concurrent invocations can both read the same unlinked rows before either has
+written anything, and both create an account for the same (type, label) pair.
+Run it sequentially, one user at a time.
 
 ### Running it against production
 

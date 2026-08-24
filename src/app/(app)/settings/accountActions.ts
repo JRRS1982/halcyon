@@ -22,6 +22,7 @@ function revalidateAll() {
   revalidatePath("/settings");
   revalidatePath("/transactions");
   revalidatePath("/budget");
+  revalidatePath("/balance");
 }
 
 const createSchema = z.object({ name: z.string().trim().min(1).max(120) });

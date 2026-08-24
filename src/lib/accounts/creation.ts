@@ -47,7 +47,7 @@ export function buildMortgageAccountData(mortgage: MortgageInput) {
 }
 
 // sortOrder appends at the end of a (period, type, category) bucket — the
-// same convention createBalanceItemForMonth uses.
+// same convention the budget/balance sheets' other row-creating actions use.
 export function nextSortOrder(
   lastSortOrder: number | null | undefined,
 ): number {

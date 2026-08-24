@@ -32,7 +32,7 @@ export default async function TransactionsPage({
 
   const [accounts, categories, page, uncategorizedCount] = await Promise.all([
     prisma.account.findMany({
-      where: { userId, deletedAt: null },
+      where: { userId, deletedAt: null, canImportTransactions: true },
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),

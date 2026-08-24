@@ -318,9 +318,11 @@ model Account {
   wrapper               PlanAssetWrapper?
   // The user's choice, not a derived fact: plenty of mortgage providers issue
   // statements. `kind` supplies only the initial default at creation time and
-  // never overrides it afterwards. Gates the CSV-import target picker and the
-  // ledger's account filter, and nothing else — the transfer counterparty
-  // picker filters on `kind != NONE`.
+  // never overrides it afterwards. Gates which accounts the transactions page
+  // offers at all: src/app/(app)/transactions/page.tsx queries the one
+  // account list this flag filters, and the import target picker, quick-add
+  // and the ledger's account filter all render from that same list. Nothing
+  // else reads this column — in particular, no picker filters on `kind`.
   canImportTransactions Boolean              @default(true)
   // Mortgage ↔ property. A fact about the house, not about one plan, which is
   // why it lives here rather than on PlanLiability.

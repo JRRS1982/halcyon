@@ -215,7 +215,7 @@ export function DeleteAccountPanel({
         </RadioOption>
       </RadioFieldset>
 
-      {linked && (
+      {linked && mode === "everywhere" && (
         <PartnerBlock>
           <CheckboxLabel>
             <input

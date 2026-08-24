@@ -8,10 +8,8 @@ import { computeMove } from "@/lib/balance/reorder";
 import {
   type CopyBalancePeriodFromInput,
   type CopyBalanceTemplateInput,
-  type CreateBalanceItemForMonthInput,
   copyBalancePeriodFromSchema,
   copyBalanceTemplateSchema,
-  createBalanceItemForMonthSchema,
   type DeleteBalanceItemInput,
   deleteBalanceItemSchema,
   type MoveBalanceItemInput,
@@ -23,8 +21,6 @@ import {
   type UpdateBalanceItemInput,
   updateBalanceItemSchema,
 } from "@/lib/balance/schemas";
-import { ensurePeriodForMonthIn } from "@/lib/budget/ensurePeriod";
-import { monthRangeFor } from "@/lib/budget/period";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { ensurePeriodForMonth } from "../budget/actions";
@@ -48,48 +44,6 @@ async function requireUserId(): Promise<string> {
     redirect("/sign-in?next=/balance");
   }
   return user.id;
-}
-
-// Adds a row to a month, creating that month's FinancialPeriod if this is the
-// first row in it.
-//
-// One action rather than ensurePeriodForMonth followed by createBalanceItem:
-// those ran as two requests from the sheet, so navigating between them left a
-// period row with nothing in it — a month that looks visited but is empty.
-export async function createBalanceItemForMonth(
-  input: CreateBalanceItemForMonthInput,
-) {
-  const userId = await requireUserId();
-  const parsed = createBalanceItemForMonthSchema.parse(input);
-  const range = monthRangeFor(parsed.year, parsed.month);
-
-  return prisma.$transaction(async (tx) => {
-    const period = await ensurePeriodForMonthIn(tx, userId, range);
-
-    // sortOrder appends at the end of the (period, type, category) bucket.
-    const last = await tx.balanceItem.findFirst({
-      where: {
-        periodId: period.id,
-        type: parsed.type,
-        category: parsed.category,
-        deletedAt: null,
-      },
-      orderBy: { sortOrder: "desc" },
-      select: { sortOrder: true },
-    });
-
-    const item = await tx.balanceItem.create({
-      data: {
-        periodId: period.id,
-        type: parsed.type,
-        category: parsed.category,
-        label: parsed.label,
-        sortOrder: (last?.sortOrder ?? 0) + 1,
-      },
-    });
-
-    return { periodId: period.id, item: toClientItem(item) };
-  });
 }
 
 export async function updateBalanceItem(input: UpdateBalanceItemInput) {
@@ -275,7 +229,14 @@ export async function copyBalancePeriodFrom(input: CopyBalancePeriodFromInput) {
   }
 
   const sourceItems = await prisma.balanceItem.findMany({
-    where: { periodId: source.id, deletedAt: null },
+    where: {
+      periodId: source.id,
+      deletedAt: null,
+      // A row backed by an archived account must not carry over into a new
+      // month — that's the whole point of archiving. Legacy rows (accountId
+      // null, pre-backfill) have no account to check and always copy.
+      OR: [{ accountId: null }, { account: { deletedAt: null } }],
+    },
     orderBy: { sortOrder: "asc" },
     select: {
       type: true,
@@ -361,7 +322,14 @@ export async function copyBalanceTemplateInto(input: CopyBalanceTemplateInput) {
   const parsed = copyBalanceTemplateSchema.parse(input);
 
   const templateItems = await prisma.balanceTemplateItem.findMany({
-    where: { userId, deletedAt: null },
+    where: {
+      userId,
+      deletedAt: null,
+      // Same rule as copyBalancePeriodFrom: an archived account's row must
+      // not repopulate a new month, even from the saved template. Legacy
+      // rows with no accountId always copy.
+      OR: [{ accountId: null }, { account: { deletedAt: null } }],
+    },
     orderBy: { sortOrder: "asc" },
     select: {
       type: true,

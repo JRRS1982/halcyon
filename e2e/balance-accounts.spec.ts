@@ -166,7 +166,17 @@ test.describe("balance accounts", () => {
     await expect(
       page.getByRole("heading", { name: /archived/i }),
     ).toBeVisible();
-    await expect(page.getByText("Premium bonds")).toBeVisible();
+    // page.getByText("Premium bonds") alone would match the *active*
+    // accounts list just as happily — it would pass even if archiveAccount
+    // did nothing. Only an archived row offers a "Restore" button, so
+    // require both in the same row to actually pin the archive having
+    // happened.
+    const archivedRow = page
+      .locator("div")
+      .filter({ hasText: "Premium bonds" })
+      .filter({ has: page.getByRole("button", { name: "Restore" }) })
+      .last();
+    await expect(archivedRow).toBeVisible();
   });
 
   // The brief omitted this: "delete it everywhere" is the app's one hard

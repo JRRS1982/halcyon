@@ -1,4 +1,3 @@
-import { createBalanceItemForMonth } from "@/app/(app)/balance/actions";
 import { createItemForMonth } from "@/app/(app)/budget/actions";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
@@ -80,43 +79,5 @@ describe("createItemForMonth (integration)", () => {
     ).rejects.toThrow();
 
     expect(await countPeriods()).toBe(0);
-  });
-});
-
-describe("createBalanceItemForMonth (integration)", () => {
-  test("creates the month's period and the row together", async () => {
-    expect(await countPeriods()).toBe(0);
-
-    const { periodId, item } = await createBalanceItemForMonth({
-      year: 2026,
-      month: 2,
-      type: "ASSET",
-      category: "CURRENT",
-      label: "Savings",
-    });
-
-    expect(await countPeriods()).toBe(1);
-    expect(item.periodId).toBe(periodId);
-    expect(item.label).toBe("Savings");
-    expect(item.type).toBe("ASSET");
-  });
-
-  test("shares the month's period with the budget sheet", async () => {
-    const budget = await createItemForMonth({
-      year: 2026,
-      month: 2,
-      type: "EXPENSE",
-      label: "Rent",
-    });
-    const balance = await createBalanceItemForMonth({
-      year: 2026,
-      month: 2,
-      type: "ASSET",
-      category: "CURRENT",
-      label: "Savings",
-    });
-
-    expect(balance.periodId).toBe(budget.periodId);
-    expect(await countPeriods()).toBe(1);
   });
 });

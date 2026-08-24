@@ -1,5 +1,11 @@
 // src/__tests__/balance/BalanceSheet.test.tsx
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { ThemeProvider } from "styled-components";
 import {
   BalanceSheet,
@@ -15,6 +21,7 @@ jest.mock("next/navigation", () => ({
 }));
 
 const deleteBalanceItem = jest.fn();
+const updateBalanceItem = jest.fn();
 jest.mock("@/app/(app)/balance/actions", () => ({
   copyBalancePeriodFrom: jest.fn(),
   copyBalanceTemplateInto: jest.fn(),
@@ -23,9 +30,7 @@ jest.mock("@/app/(app)/balance/actions", () => ({
   moveBalanceItem: jest.fn(),
   saveBalanceTemplate: jest.fn(),
   setBalanceItemSection: jest.fn(),
-  // Never resolves within this test — the debounce that would call it is
-  // never allowed to fire (fake timers, never advanced).
-  updateBalanceItem: jest.fn(() => new Promise(() => {})),
+  updateBalanceItem: (...args: unknown[]) => updateBalanceItem(...args),
 }));
 
 const accountDeletionCounts = jest.fn();
@@ -70,6 +75,10 @@ const renderSheet = (items: SerializedBalanceItem[]) =>
 describe("BalanceSheet — refresh adoption vs. an unsaved edit", () => {
   beforeEach(() => {
     jest.useFakeTimers();
+    // Never resolves within this test — the debounce that would call it is
+    // never allowed to fire (fake timers, never advanced).
+    updateBalanceItem.mockReset();
+    updateBalanceItem.mockImplementation(() => new Promise(() => {}));
   });
 
   afterEach(() => {
@@ -108,6 +117,97 @@ describe("BalanceSheet — refresh adoption vs. an unsaved edit", () => {
     );
 
     expect(amountInput.value).toBe(formatAmount("GBP", 200, "COMMA_0"));
+  });
+});
+
+describe("BalanceSheet — dirty tracking is per item, not one shared flag", () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    updateBalanceItem.mockReset();
+    updateBalanceItem.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  // The bug this pins: a single boolean "something is dirty" flag is cleared
+  // unconditionally the instant *any* item's debounced save starts — even
+  // while a second item, edited moments later, is still sitting in its own
+  // (separately keyed) debounce timer. Once that happens, a refresh landing
+  // before the second item's timer fires sees "dirty: false, nothing
+  // pending" and silently overwrites the second item's still-unsaved
+  // optimistic value with the server's stale snapshot.
+  test("editing a second cell shortly after the first survives a refresh landing once the first save completes", async () => {
+    const itemA: SerializedBalanceItem = {
+      ...baseItem,
+      id: "item-a",
+      label: "Current account",
+      value: 100,
+      sortOrder: 1,
+    };
+    const itemB: SerializedBalanceItem = {
+      ...baseItem,
+      id: "item-b",
+      label: "Savings",
+      value: 50,
+      sortOrder: 2,
+    };
+    const { rerender } = renderSheet([itemA, itemB]);
+
+    const amountInputs = screen.getAllByPlaceholderText(
+      "0",
+    ) as HTMLInputElement[];
+    const inputA = amountInputs[0];
+    const inputB = amountInputs[1];
+    if (!inputA || !inputB) throw new Error("expected two amount inputs");
+
+    // Edit A.
+    fireEvent.focus(inputA);
+    fireEvent.change(inputA, { target: { value: "200" } });
+    fireEvent.blur(inputA);
+
+    // 100ms later — still inside A's 500ms debounce window — edit B too.
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(100);
+    });
+    fireEvent.focus(inputB);
+    fireEvent.change(inputB, { target: { value: "999" } });
+    fireEvent.blur(inputB);
+
+    // Advance to A's 500ms mark (started at t=0): A's debounced save fires
+    // and completes. B's own timer (started at t=100) has 100ms left — it
+    // has not fired, so B's edit is still only optimistic.
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(400);
+    });
+    expect(updateBalanceItem).toHaveBeenCalledTimes(1);
+    expect(updateBalanceItem).toHaveBeenCalledWith({
+      itemId: "item-a",
+      value: 200,
+    });
+
+    // A refresh lands right now — e.g. router.refresh() from an unrelated
+    // action — carrying the server's pre-edit snapshot for both rows.
+    rerender(
+      <ThemeProvider theme={theme}>
+        <BalanceSheet
+          period={period}
+          initialItems={[itemA, itemB]}
+          year={2026}
+          month={2}
+          currency="GBP"
+          numberFormat="COMMA_0"
+          hasTemplate={false}
+        />
+      </ThemeProvider>,
+    );
+
+    // Both edits must still be showing — B's save hasn't landed yet, and
+    // wiping A's display would disagree with what was just successfully
+    // saved for it.
+    expect(inputA.value).toBe(formatAmount("GBP", 200, "COMMA_0"));
+    expect(inputB.value).toBe(formatAmount("GBP", 999, "COMMA_0"));
   });
 });
 

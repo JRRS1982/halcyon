@@ -207,7 +207,11 @@ async function runBackfill(
       deletedAt: null,
       period: { userId, deletedAt: null },
     },
-    orderBy: { createdAt: "asc" },
+    // Secondary sort for determinism: rows written by one transaction (a
+    // month's worth of balance items, all created together) share an
+    // identical createdAt, and that tie currently decides which row's
+    // category seeds a new account.
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     select: { id: true, type: true, category: true, label: true },
   });
 
@@ -235,8 +239,8 @@ async function runBackfill(
   }
 
   const resolved = new Map<string, string>();
+  const itemIdsByAccount = new Map<string, string[]>();
   let accountsCreated = 0;
-  let itemsLinked = 0;
 
   for (const item of items) {
     const key = keyFor(item.type, item.label);
@@ -258,17 +262,28 @@ async function runBackfill(
       if (match) {
         await tx.account.update({
           where: { id: match.id },
-          data: {
-            kind,
-            category: item.category,
-            // The `match.kind === kind` branch can only be reached by an
-            // account this function itself created on an earlier, partial
-            // run — nothing else sets `kind` yet — so overwriting
-            // category/wrapper unconditionally is safe today. Revisit this
-            // once something else can set `kind` on an existing account.
-            wrapper:
-              kind === "ASSET" ? inferWrapper(item.label, item.category) : null,
-          },
+          // Only a plain `kind: NONE` account — a transaction account with no
+          // balance-sheet classification yet — is safe to classify from the
+          // free-text label, so category/wrapper are only written together
+          // with kind on that branch. A match that already carries a kind may
+          // be an account the user created deliberately through the
+          // Add-account drawer (createAccountWithBalance sets `kind` on every
+          // account it creates) with their own choice of Section and
+          // Wrapper — never overwrite that. The only other way to reach this
+          // branch is a resumed partial run, where an earlier pass already
+          // promoted this account to the same kind; writing `kind` again
+          // there is a no-op.
+          data:
+            match.kind === "NONE"
+              ? {
+                  kind,
+                  category: item.category,
+                  wrapper:
+                    kind === "ASSET"
+                      ? inferWrapper(item.label, item.category)
+                      : null,
+                }
+              : { kind },
         });
         // Mutated in place: `match` is the same object stored in
         // `existingByName`, so a later row with a different type sees the
@@ -303,11 +318,26 @@ async function runBackfill(
       resolved.set(key, accountId);
     }
 
-    await tx.balanceItem.update({
-      where: { id: item.id },
+    const ids = itemIdsByAccount.get(accountId);
+    if (ids) {
+      ids.push(item.id);
+    } else {
+      itemIdsByAccount.set(accountId, [item.id]);
+    }
+  }
+
+  // One updateMany per account rather than one UPDATE per row: over a remote
+  // connection at ~10-20ms per round trip, thousands of sequential per-row
+  // UPDATEs is what makes the transaction's 60s cap a realistic failure for a
+  // large user. Grouping by the already-resolved accountId turns that into a
+  // handful of round trips.
+  let itemsLinked = 0;
+  for (const [accountId, ids] of itemIdsByAccount) {
+    await tx.balanceItem.updateMany({
+      where: { id: { in: ids } },
       data: { accountId },
     });
-    itemsLinked += 1;
+    itemsLinked += ids.length;
   }
 
   await linkMortgagesToProperties(tx, userId, existingByName);

@@ -711,13 +711,16 @@ export function BalanceSheet({
   const [focusedCell, setFocusedCell] = useState<FocusedCell>(null);
   const pendingSavesRef = useRef(0);
   const [pendingCount, setPendingCount] = useState(0);
-  // True from the moment a cell edit is applied locally (editField, below)
-  // until performUpdate actually starts sending it — a window pendingSavesRef
-  // does not cover, since useDebouncedCallback delays 500ms before
-  // performUpdate ever runs. The two refs hand over at performUpdate's first
-  // line rather than overlapping or gapping: dirtyRef clears exactly where
-  // pendingSavesRef begins covering the same edit.
-  const dirtyRef = useRef(false);
+  // Holds the id of every item whose edit has been applied locally (editField,
+  // below) but not yet started sending — a window pendingSavesRef does not
+  // cover, since useDebouncedCallback delays 500ms per item before
+  // performUpdate ever runs for it. Per-item because the debounce is: editing
+  // cell A then cell B within the same 500ms window must not let A's timer
+  // firing (and clearing A's own entry) look like "nothing is dirty" while
+  // B's edit is still only sitting in its own, separately-keyed timer. Each
+  // id hands over from this set to pendingSavesRef at performUpdate's first
+  // line for that item, rather than overlapping or gapping.
+  const dirtyItemsRef = useRef<Set<string>>(new Set());
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
@@ -732,8 +735,8 @@ export function BalanceSheet({
   // effect, but — unlike Ledger — a cell edit here can be unconfirmed when a
   // refresh lands: optimistically applied to `items` (editField) but not yet
   // persisted, either still sitting in debouncedUpdate's 500ms timer
-  // (dirtyRef) or already sent and awaiting the server (pendingSavesRef).
-  // Adoption is skipped while either is true: otherwise the server's
+  // (dirtyItemsRef) or already sent and awaiting the server (pendingSavesRef).
+  // Adoption is skipped while either is non-empty/non-zero: otherwise the server's
   // pre-write snapshot would silently overwrite the optimistic edit still
   // showing on screen (the write itself still lands in the DB — only the
   // display would be wrong, with nothing to correct it).
@@ -742,14 +745,14 @@ export function BalanceSheet({
   // recreated every render would otherwise show up as a missing dependency.
   const pendingAdoptRef = useRef(false);
   useEffect(() => {
-    if (dirtyRef.current || pendingSavesRef.current > 0) {
+    if (dirtyItemsRef.current.size > 0 || pendingSavesRef.current > 0) {
       pendingAdoptRef.current = true;
       return;
     }
     setItems(initialItems);
   }, [initialItems]);
   useEffect(() => {
-    if (dirtyRef.current || pendingSavesRef.current > 0) {
+    if (dirtyItemsRef.current.size > 0 || pendingSavesRef.current > 0) {
       pendingAdoptRef.current = true;
       return;
     }
@@ -1002,12 +1005,15 @@ export function BalanceSheet({
       itemId: string,
       patch: { label?: string; value?: number; notes?: string | null },
     ) => {
-      // Cleared here, at the same instant pendingSavesRef starts covering
+      // Removed here, at the same instant pendingSavesRef starts covering
       // this edit — not in `finally` — so the two refs hand over with no gap
       // (a refresh landing right here still sees a save in flight via
       // pendingSavesRef) and no double-counting (a re-edit typed while this
-      // PATCH is still in flight sets dirtyRef back to true itself, below).
-      dirtyRef.current = false;
+      // PATCH is still in flight adds itemId back to the set itself, below).
+      // Only this item's id comes out — a different item still mid-debounce
+      // keeps the set non-empty, which is what stops the "adopt on refresh"
+      // effects above from clobbering its still-unsaved value.
+      dirtyItemsRef.current.delete(itemId);
       pendingSavesRef.current += 1;
       setPendingCount(pendingSavesRef.current);
       try {
@@ -1035,10 +1041,10 @@ export function BalanceSheet({
       itemId: string,
       patch: { label?: string; value?: number; notes?: string | null },
     ) => {
-      // Set synchronously, in the same tick as the optimistic setItems below
-      // — this is the instant the edit becomes "unsaved", well before
+      // Added synchronously, in the same tick as the optimistic setItems
+      // below — this is the instant the edit becomes "unsaved", well before
       // debouncedUpdate's 500ms timer even starts performUpdate.
-      dirtyRef.current = true;
+      dirtyItemsRef.current.add(itemId);
       setItems((prev) =>
         prev.map((it) =>
           it.id === itemId

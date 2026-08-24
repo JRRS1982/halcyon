@@ -1,8 +1,8 @@
 import {
   copyBalancePeriodFrom,
-  createBalanceItemForMonth,
   updateBalanceItem,
 } from "@/app/(app)/balance/actions";
+import { ensurePeriodForMonth } from "@/app/(app)/budget/actions";
 import { prisma } from "@/lib/prisma";
 
 // Copied balance values are last month's numbers, not this month's — until the
@@ -10,9 +10,33 @@ import { prisma } from "@/lib/prisma";
 // whole lifecycle: set by copy, cleared by a value edit, untouched by other
 // edits.
 
+// A fixture row created directly against the DB — standing in for the removed
+// createBalanceItemForMonth (the app now only creates a non-legacy balance row
+// through an Account via createAccountWithBalance). These tests are about
+// copyBalancePeriodFrom / updateBalanceItem, not about how the fixture row got
+// there.
+async function seedBalanceItem(input: {
+  year: number;
+  month: number;
+  type: "ASSET" | "LIABILITY";
+  category: "CURRENT" | "MEDIUM_TERM" | "LONG_TERM" | "PROPERTY" | "OTHER";
+  label: string;
+}) {
+  const period = await ensurePeriodForMonth(input.year, input.month);
+  const item = await prisma.balanceItem.create({
+    data: {
+      periodId: period.id,
+      type: input.type,
+      category: input.category,
+      label: input.label,
+    },
+  });
+  return { item: { ...item, value: Number(item.value) } };
+}
+
 describe("balance carried-over flag (integration)", () => {
   const seedSourceMonth = async () => {
-    const { item } = await createBalanceItemForMonth({
+    const { item } = await seedBalanceItem({
       year: 2026,
       month: 1,
       type: "ASSET",
@@ -28,7 +52,7 @@ describe("balance carried-over flag (integration)", () => {
   };
 
   test("a row created by hand is not carried over", async () => {
-    const { item } = await createBalanceItemForMonth({
+    const { item } = await seedBalanceItem({
       year: 2026,
       month: 1,
       type: "ASSET",

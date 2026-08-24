@@ -1,3 +1,4 @@
+import { createAccountWithBalance } from "@/app/(app)/balance/accountActions";
 import { backfillAccountsForUser } from "@/lib/accounts/backfill";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
@@ -108,6 +109,57 @@ describe("backfillAccountsForUser (integration)", () => {
       where: { id: existing.id },
     });
     expect(after.kind).toBe("ASSET");
+  });
+
+  // Every other "reuses an existing account" fixture above builds the
+  // existing account with prisma.account.create directly, so none of them
+  // carries a user-chosen category/wrapper the way a real account created
+  // through the Add-account drawer does. createAccountWithBalance sets
+  // `kind` on creation, so a legacy row that matches it by name walks the
+  // same `match.kind === kind` branch as the "partial run" fixtures above —
+  // the backfill must not treat that as licence to overwrite the user's
+  // deliberate Section/Wrapper choice with a guess made from a different
+  // month's free-text row.
+  it("never overwrites a user-chosen category/wrapper when promoting is not needed", async () => {
+    const { accountId } = await createAccountWithBalance({
+      year: 2026,
+      month: 2, // March 2026
+      name: "Rainy Day Fund",
+      type: "ASSET",
+      // Deliberately chosen Section/Wrapper that inferWrapper would never
+      // produce for this label + a legacy row's category: the label matches
+      // no wrapper keyword, so inferWrapper falls back to
+      // WRAPPER_BY_CATEGORY, which maps CURRENT -> CASH and OTHER -> OTHER —
+      // never GIA.
+      category: "OTHER",
+      wrapper: "GIA",
+      value: 5000,
+      canImportTransactions: false,
+      mortgage: null,
+    });
+
+    // A legacy month, predating the drawer, with the same label under a
+    // different category and no accountId — exactly what the backfill
+    // matches by (kind, name).
+    const feb = await seedMonth("February 2026", "2026-02-01", "2026-02-28");
+    await prisma.balanceItem.create({
+      data: {
+        periodId: feb.id,
+        type: "ASSET",
+        category: "CURRENT",
+        label: "Rainy Day Fund",
+        value: 4800,
+      },
+    });
+
+    const result = await backfillAccountsForUser(TEST_USER_ID);
+
+    expect(result.itemsLinked).toBe(1);
+    const account = await prisma.account.findUniqueOrThrow({
+      where: { id: accountId },
+    });
+    expect(account.category).toBe("OTHER");
+    expect(account.wrapper).toBe("GIA");
   });
 
   it("keeps an asset and a liability of the same name apart", async () => {

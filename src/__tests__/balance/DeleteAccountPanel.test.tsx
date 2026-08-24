@@ -69,10 +69,25 @@ describe("DeleteAccountPanel", () => {
     expect(screen.getByRole("button", { name: /^delete$/i })).toBeEnabled();
   });
 
+  // The checkbox promises "Also delete X", but archiveAccount (the mode this
+  // panel defaults to) takes only the one account id — there is no way for
+  // that promise to be kept while in this mode, so the control must not be
+  // offered at all.
+  test("hides the partner checkbox in archive mode, the default", () => {
+    renderPanel({ name: "Home", counts: linkedCounts, isProperty: true });
+    expect(screen.getByRole("radio", { name: /stop tracking/i })).toBeChecked();
+    expect(
+      screen.queryByLabelText(/also delete "halifax mortgage"/i),
+    ).not.toBeInTheDocument();
+  });
+
   // Deleting a property: you rarely keep a debt secured on a house you no
   // longer hold, so the mortgage is pre-ticked.
   test("pre-ticks the partner when deleting a property", () => {
     renderPanel({ name: "Home", counts: linkedCounts, isProperty: true });
+    fireEvent.click(
+      screen.getByRole("radio", { name: /delete it everywhere/i }),
+    );
     expect(
       screen.getByLabelText(/also delete "halifax mortgage"/i),
     ).toBeChecked();
@@ -89,6 +104,9 @@ describe("DeleteAccountPanel", () => {
       },
       isProperty: false,
     });
+    fireEvent.click(
+      screen.getByRole("radio", { name: /delete it everywhere/i }),
+    );
     expect(screen.getByLabelText(/also delete "home"/i)).not.toBeChecked();
   });
 
