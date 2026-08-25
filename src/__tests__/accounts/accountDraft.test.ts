@@ -1,4 +1,6 @@
 import {
+  ACCOUNT_TYPES,
+  accountTypeById,
   canSubmitAccountDraft,
   defaultCanImportTransactions,
   resolveCanImportTransactions,
@@ -7,12 +9,12 @@ import {
 describe("defaultCanImportTransactions", () => {
   test("an asset defaults on", () => {
     expect(defaultCanImportTransactions("ASSET", null)).toBe(true);
-    expect(defaultCanImportTransactions("ASSET", "CURRENT")).toBe(true);
+    expect(defaultCanImportTransactions("ASSET", "CASH")).toBe(true);
   });
 
-  test("a liability defaults off, regardless of section", () => {
+  test("a liability defaults off, and carries no wrapper anyway", () => {
     expect(defaultCanImportTransactions("LIABILITY", null)).toBe(false);
-    expect(defaultCanImportTransactions("LIABILITY", "LONG_TERM")).toBe(false);
+    expect(defaultCanImportTransactions("LIABILITY", "CASH")).toBe(false);
   });
 
   test("a property asset defaults off — a property isn't a statement-import account", () => {
@@ -21,11 +23,11 @@ describe("defaultCanImportTransactions", () => {
 });
 
 describe("resolveCanImportTransactions", () => {
-  test("untouched: always mirrors the fresh default for the new type/section", () => {
+  test("untouched: always mirrors the fresh default for the new account type", () => {
     expect(resolveCanImportTransactions(true, false, "LIABILITY", null)).toBe(
       false,
     );
-    expect(resolveCanImportTransactions(false, false, "ASSET", "CURRENT")).toBe(
+    expect(resolveCanImportTransactions(false, false, "ASSET", "CASH")).toBe(
       true,
     );
     expect(resolveCanImportTransactions(true, false, "ASSET", "PROPERTY")).toBe(
@@ -33,20 +35,20 @@ describe("resolveCanImportTransactions", () => {
     );
   });
 
-  // The subtlest rule the brief calls out: once touched, a type/section
+  // The subtlest rule the brief calls out: once touched, an account-type
   // change that would otherwise flip the fresh default must not un-check
   // (or re-check) the box behind the user's back.
-  test("touched on, then switched to a section/type whose fresh default is off — the override sticks", () => {
-    expect(
-      resolveCanImportTransactions(true, true, "LIABILITY", "LONG_TERM"),
-    ).toBe(true);
+  test("touched on, then switched to a type whose fresh default is off — the override sticks", () => {
+    expect(resolveCanImportTransactions(true, true, "LIABILITY", null)).toBe(
+      true,
+    );
     expect(resolveCanImportTransactions(true, true, "ASSET", "PROPERTY")).toBe(
       true,
     );
   });
 
-  test("touched off, then switched to a section/type whose fresh default is on — the override sticks", () => {
-    expect(resolveCanImportTransactions(false, true, "ASSET", "CURRENT")).toBe(
+  test("touched off, then switched to a type whose fresh default is on — the override sticks", () => {
+    expect(resolveCanImportTransactions(false, true, "ASSET", "CASH")).toBe(
       false,
     );
   });
@@ -106,5 +108,33 @@ describe("canSubmitAccountDraft", () => {
         mortgageValue: "184200",
       }),
     ).toBe(true);
+  });
+});
+
+describe("ACCOUNT_TYPES", () => {
+  // The whole point of the merged picker: one choice determines both columns.
+  test("every liability carries no wrapper, and every asset carries one", () => {
+    for (const option of ACCOUNT_TYPES) {
+      if (option.kind === "LIABILITY") expect(option.wrapper).toBeNull();
+      else expect(option.wrapper).not.toBeNull();
+    }
+  });
+
+  test("ids are unique", () => {
+    const ids = ACCOUNT_TYPES.map((o) => o.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  // A cash ISA and an invested ISA share a wrapper deliberately — which is
+  // why the section is asked separately and never inferred from it.
+  test("two entries may share a wrapper", () => {
+    const isas = ACCOUNT_TYPES.filter((o) => o.wrapper === "ISA");
+    expect(isas.map((o) => o.id)).toEqual(["CASH_ISA", "STOCKS_ISA"]);
+  });
+
+  test("accountTypeById resolves a known id and rejects nothing gracefully", () => {
+    expect(accountTypeById("MORTGAGE")?.kind).toBe("LIABILITY");
+    expect(accountTypeById("STOCKS_ISA")?.wrapper).toBe("ISA");
+    expect(accountTypeById(null)).toBeNull();
   });
 });

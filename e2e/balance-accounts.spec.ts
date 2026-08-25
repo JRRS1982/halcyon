@@ -80,10 +80,9 @@ test.describe("balance accounts", () => {
     await page.goto("/balance");
 
     await openAddDrawer(page);
-    await page.getByRole("radio", { name: /asset/i }).check();
+    await page.getByLabel(/what are you adding/i).selectOption("STOCKS_ISA");
     await page.getByLabel(/name/i).fill("Vanguard ISA");
     await page.getByLabel(/section/i).selectOption("LONG_TERM");
-    await page.getByLabel(/wrapper/i).selectOption("ISA");
     await page.getByLabel(/value now/i).fill("42300");
 
     await withServerAction(page, () =>
@@ -103,7 +102,7 @@ test.describe("balance accounts", () => {
     await page.goto("/balance");
 
     await openAddDrawer(page);
-    await page.getByRole("radio", { name: /asset/i }).check();
+    await page.getByLabel(/what are you adding/i).selectOption("PROPERTY");
     await page.getByLabel(/name/i).fill("Home");
     await page.getByLabel(/section/i).selectOption("PROPERTY");
     // Two fields match /value now/i once the mortgage branch is open (the
@@ -140,10 +139,9 @@ test.describe("balance accounts", () => {
     await page.goto("/balance");
 
     await openAddDrawer(page);
-    await page.getByRole("radio", { name: /asset/i }).check();
+    await page.getByLabel(/what are you adding/i).selectOption("SAVINGS");
     await page.getByLabel(/name/i).fill("Premium bonds");
     await page.getByLabel(/section/i).selectOption("MEDIUM_TERM");
-    await page.getByLabel(/wrapper/i).selectOption("CASH");
     await page.getByLabel(/value now/i).fill("5000");
     await withServerAction(page, () =>
       page.getByRole("button", { name: /^add$/i }).click(),
@@ -192,7 +190,7 @@ test.describe("balance accounts", () => {
     await page.goto("/balance");
 
     await openAddDrawer(page);
-    await page.getByRole("radio", { name: /asset/i }).check();
+    await page.getByLabel(/what are you adding/i).selectOption("STOCKS_ISA");
     await page.getByLabel(/name/i).fill("Crypto wallet");
     await page.getByLabel(/section/i).selectOption("OTHER");
     await page.getByLabel(/value now/i).fill("1000");

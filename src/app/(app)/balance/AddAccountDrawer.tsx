@@ -11,14 +11,14 @@ import {
 import styled from "styled-components";
 import { Button } from "@/components/ui/Button";
 import {
+  ACCOUNT_TYPES,
   type AccountDraft,
+  type AccountTypeId,
+  accountTypeById,
   canSubmitAccountDraft,
   resolveCanImportTransactions,
 } from "@/lib/accounts/accountDraft";
-import {
-  accountWrapperSchema,
-  type CreateAccountWithBalanceInput,
-} from "@/lib/accounts/schemas";
+import type { CreateAccountWithBalanceInput } from "@/lib/accounts/schemas";
 import {
   type BalanceCategory,
   type BalanceType,
@@ -161,31 +161,6 @@ const Foot = styled.div`
 
 // ─── Form fields ────────────────────────────────────────────────────────────
 
-const RadioFieldset = styled.fieldset`
-  border: 0;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: ${({ theme }) => theme.spacing.sm};
-`;
-const RadioLegend = styled.legend`
-  padding: 0 0 ${({ theme }) => theme.spacing.xs};
-  font-size: 12px;
-  color: ${({ theme }) => theme.colors.body};
-`;
-const RadioRow = styled.div`
-  display: flex;
-  gap: ${({ theme }) => theme.spacing.lg};
-`;
-const RadioLabel = styled.label`
-  display: inline-flex;
-  align-items: center;
-  gap: ${({ theme }) => theme.spacing.xs};
-  font-size: 14px;
-  color: ${({ theme }) => theme.colors.ink};
-  cursor: pointer;
-`;
-
 const FieldWrap = styled.label`
   display: grid;
   gap: ${({ theme }) => theme.spacing.xs};
@@ -255,12 +230,10 @@ export function AddAccountDrawer({
 }) {
   const sheetRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
-  const typeGroupName = useId();
 
-  const [type, setType] = useState<BalanceType | null>(null);
+  const [typeId, setTypeId] = useState<AccountTypeId | null>(null);
   const [category, setCategory] = useState<BalanceCategory | null>(null);
   const [name, setName] = useState("");
-  const [wrapper, setWrapper] = useState<Wrapper>("OTHER");
   const [value, setValue] = useState("");
   const [canImportTransactions, setCanImportTransactions] = useState(false);
   const [importTouched, setImportTouched] = useState(false);
@@ -270,32 +243,41 @@ export function AddAccountDrawer({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  const selectType = (next: BalanceType) => {
-    // PROPERTY is asset-only — switching to LIABILITY while it's selected
+  // `kind` and `wrapper` are two columns but one decision — see ACCOUNT_TYPES.
+  const accountType = accountTypeById(typeId);
+  const type: BalanceType | null = accountType?.kind ?? null;
+  const wrapper: Wrapper | null = accountType?.wrapper ?? null;
+
+  const selectAccountType = (next: AccountTypeId) => {
+    const option = accountTypeById(next);
+    if (!option) return;
+    // PROPERTY is asset-only — switching to a liability while it's selected
     // leaves no valid option selected, so the section resets rather than
     // silently keeping an invalid value.
     const nextCategory =
-      next === "LIABILITY" && category === "PROPERTY" ? null : category;
-    setType(next);
+      option.kind === "LIABILITY" && category === "PROPERTY" ? null : category;
+    setTypeId(next);
     setCategory(nextCategory);
     setCanImportTransactions((current) =>
-      resolveCanImportTransactions(current, importTouched, next, nextCategory),
+      resolveCanImportTransactions(
+        current,
+        importTouched,
+        option.kind,
+        option.wrapper,
+      ),
     );
-    if (nextCategory !== category) {
+    // The mortgage question belongs to the Property type, not the section, so
+    // leaving Property clears it.
+    if (option.wrapper !== "PROPERTY") {
       setHasMortgage(false);
     }
   };
 
+  // The section no longer affects the import default — that is keyed on the
+  // wrapper, which the account type already fixed — so this only records the
+  // choice.
   const selectCategory = (next: BalanceCategory) => {
     setCategory(next);
-    if (type) {
-      setCanImportTransactions((current) =>
-        resolveCanImportTransactions(current, importTouched, type, next),
-      );
-    }
-    if (next !== "PROPERTY") {
-      setHasMortgage(false);
-    }
   };
 
   const toggleImport = (checked: boolean) => {
@@ -315,10 +297,9 @@ export function AddAccountDrawer({
   const canSubmit = canSubmitAccountDraft(draft);
 
   const resetForm = () => {
-    setType(null);
+    setTypeId(null);
     setCategory(null);
     setName("");
-    setWrapper("OTHER");
     setValue("");
     setCanImportTransactions(false);
     setImportTouched(false);
@@ -348,7 +329,9 @@ export function AddAccountDrawer({
           name,
           type,
           category,
-          wrapper,
+          // The schema still takes a wrapper; liabilities send OTHER and the
+          // action nulls it, so the payload shape is unchanged.
+          wrapper: wrapper ?? "OTHER",
           value: Number(value),
           canImportTransactions,
           mortgage: hasMortgage
@@ -443,31 +426,36 @@ export function AddAccountDrawer({
             </Head>
             <Body onSubmit={handleSubmit} id="add-account-form">
               {error ? <ErrorText>{error}</ErrorText> : null}
-              <RadioFieldset>
-                <RadioLegend>What are you adding?</RadioLegend>
-                <RadioRow>
-                  <RadioLabel>
-                    <input
-                      type="radio"
-                      name={typeGroupName}
-                      value="ASSET"
-                      checked={type === "ASSET"}
-                      onChange={() => selectType("ASSET")}
-                    />
-                    Asset
-                  </RadioLabel>
-                  <RadioLabel>
-                    <input
-                      type="radio"
-                      name={typeGroupName}
-                      value="LIABILITY"
-                      checked={type === "LIABILITY"}
-                      onChange={() => selectType("LIABILITY")}
-                    />
-                    Liability
-                  </RadioLabel>
-                </RadioRow>
-              </RadioFieldset>
+              <Field label="What are you adding?">
+                <Select
+                  value={typeId ?? ""}
+                  onChange={(e) =>
+                    selectAccountType(e.target.value as AccountTypeId)
+                  }
+                >
+                  <option value="" disabled>
+                    Choose…
+                  </option>
+                  <optgroup label="Assets">
+                    {ACCOUNT_TYPES.filter((o) => o.kind === "ASSET").map(
+                      (o) => (
+                        <option key={o.id} value={o.id}>
+                          {o.label}
+                        </option>
+                      ),
+                    )}
+                  </optgroup>
+                  <optgroup label="Liabilities">
+                    {ACCOUNT_TYPES.filter((o) => o.kind === "LIABILITY").map(
+                      (o) => (
+                        <option key={o.id} value={o.id}>
+                          {o.label}
+                        </option>
+                      ),
+                    )}
+                  </optgroup>
+                </Select>
+              </Field>
 
               {type ? (
                 <>
@@ -475,7 +463,7 @@ export function AddAccountDrawer({
                     <TextInput
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      placeholder="e.g. Vanguard ISA"
+                      placeholder={accountType?.namePlaceholder ?? "Name"}
                     />
                   </Field>
 
@@ -497,21 +485,6 @@ export function AddAccountDrawer({
                     </Select>
                   </Field>
 
-                  {type === "ASSET" ? (
-                    <Field label="Wrapper">
-                      <Select
-                        value={wrapper}
-                        onChange={(e) => setWrapper(e.target.value as Wrapper)}
-                      >
-                        {accountWrapperSchema.options.map((w) => (
-                          <option key={w} value={w}>
-                            {w}
-                          </option>
-                        ))}
-                      </Select>
-                    </Field>
-                  ) : null}
-
                   <Field label="Value now">
                     <TextInput
                       inputMode="decimal"
@@ -530,7 +503,7 @@ export function AddAccountDrawer({
                     Import statements to this account
                   </CheckboxLabel>
 
-                  {type === "ASSET" && category === "PROPERTY" ? (
+                  {wrapper === "PROPERTY" ? (
                     <>
                       <CheckboxLabel>
                         <input
