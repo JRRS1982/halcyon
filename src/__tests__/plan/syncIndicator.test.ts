@@ -2,7 +2,7 @@ import { indicatorFor } from "@/app/(app)/plan/syncIndicator";
 import type { SyncPlan } from "@/lib/plan/sync";
 
 const plan: SyncPlan = {
-  updates: [{ id: "p1", value: 42300, label: "Vanguard ISA" }],
+  updates: [{ id: "p1", value: 42300, label: "Vanguard ISA", wrapper: null }],
   additions: [],
   removals: [{ id: "p2", label: "Buy-to-let", reason: "plan-only" }],
   unchanged: ["p3"],

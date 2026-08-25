@@ -45,6 +45,7 @@ describe("latestReality (integration)", () => {
       kind: "INCOME",
       label: "Salary",
       value: 36000,
+      wrapper: null,
     });
   });
 
@@ -129,11 +130,15 @@ describe("latestReality (integration)", () => {
 
     const rows = await latestReality(TEST_USER_ID);
 
+    // No wrapper was set on the account (not reachable through the Add
+    // drawer, which always sets one for an ASSET account) — falls back to
+    // PlanAsset's own schema default so a repeat Sync round-trips cleanly.
     expect(rows).toContainEqual({
       linkId: account.id,
       kind: "ASSET",
       label: "Current account",
       value: 200,
+      wrapper: "OTHER",
     });
   });
 

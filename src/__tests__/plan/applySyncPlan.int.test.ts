@@ -50,7 +50,9 @@ describe("applySyncPlan (integration, direct)", () => {
         plan.id,
         TEST_USER_ID,
         {
-          updates: [{ id: asset.id, value: 1, label: "hijacked" }],
+          updates: [
+            { id: asset.id, value: 1, label: "hijacked", wrapper: null },
+          ],
           removals: [],
           additions: [],
           unchanged: [],

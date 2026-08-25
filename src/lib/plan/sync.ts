@@ -5,6 +5,8 @@
 // the per-row indicators and the confirmation list are all this one object
 // rendered three ways — they cannot disagree with what the action writes.
 
+import type { Wrapper } from "@/lib/plan/types";
+
 export type PlanRowKind = "ASSET" | "LIABILITY" | "INCOME" | "EXPENSE";
 
 export type PlanRow = {
@@ -15,6 +17,8 @@ export type PlanRow = {
   linkId: string | null;
   /** openingValue, openingBalance, or annualAmount depending on kind. */
   value: number;
+  /** PlanAsset.wrapper for ASSET rows. Null for LIABILITY/INCOME/EXPENSE — the wrapper enum is asset-only. */
+  wrapper: Wrapper | null;
 };
 
 export type RealityRow = {
@@ -22,10 +26,17 @@ export type RealityRow = {
   kind: PlanRowKind;
   label: string;
   value: number;
+  /** Account.wrapper for an ASSET row. Null for LIABILITY/INCOME/EXPENSE. */
+  wrapper: Wrapper | null;
 };
 
 export type SyncPlan = {
-  updates: { id: string; value: number; label: string }[];
+  updates: {
+    id: string;
+    value: number;
+    label: string;
+    wrapper: Wrapper | null;
+  }[];
   additions: RealityRow[];
   removals: { id: string; label: string; reason: "plan-only" | "gone" }[];
   unchanged: string[];
@@ -63,11 +74,20 @@ export function resolvePlanSync(
     }
 
     matched.add(key);
-    if (row.value === truth.value && row.label === truth.label) {
+    if (
+      row.value === truth.value &&
+      row.label === truth.label &&
+      row.wrapper === truth.wrapper
+    ) {
       unchanged.push(row.id);
       continue;
     }
-    updates.push({ id: row.id, value: truth.value, label: truth.label });
+    updates.push({
+      id: row.id,
+      value: truth.value,
+      label: truth.label,
+      wrapper: truth.wrapper,
+    });
   }
 
   const additions = reality.filter(

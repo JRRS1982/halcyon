@@ -8,6 +8,7 @@
 
 import type { Prisma } from "@prisma/client";
 import type { PlanRowKind, RealityRow, SyncPlan } from "@/lib/plan/sync";
+import type { Wrapper } from "@/lib/plan/types";
 
 // Every write below is fenced by both the plan id and the userId. `create`
 // can't carry a `where`, so additions rely on the up-front ownership check in
@@ -25,15 +26,22 @@ async function updateRow(
   tx: Prisma.TransactionClient,
   fence: RowFence,
   kind: PlanRowKind,
-  update: { value: number; label: string },
+  update: { value: number; label: string; wrapper: Wrapper | null },
 ): Promise<void> {
   const { label, value } = update;
 
   switch (kind) {
     case "ASSET": {
+      // PlanAsset.wrapper isn't nullable (schema default OTHER) — a null
+      // reality wrapper (an ASSET account somehow left without one) falls
+      // back to that default rather than being written as null.
       const res = await tx.planAsset.updateMany({
         where: fence,
-        data: { label, openingValue: value },
+        data: {
+          label,
+          openingValue: value,
+          wrapper: update.wrapper ?? "OTHER",
+        },
       });
       if (res.count === 0) {
         throw new Error(
@@ -142,6 +150,8 @@ async function addRow(
           label: addition.label,
           accountId: addition.linkId,
           openingValue: addition.value,
+          // See updateRow's ASSET case for the null fallback.
+          wrapper: addition.wrapper ?? "OTHER",
         },
       });
       return;

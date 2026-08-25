@@ -314,4 +314,86 @@ describe("syncPlan (integration)", () => {
     expect(liabilities).toHaveLength(1);
     expect(Number(liabilities[0]?.openingBalance)).toBe(250000);
   });
+
+  // The defect this closes: an added PlanAsset used to always land as OTHER,
+  // regardless of what the account actually is, because RealityRow carried
+  // no wrapper at all.
+  it("adds a PlanAsset with the account's stated wrapper, not OTHER", async () => {
+    await emptyPlan();
+    const account = await prisma.account.create({
+      data: {
+        userId: TEST_USER_ID,
+        name: "SIPP",
+        kind: "ASSET",
+        wrapper: "PENSION",
+      },
+    });
+    const p = await period("2026-03-01", "2026-03-01");
+    await prisma.balanceItem.create({
+      data: {
+        periodId: p.id,
+        accountId: account.id,
+        type: "ASSET",
+        category: "LONG_TERM",
+        label: "SIPP",
+        value: 78244,
+      },
+    });
+
+    await syncPlan();
+
+    const asset = await prisma.planAsset.findFirstOrThrow({
+      where: { accountId: account.id },
+    });
+    expect(asset.wrapper).toBe("PENSION");
+  });
+
+  // Wrapper is classification, not a one-time assumption — changing an
+  // account's wrapper on the balance sheet must follow into the plan on the
+  // next Sync, the same way a value or label change does.
+  it("updates a plan row's wrapper when the account's wrapper changed", async () => {
+    const plan = await emptyPlan();
+    const account = await prisma.account.create({
+      data: {
+        userId: TEST_USER_ID,
+        name: "Vanguard ISA",
+        kind: "ASSET",
+        wrapper: "CASH",
+      },
+    });
+    const p = await period("2026-03-01", "2026-03-01");
+    await prisma.balanceItem.create({
+      data: {
+        periodId: p.id,
+        accountId: account.id,
+        type: "ASSET",
+        category: "LONG_TERM",
+        label: "Vanguard ISA",
+        value: 42300,
+      },
+    });
+    const asset = await prisma.planAsset.create({
+      data: {
+        planId: plan.id,
+        label: "Vanguard ISA",
+        accountId: account.id,
+        openingValue: 42300,
+        wrapper: "CASH",
+      },
+    });
+
+    await prisma.account.update({
+      where: { id: account.id },
+      data: { wrapper: "ISA" },
+    });
+    const result = await syncPlan();
+
+    expect(result.updates).toEqual([
+      { id: asset.id, value: 42300, label: "Vanguard ISA", wrapper: "ISA" },
+    ]);
+    const after = await prisma.planAsset.findUniqueOrThrow({
+      where: { id: asset.id },
+    });
+    expect(after.wrapper).toBe("ISA");
+  });
 });

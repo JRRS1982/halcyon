@@ -5,10 +5,8 @@ import { TEST_USER_ID } from "../../../test/integration/helpers";
 describe("createPlan (integration)", () => {
   it("seeds a primary plan from the user's latest balance + budget period", async () => {
     // Sync's source of truth is the Account/Category, not the balance sheet
-    // row's label — the observation just links to the account. The account
-    // is given a wrapper here to prove applySyncPlan.addRow does NOT copy it
-    // (see the assertion below) — only value/label/link come from reality;
-    // wrapper is left at its schema default on every added row.
+    // row's label — the observation just links to the account, and the
+    // account carries the wrapper the user chose in the Add drawer.
     const account = await prisma.account.create({
       data: {
         userId: TEST_USER_ID,
@@ -64,13 +62,9 @@ describe("createPlan (integration)", () => {
     expect(plan).not.toBeNull();
     expect(plan?.isPrimary).toBe(true);
     expect(plan?.assets.length).toBeGreaterThan(0);
-    // NOT the old inferWrapper guess, but also not the Account's own
-    // "CASH" wrapper (set above): applySyncPlan.addRow only carries
-    // link/label/value from reality onto a new row, so wrapper takes the
-    // PlanAsset schema default regardless of what the account is. See the
-    // report's Concerns section — this is a gap between the design doc and
-    // Task 3's (frozen) implementation, not something this task can fix.
-    expect(plan?.assets[0]?.wrapper).toBe("OTHER");
+    // The wrapper is the fact the user stated on the Account, not a guess
+    // read out of the balance sheet label, and not the schema default.
+    expect(plan?.assets[0]?.wrapper).toBe("CASH");
     expect(Number(plan?.assets[0]?.openingValue)).toBe(10000);
     expect(plan?.incomes.length).toBeGreaterThan(0);
     expect(Number(plan?.incomes[0]?.annualAmount)).toBe(36000);

@@ -11,6 +11,7 @@ const planRow = (over: Partial<PlanRow> = {}): PlanRow => ({
   label: "Vanguard ISA",
   linkId: "a1",
   value: 42300,
+  wrapper: "ISA",
   ...over,
 });
 
@@ -19,6 +20,7 @@ const realityRow = (over: Partial<RealityRow> = {}): RealityRow => ({
   kind: "ASSET",
   label: "Vanguard ISA",
   value: 42300,
+  wrapper: "ISA",
   ...over,
 });
 
@@ -36,7 +38,7 @@ describe("resolvePlanSync", () => {
   it("updates a row whose value has moved", () => {
     const result = resolvePlanSync([planRow({ value: 80000 })], [realityRow()]);
     expect(result.updates).toEqual([
-      { id: "p1", value: 42300, label: "Vanguard ISA" },
+      { id: "p1", value: 42300, label: "Vanguard ISA", wrapper: "ISA" },
     ]);
     expect(result.unchanged).toEqual([]);
   });
@@ -57,8 +59,23 @@ describe("resolvePlanSync", () => {
       [realityRow({ label: "Vanguard S&S ISA" })],
     );
     expect(result.updates).toEqual([
-      { id: "p1", value: 42300, label: "Vanguard S&S ISA" },
+      { id: "p1", value: 42300, label: "Vanguard S&S ISA", wrapper: "ISA" },
     ]);
+  });
+
+  // Wrapper is classification, not an assumption: changing an account from a
+  // cash ISA to a stocks & shares ISA on the balance sheet must follow the
+  // plan through, exactly as a label change does — the same argument that
+  // makes the label sync.
+  it("updates a row whose wrapper changed, even with value and label unchanged", () => {
+    const result = resolvePlanSync(
+      [planRow()],
+      [realityRow({ wrapper: "GIA" })],
+    );
+    expect(result.updates).toEqual([
+      { id: "p1", value: 42300, label: "Vanguard ISA", wrapper: "GIA" },
+    ]);
+    expect(result.unchanged).toEqual([]);
   });
 
   it("adds a row for something the plan does not have", () => {

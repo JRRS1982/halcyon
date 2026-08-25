@@ -24,7 +24,7 @@ function accountKindToPlanRowKind(kind: AccountKind): "ASSET" | "LIABILITY" {
 async function latestAccountRows(userId: string): Promise<RealityRow[]> {
   const accounts = await prisma.account.findMany({
     where: { userId, deletedAt: null, kind: { not: "NONE" } },
-    select: { id: true, name: true, kind: true },
+    select: { id: true, name: true, kind: true, wrapper: true },
   });
 
   const rows = await Promise.all(
@@ -50,6 +50,16 @@ async function latestAccountRows(userId: string): Promise<RealityRow[]> {
         kind: accountKindToPlanRowKind(account.kind),
         label: account.name,
         value: Number(latest.value),
+        // The wrapper enum is asset-only (no PlanLiability.wrapper exists),
+        // so a liability account's row carries null regardless of what its
+        // Account.wrapper column happens to hold. An ASSET account with no
+        // stated wrapper (not reachable through the Add drawer, which always
+        // sets one, but not DB-enforced) falls back to PlanAsset's own
+        // schema default here rather than surfacing null — otherwise a
+        // repeat Sync would see reality as "null" forever while the row it
+        // wrote last time reads back "OTHER", flagging a false update on
+        // every subsequent Sync.
+        wrapper: account.kind === "ASSET" ? (account.wrapper ?? "OTHER") : null,
       };
       return row;
     }),
@@ -87,6 +97,7 @@ async function latestCategoryRows(userId: string): Promise<RealityRow[]> {
         kind: category.type,
         label: category.label,
         value: Number(latest.budget) * 12,
+        wrapper: null,
       };
       return row;
     }),

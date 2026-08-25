@@ -34,11 +34,17 @@ describe("SyncButton", () => {
   test("counts every change, and breaks them down", () => {
     renderButton({
       updates: [
-        { id: "p1", value: 1, label: "ISA" },
-        { id: "p2", value: 2, label: "SIPP" },
+        { id: "p1", value: 1, label: "ISA", wrapper: null },
+        { id: "p2", value: 2, label: "SIPP", wrapper: null },
       ],
       additions: [
-        { linkId: "a3", kind: "ASSET", label: "Premium bonds", value: 5000 },
+        {
+          linkId: "a3",
+          kind: "ASSET",
+          label: "Premium bonds",
+          value: 5000,
+          wrapper: null,
+        },
       ],
       removals: [{ id: "p4", label: "Old car", reason: "gone" }],
       unchanged: [],
@@ -53,7 +59,7 @@ describe("SyncButton", () => {
   // people to click past it.
   test("syncs straight away when nothing would be removed", async () => {
     renderButton({
-      updates: [{ id: "p1", value: 42300, label: "ISA" }],
+      updates: [{ id: "p1", value: 42300, label: "ISA", wrapper: null }],
       additions: [],
       removals: [],
       unchanged: [],
@@ -70,7 +76,7 @@ describe("SyncButton", () => {
   // still "works", it's just an extra click nobody would file a bug over.
   test("never renders the removal dialog when nothing would be removed", async () => {
     renderButton({
-      updates: [{ id: "p1", value: 42300, label: "ISA" }],
+      updates: [{ id: "p1", value: 42300, label: "ISA", wrapper: null }],
       additions: [],
       removals: [],
       unchanged: [],

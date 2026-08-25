@@ -46,6 +46,7 @@ async function loadPrimaryPlanRows(userId: string): Promise<LoadedPlan | null> {
         label: a.label,
         linkId: a.accountId,
         value: Number(a.openingValue),
+        wrapper: a.wrapper,
       }),
     ),
     ...plan.liabilities.map(
@@ -55,6 +56,7 @@ async function loadPrimaryPlanRows(userId: string): Promise<LoadedPlan | null> {
         label: l.label,
         linkId: l.accountId,
         value: Number(l.openingBalance),
+        wrapper: null,
       }),
     ),
     ...plan.incomes.map(
@@ -64,6 +66,7 @@ async function loadPrimaryPlanRows(userId: string): Promise<LoadedPlan | null> {
         label: i.label,
         linkId: i.categoryId,
         value: Number(i.annualAmount),
+        wrapper: null,
       }),
     ),
     ...plan.expenses.map(
@@ -73,6 +76,7 @@ async function loadPrimaryPlanRows(userId: string): Promise<LoadedPlan | null> {
         label: e.label,
         linkId: e.categoryId,
         value: Number(e.annualAmount),
+        wrapper: null,
       }),
     ),
   ];
