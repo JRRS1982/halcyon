@@ -4,7 +4,9 @@ import type { SyncPlan } from "@/lib/plan/sync";
 const plan: SyncPlan = {
   updates: [{ id: "p1", value: 42300, label: "Vanguard ISA", wrapper: null }],
   additions: [],
-  removals: [{ id: "p2", label: "Buy-to-let", reason: "plan-only" }],
+  removals: [
+    { id: "p2", label: "Buy-to-let", reason: "plan-only", dependsOn: null },
+  ],
   unchanged: ["p3"],
 };
 
@@ -26,7 +28,9 @@ describe("indicatorFor", () => {
   test("a row whose account is gone reads as plan-only", () => {
     const gone: SyncPlan = {
       ...plan,
-      removals: [{ id: "p4", label: "Old car", reason: "gone" }],
+      removals: [
+        { id: "p4", label: "Old car", reason: "gone", dependsOn: null },
+      ],
     };
     expect(indicatorFor("p4", gone)).toBe("plan-only");
   });

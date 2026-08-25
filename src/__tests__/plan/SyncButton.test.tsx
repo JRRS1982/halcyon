@@ -51,7 +51,9 @@ describe("SyncButton", () => {
           },
         },
       ],
-      removals: [{ id: "p4", label: "Old car", reason: "gone" }],
+      removals: [
+        { id: "p4", label: "Old car", reason: "gone", dependsOn: null },
+      ],
       unchanged: [],
     });
     expect(screen.getByRole("button", { name: /4 changes/i })).toBeEnabled();
@@ -100,7 +102,14 @@ describe("SyncButton", () => {
     renderButton({
       updates: [],
       additions: [],
-      removals: [{ id: "p4", label: "Buy-to-let at 50", reason: "plan-only" }],
+      removals: [
+        {
+          id: "p4",
+          label: "Buy-to-let at 50",
+          reason: "plan-only",
+          dependsOn: null,
+        },
+      ],
       unchanged: [],
     });
 
@@ -127,7 +136,9 @@ describe("SyncButton", () => {
     renderButton({
       updates: [],
       additions: [],
-      removals: [{ id: "p4", label: "Old car", reason: "gone" }],
+      removals: [
+        { id: "p4", label: "Old car", reason: "gone", dependsOn: null },
+      ],
       unchanged: [],
     });
 
@@ -141,14 +152,45 @@ describe("SyncButton", () => {
     expect(synced).toHaveBeenCalled();
   });
 
+  // The widened rule. A "gone" removal alone still syncs silently (above), but
+  // one that takes a mortgage, a repayment or a property-sale scenario with it
+  // destroys work nothing has warned about, so it must be named first.
+  test("shows the confirmation when a gone removal drags something with it", () => {
+    renderButton({
+      updates: [],
+      additions: [],
+      removals: [
+        { id: "a1", label: "The house", reason: "gone", dependsOn: null },
+        {
+          id: "l1",
+          label: "Halifax mortgage",
+          reason: "cascade",
+          dependsOn: "a1",
+        },
+      ],
+      unchanged: [],
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /2 changes/i }));
+
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+    expect(screen.getByText("Halifax mortgage")).toBeInTheDocument();
+    expect(synced).not.toHaveBeenCalled();
+  });
+
   test("names only the plan-only rows when gone rows are also being removed", () => {
     renderButton({
       updates: [],
       additions: [],
       removals: [
-        { id: "p1", label: "Buy-to-let at 50", reason: "plan-only" },
-        { id: "p2", label: "Old car", reason: "gone" },
-        { id: "p3", label: "Dead ISA", reason: "gone" },
+        {
+          id: "p1",
+          label: "Buy-to-let at 50",
+          reason: "plan-only",
+          dependsOn: null,
+        },
+        { id: "p2", label: "Old car", reason: "gone", dependsOn: null },
+        { id: "p3", label: "Dead ISA", reason: "gone", dependsOn: null },
       ],
       unchanged: [],
     });

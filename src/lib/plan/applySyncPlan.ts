@@ -7,7 +7,12 @@
 // rather than in syncActions.ts so it stays importable from both places.
 
 import type { Prisma } from "@prisma/client";
-import type { PlanRowKind, RealityRow, SyncPlan } from "@/lib/plan/sync";
+import type {
+  PlanRowKind,
+  RealityRow,
+  RemovableKind,
+  SyncPlan,
+} from "@/lib/plan/sync";
 
 // Every write below is fenced by both the plan id and the userId. `create`
 // can't carry a `where`, so additions rely on the up-front ownership check in
@@ -91,10 +96,13 @@ async function updateRow(
   }
 }
 
+// Wider than updateRow's PlanRowKind: a removal can reach a PlanEvent, which
+// is never updated by a Sync — it holds no value read from reality — but is
+// removed with the property it sells.
 async function removeRow(
   tx: Prisma.TransactionClient,
   fence: RowFence,
-  kind: PlanRowKind,
+  kind: RemovableKind,
 ): Promise<void> {
   switch (kind) {
     case "ASSET": {
@@ -129,6 +137,15 @@ async function removeRow(
       if (res.count === 0) {
         throw new Error(
           `Sync removal rejected: expense ${fence.id} not found for this plan`,
+        );
+      }
+      return;
+    }
+    case "EVENT": {
+      const res = await tx.planEvent.deleteMany({ where: fence });
+      if (res.count === 0) {
+        throw new Error(
+          `Sync removal rejected: event ${fence.id} not found for this plan`,
         );
       }
       return;
@@ -247,7 +264,7 @@ export async function applySyncPlan(
   planId: string,
   userId: string,
   plan: SyncPlan,
-  rowKinds: ReadonlyMap<string, PlanRowKind>,
+  rowKinds: ReadonlyMap<string, RemovableKind>,
 ): Promise<void> {
   // Additions can't be fenced by a `where`, so this is the only check that
   // stands between them and writing onto a plan the caller doesn't own.
@@ -264,7 +281,10 @@ export async function applySyncPlan(
 
   for (const update of plan.updates) {
     const kind = rowKinds.get(update.id);
-    if (!kind) {
+    // "EVENT" is unreachable: only a PlanRow can be an update, and events are
+    // not PlanRows. Refused rather than narrowed silently, so a future caller
+    // that builds the lookup wrongly fails loudly.
+    if (!kind || kind === "EVENT") {
       throw new Error(`Sync update rejected: unknown row ${update.id}`);
     }
     await updateRow(

@@ -3,7 +3,11 @@
 
 import { useState, useTransition } from "react";
 import styled from "styled-components";
-import { type SyncPlan, syncChangeCount } from "@/lib/plan/sync";
+import {
+  confirmableRemovals,
+  type SyncPlan,
+  syncChangeCount,
+} from "@/lib/plan/sync";
 import { SyncRemovalDialog } from "./SyncRemovalDialog";
 import { syncPlan } from "./syncActions";
 
@@ -71,18 +75,14 @@ export function SyncButton({
     });
   };
 
-  // A "gone" removal was already a deliberate choice, made on the balance
-  // sheet's own delete panel — which named counts and, for a permanent
-  // delete, required typing DELETE. Asking again here would be the friction
-  // that teaches people to click past confirmations, so it does not gate.
-  // A plan-only row is different: it exists nowhere else, Sync is the only
-  // thing that will ever destroy it, and nothing has warned about it yet.
-  const planOnlyRemovals = preview.removals.filter(
-    (r) => r.reason === "plan-only",
-  );
+  // The rule itself lives in sync.ts, beside the resolver that decides the
+  // removals: a "gone" row was already confirmed on the balance sheet's own
+  // delete panel and does not gate, but a plan-only row — and anything a
+  // removal drags with it — has had no warning from anywhere.
+  const mustConfirm = confirmableRemovals(preview.removals).length > 0;
 
   const onClick = () => {
-    if (planOnlyRemovals.length > 0) {
+    if (mustConfirm) {
       setConfirming(true);
       return;
     }
@@ -114,7 +114,7 @@ export function SyncButton({
       <Breakdown>{breakdownOf(preview)}</Breakdown>
       {confirming ? (
         <SyncRemovalDialog
-          removals={planOnlyRemovals}
+          removals={preview.removals}
           onCancel={() => setConfirming(false)}
           onConfirm={onConfirm}
         />

@@ -68,7 +68,9 @@ describe("SyncMarker", () => {
     const plan: SyncPlan = {
       updates: [],
       additions: [],
-      removals: [{ id: "p2", label: "Buy-to-let", reason: "plan-only" }],
+      removals: [
+        { id: "p2", label: "Buy-to-let", reason: "plan-only", dependsOn: null },
+      ],
       unchanged: [],
     };
 

@@ -3,9 +3,7 @@
 import { useEffect, useRef } from "react";
 import styled from "styled-components";
 import { Button } from "@/components/ui/Button";
-import type { SyncPlan } from "@/lib/plan/sync";
-
-type Removal = SyncPlan["removals"][number];
+import { confirmableRemovals, type SyncRemoval } from "@/lib/plan/sync";
 
 // ─── Chrome (focus-trap pattern copied from balance/AddAccountDrawer.tsx —
 // same Tab-trap-both-directions/Esc/body-scroll-lock/focus-restore effect,
@@ -63,6 +61,10 @@ const Row = styled.li`
   color: ${({ theme }) => theme.colors.ink};
 `;
 
+const GoesWith = styled.span`
+  color: ${({ theme }) => theme.colors.dim};
+`;
+
 const Text = styled.p`
   margin: 0;
   font-size: 13px;
@@ -75,12 +77,23 @@ const Actions = styled.div`
   gap: ${({ theme }) => theme.spacing.sm};
 `;
 
-// "N plan-only rows". Every removal that reaches this dialog is plan-only:
-// SyncButton filters to those before mounting it, because a "gone" row was
-// already announced by whatever archived or deleted the account. A second
-// branch for that reason would be unreachable.
-function describeRemovals(removals: Removal[]): string {
-  return `${removals.length} plan-only ${removals.length === 1 ? "row" : "rows"}`;
+const rows = (n: number): string => (n === 1 ? "row" : "rows");
+
+// "2 plan-only rows and 1 attached row". Two counts because they are two
+// different losses: a plan-only row exists nowhere else, while an attached one
+// is going because something it cannot outlive is going — a mortgage without
+// its property, a repayment without its debt, a sale without something to
+// sell. The zero part is omitted, so the common case still reads exactly
+// "1 plan-only row".
+function describeRemovals(removals: SyncRemoval[]): string {
+  const planOnly = removals.filter((r) => r.reason === "plan-only").length;
+  const attached = removals.filter((r) => r.reason === "cascade").length;
+  return [
+    planOnly > 0 ? `${planOnly} plan-only ${rows(planOnly)}` : null,
+    attached > 0 ? `${attached} attached ${rows(attached)}` : null,
+  ]
+    .filter((part): part is string => part !== null)
+    .join(" and ");
 }
 
 export function SyncRemovalDialog({
@@ -88,7 +101,8 @@ export function SyncRemovalDialog({
   onCancel,
   onConfirm,
 }: {
-  removals: Removal[];
+  /** The Sync's whole removal list — this dialog decides which of them to name. */
+  removals: SyncRemoval[];
   onCancel: () => void;
   onConfirm: () => void;
 }) {
@@ -141,8 +155,12 @@ export function SyncRemovalDialog({
     };
   }, []);
 
-  const description = describeRemovals(removals);
-  const heading = `Sync will remove ${description}`;
+  // The dialog is handed every removal and names the ones that need naming,
+  // rather than the caller pre-filtering: it also needs the rest to say what
+  // an attached row is going with, and that row is usually a "gone" one.
+  const named = confirmableRemovals(removals);
+  const labelById = new Map(removals.map((r) => [r.id, r.label]));
+  const heading = `Sync will remove ${describeRemovals(named)}`;
 
   return (
     <>
@@ -150,13 +168,23 @@ export function SyncRemovalDialog({
       <Box ref={boxRef} role="alertdialog" aria-label={heading} tabIndex={-1}>
         <Title>{heading}</Title>
         <RowList>
-          {removals.map((removal) => (
-            <Row key={removal.id}>{removal.label}</Row>
-          ))}
+          {named.map((removal) => {
+            const goesWith =
+              removal.dependsOn === null
+                ? null
+                : labelById.get(removal.dependsOn);
+            return (
+              <Row key={removal.id}>
+                {removal.label}
+                {goesWith ? <GoesWith> — goes with {goesWith}</GoesWith> : null}
+              </Row>
+            );
+          })}
         </RowList>
         <Text>
-          These aren&rsquo;t on your balance sheet or budget, so Sync has
-          nothing to update them from. You can add them again afterwards.
+          Plan-only rows aren&rsquo;t on your balance sheet or budget, so Sync
+          has nothing to update them from. Attached rows can&rsquo;t outlive
+          what they belong to. You can add them again afterwards.
         </Text>
         <Actions>
           <Button type="button" variant="outline" onClick={onCancel}>

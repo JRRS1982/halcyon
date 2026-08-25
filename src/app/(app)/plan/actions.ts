@@ -118,7 +118,7 @@ export async function createPlan(input: {
       tx,
       plan.id,
       userId,
-      resolvePlanSync([], reality),
+      resolvePlanSync([], reality, []),
       new Map(),
     );
   });

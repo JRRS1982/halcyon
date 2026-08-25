@@ -5,8 +5,9 @@ import { redirect } from "next/navigation";
 import { applySyncPlan } from "@/lib/plan/applySyncPlan";
 import { latestReality } from "@/lib/plan/reality";
 import {
+  type DependentRow,
   type PlanRow,
-  type PlanRowKind,
+  type RemovableKind,
   resolvePlanSync,
   type SyncPlan,
 } from "@/lib/plan/sync";
@@ -22,10 +23,16 @@ async function requireUserId(): Promise<string> {
   return user.id;
 }
 
-type LoadedPlan = { planId: string; rows: PlanRow[] };
+type LoadedPlan = {
+  planId: string;
+  rows: PlanRow[];
+  /** PROPERTY_SALE events — never removed on their own, only with their property. */
+  dependents: DependentRow[];
+};
 
 // The primary plan's rows, flattened into the shape resolvePlanSync compares
-// against reality. Null when the user has no primary plan.
+// against reality, plus the sale events that hang off them. Null when the user
+// has no primary plan.
 async function loadPrimaryPlanRows(userId: string): Promise<LoadedPlan | null> {
   const plan = await prisma.plan.findFirst({
     where: { userId, deletedAt: null, isPrimary: true },
@@ -34,6 +41,17 @@ async function loadPrimaryPlanRows(userId: string): Promise<LoadedPlan | null> {
       liabilities: { where: { deletedAt: null } },
       incomes: { where: { deletedAt: null } },
       expenses: { where: { deletedAt: null } },
+      // Only a sale that still names a property can be resolved against one.
+      // An event whose assetId is already null is an existing orphan: there is
+      // nothing left to say what it depended on, so Sync leaves it alone
+      // rather than guessing.
+      events: {
+        where: {
+          deletedAt: null,
+          kind: "PROPERTY_SALE",
+          assetId: { not: null },
+        },
+      },
     },
   });
   if (!plan) return null;
@@ -47,6 +65,7 @@ async function loadPrimaryPlanRows(userId: string): Promise<LoadedPlan | null> {
         linkId: a.accountId,
         value: Number(a.openingValue),
         wrapper: a.wrapper,
+        dependsOn: null,
       }),
     ),
     ...plan.liabilities.map(
@@ -57,6 +76,9 @@ async function loadPrimaryPlanRows(userId: string): Promise<LoadedPlan | null> {
         linkId: l.accountId,
         value: Number(l.openingBalance),
         wrapper: null,
+        // A mortgage cannot outlive its property — the same invariant
+        // deletePlanAsset enforces on the plan's own delete.
+        dependsOn: l.linkedAssetId,
       }),
     ),
     ...plan.incomes.map(
@@ -67,6 +89,7 @@ async function loadPrimaryPlanRows(userId: string): Promise<LoadedPlan | null> {
         linkId: i.categoryId,
         value: Number(i.annualAmount),
         wrapper: null,
+        dependsOn: null,
       }),
     ),
     ...plan.expenses.map(
@@ -77,19 +100,39 @@ async function loadPrimaryPlanRows(userId: string): Promise<LoadedPlan | null> {
         linkId: e.categoryId,
         value: Number(e.annualAmount),
         wrapper: null,
+        // A repayment cannot outlive its debt — deletePlanLiability's
+        // invariant, and deletePlanExpense refuses to delete one on its own.
+        dependsOn: e.liabilityId,
       }),
     ),
   ];
 
-  return { planId: plan.id, rows };
+  // A sale event is not a PlanRow — it mirrors nothing on the balance sheet,
+  // so it can be neither plan-only nor gone — but it cannot outlive the
+  // property it sells. flatMap rather than map: it also narrows assetId, which
+  // the query has already filtered to non-null.
+  const dependents: DependentRow[] = plan.events.flatMap((e) =>
+    e.assetId === null
+      ? []
+      : [{ id: e.id, label: e.label, dependsOn: e.assetId }],
+  );
+
+  return { planId: plan.id, rows, dependents };
 }
 
-// applySyncPlan can't tell which of the four plan-row models an update or
-// removal id belongs to — SyncPlan carries no kind for those (only additions
-// do). The rows we just loaded already know, so build the lookup here rather
-// than have applySyncPlan probe every model per id.
-function rowKindsOf(rows: PlanRow[]): Map<string, PlanRowKind> {
-  return new Map(rows.map((row) => [row.id, row.kind]));
+// applySyncPlan can't tell which model an update or removal id belongs to —
+// SyncPlan carries no kind for those (only additions do). What we just loaded
+// already knows, so build the lookup here rather than have applySyncPlan probe
+// every model per id. A removal can now reach a PlanEvent, so the lookup spans
+// five models rather than four.
+function rowKindsOf(
+  rows: PlanRow[],
+  dependents: DependentRow[],
+): Map<string, RemovableKind> {
+  return new Map<string, RemovableKind>([
+    ...rows.map((row): [string, RemovableKind] => [row.id, row.kind]),
+    ...dependents.map((d): [string, RemovableKind] => [d.id, "EVENT"]),
+  ]);
 }
 
 // What Sync would do, without doing it — the same object the button's counts,
@@ -100,7 +143,7 @@ export async function getPlanSyncPreview(): Promise<SyncPlan | null> {
   if (!loaded) return null;
 
   const reality = await latestReality(userId);
-  return resolvePlanSync(loaded.rows, reality);
+  return resolvePlanSync(loaded.rows, reality, loaded.dependents);
 }
 
 // Performs a Sync and returns what it did.
@@ -110,8 +153,8 @@ export async function syncPlan(): Promise<SyncPlan> {
   if (!loaded) throw new Error("Plan not found");
 
   const reality = await latestReality(userId);
-  const plan = resolvePlanSync(loaded.rows, reality);
-  const rowKinds = rowKindsOf(loaded.rows);
+  const plan = resolvePlanSync(loaded.rows, reality, loaded.dependents);
+  const rowKinds = rowKindsOf(loaded.rows, loaded.dependents);
 
   await prisma.$transaction((tx) =>
     applySyncPlan(tx, loaded.planId, userId, plan, rowKinds),

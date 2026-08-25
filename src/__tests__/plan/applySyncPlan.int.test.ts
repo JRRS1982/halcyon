@@ -79,7 +79,14 @@ describe("applySyncPlan (integration, direct)", () => {
         TEST_USER_ID,
         {
           updates: [],
-          removals: [{ id: asset.id, label: "Their pension", reason: "gone" }],
+          removals: [
+            {
+              id: asset.id,
+              label: "Their pension",
+              reason: "gone",
+              dependsOn: null,
+            },
+          ],
           additions: [],
           unchanged: [],
         },

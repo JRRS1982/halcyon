@@ -1,4 +1,5 @@
 import {
+  type DependentRow,
   type PlanRow,
   type RealityDefaults,
   type RealityRow,
@@ -19,6 +20,7 @@ const planRow = (over: Partial<PlanRow> = {}): PlanRow => ({
   linkId: "a1",
   value: 42300,
   wrapper: "ISA",
+  dependsOn: null,
   ...over,
 });
 
@@ -32,9 +34,17 @@ const realityRow = (over: Partial<RealityRow> = {}): RealityRow => ({
   ...over,
 });
 
+// Most cases here have no dependent events; this wrapper defaults that third
+// argument so each test states only what it is about.
+const resolve = (
+  rows: PlanRow[],
+  reality: RealityRow[],
+  dependents: DependentRow[] = [],
+) => resolvePlanSync(rows, reality, dependents);
+
 describe("resolvePlanSync", () => {
   it("leaves a row that already matches", () => {
-    const result = resolvePlanSync([planRow()], [realityRow()]);
+    const result = resolve([planRow()], [realityRow()]);
     expect(result).toEqual({
       updates: [],
       additions: [],
@@ -44,7 +54,7 @@ describe("resolvePlanSync", () => {
   });
 
   it("updates a row whose value has moved", () => {
-    const result = resolvePlanSync([planRow({ value: 80000 })], [realityRow()]);
+    const result = resolve([planRow({ value: 80000 })], [realityRow()]);
     expect(result.updates).toEqual([
       { id: "p1", value: 42300, label: "Vanguard ISA", wrapper: "ISA" },
     ]);
@@ -54,15 +64,12 @@ describe("resolvePlanSync", () => {
   // Sync overwrites regardless of why the row differs — a deliberate what-if
   // and a stale value are treated identically.
   it("updates a row the user deliberately changed", () => {
-    const result = resolvePlanSync(
-      [planRow({ value: 999999 })],
-      [realityRow()],
-    );
+    const result = resolve([planRow({ value: 999999 })], [realityRow()]);
     expect(result.updates).toHaveLength(1);
   });
 
   it("updates a row whose label changed, keeping the same link", () => {
-    const result = resolvePlanSync(
+    const result = resolve(
       [planRow()],
       [realityRow({ label: "Vanguard S&S ISA" })],
     );
@@ -76,10 +83,7 @@ describe("resolvePlanSync", () => {
   // plan through, exactly as a label change does — the same argument that
   // makes the label sync.
   it("updates a row whose wrapper changed, even with value and label unchanged", () => {
-    const result = resolvePlanSync(
-      [planRow()],
-      [realityRow({ wrapper: "GIA" })],
-    );
+    const result = resolve([planRow()], [realityRow({ wrapper: "GIA" })]);
     expect(result.updates).toEqual([
       { id: "p1", value: 42300, label: "Vanguard ISA", wrapper: "GIA" },
     ]);
@@ -92,15 +96,15 @@ describe("resolvePlanSync", () => {
       label: "Premium bonds",
       value: 5000,
     });
-    const result = resolvePlanSync([planRow()], [realityRow(), extra]);
+    const result = resolve([planRow()], [realityRow(), extra]);
     expect(result.additions).toEqual([extra]);
   });
 
   // An archived or hard-deleted account is simply absent from `reality`.
   it("removes a row whose account is gone", () => {
-    const result = resolvePlanSync([planRow()], []);
+    const result = resolve([planRow()], []);
     expect(result.removals).toEqual([
-      { id: "p1", label: "Vanguard ISA", reason: "gone" },
+      { id: "p1", label: "Vanguard ISA", reason: "gone", dependsOn: null },
     ]);
   });
 
@@ -110,9 +114,14 @@ describe("resolvePlanSync", () => {
       linkId: null,
       label: "Buy-to-let at 50",
     });
-    const result = resolvePlanSync([planRow(), invented], [realityRow()]);
+    const result = resolve([planRow(), invented], [realityRow()]);
     expect(result.removals).toEqual([
-      { id: "p2", label: "Buy-to-let at 50", reason: "plan-only" },
+      {
+        id: "p2",
+        label: "Buy-to-let at 50",
+        reason: "plan-only",
+        dependsOn: null,
+      },
     ]);
     expect(result.unchanged).toEqual(["p1"]);
   });
@@ -121,26 +130,26 @@ describe("resolvePlanSync", () => {
   // must never resolve against an income. Kind is part of the identity.
   it("does not match rows of different kinds sharing a link id", () => {
     const income = planRow({ id: "p3", kind: "INCOME", label: "Salary" });
-    const result = resolvePlanSync([income], [realityRow()]);
+    const result = resolve([income], [realityRow()]);
     expect(result.removals).toEqual([
-      { id: "p3", label: "Salary", reason: "gone" },
+      { id: "p3", label: "Salary", reason: "gone", dependsOn: null },
     ]);
     expect(result.additions).toHaveLength(1);
   });
 
   it("handles an empty plan by adding everything", () => {
-    const result = resolvePlanSync([], [realityRow()]);
+    const result = resolve([], [realityRow()]);
     expect(result.additions).toHaveLength(1);
     expect(result.updates).toEqual([]);
     expect(result.removals).toEqual([]);
   });
 
   it("reports nothing to do for an empty plan and empty reality", () => {
-    expect(syncChangeCount(resolvePlanSync([], []))).toBe(0);
+    expect(syncChangeCount(resolve([], []))).toBe(0);
   });
 
   it("counts every change once", () => {
-    const result = resolvePlanSync(
+    const result = resolve(
       [planRow({ value: 1 }), planRow({ id: "p2", linkId: null })],
       [realityRow(), realityRow({ linkId: "a2" })],
     );
@@ -151,7 +160,7 @@ describe("resolvePlanSync", () => {
   // no part in the equality check — it only gives an *addition* a starting
   // point — and a row differing solely there is still unchanged.
   it("never updates a row because its reality defaults differ", () => {
-    const result = resolvePlanSync(
+    const result = resolve(
       [planRow()],
       [
         realityRow({
@@ -167,7 +176,7 @@ describe("resolvePlanSync", () => {
   // without this a brand-new user's first plan opens on a table of empty
   // lines. seed.ts skipped them for exactly this reason.
   it("does not add a row worth nothing", () => {
-    const result = resolvePlanSync(
+    const result = resolve(
       [],
       [realityRow({ linkId: "c1", kind: "EXPENSE", value: 0, wrapper: null })],
     );
@@ -176,7 +185,7 @@ describe("resolvePlanSync", () => {
   });
 
   it("does not add a row worth less than nothing", () => {
-    const result = resolvePlanSync([], [realityRow({ value: -50 })]);
+    const result = resolve([], [realityRow({ value: -50 })]);
     expect(result.additions).toEqual([]);
   });
 
@@ -185,7 +194,7 @@ describe("resolvePlanSync", () => {
   // would delete the row and the user's tuned assumptions with it, silently,
   // since the confirmation dialog only names plan-only rows.
   it("updates a linked row whose value has fallen to zero rather than removing it", () => {
-    const result = resolvePlanSync(
+    const result = resolve(
       [planRow({ kind: "LIABILITY", wrapper: null, value: 1200 })],
       [realityRow({ kind: "LIABILITY", wrapper: null, value: 0 })],
     );
@@ -196,11 +205,217 @@ describe("resolvePlanSync", () => {
   });
 
   it("leaves an already-zero linked row alone rather than removing it", () => {
-    const result = resolvePlanSync(
+    const result = resolve(
       [planRow({ kind: "LIABILITY", wrapper: null, value: 0 })],
       [realityRow({ kind: "LIABILITY", wrapper: null, value: 0 })],
     );
     expect(result.removals).toEqual([]);
     expect(result.unchanged).toEqual(["p1"]);
+  });
+});
+
+// A mortgaged property is three rows and an event, each of which cannot
+// outlive the one above it: the mortgage needs its property, the repayment
+// needs its mortgage, the sale needs something to sell. Removing only the row
+// reality lost leaves the rest behind — a mortgage on a house that is gone,
+// and a PROPERTY_SALE whose assetId the FK has nulled, which project.ts skips
+// in three places and EventsTable renders as a sale of "?".
+describe("resolvePlanSync cascades", () => {
+  const house = planRow({
+    id: "asset-house",
+    label: "The house",
+    linkId: "acct-house",
+    wrapper: "PROPERTY",
+    value: 400000,
+  });
+  const houseReality = realityRow({
+    linkId: "acct-house",
+    label: "The house",
+    wrapper: "PROPERTY",
+    value: 400000,
+  });
+  const mortgage = planRow({
+    id: "liab-mortgage",
+    kind: "LIABILITY",
+    label: "Halifax mortgage",
+    linkId: "acct-mortgage",
+    wrapper: null,
+    value: 180000,
+    dependsOn: "asset-house",
+  });
+  const mortgageReality = realityRow({
+    kind: "LIABILITY",
+    linkId: "acct-mortgage",
+    label: "Halifax mortgage",
+    wrapper: null,
+    value: 180000,
+  });
+  // linkRepaymentExpense sets no categoryId, so a real repayment expense is
+  // always plan-only as well as dependent — the overlap this must not
+  // double-count.
+  const repayment = planRow({
+    id: "exp-repayment",
+    kind: "EXPENSE",
+    label: "Halifax mortgage repayment",
+    linkId: null,
+    wrapper: null,
+    value: 12000,
+    dependsOn: "liab-mortgage",
+  });
+  const sale: DependentRow = {
+    id: "evt-sale",
+    label: "Sell the house at 60",
+    dependsOn: "asset-house",
+  };
+
+  it("takes the mortgage, its repayment and the sale event when the property's account is gone", () => {
+    const result = resolve(
+      [house, mortgage, repayment],
+      [mortgageReality],
+      [sale],
+    );
+
+    expect(result.removals).toEqual([
+      {
+        id: "asset-house",
+        label: "The house",
+        reason: "gone",
+        dependsOn: null,
+      },
+      {
+        id: "exp-repayment",
+        label: "Halifax mortgage repayment",
+        reason: "plan-only",
+        dependsOn: null,
+      },
+      {
+        id: "liab-mortgage",
+        label: "Halifax mortgage",
+        reason: "cascade",
+        dependsOn: "asset-house",
+      },
+      {
+        id: "evt-sale",
+        label: "Sell the house at 60",
+        reason: "cascade",
+        dependsOn: "asset-house",
+      },
+    ]);
+    expect(result.unchanged).toEqual([]);
+    expect(result.updates).toEqual([]);
+  });
+
+  // Three deep: property → mortgage → repayment. A hand-rolled two levels
+  // would leave the third behind.
+  it("follows the chain transitively", () => {
+    const linkedRepayment = planRow({
+      id: "exp-repayment",
+      kind: "EXPENSE",
+      label: "Halifax mortgage repayment",
+      linkId: "cat-repay",
+      wrapper: null,
+      value: 12000,
+      dependsOn: "liab-mortgage",
+    });
+    const repaymentReality = realityRow({
+      kind: "EXPENSE",
+      linkId: "cat-repay",
+      label: "Halifax mortgage repayment",
+      wrapper: null,
+      value: 12000,
+    });
+
+    const result = resolve(
+      [house, mortgage, linkedRepayment],
+      [mortgageReality, repaymentReality],
+      [sale],
+    );
+
+    expect(result.removals.map((r) => [r.id, r.reason])).toEqual([
+      ["asset-house", "gone"],
+      ["liab-mortgage", "cascade"],
+      ["evt-sale", "cascade"],
+      ["exp-repayment", "cascade"],
+    ]);
+    expect(result.unchanged).toEqual([]);
+    expect(result.updates).toEqual([]);
+  });
+
+  // The button's number is the promise the dialog then itemises: a row that is
+  // both plan-only and dragged must be removed once and counted once.
+  it("removes a row that is both plan-only and dragged exactly once", () => {
+    const result = resolve(
+      [house, mortgage, repayment],
+      [mortgageReality],
+      [sale],
+    );
+
+    const ids = result.removals.map((r) => r.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids.filter((id) => id === "exp-repayment")).toHaveLength(1);
+    expect(syncChangeCount(result)).toBe(result.removals.length);
+    expect(syncChangeCount(result)).toBe(4);
+  });
+
+  it("leaves dependents alone when the row they depend on survives", () => {
+    const result = resolve(
+      [house, mortgage],
+      [houseReality, mortgageReality],
+      [sale],
+    );
+
+    expect(result.removals).toEqual([]);
+    expect(result.unchanged).toEqual(["asset-house", "liab-mortgage"]);
+  });
+
+  it("cascades nothing from a gone row nothing depends on", () => {
+    const result = resolve([planRow()], [], [sale]);
+
+    expect(result.removals).toEqual([
+      { id: "p1", label: "Vanguard ISA", reason: "gone", dependsOn: null },
+    ]);
+  });
+
+  // A row about to be deleted must not also be reported as an update: the
+  // breakdown would count it twice and applySyncPlan would write it and then
+  // throw it away.
+  it("drops a dragged row out of updates", () => {
+    const result = resolve(
+      [house, mortgage],
+      [
+        realityRow({
+          kind: "LIABILITY",
+          linkId: "acct-mortgage",
+          label: "Halifax mortgage",
+          wrapper: null,
+          value: 175000,
+        }),
+      ],
+      [],
+    );
+
+    expect(result.updates).toEqual([]);
+    expect(result.removals.map((r) => r.id)).toEqual([
+      "asset-house",
+      "liab-mortgage",
+    ]);
+    expect(syncChangeCount(result)).toBe(2);
+  });
+
+  // The cascade fires from a "gone" removal as readily as a plan-only one, and
+  // stops where the dependency does: the sale event hangs off the property,
+  // which is still here.
+  it("cascades from a gone dependent without touching its siblings", () => {
+    const result = resolve(
+      [house, mortgage, repayment],
+      [houseReality],
+      [sale],
+    );
+
+    expect(result.removals.map((r) => [r.id, r.reason])).toEqual([
+      ["liab-mortgage", "gone"],
+      ["exp-repayment", "plan-only"],
+    ]);
+    expect(result.unchanged).toEqual(["asset-house"]);
   });
 });
