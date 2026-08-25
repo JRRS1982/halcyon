@@ -107,107 +107,37 @@ delete a mortgage is that it's paid off). A property panel also carries a line
 pointing at the plan's `PROPERTY_SALE` event, so a sold house isn't purged and
 its proceeds lost from history.
 
-## The backfill — read this before running it in production
+## There was a one-time backfill. It has been removed.
 
-`src/lib/accounts/backfill.ts` gives every historical, unlinked `BalanceItem`
-an `Account`, run once per user via `backfillAccountsForUser`.
+Historical balance rows were free text, so shipping this feature needed a
+migration that gave each distinct label an `Account` and pointed its rows at
+one. That code lived in `src/lib/accounts/backfill.ts` with a `make
+backfill-accounts` entry point, and was written to be run deliberately rather
+than as a deploy side effect — it was the one irreversible step in the phase.
 
-**It is temporary.** Delete `src/lib/accounts/backfill.ts`,
-`scripts/backfill-accounts.ts`, the `backfill-accounts` Make target, and their
-tests (`src/__tests__/accounts/backfill.test.ts`,
-`backfill.int.test.ts`) once the production run has completed and been
-verified. Nothing else depends on this code after that point — leaving it in
-only invites someone to run it again "just in case" against data it no longer
-applies to.
+**It was never run in production, and it has been deleted.** Production held a
+single user with eleven unlinked rows, all in one month. Deleting those rows and
+re-entering them through the Add drawer was better than migrating them: the user
+chose each section and wrapper deliberately instead of inheriting
+`inferWrapper`'s guesses, and the property/mortgage pair got a real
+`linkedAccountId` — which the backfill would *not* have produced, because it
+lifts links from an existing plan by matching labels, and "76 Victoria Ave"
+does not match "76 Vic Ave Mortgage".
 
-**What it does, per user, inside one transaction:**
+**It cannot be needed again.** Every path that creates a `BalanceItem` now sets
+`accountId`: the Add drawer sets it directly, and both copy-forward paths carry
+it through `toCarriedOverRows`. `createBalanceItemForMonth` — the last way to
+create a row without one — was deleted during this phase.
 
-1. Every distinct `(type, label)` pair among that user's unlinked
-   `BalanceItem`s becomes one `Account` (or is matched onto an existing
-   account of the same name — including promoting a plain `kind: NONE`
-   transaction account into an asset/liability once a balance row proves it's
-   also a balance-sheet line). Every row sharing that pair takes the same
-   `accountId`.
-2. A freshly created asset account gets `wrapper` from the existing
-   `inferWrapper` heuristic (`src/lib/plan/seed.ts`) — guessing once during
-   migration is accepted; the point of the feature is that nothing guesses
-   afterwards. (`PlanLiability.interestPct` needs no equivalent step here: it
-   was already set at plan-creation time by `inferInterestPct`, and the
-   backfill doesn't touch `PlanLiability` at all.)
-3. `PlanLiability.linkedAssetId` pairings are lifted onto
-   `Account.linkedAccountId` by `linkMortgagesToProperties` — see "The
-   `PlanLiability` matching residual" below for how the two sides of that
-   pairing are resolved differently.
+The history is in PR #170 if the reasoning is ever needed again. What survives
+from it and still matters:
 
-**It's idempotent — for runs that don't overlap.** A second, later run reads
-only rows with `accountId: null` and only creates an account when no matching
-one exists, so it reports `0 accounts created, 0 rows linked` (the script's
-final summary line phrases it as "N accounts created, N balance rows linked")
-and touches nothing. This is safe by construction, not by convention — there's
-no "already ran" flag to get out of sync. It is **not** safe against two runs
-*for the same user* overlapping in time: there's no advisory lock, so two
-concurrent invocations can both read the same unlinked rows before either has
-written anything, and both create an account for the same (type, label) pair.
-Run it sequentially, one user at a time.
-
-### Running it against production
-
-There is no production container, so this is a local, one-shot invocation with
-the production URL injected for that single command and never written to a
-file:
-
-```bash
-DATABASE_URL="$PROD_DIRECT_URL" DIRECT_URL="$PROD_DIRECT_URL" pnpm backfill:accounts
-```
-
-**Ordering matters.** `migrate-prod` applies the schema on push to `master`,
-*before* Vercel deploys. The app works fine with every `BalanceItem.accountId`
-still null — that's why `label` stays populated on every row regardless — so
-the backfill is not part of the deploy pipeline and is run deliberately
-afterwards, once the deploy is confirmed live.
-
-### Rollback, and its one weakness
-
-Undo is:
-
-```sql
-UPDATE "BalanceItem" SET "accountId" = NULL WHERE "accountId" IN (...);
-DELETE FROM "Account" WHERE id IN (...) AND "createdAt" >= '<run start timestamp>';
-```
-
-**Nothing marks which accounts the backfill created.** There is no batch id
-or flag column on `Account` — `createdAt` compared against the run's start
-time is the only thing to lean on, and it also can't distinguish a
-backfill-created account from one a user happened to create in the same
-window by coincidence. It's also incomplete in a way the two-statement sketch
-above doesn't show: an account the backfill *matched and promoted* (a
-pre-existing `kind: NONE` account whose `kind`/`category`/`wrapper` got
-written in step 1) isn't a new row, so deleting "accounts created after the
-run started" doesn't touch it — nor does it undo a `linkedAccountId` written
-onto a pre-existing liability account in step 3. Rolling back a promoted
-account means resetting `kind` to `NONE` and clearing `category`/`wrapper`/
-`linkedAccountId` by hand.
-
-**The 60-second transaction cap.** `backfillAccountsForUser` wraps the whole
-per-user run in one `prisma.$transaction(..., { timeout: 60_000 })`. A user
-with enough unlinked balance rows to exceed that window fails, rolls back
-completely (partial progress is not kept — that's what makes the transaction
-safe to retry), and never converges on retry, because the same rows are still
-there next time. Check the largest user's row count before running this
-against production.
-
-### The `PlanLiability` matching residual
-
-`linkMortgagesToProperties` resolves the two sides of a mortgage↔property pair
-differently. The **property** side resolves through
-`PlanAsset.sourceBalanceItemId` first — a real foreign key, populated whenever
-the plan asset was seeded from a balance row — and only falls back to
-label-matching when that's null. The **liability** side has no equivalent
-column, so it is always matched by label. In practice this means: a plan and a
-balance sheet that disagree about a mortgage's name simply won't link (safe,
-just inert), but two mortgages with confusable labels could in principle pair
-with the wrong property. Nothing detects that case; it's a known, accepted
-residual rather than a bug to fix here.
+- **Legacy rows still render.** `BalanceItem.label` remains populated and
+  `accountId` stays nullable, so a row without an account displays exactly as it
+  always did and deletes through the old path. `prisma/seed.ts` still creates
+  rows this way, so local development exercises that path — see Known gaps.
+- **The `@unique` on `Account.linkedAccountId`** means one mortgage per
+  property, enforced by the database rather than by convention.
 
 ## What P1 does not do
 
@@ -234,8 +164,6 @@ scoping:
 | Concern | File |
 |---|---|
 | `AccountKind` enum, `Account.kind`/`category`/`wrapper`/`canImportTransactions`/`linkedAccountId`, `BalanceItem`/`FinancialItem`/`BalanceTemplateItem.accountId` | [`prisma/schema.prisma`](../../prisma/schema.prisma) |
-| One-time migration: unlinked balance rows → accounts, mortgage↔property link lift | [`src/lib/accounts/backfill.ts`](../../src/lib/accounts/backfill.ts) |
-| Backfill CLI entry point | [`scripts/backfill-accounts.ts`](../../scripts/backfill-accounts.ts), `make backfill-accounts` |
 | Pure account-creation data shaping (primary + mortgage) | [`src/lib/accounts/creation.ts`](../../src/lib/accounts/creation.ts) |
 | Zod schemas for create / delete-everywhere | [`src/lib/accounts/schemas.ts`](../../src/lib/accounts/schemas.ts) |
 | Delete-mode + property-row pure rules | [`src/lib/accounts/deletion.ts`](../../src/lib/accounts/deletion.ts) |
@@ -252,10 +180,8 @@ scoping:
 - **Unit** — `accountDraft.test.ts` (import-checkbox default/stickiness,
   submit gating), `creation.test.ts` (pure data shaping),
   `deletion.test.ts` (property-row and confirm-text rules),
-  `backfill.test.ts` (the mortgage-link arbitration function in isolation).
 - **Integration** (`*.int.test.ts`, real Postgres) —
-  `schema.int.test.ts` (columns and defaults), `backfill.int.test.ts` (the
-  full per-user run, including idempotency — running it twice over the same
+  `schema.int.test.ts` (columns and defaults),
   data produces the same result), `balanceAccountActions.int.test.ts`
   (create-with-mortgage transaction, archive/restore, both delete modes),
   `copyForward.int.test.ts` (accountId survives copy-forward and template
@@ -285,9 +211,12 @@ surfaced while building and testing this feature:
 
 ## Known gaps
 
-- **`canImportTransactions` gates nothing yet** (see above) — the next step
-  is filtering `ImportPanel`'s and the ledger's account list on it, per the
-  original intent in the schema comment.
+- **`prisma/seed.ts` still creates balance rows with no `accountId`.** Local
+  development therefore starts with legacy-shaped rows that no longer have a
+  migration to link them. That is currently useful — it keeps the null-`accountId`
+  path in `BalanceSheet` exercised, and that path is real code — but the seed
+  should eventually create accounts and link its rows, so `make db-reset` yields
+  data shaped like production. Deferred deliberately until this phase settles.
 - **`docs/DataModels/DataModels.md` still describes `Account` as
   transactions-only** ("where money sits — current, savings, ISA, SIPP");
   it wasn't updated as part of this phase and should be, alongside the P2/P3

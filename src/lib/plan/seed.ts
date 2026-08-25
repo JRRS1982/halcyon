@@ -80,7 +80,7 @@ const WRAPPER_BY_CATEGORY: Record<BalanceItemCategory, PlanAssetWrapper> = {
   OTHER: "OTHER",
 };
 
-export function inferWrapper(
+function inferWrapper(
   label: string,
   category: BalanceItemCategory,
 ): PlanAssetWrapper {
