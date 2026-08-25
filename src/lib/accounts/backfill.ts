@@ -1,6 +1,11 @@
 import type { AccountKind, BalanceItemType, Prisma } from "@prisma/client";
 import { inferWrapper } from "@/lib/plan/seed";
 import { prisma } from "@/lib/prisma";
+import {
+  keyFor,
+  type MortgageLinkCandidate,
+  resolveMortgageLinks,
+} from "./mortgageLinks";
 
 export type BackfillResult = { accountsCreated: number; itemsLinked: number };
 
@@ -12,56 +17,12 @@ const KIND_BY_BALANCE_TYPE: Record<BalanceItemType, AccountKind> = {
 // Two rows are the same thing when they share a type and a case-insensitive,
 // trimmed label — which is exactly how copy-forward already relates a month's
 // rows to the previous month's.
-const keyFor = (type: BalanceItemType, label: string): string =>
-  `${type}::${label.trim().toLowerCase()}`;
-
 type ExistingAccount = {
   id: string;
   name: string;
   kind: AccountKind;
   linkedAccountId: string | null;
 };
-
-export type MortgageLinkCandidate = {
-  liabilityAccountId: string;
-  liabilityAccountLinkedAccountId: string | null;
-  propertyAccountId: string;
-};
-
-// Decides which mortgage -> property links are safe to write, given what's
-// already on file. Never overwrites a link that's already set (a second run
-// must fight nothing), and never lets two liability accounts claim the same
-// property or one liability account claim two properties — Account.linkedAccountId
-// is @unique, so a second claim on an already-claimed side is dropped here
-// rather than left to blow up as a database error. `alreadyLinkedPropertyIds`
-// must come from an unfiltered read of every account's *current*
-// `linkedAccountId` (ignoring `deletedAt`, `kind`, and name-collision dedup)
-// — an archived mortgage still holds its link (see resolveLinkedPartnerId's
-// own comment in accountActions.ts), and the unique index enforces this
-// regardless of soft-delete state. Exported for direct unit testing — the
-// arbitration here is the part worth testing without a database.
-export function resolveMortgageLinks(
-  candidates: MortgageLinkCandidate[],
-  alreadyLinkedPropertyIds: ReadonlySet<string>,
-): { liabilityAccountId: string; propertyAccountId: string }[] {
-  const claimedProperties = new Set(alreadyLinkedPropertyIds);
-  const claimedLiabilities = new Set<string>();
-  const links: { liabilityAccountId: string; propertyAccountId: string }[] = [];
-
-  for (const candidate of candidates) {
-    if (candidate.liabilityAccountLinkedAccountId !== null) continue;
-    if (claimedLiabilities.has(candidate.liabilityAccountId)) continue;
-    if (claimedProperties.has(candidate.propertyAccountId)) continue;
-    claimedProperties.add(candidate.propertyAccountId);
-    claimedLiabilities.add(candidate.liabilityAccountId);
-    links.push({
-      liabilityAccountId: candidate.liabilityAccountId,
-      propertyAccountId: candidate.propertyAccountId,
-    });
-  }
-
-  return links;
-}
 
 /**
  * Lifts `PlanLiability.linkedAssetId` pairings onto `Account.linkedAccountId`.
