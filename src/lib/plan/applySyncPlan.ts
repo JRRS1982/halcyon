@@ -147,6 +147,7 @@ async function addRow(
   planId: string,
   addition: RealityRow,
   retirementAge: number,
+  sortOrder: number,
 ): Promise<void> {
   const { defaults } = addition;
 
@@ -158,6 +159,7 @@ async function addRow(
           label: addition.label,
           accountId: addition.linkId,
           openingValue: addition.value,
+          sortOrder,
           // See updateRow's ASSET case for the null fallback.
           wrapper: addition.wrapper ?? "OTHER",
           // Null only on a non-ASSET row, so unreachable here; 0 is the
@@ -175,6 +177,7 @@ async function addRow(
           label: addition.label,
           accountId: addition.linkId,
           openingBalance: addition.value,
+          sortOrder,
         },
       });
       return;
@@ -186,6 +189,7 @@ async function addRow(
           label: addition.label,
           categoryId: addition.linkId,
           annualAmount: addition.value,
+          sortOrder,
           kind,
           // A salary stops at retirement; anything else runs to the end of the
           // projection. Left null, a synced salary projects on to
@@ -203,6 +207,7 @@ async function addRow(
           label: addition.label,
           categoryId: addition.linkId,
           annualAmount: addition.value,
+          sortOrder,
           // Nullable on both sides: an uncategorised category stays
           // uncategorised rather than reading as UNCATEGORISED in the
           // projection and the timeline.
@@ -211,6 +216,30 @@ async function addRow(
       });
       return;
   }
+}
+
+// The next free sortOrder on each of the four models, read once. addRow's
+// creates left it at the schema default of 0, so every synced row tied — and
+// src/lib/plan/assets.ts sorts by drawdownPriority with a stable sort, so two
+// assets in the same bucket drained in whatever order the query returned.
+// Same shape as the create paths in plan/actions.ts: (max ?? -1) + 1.
+async function nextSortOrders(
+  tx: Prisma.TransactionClient,
+  planId: string,
+): Promise<Record<PlanRowKind, number>> {
+  const where = { planId, deletedAt: null };
+  const [asset, liability, income, expense] = await Promise.all([
+    tx.planAsset.aggregate({ where, _max: { sortOrder: true } }),
+    tx.planLiability.aggregate({ where, _max: { sortOrder: true } }),
+    tx.planIncome.aggregate({ where, _max: { sortOrder: true } }),
+    tx.planExpense.aggregate({ where, _max: { sortOrder: true } }),
+  ]);
+  return {
+    ASSET: (asset._max.sortOrder ?? -1) + 1,
+    LIABILITY: (liability._max.sortOrder ?? -1) + 1,
+    INCOME: (income._max.sortOrder ?? -1) + 1,
+    EXPENSE: (expense._max.sortOrder ?? -1) + 1,
+  };
 }
 
 export async function applySyncPlan(
@@ -226,7 +255,9 @@ export async function applySyncPlan(
   // runs: addRow needs it to end a salary at retirement, and reading it here
   // costs nothing and keeps the exported signature unchanged.
   const owned = await tx.plan.findFirst({
-    where: { id: planId, userId },
+    // deletedAt: null, as every comparable ownership read in plan/actions.ts
+    // carries: a deleted plan is not a plan to write onto.
+    where: { id: planId, userId, deletedAt: null },
     select: { id: true, retirementAge: true },
   });
   if (!owned) throw new Error("Plan not found");
@@ -252,7 +283,17 @@ export async function applySyncPlan(
     await removeRow(tx, { id: removal.id, plan: { id: planId, userId } }, kind);
   }
 
+  // Read after the removals above, so a row this Sync deleted does not hold a
+  // sortOrder open. Incremented in memory from there, keeping the additions
+  // deterministic — and in resolution order — within one run.
+  const sortOrders = await nextSortOrders(tx, planId);
   for (const addition of plan.additions) {
-    await addRow(tx, planId, addition, owned.retirementAge);
+    await addRow(
+      tx,
+      planId,
+      addition,
+      owned.retirementAge,
+      sortOrders[addition.kind]++,
+    );
   }
 }

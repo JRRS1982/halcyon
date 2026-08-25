@@ -75,22 +75,12 @@ const Actions = styled.div`
   gap: ${({ theme }) => theme.spacing.sm};
 `;
 
-// "N plan-only rows" and/or "N rows no longer on your balance sheet" — the
-// two reasons resolvePlanSync ever produces, joined only when both occur.
+// "N plan-only rows". Every removal that reaches this dialog is plan-only:
+// SyncButton filters to those before mounting it, because a "gone" row was
+// already announced by whatever archived or deleted the account. A second
+// branch for that reason would be unreachable.
 function describeRemovals(removals: Removal[]): string {
-  const planOnly = removals.filter((r) => r.reason === "plan-only").length;
-  const gone = removals.filter((r) => r.reason === "gone").length;
-
-  const parts = [
-    planOnly > 0
-      ? `${planOnly} plan-only ${planOnly === 1 ? "row" : "rows"}`
-      : null,
-    gone > 0
-      ? `${gone} ${gone === 1 ? "row" : "rows"} no longer on your balance sheet`
-      : null,
-  ].filter((p): p is string => p !== null);
-
-  return parts.join(" and ");
+  return `${removals.length} plan-only ${removals.length === 1 ? "row" : "rows"}`;
 }
 
 export function SyncRemovalDialog({

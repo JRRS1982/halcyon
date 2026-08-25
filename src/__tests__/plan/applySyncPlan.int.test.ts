@@ -117,4 +117,99 @@ describe("applySyncPlan (integration, direct)", () => {
       ),
     ).rejects.toThrow("Plan not found");
   });
+
+  // Every comparable ownership read in plan/actions.ts carries deletedAt:
+  // null. This one did not, so a deleted plan still counted as a plan to write
+  // onto.
+  it("rejects a plan the user has deleted", async () => {
+    const plan = await ownPlan();
+    // A real account, so the addition below would otherwise succeed and the
+    // rejection can only have come from the ownership check.
+    const account = await prisma.account.create({
+      data: { userId: TEST_USER_ID, name: "Vanguard ISA", kind: "ASSET" },
+    });
+    await prisma.plan.update({
+      where: { id: plan.id },
+      data: { deletedAt: new Date() },
+    });
+
+    await expect(
+      applySyncPlan(
+        prisma,
+        plan.id,
+        TEST_USER_ID,
+        {
+          updates: [],
+          removals: [],
+          additions: [
+            {
+              linkId: account.id,
+              kind: "ASSET",
+              label: "Vanguard ISA",
+              value: 1000,
+              wrapper: "ISA",
+              defaults: {
+                drawdownPriority: 1,
+                incomeKind: null,
+                expenseCategory: null,
+              },
+            },
+          ],
+          unchanged: [],
+        },
+        new Map(),
+      ),
+    ).rejects.toThrow("Plan not found");
+
+    expect(await prisma.planAsset.count()).toBe(0);
+  });
+
+  // Every added row shares sortOrder 0 unless it is set, and Array.sort is
+  // stable: src/lib/plan/assets.ts then drains equal-priority assets in
+  // whatever order the query happened to return them.
+  it("gives each added row its own sortOrder, continuing from the plan's rows", async () => {
+    const plan = await ownPlan();
+    await prisma.planAsset.create({
+      data: { planId: plan.id, label: "Existing", sortOrder: 4 },
+    });
+    const account = (name: string) =>
+      prisma.account.create({
+        data: { userId: TEST_USER_ID, name, kind: "ASSET" },
+      });
+    const first = await account("ISA");
+    const second = await account("SIPP");
+
+    await applySyncPlan(
+      prisma,
+      plan.id,
+      TEST_USER_ID,
+      {
+        updates: [],
+        removals: [],
+        additions: [first, second].map((a) => ({
+          linkId: a.id,
+          kind: "ASSET" as const,
+          label: a.name,
+          value: 1000,
+          wrapper: "ISA" as const,
+          defaults: {
+            drawdownPriority: 1,
+            incomeKind: null,
+            expenseCategory: null,
+          },
+        })),
+        unchanged: [],
+      },
+      new Map(),
+    );
+
+    const added = await prisma.planAsset.findMany({
+      where: { planId: plan.id, accountId: { not: null } },
+      orderBy: { sortOrder: "asc" },
+    });
+    expect(added.map((a) => [a.label, a.sortOrder])).toEqual([
+      ["ISA", 5],
+      ["SIPP", 6],
+    ]);
+  });
 });
