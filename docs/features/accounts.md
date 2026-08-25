@@ -11,6 +11,11 @@ the plan to point at, so the plan guessed everything it couldn't observe.
 for the full reasoning — this doc covers what P1 actually built and the
 decisions a reader would otherwise have to reverse-engineer.
 
+P2 connected the plan to this registry: every plan row now links to the
+`Account` or `Category` it mirrors, and one Sync button refreshes them. See
+[`plan-sync.md`](plan-sync.md), which also records a decision this document's
+design doc made and P2 reversed — see "Plan values are editable," below.
+
 ## The three-layer split
 
 The design separates three kinds of datum so that no column lives in two
@@ -29,6 +34,30 @@ places:
 balance side; the budget side (`FinancialItem.accountId`) landed in the schema
 so the delete path is honest (see "What P1 does not do," below), but nothing
 writes it yet.
+
+## Plan values are editable — a P1 decision, reversed in P2
+
+The P1 design doc's ["Where values are edited"](../superpowers/specs/2026-08-21-unified-accounts-design.md)
+section made plan values **read-only**: a linked row would show the latest
+month's figure greyed and annotated, with only assumptions editable. It
+explicitly rejected a plan-side override because that "reintroduces two numbers
+for one thing — the defect this work exists to remove."
+
+**That is reversed. Plan values are editable.** The objection assumed
+divergence would be *invisible*, and it was answered by making divergence
+legible rather than by preventing it:
+
+- a deliberate **Sync** button that says how many rows it will change,
+- a **per-row indicator** showing the balance-sheet figure beside a diverged
+  plan value,
+- a **confirmation** before anything is destroyed.
+
+What that buys is a plan you can push around to see what happens, without
+touching your actual records. The cost is real and accepted: two numbers exist
+while a row is diverged, and the screen always shows both.
+
+The mechanism is [`plan-sync.md`](plan-sync.md). Neither document is stale —
+this one describes the registry, that one describes how the plan tracks it.
 
 ## `Account.kind`, `category`, `wrapper`
 
@@ -144,10 +173,12 @@ from it and still matters:
 Named so nobody builds these by accident, mirroring the design doc's own
 scoping:
 
-- **The Plan doesn't read accounts yet (P2).** It keeps seeding from
-  `seedPlanChildren` exactly as before; `PlanAsset.sourceBalanceItemId` and
-  `PlanLiability.linkedAssetId` are still the live pairing mechanism until P2
-  switches the builder over.
+- **The Plan didn't read accounts in P1 — it does now.** P2 replaced
+  `seedPlanChildren` and `PlanAsset.sourceBalanceItemId` with an `accountId`
+  (and `categoryId`) on every plan row, refreshed by Sync; creating a plan is
+  a Sync against an empty one. See [`plan-sync.md`](plan-sync.md).
+  `PlanLiability.linkedAssetId` still exists alongside
+  `Account.linkedAccountId` — retiring that duplication remains unstarted.
 - **The budget side is schema-only.** `FinancialItem.accountId` exists so the
   delete path (`deleteAccountEverywhere`) is honest about what it removes, but
   nothing writes it — there's no budget Add drawer, no `ItemType.TRANSFER`,
@@ -214,10 +245,13 @@ surfaced while building and testing this feature:
 - **`prisma/seed.ts` still creates balance rows with no `accountId`.** Local
   development therefore starts with legacy-shaped rows that no longer have a
   migration to link them. That is currently useful — it keeps the null-`accountId`
-  path in `BalanceSheet` exercised, and that path is real code — but the seed
-  should eventually create accounts and link its rows, so `make db-reset` yields
-  data shaped like production. Deferred deliberately until this phase settles.
+  path in `BalanceSheet` exercised, and that path is real code — but P2 raised
+  the cost: `latestReality` reads *accounts*, so an unlinked balance row
+  contributes nothing to a plan, and a plan created from seeded data comes up
+  with no asset rows at all. The seed should create accounts and link its rows,
+  so `make db-reset` yields data shaped like production.
 - **`docs/DataModels/DataModels.md` still describes `Account` as
-  transactions-only** ("where money sits — current, savings, ISA, SIPP");
-  it wasn't updated as part of this phase and should be, alongside the P2/P3
-  docs updates once the Plan and budget sides land.
+  transactions-only** ("where money sits — current, savings, ISA, SIPP"). P2
+  widened the gap rather than closing it: the plan's `accountId`/`categoryId`
+  links aren't described there either. Still deferred — it wants doing
+  alongside the P3 budget-side changes, not piecemeal.
