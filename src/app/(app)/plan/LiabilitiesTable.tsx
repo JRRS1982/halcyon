@@ -4,6 +4,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import styled from "styled-components";
+import type { SyncPlan } from "@/lib/plan/sync";
 import { formatAmount, type NumberFormat } from "@/lib/settings/currency";
 import {
   createMortgage,
@@ -17,6 +18,7 @@ import { MortgageBadge } from "./MortgageBadge";
 import { DrawerSection, Field } from "./PlanDrawer";
 import { AddRowButton } from "./RowControls";
 import { SummaryList, SummaryRow } from "./SummaryRow";
+import { rowMarkerProps, SyncMarker } from "./SyncMarker";
 import type {
   SerializedPlanExpense,
   SerializedPlanLiability,
@@ -212,12 +214,14 @@ export function LiabilitiesTable({
   liabilities,
   currency,
   numberFormat,
+  syncPreview,
   onOpen,
   onAddMortgage,
 }: {
   liabilities: SerializedPlanLiability[];
   currency: string;
   numberFormat: NumberFormat;
+  syncPreview: SyncPlan;
   onOpen: (id: string) => void;
   onAddMortgage: (assetId: string) => void;
 }) {
@@ -249,6 +253,11 @@ export function LiabilitiesTable({
                 l.linkedAssetId ? (
                   <MortgageBadge>Mortgage</MortgageBadge>
                 ) : undefined
+              }
+              marker={
+                <SyncMarker
+                  {...rowMarkerProps(l.id, syncPreview, currency, numberFormat)}
+                />
               }
               onOpen={() => onOpen(l.id)}
             />

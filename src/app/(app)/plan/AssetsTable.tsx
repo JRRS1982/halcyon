@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import styled from "styled-components";
 import { WRAPPERS } from "@/lib/plan";
+import type { SyncPlan } from "@/lib/plan/sync";
 import { formatAmount, type NumberFormat } from "@/lib/settings/currency";
 import {
   createPlanAsset,
@@ -16,6 +17,7 @@ import { MortgageBadge } from "./MortgageBadge";
 import { DrawerSection, Field } from "./PlanDrawer";
 import { AddRowButton } from "./RowControls";
 import { SummaryList, SummaryRow } from "./SummaryRow";
+import { rowMarkerProps, SyncMarker } from "./SyncMarker";
 import type { SerializedPlanAsset } from "./serialized";
 
 const Panel = styled.section`
@@ -177,11 +179,13 @@ export function AssetsTable({
   assets,
   currency,
   numberFormat,
+  syncPreview,
   onOpen,
 }: {
   assets: SerializedPlanAsset[];
   currency: string;
   numberFormat: NumberFormat;
+  syncPreview: SyncPlan;
   onOpen: (id: string) => void;
 }) {
   const router = useRouter();
@@ -212,6 +216,11 @@ export function AssetsTable({
                 a.wrapper === "PROPERTY" ? (
                   <MortgageBadge>Property</MortgageBadge>
                 ) : undefined
+              }
+              marker={
+                <SyncMarker
+                  {...rowMarkerProps(a.id, syncPreview, currency, numberFormat)}
+                />
               }
               onOpen={() => onOpen(a.id)}
             />

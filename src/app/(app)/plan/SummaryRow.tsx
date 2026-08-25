@@ -56,11 +56,14 @@ export function SummaryRow({
   primary,
   secondary,
   badge,
+  marker,
   onOpen,
 }: {
   primary: string;
   secondary: string;
   badge?: ReactNode;
+  /** The sync freshness indicator (✓ / ● / ◇), shown beside the value. */
+  marker?: ReactNode;
   onOpen: () => void;
 }) {
   return (
@@ -70,7 +73,10 @@ export function SummaryRow({
           <Primary>{primary}</Primary>
           {badge}
         </Left>
-        <Secondary>{secondary}</Secondary>
+        <Secondary>
+          {secondary}
+          {marker}
+        </Secondary>
       </Row>
     </li>
   );

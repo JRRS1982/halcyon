@@ -9,6 +9,7 @@ import { getPrimaryPlan } from "./actions";
 import { CreatePlanForm } from "./CreatePlanForm";
 import { PlanView } from "./PlanView";
 import type { SerializedPlan } from "./serialized";
+import { getPlanSyncPreview } from "./syncActions";
 
 export default async function PlanPage() {
   const user = await getCurrentUser();
@@ -20,6 +21,8 @@ export default async function PlanPage() {
   if (!plan) {
     return <CreatePlanForm />;
   }
+
+  const syncPreview = await getPlanSyncPreview();
 
   const asOfYear = new Date().getUTCFullYear();
   const input = toPlanInput(plan, asOfYear);
@@ -109,6 +112,7 @@ export default async function PlanPage() {
       currency={currency}
       numberFormat={numberFormat}
       asOfYear={asOfYear}
+      syncPreview={syncPreview}
     />
   );
 }
