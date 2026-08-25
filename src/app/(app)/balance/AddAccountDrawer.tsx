@@ -237,6 +237,7 @@ export function AddAccountDrawer({
   const [value, setValue] = useState("");
   const [canImportTransactions, setCanImportTransactions] = useState(false);
   const [importTouched, setImportTouched] = useState(false);
+  const [sectionTouched, setSectionTouched] = useState(false);
   const [hasMortgage, setHasMortgage] = useState(false);
   const [mortgageName, setMortgageName] = useState("");
   const [mortgageValue, setMortgageValue] = useState("");
@@ -251,11 +252,17 @@ export function AddAccountDrawer({
   const selectAccountType = (next: AccountTypeId) => {
     const option = accountTypeById(next);
     if (!option) return;
-    // PROPERTY is asset-only — switching to a liability while it's selected
-    // leaves no valid option selected, so the section resets rather than
-    // silently keeping an invalid value.
-    const nextCategory =
-      option.kind === "LIABILITY" && category === "PROPERTY" ? null : category;
+    // The section follows the type unless the user has chosen one themselves —
+    // a default, not an inference, and their choice sticks once made.
+    //
+    // PROPERTY is asset-only, so a section the user picked that is no longer
+    // valid for this type falls back to the type's default rather than being
+    // silently kept.
+    const keepsChoice =
+      sectionTouched &&
+      category !== null &&
+      isValidBalanceCategory(option.kind, category);
+    const nextCategory = keepsChoice ? category : option.defaultSection;
     setTypeId(next);
     setCategory(nextCategory);
     setCanImportTransactions((current) =>
@@ -275,8 +282,9 @@ export function AddAccountDrawer({
 
   // The section no longer affects the import default — that is keyed on the
   // wrapper, which the account type already fixed — so this only records the
-  // choice.
+  // choice, and the fact that it was the user's rather than the default.
   const selectCategory = (next: BalanceCategory) => {
+    setSectionTouched(true);
     setCategory(next);
   };
 
@@ -303,6 +311,7 @@ export function AddAccountDrawer({
     setValue("");
     setCanImportTransactions(false);
     setImportTouched(false);
+    setSectionTouched(false);
     setHasMortgage(false);
     setMortgageName("");
     setMortgageValue("");
@@ -474,9 +483,6 @@ export function AddAccountDrawer({
                         selectCategory(e.target.value as BalanceCategory)
                       }
                     >
-                      <option value="" disabled>
-                        Choose…
-                      </option>
                       {sectionOptionsFor(type).map((c) => (
                         <option key={c} value={c}>
                           {SECTION_LABELS[c]}

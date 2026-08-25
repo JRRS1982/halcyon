@@ -45,6 +45,16 @@ export type AccountTypeOption = {
   kind: BalanceType;
   /** Null for every liability — the wrapper enum is asset-only. */
   wrapper: Wrapper | null;
+  /**
+   * Where this kind of thing usually sits on the sheet. A *default*, not an
+   * inference: the drawer pre-selects it, the user can change it, and once
+   * they do their choice sticks through later type changes.
+   *
+   * This only became possible because the picker distinguishes a cash ISA from
+   * an invested one. While "ISA" was a single option it implied nothing about
+   * the section, which is why the section was originally left blank.
+   */
+  defaultSection: BalanceCategory;
   namePlaceholder: string;
 };
 
@@ -54,6 +64,7 @@ export const ACCOUNT_TYPES: readonly AccountTypeOption[] = [
     label: "Current account",
     kind: "ASSET",
     wrapper: "CASH",
+    defaultSection: "CURRENT",
     namePlaceholder: "e.g. Barclays current",
   },
   {
@@ -61,6 +72,7 @@ export const ACCOUNT_TYPES: readonly AccountTypeOption[] = [
     label: "Savings / cash",
     kind: "ASSET",
     wrapper: "CASH",
+    defaultSection: "MEDIUM_TERM",
     namePlaceholder: "e.g. Premium bonds",
   },
   {
@@ -68,6 +80,7 @@ export const ACCOUNT_TYPES: readonly AccountTypeOption[] = [
     label: "Cash ISA",
     kind: "ASSET",
     wrapper: "ISA",
+    defaultSection: "MEDIUM_TERM",
     namePlaceholder: "e.g. Nationwide cash ISA",
   },
   {
@@ -75,6 +88,7 @@ export const ACCOUNT_TYPES: readonly AccountTypeOption[] = [
     label: "Stocks & shares ISA",
     kind: "ASSET",
     wrapper: "ISA",
+    defaultSection: "LONG_TERM",
     namePlaceholder: "e.g. Vanguard ISA",
   },
   {
@@ -82,6 +96,7 @@ export const ACCOUNT_TYPES: readonly AccountTypeOption[] = [
     label: "Pension (SIPP)",
     kind: "ASSET",
     wrapper: "PENSION",
+    defaultSection: "LONG_TERM",
     namePlaceholder: "e.g. AJ Bell SIPP",
   },
   {
@@ -89,6 +104,7 @@ export const ACCOUNT_TYPES: readonly AccountTypeOption[] = [
     label: "Final salary pension",
     kind: "ASSET",
     wrapper: "DB_PENSION",
+    defaultSection: "LONG_TERM",
     namePlaceholder: "e.g. NHS pension",
   },
   {
@@ -96,6 +112,7 @@ export const ACCOUNT_TYPES: readonly AccountTypeOption[] = [
     label: "General investment account",
     kind: "ASSET",
     wrapper: "GIA",
+    defaultSection: "MEDIUM_TERM",
     namePlaceholder: "e.g. Trading 212",
   },
   {
@@ -103,6 +120,7 @@ export const ACCOUNT_TYPES: readonly AccountTypeOption[] = [
     label: "Property",
     kind: "ASSET",
     wrapper: "PROPERTY",
+    defaultSection: "PROPERTY",
     namePlaceholder: "e.g. Home",
   },
   {
@@ -110,6 +128,7 @@ export const ACCOUNT_TYPES: readonly AccountTypeOption[] = [
     label: "Other asset",
     kind: "ASSET",
     wrapper: "OTHER",
+    defaultSection: "OTHER",
     namePlaceholder: "e.g. Car",
   },
   {
@@ -117,6 +136,7 @@ export const ACCOUNT_TYPES: readonly AccountTypeOption[] = [
     label: "Mortgage",
     kind: "LIABILITY",
     wrapper: null,
+    defaultSection: "LONG_TERM",
     namePlaceholder: "e.g. Halifax mortgage",
   },
   {
@@ -124,6 +144,7 @@ export const ACCOUNT_TYPES: readonly AccountTypeOption[] = [
     label: "Credit card",
     kind: "LIABILITY",
     wrapper: null,
+    defaultSection: "CURRENT",
     namePlaceholder: "e.g. Amex",
   },
   {
@@ -131,6 +152,7 @@ export const ACCOUNT_TYPES: readonly AccountTypeOption[] = [
     label: "Loan",
     kind: "LIABILITY",
     wrapper: null,
+    defaultSection: "MEDIUM_TERM",
     namePlaceholder: "e.g. Car finance",
   },
   {
@@ -138,6 +160,7 @@ export const ACCOUNT_TYPES: readonly AccountTypeOption[] = [
     label: "Overdraft",
     kind: "LIABILITY",
     wrapper: null,
+    defaultSection: "CURRENT",
     namePlaceholder: "e.g. Current account overdraft",
   },
   {
@@ -145,6 +168,7 @@ export const ACCOUNT_TYPES: readonly AccountTypeOption[] = [
     label: "Other debt",
     kind: "LIABILITY",
     wrapper: null,
+    defaultSection: "OTHER",
     namePlaceholder: "e.g. Loan from family",
   },
 ] as const;

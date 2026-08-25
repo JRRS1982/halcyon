@@ -81,28 +81,47 @@ describe("AddAccountDrawer", () => {
     ).not.toBeChecked();
   });
 
-  // Decided by the user: nothing may default into Other.
-  test("will not submit until a section is chosen", () => {
+  // The section follows the type as a default the user can override — a final
+  // salary pension is long-term, a credit card is current. Not an inference:
+  // the dropdown stays, and a choice the user makes survives a later type
+  // change.
+  test("the section is pre-selected from the chosen type", () => {
     renderDrawer();
 
-    pickType("STOCKS_ISA");
-    fireEvent.change(screen.getByLabelText(/name/i), {
-      target: { value: "Premium bonds" },
-    });
-    fireEvent.change(screen.getByLabelText(/value now/i), {
-      target: { value: "5000" },
-    });
+    pickType("FINAL_SALARY");
+    expect(screen.getByLabelText(/section/i)).toHaveValue("LONG_TERM");
 
-    expect(screen.getByRole("button", { name: /^add$/i })).toBeDisabled();
-
-    fireEvent.change(screen.getByLabelText(/section/i), {
-      target: { value: "MEDIUM_TERM" },
-    });
-    expect(screen.getByRole("button", { name: /^add$/i })).toBeEnabled();
+    pickType("CREDIT_CARD");
+    expect(screen.getByLabelText(/section/i)).toHaveValue("CURRENT");
   });
 
-  // The whole point of the merged picker: one choice sets both columns, and a
-  // liability carries no wrapper — a tax wrapper is meaningless on a debt.
+  test("a section the user picks survives a later type change", () => {
+    renderDrawer();
+
+    pickType("SAVINGS");
+    expect(screen.getByLabelText(/section/i)).toHaveValue("MEDIUM_TERM");
+
+    fireEvent.change(screen.getByLabelText(/section/i), {
+      target: { value: "CURRENT" },
+    });
+    pickType("GIA");
+    expect(screen.getByLabelText(/section/i)).toHaveValue("CURRENT");
+  });
+
+  // PROPERTY is asset-only, so a user-chosen section that a later type cannot
+  // accept falls back to that type's default rather than staying invalid.
+  test("an invalid user choice falls back to the new type's default", () => {
+    renderDrawer();
+
+    pickType("PROPERTY");
+    fireEvent.change(screen.getByLabelText(/section/i), {
+      target: { value: "PROPERTY" },
+    });
+
+    pickType("CREDIT_CARD");
+    expect(screen.getByLabelText(/section/i)).toHaveValue("CURRENT");
+  });
+
   test("a liability choice yields kind LIABILITY and no wrapper", async () => {
     renderDrawer();
 
