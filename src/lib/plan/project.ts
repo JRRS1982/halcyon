@@ -270,7 +270,10 @@ export const project = (input: PlanInput): PlanProjection => {
   const years = projectYears(input);
   return {
     years,
-    verdict: summarise(years, input.expectedDeathAge ?? input.planToAge),
+    verdict: summarise(years, {
+      retirementAge: input.retirementAge,
+      deathAge: input.expectedDeathAge ?? input.planToAge,
+    }),
   };
 };
 
@@ -284,7 +287,10 @@ export const projectWithBand = (
     const years = projectYears(input, delta);
     return {
       years,
-      verdict: summarise(years, input.expectedDeathAge ?? input.planToAge),
+      verdict: summarise(years, {
+        retirementAge: input.retirementAge,
+        deathAge: input.expectedDeathAge ?? input.planToAge,
+      }),
     };
   };
   return { low: pass(-spread), mid: pass(0), high: pass(spread) };

@@ -217,8 +217,6 @@ export function PlanView({
       <Title>Your plan</Title>
       <VerdictBanner
         verdict={liveBand.verdict}
-        years={liveBand.mid}
-        expectedDeathAge={effectiveAssumptions.expectedDeathAge}
         currency={currency}
         numberFormat={numberFormat}
       />

@@ -25,16 +25,21 @@ const year = (
 });
 
 describe("summarise", () => {
-  it("is feasible with no shortfall and reports peak net worth", () => {
-    const v = summarise([
-      year({ age: 60, netWorth: 100000 }),
-      year({ age: 61, netWorth: 250000 }),
-      year({ age: 62, netWorth: 180000 }),
-    ]);
+  it("is feasible with no shortfall and reports each milestone's net worth", () => {
+    const v = summarise(
+      [
+        year({ age: 60, netWorth: 100000 }),
+        year({ age: 61, netWorth: 250000 }),
+        year({ age: 62, netWorth: 180000 }),
+      ],
+      { retirementAge: 61, deathAge: 62 },
+    );
     expect(v.feasible).toBe(true);
     expect(v.firstShortfallAge).toBeNull();
-    expect(v.peakNetWorth).toEqual({ age: 61, value: 250000 });
+    expect(v.netWorthAtRetirement).toEqual({ age: 61, value: 250000 });
+    expect(v.netWorthAtDeath).toEqual({ age: 62, value: 180000 });
   });
+
   it("reports the first shortfall age and is not feasible", () => {
     const v = summarise([
       year({ age: 88, netWorth: 20000 }),
@@ -44,15 +49,25 @@ describe("summarise", () => {
     expect(v.firstShortfallAge).toBe(89);
   });
 
-  it("ignores shortfall and peak beyond maxAge (the lived horizon)", () => {
-    const years = [
-      year({ age: 84, netWorth: 100000 }),
-      year({ age: 85, netWorth: 120000 }),
-      year({ age: 92, netWorth: 500000, shortfall: true }),
-    ];
-    const v = summarise(years, 88);
+  it("ignores a shortfall beyond the death age (the lived horizon)", () => {
+    const v = summarise(
+      [
+        year({ age: 84, netWorth: 100000 }),
+        year({ age: 85, netWorth: 120000 }),
+        year({ age: 92, netWorth: 500000, shortfall: true }),
+      ],
+      { deathAge: 88 },
+    );
     expect(v.feasible).toBe(true); // the age-92 shortfall is past death age 88
     expect(v.firstShortfallAge).toBeNull();
-    expect(v.peakNetWorth).toEqual({ age: 85, value: 120000 }); // not the age-92 500k
+  });
+
+  it("reports null for a milestone the projection never reaches", () => {
+    const v = summarise([year({ age: 60, netWorth: 100000 })], {
+      retirementAge: 55, // already retired before the plan starts
+      deathAge: 90, // past the projected horizon
+    });
+    expect(v.netWorthAtRetirement).toBeNull();
+    expect(v.netWorthAtDeath).toBeNull();
   });
 });

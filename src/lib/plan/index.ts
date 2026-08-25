@@ -14,6 +14,7 @@ export type {
   IncomeKind,
   LiabilityBalance,
   LiabilityInput,
+  Milestone,
   PlanInput,
   PlanProjection,
   Verdict,

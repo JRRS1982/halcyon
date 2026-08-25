@@ -126,7 +126,7 @@ describe("plan engine — realistic integration", () => {
   });
   it("produces a verdict", () => {
     const { verdict } = project(plan);
-    expect(verdict.peakNetWorth.value).toBeGreaterThan(0);
+    expect(verdict.netWorthAtRetirement?.value).toBeGreaterThan(0);
     expect(typeof verdict.feasible).toBe("boolean");
   });
 });

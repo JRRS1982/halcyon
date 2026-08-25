@@ -146,10 +146,15 @@ export interface YearProjection {
   shortfall: boolean;
 }
 
+// Net worth at the two milestones that matter, in today's money. Either is
+// null when the projection never reaches that age.
+export type Milestone = { age: number; value: number } | null;
+
 export interface Verdict {
   feasible: boolean;
   firstShortfallAge: number | null;
-  peakNetWorth: { age: number; value: number };
+  netWorthAtRetirement: Milestone;
+  netWorthAtDeath: Milestone;
 }
 
 export interface PlanProjection {
@@ -159,9 +164,11 @@ export interface PlanProjection {
 
 export interface BandedVerdict extends Verdict {
   // [min, max] across the three passes. firstShortfallAgeRange is null only when
-  // no pass ever shorts. peakNetWorthRange is in today's money (assembled post-deflation).
+  // no pass ever shorts; a net-worth range is null when its milestone is.
+  // Both net-worth ranges are in today's money (assembled post-deflation).
   firstShortfallAgeRange: [number, number] | null;
-  peakNetWorthRange: [number, number];
+  netWorthAtRetirementRange: [number, number] | null;
+  netWorthAtDeathRange: [number, number] | null;
 }
 
 export interface BandedProjection {
