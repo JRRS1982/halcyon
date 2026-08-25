@@ -180,11 +180,13 @@ To seed the local development database, use the following command: `pnpm db:seed
 
 ## Marketing screenshots
 
-Landing-page screenshots live in `public/marketing/` (`dashboard.png`, `budget.png`, `balance.png`, `transactions.png`).
+Landing-page screenshots live in `public/marketing/` (`dashboard.png`, `budget.png`, `balance.png`, `transactions.png`, `plan.png`).
 
-**Re-capture them whenever the dashboard, budget, balance or transactions UI changes** — they are the first thing a prospect sees, and a stale set advertises a product that no longer exists.
+**Re-capture them whenever the dashboard, budget, balance, transactions or plan UI changes** — they are the first thing a prospect sees, and a stale set advertises a product that no longer exists.
 
-The capture runs entirely locally against the e2e stack: the mock auth server, the `halcyon_test` database, and a dev server. Nothing touches cloud Supabase or production data, and the script signs itself in and seeds its own twelve months of demo data, so there is no session to set up by hand.
+The capture runs entirely locally against the e2e stack: the mock auth server, the `halcyon_test` database, and a dev server. Nothing touches cloud Supabase or production data, and the script signs itself in and seeds its own twelve months of demo data, so there is no session to set up by hand. It then creates the plan through the real form — creating a plan is a Sync against an empty one, so its rows come from the seeded accounts by the same path a user takes — and sets the assumptions a Sync can't know (mortgage rate and repayment, expected returns) before shooting.
+
+It expects the signed-in demo user to be the *only* user in `halcyon_test`; leftovers from an earlier e2e run make it seed one user and photograph another. `TRUNCATE "User" CASCADE` clears them.
 
 ```bash
 make e2e-db                                   # local Postgres, migrated

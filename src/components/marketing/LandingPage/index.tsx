@@ -82,6 +82,19 @@ export function LandingPage() {
                 "An imported statement, sorted into categories in the ledger",
             }}
           />
+          <FeatureShowcase
+            imageSide="right"
+            eyebrow="Plan"
+            title="Will the money last?"
+            body="Give Balanced your date of birth and it turns the accounts and budget you already keep into a forecast: what you're worth each year, when the mortgage finally clears, whether the pension outlives you. Retire a year later, sell the flat at seventy-five, expect a point less growth — the whole projection moves while you watch, and tells you plainly whether it still works."
+            shot={{
+              src: "/marketing/plan.png",
+              label: "Plan",
+              alt: "The Balanced plan page: an on-track verdict above a chart projecting net worth from today to age 95",
+              caption:
+                "Your net worth projected to age 95, from figures you already keep",
+            }}
+          />
         </Container>
 
         <DetailGrid />
