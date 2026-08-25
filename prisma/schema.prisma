@@ -291,6 +291,8 @@ model Category {
   user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   financialItems FinancialItem[]
   transactions   Transaction[]
+  planIncomes    PlanIncome[]
+  planExpenses   PlanExpense[]
 
   @@index([userId, type, sortOrder])
 }
@@ -344,6 +346,8 @@ model Account {
   balanceTemplateItems BalanceTemplateItem[]
   linkedAccount        Account?              @relation("AccountLink", fields: [linkedAccountId], references: [id], onDelete: SetNull)
   linkedBy             Account?              @relation("AccountLink")
+  planAssets           PlanAsset[]
+  planLiabilities      PlanLiability[]
 
   @@index([userId])
   @@index([userId, kind])
@@ -480,49 +484,62 @@ model Plan {
 }
 
 model PlanAsset {
-  id                  String           @id @default(uuid()) @db.Uuid
-  planId              String           @db.Uuid
-  label               String
-  wrapper             PlanAssetWrapper @default(OTHER)
-  openingValue        Decimal          @default(0) @db.Decimal(14, 2)
-  expectedReturnPct   Decimal?         @db.Decimal(5, 2)
-  feePct              Decimal          @default(0) @db.Decimal(5, 2)
-  annualContribution  Decimal          @default(0) @db.Decimal(12, 2)
-  contributionEndAge  Int?
-  minAccessAge        Int?
-  drawdownPriority    Int              @default(0)
-  sourceBalanceItemId String?          @db.Uuid
-  sortOrder           Int              @default(0)
-  createdAt           DateTime         @default(now())
-  updatedAt           DateTime         @updatedAt
-  deletedAt           DateTime?
+  id                 String           @id @default(uuid()) @db.Uuid
+  planId             String           @db.Uuid
+  label              String
+  wrapper            PlanAssetWrapper @default(OTHER)
+  openingValue       Decimal          @default(0) @db.Decimal(14, 2)
+  expectedReturnPct  Decimal?         @db.Decimal(5, 2)
+  feePct             Decimal          @default(0) @db.Decimal(5, 2)
+  annualContribution Decimal          @default(0) @db.Decimal(12, 2)
+  contributionEndAge Int?
+  minAccessAge       Int?
+  drawdownPriority   Int              @default(0)
+  sortOrder          Int              @default(0)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  deletedAt          DateTime?
+  // The account this row mirrors. Null means a plan-only row — something the
+  // user invented that is not on their balance sheet. Replaces
+  // sourceBalanceItemId, which pointed at a single month's observation and so
+  // could only ever seed once.
+  accountId          String?          @db.Uuid
+  account            Account?         @relation(fields: [accountId], references: [id], onDelete: SetNull)
 
   plan       Plan           @relation(fields: [planId], references: [id], onDelete: Cascade)
   mortgage   PlanLiability? @relation("MortgageProperty")
   saleEvents PlanEvent[]    @relation("EventProperty")
   @@index([planId])
+  @@index([accountId])
 }
 
 model PlanLiability {
-  id               String   @id @default(uuid()) @db.Uuid
-  planId           String   @db.Uuid
+  id               String    @id @default(uuid()) @db.Uuid
+  planId           String    @db.Uuid
   label            String
-  openingBalance   Decimal  @default(0) @db.Decimal(14, 2)
-  interestPct      Decimal  @default(0) @db.Decimal(5, 2)
-  interestOnly     Boolean  @default(false)
-  monthlyRepayment Decimal  @default(0) @db.Decimal(12, 2)
+  openingBalance   Decimal   @default(0) @db.Decimal(14, 2)
+  interestPct      Decimal   @default(0) @db.Decimal(5, 2)
+  interestOnly     Boolean   @default(false)
+  monthlyRepayment Decimal   @default(0) @db.Decimal(12, 2)
   startAge         Int?
   endAge           Int?
-  linkedAssetId    String?  @unique @db.Uuid
-  sortOrder        Int      @default(0)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  linkedAssetId    String?   @unique @db.Uuid
+  sortOrder        Int       @default(0)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
   deletedAt        DateTime?
+  // The account this row mirrors. Null means a plan-only row — something the
+  // user invented that is not on their balance sheet. Replaces
+  // sourceBalanceItemId, which pointed at a single month's observation and so
+  // could only ever seed once.
+  accountId        String?   @db.Uuid
+  account          Account?  @relation(fields: [accountId], references: [id], onDelete: SetNull)
 
   plan             Plan         @relation(fields: [planId], references: [id], onDelete: Cascade)
   linkedAsset      PlanAsset?   @relation("MortgageProperty", fields: [linkedAssetId], references: [id], onDelete: SetNull)
   repaymentExpense PlanExpense? @relation("LiabilityRepaymentExpense")
   @@index([planId])
+  @@index([accountId])
 }
 
 model PlanIncome {
@@ -540,30 +557,35 @@ model PlanIncome {
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
   deletedAt    DateTime?
+  categoryId   String?        @db.Uuid
 
-  plan Plan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  plan     Plan      @relation(fields: [planId], references: [id], onDelete: Cascade)
+  category Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   @@index([planId])
+  @@index([categoryId])
 }
 
 model PlanExpense {
-  id               String           @id @default(uuid()) @db.Uuid
-  planId           String           @db.Uuid
-  label            String
-  category         ExpenseCategory?
-  annualAmount     Decimal          @default(0) @db.Decimal(12, 2)
-  startAge         Int?
-  endAge           Int?
-  inflationLinked  Boolean          @default(true)
-  sourceCategoryId String?          @db.Uuid
-  liabilityId      String?          @unique @db.Uuid
-  sortOrder        Int              @default(0)
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
-  deletedAt        DateTime?
+  id              String           @id @default(uuid()) @db.Uuid
+  planId          String           @db.Uuid
+  label           String
+  category        ExpenseCategory?
+  annualAmount    Decimal          @default(0) @db.Decimal(12, 2)
+  startAge        Int?
+  endAge          Int?
+  inflationLinked Boolean          @default(true)
+  categoryId      String?          @db.Uuid
+  liabilityId     String?          @unique @db.Uuid
+  sortOrder       Int              @default(0)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
 
-  plan      Plan           @relation(fields: [planId], references: [id], onDelete: Cascade)
-  liability PlanLiability? @relation("LiabilityRepaymentExpense", fields: [liabilityId], references: [id], onDelete: SetNull)
+  plan           Plan           @relation(fields: [planId], references: [id], onDelete: Cascade)
+  liability      PlanLiability? @relation("LiabilityRepaymentExpense", fields: [liabilityId], references: [id], onDelete: SetNull)
+  linkedCategory Category?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   @@index([planId])
+  @@index([categoryId])
 }
 
 model PlanEvent {

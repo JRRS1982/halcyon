@@ -29,7 +29,6 @@ describe("seedPlanChildren", () => {
         openingValue: 5000,
         annualContribution: 0,
         drawdownPriority: 0,
-        sourceBalanceItemId: "b1",
       },
       {
         label: "SIPP",
@@ -37,7 +36,6 @@ describe("seedPlanChildren", () => {
         openingValue: 100000,
         annualContribution: 0,
         drawdownPriority: 2,
-        sourceBalanceItemId: "b2",
       },
     ]);
   });
@@ -119,7 +117,7 @@ describe("seedPlanChildren", () => {
           category: null,
           label: "Salary",
           budget: 4000,
-          sourceCategoryId: null,
+          categoryId: null,
         },
         {
           type: "INCOME",
@@ -127,7 +125,7 @@ describe("seedPlanChildren", () => {
           category: null,
           label: "Side Income",
           budget: 0,
-          sourceCategoryId: null,
+          categoryId: null,
         },
         {
           type: "EXPENSE",
@@ -135,7 +133,7 @@ describe("seedPlanChildren", () => {
           category: "FIXED",
           label: "Council Tax",
           budget: 180,
-          sourceCategoryId: null,
+          categoryId: null,
         },
         {
           type: "EXPENSE",
@@ -143,7 +141,7 @@ describe("seedPlanChildren", () => {
           category: "VARIABLE",
           label: "Groceries",
           budget: 0,
-          sourceCategoryId: null,
+          categoryId: null,
         },
       ],
       65,
@@ -205,7 +203,7 @@ describe("seedPlanChildren", () => {
           category: null,
           label: "Salary",
           budget: 4000,
-          sourceCategoryId: "c1",
+          categoryId: "c1",
         },
         {
           type: "INCOME",
@@ -213,7 +211,7 @@ describe("seedPlanChildren", () => {
           category: null,
           label: "DB pension",
           budget: 1000,
-          sourceCategoryId: "c2",
+          categoryId: "c2",
         },
       ],
       65,
@@ -248,7 +246,7 @@ describe("seedPlanChildren", () => {
           category: "FIXED",
           label: "Rent",
           budget: 1200,
-          sourceCategoryId: "c3",
+          categoryId: "c3",
         },
       ],
       65,
@@ -259,7 +257,7 @@ describe("seedPlanChildren", () => {
         category: "FIXED",
         annualAmount: 14400,
         inflationLinked: true,
-        sourceCategoryId: "c3",
+        categoryId: "c3",
       },
     ]);
   });

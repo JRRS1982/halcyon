@@ -21,7 +21,7 @@ export interface SeedFinancialItem {
   category: ExpenseCategory | null;
   label: string;
   budget: number;
-  sourceCategoryId: string | null;
+  categoryId: string | null;
 }
 
 export interface SeededAsset {
@@ -30,7 +30,6 @@ export interface SeededAsset {
   openingValue: number;
   annualContribution: number;
   drawdownPriority: number;
-  sourceBalanceItemId: string;
 }
 export interface SeededLiability {
   label: string;
@@ -51,7 +50,7 @@ export interface SeededExpense {
   category: ExpenseCategory | null;
   annualAmount: number;
   inflationLinked: boolean;
-  sourceCategoryId: string | null;
+  categoryId: string | null;
 }
 export interface SeededChildren {
   assets: SeededAsset[];
@@ -138,7 +137,6 @@ export function seedPlanChildren(
         openingValue: b.value,
         annualContribution: 0,
         drawdownPriority: DRAWDOWN_BY_CATEGORY[b.category],
-        sourceBalanceItemId: b.id,
       });
     } else {
       liabilities.push({
@@ -177,7 +175,7 @@ export function seedPlanChildren(
         category: f.category,
         annualAmount: f.budget * 12,
         inflationLinked: true,
-        sourceCategoryId: f.sourceCategoryId,
+        categoryId: f.categoryId,
       });
     }
   }

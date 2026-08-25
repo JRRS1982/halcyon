@@ -102,7 +102,7 @@ export async function createPlan(input: {
         category: f.category,
         label: f.label,
         budget: Number(f.budget),
-        sourceCategoryId: f.categoryId,
+        categoryId: f.categoryId,
       }),
     );
 
