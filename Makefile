@@ -1,4 +1,4 @@
-.PHONY: go build up down rebuild logs shell db-shell migrate-create migrate-deploy db-seed db-reset backfill-accounts lint-and-format clean test test-watch test-coverage e2e-db test-e2e test-e2e-ui
+.PHONY: go build up down rebuild logs shell db-shell migrate-create migrate-deploy db-seed db-reset lint-and-format clean test test-watch test-coverage e2e-db test-e2e test-e2e-ui
 
 .DEFAULT_GOAL := go
 
@@ -67,9 +67,6 @@ db-reset:
 	docker compose exec app npx tsx prisma/seed.ts
 
 # Link existing balance rows to accounts. Idempotent — safe to re-run.
-# Requires the containers to be up (make / make up).
-backfill-accounts:
-	docker compose exec app pnpm backfill:accounts
 
 # migrate-create: author a NEW migration from schema.prisma changes
 # (`prisma migrate dev`). Diffs the schema against the DB, writes a new SQL file

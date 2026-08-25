@@ -15,7 +15,6 @@
     "format": "biome format --write .",
     "postinstall": "prisma generate && simple-git-hooks",
     "db:seed": "tsx prisma/seed.ts",
-    "backfill:accounts": "tsx scripts/backfill-accounts.ts",
     "db:reset": "prisma migrate reset --force && pnpm db:seed",
     "test": "jest",
     "check": "biome ci .",
