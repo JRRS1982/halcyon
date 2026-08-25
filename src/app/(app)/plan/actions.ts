@@ -66,6 +66,14 @@ export async function createPlan(input: {
   const userId = await requireUserId();
   const { dateOfBirth, retirementAge } = createPlanSchema.parse(input);
 
+  // Read reality before opening the transaction, not inside it: latestReality
+  // uses the module-level client, so a call from inside would hold one pooled
+  // connection while asking for another, and its ~1 + accounts + 1 + categories
+  // round trips would run against the 5s interactive-transaction timeout.
+  // Nothing below depends on the read being inside — createPlan only adds rows
+  // to a plan it has just created.
+  const reality = await latestReality(userId);
+
   // One primary plan per user (v1). Guard + create are atomic to prevent double-create races.
   await prisma.$transaction(async (tx) => {
     const existing = await tx.plan.findFirst({
@@ -106,7 +114,6 @@ export async function createPlan(input: {
     // exactly seeding: every live account and budget category becomes a row,
     // carrying the wrapper/value the user actually recorded rather than a
     // guess (see docs/superpowers/specs/2026-08-25-plan-sync-design.md).
-    const reality = await latestReality(userId);
     await applySyncPlan(
       tx,
       plan.id,
