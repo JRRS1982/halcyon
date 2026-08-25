@@ -33,10 +33,11 @@ export const CellWrapper = styled.div<{
     min-width: 0;
 
     /* ~36px on desktop is below the touch floor; 12px vertical padding takes
-       the row past 44px (DESIGN.md → Responsive Strategy → Touch Targets). */
+       the row past 44px (DESIGN.md → Responsive Strategy → Touch Targets).
+       Horizontally it goes the other way: the narrower mobile amount columns
+       need the 8px to keep a formatted figure off its own cell border. */
     @media (max-width: 767px) {
-      padding-top: ${theme.spacing.md};
-      padding-bottom: ${theme.spacing.md};
+      padding: ${theme.spacing.md} ${theme.spacing.sm};
     }
   `}
 
