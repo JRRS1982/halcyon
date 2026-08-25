@@ -251,11 +251,21 @@ export async function signedInUser(db: PrismaClient) {
  * Deleting the periods cascades to their items and leaves the categories and
  * accounts in place, so the spec owns the whole picture without pretending a
  * new account has no defaults.
+ *
+ * It waits for that starter sheet to exist first. Provisioning writes it in
+ * one transaction on the first authenticated render, and signedInUser's poll
+ * only proves the User row landed — so a delete issued too early removes
+ * nothing at all, and the sheet then appears behind the spec's back.
  */
 export async function clearStarterPeriods(
   db: PrismaClient,
   userId: string,
 ): Promise<void> {
+  await expect
+    .poll(() => db.financialPeriod.count({ where: { userId } }), {
+      message: "waiting for provisioning to seed the starter budget sheet",
+    })
+    .toBeGreaterThan(0);
   await db.financialPeriod.deleteMany({ where: { userId } });
 }
 
@@ -287,19 +297,9 @@ export async function seedPlanReality(
   db: PrismaClient,
   userId: string,
 ): Promise<void> {
-  // Provisioning seeds the default categories and accounts in one transaction
-  // on the first authenticated render, and signedInUser's poll only proves the
-  // User row landed — that transaction can still be in flight. Waiting for a
-  // seeded category proves it committed, which matters twice over: the Salary
-  // category looked up below may not exist yet, and writing while it runs
-  // deadlocks, since provisioning locks Account before FinancialPeriod and
-  // everything here does the opposite.
-  await expect
-    .poll(() => db.category.count({ where: { userId } }), {
-      message: "waiting for provisioning to seed the default categories",
-    })
-    .toBeGreaterThan(0);
-
+  // First, and not only to clear the sheet: it waits for provisioning to
+  // commit. Writing while that transaction is open deadlocks, because it locks
+  // Account before FinancialPeriod and everything below does the opposite.
   await clearStarterPeriods(db, userId);
 
   const account = await db.account.create({
@@ -464,4 +464,36 @@ export async function ensureTransactionsEnabled(page: Page): Promise<void> {
 
   // Nav link appears once the setting is saved + revalidated.
   await expect(page.getByRole("link", { name: "Transactions" })).toBeVisible();
+}
+
+/**
+ * The balance sheet row whose name cell reads `name`.
+ *
+ * The sheet's editable cells (BalanceSheet.tsx's CellInput) are bare
+ * `<input>`s with no associated label — their value is the row's name, not an
+ * accessible name Playwright can query by role. React sets a freshly mounted
+ * controlled input's value via the DOM `defaultValue` IDL property, which does
+ * reflect the `value` content attribute, so a plain attribute selector finds a
+ * row by the name it was created with.
+ */
+export function rowInput(page: Page, name: string) {
+  return page.locator(`input[value="${name}"]`);
+}
+
+/**
+ * Opens the balance sheet's "+ Add" drawer, re-clicking if the first click
+ * didn't take.
+ *
+ * Mirrors mobile-nav.spec.ts's openMenu: a click landing before hydration is
+ * swallowed by a button with no handler yet. Retrying while the drawer is
+ * still closed converges once hydration catches up, without a fixed sleep.
+ */
+export async function openAddDrawer(page: Page): Promise<void> {
+  const title = page.getByRole("heading", { name: "Add an account" });
+  await expect(async () => {
+    if (!(await title.isVisible())) {
+      await page.getByRole("button", { name: "+ Add" }).click();
+    }
+    await expect(title).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 15_000 });
 }
