@@ -71,12 +71,18 @@ export function SyncButton({
     });
   };
 
-  // A dialog only when Sync would destroy something — a removal. Anything
-  // else (updates, additions) goes straight through: confirming every press
-  // trains people to click past it, which is how a dialog stops protecting
-  // anything.
+  // A "gone" removal was already a deliberate choice, made on the balance
+  // sheet's own delete panel — which named counts and, for a permanent
+  // delete, required typing DELETE. Asking again here would be the friction
+  // that teaches people to click past confirmations, so it does not gate.
+  // A plan-only row is different: it exists nowhere else, Sync is the only
+  // thing that will ever destroy it, and nothing has warned about it yet.
+  const planOnlyRemovals = preview.removals.filter(
+    (r) => r.reason === "plan-only",
+  );
+
   const onClick = () => {
-    if (preview.removals.length > 0) {
+    if (planOnlyRemovals.length > 0) {
       setConfirming(true);
       return;
     }
@@ -108,7 +114,7 @@ export function SyncButton({
       <Breakdown>{breakdownOf(preview)}</Breakdown>
       {confirming ? (
         <SyncRemovalDialog
-          removals={preview.removals}
+          removals={planOnlyRemovals}
           onCancel={() => setConfirming(false)}
           onConfirm={onConfirm}
         />

@@ -106,4 +106,50 @@ describe("SyncButton", () => {
 
     expect(synced).toHaveBeenCalled();
   });
+
+  // A "gone" removal means the account was already archived or hard-deleted
+  // through the balance sheet's own delete panel, which named counts and, for
+  // a permanent delete, required typing DELETE. Asking again here is the
+  // friction that teaches people to click past confirmations, so only a
+  // plan-only row — the one thing nothing else has warned about — gates.
+  test("syncs straight away when the only removals are accounts already gone", async () => {
+    renderButton({
+      updates: [],
+      additions: [],
+      removals: [{ id: "p4", label: "Old car", reason: "gone" }],
+      unchanged: [],
+    });
+
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /1 change/i }));
+    });
+
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(synced).toHaveBeenCalled();
+  });
+
+  test("names only the plan-only rows when gone rows are also being removed", () => {
+    renderButton({
+      updates: [],
+      additions: [],
+      removals: [
+        { id: "p1", label: "Buy-to-let at 50", reason: "plan-only" },
+        { id: "p2", label: "Old car", reason: "gone" },
+        { id: "p3", label: "Dead ISA", reason: "gone" },
+      ],
+      unchanged: [],
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /3 changes/i }));
+
+    const dialog = screen.getByRole("alertdialog", {
+      name: /remove 1 plan-only row/i,
+    });
+    expect(dialog).toBeInTheDocument();
+    expect(screen.getByText("Buy-to-let at 50")).toBeInTheDocument();
+    expect(screen.queryByText("Old car")).not.toBeInTheDocument();
+    expect(screen.queryByText("Dead ISA")).not.toBeInTheDocument();
+  });
 });
