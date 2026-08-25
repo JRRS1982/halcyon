@@ -1,6 +1,6 @@
 // src/app/plan/SyncMarker.tsx
 //
-// Renders one of the three states syncIndicator.ts decides between. The glyph
+// Renders one of the four states syncIndicator.ts decides between. The glyph
 // alone (✓ ● ◇) is not enough for a screen-reader user to tell "changed" from
 // "plan-only" apart, so each one carries an accessible name via role="img" —
 // the same pattern AT tools use to expose a meaningful icon.

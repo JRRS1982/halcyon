@@ -130,8 +130,9 @@ describe("SyncButton", () => {
   // A "gone" removal means the account was already archived or hard-deleted
   // through the balance sheet's own delete panel, which named counts and, for
   // a permanent delete, required typing DELETE. Asking again here is the
-  // friction that teaches people to click past confirmations, so only a
-  // plan-only row — the one thing nothing else has warned about — gates.
+  // friction that teaches people to click past confirmations, so a bare
+  // "gone" row does not gate. Plan-only and cascade rows do: neither has been
+  // warned about anywhere else. See the next test for the cascade case.
   test("syncs straight away when the only removals are accounts already gone", async () => {
     renderButton({
       updates: [],

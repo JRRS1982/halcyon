@@ -94,7 +94,13 @@ Three properties fall out of doing it there rather than in the action:
   twice in the breakdown and written by `applySyncPlan` immediately before
   being deleted.
 - **`syncChangeCount` stays truthful.** Cascades are removals like any other,
-  so the button's number is exactly what the dialog itemises.
+  so the button's number is exactly what the action writes. It is *not* the
+  number the dialog lists: `"gone"` rows are counted but never named, having
+  already been confirmed at the balance sheet. Archive a house carrying a
+  mortgage, its repayment and a sale event and the button reads `4 removed`
+  while the dialog names the 3 attached rows — the house appears only as the
+  thing they go with. Both numbers come from the one `SyncPlan`, so they
+  cannot drift; they answer different questions.
 
 **A dragged row whose own account is still live comes back on the next press.**
 A mortgage removed because its property went, while its own account sits
@@ -411,6 +417,28 @@ tombstone never occupies the slot the next Sync needs.
 - **Two primary-plan queries per `/plan` render** — `getPrimaryPlan` and
   `getPlanSyncPreview` each load it. Inherent to the server-action boundary,
   not a correctness problem.
+- **A cascaded `PlanEvent` carries no marker.** `PlanView` passes the sync
+  preview to the four row tables; `EventsTable` never renders a `SyncMarker`,
+  so a `PROPERTY_SALE` event Sync is about to delete shows nothing beforehand.
+  Not silent in practice — an event is only ever `reason: "cascade"`, which
+  always gates the confirmation, so it is always named before it goes — but it
+  is the one removable thing the indicator does not cover.
+- **A budget category cannot say it is a debt repayment.** Nothing links a
+  `Category` to an `Account`, so a budgeted mortgage payment syncs in as an
+  ordinary `PlanExpense` with `liabilityId` null. Two consequences: a synced
+  mortgage takes `monthlyRepayment: 0`, so the payment drains cash while the
+  balance never moves; and if the user sets that field by hand or uses the plan's
+  mortgage drawer, the same payment is counted twice. The projection machinery
+  is already right — `PlanExpense.liabilityId` routes a linked expense out of the
+  category totals and into `annualPayments`, and `liabilityStep` derives the
+  interest/principal split from `interestPct` — so the whole fix is the missing
+  link, not new maths.
+- **Repayments are not transfers, and P3 must not merge them.** The design doc
+  defers "contributions and repayments" together to `ItemType.TRANSFER`. A
+  transfer is net-worth-neutral, which is right for pension contributions and
+  savings; a mortgage payment is not, because the interest is consumed. Routing
+  repayments through transfers would overstate net worth by the interest every
+  year. They are two shapes and need two mechanisms.
 
 ## Code map
 
