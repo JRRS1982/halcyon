@@ -4,8 +4,8 @@
 // account and per budget category, scoped to one user. I/O, not pure logic —
 // resolvePlanSync (src/lib/plan/sync.ts) stays free of this.
 
-import type { AccountKind, ItemType } from "@prisma/client";
-import type { PlanRowKind, RealityRow } from "@/lib/plan/sync";
+import type { AccountKind } from "@prisma/client";
+import type { RealityRow } from "@/lib/plan/sync";
 import { prisma } from "@/lib/prisma";
 
 function accountKindToPlanRowKind(kind: AccountKind): "ASSET" | "LIABILITY" {
@@ -21,10 +21,6 @@ function accountKindToPlanRowKind(kind: AccountKind): "ASSET" | "LIABILITY" {
   }
 }
 
-function itemTypeToPlanRowKind(type: ItemType): PlanRowKind {
-  return type;
-}
-
 async function latestAccountRows(userId: string): Promise<RealityRow[]> {
   const accounts = await prisma.account.findMany({
     where: { userId, deletedAt: null, kind: { not: "NONE" } },
@@ -33,13 +29,17 @@ async function latestAccountRows(userId: string): Promise<RealityRow[]> {
 
   const rows = await Promise.all(
     accounts.map(async (account) => {
+      // Secondary order on createdAt: two periods can share a startDate (a
+      // MONTH and a YEAR period collide on that value), and nothing stops two
+      // BalanceItem rows for the same account inside one period. Without a
+      // tiebreaker the winner is whatever order Postgres happens to return.
       const latest = await prisma.balanceItem.findFirst({
         where: {
           accountId: account.id,
           deletedAt: null,
           period: { userId, deletedAt: null },
         },
-        orderBy: { period: { startDate: "desc" } },
+        orderBy: [{ period: { startDate: "desc" } }, { createdAt: "desc" }],
         select: { value: true },
       });
       // No observation at all: skipped, not added with zero.
@@ -70,9 +70,11 @@ async function latestCategoryRows(userId: string): Promise<RealityRow[]> {
         where: {
           categoryId: category.id,
           deletedAt: null,
-          period: { userId, deletedAt: null },
+          // × 12 below assumes a monthly figure — a YEAR period would
+          // otherwise inflate the annualised value twelvefold.
+          period: { userId, deletedAt: null, granularity: "MONTH" },
         },
-        orderBy: { period: { startDate: "desc" } },
+        orderBy: [{ period: { startDate: "desc" } }, { createdAt: "desc" }],
         select: { budget: true },
       });
       // No budget row at all: skipped, not added with zero.
@@ -80,7 +82,9 @@ async function latestCategoryRows(userId: string): Promise<RealityRow[]> {
 
       const row: RealityRow = {
         linkId: category.id,
-        kind: itemTypeToPlanRowKind(category.type),
+        // ItemType's members ("INCOME" | "EXPENSE") are a subset of
+        // PlanRowKind's, so this is a direct, cast-free assignment.
+        kind: category.type,
         label: category.label,
         value: Number(latest.budget) * 12,
       };

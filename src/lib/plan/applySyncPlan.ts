@@ -7,67 +7,128 @@
 // rather than in syncActions.ts so it stays importable from both places.
 
 import type { Prisma } from "@prisma/client";
-import type { RealityRow, SyncPlan } from "@/lib/plan/sync";
+import type { PlanRowKind, RealityRow, SyncPlan } from "@/lib/plan/sync";
 
-// Every write below is fenced by both the plan id and the userId — never
-// trust that an id came from a plan/row the caller already checked. See
-// docs/superpowers/specs/2026-08-25-plan-sync-design.md's "Authorization"
-// section and the P1 Critical it references.
+// Every write below is fenced by both the plan id and the userId. `create`
+// can't carry a `where`, so additions rely on the up-front ownership check in
+// applySyncPlan; every update/delete additionally carries the same fence in
+// its own `where`.
 type RowFence = { id: string; plan: { id: string; userId: string } };
 
-// An update or removal id can belong to any one of the four plan-row models —
-// SyncPlan carries no kind for these (only additions do, via RealityRow) — so
-// each is tried in turn, fenced, and only one will ever match.
+// SyncPlan's updates/removals carry no kind (only additions do, via
+// RealityRow — see sync.test.ts, which locks the exact shape of both arrays
+// and would break if a field were added). The caller already knows each
+// existing row's kind — it read the rows to build the plan in the first
+// place — so it passes that lookup in rather than this function probing all
+// four models per id.
 async function updateRow(
   tx: Prisma.TransactionClient,
   fence: RowFence,
+  kind: PlanRowKind,
   update: { value: number; label: string },
 ): Promise<void> {
   const { label, value } = update;
 
-  const asset = await tx.planAsset.updateMany({
-    where: fence,
-    data: { label, openingValue: value },
-  });
-  if (asset.count > 0) return;
-
-  const liability = await tx.planLiability.updateMany({
-    where: fence,
-    data: { label, openingBalance: value },
-  });
-  if (liability.count > 0) return;
-
-  const income = await tx.planIncome.updateMany({
-    where: fence,
-    data: { label, annualAmount: value },
-  });
-  if (income.count > 0) return;
-
-  await tx.planExpense.updateMany({
-    where: fence,
-    data: { label, annualAmount: value },
-  });
+  switch (kind) {
+    case "ASSET": {
+      const res = await tx.planAsset.updateMany({
+        where: fence,
+        data: { label, openingValue: value },
+      });
+      if (res.count === 0) {
+        throw new Error(
+          `Sync update rejected: asset ${fence.id} not found for this plan`,
+        );
+      }
+      return;
+    }
+    case "LIABILITY": {
+      const res = await tx.planLiability.updateMany({
+        where: fence,
+        data: { label, openingBalance: value },
+      });
+      if (res.count === 0) {
+        throw new Error(
+          `Sync update rejected: liability ${fence.id} not found for this plan`,
+        );
+      }
+      return;
+    }
+    case "INCOME": {
+      const res = await tx.planIncome.updateMany({
+        where: fence,
+        data: { label, annualAmount: value },
+      });
+      if (res.count === 0) {
+        throw new Error(
+          `Sync update rejected: income ${fence.id} not found for this plan`,
+        );
+      }
+      return;
+    }
+    case "EXPENSE": {
+      const res = await tx.planExpense.updateMany({
+        where: fence,
+        data: { label, annualAmount: value },
+      });
+      if (res.count === 0) {
+        throw new Error(
+          `Sync update rejected: expense ${fence.id} not found for this plan`,
+        );
+      }
+      return;
+    }
+  }
 }
 
 async function removeRow(
   tx: Prisma.TransactionClient,
   fence: RowFence,
+  kind: PlanRowKind,
 ): Promise<void> {
-  const asset = await tx.planAsset.deleteMany({ where: fence });
-  if (asset.count > 0) return;
-
-  const liability = await tx.planLiability.deleteMany({ where: fence });
-  if (liability.count > 0) return;
-
-  const income = await tx.planIncome.deleteMany({ where: fence });
-  if (income.count > 0) return;
-
-  await tx.planExpense.deleteMany({ where: fence });
+  switch (kind) {
+    case "ASSET": {
+      const res = await tx.planAsset.deleteMany({ where: fence });
+      if (res.count === 0) {
+        throw new Error(
+          `Sync removal rejected: asset ${fence.id} not found for this plan`,
+        );
+      }
+      return;
+    }
+    case "LIABILITY": {
+      const res = await tx.planLiability.deleteMany({ where: fence });
+      if (res.count === 0) {
+        throw new Error(
+          `Sync removal rejected: liability ${fence.id} not found for this plan`,
+        );
+      }
+      return;
+    }
+    case "INCOME": {
+      const res = await tx.planIncome.deleteMany({ where: fence });
+      if (res.count === 0) {
+        throw new Error(
+          `Sync removal rejected: income ${fence.id} not found for this plan`,
+        );
+      }
+      return;
+    }
+    case "EXPENSE": {
+      const res = await tx.planExpense.deleteMany({ where: fence });
+      if (res.count === 0) {
+        throw new Error(
+          `Sync removal rejected: expense ${fence.id} not found for this plan`,
+        );
+      }
+      return;
+    }
+  }
 }
 
 // Additions carry their own kind (RealityRow), so which model to create in is
-// known directly — no probing needed. New rows get every schema default for
-// their assumptions; only the link, label and value come from reality.
+// known directly. New rows get every schema default for their assumptions;
+// only the link, label and value come from reality.
 async function addRow(
   tx: Prisma.TransactionClient,
   planId: string,
@@ -123,17 +184,35 @@ export async function applySyncPlan(
   planId: string,
   userId: string,
   plan: SyncPlan,
+  rowKinds: ReadonlyMap<string, PlanRowKind>,
 ): Promise<void> {
+  // Additions can't be fenced by a `where`, so this is the only check that
+  // stands between them and writing onto a plan the caller doesn't own.
+  const owned = await tx.plan.findFirst({
+    where: { id: planId, userId },
+    select: { id: true },
+  });
+  if (!owned) throw new Error("Plan not found");
+
   for (const update of plan.updates) {
+    const kind = rowKinds.get(update.id);
+    if (!kind) {
+      throw new Error(`Sync update rejected: unknown row ${update.id}`);
+    }
     await updateRow(
       tx,
       { id: update.id, plan: { id: planId, userId } },
+      kind,
       update,
     );
   }
 
   for (const removal of plan.removals) {
-    await removeRow(tx, { id: removal.id, plan: { id: planId, userId } });
+    const kind = rowKinds.get(removal.id);
+    if (!kind) {
+      throw new Error(`Sync removal rejected: unknown row ${removal.id}`);
+    }
+    await removeRow(tx, { id: removal.id, plan: { id: planId, userId } }, kind);
   }
 
   for (const addition of plan.additions) {

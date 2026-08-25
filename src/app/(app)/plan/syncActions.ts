@@ -4,7 +4,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { applySyncPlan } from "@/lib/plan/applySyncPlan";
 import { latestReality } from "@/lib/plan/reality";
-import { type PlanRow, resolvePlanSync, type SyncPlan } from "@/lib/plan/sync";
+import {
+  type PlanRow,
+  type PlanRowKind,
+  resolvePlanSync,
+  type SyncPlan,
+} from "@/lib/plan/sync";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 
@@ -75,6 +80,14 @@ async function loadPrimaryPlanRows(userId: string): Promise<LoadedPlan | null> {
   return { planId: plan.id, rows };
 }
 
+// applySyncPlan can't tell which of the four plan-row models an update or
+// removal id belongs to — SyncPlan carries no kind for those (only additions
+// do). The rows we just loaded already know, so build the lookup here rather
+// than have applySyncPlan probe every model per id.
+function rowKindsOf(rows: PlanRow[]): Map<string, PlanRowKind> {
+  return new Map(rows.map((row) => [row.id, row.kind]));
+}
+
 // What Sync would do, without doing it — the same object the button's counts,
 // the per-row indicators and the confirmation dialog all render.
 export async function getPlanSyncPreview(): Promise<SyncPlan | null> {
@@ -94,9 +107,10 @@ export async function syncPlan(): Promise<SyncPlan> {
 
   const reality = await latestReality(userId);
   const plan = resolvePlanSync(loaded.rows, reality);
+  const rowKinds = rowKindsOf(loaded.rows);
 
   await prisma.$transaction((tx) =>
-    applySyncPlan(tx, loaded.planId, userId, plan),
+    applySyncPlan(tx, loaded.planId, userId, plan, rowKinds),
   );
 
   revalidatePath("/plan");
