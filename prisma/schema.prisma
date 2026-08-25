@@ -509,6 +509,13 @@ model PlanAsset {
   plan       Plan           @relation(fields: [planId], references: [id], onDelete: Cascade)
   mortgage   PlanLiability? @relation("MortgageProperty")
   saleEvents PlanEvent[]    @relation("EventProperty")
+  // One row per account per plan. Sync resolves what to add outside the
+  // transaction that adds it, so two concurrent presses can both decide to add
+  // the same account; only the database can refuse the second. Plan-only rows
+  // (accountId null) are unaffected — Postgres treats NULLs as distinct.
+  // Soft-deleting a row clears its link (see plan/actions.ts), so a tombstone
+  // never occupies the account's slot.
+  @@unique([planId, accountId])
   @@index([planId])
   @@index([accountId])
 }
@@ -538,6 +545,8 @@ model PlanLiability {
   plan             Plan         @relation(fields: [planId], references: [id], onDelete: Cascade)
   linkedAsset      PlanAsset?   @relation("MortgageProperty", fields: [linkedAssetId], references: [id], onDelete: SetNull)
   repaymentExpense PlanExpense? @relation("LiabilityRepaymentExpense")
+  // See PlanAsset: one row per account per plan.
+  @@unique([planId, accountId])
   @@index([planId])
   @@index([accountId])
 }
@@ -561,6 +570,8 @@ model PlanIncome {
 
   plan     Plan      @relation(fields: [planId], references: [id], onDelete: Cascade)
   category Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  // See PlanAsset: one row per category per plan.
+  @@unique([planId, categoryId])
   @@index([planId])
   @@index([categoryId])
 }
@@ -584,6 +595,8 @@ model PlanExpense {
   plan           Plan           @relation(fields: [planId], references: [id], onDelete: Cascade)
   liability      PlanLiability? @relation("LiabilityRepaymentExpense", fields: [liabilityId], references: [id], onDelete: SetNull)
   linkedCategory Category?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  // See PlanAsset: one row per category per plan.
+  @@unique([planId, categoryId])
   @@index([planId])
   @@index([categoryId])
 }

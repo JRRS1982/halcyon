@@ -1,3 +1,4 @@
+import { deletePlanAsset } from "@/app/(app)/plan/actions";
 import { getPlanSyncPreview, syncPlan } from "@/app/(app)/plan/syncActions";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
@@ -201,6 +202,30 @@ describe("syncPlan (integration)", () => {
       where: { categoryId: category.id },
     });
     expect(Number(income.annualAmount)).toBe(9999.96);
+  });
+
+  // Deleting a plan row is a soft delete that keeps its accountId, and
+  // loadPrimaryPlanRows only reads live rows — so the account looks unmirrored
+  // and the next Sync adds a fresh row beside the tombstone. Documented
+  // behaviour; a naive unique index on (planId, accountId) would turn it into
+  // a constraint violation instead.
+  it("re-adds a row the user deleted from the plan", async () => {
+    const plan = await emptyPlan();
+    const account = await accountWithValue("Vanguard ISA", 42300, "2026-03-01");
+    await syncPlan();
+    const first = await prisma.planAsset.findFirstOrThrow({
+      where: { accountId: account.id },
+    });
+    await deletePlanAsset({ id: first.id });
+
+    await syncPlan();
+
+    const live = await prisma.planAsset.findMany({
+      where: { planId: plan.id, deletedAt: null },
+    });
+    expect(live).toHaveLength(1);
+    expect(live[0]?.id).not.toBe(first.id);
+    expect(live[0]?.accountId).toBe(account.id);
   });
 
   it("never resolves another user's account into this plan", async () => {

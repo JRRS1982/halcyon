@@ -429,7 +429,11 @@ export async function deletePlanAsset(input: { id: string }): Promise<void> {
   await prisma.$transaction(async (tx) => {
     const res = await tx.planAsset.updateMany({
       where: { id, deletedAt: null, plan: { userId, deletedAt: null } },
-      data: { deletedAt: new Date() },
+      // The link goes with the row: a tombstone is no longer this plan's
+      // mirror of the account, and leaving it linked would make it collide,
+      // through @@unique([planId, accountId]), with the row the next Sync
+      // adds for that same account.
+      data: { deletedAt: new Date(), accountId: null },
     });
     if (res.count === 0) throw new Error("Asset not found");
     // A mortgage cannot outlive its property: cascade the soft delete to the
@@ -446,11 +450,11 @@ export async function deletePlanAsset(input: { id: string }): Promise<void> {
       const ids = mortgages.map((m) => m.id);
       await tx.planLiability.updateMany({
         where: { id: { in: ids }, plan: { userId, deletedAt: null } },
-        data: { deletedAt: new Date(), linkedAssetId: null },
+        data: { deletedAt: new Date(), linkedAssetId: null, accountId: null },
       });
       await tx.planExpense.updateMany({
         where: { liabilityId: { in: ids }, deletedAt: null },
-        data: { deletedAt: new Date() },
+        data: { deletedAt: new Date(), categoryId: null },
       });
     }
   });
@@ -465,13 +469,13 @@ export async function deletePlanLiability(input: {
   await prisma.$transaction(async (tx) => {
     const res = await tx.planLiability.updateMany({
       where: { id, deletedAt: null, plan: { userId, deletedAt: null } },
-      data: { deletedAt: new Date(), linkedAssetId: null },
+      data: { deletedAt: new Date(), linkedAssetId: null, accountId: null },
     });
     if (res.count === 0) throw new Error("Liability not found");
     // The repayment can't outlive the debt: cascade the soft delete.
     await tx.planExpense.updateMany({
       where: { liabilityId: id, deletedAt: null },
-      data: { deletedAt: new Date() },
+      data: { deletedAt: new Date(), categoryId: null },
     });
   });
   revalidatePath("/plan");
@@ -482,7 +486,7 @@ export async function deletePlanIncome(input: { id: string }): Promise<void> {
   const { id } = deleteRowSchema.parse(input);
   const res = await prisma.planIncome.updateMany({
     where: { id, deletedAt: null, plan: { userId, deletedAt: null } },
-    data: { deletedAt: new Date() },
+    data: { deletedAt: new Date(), categoryId: null },
   });
   if (res.count === 0) throw new Error("Income not found");
   revalidatePath("/plan");
@@ -503,7 +507,7 @@ export async function deletePlanExpense(input: { id: string }): Promise<void> {
       );
     await tx.planExpense.updateMany({
       where: { id, deletedAt: null, plan: { userId, deletedAt: null } },
-      data: { deletedAt: new Date() },
+      data: { deletedAt: new Date(), categoryId: null },
     });
   });
   revalidatePath("/plan");
