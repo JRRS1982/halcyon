@@ -1,7 +1,7 @@
 import {
-  clearStarterPeriods,
   createPlanWithDob,
   expect,
+  seedPlanReality,
   signedInUser,
   signIn,
   test,
@@ -18,41 +18,7 @@ test("switching an event to Property sale shows the property picker and labels t
   await signIn(page);
 
   const user = await signedInUser(db);
-  // A plan seeds from the most recent month period, so the starter sheet a new
-  // account is provisioned with has to go — otherwise it, and not the period
-  // seeded below, is what the plan is built from.
-  await clearStarterPeriods(db, user.id);
-  const start = new Date(Date.UTC(2026, 0, 1));
-  const end = new Date(Date.UTC(2026, 0, 31));
-  await db.financialPeriod.create({
-    data: {
-      userId: user.id,
-      granularity: "MONTH",
-      startDate: start,
-      endDate: end,
-      label: "Jan 2026",
-      balanceItems: {
-        create: [
-          {
-            type: "ASSET",
-            category: "LONG_TERM",
-            label: "SIPP",
-            value: 100000,
-          },
-        ],
-      },
-      items: {
-        create: [
-          {
-            type: "INCOME",
-            incomeCategory: "SALARY",
-            label: "Salary",
-            budget: 4000,
-          },
-        ],
-      },
-    },
-  });
+  await seedPlanReality(db, user.id);
 
   await page.goto("/plan");
   await createPlanWithDob(page);

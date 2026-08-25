@@ -1,10 +1,10 @@
 import type { Page } from "@playwright/test";
 import type { PrismaClient } from "@prisma/client";
 import {
-  clearStarterPeriods,
   createPlanWithDob,
   expect,
   openFresh,
+  seedPlanReality,
   signedInUser,
   signIn,
   test,
@@ -17,47 +17,13 @@ import {
 // managed-expense drawer, the cash-flow REPAYMENT routing, cascade delete, and
 // the liability's (feature-new) draggable start handle.
 
-// Signs in, seeds one balance period (so createPlan has data), and creates a
-// plan. Leaves the page on the rendered /plan.
+// Signs in, gives the user an account and a budget category for createPlan to
+// sync against, and creates the plan. Leaves the page on the rendered /plan.
 async function seedAndCreatePlan(page: Page, db: PrismaClient): Promise<void> {
   await signIn(page);
 
   const user = await signedInUser(db);
-  // A plan seeds from the most recent month period, so the starter sheet a new
-  // account is provisioned with has to go — otherwise it, and not the period
-  // seeded below, is what the plan is built from.
-  await clearStarterPeriods(db, user.id);
-  const start = new Date(Date.UTC(2026, 0, 1));
-  const end = new Date(Date.UTC(2026, 0, 31));
-  await db.financialPeriod.create({
-    data: {
-      userId: user.id,
-      granularity: "MONTH",
-      startDate: start,
-      endDate: end,
-      label: "Jan 2026",
-      balanceItems: {
-        create: [
-          {
-            type: "ASSET",
-            category: "LONG_TERM",
-            label: "SIPP",
-            value: 100000,
-          },
-        ],
-      },
-      items: {
-        create: [
-          {
-            type: "INCOME",
-            incomeCategory: "SALARY",
-            label: "Salary",
-            budget: 4000,
-          },
-        ],
-      },
-    },
-  });
+  await seedPlanReality(db, user.id);
 
   await page.goto("/plan");
   await createPlanWithDob(page);

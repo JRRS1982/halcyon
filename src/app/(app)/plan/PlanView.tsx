@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import styled from "styled-components";
 import type { BandedProjection } from "@/lib/plan";
+import type { SyncPlan } from "@/lib/plan/sync";
 import type { NumberFormat } from "@/lib/settings/currency";
 import { AssetFields, AssetsTable } from "./AssetsTable";
 import { AssumptionsPanel } from "./AssumptionsPanel";
@@ -22,10 +23,20 @@ import { IncomeFields, IncomesTable } from "./IncomesTable";
 import { LiabilitiesTable, LiabilityFields } from "./LiabilitiesTable";
 import { PlanDrawer } from "./PlanDrawer";
 import { PropertyFields } from "./PropertyFields";
+import { SyncButton } from "./SyncButton";
 import type { SerializedPlan } from "./serialized";
 import { Timeline } from "./Timeline";
 import { usePlanProjection } from "./usePlanProjection";
 import { VerdictBanner } from "./VerdictBanner";
+
+// No plan changes without a Sync, so an "up to date" preview is a safe
+// default for the moment before the server-loaded preview arrives.
+const EMPTY_SYNC_PLAN: SyncPlan = {
+  updates: [],
+  additions: [],
+  removals: [],
+  unchanged: [],
+};
 
 type Kind = "asset" | "liability" | "income" | "expense" | "event";
 
@@ -64,14 +75,17 @@ export function PlanView({
   currency,
   numberFormat,
   asOfYear,
+  syncPreview,
 }: {
   band: BandedProjection;
   plan: SerializedPlan;
   currency: string;
   numberFormat: NumberFormat;
   asOfYear: number;
+  syncPreview: SyncPlan | null;
 }) {
   const router = useRouter();
+  const preview = syncPreview ?? EMPTY_SYNC_PLAN;
   const {
     liveBand,
     effectiveAssumptions,
@@ -234,17 +248,21 @@ export function PlanView({
         onStreamInput={setStreamOverride}
         onStreamCommit={commitStream}
       />
+      <SyncButton preview={preview} onSynced={() => router.refresh()} />
+
       <Cards>
         <AssetsTable
           assets={plan.assets}
           currency={currency}
           numberFormat={numberFormat}
+          syncPreview={preview}
           onOpen={open("asset")}
         />
         <LiabilitiesTable
           liabilities={plan.liabilities}
           currency={currency}
           numberFormat={numberFormat}
+          syncPreview={preview}
           onOpen={open("liability")}
           onAddMortgage={open("asset")}
         />
@@ -252,12 +270,14 @@ export function PlanView({
           incomes={plan.incomes}
           currency={currency}
           numberFormat={numberFormat}
+          syncPreview={preview}
           onOpen={open("income")}
         />
         <ExpensesTable
           expenses={plan.expenses}
           currency={currency}
           numberFormat={numberFormat}
+          syncPreview={preview}
           onOpen={open("expense")}
         />
         <EventsTable

@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { applySyncPlan } from "@/lib/plan/applySyncPlan";
+import { latestReality } from "@/lib/plan/reality";
 import {
   deleteRowSchema,
   type UpdatePlanAssetInput,
@@ -18,11 +20,7 @@ import {
   updatePlanIncomeSchema,
   updatePlanLiabilitySchema,
 } from "@/lib/plan/schemas";
-import {
-  type SeedBalanceItem,
-  type SeedFinancialItem,
-  seedPlanChildren,
-} from "@/lib/plan/seed";
+import { resolvePlanSync } from "@/lib/plan/sync";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 
@@ -68,6 +66,14 @@ export async function createPlan(input: {
   const userId = await requireUserId();
   const { dateOfBirth, retirementAge } = createPlanSchema.parse(input);
 
+  // Read reality before opening the transaction, not inside it: latestReality
+  // uses the module-level client, so a call from inside would hold one pooled
+  // connection while asking for another, and its ~1 + accounts + 1 + categories
+  // round trips would run against the 5s interactive-transaction timeout.
+  // Nothing below depends on the read being inside — createPlan only adds rows
+  // to a plan it has just created.
+  const reality = await latestReality(userId);
+
   // One primary plan per user (v1). Guard + create are atomic to prevent double-create races.
   await prisma.$transaction(async (tx) => {
     const existing = await tx.plan.findFirst({
@@ -76,47 +82,11 @@ export async function createPlan(input: {
     });
     if (existing) return;
 
-    // Seed from the most recent non-deleted month period (balance + budget share it).
-    const period = await tx.financialPeriod.findFirst({
-      where: { userId, granularity: "MONTH", deletedAt: null },
-      orderBy: { startDate: "desc" },
-      include: {
-        balanceItems: { where: { deletedAt: null } },
-        items: { where: { deletedAt: null } },
-      },
-    });
-
-    const balanceItems: SeedBalanceItem[] = (period?.balanceItems ?? []).map(
-      (b) => ({
-        id: b.id,
-        type: b.type,
-        category: b.category,
-        label: b.label,
-        value: Number(b.value),
-      }),
-    );
-    const financialItems: SeedFinancialItem[] = (period?.items ?? []).map(
-      (f) => ({
-        type: f.type,
-        incomeCategory: f.incomeCategory,
-        category: f.category,
-        label: f.label,
-        budget: Number(f.budget),
-        sourceCategoryId: f.categoryId,
-      }),
-    );
-
-    const seeded = seedPlanChildren(
-      balanceItems,
-      financialItems,
-      retirementAge,
-    );
-
     const currentAge =
       new Date().getUTCFullYear() - new Date(dateOfBirth).getUTCFullYear();
     const carAge = Math.min(currentAge + 5, 94); // planToAge default 95 − 1
 
-    await tx.plan.create({
+    const plan = await tx.plan.create({
       data: {
         userId,
         dateOfBirth: new Date(dateOfBirth),
@@ -127,10 +97,6 @@ export async function createPlan(input: {
         statePensionAnnual: 11500,
         // ONS-ish default life expectancy; user edits in the Assumptions panel.
         expectedDeathAge: 90,
-        assets: { create: seeded.assets },
-        liabilities: { create: seeded.liabilities },
-        incomes: { create: seeded.incomes },
-        expenses: { create: seeded.expenses },
         events: {
           create: [
             {
@@ -143,6 +109,18 @@ export async function createPlan(input: {
         },
       },
     });
+
+    // A fresh plan has no rows of its own, so syncing it against reality is
+    // exactly seeding: every live account and budget category becomes a row,
+    // carrying the wrapper/value the user actually recorded rather than a
+    // guess (see docs/superpowers/specs/2026-08-25-plan-sync-design.md).
+    await applySyncPlan(
+      tx,
+      plan.id,
+      userId,
+      resolvePlanSync([], reality, []),
+      new Map(),
+    );
   });
 
   revalidatePath("/plan");
@@ -451,7 +429,11 @@ export async function deletePlanAsset(input: { id: string }): Promise<void> {
   await prisma.$transaction(async (tx) => {
     const res = await tx.planAsset.updateMany({
       where: { id, deletedAt: null, plan: { userId, deletedAt: null } },
-      data: { deletedAt: new Date() },
+      // The link goes with the row: a tombstone is no longer this plan's
+      // mirror of the account, and leaving it linked would make it collide,
+      // through @@unique([planId, accountId]), with the row the next Sync
+      // adds for that same account.
+      data: { deletedAt: new Date(), accountId: null },
     });
     if (res.count === 0) throw new Error("Asset not found");
     // A mortgage cannot outlive its property: cascade the soft delete to the
@@ -468,11 +450,11 @@ export async function deletePlanAsset(input: { id: string }): Promise<void> {
       const ids = mortgages.map((m) => m.id);
       await tx.planLiability.updateMany({
         where: { id: { in: ids }, plan: { userId, deletedAt: null } },
-        data: { deletedAt: new Date(), linkedAssetId: null },
+        data: { deletedAt: new Date(), linkedAssetId: null, accountId: null },
       });
       await tx.planExpense.updateMany({
         where: { liabilityId: { in: ids }, deletedAt: null },
-        data: { deletedAt: new Date() },
+        data: { deletedAt: new Date(), categoryId: null },
       });
     }
   });
@@ -487,13 +469,13 @@ export async function deletePlanLiability(input: {
   await prisma.$transaction(async (tx) => {
     const res = await tx.planLiability.updateMany({
       where: { id, deletedAt: null, plan: { userId, deletedAt: null } },
-      data: { deletedAt: new Date(), linkedAssetId: null },
+      data: { deletedAt: new Date(), linkedAssetId: null, accountId: null },
     });
     if (res.count === 0) throw new Error("Liability not found");
     // The repayment can't outlive the debt: cascade the soft delete.
     await tx.planExpense.updateMany({
       where: { liabilityId: id, deletedAt: null },
-      data: { deletedAt: new Date() },
+      data: { deletedAt: new Date(), categoryId: null },
     });
   });
   revalidatePath("/plan");
@@ -504,7 +486,7 @@ export async function deletePlanIncome(input: { id: string }): Promise<void> {
   const { id } = deleteRowSchema.parse(input);
   const res = await prisma.planIncome.updateMany({
     where: { id, deletedAt: null, plan: { userId, deletedAt: null } },
-    data: { deletedAt: new Date() },
+    data: { deletedAt: new Date(), categoryId: null },
   });
   if (res.count === 0) throw new Error("Income not found");
   revalidatePath("/plan");
@@ -525,7 +507,7 @@ export async function deletePlanExpense(input: { id: string }): Promise<void> {
       );
     await tx.planExpense.updateMany({
       where: { id, deletedAt: null, plan: { userId, deletedAt: null } },
-      data: { deletedAt: new Date() },
+      data: { deletedAt: new Date(), categoryId: null },
     });
   });
   revalidatePath("/plan");

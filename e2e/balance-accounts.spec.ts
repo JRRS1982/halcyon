@@ -9,40 +9,13 @@ import type { Page } from "@playwright/test";
 import {
   clearStarterPeriods,
   expect,
+  openAddDrawer,
+  rowInput,
   signedInUser,
   signIn,
   test,
   withServerAction,
 } from "./_helpers/fixtures";
-
-/**
- * The sheet's editable cells (BalanceSheet.tsx's CellInput) are bare
- * `<input>`s with no associated label — their value is the row's name, not
- * an accessible name Playwright can query by role. React sets a freshly
- * mounted controlled input's value via the DOM `defaultValue` IDL property,
- * which does reflect the `value` content attribute, so a plain attribute
- * selector finds a row by the name it was created with.
- */
-function rowInput(page: Page, name: string) {
-  return page.locator(`input[value="${name}"]`);
-}
-
-/**
- * Opens the "+ Add" drawer, re-clicking if the first click didn't take.
- *
- * Mirrors mobile-nav.spec.ts's openMenu: a click landing before hydration is
- * swallowed by a button with no handler yet. Retrying while the drawer is
- * still closed converges once hydration catches up, without a fixed sleep.
- */
-async function openAddDrawer(page: Page): Promise<void> {
-  const title = page.getByRole("heading", { name: "Add an account" });
-  await expect(async () => {
-    if (!(await title.isVisible())) {
-      await page.getByRole("button", { name: "+ Add" }).click();
-    }
-    await expect(title).toBeVisible({ timeout: 1_000 });
-  }).toPass({ timeout: 15_000 });
-}
 
 /**
  * Focuses a row by clicking the cell holding its name, so the toolbar's

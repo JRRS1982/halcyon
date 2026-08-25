@@ -182,8 +182,9 @@ export const DEFAULT_CATEGORIES: readonly DefaultCategory[] = [
 
 // `type` is deliberately left unset: the Settings account form doesn't collect
 // one, so a default carrying a type would be a row the user can see but not
-// edit. Nothing reads it either — the plan seeder infers a wrapper from the
-// name (src/lib/plan/seed.ts).
+// edit. Nothing infers one from it either — a Sync reads the wrapper and term
+// bucket the user actually stated on the account (src/lib/plan/reality.ts and
+// realityDefaults.ts), and an account with neither takes the OTHER fallback.
 //
 // Savings and Emergency Fund are both here on purpose. They hold money for
 // opposite reasons — one is for something you have chosen, the other for

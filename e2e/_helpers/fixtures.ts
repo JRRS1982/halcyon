@@ -251,12 +251,105 @@ export async function signedInUser(db: PrismaClient) {
  * Deleting the periods cascades to their items and leaves the categories and
  * accounts in place, so the spec owns the whole picture without pretending a
  * new account has no defaults.
+ *
+ * It waits for that starter sheet to exist first. Provisioning writes it in
+ * one transaction on the first authenticated render, and signedInUser's poll
+ * only proves the User row landed — so a delete issued too early removes
+ * nothing at all, and the sheet then appears behind the spec's back.
  */
 export async function clearStarterPeriods(
   db: PrismaClient,
   userId: string,
 ): Promise<void> {
+  await expect
+    .poll(() => db.financialPeriod.count({ where: { userId } }), {
+      message: "waiting for provisioning to seed the starter budget sheet",
+    })
+    .toBeGreaterThan(0);
   await db.financialPeriod.deleteMany({ where: { userId } });
+}
+
+/**
+ * Gives the signed-in user the balance-sheet and budget rows a plan is built
+ * from: a £100,000 pension account, and £4,000/mo of salary.
+ *
+ * A plan is populated by latestReality (src/lib/plan/reality.ts), which reads
+ * the user's `Account`s and `Category`s and joins to observations through
+ * `accountId` and `categoryId`. A `BalanceItem` carrying neither is invisible
+ * to it, so a plan built from free-typed rows has no assets and no income at
+ * all — not a plan missing a figure, an empty one. Everything seeded here is
+ * therefore linked. No real user can create an unlinked row either: the
+ * balance sheet rows on accounts.
+ *
+ * The asset needs an account of its own because every account provisioning
+ * creates is `kind: NONE` — a plain transaction account, which latestReality
+ * excludes by design. The income links to the "Salary" category provisioning
+ * already made: it is already INCOME/SALARY, exactly what a plan income wants,
+ * and a second category of the same name would only invite the wrong one.
+ *
+ * Both values are above zero on purpose — resolvePlanSync skips additions
+ * worth nothing, so a £0 row silently produces no plan row.
+ *
+ * The starter budget sheet goes first, because it is a *more recent* period
+ * than the one seeded here and "latest" is what reality means.
+ */
+export async function seedPlanReality(
+  db: PrismaClient,
+  userId: string,
+): Promise<void> {
+  // First, and not only to clear the sheet: it waits for provisioning to
+  // commit. Writing while that transaction is open deadlocks, because it locks
+  // Account before FinancialPeriod and everything below does the opposite.
+  await clearStarterPeriods(db, userId);
+
+  const account = await db.account.create({
+    data: {
+      userId,
+      name: "SIPP",
+      kind: "ASSET",
+      category: "LONG_TERM",
+      // Stated on the account, not inferred from the label — a synced asset
+      // takes the wrapper the user recorded, and PENSION is what the chart
+      // legend reads back as "Pension".
+      wrapper: "PENSION",
+    },
+  });
+
+  const salary = await db.category.findFirstOrThrow({
+    where: { userId, type: "INCOME", label: "Salary", deletedAt: null },
+  });
+
+  await db.financialPeriod.create({
+    data: {
+      userId,
+      granularity: "MONTH",
+      startDate: new Date(Date.UTC(2026, 0, 1)),
+      endDate: new Date(Date.UTC(2026, 0, 31)),
+      label: "Jan 2026",
+      balanceItems: {
+        create: [
+          {
+            accountId: account.id,
+            type: "ASSET",
+            category: "LONG_TERM",
+            label: "SIPP",
+            value: 100000,
+          },
+        ],
+      },
+      items: {
+        create: [
+          {
+            categoryId: salary.id,
+            type: "INCOME",
+            incomeCategory: "SALARY",
+            label: "Salary",
+            budget: 4000,
+          },
+        ],
+      },
+    },
+  });
 }
 
 /**
@@ -371,4 +464,36 @@ export async function ensureTransactionsEnabled(page: Page): Promise<void> {
 
   // Nav link appears once the setting is saved + revalidated.
   await expect(page.getByRole("link", { name: "Transactions" })).toBeVisible();
+}
+
+/**
+ * The balance sheet row whose name cell reads `name`.
+ *
+ * The sheet's editable cells (BalanceSheet.tsx's CellInput) are bare
+ * `<input>`s with no associated label — their value is the row's name, not an
+ * accessible name Playwright can query by role. React sets a freshly mounted
+ * controlled input's value via the DOM `defaultValue` IDL property, which does
+ * reflect the `value` content attribute, so a plain attribute selector finds a
+ * row by the name it was created with.
+ */
+export function rowInput(page: Page, name: string) {
+  return page.locator(`input[value="${name}"]`);
+}
+
+/**
+ * Opens the balance sheet's "+ Add" drawer, re-clicking if the first click
+ * didn't take.
+ *
+ * Mirrors mobile-nav.spec.ts's openMenu: a click landing before hydration is
+ * swallowed by a button with no handler yet. Retrying while the drawer is
+ * still closed converges once hydration catches up, without a fixed sleep.
+ */
+export async function openAddDrawer(page: Page): Promise<void> {
+  const title = page.getByRole("heading", { name: "Add an account" });
+  await expect(async () => {
+    if (!(await title.isVisible())) {
+      await page.getByRole("button", { name: "+ Add" }).click();
+    }
+    await expect(title).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 15_000 });
 }

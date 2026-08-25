@@ -5,12 +5,14 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import styled from "styled-components";
 import type { ExpenseCategory } from "@/lib/plan";
+import type { SyncPlan } from "@/lib/plan/sync";
 import { formatAmount, type NumberFormat } from "@/lib/settings/currency";
 import { createPlanExpense, updatePlanExpense } from "./actions";
 import { BoolCell, NumberCell, SelectCell, TextCell } from "./EditableCell";
 import { DrawerSection, Field } from "./PlanDrawer";
 import { AddRowButton } from "./RowControls";
 import { SummaryList, SummaryRow } from "./SummaryRow";
+import { rowMarkerProps, SyncMarker } from "./SyncMarker";
 import type {
   SerializedPlanExpense,
   SerializedPlanLiability,
@@ -171,11 +173,13 @@ export function ExpensesTable({
   expenses,
   currency,
   numberFormat,
+  syncPreview,
   onOpen,
 }: {
   expenses: SerializedPlanExpense[];
   currency: string;
   numberFormat: NumberFormat;
+  syncPreview: SyncPlan;
   onOpen: (id: string) => void;
 }) {
   const router = useRouter();
@@ -197,6 +201,11 @@ export function ExpensesTable({
               key={e.id}
               primary={e.label}
               secondary={`${e.liabilityId ? "Repayment" : e.category} · ${formatAmount(currency, e.annualAmount, numberFormat)}/yr`}
+              marker={
+                <SyncMarker
+                  {...rowMarkerProps(e.id, syncPreview, currency, numberFormat)}
+                />
+              }
               onOpen={() => onOpen(e.id)}
             />
           ))}

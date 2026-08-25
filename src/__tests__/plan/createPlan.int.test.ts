@@ -4,6 +4,25 @@ import { TEST_USER_ID } from "../../../test/integration/helpers";
 
 describe("createPlan (integration)", () => {
   it("seeds a primary plan from the user's latest balance + budget period", async () => {
+    // Sync's source of truth is the Account/Category, not the balance sheet
+    // row's label — the observation just links to the account, and the
+    // account carries the wrapper the user chose in the Add drawer.
+    const account = await prisma.account.create({
+      data: {
+        userId: TEST_USER_ID,
+        name: "Cash savings",
+        kind: "ASSET",
+        wrapper: "CASH",
+      },
+    });
+    const category = await prisma.category.create({
+      data: {
+        userId: TEST_USER_ID,
+        type: "INCOME",
+        incomeCategory: "SALARY",
+        label: "Salary",
+      },
+    });
     const period = await prisma.financialPeriod.create({
       data: {
         userId: TEST_USER_ID,
@@ -16,6 +35,7 @@ describe("createPlan (integration)", () => {
     await prisma.balanceItem.create({
       data: {
         periodId: period.id,
+        accountId: account.id,
         type: "ASSET",
         category: "OTHER",
         label: "Cash savings",
@@ -26,6 +46,7 @@ describe("createPlan (integration)", () => {
     await prisma.financialItem.create({
       data: {
         periodId: period.id,
+        categoryId: category.id,
         type: "INCOME",
         incomeCategory: "SALARY",
         label: "Salary",
@@ -41,9 +62,12 @@ describe("createPlan (integration)", () => {
     expect(plan).not.toBeNull();
     expect(plan?.isPrimary).toBe(true);
     expect(plan?.assets.length).toBeGreaterThan(0);
-    // "Cash savings" infers the CASH wrapper (label keyword beats the bucket).
+    // The wrapper is the fact the user stated on the Account, not a guess
+    // read out of the balance sheet label, and not the schema default.
     expect(plan?.assets[0]?.wrapper).toBe("CASH");
+    expect(Number(plan?.assets[0]?.openingValue)).toBe(10000);
     expect(plan?.incomes.length).toBeGreaterThan(0);
+    expect(Number(plan?.incomes[0]?.annualAmount)).toBe(36000);
   });
 
   it("does not create a second plan when a primary already exists", async () => {
