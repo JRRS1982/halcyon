@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { applySyncPlan } from "@/lib/plan/applySyncPlan";
+import { latestReality } from "@/lib/plan/reality";
 import {
   deleteRowSchema,
   type UpdatePlanAssetInput,
@@ -18,11 +20,7 @@ import {
   updatePlanIncomeSchema,
   updatePlanLiabilitySchema,
 } from "@/lib/plan/schemas";
-import {
-  type SeedBalanceItem,
-  type SeedFinancialItem,
-  seedPlanChildren,
-} from "@/lib/plan/seed";
+import { resolvePlanSync } from "@/lib/plan/sync";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 
@@ -76,47 +74,11 @@ export async function createPlan(input: {
     });
     if (existing) return;
 
-    // Seed from the most recent non-deleted month period (balance + budget share it).
-    const period = await tx.financialPeriod.findFirst({
-      where: { userId, granularity: "MONTH", deletedAt: null },
-      orderBy: { startDate: "desc" },
-      include: {
-        balanceItems: { where: { deletedAt: null } },
-        items: { where: { deletedAt: null } },
-      },
-    });
-
-    const balanceItems: SeedBalanceItem[] = (period?.balanceItems ?? []).map(
-      (b) => ({
-        id: b.id,
-        type: b.type,
-        category: b.category,
-        label: b.label,
-        value: Number(b.value),
-      }),
-    );
-    const financialItems: SeedFinancialItem[] = (period?.items ?? []).map(
-      (f) => ({
-        type: f.type,
-        incomeCategory: f.incomeCategory,
-        category: f.category,
-        label: f.label,
-        budget: Number(f.budget),
-        categoryId: f.categoryId,
-      }),
-    );
-
-    const seeded = seedPlanChildren(
-      balanceItems,
-      financialItems,
-      retirementAge,
-    );
-
     const currentAge =
       new Date().getUTCFullYear() - new Date(dateOfBirth).getUTCFullYear();
     const carAge = Math.min(currentAge + 5, 94); // planToAge default 95 − 1
 
-    await tx.plan.create({
+    const plan = await tx.plan.create({
       data: {
         userId,
         dateOfBirth: new Date(dateOfBirth),
@@ -127,10 +89,6 @@ export async function createPlan(input: {
         statePensionAnnual: 11500,
         // ONS-ish default life expectancy; user edits in the Assumptions panel.
         expectedDeathAge: 90,
-        assets: { create: seeded.assets },
-        liabilities: { create: seeded.liabilities },
-        incomes: { create: seeded.incomes },
-        expenses: { create: seeded.expenses },
         events: {
           create: [
             {
@@ -143,6 +101,19 @@ export async function createPlan(input: {
         },
       },
     });
+
+    // A fresh plan has no rows of its own, so syncing it against reality is
+    // exactly seeding: every live account and budget category becomes a row,
+    // carrying the wrapper/value the user actually recorded rather than a
+    // guess (see docs/superpowers/specs/2026-08-25-plan-sync-design.md).
+    const reality = await latestReality(userId);
+    await applySyncPlan(
+      tx,
+      plan.id,
+      userId,
+      resolvePlanSync([], reality),
+      new Map(),
+    );
   });
 
   revalidatePath("/plan");
