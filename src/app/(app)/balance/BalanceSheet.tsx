@@ -22,11 +22,14 @@ import {
 } from "@/components/sheet/Toolbar";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusPip, type StatusPipState } from "@/components/ui/StatusPip";
+import { isPropertyRow } from "@/lib/accounts/deletion";
+import type { AccountDeletionCounts } from "@/lib/accounts/schemas";
 import {
   type BalanceCategory,
   type BalanceType,
   canMove,
   computeMove,
+  isValidBalanceCategory,
 } from "@/lib/balance/reorder";
 import {
   formatYm,
@@ -40,10 +43,11 @@ import {
   NUMBER_FORMAT_SPEC,
   type NumberFormat,
 } from "@/lib/settings/currency";
+import { AddAccountDrawer } from "./AddAccountDrawer";
+import { accountDeletionCounts } from "./accountActions";
 import {
   copyBalancePeriodFrom,
   copyBalanceTemplateInto,
-  createBalanceItemForMonth,
   deleteBalanceItem,
   listCopyableBalancePeriods,
   moveBalanceItem,
@@ -51,6 +55,7 @@ import {
   setBalanceItemSection,
   updateBalanceItem,
 } from "./actions";
+import { DeleteAccountPanel } from "./DeleteAccountPanel";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -74,6 +79,11 @@ export type SerializedBalanceItem = {
   // Cloned by copy-from and not yet confirmed by a value edit — the number is
   // last month's, shown dimmed until the user touches it.
   carriedOver: boolean;
+  // Set once the row has been backfilled onto (or created from) a durable
+  // Account — null/undefined for legacy rows that predate that migration
+  // (or callers that predate this field), which keep the old free-typed
+  // delete instead of opening the delete panel.
+  accountId?: string | null;
 };
 
 type FocusedCell = {
@@ -100,15 +110,12 @@ const SECTIONS: {
   category: BalanceCategory;
   label: string;
 }[] = (["ASSET", "LIABILITY"] as const).flatMap((type) =>
-  CATEGORIES
-    // PROPERTY is asset-only; mortgage debt belongs in Long-term liabilities.
-    .filter((c) => !(type === "LIABILITY" && c.key === "PROPERTY"))
-    .map((c) => ({
-      value: `${type}:${c.key}`,
-      type,
-      category: c.key,
-      label: `${type === "ASSET" ? "Assets" : "Liabilities"} · ${c.label}`,
-    })),
+  CATEGORIES.filter((c) => isValidBalanceCategory(type, c.key)).map((c) => ({
+    value: `${type}:${c.key}`,
+    type,
+    category: c.key,
+    label: `${type === "ASSET" ? "Assets" : "Liabilities"} · ${c.label}`,
+  })),
 );
 
 // Guidance shown in the per-subhead info popover. Plain-English, UK-flavoured
@@ -435,6 +442,29 @@ const PeriodNavWrapper = styled.div`
   gap: ${({ theme }) => theme.spacing.xs};
 `;
 
+// Centers the DeleteAccountPanel over the sheet — a row's delete control can
+// be scrolled out of view by the time its counts have loaded, so the panel
+// floats rather than rendering inline where the row was.
+const DeleteScrim = styled.div`
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: ${({ theme }) => theme.spacing.lg};
+  background: rgba(15, 17, 22, 0.22);
+`;
+
+const DeleteModal = styled.div`
+  width: min(480px, 100%);
+  max-height: 88vh;
+  overflow-y: auto;
+  background: ${({ theme }) => theme.colors.canvas};
+  border-radius: ${({ theme }) => theme.rounded.sm};
+  box-shadow: 0 24px 64px rgba(15, 17, 22, 0.22);
+`;
+
 const PickerPopover = styled.div`
   ${({ theme }) => `
     position: absolute;
@@ -681,10 +711,82 @@ export function BalanceSheet({
   const [focusedCell, setFocusedCell] = useState<FocusedCell>(null);
   const pendingSavesRef = useRef(0);
   const [pendingCount, setPendingCount] = useState(0);
+  // Holds the id of every item whose edit has been applied locally (editField,
+  // below) but not yet started sending — a window pendingSavesRef does not
+  // cover, since useDebouncedCallback delays 500ms per item before
+  // performUpdate ever runs for it. Per-item because the debounce is: editing
+  // cell A then cell B within the same 500ms window must not let A's timer
+  // firing (and clearing A's own entry) look like "nothing is dirty" while
+  // B's edit is still only sitting in its own, separately-keyed timer. Each
+  // id hands over from this set to pendingSavesRef at performUpdate's first
+  // line for that item, rather than overlapping or gapping.
+  const dirtyItemsRef = useRef<Set<string>>(new Set());
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const [now, setNow] = useState(() => new Date());
+  const [addOpen, setAddOpen] = useState(false);
+  const router = useRouter();
+
+  // Adopt fresh server data whenever the page re-renders with the same
+  // (year, month) — a router.refresh() after a mutation the drawer made,
+  // whose result carries only { periodId, accountId } and not the row(s) it
+  // created. Mirrors transactions/Ledger.tsx's identical "adopt on refresh"
+  // effect, but — unlike Ledger — a cell edit here can be unconfirmed when a
+  // refresh lands: optimistically applied to `items` (editField) but not yet
+  // persisted, either still sitting in debouncedUpdate's 500ms timer
+  // (dirtyItemsRef) or already sent and awaiting the server (pendingSavesRef).
+  // Adoption is skipped while either is non-empty/non-zero: otherwise the server's
+  // pre-write snapshot would silently overwrite the optimistic edit still
+  // showing on screen (the write itself still lands in the DB — only the
+  // display would be wrong, with nothing to correct it).
+  // Refs, not state — reading them inline here (rather than via a helper
+  // function) keeps both effects' dependency lists honest: a plain function
+  // recreated every render would otherwise show up as a missing dependency.
+  const pendingAdoptRef = useRef(false);
+  useEffect(() => {
+    if (dirtyItemsRef.current.size > 0 || pendingSavesRef.current > 0) {
+      pendingAdoptRef.current = true;
+      return;
+    }
+    setItems(initialItems);
+  }, [initialItems]);
+  useEffect(() => {
+    if (dirtyItemsRef.current.size > 0 || pendingSavesRef.current > 0) {
+      pendingAdoptRef.current = true;
+      return;
+    }
+    setPeriodState(period);
+  }, [period]);
+  // A refresh deferred above because a write was in flight is never retried
+  // on its own — nothing else re-requests it. Once the in-flight save
+  // finishes (pendingCount back to 0), ask the server again so the drawer's
+  // new row still shows up this session instead of staying invisible until
+  // an unrelated navigation happens to remount the page.
+  useEffect(() => {
+    if (pendingCount === 0 && pendingAdoptRef.current) {
+      pendingAdoptRef.current = false;
+      router.refresh();
+    }
+  }, [pendingCount, router]);
+
+  // The drawer only reports { periodId, accountId } — not the row(s) it
+  // created (a mortgaged property is two) — so rather than guess their
+  // shape, ask the server to re-render and adopt its answer via the effects
+  // above. Setting periodState.id immediately (as the old add-row handler
+  // did) keeps "Save as template" / "Fill from…" usable before that refresh
+  // lands.
+  const onAccountCreated = useCallback(
+    (result: { periodId: string; accountId: string }) => {
+      if (!periodState.id) {
+        setPeriodState((prev) => ({ ...prev, id: result.periodId }));
+      }
+      setLastSavedAt(new Date());
+      setSaveError(null);
+      router.refresh();
+    },
+    [periodState.id, router],
+  );
 
   // Per-subhead info popover. Fixed-positioned at the clicked icon's rect so
   // it escapes the Sheet's overflow:hidden clipping.
@@ -716,8 +818,6 @@ export function BalanceSheet({
   }, [openInfo]);
 
   // ─── Period nav ───────────────────────────────────────────────────────────
-
-  const router = useRouter();
 
   const today = useMemo(() => {
     const d = new Date();
@@ -892,23 +992,6 @@ export function BalanceSheet({
     });
   }, [periodState.id]);
 
-  // ─── Auto-focus on add ────────────────────────────────────────────────────
-
-  const [pendingFocusItemId, setPendingFocusItemId] = useState<string | null>(
-    null,
-  );
-  const labelInputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
-
-  useEffect(() => {
-    if (!pendingFocusItemId) return;
-    const input = labelInputRefs.current.get(pendingFocusItemId);
-    if (input) {
-      input.focus();
-      input.select();
-      setPendingFocusItemId(null);
-    }
-  }, [pendingFocusItemId]);
-
   // Tick "Saved Xs ago" every 5s.
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 5000);
@@ -922,6 +1005,15 @@ export function BalanceSheet({
       itemId: string,
       patch: { label?: string; value?: number; notes?: string | null },
     ) => {
+      // Removed here, at the same instant pendingSavesRef starts covering
+      // this edit — not in `finally` — so the two refs hand over with no gap
+      // (a refresh landing right here still sees a save in flight via
+      // pendingSavesRef) and no double-counting (a re-edit typed while this
+      // PATCH is still in flight adds itemId back to the set itself, below).
+      // Only this item's id comes out — a different item still mid-debounce
+      // keeps the set non-empty, which is what stops the "adopt on refresh"
+      // effects above from clobbering its still-unsaved value.
+      dirtyItemsRef.current.delete(itemId);
       pendingSavesRef.current += 1;
       setPendingCount(pendingSavesRef.current);
       try {
@@ -938,13 +1030,21 @@ export function BalanceSheet({
     [],
   );
 
-  const debouncedUpdate = useDebouncedCallback(performUpdate, 500);
+  const debouncedUpdate = useDebouncedCallback(
+    performUpdate,
+    500,
+    (itemId) => itemId,
+  );
 
   const editField = useCallback(
     (
       itemId: string,
       patch: { label?: string; value?: number; notes?: string | null },
     ) => {
+      // Added synchronously, in the same tick as the optimistic setItems
+      // below — this is the instant the edit becomes "unsaved", well before
+      // debouncedUpdate's 500ms timer even starts performUpdate.
+      dirtyItemsRef.current.add(itemId);
       setItems((prev) =>
         prev.map((it) =>
           it.id === itemId
@@ -963,56 +1063,47 @@ export function BalanceSheet({
     [debouncedUpdate],
   );
 
-  const onAddRow = useCallback(
-    (type: BalanceType, category: BalanceCategory) => {
-      startTransition(async () => {
-        pendingSavesRef.current += 1;
-        setPendingCount(pendingSavesRef.current);
-        try {
-          // The period row is created lazily, with the first item that needs
-          // it — one action, so a month can never end up with a period and no
-          // rows. Once it exists, subsequent adds reuse the id it returns.
-          const { periodId, item: created } = await createBalanceItemForMonth({
-            year,
-            month,
-            type,
-            category,
-            label: "",
-          });
-          if (!periodState.id) {
-            setPeriodState((prev) => ({ ...prev, id: periodId }));
-          }
-          setItems((prev) => [
-            ...prev,
-            {
-              id: created.id,
-              type: created.type,
-              category: created.category,
-              label: created.label,
-              value: Number(created.value),
-              notes: created.notes,
-              sortOrder: created.sortOrder,
-              carriedOver: false,
-            },
-          ]);
-          setFocusedCell({ itemId: created.id, field: "label" });
-          setPendingFocusItemId(created.id);
-          setLastSavedAt(new Date());
-          setSaveError(null);
-        } catch (e) {
-          setSaveError(e instanceof Error ? e.message : "Add row failed");
-        } finally {
-          pendingSavesRef.current = Math.max(0, pendingSavesRef.current - 1);
-          setPendingCount(pendingSavesRef.current);
-        }
-      });
-    },
-    [periodState.id, year, month],
-  );
+  // A row backed by a durable Account (Task 4+) opens the two-mode delete
+  // panel instead of an immediate delete — soft-delete-by-default, and the
+  // one hard delete in the app needs the size of what it removes stated up
+  // front. Legacy rows (accountId null/undefined, pre-backfill) keep
+  // today's direct delete so nothing breaks for a user who hasn't migrated.
+  const [deletePanel, setDeletePanel] = useState<{
+    accountId: string;
+    name: string;
+    isProperty: boolean;
+    counts: AccountDeletionCounts;
+  } | null>(null);
+  const [deleteCountsLoading, setDeleteCountsLoading] = useState(false);
 
   const onDelete = useCallback(() => {
     if (!focusedCell) return;
     const target = focusedCell.itemId;
+    const row = items.find((it) => it.id === target);
+
+    if (row?.accountId) {
+      const { accountId, type, category, label } = row;
+      setDeleteCountsLoading(true);
+      startTransition(async () => {
+        try {
+          const counts = await accountDeletionCounts({ accountId });
+          setDeletePanel({
+            accountId,
+            name: label,
+            isProperty: isPropertyRow(type, category),
+            counts,
+          });
+        } catch (e) {
+          setSaveError(
+            e instanceof Error ? e.message : "Couldn't load delete details",
+          );
+        } finally {
+          setDeleteCountsLoading(false);
+        }
+      });
+      return;
+    }
+
     startTransition(async () => {
       pendingSavesRef.current += 1;
       setPendingCount(pendingSavesRef.current);
@@ -1032,6 +1123,65 @@ export function BalanceSheet({
       }
     });
   }, [focusedCell, items]);
+
+  const closeDeletePanel = useCallback(() => setDeletePanel(null), []);
+
+  const onDeleteDone = useCallback(() => {
+    setDeletePanel(null);
+    setFocusedCell(null);
+    router.refresh();
+  }, [router]);
+
+  // The delete panel is an alertdialog over the sheet, so it gets the same
+  // focus management as AddAccountDrawer.tsx's Sheet (itself adapted from
+  // plan/PlanDrawer.tsx): Esc closes; Tab is trapped inside the modal; body
+  // scroll is locked; focus moves into the modal on open and back to
+  // whatever triggered it on close.
+  const deleteModalRef = useRef<HTMLDivElement>(null);
+  const closeDeletePanelRef = useRef(closeDeletePanel);
+  closeDeletePanelRef.current = closeDeletePanel;
+
+  useEffect(() => {
+    if (!deletePanel) return;
+    const modal = deleteModalRef.current;
+    const trigger =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        closeDeletePanelRef.current();
+        return;
+      }
+      if (e.key !== "Tab" || !modal) return;
+      const focusables = modal.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (!first || !last) return;
+      const active = document.activeElement;
+      if (e.shiftKey && active === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    modal?.focus();
+
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+      trigger?.focus();
+    };
+  }, [deletePanel]);
 
   // Move the focused row up / down. computeMove handles crossing the
   // category and Asset/Liability boundaries one slot at a time. Optimistic:
@@ -1206,10 +1356,6 @@ export function BalanceSheet({
         }
       >
         <CellInput
-          ref={(el) => {
-            if (el) labelInputRefs.current.set(item.id, el);
-            else labelInputRefs.current.delete(item.id);
-          }}
           value={item.label}
           placeholder="Name this item"
           onChange={(e) => editField(item.id, { label: e.target.value })}
@@ -1261,46 +1407,48 @@ export function BalanceSheet({
         <SheetCell align="right">{fmtAmount(total)}</SheetCell>
         <SheetCell />
       </SectionRow>
-      {CATEGORIES.filter(
-        (c) => !(type === "LIABILITY" && c.key === "PROPERTY"),
-      ).map((c) => {
-        const bucket = groups[type][c.key];
-        const help = CATEGORY_HELP[type][c.key];
-        return (
-          <div key={`${type}-${c.key}`}>
-            <SubheadRow role="row">
-              <SheetCell role="rowheader">
-                <SubheadLabel>
-                  {c.label}
-                  <InfoButton
-                    type="button"
-                    data-info-root
-                    aria-label={`What goes in ${help.title}?`}
-                    onClick={(e) => {
-                      const r = e.currentTarget.getBoundingClientRect();
-                      setOpenInfo((cur) =>
-                        cur?.title === help.title
-                          ? null
-                          : {
-                              title: help.title,
-                              body: help.body,
-                              top: r.bottom + 6,
-                              left: Math.min(r.left, window.innerWidth - 296),
-                            },
-                      );
-                    }}
-                  >
-                    i
-                  </InfoButton>
-                </SubheadLabel>
-              </SheetCell>
-              <SheetCell align="right">{fmtAmount(bucket.subtotal)}</SheetCell>
-              <SheetCell />
-            </SubheadRow>
-            {bucket.rows.map(renderItemRow)}
-          </div>
-        );
-      })}
+      {CATEGORIES.filter((c) => isValidBalanceCategory(type, c.key)).map(
+        (c) => {
+          const bucket = groups[type][c.key];
+          const help = CATEGORY_HELP[type][c.key];
+          return (
+            <div key={`${type}-${c.key}`}>
+              <SubheadRow role="row">
+                <SheetCell role="rowheader">
+                  <SubheadLabel>
+                    {c.label}
+                    <InfoButton
+                      type="button"
+                      data-info-root
+                      aria-label={`What goes in ${help.title}?`}
+                      onClick={(e) => {
+                        const r = e.currentTarget.getBoundingClientRect();
+                        setOpenInfo((cur) =>
+                          cur?.title === help.title
+                            ? null
+                            : {
+                                title: help.title,
+                                body: help.body,
+                                top: r.bottom + 6,
+                                left: Math.min(r.left, window.innerWidth - 296),
+                              },
+                        );
+                      }}
+                    >
+                      i
+                    </InfoButton>
+                  </SubheadLabel>
+                </SheetCell>
+                <SheetCell align="right">
+                  {fmtAmount(bucket.subtotal)}
+                </SheetCell>
+                <SheetCell />
+              </SubheadRow>
+              {bucket.rows.map(renderItemRow)}
+            </div>
+          );
+        },
+      )}
     </>
   );
 
@@ -1377,12 +1525,7 @@ export function BalanceSheet({
             elsewhere and saving a template are month-level operations, so they
             sit together after it. */}
         <ToolbarGroup>
-          <ToolbarTool onClick={() => onAddRow("ASSET", "CURRENT")}>
-            + Asset
-          </ToolbarTool>
-          <ToolbarTool onClick={() => onAddRow("LIABILITY", "CURRENT")}>
-            + Liability
-          </ToolbarTool>
+          <ToolbarTool onClick={() => setAddOpen(true)}>+ Add</ToolbarTool>
         </ToolbarGroup>
         <ToolbarGroup>
           <CopyWrapper ref={copyWrapperRef}>
@@ -1526,8 +1669,12 @@ export function BalanceSheet({
           </ToolbarGroup>
         )}
         <ToolbarGroup $rowScoped $engaged={!!focusedCell}>
-          <ToolbarTool onClick={onDelete} disabled={!focusedCell} $danger>
-            × Delete row
+          <ToolbarTool
+            onClick={onDelete}
+            disabled={!focusedCell || deleteCountsLoading}
+            $danger
+          >
+            {deleteCountsLoading ? "× Delete row…" : "× Delete row"}
           </ToolbarTool>
         </ToolbarGroup>
         <ToolbarSpacer />
@@ -1566,6 +1713,31 @@ export function BalanceSheet({
           <InfoTitle>{openInfo.title}</InfoTitle>
           <InfoBody>{openInfo.body}</InfoBody>
         </InfoPopover>
+      )}
+      <AddAccountDrawer
+        open={addOpen}
+        year={year}
+        month={month}
+        onClose={() => setAddOpen(false)}
+        onCreated={onAccountCreated}
+      />
+      {deletePanel && (
+        <DeleteScrim
+          onClick={(e) => {
+            if (e.target === e.currentTarget) closeDeletePanel();
+          }}
+        >
+          <DeleteModal ref={deleteModalRef} tabIndex={-1}>
+            <DeleteAccountPanel
+              accountId={deletePanel.accountId}
+              name={deletePanel.name}
+              counts={deletePanel.counts}
+              isProperty={deletePanel.isProperty}
+              onClose={closeDeletePanel}
+              onDone={onDeleteDone}
+            />
+          </DeleteModal>
+        </DeleteScrim>
       )}
     </PageShell>
   );

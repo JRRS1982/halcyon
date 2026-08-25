@@ -21,7 +21,6 @@ import {
 type NavBarProps = {
   signedIn: boolean;
   transactionsEnabled: boolean;
-  planVisible: boolean;
 };
 
 type NavItem = { href: string; label: string };
@@ -39,7 +38,7 @@ type NavItem = { href: string; label: string };
 // so a Home tab would only ever point at a redirect.
 type NavEntry = NavItem & {
   /** Optional entries appear only when their feature is switched on. */
-  requires?: "transactions" | "plan";
+  requires?: "transactions";
 };
 
 const SIGNED_IN_ITEMS: NavEntry[] = [
@@ -48,7 +47,7 @@ const SIGNED_IN_ITEMS: NavEntry[] = [
   { href: "/budget", label: "Budget" },
   { href: "/balance", label: "Balance" },
   { href: "/dashboard", label: "Dashboard" },
-  { href: "/plan", label: "Plan", requires: "plan" },
+  { href: "/plan", label: "Plan" },
   { href: "/settings", label: "Settings" },
 ];
 
@@ -63,6 +62,10 @@ const MARKETING_ITEMS: NavItem[] = [
 // this and how would I use it?" — so it stays in the bar signed out too,
 // including on the pages where the homepage anchors above mean nothing.
 const GUIDE_ITEM: NavItem = { href: "/guide", label: "Guide" };
+
+// The exceptions: the auth pages carry one job each, and a link out of the form
+// is a way to abandon it. /guide is one route away via the homepage brand.
+const BARE_NAV_PATHS = new Set(["/guide", "/sign-in", "/sign-up"]);
 
 function HamburgerIcon({ open }: { open: boolean }) {
   return (
@@ -92,29 +95,26 @@ function HamburgerIcon({ open }: { open: boolean }) {
   );
 }
 
-export function NavBar({
-  signedIn,
-  transactionsEnabled,
-  planVisible,
-}: NavBarProps) {
+export function NavBar({ signedIn, transactionsEnabled }: NavBarProps) {
   const pathname = usePathname();
   const isHome = pathname === "/";
   // Signed out, GUIDE_ITEM is the whole bar off the homepage — and on the guide
-  // that makes it a link to the page being read. Dropped there, leaving the
-  // brand. The signed-in bar keeps its Guide entry: it is primary navigation,
-  // and removing one item on one route would shift every other link sideways.
-  const isGuide = pathname === "/guide";
+  // that makes it a link to the page being read. Dropped there and on the auth
+  // pages, leaving the brand. The signed-in bar keeps its Guide entry: it is
+  // primary navigation, and removing one item on one route would shift every
+  // other link sideways.
+  const isBareNav = BARE_NAV_PATHS.has(pathname);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
 
   // Filtered rather than spliced, so the declared order above is the order
   // rendered and switching a feature on drops it into place.
-  const enabled = { transactions: transactionsEnabled, plan: planVisible };
+  const enabled = { transactions: transactionsEnabled };
   const items: NavItem[] = signedIn
     ? SIGNED_IN_ITEMS.filter((item) => !item.requires || enabled[item.requires])
     : isHome
       ? [GUIDE_ITEM, ...MARKETING_ITEMS]
-      : isGuide
+      : isBareNav
         ? []
         : [GUIDE_ITEM];
 

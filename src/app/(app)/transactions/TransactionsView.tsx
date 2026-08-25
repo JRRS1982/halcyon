@@ -25,13 +25,21 @@ const Shell = styled.main`
 
 export function TransactionsView({
   accounts,
+  transferAccounts,
   categories,
   page,
   query,
   uncategorizedCount,
   transfersEnabled,
 }: {
+  // Importable accounts only (canImportTransactions: true) — the import
+  // target picker, quick-add, and the ledger's account filter render from
+  // this list.
   accounts: Account[];
+  // The full, unfiltered account list — transfer targets and the ledger's
+  // display-name resolution for transferAccountId are not gated by
+  // canImportTransactions.
+  transferAccounts: Account[];
   categories: LedgerCategory[];
   page: LedgerPage;
   query: LedgerUrlQuery;
@@ -56,7 +64,7 @@ export function TransactionsView({
         page={page}
         query={query}
         categories={categories}
-        accounts={accounts}
+        transferAccounts={transferAccounts}
         uncategorizedCount={uncategorizedCount}
         transfersEnabled={transfersEnabled}
       />

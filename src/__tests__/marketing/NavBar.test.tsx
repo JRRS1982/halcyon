@@ -11,14 +11,10 @@ jest.mock("next/navigation", () => ({
 }));
 jest.mock("@/app/actions", () => ({ signOut: jest.fn() }));
 
-const renderit = (props: {
-  signedIn: boolean;
-  transactionsEnabled: boolean;
-  planVisible?: boolean;
-}) =>
+const renderit = (props: { signedIn: boolean; transactionsEnabled: boolean }) =>
   render(
     <ThemeProvider theme={theme}>
-      <NavBar planVisible={props.planVisible ?? false} {...props} />
+      <NavBar {...props} />
     </ThemeProvider>,
   );
 
@@ -69,7 +65,7 @@ describe("NavBar", () => {
   // /guide is not behind the auth guard, and it is the honest answer to "what
   // is this?" — so it is reachable from the bar before signing in, on the
   // homepage and off it.
-  test.each(["/", "/sign-in"])("Guide is in the bar signed out on %s", (at) => {
+  test.each(["/", "/privacy"])("Guide is in the bar signed out on %s", (at) => {
     mockPathname = at;
     renderit({ signedIn: false, transactionsEnabled: false });
     expect(screen.getByRole("link", { name: /^guide$/i })).toHaveAttribute(
@@ -78,9 +74,14 @@ describe("NavBar", () => {
     );
   });
 
-  // ...but not on the guide itself, where it would point at the current page.
-  test("Guide is not in the bar when the guide is the page", () => {
-    mockPathname = "/guide";
+  // ...but not on the guide itself, where it would point at the current page,
+  // nor on the auth pages, where every link is a way to abandon the form.
+  test.each([
+    "/guide",
+    "/sign-in",
+    "/sign-up",
+  ])("Guide is not in the bar on %s", (at) => {
+    mockPathname = at;
     renderit({ signedIn: false, transactionsEnabled: false });
     expect(
       screen.queryByRole("link", { name: /^guide$/i }),
@@ -120,7 +121,6 @@ describe("NavBar", () => {
     const { container } = renderit({
       signedIn: true,
       transactionsEnabled: true,
-      planVisible: true,
     });
 
     const hrefs = [...container.querySelectorAll("nav > div a")].map((a) =>
@@ -143,7 +143,6 @@ describe("NavBar", () => {
     const { container } = renderit({
       signedIn: true,
       transactionsEnabled: false,
-      planVisible: false,
     });
 
     const hrefs = [...container.querySelectorAll("nav > div a")].map((a) =>
@@ -155,6 +154,7 @@ describe("NavBar", () => {
       "/budget",
       "/balance",
       "/dashboard",
+      "/plan",
       "/settings",
     ]);
   });

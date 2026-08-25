@@ -97,7 +97,6 @@ describe("getCurrentUserSettings lazy row creation (integration)", () => {
     expect(accounts.map((a) => a.name).sort()).toEqual(
       [...DEFAULT_ACCOUNTS].sort(),
     );
-    for (const a of accounts) expect(a.type).toBeNull();
   });
 
   // The point of the £0 rows: /budget opens as a sheet to fill in rather than

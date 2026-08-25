@@ -261,14 +261,10 @@ async function seedCategories(userId: string) {
 // `sipp` only ever receive transfer legs (cash contributions, no holdings).
 async function seedAccounts(userId: string) {
   const [current, joint, isa, sipp] = await Promise.all([
-    prisma.account.create({
-      data: { userId, name: "Current Account", type: "CHECKING" },
-    }),
-    prisma.account.create({
-      data: { userId, name: "Joint Account", type: "JOINT" },
-    }),
-    prisma.account.create({ data: { userId, name: "ISA", type: "ISA" } }),
-    prisma.account.create({ data: { userId, name: "SIPP", type: "PENSION" } }),
+    prisma.account.create({ data: { userId, name: "Current Account" } }),
+    prisma.account.create({ data: { userId, name: "Joint Account" } }),
+    prisma.account.create({ data: { userId, name: "ISA" } }),
+    prisma.account.create({ data: { userId, name: "SIPP" } }),
   ]);
   return { current, joint, isa, sipp };
 }

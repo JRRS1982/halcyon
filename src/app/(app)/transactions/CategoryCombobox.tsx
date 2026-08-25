@@ -168,7 +168,10 @@ export type LedgerAccount = { id: string; name: string };
 
 type Props = {
   categories: LedgerCategory[];
-  accounts: LedgerAccount[];
+  // The full, unfiltered account list — not gated by canImportTransactions.
+  // These are transfer targets, so an account excluded from the import
+  // picker (e.g. a mortgage) must still show up here.
+  transferAccounts: LedgerAccount[];
   value: string | null;
   transferAccountId: string | null;
   // Account(s) the shown transaction(s) belong to; excluded as transfer
@@ -207,7 +210,7 @@ const byName = (a: { name: string }, b: { name: string }) =>
 
 export function CategoryCombobox({
   categories,
-  accounts,
+  transferAccounts,
   value,
   transferAccountId,
   ownAccountId,
@@ -249,7 +252,7 @@ export function CategoryCombobox({
 
   const current = categories.find((c) => c.id === value) ?? null;
   const transferAccount =
-    accounts.find((a) => a.id === transferAccountId) ?? null;
+    transferAccounts.find((a) => a.id === transferAccountId) ?? null;
   const trimmed = query.trim();
   const needle = trimmed.toLowerCase();
 
@@ -267,7 +270,7 @@ export function CategoryCombobox({
 
   // Transfer targets exclude the transaction's own account.
   const transferable = transfersEnabled
-    ? accounts.filter((a) => a.id !== ownAccountId).sort(byName)
+    ? transferAccounts.filter((a) => a.id !== ownAccountId).sort(byName)
     : [];
   const accountMatches = trimmed
     ? transferable.filter((a) => a.name.toLowerCase().includes(needle))

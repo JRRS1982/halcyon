@@ -22,6 +22,7 @@ function revalidateAll() {
   revalidatePath("/settings");
   revalidatePath("/transactions");
   revalidatePath("/budget");
+  revalidatePath("/balance");
 }
 
 const createSchema = z.object({ name: z.string().trim().min(1).max(120) });
@@ -51,6 +52,26 @@ export async function renameAccount(
 }
 
 const idSchema = z.object({ accountId: z.string().uuid() });
+
+const importsSchema = idSchema.extend({ enabled: z.boolean() });
+
+// Changeable after creation, per the design spec — the drawer and the backfill
+// both only ever write this at creation time, which left no way to turn
+// imports on for e.g. a mortgage account the backfill created as false.
+export async function setAccountImports(
+  input: z.input<typeof importsSchema>,
+): Promise<void> {
+  const userId = await requireUserId();
+  const { accountId, enabled } = importsSchema.parse(input);
+  const result = await prisma.account.updateMany({
+    where: { id: accountId, userId, deletedAt: null },
+    data: { canImportTransactions: enabled },
+  });
+  if (result.count === 0) throw new Error("Account not found");
+  revalidatePath("/settings");
+  revalidatePath("/transactions");
+  revalidatePath("/balance");
+}
 
 // Soft-delete, but only when the account is unreferenced: it must own no
 // transactions and not be named as a transfer counterparty by any transaction.

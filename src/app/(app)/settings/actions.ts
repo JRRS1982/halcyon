@@ -105,18 +105,6 @@ export async function toggleTransfers(enabled: boolean) {
   revalidatePath("/settings");
 }
 
-// Shows/hides the Plan link in the nav. Nav is rendered in the layout, so
-// revalidate the whole layout.
-export async function togglePlanVisible(enabled: boolean) {
-  const userId = await requireUserId();
-  await prisma.userSettings.upsert({
-    where: { userId },
-    update: { planVisible: enabled },
-    create: { userId, planVisible: enabled },
-  });
-  revalidatePath("/", "layout");
-}
-
 // The colour scheme lives on <html>, which the root layout renders — so the
 // whole layout has to revalidate, not just /settings, or the page would save
 // the choice and keep showing the old scheme until a hard refresh.

@@ -16,17 +16,6 @@ export const createBalanceItemSchema = z.object({
   label: z.string().trim().max(120),
 });
 
-// The sheet's "+ Asset" / "+ Liability" buttons, which address the period by
-// month rather than id — the row may be the first thing in a month that has no
-// FinancialPeriod row yet.
-export const createBalanceItemForMonthSchema = z.object({
-  year: z.number().int(),
-  month: z.number().int().min(0).max(11),
-  type: balanceItemTypeSchema,
-  category: balanceItemCategorySchema,
-  label: z.string().trim().max(120),
-});
-
 export const updateBalanceItemSchema = z
   .object({
     itemId: z.string().uuid(),
@@ -73,9 +62,6 @@ export const copyBalanceTemplateSchema = z.object({
 });
 
 export type CreateBalanceItemInput = z.infer<typeof createBalanceItemSchema>;
-export type CreateBalanceItemForMonthInput = z.infer<
-  typeof createBalanceItemForMonthSchema
->;
 export type UpdateBalanceItemInput = z.infer<typeof updateBalanceItemSchema>;
 export type DeleteBalanceItemInput = z.infer<typeof deleteBalanceItemSchema>;
 export type MoveBalanceItemInput = z.infer<typeof moveBalanceItemSchema>;

@@ -22,10 +22,9 @@ describe("getLayoutSettings (integration)", () => {
 
     const settings = await getLayoutSettings(TEST_USER_ID);
 
-    // Both default true in the schema. Reading them as false is what dropped
+    // Defaults true in the schema. Reading it as false is what dropped
     // the Transactions link out of the nav.
     expect(settings.transactionsEnabled).toBe(true);
-    expect(settings.planVisible).toBe(true);
   });
 
   it("provisions the row, so the very next read agrees with it", async () => {
@@ -44,12 +43,11 @@ describe("getLayoutSettings (integration)", () => {
   it("reports a stored preference rather than the default", async () => {
     await prisma.userSettings.update({
       where: { userId: TEST_USER_ID },
-      data: { transactionsEnabled: false, planVisible: false },
+      data: { transactionsEnabled: false },
     });
 
     const settings = await getLayoutSettings(TEST_USER_ID);
     expect(settings.transactionsEnabled).toBe(false);
-    expect(settings.planVisible).toBe(false);
   });
 
   it("treats a signed-out visitor as having nothing enabled", async () => {
