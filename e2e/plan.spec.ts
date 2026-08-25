@@ -1,8 +1,8 @@
 import {
-  clearStarterPeriods,
   createPlanWithDob,
   expect,
   openFresh,
+  seedPlanReality,
   signedInUser,
   signIn,
   test,
@@ -18,41 +18,7 @@ test("plan: asset fees field round-trips through the drawer", async ({
   await signIn(page);
 
   const user = await signedInUser(db);
-  // A plan seeds from the most recent month period, so the starter sheet a new
-  // account is provisioned with has to go — it is more recent than the period
-  // seeded below, and carries no balance items to build assets from.
-  await clearStarterPeriods(db, user.id);
-  const start = new Date(Date.UTC(2026, 0, 1));
-  const end = new Date(Date.UTC(2026, 0, 31));
-  await db.financialPeriod.create({
-    data: {
-      userId: user.id,
-      granularity: "MONTH",
-      startDate: start,
-      endDate: end,
-      label: "Jan 2026",
-      balanceItems: {
-        create: [
-          {
-            type: "ASSET",
-            category: "LONG_TERM",
-            label: "SIPP",
-            value: 100000,
-          },
-        ],
-      },
-      items: {
-        create: [
-          {
-            type: "INCOME",
-            incomeCategory: "SALARY",
-            label: "Salary",
-            budget: 4000,
-          },
-        ],
-      },
-    },
-  });
+  await seedPlanReality(db, user.id);
 
   await page.goto("/plan");
   // Wait for hydration: the "Create my plan" button stays disabled until the
@@ -88,41 +54,7 @@ test("plan: dragging an event marker (keyboard) persists its age", async ({
   await signIn(page);
 
   const user = await signedInUser(db);
-  // A plan seeds from the most recent month period, so the starter sheet a new
-  // account is provisioned with has to go — it is more recent than the period
-  // seeded below, and carries no balance items to build assets from.
-  await clearStarterPeriods(db, user.id);
-  const start = new Date(Date.UTC(2026, 0, 1));
-  const end = new Date(Date.UTC(2026, 0, 31));
-  await db.financialPeriod.create({
-    data: {
-      userId: user.id,
-      granularity: "MONTH",
-      startDate: start,
-      endDate: end,
-      label: "Jan 2026",
-      balanceItems: {
-        create: [
-          {
-            type: "ASSET",
-            category: "LONG_TERM",
-            label: "SIPP",
-            value: 100000,
-          },
-        ],
-      },
-      items: {
-        create: [
-          {
-            type: "INCOME",
-            incomeCategory: "SALARY",
-            label: "Salary",
-            budget: 4000,
-          },
-        ],
-      },
-    },
-  });
+  await seedPlanReality(db, user.id);
 
   await page.goto("/plan");
   await createPlanWithDob(page);
@@ -163,41 +95,7 @@ test("plan: dragging a bar's end handle (keyboard) persists the age", async ({
   await signIn(page);
 
   const user = await signedInUser(db);
-  // A plan seeds from the most recent month period, so the starter sheet a new
-  // account is provisioned with has to go — it is more recent than the period
-  // seeded below, and carries no balance items to build assets from.
-  await clearStarterPeriods(db, user.id);
-  const start = new Date(Date.UTC(2026, 0, 1));
-  const end = new Date(Date.UTC(2026, 0, 31));
-  await db.financialPeriod.create({
-    data: {
-      userId: user.id,
-      granularity: "MONTH",
-      startDate: start,
-      endDate: end,
-      label: "Jan 2026",
-      balanceItems: {
-        create: [
-          {
-            type: "ASSET",
-            category: "LONG_TERM",
-            label: "SIPP",
-            value: 100000,
-          },
-        ],
-      },
-      items: {
-        create: [
-          {
-            type: "INCOME",
-            incomeCategory: "SALARY",
-            label: "Salary",
-            budget: 4000,
-          },
-        ],
-      },
-    },
-  });
+  await seedPlanReality(db, user.id);
 
   await page.goto("/plan");
   await createPlanWithDob(page);
@@ -242,47 +140,11 @@ test("plan: create, edit assumptions/assets, and the data-loss guard holds", asy
   // (getCurrentUserSettings). signIn() has already waited for it, so that
   // upsert has settled and /plan's navigation won't race it.
 
-  // Seed one month period with a balance ASSET + an income, so createPlan has
-  // something to seed the plan from (an editable asset row + a verdict).
   const user = await signedInUser(db);
-  // A plan seeds from the most recent month period, so the starter sheet a new
-  // account is provisioned with has to go — it is more recent than the period
-  // seeded below, and carries no balance items to build assets from.
-  await clearStarterPeriods(db, user.id);
-  const start = new Date(Date.UTC(2026, 0, 1));
-  const end = new Date(Date.UTC(2026, 0, 31));
-  await db.financialPeriod.create({
-    data: {
-      userId: user.id,
-      granularity: "MONTH",
-      startDate: start,
-      endDate: end,
-      label: "Jan 2026",
-      balanceItems: {
-        create: [
-          {
-            type: "ASSET",
-            category: "LONG_TERM",
-            label: "SIPP",
-            value: 100000,
-          },
-        ],
-      },
-      items: {
-        create: [
-          {
-            type: "INCOME",
-            incomeCategory: "SALARY",
-            label: "Salary",
-            budget: 4000,
-          },
-        ],
-      },
-    },
-  });
+  await seedPlanReality(db, user.id);
 
-  // Now navigate to /plan (no plan yet → create form). createPlan reads the
-  // seeded period on submit.
+  // Now navigate to /plan (no plan yet → create form). On submit createPlan
+  // syncs the empty plan against the accounts and categories seeded above.
   await page.goto("/plan");
   await createPlanWithDob(page);
 
@@ -297,8 +159,8 @@ test("plan: create, edit assumptions/assets, and the data-loss guard holds", asy
   // is display:none above the mobile breakpoint, so a bare locator("svg")
   // matches a deliberately hidden element at desktop width.
   await expect(page.locator(".recharts-surface").first()).toBeVisible();
-  // The seeded "SIPP" label infers wrapper PENSION, whose legend label reads
-  // "Pension" (de-capped).
+  // The seeded SIPP account states wrapper PENSION — nothing is inferred from
+  // the label any more — and its legend label reads "Pension" (de-capped).
   await expect(page.locator(".recharts-legend-wrapper")).toContainText(
     "Pension",
   );

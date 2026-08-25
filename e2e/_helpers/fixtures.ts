@@ -260,6 +260,99 @@ export async function clearStarterPeriods(
 }
 
 /**
+ * Gives the signed-in user the balance-sheet and budget rows a plan is built
+ * from: a £100,000 pension account, and £4,000/mo of salary.
+ *
+ * A plan is populated by latestReality (src/lib/plan/reality.ts), which reads
+ * the user's `Account`s and `Category`s and joins to observations through
+ * `accountId` and `categoryId`. A `BalanceItem` carrying neither is invisible
+ * to it, so a plan built from free-typed rows has no assets and no income at
+ * all — not a plan missing a figure, an empty one. Everything seeded here is
+ * therefore linked. No real user can create an unlinked row either: the
+ * balance sheet rows on accounts.
+ *
+ * The asset needs an account of its own because every account provisioning
+ * creates is `kind: NONE` — a plain transaction account, which latestReality
+ * excludes by design. The income links to the "Salary" category provisioning
+ * already made: it is already INCOME/SALARY, exactly what a plan income wants,
+ * and a second category of the same name would only invite the wrong one.
+ *
+ * Both values are above zero on purpose — resolvePlanSync skips additions
+ * worth nothing, so a £0 row silently produces no plan row.
+ *
+ * The starter budget sheet goes first, because it is a *more recent* period
+ * than the one seeded here and "latest" is what reality means.
+ */
+export async function seedPlanReality(
+  db: PrismaClient,
+  userId: string,
+): Promise<void> {
+  // Provisioning seeds the default categories and accounts in one transaction
+  // on the first authenticated render, and signedInUser's poll only proves the
+  // User row landed — that transaction can still be in flight. Waiting for a
+  // seeded category proves it committed, which matters twice over: the Salary
+  // category looked up below may not exist yet, and writing while it runs
+  // deadlocks, since provisioning locks Account before FinancialPeriod and
+  // everything here does the opposite.
+  await expect
+    .poll(() => db.category.count({ where: { userId } }), {
+      message: "waiting for provisioning to seed the default categories",
+    })
+    .toBeGreaterThan(0);
+
+  await clearStarterPeriods(db, userId);
+
+  const account = await db.account.create({
+    data: {
+      userId,
+      name: "SIPP",
+      kind: "ASSET",
+      category: "LONG_TERM",
+      // Stated on the account, not inferred from the label — a synced asset
+      // takes the wrapper the user recorded, and PENSION is what the chart
+      // legend reads back as "Pension".
+      wrapper: "PENSION",
+    },
+  });
+
+  const salary = await db.category.findFirstOrThrow({
+    where: { userId, type: "INCOME", label: "Salary", deletedAt: null },
+  });
+
+  await db.financialPeriod.create({
+    data: {
+      userId,
+      granularity: "MONTH",
+      startDate: new Date(Date.UTC(2026, 0, 1)),
+      endDate: new Date(Date.UTC(2026, 0, 31)),
+      label: "Jan 2026",
+      balanceItems: {
+        create: [
+          {
+            accountId: account.id,
+            type: "ASSET",
+            category: "LONG_TERM",
+            label: "SIPP",
+            value: 100000,
+          },
+        ],
+      },
+      items: {
+        create: [
+          {
+            categoryId: salary.id,
+            type: "INCOME",
+            incomeCategory: "SALARY",
+            label: "Salary",
+            budget: 4000,
+          },
+        ],
+      },
+    },
+  });
+}
+
+/**
  * Uploads a CSV to the import panel and waits for the mapping step to appear.
  *
  * Setting files on the input fires a DOM change event. If React has not
