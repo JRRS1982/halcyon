@@ -19,9 +19,13 @@ const baseRow = css`
     min-width: 440px;
   }
 
+  /* A 360px phone leaves 328px inside the page's 16px mobile gutters, so the
+     row floor sits at 320px — all three columns land on screen with nothing
+     to pan to. Amounts keep tabular-nums room at 95px; see SheetCell for the
+     matching drop in horizontal cell padding. */
   @media (max-width: 767px) {
-    grid-template-columns: minmax(180px, 1fr) 110px 110px;
-    min-width: 400px;
+    grid-template-columns: minmax(130px, 1fr) 95px 95px;
+    min-width: 320px;
   }
 
   /* Each row variant already paints an opaque background on its cells, so the

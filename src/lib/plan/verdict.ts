@@ -3,21 +3,26 @@ import type { Verdict, YearProjection } from "./types";
 
 export const summarise = (
   years: YearProjection[],
-  maxAge?: number,
+  horizon: { retirementAge?: number; deathAge?: number } = {},
 ): Verdict => {
-  // Judge feasibility, shortfall and peak over the lived horizon only — a
-  // shortfall (or peak) beyond the expected age of death doesn't matter.
+  const { retirementAge, deathAge } = horizon;
+  // Judge feasibility and the headline figures over the lived horizon only — a
+  // shortfall beyond the expected age of death doesn't matter.
   const lived =
-    maxAge === undefined ? years : years.filter((y) => y.age <= maxAge);
+    deathAge === undefined ? years : years.filter((y) => y.age <= deathAge);
   const shortfallYear = lived.find((y) => y.shortfall);
-  const peak = lived.reduce(
-    (best, y) =>
-      y.netWorth > best.value ? { age: y.age, value: y.netWorth } : best,
-    { age: lived[0]?.age ?? 0, value: Number.NEGATIVE_INFINITY },
-  );
+  // A milestone the projection never reaches (retiring before the plan starts,
+  // dying past its horizon) has no figure to report, so it reads as absent
+  // rather than as zero.
+  const netWorthAt = (age: number | undefined) => {
+    if (age === undefined) return null;
+    const match = lived.find((y) => y.age === age);
+    return match ? { age: match.age, value: match.netWorth } : null;
+  };
   return {
     feasible: shortfallYear === undefined,
     firstShortfallAge: shortfallYear?.age ?? null,
-    peakNetWorth: peak,
+    netWorthAtRetirement: netWorthAt(retirementAge),
+    netWorthAtDeath: netWorthAt(deathAge),
   };
 };

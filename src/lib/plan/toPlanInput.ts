@@ -12,8 +12,10 @@ import type {
   BandedProjection,
   BandedVerdict,
   Growth,
+  Milestone,
   PlanInput,
   PlanProjection,
+  Verdict,
 } from "@/lib/plan";
 
 export type PlanWithChildren = Plan & {
@@ -117,9 +119,9 @@ export function toPlanInput(
 }
 
 // Deflates each pass to today's money, then assembles the BandedVerdict ranges
-// from the *deflated* peaks (each pass peaks at its own age, and deflation is
-// age-dependent — so the range must be taken after deflation, never by deflating
-// a pre-computed nominal range). The headline verdict is anchored on mid.
+// from the *deflated* figures — deflation is age-dependent, so a range must be
+// taken after it, never by deflating a pre-computed nominal range. The headline
+// verdict is anchored on mid.
 export function toTodaysMoneyBand(
   band: { low: PlanProjection; mid: PlanProjection; high: PlanProjection },
   inflationPct: number,
@@ -129,18 +131,25 @@ export function toTodaysMoneyBand(
   const mid = toTodaysMoney(band.mid, inflationPct, currentAge);
   const high = toTodaysMoney(band.high, inflationPct, currentAge);
 
-  const peaks = [low, mid, high].map((p) => p.verdict.peakNetWorth.value);
+  const range = (values: number[]): [number, number] | null =>
+    values.length > 0 ? [Math.min(...values), Math.max(...values)] : null;
+
+  const milestoneValues = (pick: (v: Verdict) => Milestone): number[] =>
+    [low, mid, high]
+      .map((p) => pick(p.verdict)?.value)
+      .filter((v): v is number => v !== undefined);
+
   const shortfalls = [low, mid, high]
     .map((p) => p.verdict.firstShortfallAge)
     .filter((a): a is number => a !== null);
 
   const verdict: BandedVerdict = {
     ...mid.verdict,
-    peakNetWorthRange: [Math.min(...peaks), Math.max(...peaks)],
-    firstShortfallAgeRange:
-      shortfalls.length > 0
-        ? [Math.min(...shortfalls), Math.max(...shortfalls)]
-        : null,
+    netWorthAtRetirementRange: range(
+      milestoneValues((v) => v.netWorthAtRetirement),
+    ),
+    netWorthAtDeathRange: range(milestoneValues((v) => v.netWorthAtDeath)),
+    firstShortfallAgeRange: range(shortfalls),
   };
 
   return { low: low.years, mid: mid.years, high: high.years, verdict };
@@ -190,18 +199,22 @@ export function toTodaysMoney(
     })),
   }));
 
-  // Real-terms peak = the max of the *deflated* netWorth series. Deflation is
-  // age-dependent, so deflating the pre-computed nominal peak would report the
-  // wrong age and an understated value — the same reasoning the banded ranges
-  // above already follow.
-  const peakNetWorth = years.reduce(
-    (best, y) =>
-      y.netWorth > best.value ? { age: y.age, value: y.netWorth } : best,
-    { age: years[0]?.age ?? 0, value: Number.NEGATIVE_INFINITY },
-  );
+  // Each milestone is pinned to an age, so deflating its own value at that age
+  // lands on exactly the figure the deflated series carries for that year.
+  const toRealTerms = (milestone: Milestone): Milestone =>
+    milestone && {
+      age: milestone.age,
+      value: deflate(milestone.value, milestone.age),
+    };
 
   return {
-    verdict: { ...projection.verdict, peakNetWorth },
+    verdict: {
+      ...projection.verdict,
+      netWorthAtRetirement: toRealTerms(
+        projection.verdict.netWorthAtRetirement,
+      ),
+      netWorthAtDeath: toRealTerms(projection.verdict.netWorthAtDeath),
+    },
     years,
   };
 }

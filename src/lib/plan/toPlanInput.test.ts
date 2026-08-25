@@ -28,16 +28,20 @@ const yr = (age: number, netWorth: number): YearProjection => ({
   shortfall: netWorth < 0,
 });
 
+// A projection whose verdict reports net worth at `milestoneAge` — the age
+// both milestones are pinned to in these tests, since the deflation and range
+// logic treats retirement and death identically.
 const proj = (
-  peakAge: number,
-  peak: number,
+  milestoneAge: number,
+  netWorth: number,
   years: YearProjection[],
 ): PlanProjection => ({
   years,
   verdict: {
     feasible: years.every((y) => !y.shortfall),
     firstShortfallAge: years.find((y) => y.shortfall)?.age ?? null,
-    peakNetWorth: { age: peakAge, value: peak },
+    netWorthAtRetirement: { age: milestoneAge, value: netWorth },
+    netWorthAtDeath: { age: milestoneAge, value: netWorth },
   },
 });
 
@@ -209,27 +213,28 @@ describe("toTodaysMoney", () => {
     expect(real41?.netWorth).toBeCloseTo((nominal41?.netWorth ?? 0) / 1.1, 0);
   });
 
-  it("reports the peak of the deflated series, not the deflated nominal peak", () => {
-    // Nominal net worth rises 100 → 105 (5%/yr) but inflation is 10%, so in
-    // today's money it falls. The real-terms peak is age 40 (100), even though
-    // the nominal peak is age 41 (105) → deflating the nominal peak would
-    // wrongly report age 41 / 95.
+  it("deflates each milestone to the figure its own year carries", () => {
+    // Nominal 105 at age 41, one year out at 10% inflation → 95 in today's
+    // money, matching the deflated series rather than the nominal figure.
     const nominal = proj(41, 105, [yr(40, 100), yr(41, 105)]);
     const real = toTodaysMoney(nominal, 10, 40);
-    expect(real.verdict.peakNetWorth).toEqual({ age: 40, value: 100 });
+    const deflated41 = real.years.find((y) => y.age === 41)?.netWorth;
+    expect(real.verdict.netWorthAtRetirement).toEqual({ age: 41, value: 95 });
+    expect(real.verdict.netWorthAtDeath?.value).toBe(deflated41);
   });
 });
 
 describe("toTodaysMoneyBand", () => {
-  it("anchors the verdict on mid and derives ranges from deflated peaks", () => {
+  it("anchors the verdict on mid and derives ranges from deflated milestones", () => {
     // inflation 0 so deflation is identity — ranges equal nominal min/max.
     const low = proj(40, 80, [yr(40, 80)]);
     const mid = proj(40, 100, [yr(40, 100)]);
     const high = proj(40, 130, [yr(40, 130)]);
     const banded = toTodaysMoneyBand({ low, mid, high }, 0, 40);
 
-    expect(banded.verdict.peakNetWorth.value).toBe(100); // anchored on mid
-    expect(banded.verdict.peakNetWorthRange).toEqual([80, 130]);
+    expect(banded.verdict.netWorthAtRetirement?.value).toBe(100); // anchored on mid
+    expect(banded.verdict.netWorthAtRetirementRange).toEqual([80, 130]);
+    expect(banded.verdict.netWorthAtDeathRange).toEqual([80, 130]);
     expect(banded.mid).toEqual(mid.years);
   });
 

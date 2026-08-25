@@ -15,7 +15,7 @@ import { expect, signedInUser, signIn, test } from "./_helpers/fixtures";
 const PHONE = { width: 390, height: 844 };
 
 // Small pot, spending above income — the projection runs short early, so the
-// banner shows all three stats (peak / runs out / at age).
+// banner shows all three stats (at retirement / runs out / at age).
 async function seedInfeasiblePlan(
   db: PrismaClient,
   userId: string,

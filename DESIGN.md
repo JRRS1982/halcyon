@@ -505,14 +505,14 @@ The mono face is **never** used for body copy, never for cell amounts (amounts a
 - **Base unit**: 4 px. Every token is a multiple of 4.
 - **Tokens**: `{spacing.xxs}` 2 px · `{spacing.xs}` 4 px · `{spacing.sm}` 8 px · `{spacing.md}` 12 px · `{spacing.lg}` 16 px · `{spacing.xl}` 20 px · `{spacing.2xl}` 24 px · `{spacing.3xl}` 32 px · `{spacing.4xl}` 44 px · `{spacing.5xl}` 48 px · `{spacing.section}` 80 px.
 - **Page padding**: pages use `{spacing.3xl}` 32 px top, `{spacing.2xl}` 24 px sides, `{spacing.5xl}` 48 px bottom on desktop. Mobile drops to `{spacing.lg}` 16 px sides.
-- **Sheet cell padding**: `{spacing.sm}` 8 px top-bottom, `{spacing.md}` 12 px left-right. Section rows and grand-total row bump vertical padding to `{spacing.md}` 12-14 px for emphasis.
+- **Sheet cell padding**: `{spacing.sm}` 8 px top-bottom, `{spacing.md}` 12 px left-right. Section rows and grand-total row bump vertical padding to `{spacing.md}` 12-14 px for emphasis. On mobile left-right drops to `{spacing.sm}` 8 px, so the narrower amount columns keep their figures clear of the cell border.
 - **Sheet indent levels**: `indent-1` is `{spacing.3xl}` 32 px from the cell edge; `indent-2` is `{spacing.5xl}` 56 px. The parent / child relationship is conveyed by indent only — no tree-toggle glyph.
 - **Toolbar gap**: tools within a group sit `{spacing.xs}` 6 px apart; groups are separated by `{spacing.md}` 12 px plus a 1 px right divider on the trailing group.
 
 ### Grid & Container
 
 - **Max width**: 1240 px desktop container; nothing renders above that. Content centres with horizontal gutters of `{spacing.2xl}` 24 px on desktop, `{spacing.lg}` 16 px on mobile.
-- **Sheet column template**: category (flex) · Budget 150 px · Actual 150 px · Difference 150 px · Spent 90 px. On mobile, fixed-width amount columns drop to 110 px each and the Spent column collapses behind a horizontal scroll. (An earlier draft included a 40 px row-index column; removed because spreadsheet-style row numbers added visual noise without earning their column.)
+- **Sheet column template**: category (flex) · Budget 150 px · Actual 150 px. Tablet narrows the amount columns to 120 px. Mobile takes them to 95 px and floors the category column at 130 px, for a 320 px row — inside the 16 px mobile gutters that fits a 360 px viewport, so all three columns land on screen and there is nothing to pan to. (An earlier draft included a 40 px row-index column; removed because spreadsheet-style row numbers added visual noise without earning their column.)
 - **Auth form max-width**: 360 px (per `ex-auth-form-card`).
 - **Page header**: headline + lead on the left, action cluster + status-pip on the right. Stacks on mobile.
 
@@ -526,7 +526,7 @@ Surface contrast does most of the separation. The sheet does not introduce visua
 
 | Name | Width | Key Changes |
 |---|---|---|
-| Mobile | < 479 px | Page header stacks; action cluster wraps under headline. Sheet enables horizontal scroll inside its rounded container — the row-index and category columns stay sticky-left, amount columns scroll. Toolbar wraps to two lines if needed. Period tabs stack 1-up. |
+| Mobile | < 479 px | Page header stacks; action cluster wraps under headline. Sheet columns narrow to fit the viewport; the container can still scroll horizontally, with the category column sticky-left, for the narrowest devices. Toolbar wraps to two lines if needed. Period tabs stack 1-up. |
 | Mobile-Large | 479–767 px | Same as Mobile; period tabs go 2-up. |
 | Tablet | 768–991 px | Sheet remains full-width within container padding; amount columns narrow to 120 px. Period tabs 3-up. Page header inline. |
 | Desktop | 992–1239 px | Full sheet column template; period tabs 5-up (or however many months are shown). |
@@ -543,7 +543,7 @@ The default sheet cell renders at ~36 px tall (14 px text + 8 px × 2 padding + 
 - **Nav**: brand left, link row centre, single black "Sign out" pill right at desktop. Collapses to brand + hamburger at mobile; the menu opens as a full-overlay drawer with the link list stacked vertically.
 - **Page header**: at desktop, headline + lead on the left, action cluster (status-pip + Export + Add row) on the right. At mobile, the action cluster wraps under the headline.
 - **Toolbar**: at desktop, groups sit inline left-to-right. At mobile, the toolbar enables horizontal scroll; groups stay grouped but the row can pan.
-- **Sheet**: at desktop, all six columns visible. At mobile, the row-index + category columns are sticky-left; amount columns scroll horizontally inside the sheet's rounded container.
+- **Sheet**: at mobile the columns narrow rather than collapse, so category, Budget and Actual all stay visible. Below the row's 320 px floor the container scrolls horizontally with the category column sticky-left, and the amounts pan beneath it.
 - **Period tabs**: 5-up at desktop, 3-up at tablet, 1-up at mobile. Card chrome stays identical.
 
 ## Colour Schemes

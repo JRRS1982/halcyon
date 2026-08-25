@@ -24,9 +24,17 @@ export const Grid = styled.div`
   grid-template-columns: 2fr 1fr 1fr;
   gap: ${({ theme }) => theme.spacing["4xl"]};
 
+  /* One column would put eight links in a single scroll-heavy stack. The two
+     link groups sit side by side instead, both reachable without scrolling,
+     with the brand block spanning the full width above them. */
   @media (max-width: 760px) {
-    grid-template-columns: 1fr;
-    gap: ${({ theme }) => theme.spacing["3xl"]};
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: ${({ theme }) => theme.spacing["3xl"]}
+      ${({ theme }) => theme.spacing["2xl"]};
+
+    > :first-child {
+      grid-column: 1 / -1;
+    }
   }
 `;
 

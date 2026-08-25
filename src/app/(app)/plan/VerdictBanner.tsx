@@ -2,8 +2,7 @@
 "use client";
 
 import styled from "styled-components";
-import type { BandedVerdict, YearProjection } from "@/lib/plan";
-import { LIQUID_WRAPPERS } from "@/lib/plan/chartData";
+import type { BandedVerdict } from "@/lib/plan";
 import { formatAmount, type NumberFormat } from "@/lib/settings/currency";
 
 // The verdict is the page's headline answer ("can I retire, does it last?"), so
@@ -92,7 +91,7 @@ const Stat = styled.div`
   gap: ${({ theme }) => theme.spacing.xs};
   align-content: start;
 
-  /* Hairline divider between each pulled-out figure (peak / earliest / at-age). */
+  /* Hairline divider between each pulled-out figure (retirement / runs-out / death). */
   & + & {
     margin-left: ${({ theme }) => theme.spacing["2xl"]};
     padding-left: ${({ theme }) => theme.spacing["2xl"]};
@@ -148,38 +147,25 @@ const RangeNote = styled.span`
 
 export function VerdictBanner({
   verdict,
-  years,
-  expectedDeathAge,
   currency,
   numberFormat,
 }: {
   verdict: BandedVerdict;
-  years: YearProjection[];
-  expectedDeathAge: number | null;
   currency: string;
   numberFormat: NumberFormat;
 }) {
-  // Value at the expected age of death (today's money, like peak net worth).
-  // Only shown when that age falls within the projected range.
-  const deathYear =
-    expectedDeathAge === null
-      ? undefined
-      : years.find((y) => y.age === expectedDeathAge);
-  const atDeath = deathYear
-    ? {
-        netWorth: deathYear.netWorth,
-        liquid: deathYear.assets
-          .filter((a) => LIQUID_WRAPPERS.includes(a.wrapper))
-          .reduce((sum, a) => sum + a.value, 0),
-      }
-    : null;
-
-  const peak = formatAmount(currency, verdict.peakNetWorth.value, numberFormat);
-  const [peakLo, peakHi] = verdict.peakNetWorthRange;
-  const peakRange =
-    peakLo !== peakHi
-      ? `${formatAmount(currency, peakLo, numberFormat)}–${formatAmount(currency, peakHi, numberFormat)}`
+  const money = (value: number) => formatAmount(currency, value, numberFormat);
+  // A range only says something when the passes disagree — a spread of zero
+  // would print "range £X–£X" under every figure.
+  const rangeNote = (range: [number, number] | null) =>
+    range && range[0] !== range[1]
+      ? `range ${money(range[0])}–${money(range[1])}`
       : null;
+
+  const atRetirement = verdict.netWorthAtRetirement;
+  const atDeath = verdict.netWorthAtDeath;
+  const retirementRange = rangeNote(verdict.netWorthAtRetirementRange);
+  const deathRange = rangeNote(verdict.netWorthAtDeathRange);
   const shortRange =
     verdict.firstShortfallAgeRange &&
     verdict.firstShortfallAgeRange[0] !== verdict.firstShortfallAgeRange[1]
@@ -204,13 +190,16 @@ export function VerdictBanner({
         <Sub>{sub}</Sub>
       </Lead>
       <Stats>
-        <Stat>
-          <StatKey>Peak net worth</StatKey>
-          <StatVal>
-            {peak} <small>· age {verdict.peakNetWorth.age}</small>
-          </StatVal>
-          {peakRange ? <RangeNote>range {peakRange}</RangeNote> : null}
-        </Stat>
+        {atRetirement ? (
+          <Stat>
+            <StatKey>At retirement</StatKey>
+            <StatVal>
+              {money(atRetirement.value)}{" "}
+              <small>· age {atRetirement.age}</small>
+            </StatVal>
+            {retirementRange ? <RangeNote>{retirementRange}</RangeNote> : null}
+          </Stat>
+        ) : null}
         {verdict.feasible ? null : (
           <Stat>
             <StatKey>Money runs out</StatKey>
@@ -224,13 +213,9 @@ export function VerdictBanner({
         )}
         {atDeath ? (
           <Stat>
-            <StatKey>At age {expectedDeathAge}</StatKey>
-            <StatVal>
-              {formatAmount(currency, atDeath.netWorth, numberFormat)}
-            </StatVal>
-            <RangeNote>
-              liquid {formatAmount(currency, atDeath.liquid, numberFormat)}
-            </RangeNote>
+            <StatKey>At age {atDeath.age}</StatKey>
+            <StatVal>{money(atDeath.value)}</StatVal>
+            {deathRange ? <RangeNote>{deathRange}</RangeNote> : null}
           </Stat>
         ) : null}
       </Stats>
