@@ -33,6 +33,29 @@ async function accountWithValue(name: string, value: number, when: string) {
   return account;
 }
 
+async function categoryWithBudget(label: string, budget: number, when: string) {
+  const category = await prisma.category.create({
+    data: {
+      userId: TEST_USER_ID,
+      type: "INCOME",
+      incomeCategory: "SALARY",
+      label,
+    },
+  });
+  const p = await period(when, when);
+  await prisma.financialItem.create({
+    data: {
+      periodId: p.id,
+      categoryId: category.id,
+      type: "INCOME",
+      incomeCategory: "SALARY",
+      label,
+      budget,
+    },
+  });
+  return category;
+}
+
 async function emptyPlan() {
   return prisma.plan.create({
     data: {
@@ -153,6 +176,10 @@ describe("syncPlan (integration)", () => {
   it("is a no-op when nothing has changed", async () => {
     await emptyPlan();
     await accountWithValue("Vanguard ISA", 42300, "2026-03-01");
+    // Pence, not whole pounds: 833.33 * 12 is 9999.960000000001 in IEEE-754,
+    // the numeric(12,2) column stores 9999.96, and an unrounded recomputation
+    // would report this row as an update on every press, forever.
+    await categoryWithBudget("Salary", 833.33, "2026-02-01");
     await syncPlan();
 
     const second = await syncPlan();
@@ -160,6 +187,20 @@ describe("syncPlan (integration)", () => {
     expect(second.updates).toEqual([]);
     expect(second.additions).toEqual([]);
     expect(second.removals).toEqual([]);
+  });
+
+  it("annualises a pence budget to the value the column will store", async () => {
+    await emptyPlan();
+    const category = await categoryWithBudget("Salary", 833.33, "2026-03-01");
+
+    const result = await syncPlan();
+
+    // 833.33 * 12 === 9999.960000000001; the row must carry the 2dp figure.
+    expect(result.additions[0]?.value).toBe(9999.96);
+    const income = await prisma.planIncome.findFirstOrThrow({
+      where: { categoryId: category.id },
+    });
+    expect(Number(income.annualAmount)).toBe(9999.96);
   });
 
   it("never resolves another user's account into this plan", async () => {

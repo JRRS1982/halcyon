@@ -121,7 +121,12 @@ async function latestCategoryRows(userId: string): Promise<RealityRow[]> {
         // PlanRowKind's, so this is a direct, cast-free assignment.
         kind: category.type,
         label: category.label,
-        value: Number(latest.budget) * 12,
+        // Rounded to 2dp, not left as the raw product: budget and
+        // annualAmount are both numeric(_,2), so the × 12 happens in doubles
+        // and Postgres stores the rounded figure. £833.33 × 12 is
+        // 9999.960000000001 in IEEE-754 and 9999.96 in the column — compared
+        // unrounded in resolvePlanSync, that row reads as an update forever.
+        value: Math.round(Number(latest.budget) * 1200) / 100,
         wrapper: null,
         defaults: {
           drawdownPriority: null,
