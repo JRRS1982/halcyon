@@ -476,7 +476,19 @@ const tunePlan = async (userId, accounts, mortgageCategoryId) => {
   });
 };
 
-const browser = await chromium.launch();
+// Chromium renders <input type="date"> in its *UI* locale, which comes from
+// the browser process's environment. Neither the context's `locale` nor
+// --lang=en-GB changes it — both were tried; only this does. Without it the
+// plan shot's date of birth reads 06/15/1988, a US format on a product that is
+// sterling throughout, with UK tax bands and a state pension age.
+const browser = await chromium.launch({
+  env: {
+    ...process.env,
+    LANG: "en_GB.UTF-8",
+    LANGUAGE: "en_GB:en",
+    LC_ALL: "en_GB.UTF-8",
+  },
+});
 
 // Light only by default. The app has two schemes, but the landing page is only
 // ever seen signed out — so a dark shot would have to be served by
@@ -491,6 +503,9 @@ for (const scheme of schemes) {
     viewport: { width: 1440, height: 900 },
     deviceScaleFactor: 2,
     colorScheme: scheme,
+    // Pairs with --lang above: this one covers Accept-Language and any
+    // Intl formatting the page does itself.
+    locale: "en-GB",
   });
   const page = await context.newPage();
 
