@@ -1,9 +1,10 @@
 // src/app/plan/SyncButton.tsx
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import styled from "styled-components";
 import { type SyncPlan, syncChangeCount } from "@/lib/plan/sync";
+import { SyncRemovalDialog } from "./SyncRemovalDialog";
 import { syncPlan } from "./syncActions";
 
 const Wrap = styled.div`
@@ -60,13 +61,31 @@ export function SyncButton({
   onSynced: (result: SyncPlan) => void;
 }) {
   const [pending, startTransition] = useTransition();
+  const [confirming, setConfirming] = useState(false);
   const count = syncChangeCount(preview);
 
-  const onClick = () => {
+  const performSync = () => {
     startTransition(async () => {
       const result = await syncPlan();
       onSynced(result);
     });
+  };
+
+  // A dialog only when Sync would destroy something — a removal. Anything
+  // else (updates, additions) goes straight through: confirming every press
+  // trains people to click past it, which is how a dialog stops protecting
+  // anything.
+  const onClick = () => {
+    if (preview.removals.length > 0) {
+      setConfirming(true);
+      return;
+    }
+    performSync();
+  };
+
+  const onConfirm = () => {
+    setConfirming(false);
+    performSync();
   };
 
   if (count === 0) {
@@ -87,6 +106,13 @@ export function SyncButton({
         {label}
       </Btn>
       <Breakdown>{breakdownOf(preview)}</Breakdown>
+      {confirming ? (
+        <SyncRemovalDialog
+          removals={preview.removals}
+          onCancel={() => setConfirming(false)}
+          onConfirm={onConfirm}
+        />
+      ) : null}
     </Wrap>
   );
 }

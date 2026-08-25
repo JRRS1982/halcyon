@@ -65,4 +65,45 @@ describe("SyncButton", () => {
 
     expect(synced).toHaveBeenCalled();
   });
+
+  // The regression that would be invisible: a dialog rendered but hidden
+  // still "works", it's just an extra click nobody would file a bug over.
+  test("never renders the removal dialog when nothing would be removed", async () => {
+    renderButton({
+      updates: [{ id: "p1", value: 42300, label: "ISA" }],
+      additions: [],
+      removals: [],
+      unchanged: [],
+    });
+
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /1 change/i }));
+    });
+
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+  });
+
+  test("shows the removal dialog and withholds sync until confirmed", async () => {
+    renderButton({
+      updates: [],
+      additions: [],
+      removals: [{ id: "p4", label: "Buy-to-let at 50", reason: "plan-only" }],
+      unchanged: [],
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /1 change/i }));
+
+    expect(
+      screen.getByRole("alertdialog", { name: /remove 1 plan-only row/i }),
+    ).toBeInTheDocument();
+    expect(synced).not.toHaveBeenCalled();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /sync anyway/i }));
+    });
+
+    expect(synced).toHaveBeenCalled();
+  });
 });
