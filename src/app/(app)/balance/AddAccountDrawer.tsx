@@ -500,7 +500,7 @@ export function AddAccountDrawer({
                       checked={canImportTransactions}
                       onChange={(e) => toggleImport(e.target.checked)}
                     />
-                    Import statements to this account
+                    Allow importing of statements
                   </CheckboxLabel>
 
                   {wrapper === "PROPERTY" ? (

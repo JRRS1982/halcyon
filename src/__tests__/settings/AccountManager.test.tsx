@@ -42,7 +42,9 @@ describe("AccountManager", () => {
       </ThemeProvider>,
     );
 
-    const toggle = screen.getByRole("checkbox", { name: /import statements/i });
+    const toggle = screen.getByRole("checkbox", {
+      name: /allow importing of statements/i,
+    });
     expect(toggle).not.toBeChecked();
 
     fireEvent.click(toggle);

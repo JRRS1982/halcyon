@@ -239,7 +239,7 @@ export function AccountManager({
                 )
               }
             />
-            Import statements
+            Allow importing of statements
           </ImportToggle>
           <TextButton
             type="button"

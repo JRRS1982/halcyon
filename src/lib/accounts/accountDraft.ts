@@ -173,7 +173,7 @@ function isNumericInput(raw: string): boolean {
   return raw.trim() !== "" && Number.isFinite(Number(raw));
 }
 
-// What the "Import statements to this account" checkbox starts on, for a
+// What the "Allow importing of statements" checkbox starts on, for a
 // freshly chosen account type the user hasn't overridden. Keyed on the
 // wrapper rather than the section: the user picks "Property" explicitly, and
 // that is a more reliable signal than which section they then file it under.
