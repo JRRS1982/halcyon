@@ -5,12 +5,13 @@ import type { SyncPlan } from "@/lib/plan/sync";
 import { theme } from "@/lib/theme";
 
 describe("SyncMarker", () => {
-  test("each of the three states renders a distinct accessible name", () => {
+  test("each of the four states renders a distinct accessible name", () => {
     render(
       <ThemeProvider theme={theme}>
         <SyncMarker indicator="synced" />
         <SyncMarker indicator="changed" sourceFigure="£81,002" />
         <SyncMarker indicator="plan-only" />
+        <SyncMarker indicator="attached" />
       </ThemeProvider>,
     );
 
@@ -18,13 +19,43 @@ describe("SyncMarker", () => {
       .getAllByRole("img")
       .map((el) => el.getAttribute("aria-label"));
 
-    expect(names).toHaveLength(3);
+    expect(names).toHaveLength(4);
     for (const name of names) {
       expect(name).toBeTruthy();
     }
     // Distinct, not merely present — two states sharing a label would leave a
-    // screen-reader user unable to tell "changed" from "plan-only" apart.
-    expect(new Set(names).size).toBe(3);
+    // screen-reader user unable to tell "changed" from "plan-only" apart, or
+    // "plan-only" from "attached", which share the ◇ glyph on purpose.
+    expect(new Set(names).size).toBe(4);
+  });
+
+  // A dragged row's marker must not claim the row is missing from the balance
+  // sheet: a mortgage going only because its property went is still on it.
+  test("a dragged row's marker says it goes with something, not that it is plan-only", () => {
+    const plan: SyncPlan = {
+      updates: [],
+      additions: [],
+      removals: [
+        { id: "a1", label: "The house", reason: "gone", dependsOn: null },
+        {
+          id: "l1",
+          label: "Halifax mortgage",
+          reason: "cascade",
+          dependsOn: "a1",
+        },
+      ],
+      unchanged: [],
+    };
+
+    render(
+      <ThemeProvider theme={theme}>
+        <SyncMarker {...rowMarkerProps("l1", plan, "GBP", "COMMA_0")} />
+      </ThemeProvider>,
+    );
+
+    expect(screen.getByRole("img").getAttribute("aria-label")).not.toMatch(
+      /not on your balance sheet/i,
+    );
   });
 
   test("the changed marker shows the source figure from plan.updates", () => {

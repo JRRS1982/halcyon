@@ -11,16 +11,23 @@ import type { SyncPlan } from "@/lib/plan/sync";
 import { formatAmount, type NumberFormat } from "@/lib/settings/currency";
 import { indicatorFor, type SyncIndicator } from "./syncIndicator";
 
+// "attached" shares the ◇ glyph deliberately: to a sighted user both mean the
+// same thing — Sync will remove this row — and inventing a fourth symbol for a
+// distinction the shape cannot carry would only add noise. The accessible name
+// is where they differ, because the *reason* differs and one of them would be
+// a false statement about the other's row.
 const GLYPH: Record<SyncIndicator, string> = {
   synced: "✓",
   changed: "●",
   "plan-only": "◇",
+  attached: "◇",
 };
 
 const LABEL: Record<SyncIndicator, string> = {
   synced: "Synced — matches your balance sheet",
   changed: "Changed — differs from your balance sheet, Sync will replace it",
   "plan-only": "Plan only — not on your balance sheet, Sync will remove it",
+  attached: "Attached — Sync will remove it with the row it cannot outlive",
 };
 
 const Glyph = styled.span<{ $indicator: SyncIndicator }>`
@@ -29,9 +36,9 @@ const Glyph = styled.span<{ $indicator: SyncIndicator }>`
   color: ${({ theme, $indicator }) =>
     $indicator === "changed"
       ? theme.colors.accent
-      : $indicator === "plan-only"
-        ? theme.colors.dim
-        : theme.colors.positive};
+      : $indicator === "synced"
+        ? theme.colors.positive
+        : theme.colors.dim};
 `;
 const SourceFigure = styled.span`
   font-size: 12px;
