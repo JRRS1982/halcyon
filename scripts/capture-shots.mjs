@@ -54,7 +54,14 @@ const shots = [
   { path: "/budget", file: "budget.png" },
   { path: "/balance", file: "balance.png" },
   { path: "/transactions", file: "transactions.png" },
-  { path: "/plan", file: "plan.png", ready: ".recharts-surface" },
+  // Taller than the rest on purpose. At 900 the frame ends mid-plot, so the
+  // shot leads with the assumptions form and cuts the chart in half — the
+  // projection is the thing worth showing. The panel sits between the verdict
+  // and the chart and does not collapse, so the honest way to give the chart
+  // its room is more room, not a hidden panel. 1075 lands in the gap between
+  // the chart card and the Timeline below it: a slice through the timeline's
+  // rows reads as a mistake, where a clean edge reads as a page continuing.
+  { path: "/plan", file: "plan.png", ready: ".recharts-surface", height: 1075 },
 ];
 
 const prisma = new PrismaClient({
@@ -525,6 +532,9 @@ for (const scheme of schemes) {
   }
 
   for (const shot of shots) {
+    // Always set it, never only when `shot.height` is present: a bare `if`
+    // would leave a taller frame in place for whatever shot came next.
+    await page.setViewportSize({ width: 1440, height: shot.height ?? 900 });
     await page.goto(`${BASE}${shot.path}`, { waitUntil: "networkidle" });
     // The Next dev-tools bubble is not part of the product.
     await page.addStyleTag({
