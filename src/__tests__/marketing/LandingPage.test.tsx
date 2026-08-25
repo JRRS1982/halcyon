@@ -37,6 +37,9 @@ describe("LandingPage", () => {
         name: /turn a bank statement into understanding/i,
       }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /will the money last/i }),
+    ).toBeInTheDocument();
     expect(screen.getByText("Transfers aren't spending")).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: /put the spreadsheet down/i }),
