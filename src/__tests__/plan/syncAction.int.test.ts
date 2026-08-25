@@ -253,7 +253,44 @@ describe("syncPlan (integration)", () => {
     });
     expect(incomes).toHaveLength(1);
     expect(Number(incomes[0]?.annualAmount)).toBe(36000);
-    expect(incomes[0]?.kind).toBe("OTHER");
+    // Was asserted as OTHER while addRow hard-coded it; the category's own
+    // SALARY bucket is the fact seed.ts mapped through INCOME_KIND_BY_BUCKET.
+    expect(incomes[0]?.kind).toBe("SALARY");
+    // A salary stops at retirement. Without this the stream runs on to
+    // expectedDeathAge (src/lib/plan/streams.ts → helpers.ts), overstating
+    // lifetime income by decades.
+    expect(incomes[0]?.endAge).toBe(60);
+  });
+
+  it("adds a non-salary income with no end age", async () => {
+    await emptyPlan();
+    const category = await prisma.category.create({
+      data: {
+        userId: TEST_USER_ID,
+        type: "INCOME",
+        incomeCategory: "PENSIONS",
+        label: "Final salary pension",
+      },
+    });
+    const p = await period("2026-03-01", "2026-03-01");
+    await prisma.financialItem.create({
+      data: {
+        periodId: p.id,
+        categoryId: category.id,
+        type: "INCOME",
+        incomeCategory: "PENSIONS",
+        label: "Final salary pension",
+        budget: 800,
+      },
+    });
+
+    await syncPlan();
+
+    const income = await prisma.planIncome.findFirstOrThrow({
+      where: { categoryId: category.id },
+    });
+    expect(income.kind).toBe("DB_PENSION");
+    expect(income.endAge).toBeNull();
   });
 
   it("adds a PlanExpense row from a category's latest monthly budget × 12", async () => {
@@ -395,5 +432,275 @@ describe("syncPlan (integration)", () => {
       where: { id: asset.id },
     });
     expect(after.wrapper).toBe("ISA");
+  });
+  it("adds a PlanAsset with the drawdown priority of its term bucket", async () => {
+    await emptyPlan();
+    const buckets = [
+      ["CURRENT", 0],
+      ["MEDIUM_TERM", 1],
+      ["LONG_TERM", 2],
+      ["OTHER", 3],
+      ["PROPERTY", 9],
+    ] as const;
+    const p = await period("2026-03-01", "2026-03-01");
+    const accounts = await Promise.all(
+      buckets.map(async ([bucket]) => {
+        const account = await prisma.account.create({
+          data: {
+            userId: TEST_USER_ID,
+            name: `${bucket} account`,
+            kind: "ASSET",
+            category: bucket,
+          },
+        });
+        await prisma.balanceItem.create({
+          data: {
+            periodId: p.id,
+            accountId: account.id,
+            type: "ASSET",
+            category: bucket,
+            label: `${bucket} account`,
+            value: 1000,
+          },
+        });
+        return account;
+      }),
+    );
+
+    await syncPlan();
+
+    for (const [index, [, priority]] of buckets.entries()) {
+      const asset = await prisma.planAsset.findFirstOrThrow({
+        where: { accountId: accounts[index]?.id },
+      });
+      expect(asset.drawdownPriority).toBe(priority);
+    }
+  });
+
+  // Account.category is nullable — the Settings account form doesn't collect
+  // one — so an account with no term bucket lands where OTHER does.
+  it("gives an account with no term bucket the OTHER drawdown priority", async () => {
+    await emptyPlan();
+    const account = await accountWithValue("Premium bonds", 5000, "2026-03-01");
+
+    await syncPlan();
+
+    const asset = await prisma.planAsset.findFirstOrThrow({
+      where: { accountId: account.id },
+    });
+    expect(asset.drawdownPriority).toBe(3);
+  });
+
+  it("adds a PlanExpense carrying the category's own ExpenseCategory", async () => {
+    await emptyPlan();
+    const category = await prisma.category.create({
+      data: {
+        userId: TEST_USER_ID,
+        type: "EXPENSE",
+        category: "DISCRETIONARY",
+        label: "Holidays",
+      },
+    });
+    const p = await period("2026-03-01", "2026-03-01");
+    await prisma.financialItem.create({
+      data: {
+        periodId: p.id,
+        categoryId: category.id,
+        type: "EXPENSE",
+        category: "DISCRETIONARY",
+        label: "Holidays",
+        budget: 150,
+      },
+    });
+
+    await syncPlan();
+
+    const expense = await prisma.planExpense.findFirstOrThrow({
+      where: { categoryId: category.id },
+    });
+    expect(expense.category).toBe("DISCRETIONARY");
+  });
+
+  // provisionUserSettings seeds ~17 starter budget categories at £0. Without
+  // the additions guard a brand-new user's plan opens on a table of empty
+  // lines — the scenario seed.ts's comment named.
+  it("adds nothing for a category budgeted at zero", async () => {
+    await emptyPlan();
+    const category = await prisma.category.create({
+      data: {
+        userId: TEST_USER_ID,
+        type: "EXPENSE",
+        category: "FIXED",
+        label: "Childcare",
+      },
+    });
+    const p = await period("2026-03-01", "2026-03-01");
+    await prisma.financialItem.create({
+      data: {
+        periodId: p.id,
+        categoryId: category.id,
+        type: "EXPENSE",
+        category: "FIXED",
+        label: "Childcare",
+        budget: 0,
+      },
+    });
+
+    const result = await syncPlan();
+
+    expect(result.additions).toEqual([]);
+    expect(await prisma.planExpense.count()).toBe(0);
+  });
+
+  // The other half of the guard: an existing linked row falling to £0 is an
+  // update. Treating it as a removal would delete a paid-off mortgage's row
+  // and the assumptions on it, and the confirmation names only plan-only rows.
+  it("updates a linked row whose budget has fallen to zero rather than removing it", async () => {
+    const plan = await emptyPlan();
+    const category = await prisma.category.create({
+      data: {
+        userId: TEST_USER_ID,
+        type: "EXPENSE",
+        category: "FIXED",
+        label: "Childcare",
+      },
+    });
+    const p = await period("2026-03-01", "2026-03-01");
+    await prisma.financialItem.create({
+      data: {
+        periodId: p.id,
+        categoryId: category.id,
+        type: "EXPENSE",
+        category: "FIXED",
+        label: "Childcare",
+        budget: 0,
+      },
+    });
+    const expense = await prisma.planExpense.create({
+      data: {
+        planId: plan.id,
+        label: "Childcare",
+        categoryId: category.id,
+        annualAmount: 9600,
+      },
+    });
+
+    const result = await syncPlan();
+
+    expect(result.removals).toEqual([]);
+    expect(result.updates).toEqual([
+      { id: expense.id, value: 0, label: "Childcare", wrapper: null },
+    ]);
+    const after = await prisma.planExpense.findUniqueOrThrow({
+      where: { id: expense.id },
+    });
+    expect(Number(after.annualAmount)).toBe(0);
+  });
+
+  // The Kept guarantee. drawdownPriority and endAge are addition-time
+  // defaults, never re-applied — a user who tuned them keeps them.
+  it("does not reset a tuned drawdown priority or end age", async () => {
+    await emptyPlan();
+    const account = await prisma.account.create({
+      data: {
+        userId: TEST_USER_ID,
+        name: "Vanguard ISA",
+        kind: "ASSET",
+        category: "LONG_TERM",
+        wrapper: "ISA",
+      },
+    });
+    const category = await prisma.category.create({
+      data: {
+        userId: TEST_USER_ID,
+        type: "INCOME",
+        incomeCategory: "SALARY",
+        label: "Salary",
+      },
+    });
+    const p = await period("2026-03-01", "2026-03-01");
+    await prisma.balanceItem.create({
+      data: {
+        periodId: p.id,
+        accountId: account.id,
+        type: "ASSET",
+        category: "LONG_TERM",
+        label: "Vanguard ISA",
+        value: 42300,
+      },
+    });
+    await prisma.financialItem.create({
+      data: {
+        periodId: p.id,
+        categoryId: category.id,
+        type: "INCOME",
+        incomeCategory: "SALARY",
+        label: "Salary",
+        budget: 3000,
+      },
+    });
+
+    await syncPlan();
+
+    const seededAsset = await prisma.planAsset.findFirstOrThrow({
+      where: { accountId: account.id },
+    });
+    const seededIncome = await prisma.planIncome.findFirstOrThrow({
+      where: { categoryId: category.id },
+    });
+    await prisma.planAsset.update({
+      where: { id: seededAsset.id },
+      data: { drawdownPriority: 7 },
+    });
+    await prisma.planIncome.update({
+      where: { id: seededIncome.id },
+      data: { endAge: 55 },
+    });
+
+    const second = await syncPlan();
+
+    expect(second.updates).toEqual([]);
+    const asset = await prisma.planAsset.findUniqueOrThrow({
+      where: { id: seededAsset.id },
+    });
+    const income = await prisma.planIncome.findUniqueOrThrow({
+      where: { id: seededIncome.id },
+    });
+    expect(asset.drawdownPriority).toBe(7);
+    expect(income.endAge).toBe(55);
+  });
+
+  // A liability account may carry a stray Account.wrapper (nothing stops it),
+  // and the wrapper enum is asset-only. Its row must round-trip clean rather
+  // than flagging a phantom update on every Sync.
+  it("leaves a liability alone when its account carries a wrapper", async () => {
+    await emptyPlan();
+    const account = await prisma.account.create({
+      data: {
+        userId: TEST_USER_ID,
+        name: "Halifax mortgage",
+        kind: "LIABILITY",
+        category: "LONG_TERM",
+        wrapper: "PROPERTY",
+      },
+    });
+    const p = await period("2026-03-01", "2026-03-01");
+    await prisma.balanceItem.create({
+      data: {
+        periodId: p.id,
+        accountId: account.id,
+        type: "LIABILITY",
+        category: "LONG_TERM",
+        label: "Halifax mortgage",
+        value: 250000,
+      },
+    });
+    await syncPlan();
+
+    const second = await syncPlan();
+
+    expect(second.updates).toEqual([]);
+    expect(second.removals).toEqual([]);
+    expect(second.unchanged).toHaveLength(1);
   });
 });

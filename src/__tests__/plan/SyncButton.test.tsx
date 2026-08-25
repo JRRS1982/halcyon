@@ -44,6 +44,11 @@ describe("SyncButton", () => {
           label: "Premium bonds",
           value: 5000,
           wrapper: null,
+          defaults: {
+            drawdownPriority: 0,
+            incomeKind: null,
+            expenseCategory: null,
+          },
         },
       ],
       removals: [{ id: "p4", label: "Old car", reason: "gone" }],

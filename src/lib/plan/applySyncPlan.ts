@@ -8,7 +8,6 @@
 
 import type { Prisma } from "@prisma/client";
 import type { PlanRowKind, RealityRow, SyncPlan } from "@/lib/plan/sync";
-import type { Wrapper } from "@/lib/plan/types";
 
 // Every write below is fenced by both the plan id and the userId. `create`
 // can't carry a `where`, so additions rely on the up-front ownership check in
@@ -26,7 +25,10 @@ async function updateRow(
   tx: Prisma.TransactionClient,
   fence: RowFence,
   kind: PlanRowKind,
-  update: { value: number; label: string; wrapper: Wrapper | null },
+  // Derived from SyncPlan rather than restated structurally: a hand-copied
+  // shape silently drifting from the real one is exactly how `wrapper` came to
+  // be dropped here. Deriving it makes the next such omission a compile error.
+  update: SyncPlan["updates"][number],
 ): Promise<void> {
   const { label, value } = update;
 
@@ -135,13 +137,19 @@ async function removeRow(
 }
 
 // Additions carry their own kind (RealityRow), so which model to create in is
-// known directly. New rows get every schema default for their assumptions;
-// only the link, label and value come from reality.
+// known directly. A new row has no assumptions to preserve, so it takes the
+// classifications the user has already stated about the account or category it
+// mirrors (RealityRow.defaults) and the schema default for everything else.
+// updateRow deliberately writes none of these: on an existing row they are the
+// spec's Kept assumptions, and a Sync must leave them as the user left them.
 async function addRow(
   tx: Prisma.TransactionClient,
   planId: string,
   addition: RealityRow,
+  retirementAge: number,
 ): Promise<void> {
+  const { defaults } = addition;
+
   switch (addition.kind) {
     case "ASSET":
       await tx.planAsset.create({
@@ -152,6 +160,11 @@ async function addRow(
           openingValue: addition.value,
           // See updateRow's ASSET case for the null fallback.
           wrapper: addition.wrapper ?? "OTHER",
+          // Null only on a non-ASSET row, so unreachable here; 0 is the
+          // schema default. Without this every synced asset shares that
+          // default, and src/lib/plan/assets.ts sees a flat tie — drawdown
+          // order becomes incidental rather than cash-first.
+          drawdownPriority: defaults.drawdownPriority ?? 0,
         },
       });
       return;
@@ -165,17 +178,24 @@ async function addRow(
         },
       });
       return;
-    case "INCOME":
+    case "INCOME": {
+      const kind = defaults.incomeKind ?? "OTHER";
       await tx.planIncome.create({
         data: {
           planId,
           label: addition.label,
           categoryId: addition.linkId,
           annualAmount: addition.value,
-          kind: "OTHER",
+          kind,
+          // A salary stops at retirement; anything else runs to the end of the
+          // projection. Left null, a synced salary projects on to
+          // expectedDeathAge (src/lib/plan/streams.ts → helpers.ts) and
+          // overstates lifetime income by decades.
+          endAge: kind === "SALARY" ? retirementAge : null,
         },
       });
       return;
+    }
     case "EXPENSE":
       await tx.planExpense.create({
         data: {
@@ -183,6 +203,10 @@ async function addRow(
           label: addition.label,
           categoryId: addition.linkId,
           annualAmount: addition.value,
+          // Nullable on both sides: an uncategorised category stays
+          // uncategorised rather than reading as UNCATEGORISED in the
+          // projection and the timeline.
+          category: defaults.expenseCategory,
         },
       });
       return;
@@ -198,9 +222,12 @@ export async function applySyncPlan(
 ): Promise<void> {
   // Additions can't be fenced by a `where`, so this is the only check that
   // stands between them and writing onto a plan the caller doesn't own.
+  // retirementAge rides along on the ownership check the function already
+  // runs: addRow needs it to end a salary at retirement, and reading it here
+  // costs nothing and keeps the exported signature unchanged.
   const owned = await tx.plan.findFirst({
     where: { id: planId, userId },
-    select: { id: true },
+    select: { id: true, retirementAge: true },
   });
   if (!owned) throw new Error("Plan not found");
 
@@ -226,6 +253,6 @@ export async function applySyncPlan(
   }
 
   for (const addition of plan.additions) {
-    await addRow(tx, planId, addition);
+    await addRow(tx, planId, addition, owned.retirementAge);
   }
 }

@@ -1,9 +1,16 @@
 import {
   type PlanRow,
+  type RealityDefaults,
   type RealityRow,
   resolvePlanSync,
   syncChangeCount,
 } from "@/lib/plan/sync";
+
+const NO_DEFAULTS: RealityDefaults = {
+  drawdownPriority: null,
+  incomeKind: null,
+  expenseCategory: null,
+};
 
 const planRow = (over: Partial<PlanRow> = {}): PlanRow => ({
   id: "p1",
@@ -21,6 +28,7 @@ const realityRow = (over: Partial<RealityRow> = {}): RealityRow => ({
   label: "Vanguard ISA",
   value: 42300,
   wrapper: "ISA",
+  defaults: { ...NO_DEFAULTS, drawdownPriority: 2 },
   ...over,
 });
 
@@ -137,5 +145,62 @@ describe("resolvePlanSync", () => {
       [realityRow(), realityRow({ linkId: "a2" })],
     );
     expect(syncChangeCount(result)).toBe(3); // 1 update, 1 addition, 1 removal
+  });
+  // The spec's Kept list holds drawdown priority and start/end ages: a Sync
+  // must never reset an assumption the user tuned. `defaults` therefore takes
+  // no part in the equality check — it only gives an *addition* a starting
+  // point — and a row differing solely there is still unchanged.
+  it("never updates a row because its reality defaults differ", () => {
+    const result = resolvePlanSync(
+      [planRow()],
+      [
+        realityRow({
+          defaults: { ...NO_DEFAULTS, drawdownPriority: 9 },
+        }),
+      ],
+    );
+    expect(result.updates).toEqual([]);
+    expect(result.unchanged).toEqual(["p1"]);
+  });
+
+  // provisionUserSettings seeds ~17 starter budget categories at £0, so
+  // without this a brand-new user's first plan opens on a table of empty
+  // lines. seed.ts skipped them for exactly this reason.
+  it("does not add a row worth nothing", () => {
+    const result = resolvePlanSync(
+      [],
+      [realityRow({ linkId: "c1", kind: "EXPENSE", value: 0, wrapper: null })],
+    );
+    expect(result.additions).toEqual([]);
+    expect(syncChangeCount(result)).toBe(0);
+  });
+
+  it("does not add a row worth less than nothing", () => {
+    const result = resolvePlanSync([], [realityRow({ value: -50 })]);
+    expect(result.additions).toEqual([]);
+  });
+
+  // The guard is on additions alone. Filtering zeros out of *reality* would
+  // make a paid-off mortgage absent, and an absent row is a removal — which
+  // would delete the row and the user's tuned assumptions with it, silently,
+  // since the confirmation dialog only names plan-only rows.
+  it("updates a linked row whose value has fallen to zero rather than removing it", () => {
+    const result = resolvePlanSync(
+      [planRow({ kind: "LIABILITY", wrapper: null, value: 1200 })],
+      [realityRow({ kind: "LIABILITY", wrapper: null, value: 0 })],
+    );
+    expect(result.removals).toEqual([]);
+    expect(result.updates).toEqual([
+      { id: "p1", value: 0, label: "Vanguard ISA", wrapper: null },
+    ]);
+  });
+
+  it("leaves an already-zero linked row alone rather than removing it", () => {
+    const result = resolvePlanSync(
+      [planRow({ kind: "LIABILITY", wrapper: null, value: 0 })],
+      [realityRow({ kind: "LIABILITY", wrapper: null, value: 0 })],
+    );
+    expect(result.removals).toEqual([]);
+    expect(result.unchanged).toEqual(["p1"]);
   });
 });

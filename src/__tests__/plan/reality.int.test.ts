@@ -46,6 +46,12 @@ describe("latestReality (integration)", () => {
       label: "Salary",
       value: 36000,
       wrapper: null,
+      // INCOME_KIND_BY_BUCKET, restored from the deleted seed.ts.
+      defaults: {
+        drawdownPriority: null,
+        incomeKind: "SALARY",
+        expenseCategory: null,
+      },
     });
   });
 
@@ -139,6 +145,13 @@ describe("latestReality (integration)", () => {
       label: "Current account",
       value: 200,
       wrapper: "OTHER",
+      // Account.category is null here too, so drawdown priority falls back to
+      // OTHER's — see drawdownPriorityFor.
+      defaults: {
+        drawdownPriority: 3,
+        incomeKind: null,
+        expenseCategory: null,
+      },
     });
   });
 
@@ -208,5 +221,119 @@ describe("latestReality (integration)", () => {
     const rows = await latestReality(TEST_USER_ID);
 
     expect(rows).toEqual([]);
+  });
+  it("carries the drawdown priority for an asset account's term bucket", async () => {
+    const account = await prisma.account.create({
+      data: {
+        userId: TEST_USER_ID,
+        name: "Vanguard ISA",
+        kind: "ASSET",
+        category: "LONG_TERM",
+        wrapper: "ISA",
+      },
+    });
+    const period = await monthPeriod(TEST_USER_ID, "March 2026", "2026-03-01");
+    await prisma.balanceItem.create({
+      data: {
+        periodId: period.id,
+        accountId: account.id,
+        type: "ASSET",
+        category: "LONG_TERM",
+        label: "Vanguard ISA",
+        value: 42300,
+      },
+    });
+
+    const rows = await latestReality(TEST_USER_ID);
+
+    expect(rows).toContainEqual({
+      linkId: account.id,
+      kind: "ASSET",
+      label: "Vanguard ISA",
+      value: 42300,
+      wrapper: "ISA",
+      defaults: {
+        drawdownPriority: 2,
+        incomeKind: null,
+        expenseCategory: null,
+      },
+    });
+  });
+
+  // The wrapper enum is asset-only, and drawdown priority is an asset field.
+  // A liability account carrying a stray wrapper must surface neither.
+  it("gives a liability account no wrapper and no drawdown priority", async () => {
+    const account = await prisma.account.create({
+      data: {
+        userId: TEST_USER_ID,
+        name: "Halifax mortgage",
+        kind: "LIABILITY",
+        category: "LONG_TERM",
+        wrapper: "PROPERTY",
+      },
+    });
+    const period = await monthPeriod(TEST_USER_ID, "March 2026", "2026-03-01");
+    await prisma.balanceItem.create({
+      data: {
+        periodId: period.id,
+        accountId: account.id,
+        type: "LIABILITY",
+        category: "LONG_TERM",
+        label: "Halifax mortgage",
+        value: 250000,
+      },
+    });
+
+    const rows = await latestReality(TEST_USER_ID);
+
+    expect(rows).toContainEqual({
+      linkId: account.id,
+      kind: "LIABILITY",
+      label: "Halifax mortgage",
+      value: 250000,
+      wrapper: null,
+      defaults: {
+        drawdownPriority: null,
+        incomeKind: null,
+        expenseCategory: null,
+      },
+    });
+  });
+
+  it("carries an expense category's own ExpenseCategory", async () => {
+    const category = await prisma.category.create({
+      data: {
+        userId: TEST_USER_ID,
+        type: "EXPENSE",
+        category: "DISCRETIONARY",
+        label: "Holidays",
+      },
+    });
+    const period = await monthPeriod(TEST_USER_ID, "March 2026", "2026-03-01");
+    await prisma.financialItem.create({
+      data: {
+        periodId: period.id,
+        categoryId: category.id,
+        type: "EXPENSE",
+        category: "DISCRETIONARY",
+        label: "Holidays",
+        budget: 150,
+      },
+    });
+
+    const rows = await latestReality(TEST_USER_ID);
+
+    expect(rows).toContainEqual({
+      linkId: category.id,
+      kind: "EXPENSE",
+      label: "Holidays",
+      value: 1800,
+      wrapper: null,
+      defaults: {
+        drawdownPriority: null,
+        incomeKind: null,
+        expenseCategory: "DISCRETIONARY",
+      },
+    });
   });
 });

@@ -5,6 +5,7 @@
 // resolvePlanSync (src/lib/plan/sync.ts) stays free of this.
 
 import type { AccountKind } from "@prisma/client";
+import { drawdownPriorityFor, incomeKindFor } from "@/lib/plan/realityDefaults";
 import type { RealityRow } from "@/lib/plan/sync";
 import { prisma } from "@/lib/prisma";
 
@@ -24,7 +25,13 @@ function accountKindToPlanRowKind(kind: AccountKind): "ASSET" | "LIABILITY" {
 async function latestAccountRows(userId: string): Promise<RealityRow[]> {
   const accounts = await prisma.account.findMany({
     where: { userId, deletedAt: null, kind: { not: "NONE" } },
-    select: { id: true, name: true, kind: true, wrapper: true },
+    select: {
+      id: true,
+      name: true,
+      kind: true,
+      wrapper: true,
+      category: true,
+    },
   });
 
   const rows = await Promise.all(
@@ -45,9 +52,14 @@ async function latestAccountRows(userId: string): Promise<RealityRow[]> {
       // No observation at all: skipped, not added with zero.
       if (!latest) return null;
 
+      // Both fields below key off the *mapped* kind rather than re-testing
+      // account.kind: a new AccountKind that maps to ASSET would then break
+      // the switch loudly instead of falling through these ternaries quietly.
+      const kind = accountKindToPlanRowKind(account.kind);
+
       const row: RealityRow = {
         linkId: account.id,
-        kind: accountKindToPlanRowKind(account.kind),
+        kind,
         label: account.name,
         value: Number(latest.value),
         // The wrapper enum is asset-only (no PlanLiability.wrapper exists),
@@ -59,7 +71,14 @@ async function latestAccountRows(userId: string): Promise<RealityRow[]> {
         // repeat Sync would see reality as "null" forever while the row it
         // wrote last time reads back "OTHER", flagging a false update on
         // every subsequent Sync.
-        wrapper: account.kind === "ASSET" ? (account.wrapper ?? "OTHER") : null,
+        wrapper: kind === "ASSET" ? (account.wrapper ?? "OTHER") : null,
+        defaults: {
+          // Drawdown is an asset-only concept; PlanLiability has no such column.
+          drawdownPriority:
+            kind === "ASSET" ? drawdownPriorityFor(account.category) : null,
+          incomeKind: null,
+          expenseCategory: null,
+        },
       };
       return row;
     }),
@@ -71,7 +90,13 @@ async function latestAccountRows(userId: string): Promise<RealityRow[]> {
 async function latestCategoryRows(userId: string): Promise<RealityRow[]> {
   const categories = await prisma.category.findMany({
     where: { userId, deletedAt: null },
-    select: { id: true, label: true, type: true },
+    select: {
+      id: true,
+      label: true,
+      type: true,
+      incomeCategory: true,
+      category: true,
+    },
   });
 
   const rows = await Promise.all(
@@ -98,6 +123,17 @@ async function latestCategoryRows(userId: string): Promise<RealityRow[]> {
         label: category.label,
         value: Number(latest.budget) * 12,
         wrapper: null,
+        defaults: {
+          drawdownPriority: null,
+          incomeKind:
+            category.type === "INCOME"
+              ? incomeKindFor(category.incomeCategory)
+              : null,
+          // PlanExpense.category is nullable, so an uncategorised category
+          // stays uncategorised rather than being guessed at.
+          expenseCategory:
+            category.type === "EXPENSE" ? category.category : null,
+        },
       };
       return row;
     }),
