@@ -72,6 +72,13 @@ one row per live account and per live budget category:
 - **Budget rows are read from `granularity: "MONTH"` periods only.** The × 12
   assumes a monthly figure; a YEAR period would inflate the annualised value
   twelvefold.
+- **The × 12 is rounded to 2dp.** `budget` and `annualAmount` are both
+  `numeric(_,2)` and the multiplication happens in doubles: £833.33 × 12 is
+  `9999.960000000001` in IEEE-754 but `9999.96` in the column. Compared
+  unrounded against the stored figure, such a row reads as an update on every
+  press and the button never reaches "Up to date" — 31% of penny values are
+  affected. The balance-sheet path needs no rounding: it reads a
+  `numeric(14,2)` into a `numeric(14,2)` with no arithmetic between.
 - **`kind: NONE` accounts are excluded** — a plain transaction account is not
   a balance-sheet line, so it is not a plan row.
 - **Nothing observed, nothing offered.** An account with no `BalanceItem` at
@@ -247,6 +254,22 @@ The two mechanisms are complementary: the ownership check is the only fence
 possible on a create; the per-statement fences catch a foreign row id passed
 under a legitimately owned plan id.
 
+### One row per account, per plan
+
+`PlanAsset` and `PlanLiability` carry `@@unique([planId, accountId])`;
+`PlanIncome` and `PlanExpense` carry `@@unique([planId, categoryId])`. The
+design spec said uniqueness was "enforced in code by the resolution step" — it
+is not, and could not be: `resolvePlanSync` runs *outside* the transaction that
+applies it, so two concurrent presses (two tabs, a double submit) both resolve
+"add this account" against the same plan and both create. The row would then
+appear twice, both marked synced, and net worth would double-count for good.
+Only the database can refuse the second write.
+
+Postgres treats NULLs as distinct by default, so plan-only rows — the ones with
+no link — are unaffected however many a plan holds; the plan's own Add buttons
+keep working. Deleting a plan row clears its link as it sets `deletedAt`, so a
+tombstone never occupies the slot the next Sync needs.
+
 ## Out of scope, named so nobody builds them by accident
 
 - **Contributions and repayments.** `PlanAsset.annualContribution` and
@@ -278,11 +301,10 @@ under a legitimately owned plan id.
 - **A plan row deleted from the plan comes back.** The plan's own row delete is
   a soft delete, and `loadPrimaryPlanRows` filters `deletedAt: null`, so a
   soft-deleted row for a still-live account is invisible to the resolver and
-  the next Sync adds a fresh one. Removing the account (or archiving it) is the
-  way to remove its plan row for good. Sync's own removals are hard deletes.
-- **Synced additions all take `sortOrder` 0.** `addRow` does not set it, and
-  the tables order by `sortOrder asc`, so ordering among synced rows is
-  whatever Postgres returns.
+  the next Sync adds a fresh one — a new row, not the old one revived, since
+  the tombstone's link is cleared on delete. Removing the account (or archiving
+  it) is the way to remove its plan row for good. Sync's own removals are hard
+  deletes.
 - **Two primary-plan queries per `/plan` render** — `getPrimaryPlan` and
   `getPlanSyncPreview` each load it. Inherent to the server-action boundary,
   not a correctness problem.
