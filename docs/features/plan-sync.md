@@ -24,8 +24,8 @@ record.
 | | |
 |---|---|
 | **Replaced** | opening values, annual amounts, labels, an asset's wrapper, and *which rows exist* |
-| **Kept** | expected return, fees, drawdown priority, min access age, contribution end age, interest rate, interest-only flag, monthly repayment, growth kind, taxable flag, start/end ages, retirement age, inflation, return spread, tax rate, state pension, and every `PlanEvent` |
-| **Removed** | rows whose link is null (plan-only), and rows whose account or category is gone — archived or hard-deleted alike |
+| **Kept** | expected return, fees, drawdown priority, min access age, contribution end age, interest rate, interest-only flag, monthly repayment, growth kind, taxable flag, start/end ages, retirement age, inflation, return spread, tax rate, state pension, and every `PlanEvent` **except** a `PROPERTY_SALE` whose property is being removed |
+| **Removed** | rows whose link is null (plan-only), rows whose account or category is gone — archived or hard-deleted alike — and everything that cannot outlive one of those: a property's mortgage, a mortgage's repayment expense, a property's sale events |
 
 One press, decided by `resolvePlanSync`
 ([`src/lib/plan/sync.ts`](../../src/lib/plan/sync.ts)):
@@ -39,16 +39,71 @@ One press, decided by `resolvePlanSync`
    projecting it. Historical `BalanceItem` rows are untouched, so charts are
    unaffected.
 4. **Removes** plan-only rows — those with a null link.
-5. **Preserves** assumptions on every surviving row, matched by its link
+5. **Removes** whatever cannot outlive any of the above — see *Removal is
+   complete*, below.
+6. **Preserves** assumptions on every surviving row, matched by its link
    rather than its position.
 
-Point 5 is the one doing quiet work: a user who has tuned their ISA to a 4.2%
+Point 6 is the one doing quiet work: a user who has tuned their ISA to a 4.2%
 expected return and a 0.22% fee gets the £42,300 updated and the tuning left
 alone.
 
 Matching is by **kind *and* link id** (`keyOf` builds `ASSET::<uuid>`). An
 account id and a category id could collide, and an asset row must never
 resolve against an income — kind is part of the identity, not a filter.
+
+## Removal is complete
+
+A mortgaged property is four rows that cannot stand apart: the property
+`PlanAsset`, the `PlanLiability` that names it through `linkedAssetId`, the
+repayment `PlanExpense` that liability manages through `liabilityId`, and any
+`PROPERTY_SALE` `PlanEvent` pointing at the property through `assetId`.
+Removing only the one reality lost used to leave the rest behind:
+
+- a mortgage on a house that is gone, its `linkedAssetId` nulled by the FK;
+- a sale event whose `assetId` the FK had nulled — a **zombie**. `project.ts`
+  skips it in three places so it contributes no proceeds, `schemas.ts` has a
+  refine that refuses to save an edit to it, and `EventsTable` renders it as a
+  sale of `"?"`. Net worth fell at the sale age with nothing on screen
+  explaining why.
+
+`deletePlanAsset` already enforced this invariant on the plan's own delete —
+*"a mortgage cannot outlive its property"* — cascading to the linked mortgage
+and that mortgage's repayment expense, and `deletePlanLiability` does the same
+for the repayment alone. Sync now matches them going down the chain. It does
+not match `deletePlanExpense`'s refusal to delete a repayment on its own — see
+*Known gaps*.
+
+The dependency reaches the resolver **as data**, never as a query inside the
+action: `PlanRow.dependsOn` carries the id of the row it cannot outlive
+(`PlanLiability.linkedAssetId`, `PlanExpense.liabilityId`), and events — which
+are not `PlanRow`s, since they mirror nothing on the balance sheet — arrive as
+`DependentRow[]`. `resolvePlanSync` then walks the closure **transitively**:
+property → mortgage → repayment is three deep, and a hand-rolled two levels
+would leave the third behind. The walk is breadth-first over the `removals`
+array itself, which is both queue and result.
+
+Three properties fall out of doing it there rather than in the action:
+
+- **Nothing is removed or counted twice.** A repayment expense is *both*
+  plan-only (`linkRepaymentExpense` sets no `categoryId`) and dragged by its
+  mortgage. An id already in `removals` is never added again, so it is deleted
+  once, listed once, and counted once.
+- **A dragged row leaves `updates` and `unchanged`.** It was classified against
+  reality before the cascade reached it. Left in `updates` it would be counted
+  twice in the breakdown and written by `applySyncPlan` immediately before
+  being deleted.
+- **`syncChangeCount` stays truthful.** Cascades are removals like any other,
+  so the button's number is exactly what the dialog itemises.
+
+**A dragged row whose own account is still live comes back on the next press.**
+A mortgage removed because its property went, while its own account sits
+un-archived on the balance sheet, leaves an unmirrored live account: the next
+preview offers it as an addition, and it returns as a standalone liability with
+default assumptions. That is the honest answer — the debt still exists, now
+standing on its own — and the button says "1 change" rather than "Up to date"
+until the user acts, which is what the button is for. Archiving both halves of
+the pair, which is what selling a house means, avoids it entirely.
 
 ## Where the numbers come from
 
@@ -169,7 +224,7 @@ where assumptions belong, and where it survives every later Sync.
 because a `"use server"` export cannot accept one and `createPlan` needs to
 call it from inside its existing transaction.
 
-## The indicator: three states, deliberately not four
+## The indicator
 
 Computed at render time by `indicatorFor`
 ([`syncIndicator.ts`](<../../src/app/(app)/plan/syncIndicator.ts>)) from the
@@ -180,22 +235,31 @@ same `SyncPlan` the button counts. No stored state.
 | `✓` | `synced` | matches your balance sheet |
 | `●` | `changed` | differs — Sync will replace it; the reality figure is shown beside it |
 | `◇` | `plan-only` | not on your balance sheet — Sync will remove it |
+| `◇` | `attached` | Sync will remove it with the row it cannot outlive |
 
 Each glyph carries an accessible name via `role="img"`
 ([`SyncMarker.tsx`](<../../src/app/(app)/plan/SyncMarker.tsx>)) — the shapes
 alone do not distinguish `●` from `◇` for a screen-reader user.
 
-**`●` deliberately does not say *why* a row differs.** Telling "you edited
-this" from "reality moved" needs a stored `syncedValue` per field, and it
-would change no behaviour: Sync overwrites both identically. Showing the
-source figure beside the plan's own makes the situation legible without a
-state machine. If the distinction is ever wanted, the column can be added
-without redesigning anything.
+**`●` says that a row differs, not why** — and that is the distinction this
+feature still refuses to draw. Telling "you edited this" from "reality moved"
+needs a stored `syncedValue` per field, and it would change no behaviour: Sync
+overwrites both identically. Showing the source figure beside the plan's own
+makes the situation legible without a state machine. If the distinction is ever
+wanted, the column can be added without redesigning anything.
 
-**`◇` is not a separate flag.** It is a row whose link is null, which is
-exactly the row Sync removes. A row removed because its account is *gone*
-reads as `plan-only` too — neither `indicatorFor` nor the label map branches
-on `reason` at all, so the marker cannot drift from the removal rule.
+**`plan-only` and `attached` share the `◇` glyph deliberately.** To a sighted
+user both say the same thing — Sync will remove this row — and a fourth symbol
+for a distinction the shape cannot carry would be noise. They differ only in
+their accessible name, because the *reason* differs and one of the two names
+would be false about the other's row: an `attached` row may well be on the
+balance sheet — a mortgage whose own account is live, going only because its
+property is not — so "not on your balance sheet" cannot be said of it.
+
+A row removed because its account is *gone* reads as `plan-only`: in both cases
+the link resolves to nothing and Sync will delete it, which is all the marker
+claims. `indicatorFor` branches on `reason` only to separate `cascade` from the
+other two.
 
 ## The button
 
@@ -210,12 +274,18 @@ number stops a mistake where "are you sure?" does not.
 ## The confirmation, and where it does not appear
 
 `SyncRemovalDialog` ([source](<../../src/app/(app)/plan/SyncRemovalDialog.tsx>))
-opens **only when Sync would remove plan-only rows**, and names each one. A
-count alone cannot tell the user whether what is about to go is scratch work
-or an evening's scenario.
+opens when Sync would remove **plan-only rows, plus anything a removal takes
+with it**, and names each one. A count alone cannot tell the user whether what
+is about to go is scratch work or an evening's scenario.
+
+The rule is one function, `confirmableRemovals` in
+[`sync.ts`](../../src/lib/plan/sync.ts) — `reason !== "gone"` — read twice: the
+button gates on it, and the dialog filters its list with it. Two copies of a
+predicate is exactly how a gate and a list drift apart.
 
 A Sync that only updates and adds goes straight through, and so does one whose
-only removals are `"gone"`. That second case is the deliberate narrowing:
+only removals are `"gone"` with nothing hanging off them. That case is the
+deliberate narrowing, and it still stands:
 
 - A **`"gone"`** removal follows a choice the user already made on the balance
   sheet's own delete panel, which named counts and, for a permanent delete,
@@ -225,6 +295,19 @@ only removals are `"gone"`. That second case is the deliberate narrowing:
   beforehand, so nothing disappears unannounced.
 - A **plan-only** row exists nowhere else, has had no warning from anywhere,
   and Sync is the only thing that will ever destroy it.
+- An **attached** row is going because something it cannot outlive is going.
+  The balance sheet's delete panel warned about the *account*; it said nothing
+  about the mortgage, the repayment or the property-sale scenario built on top
+  of it in the plan. So the widening adds only cases where real work would
+  otherwise vanish silently, which is the whole test.
+
+The dialog is handed the **whole** removal list and decides what to name, both
+because that keeps the rule in one place and because naming an attached row
+means naming what it goes with — usually a `"gone"` row, which is itself not
+named. Each line reads `Halifax mortgage — goes with The house`, and the
+heading counts the two losses separately: `Sync will remove 1 plan-only row and
+2 attached rows`. The zero part is omitted, so the common case still reads
+exactly `Sync will remove 1 plan-only row`.
 
 Confirming every press is how a dialog stops protecting anything.
 
@@ -293,11 +376,31 @@ tombstone never occupies the slot the next Sync needs.
   `createPlanProperty`, `createPlanLiability`, `createMortgage` and the income
   and expense equivalents set no `accountId`/`categoryId`, so everything added
   from the plan is `◇` and the next Sync offers to delete it — including a
-  property + mortgage pair built through the plan drawer, and with it the
-  referent of any `PROPERTY_SALE` event. The confirmation names every such row
-  before anything happens, which is why this ships. The plan-side mortgage
-  drawer duplicates the balance sheet's, and yields worse data; retiring it is
-  later-phase work.
+  property + mortgage pair built through the plan drawer, and with it any
+  `PROPERTY_SALE` event on that property. The confirmation now names all of it:
+  the property and the mortgage as plan-only rows, the sale event as attached,
+  and the pair's repayment expense once rather than twice. That is why this
+  ships. The plan-side mortgage drawer duplicates the balance sheet's, and
+  yields worse data; retiring it is later-phase work.
+- **`deletePlanAsset` does not take the property's sale events with it.** It
+  cascades to the linked mortgage and that mortgage's repayment expense, but a
+  `PROPERTY_SALE` event survives its property, pointing at a soft-deleted asset
+  that `toPlanInput` no longer loads — the same zombie Sync used to leave, from
+  the other door. Sync's cascade does not reach it either: the row is
+  soft-deleted with its link intact, and `loadPrimaryPlanRows` filters
+  `deletedAt: null`, so neither the event nor its property is visible to the
+  resolver. Fixing it belongs in `deletePlanAsset`'s own transaction, and is
+  not this change.
+- **A repayment expense is removed without its liability.** Every repayment
+  expense is plan-only (`linkRepaymentExpense` sets no `categoryId`), so any
+  Sync removes it while the mortgage survives — where `deletePlanExpense`
+  refuses exactly that, and `unlinkRepaymentExpense` copies the amount back to
+  `monthlyRepayment` first. The projection falls back to the liability's stored
+  `monthlyRepayment`, which may be stale, so the mortgage keeps paying at a
+  different rate. The confirmation names the row, so it is not silent, and it
+  is the pre-existing behaviour of the plan-only rule rather than anything the
+  cascade introduced. The real fix is for the plan drawer to link its rows —
+  the gap above — not to carve an exception into "Sync removes plan-only rows".
 - **A plan row deleted from the plan comes back.** The plan's own row delete is
   a soft delete, and `loadPrimaryPlanRows` filters `deletedAt: null`, so a
   soft-deleted row for a still-live account is invisible to the resolver and
@@ -314,7 +417,7 @@ tombstone never occupies the slot the next Sync needs.
 | Concern | File |
 |---|---|
 | `PlanAsset.accountId`, `PlanLiability.accountId`, `PlanIncome.categoryId`, `PlanExpense.categoryId` (all `onDelete: SetNull`) | [`prisma/schema.prisma`](../../prisma/schema.prisma) |
-| Pure resolver — what a Sync would do, no database | [`src/lib/plan/sync.ts`](../../src/lib/plan/sync.ts) |
+| Pure resolver — what a Sync would do, no database; the dependency closure and the confirmation rule | [`src/lib/plan/sync.ts`](../../src/lib/plan/sync.ts) |
 | Addition-time classification defaults (no database) | [`src/lib/plan/realityDefaults.ts`](../../src/lib/plan/realityDefaults.ts) |
 | Latest observation per account and category | [`src/lib/plan/reality.ts`](../../src/lib/plan/reality.ts) |
 | Writing a `SyncPlan`, fenced, inside a caller's transaction | [`src/lib/plan/applySyncPlan.ts`](../../src/lib/plan/applySyncPlan.ts) |
@@ -327,17 +430,23 @@ tombstone never occupies the slot the next Sync needs.
 
 ### Testing
 
-- **Unit** — `sync.test.ts` (every resolver case, including the kind-collision
-  and the zero-value guard), `realityDefaults.test.ts`, `syncIndicator.test.ts`,
-  `SyncButton.test.tsx` (counts, breakdown, both confirmation branches),
-  `SyncMarker.test.tsx` (three distinct accessible names, asserted structurally
-  as a set), `SyncRemovalDialog.test.tsx`.
+- **Unit** — `sync.test.ts` (every resolver case, including the kind-collision,
+  the zero-value guard and the cascade: transitive depth, the plan-only/dragged
+  overlap counted once, a dragged row leaving `updates`),
+  `realityDefaults.test.ts`, `syncIndicator.test.ts`, `SyncButton.test.tsx`
+  (counts, breakdown, all three confirmation branches — plan-only, a `"gone"`
+  row that drags something, and a `"gone"` row that does not),
+  `SyncMarker.test.tsx` (four distinct accessible names, asserted structurally
+  as a set), `SyncRemovalDialog.test.tsx` (names attached rows and what they go
+  with; does not name the `"gone"` rows themselves).
 - **Integration** (`*.int.test.ts`, real Postgres) — `planLinks.int.test.ts`
   (the four links, and `SetNull` proved by the row surviving), `reality.int.test.ts`,
   `syncAction.int.test.ts` (assumptions survive, plan-only removed, archived
   account removed, second sync is a no-op, cross-tenant), `applySyncPlan.int.test.ts`
   (a foreign row id under an owned plan id is rejected by the per-statement
-  fence), `createPlan.int.test.ts`.
+  fence), `createPlan.int.test.ts`, `syncCascade.int.test.ts` (an archived
+  property takes its mortgage, its repayment and its sale event; the resulting
+  `toPlanInput` holds no event or mortgage pointing at an asset that is gone).
 - **E2E** — `e2e/plan-sync.spec.ts`: change a balance value, see the `●`
   marker and the source figure, press Sync, see the value update and the button
   read `Up to date`. A server-action journey, so chromium-gated per the repo's
