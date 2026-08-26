@@ -51,7 +51,13 @@ describe("applySyncPlan (integration, direct)", () => {
         TEST_USER_ID,
         {
           updates: [
-            { id: asset.id, value: 1, label: "hijacked", wrapper: null },
+            {
+              id: asset.id,
+              value: 1,
+              label: "hijacked",
+              wrapper: null,
+              flow: 0,
+            },
           ],
           removals: [],
           additions: [],
@@ -155,6 +161,7 @@ describe("applySyncPlan (integration, direct)", () => {
               label: "Vanguard ISA",
               value: 1000,
               wrapper: "ISA",
+              flow: 0,
               defaults: {
                 drawdownPriority: 1,
                 incomeKind: null,
@@ -199,6 +206,7 @@ describe("applySyncPlan (integration, direct)", () => {
           label: a.name,
           value: 1000,
           wrapper: "ISA" as const,
+          flow: 0,
           defaults: {
             drawdownPriority: 1,
             incomeKind: null,

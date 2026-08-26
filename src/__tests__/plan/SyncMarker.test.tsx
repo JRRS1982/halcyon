@@ -61,7 +61,13 @@ describe("SyncMarker", () => {
   test("the changed marker shows the source figure from plan.updates", () => {
     const plan: SyncPlan = {
       updates: [
-        { id: "p1", value: 81002, label: "AJ Bell SIPP", wrapper: null },
+        {
+          id: "p1",
+          value: 81002,
+          label: "AJ Bell SIPP",
+          wrapper: null,
+          flow: 0,
+        },
       ],
       additions: [],
       removals: [],

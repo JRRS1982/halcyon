@@ -26,6 +26,16 @@ export type PlanRow = {
   /** PlanAsset.wrapper for ASSET rows. Null for LIABILITY/INCOME/EXPENSE — the wrapper enum is asset-only. */
   wrapper: Wrapper | null;
   /**
+   * Money budgeted into or against the thing this row mirrors:
+   * PlanAsset.annualContribution (annual) for ASSET, PlanLiability.monthlyRepayment
+   * (monthly) for LIABILITY. Null for INCOME/EXPENSE, which mirror a category
+   * and have no such column — the same shape as `wrapper` above.
+   *
+   * The units are deliberately asymmetric: each column is stored in the unit
+   * its own drawer displays, and liabilityStep does its own × 12.
+   */
+  flow: number | null;
+  /**
    * The id of the row this one cannot outlive: a mortgage's property asset
    * (PlanLiability.linkedAssetId), a repayment's liability
    * (PlanExpense.liabilityId). Null when the row stands on its own.
@@ -55,7 +65,7 @@ export type DependentRow = {
 // drawdown order must not have it reset by pressing Sync. The field exists
 // only to give an *addition* a starting point, an addition having no
 // assumptions to preserve. Nesting them keeps that exclusion obvious: the
-// equality check below reads three flat fields, and this object is not one.
+// equality check below reads four flat fields, and this object is not one.
 export type RealityDefaults = {
   /** PlanAsset.drawdownPriority. Null for non-ASSET rows. */
   drawdownPriority: number | null;
@@ -72,6 +82,15 @@ export type RealityRow = {
   value: number;
   /** Account.wrapper for an ASSET row. Null for LIABILITY/INCOME/EXPENSE. */
   wrapper: Wrapper | null;
+  /**
+   * What the budget says is flowing into this account — a TRANSFER INFLOW
+   * annualised for an ASSET row, a REPAYMENT left monthly for a LIABILITY one.
+   * Zero, not null, when nothing is budgeted: an account row's flow is always
+   * an observation, and null would never equal the plan row's own column,
+   * which defaults to 0 — reporting every unbudgeted account as changed on
+   * every Sync. Null belongs to INCOME/EXPENSE rows, which have no flow at all.
+   */
+  flow: number | null;
   /** Addition-time only — never compared. See RealityDefaults. */
   defaults: RealityDefaults;
 };
@@ -95,6 +114,7 @@ export type SyncPlan = {
     value: number;
     label: string;
     wrapper: Wrapper | null;
+    flow: number | null;
   }[];
   additions: RealityRow[];
   removals: SyncRemoval[];
@@ -198,7 +218,8 @@ export function resolvePlanSync(
     if (
       row.value === truth.value &&
       row.label === truth.label &&
-      row.wrapper === truth.wrapper
+      row.wrapper === truth.wrapper &&
+      row.flow === truth.flow
     ) {
       unchanged.push(row.id);
       continue;
@@ -208,6 +229,7 @@ export function resolvePlanSync(
       value: truth.value,
       label: truth.label,
       wrapper: truth.wrapper,
+      flow: truth.flow,
     });
   }
 

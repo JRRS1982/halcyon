@@ -65,6 +65,8 @@ async function loadPrimaryPlanRows(userId: string): Promise<LoadedPlan | null> {
         linkId: a.accountId,
         value: Number(a.openingValue),
         wrapper: a.wrapper,
+        // Annual, and stored that way: AssetsTable renders it as …/yr.
+        flow: Number(a.annualContribution),
         dependsOn: null,
       }),
     ),
@@ -76,6 +78,10 @@ async function loadPrimaryPlanRows(userId: string): Promise<LoadedPlan | null> {
         linkId: l.accountId,
         value: Number(l.openingBalance),
         wrapper: null,
+        // Monthly, and stored that way: liabilityStep does its own × 12 and
+        // LiabilitiesTable renders it as …/mo. Not annualised to match the
+        // asset above — see RealityRow.flow.
+        flow: Number(l.monthlyRepayment),
         // A mortgage cannot outlive its property — the same invariant
         // deletePlanAsset enforces on the plan's own delete.
         dependsOn: l.linkedAssetId,
@@ -89,6 +95,8 @@ async function loadPrimaryPlanRows(userId: string): Promise<LoadedPlan | null> {
         linkId: i.categoryId,
         value: Number(i.annualAmount),
         wrapper: null,
+        // A category row has no flow column for money to land in.
+        flow: null,
         dependsOn: null,
       }),
     ),
@@ -100,6 +108,7 @@ async function loadPrimaryPlanRows(userId: string): Promise<LoadedPlan | null> {
         linkId: e.categoryId,
         value: Number(e.annualAmount),
         wrapper: null,
+        flow: null,
         // A repayment cannot outlive its debt — deletePlanLiability's
         // invariant, and deletePlanExpense refuses to delete one on its own.
         dependsOn: e.liabilityId,

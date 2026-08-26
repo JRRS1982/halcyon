@@ -48,6 +48,9 @@ async function updateRow(
           label,
           openingValue: value,
           wrapper: update.wrapper ?? "OTHER",
+          // The budgeted contribution, annualised on the read side. Null only
+          // on a non-ASSET row, so unreachable here; 0 is the schema default.
+          annualContribution: update.flow ?? 0,
         },
       });
       if (res.count === 0) {
@@ -60,7 +63,13 @@ async function updateRow(
     case "LIABILITY": {
       const res = await tx.planLiability.updateMany({
         where: fence,
-        data: { label, openingBalance: value },
+        // The budgeted repayment, left monthly: liabilityStep does its own
+        // × 12. Annualising here would clear the debt twelve times too fast.
+        data: {
+          label,
+          openingBalance: value,
+          monthlyRepayment: update.flow ?? 0,
+        },
       });
       if (res.count === 0) {
         throw new Error(
@@ -159,6 +168,9 @@ async function removeRow(
 // mirrors (RealityRow.defaults) and the schema default for everything else.
 // updateRow deliberately writes none of these: on an existing row they are the
 // spec's Kept assumptions, and a Sync must leave them as the user left them.
+//
+// `flow` is not among them. It mirrors the budget the same way value, label
+// and wrapper do, so both paths write it — an addition and an update alike.
 async function addRow(
   tx: Prisma.TransactionClient,
   planId: string,
@@ -179,6 +191,7 @@ async function addRow(
           sortOrder,
           // See updateRow's ASSET case for the null fallback.
           wrapper: addition.wrapper ?? "OTHER",
+          annualContribution: addition.flow ?? 0,
           // Null only on a non-ASSET row, so unreachable here; 0 is the
           // schema default. Without this every synced asset shares that
           // default, and src/lib/plan/assets.ts sees a flat tie — drawdown
@@ -194,6 +207,7 @@ async function addRow(
           label: addition.label,
           accountId: addition.linkId,
           openingBalance: addition.value,
+          monthlyRepayment: addition.flow ?? 0,
           sortOrder,
         },
       });
