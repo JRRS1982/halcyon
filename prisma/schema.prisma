@@ -104,6 +104,19 @@ enum PeriodGranularity {
 enum ItemType {
   INCOME
   EXPENSE
+  // Money out that is still yours: a contribution to an ASSET account.
+  TRANSFER
+  // Money out that reduces a debt: paid at a LIABILITY account.
+  REPAYMENT
+}
+
+// Relative to the named account, matching netTransfersByAccount's convention:
+// money in is positive, money out negative. NOT PlanEventDirection, whose
+// INFLOW/OUTFLOW is relative to *you* — an inheritance is INFLOW there.
+// TRANSFER rows carry this; REPAYMENT rows do not (always inward to the debt).
+enum TransferDirection {
+  INFLOW
+  OUTFLOW
 }
 
 // Expense grouping buckets. Only set on top-level EXPENSE items; null for
@@ -167,24 +180,25 @@ model FinancialPeriod {
 // A single line item inside a period. A flat list — items belong to a period
 // and a category bucket, with no nesting.
 model BudgetItem {
-  id             String           @id @default(uuid()) @db.Uuid
-  periodId       String           @db.Uuid
+  id             String             @id @default(uuid()) @db.Uuid
+  periodId       String             @db.Uuid
   // Links to the stable Category once the transactions feature exists. Nullable
   // so legacy/pre-migration rows and free-typed rows still parse; `label`
   // remains the source of truth when no category is linked, and a fallback even
   // when one is.
-  categoryId     String?          @db.Uuid
+  categoryId     String?            @db.Uuid
   type           ItemType
   category       ExpenseCategory?
   incomeCategory IncomeCategory?
   label          String
-  budget         Decimal          @default(0) @db.Decimal(12, 2)
-  actual         Decimal          @default(0) @db.Decimal(12, 2)
-  sortOrder      Int              @default(0)
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  budget         Decimal            @default(0) @db.Decimal(12, 2)
+  actual         Decimal            @default(0) @db.Decimal(12, 2)
+  sortOrder      Int                @default(0)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
   deletedAt      DateTime?
-  accountId      String?          @db.Uuid
+  accountId      String?            @db.Uuid
+  direction      TransferDirection?
 
   period         FinancialPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
   linkedCategory Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
@@ -399,13 +413,13 @@ model Transaction {
   updatedAt         DateTime  @updatedAt
   deletedAt         DateTime?
 
-  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  account  Account   @relation("AccountTransactions", fields: [accountId], references: [id], onDelete: Cascade)
-  category Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account         Account      @relation("AccountTransactions", fields: [accountId], references: [id], onDelete: Cascade)
+  category        Category?    @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   // The other side of a transfer. App-level guards block deleting an account
   // still referenced here (accounts are soft-deleted), so onDelete: Restrict is
   // belt-and-braces defence that is never expected to fire.
-  transferAccount Account? @relation("TransferCounterparty", fields: [transferAccountId], references: [id], onDelete: Restrict)
+  transferAccount Account?     @relation("TransferCounterparty", fields: [transferAccountId], references: [id], onDelete: Restrict)
   importBatch     ImportBatch? @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
 
   // (userId, accountId, date) → pagination + the dedup-fingerprint day lookup,
@@ -455,22 +469,22 @@ enum GrowthKind {
 }
 
 model Plan {
-  id                 String   @id @default(uuid()) @db.Uuid
-  userId             String   @db.Uuid
-  name               String   @default("My plan")
-  dateOfBirth        DateTime @db.Date
+  id                 String    @id @default(uuid()) @db.Uuid
+  userId             String    @db.Uuid
+  name               String    @default("My plan")
+  dateOfBirth        DateTime  @db.Date
   retirementAge      Int
-  planToAge          Int      @default(95)
-  inflationPct       Decimal  @default(2.5) @db.Decimal(5, 2)
-  defaultReturnPct   Decimal  @default(5) @db.Decimal(5, 2)
-  returnSpreadPct    Decimal  @default(0) @db.Decimal(5, 2)
-  blendedTaxRatePct  Decimal  @default(20) @db.Decimal(5, 2)
+  planToAge          Int       @default(95)
+  inflationPct       Decimal   @default(2.5) @db.Decimal(5, 2)
+  defaultReturnPct   Decimal   @default(5) @db.Decimal(5, 2)
+  returnSpreadPct    Decimal   @default(0) @db.Decimal(5, 2)
+  blendedTaxRatePct  Decimal   @default(20) @db.Decimal(5, 2)
   statePensionAge    Int?
-  statePensionAnnual Decimal? @db.Decimal(12, 2)
-  expectedDeathAge   Int?     @default(90)
-  isPrimary          Boolean  @default(true)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  statePensionAnnual Decimal?  @db.Decimal(12, 2)
+  expectedDeathAge   Int?      @default(90)
+  isPrimary          Boolean   @default(true)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
   deletedAt          DateTime?
 
   user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -509,6 +523,7 @@ model PlanAsset {
   plan       Plan           @relation(fields: [planId], references: [id], onDelete: Cascade)
   mortgage   PlanLiability? @relation("MortgageProperty")
   saleEvents PlanEvent[]    @relation("EventProperty")
+
   // One row per account per plan. Sync resolves what to add outside the
   // transaction that adds it, so two concurrent presses can both decide to add
   // the same account; only the database can refuse the second. Plan-only rows
@@ -545,6 +560,7 @@ model PlanLiability {
   plan             Plan         @relation(fields: [planId], references: [id], onDelete: Cascade)
   linkedAsset      PlanAsset?   @relation("MortgageProperty", fields: [linkedAssetId], references: [id], onDelete: SetNull)
   repaymentExpense PlanExpense? @relation("LiabilityRepaymentExpense")
+
   // See PlanAsset: one row per account per plan.
   @@unique([planId, accountId])
   @@index([planId])
@@ -570,6 +586,7 @@ model PlanIncome {
 
   plan     Plan      @relation(fields: [planId], references: [id], onDelete: Cascade)
   category Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
   // See PlanAsset: one row per category per plan.
   @@unique([planId, categoryId])
   @@index([planId])
@@ -595,6 +612,7 @@ model PlanExpense {
   plan           Plan           @relation(fields: [planId], references: [id], onDelete: Cascade)
   liability      PlanLiability? @relation("LiabilityRepaymentExpense", fields: [liabilityId], references: [id], onDelete: SetNull)
   linkedCategory Category?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
   // See PlanAsset: one row per category per plan.
   @@unique([planId, categoryId])
   @@index([planId])
@@ -617,5 +635,6 @@ model PlanEvent {
 
   plan      Plan       @relation(fields: [planId], references: [id], onDelete: Cascade)
   saleAsset PlanAsset? @relation("EventProperty", fields: [assetId], references: [id], onDelete: SetNull)
+
   @@index([planId])
 }
