@@ -15,6 +15,12 @@ export type CopyableItem = {
   // Link to the user's Category, when the source row has one. Carrying it
   // over is what keeps transaction-computed actuals attached to the copy.
   categoryId: string | null;
+  // The anchor a TRANSFER/REPAYMENT row hangs on: the account the money moves
+  // to or from, and (TRANSFER only) which way. Copying a row without these
+  // produces a row the create action could never make — targetless, and signed
+  // as an inflow because a null direction reads as one. Null on INCOME/EXPENSE.
+  accountId: string | null;
+  direction: "INFLOW" | "OUTFLOW" | null;
   label: string;
   budget: number;
   sortOrder: number;
@@ -35,6 +41,8 @@ export function buildCopiedItems(
     category: item.category,
     incomeCategory: item.incomeCategory,
     categoryId: item.categoryId,
+    accountId: item.accountId,
+    direction: item.direction,
     label: item.label,
     budget: item.budget,
     actual: 0,

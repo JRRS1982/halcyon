@@ -27,6 +27,10 @@ describe("createItemForMonth anchor account fence (integration)", () => {
     const other = await seedOtherUser();
     const theirAccount = await createAccount(other.id, "Their ISA", "ASSET");
 
+    // Anchored to the ownership failure specifically — the kind-mismatch
+    // message must not be able to satisfy it. The account is a live,
+    // correctly-kinded ASSET, so were the userId filter dropped the kind branch
+    // would not fire either and the row would simply be created.
     await expect(
       createItemForMonth({
         year: 2026,
@@ -36,7 +40,7 @@ describe("createItemForMonth anchor account fence (integration)", () => {
         accountId: theirAccount.id,
         direction: "INFLOW",
       }),
-    ).rejects.toThrow(/account/i);
+    ).rejects.toThrow(/^Account not found$/);
 
     // Nothing was written on the caller's side either.
     expect(
