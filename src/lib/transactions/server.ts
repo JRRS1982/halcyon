@@ -4,7 +4,11 @@ import { sectionLabel } from "@/lib/categories/buckets";
 import { categoryKey, cleanLabel } from "@/lib/categories/normalize";
 import { prisma } from "@/lib/prisma";
 import { PAGE_SIZE } from "./pagination";
-import { netTransfersByAccount, type TransferAccountRow } from "./transfers";
+import {
+  netTransfersByAccount,
+  netTransfersForAccounts,
+  type TransferAccountRow,
+} from "./transfers";
 
 export type LedgerCategory = {
   id: string;
@@ -344,6 +348,48 @@ export async function getTransfersByAccount(
         : [],
     ),
   );
+}
+
+// Net transfer flow per account for a period, signed relative to each account.
+// One query: every transfer-tagged transaction in range, fenced on userId as
+// the sibling query is. netTransfersForAccounts decides which source counts.
+export async function getTransferFlowByAccount(
+  userId: string,
+  start: Date,
+  end: Date,
+): Promise<Map<string, number>> {
+  const rows = await prisma.transaction.findMany({
+    where: {
+      userId,
+      deletedAt: null,
+      transferAccountId: { not: null },
+      date: { gte: start, lte: end },
+    },
+    select: {
+      amount: true,
+      account: { select: { id: true, name: true } },
+      transferAccount: { select: { id: true, name: true } },
+    },
+  });
+
+  const legs = rows.flatMap((r) =>
+    r.transferAccount
+      ? [
+          {
+            accountId: r.account.id,
+            accountName: r.account.name,
+            counterpartyId: r.transferAccount.id,
+            counterpartyName: r.transferAccount.name,
+            amount: Number(r.amount),
+          },
+        ]
+      : [],
+  );
+
+  // Both arguments are the same legs: a leg is "owned" by its own account and
+  // "points at" its counterparty. The pure function picks one source per
+  // account, so passing the whole set to both is correct, not double-counting.
+  return netTransfersForAccounts(legs, legs);
 }
 
 // Active accounts for the ledger's transfer picker (id + name).
