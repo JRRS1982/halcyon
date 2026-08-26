@@ -71,6 +71,45 @@ describe("getTransferFlowByAccount (integration)", () => {
     expect(flow.get(current.id)).toBe(-500);
   });
 
+  test("selects the source per counterparty pair, not per account", async () => {
+    // The pension owns one leg (a fee to the ISA) but the 500 it received from
+    // the current account is only recorded on current's side. Owning the fee
+    // must not silence the contribution: 500 in, 100 out.
+    const current = await makeAccount("Current");
+    const pension = await makeAccount("Pension");
+    const isa = await makeAccount("ISA");
+
+    await prisma.transaction.createMany({
+      data: [
+        {
+          userId: TEST_USER_ID,
+          accountId: pension.id,
+          transferAccountId: isa.id,
+          date: new Date("2026-03-05"),
+          amount: -100,
+          description: "Fee to ISA",
+        },
+        {
+          userId: TEST_USER_ID,
+          accountId: current.id,
+          transferAccountId: pension.id,
+          date: new Date("2026-03-10"),
+          amount: -500,
+          description: "To pension",
+        },
+      ],
+    });
+
+    const flow = await getTransferFlowByAccount(
+      TEST_USER_ID,
+      MARCH_START,
+      MARCH_END,
+    );
+    expect(flow.get(pension.id)).toBe(400);
+    expect(flow.get(current.id)).toBe(-500);
+    expect(flow.get(isa.id)).toBe(100);
+  });
+
   test("ignores untagged, deleted, out-of-range and other users' rows", async () => {
     const current = await makeAccount("Current");
     const pension = await makeAccount("Pension");

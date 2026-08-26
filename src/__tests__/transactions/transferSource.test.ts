@@ -46,6 +46,22 @@ describe("netTransfersForAccounts", () => {
     expect(net.get("pension")).toBe(500);
   });
 
+  test("a pair the account does not own still falls back, alongside one it does", () => {
+    // One month: the pension pays a 100 fee to an ISA (its own leg) and
+    // receives 500 from the current account (only current's leg records it).
+    // Owning the fee leg must not disable the fallback for the current-account
+    // pair: 500 in, 100 out.
+    const legs = [leg("pension", "isa", -100), leg("current", "pension", -500)];
+    expect(netTransfersForAccounts(legs, legs).get("pension")).toBe(400);
+  });
+
+  test("an inbound owned leg flips to outbound for the counterparty", () => {
+    // Pins the direction: a positive leg aimed at savings means money left
+    // savings, so its fallback net is negative.
+    const legs = [leg("current", "savings", 500)];
+    expect(netTransfersForAccounts(legs, legs).get("savings")).toBe(-500);
+  });
+
   test("nets several legs on one account", () => {
     const own = [
       leg("current", "pension", -500),

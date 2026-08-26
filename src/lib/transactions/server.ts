@@ -8,6 +8,7 @@ import {
   netTransfersByAccount,
   netTransfersForAccounts,
   type TransferAccountRow,
+  type TransferLeg,
 } from "./transfers";
 
 export type LedgerCategory = {
@@ -310,15 +311,15 @@ export async function getAmountsByCategory(
   return amounts;
 }
 
-// Per-account transfer flow for a period: signed net plus counterparty
-// breakdown. Only transfer-tagged rows (transferAccountId set) participate, so
-// income/expense is untouched. The owning account keys each row (see
-// netTransfersByAccount) — the two legs of one transfer never collapse.
-export async function getTransfersByAccount(
+// Every transfer-tagged transaction in the period as a signed leg: its owning
+// account, its counterparty, and the amount. Fenced on userId — per ADR-002
+// the server Prisma role bypasses RLS, so this filter is the boundary. Shared
+// by both transfer readers so their fencing can never drift apart.
+async function transferLegs(
   userId: string,
   start: Date,
   end: Date,
-): Promise<TransferAccountRow[]> {
+): Promise<TransferLeg[]> {
   const rows = await prisma.transaction.findMany({
     where: {
       userId,
@@ -333,46 +334,7 @@ export async function getTransfersByAccount(
     },
   });
 
-  return netTransfersByAccount(
-    rows.flatMap((r) =>
-      r.transferAccount
-        ? [
-            {
-              accountId: r.account.id,
-              accountName: r.account.name,
-              counterpartyId: r.transferAccount.id,
-              counterpartyName: r.transferAccount.name,
-              amount: Number(r.amount),
-            },
-          ]
-        : [],
-    ),
-  );
-}
-
-// Net transfer flow per account for a period, signed relative to each account.
-// One query: every transfer-tagged transaction in range, fenced on userId as
-// the sibling query is. netTransfersForAccounts decides which source counts.
-export async function getTransferFlowByAccount(
-  userId: string,
-  start: Date,
-  end: Date,
-): Promise<Map<string, number>> {
-  const rows = await prisma.transaction.findMany({
-    where: {
-      userId,
-      deletedAt: null,
-      transferAccountId: { not: null },
-      date: { gte: start, lte: end },
-    },
-    select: {
-      amount: true,
-      account: { select: { id: true, name: true } },
-      transferAccount: { select: { id: true, name: true } },
-    },
-  });
-
-  const legs = rows.flatMap((r) =>
+  return rows.flatMap((r) =>
     r.transferAccount
       ? [
           {
@@ -385,10 +347,33 @@ export async function getTransferFlowByAccount(
         ]
       : [],
   );
+}
+
+// Per-account transfer flow for a period: signed net plus counterparty
+// breakdown. Only transfer-tagged rows (transferAccountId set) participate, so
+// income/expense is untouched. The owning account keys each row (see
+// netTransfersByAccount) — the two legs of one transfer never collapse.
+export async function getTransfersByAccount(
+  userId: string,
+  start: Date,
+  end: Date,
+): Promise<TransferAccountRow[]> {
+  return netTransfersByAccount(await transferLegs(userId, start, end));
+}
+
+// Net transfer flow per account for a period, signed relative to each account.
+// One query, and netTransfersForAccounts decides which source counts.
+export async function getTransferFlowByAccount(
+  userId: string,
+  start: Date,
+  end: Date,
+): Promise<Map<string, number>> {
+  const legs = await transferLegs(userId, start, end);
 
   // Both arguments are the same legs: a leg is "owned" by its own account and
   // "points at" its counterparty. The pure function picks one source per
-  // account, so passing the whole set to both is correct, not double-counting.
+  // counterparty pair, so passing the whole set to both is correct, not
+  // double-counting.
   return netTransfersForAccounts(legs, legs);
 }
 
