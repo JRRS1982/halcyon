@@ -719,7 +719,11 @@ export async function createAndAssignCategory(
   return {
     id: created.id,
     label: created.label,
-    type: created.type,
+    // type (not created.type): the value we asked Prisma to write is
+    // already the schema-narrowed "INCOME" | "EXPENSE"; created.type comes
+    // back typed as the full ItemType because that's the Category model's
+    // column type, regardless of what was written.
+    type,
     section: sectionLabel(category ?? incomeCategory),
   };
 }

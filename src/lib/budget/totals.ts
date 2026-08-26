@@ -3,7 +3,11 @@
 
 export type ItemForTotals = {
   id: string;
-  type: "INCOME" | "EXPENSE";
+  // Mirrors the full Prisma ItemType enum: a BudgetItem can be any of the
+  // four kinds. sectionTotals below filters by an exact type match, so a
+  // TRANSFER/REPAYMENT item is simply excluded from both the INCOME and
+  // EXPENSE roll-ups — computeRollups itself doesn't branch on type at all.
+  type: "INCOME" | "EXPENSE" | "TRANSFER" | "REPAYMENT";
   budget: number;
   actual: number;
 };

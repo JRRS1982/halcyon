@@ -82,7 +82,11 @@ export type IncomeCategory =
 
 export type SerializedItem = {
   id: string;
-  type: "INCOME" | "EXPENSE";
+  // Mirrors the full Prisma ItemType enum: a BudgetItem can be any of the
+  // four kinds. The sheet's own UI (onAddRow, buildSectionOrder) still only
+  // deals in INCOME/EXPENSE — TRANSFER/REPAYMENT rendering is unowned by
+  // this component until a later task builds it.
+  type: "INCOME" | "EXPENSE" | "TRANSFER" | "REPAYMENT";
   category: ExpenseCategory | null;
   incomeCategory: IncomeCategory | null;
   categoryId: string | null;

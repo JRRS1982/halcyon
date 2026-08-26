@@ -48,7 +48,10 @@ export default async function SettingsPage() {
   await getOrProvisionCategories(userId);
   const [categoryRows, counts] = await Promise.all([
     prisma.category.findMany({
-      where: { userId, deletedAt: null },
+      // Categories are never transfers or repayments — those key on
+      // accounts, not categories — so this excludes the widened ItemType
+      // members that can never actually appear on a Category row.
+      where: { userId, deletedAt: null, type: { in: ["INCOME", "EXPENSE"] } },
       orderBy: [{ type: "asc" }, { sortOrder: "asc" }, { label: "asc" }],
       select: {
         id: true,
@@ -70,16 +73,23 @@ export default async function SettingsPage() {
     if (c.categoryId) countByCategory[c.categoryId] = c._count._all;
   }
 
-  const managedCategories: ManagedCategory[] = categoryRows.map((c) => {
+  const managedCategories: ManagedCategory[] = categoryRows.flatMap((c) => {
+    // The query's `where` already excludes anything but INCOME/EXPENSE, but
+    // ItemType is shared with BudgetItem/BudgetTemplateItem, so the
+    // Prisma-generated type for `c.type` is still the full enum. This
+    // narrows it back down without a cast; unreachable in practice.
+    if (c.type !== "INCOME" && c.type !== "EXPENSE") return [];
     const bucket = c.category ?? c.incomeCategory;
-    return {
-      id: c.id,
-      label: c.label,
-      type: c.type,
-      bucket,
-      section: sectionLabel(bucket),
-      txnCount: countByCategory[c.id] ?? 0,
-    };
+    return [
+      {
+        id: c.id,
+        label: c.label,
+        type: c.type,
+        bucket,
+        section: sectionLabel(bucket),
+        txnCount: countByCategory[c.id] ?? 0,
+      },
+    ];
   });
 
   // Accounts with both reference counts, so the manager can block deletion of an

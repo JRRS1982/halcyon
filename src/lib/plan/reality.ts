@@ -89,7 +89,10 @@ async function latestAccountRows(userId: string): Promise<RealityRow[]> {
 
 async function latestCategoryRows(userId: string): Promise<RealityRow[]> {
   const categories = await prisma.category.findMany({
-    where: { userId, deletedAt: null },
+    // Categories are never transfers or repayments — those key on accounts,
+    // not categories — so this excludes the widened ItemType members that
+    // can never actually appear on a Category row.
+    where: { userId, deletedAt: null, type: { in: ["INCOME", "EXPENSE"] } },
     select: {
       id: true,
       label: true,
@@ -115,10 +118,17 @@ async function latestCategoryRows(userId: string): Promise<RealityRow[]> {
       // No budget row at all: skipped, not added with zero.
       if (!latest) return null;
 
+      // The query's `where` already excludes anything but INCOME/EXPENSE —
+      // categories are never transfers or repayments — but ItemType is
+      // shared with BudgetItem/BudgetTemplateItem, so the Prisma-generated
+      // type for `category.type` is still the full enum. This narrows it
+      // back down without a cast; unreachable in practice.
+      if (category.type !== "INCOME" && category.type !== "EXPENSE") {
+        return null;
+      }
+
       const row: RealityRow = {
         linkId: category.id,
-        // ItemType's members ("INCOME" | "EXPENSE") are a subset of
-        // PlanRowKind's, so this is a direct, cast-free assignment.
         kind: category.type,
         label: category.label,
         // Rounded to 2dp, not left as the raw product: budget and

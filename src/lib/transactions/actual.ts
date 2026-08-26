@@ -5,7 +5,11 @@
 // rows, so refunds (a credit on an expense) and clawbacks (a debit on income)
 // net correctly. Rounded to cents to avoid float drift on the sum.
 
-export type ItemType = "INCOME" | "EXPENSE";
+// Mirrors the full Prisma ItemType enum (INCOME/EXPENSE/TRANSFER/REPAYMENT):
+// a BudgetItem's type can be any of the four, even though only EXPENSE flips
+// the sign below — TRANSFER/REPAYMENT netting is unowned by this function
+// until a later task defines it.
+export type ItemType = "INCOME" | "EXPENSE" | "TRANSFER" | "REPAYMENT";
 
 export function netActual(amounts: number[], type: ItemType): number {
   const sum = amounts.reduce((total, amount) => total + amount, 0);

@@ -60,7 +60,10 @@ export async function getOrProvisionCategories(
   userId: string,
 ): Promise<LedgerCategory[]> {
   const existing = await prisma.category.findMany({
-    where: { userId, deletedAt: null },
+    // Categories are never transfers or repayments — those key on accounts,
+    // not categories — so this excludes the widened ItemType members that
+    // can never actually appear on a Category row.
+    where: { userId, deletedAt: null, type: { in: ["INCOME", "EXPENSE"] } },
     orderBy: [{ type: "asc" }, { sortOrder: "asc" }, { label: "asc" }],
     select: {
       id: true,
@@ -71,16 +74,32 @@ export async function getOrProvisionCategories(
     },
   });
   if (existing.length > 0) {
-    return existing.map((c) => ({
-      id: c.id,
-      label: c.label,
-      type: c.type,
-      section: sectionLabel(c.category ?? c.incomeCategory),
-    }));
+    return existing.flatMap((c) => {
+      // The query's `where` already excludes anything but INCOME/EXPENSE,
+      // but ItemType is shared with BudgetItem/BudgetTemplateItem, so the
+      // Prisma-generated type for `c.type` is still the full enum. This
+      // narrows it back down without a cast; unreachable in practice.
+      if (c.type !== "INCOME" && c.type !== "EXPENSE") return [];
+      return [
+        {
+          id: c.id,
+          label: c.label,
+          type: c.type,
+          section: sectionLabel(c.category ?? c.incomeCategory),
+        },
+      ];
+    });
   }
 
   const items = await prisma.budgetItem.findMany({
-    where: { period: { userId }, deletedAt: null },
+    // Categories are never transfers or repayments, so this backfill —
+    // which mints a Category per distinct BudgetItem (type, label) pair —
+    // only ever considers the item types a Category can actually hold.
+    where: {
+      period: { userId },
+      deletedAt: null,
+      type: { in: ["INCOME", "EXPENSE"] },
+    },
     select: {
       id: true,
       type: true,
@@ -100,6 +119,10 @@ export async function getOrProvisionCategories(
   const groups = new Map<string, Group>();
   for (const item of items) {
     if (!item.label.trim()) continue;
+    // Narrows the same way as the `existing` query above: the `where`
+    // filter already excludes anything but INCOME/EXPENSE, but the
+    // Prisma-generated type for `item.type` is still the full ItemType.
+    if (item.type !== "INCOME" && item.type !== "EXPENSE") continue;
     const key = `${item.type}::${categoryKey(item.label)}`;
     const group = groups.get(key) ?? {
       type: item.type,
@@ -134,7 +157,11 @@ export async function getOrProvisionCategories(
     created.push({
       id: category.id,
       label: category.label,
-      type: category.type,
+      // group.type (not category.type): the value we asked Prisma to write
+      // is already narrowed to "INCOME" | "EXPENSE"; category.type comes
+      // back typed as the full ItemType because that's the Category
+      // model's column type, regardless of what was written.
+      type: group.type,
       section: sectionLabel(group.category ?? group.incomeCategory),
     });
   }

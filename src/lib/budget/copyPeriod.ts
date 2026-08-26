@@ -1,6 +1,9 @@
 export type CopyableItem = {
   id: string;
-  type: "INCOME" | "EXPENSE";
+  // Mirrors the full Prisma ItemType enum: a BudgetItem/BudgetTemplateItem
+  // being copied can be any of the four kinds. This function doesn't branch
+  // on type, so widening it changes nothing about what gets copied.
+  type: "INCOME" | "EXPENSE" | "TRANSFER" | "REPAYMENT";
   category: "FIXED" | "VARIABLE" | "DISCRETIONARY" | null;
   incomeCategory:
     | "SALARY"
