@@ -44,7 +44,7 @@ async function categoryWithBudget(label: string, budget: number, when: string) {
     },
   });
   const p = await period(when, when);
-  await prisma.financialItem.create({
+  await prisma.budgetItem.create({
     data: {
       periodId: p.id,
       categoryId: category.id,
@@ -300,7 +300,7 @@ describe("syncPlan (integration)", () => {
       },
     });
     const p = await period("2026-03-01", "2026-03-01");
-    await prisma.financialItem.create({
+    await prisma.budgetItem.create({
       data: {
         periodId: p.id,
         categoryId: category.id,
@@ -339,7 +339,7 @@ describe("syncPlan (integration)", () => {
       },
     });
     const p = await period("2026-03-01", "2026-03-01");
-    await prisma.financialItem.create({
+    await prisma.budgetItem.create({
       data: {
         periodId: p.id,
         categoryId: category.id,
@@ -370,7 +370,7 @@ describe("syncPlan (integration)", () => {
       },
     });
     const p = await period("2026-03-01", "2026-03-01");
-    await prisma.financialItem.create({
+    await prisma.budgetItem.create({
       data: {
         periodId: p.id,
         categoryId: category.id,
@@ -568,7 +568,7 @@ describe("syncPlan (integration)", () => {
       },
     });
     const p = await period("2026-03-01", "2026-03-01");
-    await prisma.financialItem.create({
+    await prisma.budgetItem.create({
       data: {
         periodId: p.id,
         categoryId: category.id,
@@ -601,7 +601,7 @@ describe("syncPlan (integration)", () => {
       },
     });
     const p = await period("2026-03-01", "2026-03-01");
-    await prisma.financialItem.create({
+    await prisma.budgetItem.create({
       data: {
         periodId: p.id,
         categoryId: category.id,
@@ -632,7 +632,7 @@ describe("syncPlan (integration)", () => {
       },
     });
     const p = await period("2026-03-01", "2026-03-01");
-    await prisma.financialItem.create({
+    await prisma.budgetItem.create({
       data: {
         periodId: p.id,
         categoryId: category.id,
@@ -695,7 +695,7 @@ describe("syncPlan (integration)", () => {
         value: 42300,
       },
     });
-    await prisma.financialItem.create({
+    await prisma.budgetItem.create({
       data: {
         periodId: p.id,
         categoryId: category.id,

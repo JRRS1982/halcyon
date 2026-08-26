@@ -101,7 +101,7 @@ async function latestCategoryRows(userId: string): Promise<RealityRow[]> {
 
   const rows = await Promise.all(
     categories.map(async (category) => {
-      const latest = await prisma.financialItem.findFirst({
+      const latest = await prisma.budgetItem.findFirst({
         where: {
           categoryId: category.id,
           deletedAt: null,

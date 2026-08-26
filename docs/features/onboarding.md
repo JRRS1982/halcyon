@@ -16,7 +16,7 @@ authenticated request and creates, in one transaction:
 |---|---|
 | `Category` | the full taxonomy, `sortOrder` = list order |
 | `Account` | one per default name, `type` left null |
-| `FinancialPeriod` + `FinancialItem` | the current month, one £0 row per category flagged `inStarterBudget` |
+| `FinancialPeriod` + `BudgetItem` | the current month, one £0 row per category flagged `inStarterBudget` |
 
 Only a subset of categories becomes budget rows. The rest are in every picker
 from the start and reach the sheet on their own, the first month a transaction

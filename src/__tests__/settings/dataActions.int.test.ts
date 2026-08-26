@@ -43,7 +43,7 @@ async function seedFinancialData(userId: string) {
       label: "Mar 2026",
     },
   });
-  await prisma.financialItem.create({
+  await prisma.budgetItem.create({
     data: { periodId: period.id, type: "EXPENSE", label: "Rent", budget: 1000 },
   });
   await prisma.balanceItem.create({
@@ -97,7 +97,7 @@ describe("exportMyData (integration)", () => {
     expect(dump.accounts).toHaveLength(1);
     expect(dump.categories).toHaveLength(1);
     expect(dump.periods).toHaveLength(1);
-    expect(dump.financialItems).toHaveLength(1);
+    expect(dump.budgetItems).toHaveLength(1);
     expect(dump.balanceItems).toHaveLength(1);
     expect(dump.transactions).toHaveLength(1);
     expect(dump.transactions[0].amount).toBe("-25.5");
@@ -132,7 +132,7 @@ describe("clearMyData (integration)", () => {
       await prisma.financialPeriod.count({ where: { userId: TEST_USER_ID } }),
     ).toBe(0);
     expect(
-      await prisma.financialItem.count({
+      await prisma.budgetItem.count({
         where: { period: { userId: TEST_USER_ID } },
       }),
     ).toBe(0);

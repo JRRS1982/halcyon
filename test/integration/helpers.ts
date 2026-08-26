@@ -7,7 +7,7 @@ export const TEST_USER_ID = "00000000-0000-0000-0000-0000000000aa";
 // rest; listed explicitly for clarity.
 export async function resetDb(): Promise<void> {
   await prisma.$executeRawUnsafe(
-    'TRUNCATE TABLE "Transaction", "ImportBatch", "FinancialItem", "BalanceItem", "Category", "Account", "FinancialPeriod", "UserSettings", "User" RESTART IDENTITY CASCADE',
+    'TRUNCATE TABLE "Transaction", "ImportBatch", "BudgetItem", "BalanceItem", "Category", "Account", "FinancialPeriod", "UserSettings", "User" RESTART IDENTITY CASCADE',
   );
 }
 

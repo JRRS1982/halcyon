@@ -24,14 +24,14 @@ places:
 | Layer | Holds | Model |
 |---|---|---|
 | Identity & classification | what the thing **is** | `Account` |
-| Observation | what it was **worth this month** | `BalanceItem` (budget side: `FinancialItem`) |
+| Observation | what it was **worth this month** | `BalanceItem` (budget side: `BudgetItem`) |
 | Assumption | how it **behaves in future** | `PlanAsset` / `PlanLiability` |
 
 `Account` carries `kind`, `category`, `wrapper`, `canImportTransactions` and
-`linkedAccountId`. `BalanceItem` and `FinancialItem` each gained a nullable
+`linkedAccountId`. `BalanceItem` and `BudgetItem` each gained a nullable
 `accountId` — nullable because unlinked and legacy rows still parse, with
 `label` staying as the fallback exactly as it always was. P1 only wires the
-balance side; the budget side (`FinancialItem.accountId`) landed in the schema
+balance side; the budget side (`BudgetItem.accountId`) landed in the schema
 so the delete path is honest (see "What P1 does not do," below), but nothing
 writes it yet.
 
@@ -122,7 +122,7 @@ Counts are fetched first (`accountDeletionCounts`) so the panel can say "removes
 - **Delete it everywhere** — `deleteAccountEverywhere`, gated on typing
   `DELETE`. One `$transaction`: clears any transfer references that point at
   the account from a *surviving* account (refusing outright if a live one
-  does), deletes its `BalanceItem`s, `FinancialItem`s, `Transaction`s and
+  does), deletes its `BalanceItem`s, `BudgetItem`s, `Transaction`s and
   `ImportBatch`es, then the account itself.
 
 **Linked pairs prompt symmetrically, default asymmetrically.** Whenever the
@@ -179,7 +179,7 @@ scoping:
   a Sync against an empty one. See [`plan-sync.md`](plan-sync.md).
   `PlanLiability.linkedAssetId` still exists alongside
   `Account.linkedAccountId` — retiring that duplication remains unstarted.
-- **The budget side is schema-only.** `FinancialItem.accountId` exists so the
+- **The budget side is schema-only.** `BudgetItem.accountId` exists so the
   delete path (`deleteAccountEverywhere`) is honest about what it removes, but
   nothing writes it — there's no budget Add drawer, no `ItemType.TRANSFER`,
   and `TransfersPanel` is untouched. That's all P3.
@@ -187,14 +187,32 @@ scoping:
   under `canImportTransactions` above. Wiring the import-target picker and the
   ledger filter to it wasn't part of any task in this phase.
 - **Holdings inside an account** (an ISA as £38k VWRL + £4.3k cash rather than
-  one typed value) — designed for, not built. See the design doc's "Designed
-  for, not built" section.
+  one typed value) — designed for, not built. One invariant was adopted now to
+  keep it reachable:
+
+  > **An account's value is either observed or derived, never both.**
+
+  Today it costs nothing, because every account observes its value directly —
+  a `BalanceItem` the user types. Break it, by letting an account carry a typed
+  value *alongside* holdings that also sum to a value, and net worth
+  double-counts the moment the first holding appears: silently, and
+  retrospectively across every month of history. That is why the rule is
+  written down before there is anything to apply it to.
+
+  When holdings are built, a holding is its own table rather than a child
+  `Account` — it has a ticker, a unit count and a unit price, where an account
+  has a provider, an import flag, transfers aimed at it and possibly a linked
+  mortgage. The decisive difference is quantity × price: £38k of VWRL is 412
+  units at £92.23, so one price update revalues every account holding it. An
+  account has a value; a holding has a position. `BalanceItem` stays as the
+  monthly observation even for a derived account — written by the system rather
+  than typed — so history and the balance-trend chart keep working untouched.
 
 ## Code map
 
 | Concern | File |
 |---|---|
-| `AccountKind` enum, `Account.kind`/`category`/`wrapper`/`canImportTransactions`/`linkedAccountId`, `BalanceItem`/`FinancialItem`/`BalanceTemplateItem.accountId` | [`prisma/schema.prisma`](../../prisma/schema.prisma) |
+| `AccountKind` enum, `Account.kind`/`category`/`wrapper`/`canImportTransactions`/`linkedAccountId`, `BalanceItem`/`BudgetItem`/`BalanceTemplateItem.accountId` | [`prisma/schema.prisma`](../../prisma/schema.prisma) |
 | Pure account-creation data shaping (primary + mortgage) | [`src/lib/accounts/creation.ts`](../../src/lib/accounts/creation.ts) |
 | Zod schemas for create / delete-everywhere | [`src/lib/accounts/schemas.ts`](../../src/lib/accounts/schemas.ts) |
 | Delete-mode + property-row pure rules | [`src/lib/accounts/deletion.ts`](../../src/lib/accounts/deletion.ts) |

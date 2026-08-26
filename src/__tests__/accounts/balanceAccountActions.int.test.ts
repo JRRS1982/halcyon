@@ -462,11 +462,11 @@ describe("account actions (integration)", () => {
     expect(item.accountId).toBeNull();
   });
 
-  // Same FK safety net, other model: FinancialItem.accountId is also
+  // Same FK safety net, other model: BudgetItem.accountId is also
   // ON DELETE SET NULL. Not created by these actions, so seeded directly.
   it("hard-deleting an account nulls out budget rows that still point at it, rather than deleting them", async () => {
     const { accountId, periodId } = await createAccountWithBalance(isaInput);
-    const financialItem = await prisma.financialItem.create({
+    const budgetItem = await prisma.budgetItem.create({
       data: {
         periodId,
         accountId,
@@ -477,8 +477,8 @@ describe("account actions (integration)", () => {
 
     await prisma.account.delete({ where: { id: accountId } });
 
-    const item = await prisma.financialItem.findUniqueOrThrow({
-      where: { id: financialItem.id },
+    const item = await prisma.budgetItem.findUniqueOrThrow({
+      where: { id: budgetItem.id },
     });
     expect(item.accountId).toBeNull();
   });

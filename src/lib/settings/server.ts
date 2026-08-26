@@ -105,7 +105,7 @@ async function seedStarterData(
   const byLabel = new Map(categories.map((c) => [c.label, c]));
   const period = await ensurePeriodForMonthIn(tx, userId, currentMonthRange());
 
-  await tx.financialItem.createMany({
+  await tx.budgetItem.createMany({
     data: STARTER_BUDGET_CATEGORIES.map((starter, sortOrder) => {
       const category = byLabel.get(starter.label);
       if (!category) {

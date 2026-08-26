@@ -49,7 +49,7 @@ test.describe("Dashboard summary", () => {
           label: m,
         },
       });
-      await db.financialItem.createMany({
+      await db.budgetItem.createMany({
         data: [
           {
             periodId: period.id,
@@ -153,7 +153,7 @@ test.describe("Dashboard summary", () => {
           label: m,
         },
       });
-      await db.financialItem.createMany({
+      await db.budgetItem.createMany({
         data: [
           {
             periodId: period.id,
@@ -247,7 +247,7 @@ test.describe("Dashboard summary", () => {
           label: m,
         },
       });
-      await db.financialItem.createMany({
+      await db.budgetItem.createMany({
         data: [
           {
             periodId: period.id,

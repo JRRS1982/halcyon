@@ -222,7 +222,7 @@ export async function accountDeletionCounts(
   const [months, budgetRows, transactions, importBatches, partnerId] =
     await Promise.all([
       prisma.balanceItem.count({ where: { accountId, deletedAt: null } }),
-      prisma.financialItem.count({ where: { accountId, deletedAt: null } }),
+      prisma.budgetItem.count({ where: { accountId, deletedAt: null } }),
       prisma.transaction.count({ where: { accountId } }),
       prisma.importBatch.count({ where: { accountId } }),
       resolveLinkedPartnerId(userId, accountId),
@@ -254,7 +254,7 @@ export async function accountDeletionCounts(
     prisma.balanceItem.count({
       where: { accountId: partnerId, deletedAt: null },
     }),
-    prisma.financialItem.count({
+    prisma.budgetItem.count({
       where: { accountId: partnerId, deletedAt: null },
     }),
     prisma.transaction.count({ where: { accountId: partnerId } }),
@@ -350,7 +350,7 @@ export async function deleteAccountEverywhere(
     await tx.balanceItem.deleteMany({
       where: { accountId: { in: ids }, deletedAt: null, period: { userId } },
     });
-    await tx.financialItem.deleteMany({
+    await tx.budgetItem.deleteMany({
       where: { accountId: { in: ids }, deletedAt: null, period: { userId } },
     });
     // Break links in both directions before deleting, so no survivor is left

@@ -117,8 +117,8 @@ the pair, which is what selling a house means, avoids it entirely.
 |---|---|
 | `PlanAsset.openingValue` | latest `BalanceItem.value` for the account |
 | `PlanLiability.openingBalance` | latest `BalanceItem.value` for the account |
-| `PlanIncome.annualAmount` | latest `FinancialItem.budget` **× 12** for the category |
-| `PlanExpense.annualAmount` | latest `FinancialItem.budget` **× 12** for the category |
+| `PlanIncome.annualAmount` | latest `BudgetItem.budget` **× 12** for the category |
+| `PlanExpense.annualAmount` | latest `BudgetItem.budget` **× 12** for the category |
 
 Read by `latestReality` ([`src/lib/plan/reality.ts`](../../src/lib/plan/reality.ts)),
 one row per live account and per live budget category:
@@ -325,7 +325,7 @@ restored to the Sync button on close.
 
 Per ADR-002, application-level `userId` filtering is the primary boundary —
 the server role bypasses RLS. Every read filters on `userId` directly or
-through its relation (`BalanceItem` and `FinancialItem` reach one only through
+through its relation (`BalanceItem` and `BudgetItem` reach one only through
 `period`; plan rows only through `plan`).
 
 Every write in `applySyncPlan` carries **its own fence** rather than trusting

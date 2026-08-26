@@ -1,5 +1,5 @@
 // The budget sections a category can belong to, mirroring the ItemType buckets
-// on FinancialItem. EXPENSE categories use one of the expense buckets, INCOME
+// on BudgetItem. EXPENSE categories use one of the expense buckets, INCOME
 // categories one of the income buckets. Shared by the ledger UI (section
 // pickers + suggestions), the create-category action, and the server mappers.
 

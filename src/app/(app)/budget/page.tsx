@@ -75,7 +75,7 @@ export default async function BudgetPage(props: PageProps) {
   });
 
   let items = period
-    ? await prisma.financialItem.findMany({
+    ? await prisma.budgetItem.findMany({
         where: { periodId: period.id, deletedAt: null },
         orderBy: [{ type: "asc" }, { sortOrder: "asc" }],
       })
@@ -129,7 +129,7 @@ export default async function BudgetPage(props: PageProps) {
         },
       });
       const baseSort = items.reduce((max, i) => Math.max(max, i.sortOrder), 0);
-      await prisma.financialItem.createMany({
+      await prisma.budgetItem.createMany({
         data: cats.map((c, idx) => ({
           periodId: targetPeriod.id,
           categoryId: c.id,
@@ -141,7 +141,7 @@ export default async function BudgetPage(props: PageProps) {
           sortOrder: baseSort + 1 + idx,
         })),
       });
-      items = await prisma.financialItem.findMany({
+      items = await prisma.budgetItem.findMany({
         where: { periodId: targetPeriod.id, deletedAt: null },
         orderBy: [{ type: "asc" }, { sortOrder: "asc" }],
       });

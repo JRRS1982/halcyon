@@ -264,7 +264,7 @@ const seed = async (userId) => {
 
     const wobble = (n) => Math.round(n * (1 + ((age % 3) - 1) * 0.06));
 
-    await prisma.financialItem.createMany({
+    await prisma.budgetItem.createMany({
       data: ROWS.map((row, idx) => ({
         periodId: period.id,
         categoryId: categories[row.label].id,

@@ -112,11 +112,11 @@ export async function mergeCategories(
   if (!source || !survivor) throw new Error("Category not found");
 
   const [sourceItems, survivorItems] = await Promise.all([
-    prisma.financialItem.findMany({
+    prisma.budgetItem.findMany({
       where: { categoryId: sourceId, deletedAt: null },
       select: { id: true, periodId: true, budget: true },
     }),
-    prisma.financialItem.findMany({
+    prisma.budgetItem.findMany({
       where: { categoryId: survivorId, deletedAt: null },
       select: { id: true, periodId: true },
     }),
@@ -142,21 +142,21 @@ export async function mergeCategories(
     }),
     ...(plan.repointIds.length > 0
       ? [
-          prisma.financialItem.updateMany({
+          prisma.budgetItem.updateMany({
             where: { id: { in: plan.repointIds } },
             data: { categoryId: survivorId },
           }),
         ]
       : []),
     ...plan.combine.map((c) =>
-      prisma.financialItem.update({
+      prisma.budgetItem.update({
         where: { id: c.survivorItemId },
         data: { budget: { increment: c.addBudget } },
       }),
     ),
     ...(plan.deleteIds.length > 0
       ? [
-          prisma.financialItem.updateMany({
+          prisma.budgetItem.updateMany({
             where: { id: { in: plan.deleteIds } },
             data: { deletedAt: now },
           }),
