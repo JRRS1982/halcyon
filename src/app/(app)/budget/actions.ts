@@ -111,6 +111,42 @@ async function requireAnchorAccount(
   assertAnchorMatches(type, account.kind);
 }
 
+// One account carries at most one row per period.
+//
+// getTransferFlowByAccount yields one net per account, so two rows on the same
+// account cannot be told apart: each would render the whole figure and its
+// section would count it twice — "Mortgage payment" plus "Overpayment" would
+// double the month's Expenses actual. Splitting the net across rows or showing
+// it on one of them was considered and rejected: with one figure per account
+// the rows are genuinely indistinguishable, so permitting only one is the
+// honest model.
+//
+// The Add drawer filters its picker on the same rule, but this is the fence —
+// the picker is a convenience and can be bypassed.
+//
+// Not a database unique index on (periodId, accountId): a soft-deleted
+// BudgetItem keeps its accountId, so the constraint would reject a legitimate
+// re-add after a delete. Clearing the link on delete would fix that and needs
+// a migration; it is disproportionate here.
+//
+// Residual race, accepted: two creates in flight at once can both read no
+// existing row and both write. It needs the same user submitting the same
+// gesture twice in the same instant, and the outcome is two rows the user can
+// see and delete — not silent corruption.
+async function requireAccountUnbudgeted(
+  tx: Prisma.TransactionClient,
+  periodId: string,
+  accountId: string,
+): Promise<void> {
+  const existing = await tx.budgetItem.findFirst({
+    where: { periodId, accountId, deletedAt: null },
+    select: { id: true },
+  });
+  if (existing) {
+    throw new Error("That account already has a row this month");
+  }
+}
+
 // A copy reads its account ids out of rows the caller already owns — but a
 // write never trusts an id because of where it came from. Per ADR-002 the
 // server Prisma role bypasses RLS, so this userId filter is the only fence,
@@ -187,6 +223,10 @@ export async function createItemForMonth(input: CreateItemForMonthInput) {
     }
 
     const period = await ensurePeriodForMonthIn(tx, userId, range);
+
+    if (parsed.accountId) {
+      await requireAccountUnbudgeted(tx, period.id, parsed.accountId);
+    }
 
     // New row's sortOrder = max(sortOrder) + 1 within (periodId, type).
     const last = await tx.budgetItem.findFirst({

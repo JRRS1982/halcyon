@@ -1,5 +1,6 @@
 import {
   type AnchorAccount,
+  anchorPickerEmptyReason,
   anchorTargetLabel,
   eligibleAnchorAccounts,
   rowsInSection,
@@ -67,13 +68,23 @@ describe("eligibleAnchorAccounts", () => {
 
   test("a transfer may only target an asset account", () => {
     expect(
-      eligibleAnchorAccounts("TRANSFER", accounts).map((a) => a.id),
+      eligibleAnchorAccounts("TRANSFER", accounts, []).map((a) => a.id),
     ).toEqual(["a1"]);
   });
 
   test("a repayment may only target a liability account", () => {
     expect(
-      eligibleAnchorAccounts("REPAYMENT", accounts).map((a) => a.id),
+      eligibleAnchorAccounts("REPAYMENT", accounts, []).map((a) => a.id),
+    ).toEqual(["l1"]);
+  });
+
+  // One net per account per period is all the transaction data can yield, so
+  // two rows on one account could not be told apart — they would each claim
+  // the whole figure. The picker refuses to offer the second.
+  test("an account already anchored this period is no longer on offer", () => {
+    expect(eligibleAnchorAccounts("TRANSFER", accounts, ["a1"])).toEqual([]);
+    expect(
+      eligibleAnchorAccounts("REPAYMENT", accounts, ["a1"]).map((a) => a.id),
     ).toEqual(["l1"]);
   });
 
@@ -84,13 +95,59 @@ describe("eligibleAnchorAccounts", () => {
       { id: "n1", name: "Current account", kind: "NONE", archived: false },
       { id: "n2", name: "Savings", kind: "NONE", archived: false },
     ];
-    expect(eligibleAnchorAccounts("TRANSFER", fresh)).toEqual([]);
-    expect(eligibleAnchorAccounts("REPAYMENT", fresh)).toEqual([]);
+    expect(eligibleAnchorAccounts("TRANSFER", fresh, [])).toEqual([]);
+    expect(eligibleAnchorAccounts("REPAYMENT", fresh, [])).toEqual([]);
   });
 
   test("category-keyed rows anchor to nothing at all", () => {
-    expect(eligibleAnchorAccounts("INCOME", accounts)).toEqual([]);
-    expect(eligibleAnchorAccounts("EXPENSE", accounts)).toEqual([]);
+    expect(eligibleAnchorAccounts("INCOME", accounts, [])).toEqual([]);
+    expect(eligibleAnchorAccounts("EXPENSE", accounts, [])).toEqual([]);
+  });
+});
+
+describe("anchorPickerEmptyReason", () => {
+  const isa: AnchorAccount = {
+    id: "a1",
+    name: "Vanguard ISA",
+    kind: "ASSET",
+    archived: false,
+  };
+  const mortgage: AnchorAccount = {
+    id: "l1",
+    name: "Halifax Mortgage",
+    kind: "LIABILITY",
+    archived: false,
+  };
+  const accounts = [isa, mortgage];
+
+  test("says nothing while something is on offer", () => {
+    expect(anchorPickerEmptyReason("TRANSFER", accounts, [])).toBeNull();
+  });
+
+  // Two empty pickers, two different reasons: one is fixed on the balance
+  // sheet, the other is the one-row-per-account rule doing its job. Telling
+  // the user to go and make an account they already have would be a lie.
+  test("distinguishes having no account from having used it", () => {
+    expect(anchorPickerEmptyReason("TRANSFER", accounts, ["a1"])).toBe(
+      "ALL_TAKEN",
+    );
+    expect(anchorPickerEmptyReason("TRANSFER", [mortgage], [])).toBe(
+      "NO_ACCOUNTS",
+    );
+  });
+
+  test("an archived account is not one you have", () => {
+    expect(
+      anchorPickerEmptyReason(
+        "TRANSFER",
+        [{ id: "a2", name: "Old ISA", kind: "ASSET", archived: true }],
+        [],
+      ),
+    ).toBe("NO_ACCOUNTS");
+  });
+
+  test("a kind that anchors nothing has no accounts by definition", () => {
+    expect(anchorPickerEmptyReason("INCOME", accounts, [])).toBe("NO_ACCOUNTS");
   });
 });
 

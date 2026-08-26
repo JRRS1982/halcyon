@@ -1,4 +1,4 @@
-import { createItemForMonth } from "@/app/(app)/budget/actions";
+import { createItemForMonth, deleteItem } from "@/app/(app)/budget/actions";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
 
@@ -137,5 +137,72 @@ describe("createItemForMonth anchor account fence (integration)", () => {
     expect(item.direction).toBe("OUTFLOW");
     expect(item.category).toBeNull();
     expect(item.incomeCategory).toBeNull();
+  });
+});
+
+// One anchored row per account per period. getTransferFlowByAccount yields one
+// net per account, so two rows on the same account cannot be told apart — each
+// would render the whole figure and the section would count it twice. The Add
+// drawer filters the picker, but the picker is a convenience and this action is
+// the boundary: it has to hold on its own.
+describe("createItemForMonth one-row-per-account fence (integration)", () => {
+  const addTransfer = (accountId: string, label: string, month = 2) =>
+    createItemForMonth({
+      year: 2026,
+      month,
+      type: "TRANSFER",
+      label,
+      accountId,
+      direction: "INFLOW",
+    });
+
+  test("rejects a second live row on the same account in the same month", async () => {
+    const isa = await createAccount(TEST_USER_ID, "Vanguard ISA", "ASSET");
+    await addTransfer(isa.id, "Monthly ISA contribution");
+
+    await expect(addTransfer(isa.id, "Bonus top-up")).rejects.toThrow(
+      /already has a row/,
+    );
+
+    expect(
+      await prisma.budgetItem.count({
+        where: { accountId: isa.id, deletedAt: null },
+      }),
+    ).toBe(1);
+  });
+
+  test("rejects a repayment doubling up on a debt already budgeted", async () => {
+    const debt = await createAccount(TEST_USER_ID, "Mortgage", "LIABILITY");
+    const repay = (label: string) =>
+      createItemForMonth({
+        year: 2026,
+        month: 2,
+        type: "REPAYMENT",
+        label,
+        accountId: debt.id,
+      });
+    await repay("Mortgage payment");
+
+    await expect(repay("Overpayment")).rejects.toThrow(/already has a row/);
+  });
+
+  // The fence counts live rows only: deleting the row gives the account back,
+  // which is why a unique index on (periodId, accountId) would be wrong — a
+  // soft-deleted row keeps its accountId.
+  test("lets the account be used again once its row is deleted", async () => {
+    const isa = await createAccount(TEST_USER_ID, "Vanguard ISA", "ASSET");
+    const { item } = await addTransfer(isa.id, "Monthly ISA contribution");
+    await deleteItem({ itemId: item.id });
+
+    const { item: replacement } = await addTransfer(isa.id, "ISA saving");
+    expect(replacement.accountId).toBe(isa.id);
+  });
+
+  test("fences per period, not globally — next month starts clean", async () => {
+    const isa = await createAccount(TEST_USER_ID, "Vanguard ISA", "ASSET");
+    await addTransfer(isa.id, "March contribution", 2);
+
+    const { item } = await addTransfer(isa.id, "April contribution", 3);
+    expect(item.accountId).toBe(isa.id);
   });
 });

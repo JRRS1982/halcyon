@@ -39,6 +39,7 @@ import {
 } from "@/lib/budget/period";
 import {
   type AnchorAccount,
+  anchorPickerEmptyReason,
   anchorTargetLabel,
   eligibleAnchorAccounts,
   rowsInSection,
@@ -1160,15 +1161,33 @@ export function BudgetSheet({
     setAddKind((open) => (open === kind ? null : kind));
   }, []);
 
-  // Only the accounts this kind may target. Empty is an ordinary state, not an
-  // error: every account seeded at onboarding is kind NONE.
+  // The accounts this month's live rows already point at. One account carries
+  // at most one row per period — see eligibleAnchorAccounts.
+  const anchoredAccountIds = useMemo(
+    () => items.flatMap((i) => (i.accountId === null ? [] : [i.accountId])),
+    [items],
+  );
+
+  // Only the accounts this kind may target, minus the ones already spoken for.
+  // Empty is an ordinary state, not an error: every account seeded at
+  // onboarding is kind NONE.
   const addCandidates = useMemo(
-    () => (addKind ? eligibleAnchorAccounts(addKind, accounts) : []),
-    [addKind, accounts],
+    () =>
+      addKind
+        ? eligibleAnchorAccounts(addKind, accounts, anchoredAccountIds)
+        : [],
+    [addKind, accounts, anchoredAccountIds],
   );
   const addAccount = useMemo(
     () => addCandidates.find((a) => a.id === addAccountId) ?? null,
     [addCandidates, addAccountId],
+  );
+  const addEmptyReason = useMemo(
+    () =>
+      addKind
+        ? anchorPickerEmptyReason(addKind, accounts, anchoredAccountIds)
+        : null,
+    [addKind, accounts, anchoredAccountIds],
   );
 
   const confirmAddAnchored = useCallback(() => {
@@ -1545,7 +1564,13 @@ export function BudgetSheet({
             {addKind && (
               <CopyPopover aria-label={ANCHORED_KIND_COPY[addKind].title}>
                 <CopyTitle>{ANCHORED_KIND_COPY[addKind].title}</CopyTitle>
-                {addCandidates.length === 0 ? (
+                {addEmptyReason === "ALL_TAKEN" ? (
+                  <CopyMuted>
+                    Every {ANCHORED_KIND_COPY[addKind].empty} account you have
+                    already has a row this month — one account carries one row
+                    per period. Edit that row, or delete it to start again.
+                  </CopyMuted>
+                ) : addEmptyReason === "NO_ACCOUNTS" ? (
                   <CopyMuted>
                     You have no {ANCHORED_KIND_COPY[addKind].empty} accounts
                     yet. An account becomes one on the{" "}

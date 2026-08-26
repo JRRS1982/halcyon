@@ -109,6 +109,10 @@ const items: SerializedItem[] = [
   }),
 ];
 
+// The sheet with nothing anchored yet: both accounts are still on offer,
+// because one account may carry at most one row per period.
+const unanchoredItems = items.filter((i) => i.accountId === null);
+
 const fmt = (n: number) => formatAmount("GBP", n, "COMMA_0");
 
 const renderSheet = (
@@ -183,7 +187,7 @@ describe("BudgetSheet — three sections", () => {
 
 describe("BudgetSheet — the Add drawer's account picker", () => {
   test("a transfer may only target an asset account", async () => {
-    renderSheet();
+    renderSheet(unanchoredItems);
     await act(async () => {
       screen.getByRole("button", { name: "+ Transfer" }).click();
     });
@@ -201,8 +205,28 @@ describe("BudgetSheet — the Add drawer's account picker", () => {
     ).not.toBeInTheDocument();
   });
 
-  test("a repayment may only target a liability account", async () => {
+  // Two rows on one account would each render the account's whole net, and the
+  // section would count it twice — the flow data cannot tell them apart. The
+  // fixture already carries an ISA transfer and a mortgage repayment, so both
+  // pickers should now be empty.
+  test("an account already anchored this month is no longer on offer", async () => {
     renderSheet();
+    await act(async () => {
+      screen.getByRole("button", { name: "+ Transfer" }).click();
+    });
+    expect(
+      screen.queryByRole("button", { name: "Vanguard ISA" }),
+    ).not.toBeInTheDocument();
+    // And it says why. Sending the user to the balance sheet to create an
+    // account they already have would be a lie.
+    expect(screen.getByText(/already has a row this month/i)).toBeVisible();
+    expect(
+      screen.queryByRole("link", { name: /balance sheet/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  test("a repayment may only target a liability account", async () => {
+    renderSheet(unanchoredItems);
     await act(async () => {
       screen.getByRole("button", { name: "+ Repayment" }).click();
     });
@@ -251,7 +275,7 @@ describe("BudgetSheet — the Add drawer's account picker", () => {
         sortOrder: 5,
       },
     });
-    renderSheet();
+    renderSheet(unanchoredItems);
 
     await act(async () => {
       screen.getByRole("button", { name: "+ Transfer" }).click();
@@ -293,7 +317,7 @@ describe("BudgetSheet — the Add drawer's account picker", () => {
         sortOrder: 6,
       },
     });
-    renderSheet();
+    renderSheet(unanchoredItems);
 
     await act(async () => {
       screen.getByRole("button", { name: "+ Repayment" }).click();

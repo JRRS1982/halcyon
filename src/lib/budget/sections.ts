@@ -64,13 +64,41 @@ export type AnchorAccount = {
 // — including kind NONE, which every onboarding-seeded account starts as. So an
 // empty result is the ordinary state of a user who has never used the balance
 // sheet, not an error.
+//
+// `alreadyAnchored` is the accounts the period's live rows already point at.
+// One account carries at most one row per period, because the flow data yields
+// one net per account: two rows on the same account could not be told apart,
+// so each would render the whole figure and the section would count it twice.
+// This is the picker's half of that rule — createItemForMonth holds the other,
+// and it is the one that matters, since the picker can be bypassed.
 export function eligibleAnchorAccounts(
   type: ItemType,
   accounts: AnchorAccount[],
+  alreadyAnchored: Iterable<string>,
 ): AnchorAccount[] {
   const required = requiredAnchorKind(type);
   if (!required) return [];
-  return accounts.filter((a) => !a.archived && a.kind === required);
+  const taken = new Set(alreadyAnchored);
+  return accounts.filter(
+    (a) => !a.archived && a.kind === required && !taken.has(a.id),
+  );
+}
+
+// Why the Add drawer has nothing to offer. The two cases need different words:
+// one is fixed on the balance sheet, the other is the one-row-per-account rule
+// working as intended, and telling someone to create an account they already
+// have would be a lie.
+export function anchorPickerEmptyReason(
+  type: ItemType,
+  accounts: AnchorAccount[],
+  alreadyAnchored: Iterable<string>,
+): "NO_ACCOUNTS" | "ALL_TAKEN" | null {
+  if (eligibleAnchorAccounts(type, accounts, alreadyAnchored).length > 0) {
+    return null;
+  }
+  return eligibleAnchorAccounts(type, accounts, []).length > 0
+    ? "ALL_TAKEN"
+    : "NO_ACCOUNTS";
 }
 
 type Row = { type: ItemType; sortOrder: number };
