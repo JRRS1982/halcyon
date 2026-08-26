@@ -1,9 +1,8 @@
 import {
   computeRollups,
   favourableVariance,
-  grandTotals,
   type ItemForTotals,
-  sectionTotals,
+  sumAmounts,
   surplus,
 } from "@/lib/budget/totals";
 
@@ -29,67 +28,45 @@ describe("computeRollups", () => {
   });
 });
 
-describe("sectionTotals", () => {
-  test("aggregates every item of the given type", () => {
+describe("sumAmounts", () => {
+  test("adds up the (budget, actual) of exactly the rows it is given", () => {
     const items = [
       item("salary", "INCOME", 8500, 7500),
       item("freelance", "INCOME", 1000, 0),
       item("housing", "EXPENSE", 2200, 2200),
     ];
     const rollups = computeRollups(items);
-    const income = sectionTotals(items, "INCOME", rollups);
-    expect(income.budget).toBe(9500);
-    expect(income.actual).toBe(7500);
+    expect(sumAmounts(items.slice(0, 2), rollups)).toEqual({
+      budget: 9500,
+      actual: 7500,
+    });
   });
 
-  test("INCOME variance = actual - budget (positive = surplus)", () => {
-    const items = [item("salary", "INCOME", 8000, 8500)];
-    const rollups = computeRollups(items);
-    const totals = sectionTotals(items, "INCOME", rollups);
-    expect(totals.variance).toBe(500);
-  });
-
-  test("EXPENSE variance = budget - actual (positive = under budget)", () => {
-    const items = [item("housing", "EXPENSE", 2200, 2000)];
-    const rollups = computeRollups(items);
-    const totals = sectionTotals(items, "EXPENSE", rollups);
-    expect(totals.variance).toBe(200);
-  });
-
-  test("variancePct = 0 when budget is 0 (no divide-by-zero)", () => {
-    const items = [item("x", "INCOME", 0, 100)];
-    const rollups = computeRollups(items);
-    const totals = sectionTotals(items, "INCOME", rollups);
-    expect(totals.variancePct).toBe(0);
-  });
-
-  test("variancePct rounds to whole number", () => {
-    const items = [item("x", "EXPENSE", 300, 100)];
-    const rollups = computeRollups(items);
-    const totals = sectionTotals(items, "EXPENSE", rollups);
-    expect(totals.variancePct).toBe(33); // 100/300 ≈ 33.33 → 33
-  });
-});
-
-describe("grandTotals", () => {
-  test("net = income - expenses", () => {
-    const items = [
-      item("salary", "INCOME", 8500, 7500),
-      item("housing", "EXPENSE", 6400, 4280),
+  // The Expenses section total includes repayments — the whole reason they
+  // render there. Summing a caller-chosen set is what makes that possible
+  // without the totals module knowing about sections.
+  test("a mixed set sums whatever is in it, repayments included", () => {
+    const items: ItemForTotals[] = [
+      item("housing", "EXPENSE", 2200, 2200),
+      { id: "mortgage", type: "REPAYMENT", budget: 1250, actual: 1250 },
     ];
     const rollups = computeRollups(items);
-    const income = sectionTotals(items, "INCOME", rollups);
-    const expenses = sectionTotals(items, "EXPENSE", rollups);
-    const grand = grandTotals(income, expenses);
-    expect(grand.budget).toBe(2100); // 8500 - 6400
-    expect(grand.actual).toBe(3220); // 7500 - 4280
-    expect(grand.variance).toBe(1120); // 3220 - 2100
+    expect(sumAmounts(items, rollups)).toEqual({ budget: 3450, actual: 3450 });
   });
 
-  test("zero income + zero expenses → all zeros", () => {
-    const empty = { budget: 0, actual: 0, variance: 0, variancePct: 0 };
-    const grand = grandTotals(empty, empty);
-    expect(grand).toEqual({ budget: 0, actual: 0, variance: 0 });
+  test("a row with no rollup contributes nothing", () => {
+    const items = [item("salary", "INCOME", 8500, 7500)];
+    const rollups = computeRollups(items);
+    expect(
+      sumAmounts([...items, item("ghost", "INCOME", 99, 99)], rollups),
+    ).toEqual({ budget: 8500, actual: 7500 });
+  });
+
+  test("an empty set sums to zero", () => {
+    expect(sumAmounts([], computeRollups([]))).toEqual({
+      budget: 0,
+      actual: 0,
+    });
   });
 });
 

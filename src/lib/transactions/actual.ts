@@ -13,17 +13,42 @@ export type ItemType = "INCOME" | "EXPENSE" | "TRANSFER" | "REPAYMENT";
 // TRANSFER/REPAYMENT rows key on an account, not a category, so their actual
 // comes from netTransfersForAccounts (see ./transfers). Excluded here by kind
 // rather than by relying on such rows happening to carry no categoryId — an
-// accident is not a boundary.
-const isAccountKeyed = (type: ItemType): boolean =>
+// accident is not a boundary. Exported so a call site with both sources to
+// hand routes on the same rule rather than on whether an id happens to be set.
+export const isAccountKeyed = (type: ItemType): boolean =>
   type === "TRANSFER" || type === "REPAYMENT";
+
+const roundToCents = (n: number): number => {
+  const rounded = Math.round(n * 100) / 100;
+  return rounded === 0 ? 0 : rounded;
+};
 
 export function netActual(amounts: number[], type: ItemType): number {
   if (isAccountKeyed(type)) return 0;
 
   const sum = amounts.reduce((total, amount) => total + amount, 0);
-  const oriented = type === "EXPENSE" ? -sum : sum;
-  const rounded = Math.round(oriented * 100) / 100;
-  return rounded === 0 ? 0 : rounded;
+  return roundToCents(type === "EXPENSE" ? -sum : sum);
+}
+
+// The account-keyed mirror of netActual: turns one account's net transfer flow
+// for the period (from getTransferFlowByAccount, signed relative to that
+// account) into the row's `actual`.
+//
+// A TRANSFER INFLOW and a REPAYMENT both mean money arriving at the named
+// account, which is the sign the account already reports, so they read it
+// as-is. An OUTFLOW means money coming back out — negative from the account's
+// side, positive as a thing the row budgeted — so it flips.
+//
+// Never clamped: budgeting an inflow and seeing money leave is a real reading,
+// and hiding it behind a zero would make the variance agree with a plan that
+// did not happen.
+export function accountActual(
+  net: number,
+  type: ItemType,
+  direction: "INFLOW" | "OUTFLOW" | null,
+): number {
+  if (!isAccountKeyed(type)) return 0;
+  return roundToCents(direction === "OUTFLOW" ? -net : net);
 }
 
 export type DatedCategoryAmount = {

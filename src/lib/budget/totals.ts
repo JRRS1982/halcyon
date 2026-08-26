@@ -4,9 +4,9 @@
 export type ItemForTotals = {
   id: string;
   // Mirrors the full Prisma ItemType enum: a BudgetItem can be any of the
-  // four kinds. sectionTotals below filters by an exact type match, so a
-  // TRANSFER/REPAYMENT item is simply excluded from both the INCOME and
-  // EXPENSE roll-ups — computeRollups itself doesn't branch on type at all.
+  // four kinds. Neither computeRollups nor sumAmounts branches on type at
+  // all — which rows belong in which section is decided by the caller, in
+  // src/lib/budget/sections.ts.
   type: "INCOME" | "EXPENSE" | "TRANSFER" | "REPAYMENT";
   // Only a TRANSFER carries a direction; zod enforces that upstream (see
   // src/lib/budget/schemas.ts), so INCOME/EXPENSE/REPAYMENT always see null
@@ -34,52 +34,23 @@ export function computeRollups(
   return rollups;
 }
 
-export type SectionTotals = {
-  budget: number;
-  actual: number;
-  variance: number;
-  variancePct: number;
-};
-
-// Computes the section roll-up over every item of the given type.
-//
-// Variance convention:
-//   INCOME  → actual - budget  (positive = received more than planned)
-//   EXPENSE → budget - actual  (positive = spent less than planned)
-// % is actual / budget × 100; 0 when budget is 0 to avoid divide-by-zero.
-export function sectionTotals(
-  items: ItemForTotals[],
-  type: "INCOME" | "EXPENSE",
+// Adds up the (budget, actual) of exactly the rows handed to it. The caller
+// chooses the set, so a section total can span more than one ItemType — the
+// Expenses section sums expenses and repayments together, which is the whole
+// reason repayments render there. A row with no rollup contributes nothing.
+export function sumAmounts(
+  rows: { id: string }[],
   rollups: Map<string, ItemAmounts>,
-): SectionTotals {
+): ItemAmounts {
   let budget = 0;
   let actual = 0;
-  for (const item of items) {
-    if (item.type !== type) continue;
-    const r = rollups.get(item.id);
-    if (!r) continue;
-    budget += r.budget;
-    actual += r.actual;
+  for (const row of rows) {
+    const amounts = rollups.get(row.id);
+    if (!amounts) continue;
+    budget += amounts.budget;
+    actual += amounts.actual;
   }
-  const variance = type === "INCOME" ? actual - budget : budget - actual;
-  const variancePct = budget === 0 ? 0 : Math.round((actual / budget) * 100);
-  return { budget, actual, variance, variancePct };
-}
-
-export type GrandTotals = {
-  budget: number;
-  actual: number;
-  variance: number;
-};
-
-export function grandTotals(
-  income: SectionTotals,
-  expense: SectionTotals,
-): GrandTotals {
-  const budget = income.budget - expense.budget;
-  const actual = income.actual - expense.actual;
-  const variance = actual - budget;
-  return { budget, actual, variance };
+  return { budget, actual };
 }
 
 // Positive means "went the way you wanted". Uniform on direction, never on
