@@ -42,7 +42,7 @@ a parent. Most carry `deletedAt` for soft deletion.
 | `User` | profile row; the owner every other table hangs off |
 | `UserSettings` | per-user preferences and feature flags, created lazily on first read |
 | `FinancialPeriod` | one month (or week/quarter/year), the shared spine for `/budget` and `/balance` — both hang off the same period row. Unique per `(userId, granularity, startDate)` |
-| `FinancialItem` | a budget row in a period: income or expense, budgeted vs actual |
+| `BudgetItem` | a budget row in a period: income or expense, budgeted vs actual |
 | `BalanceItem` | a balance-sheet row in a period: asset or liability |
 | `BudgetTemplateItem`, `BalanceTemplateItem` | a saved "★ Template" set to copy into any month |
 
@@ -50,12 +50,12 @@ a parent. Most carry `deletedAt` for soft deletion.
 
 | Table | What it's for |
 |---|---|
-| `Category` | the stable taxonomy a transaction is filed under, and what a `FinancialItem` links to. See [features/onboarding.md](../features/onboarding.md) for what a new account starts with |
+| `Category` | the stable taxonomy a transaction is filed under, and what a `BudgetItem` links to. See [features/onboarding.md](../features/onboarding.md) for what a new account starts with |
 | `Account` | where money sits — current, savings, ISA, SIPP. Named as a transfer counterparty too |
 | `ImportBatch` | one CSV import, so it can be reversed as a unit |
 | `Transaction` | an imported or manual line: date, signed amount, description, optional category and counterparty account |
 
-`FinancialItem.categoryId` is nullable on purpose: a free-typed budget row has no
+`BudgetItem.categoryId` is nullable on purpose: a free-typed budget row has no
 category, and `label` stays the fallback either way.
 
 ### Plan
