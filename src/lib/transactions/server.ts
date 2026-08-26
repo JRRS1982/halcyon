@@ -1,5 +1,6 @@
 import "server-only";
 
+import type { AccountKind } from "@prisma/client";
 import { sectionLabel } from "@/lib/categories/buckets";
 import { categoryKey, cleanLabel } from "@/lib/categories/normalize";
 import { prisma } from "@/lib/prisma";
@@ -360,13 +361,18 @@ export async function getTransferFlowByAccount(
   return netTransfersForAccounts(legs, legs);
 }
 
-// Active accounts for the ledger's transfer picker (id + name).
+// Active accounts for the ledger's transfer picker (id + name + kind). Not
+// filtered by kind — a plain (kind: NONE) current account is as valid a
+// transfer target as an ASSET, and not filtered by canImportTransactions
+// either, so a mortgage you don't import statements from still shows up.
+// CategoryCombobox partitions this same list into Transfers/Repayments by
+// kind rather than re-querying it.
 export async function getLedgerAccounts(
   userId: string,
-): Promise<{ id: string; name: string }[]> {
+): Promise<{ id: string; name: string; kind: AccountKind }[]> {
   return prisma.account.findMany({
     where: { userId, deletedAt: null },
     orderBy: { name: "asc" },
-    select: { id: true, name: true },
+    select: { id: true, name: true, kind: true },
   });
 }

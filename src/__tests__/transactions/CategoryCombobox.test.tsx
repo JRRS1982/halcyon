@@ -17,8 +17,8 @@ const categories = [
 ];
 
 const accounts = [
-  { id: "a2", name: "Savings" },
-  { id: "a1", name: "Current" },
+  { id: "a2", name: "Savings", kind: "ASSET" as const },
+  { id: "a1", name: "Current", kind: "ASSET" as const },
 ];
 
 const renderit = (overrides: Record<string, unknown> = {}) => {
@@ -125,6 +125,43 @@ describe("CategoryCombobox flat grouped list", () => {
     expect(
       screen.queryByRole("option", { name: /savings/i }),
     ).not.toBeInTheDocument();
+  });
+
+  test("liability accounts appear under Repayments, assets under Transfers", () => {
+    renderit({
+      transfersEnabled: true,
+      transferAccounts: [
+        { id: "vg1", name: "Vanguard ISA", kind: "ASSET" as const },
+        { id: "mtg1", name: "Mortgage", kind: "LIABILITY" as const },
+      ],
+    });
+    openPopup();
+
+    expect(screen.getByRole("group", { name: "Transfers" })).toHaveTextContent(
+      "Vanguard ISA",
+    );
+    expect(screen.getByRole("group", { name: "Repayments" })).toHaveTextContent(
+      "Mortgage",
+    );
+  });
+
+  test("a mortgage you cannot import statements from is still offered as a repayment target", () => {
+    renderit({
+      transfersEnabled: true,
+      transferAccounts: [
+        {
+          id: "mtg1",
+          name: "Mortgage",
+          kind: "LIABILITY" as const,
+          canImportTransactions: false,
+        },
+      ],
+    });
+    openPopup();
+
+    expect(
+      screen.getByRole("option", { name: /mortgage/i }),
+    ).toBeInTheDocument();
   });
 
   test("typing filters categories and accounts together", () => {
@@ -263,6 +300,32 @@ describe("CategoryCombobox keyboard navigation", () => {
     expect(
       screen.queryByRole("option", { name: /rent/i }),
     ).not.toBeInTheDocument();
+  });
+
+  test("ArrowDown carries keyboard navigation across the Transfers/Repayments group boundary", () => {
+    const { onTransfer } = renderit({
+      transfersEnabled: true,
+      transferAccounts: [
+        { id: "sav1", name: "Savings", kind: "ASSET" as const },
+        { id: "mtg1", name: "Mortgage", kind: "LIABILITY" as const },
+      ],
+    });
+    const input = openPopup();
+
+    // Salary, Groceries, Rent, Savings (Transfers), then Mortgage (Repayments).
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+
+    expect(screen.getByRole("option", { name: /mortgage/i })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(onTransfer).toHaveBeenCalledWith("mtg1");
   });
 
   test("the clear option participates when a value is set", () => {

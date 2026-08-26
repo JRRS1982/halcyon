@@ -1,5 +1,6 @@
 "use server";
 
+import type { AccountKind } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { bucketFields, sectionLabel } from "@/lib/categories/buckets";
@@ -634,14 +635,17 @@ const createAccountAndTransferSchema = z.object({
 // orphaned account behind.
 export async function createAccountAndTransfer(
   input: z.input<typeof createAccountAndTransferSchema>,
-): Promise<{ id: string; name: string }> {
+): Promise<{ id: string; name: string; kind: AccountKind }> {
   const userId = await requireTransactionsEnabled();
   const { transactionIds, name } = createAccountAndTransferSchema.parse(input);
 
   const created = await prisma.$transaction(async (tx) => {
+    // No kind is passed, so this account is created kind: NONE (the schema
+    // default) — a plain transfer target, same as most current/checking
+    // accounts. It still lands in the ledger picker's Transfers group.
     const account = await tx.account.create({
       data: { userId, name: cleanLabel(name) },
-      select: { id: true, name: true },
+      select: { id: true, name: true, kind: true },
     });
 
     // A freshly-created account can't own any existing transaction, so no

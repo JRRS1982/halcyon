@@ -62,7 +62,13 @@ const renderLedger = () =>
           sortDir: "desc",
         }}
         categories={[]}
-        transferAccounts={[{ id: mortgageAccountId, name: "Halifax mortgage" }]}
+        transferAccounts={[
+          {
+            id: mortgageAccountId,
+            name: "Halifax mortgage",
+            kind: "LIABILITY",
+          },
+        ]}
         uncategorizedCount={0}
         transfersEnabled={true}
       />

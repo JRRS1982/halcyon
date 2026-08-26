@@ -119,6 +119,10 @@ describe("createAccountAndTransfer (integration)", () => {
     });
 
     expect(created.name).toBe("Savings");
+    // No kind is set on creation, so it defaults to NONE — the ledger picker
+    // still offers it as a Transfers target (not Repayments); see
+    // CategoryCombobox's kind split.
+    expect(created.kind).toBe("NONE");
 
     const row = await prisma.transaction.findUniqueOrThrow({
       where: { id: transaction.id },

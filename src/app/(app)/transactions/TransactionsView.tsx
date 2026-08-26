@@ -10,6 +10,11 @@ import { QuickAdd } from "./QuickAdd";
 import { ReverseImport } from "./ReverseImport";
 
 type Account = { id: string; name: string };
+type TransferAccount = {
+  id: string;
+  name: string;
+  kind: "ASSET" | "LIABILITY" | "NONE";
+};
 
 const Shell = styled.main`
   max-width: 960px;
@@ -39,7 +44,7 @@ export function TransactionsView({
   // The full, unfiltered account list — transfer targets and the ledger's
   // display-name resolution for transferAccountId are not gated by
   // canImportTransactions.
-  transferAccounts: Account[];
+  transferAccounts: TransferAccount[];
   categories: LedgerCategory[];
   page: LedgerPage;
   query: LedgerUrlQuery;
