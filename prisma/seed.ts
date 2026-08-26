@@ -807,7 +807,7 @@ async function seedPeriods(userId: string, opts: { from: Date; to: Date }) {
   );
 }
 
-async function seedFinancialItems(
+async function seedBudgetItems(
   _userId: string,
   opts: {
     periods: { id: string; startDate: Date }[];
@@ -825,7 +825,7 @@ async function seedFinancialItems(
           .filter((t) => t.categoryKey === plan.key)
           .map((t) => t.amount);
         const actual = netActual(amounts, plan.type);
-        return prisma.financialItem.create({
+        return prisma.budgetItem.create({
           data: {
             periodId: period.id,
             categoryId: categoryIdFor(opts.categories, plan.key),
@@ -1038,7 +1038,7 @@ const main = async () => {
     categories,
   });
   const periods = await seedPeriods(userId, { from, to });
-  await seedFinancialItems(userId, { periods, categories, transactions });
+  await seedBudgetItems(userId, { periods, categories, transactions });
   await seedBalanceItems(userId, { periods });
 
   const txnCount = await prisma.transaction.count({ where: { userId } });

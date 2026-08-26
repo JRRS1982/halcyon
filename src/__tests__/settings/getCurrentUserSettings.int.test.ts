@@ -128,7 +128,7 @@ describe("getCurrentUserSettings lazy row creation (integration)", () => {
     await asBrandNewUser();
     await getCurrentUserSettings();
 
-    const items = await prisma.financialItem.findMany({
+    const items = await prisma.budgetItem.findMany({
       where: { period: { userId: TEST_USER_ID } },
       include: { linkedCategory: true },
     });

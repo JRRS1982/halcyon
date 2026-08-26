@@ -1,7 +1,7 @@
 "use server";
 
 import { randomUUID } from "node:crypto";
-import type { FinancialItem } from "@prisma/client";
+import type { BudgetItem } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { buildCopiedItems, type CopiedItem } from "@/lib/budget/copyPeriod";
 import { ensurePeriodForMonthIn } from "@/lib/budget/ensurePeriod";
@@ -28,7 +28,7 @@ import { getAmountsByCategory } from "@/lib/transactions/server";
 // Prisma `Decimal` can't cross the server→client boundary (it serialises to
 // `{}`); the budget sheet consumes budget/actual as numbers (`SerializedItem`),
 // so coerce them before returning a mutated item to the client.
-function toClientItem(item: FinancialItem) {
+function toClientItem(item: BudgetItem) {
   return { ...item, budget: Number(item.budget), actual: Number(item.actual) };
 }
 
@@ -102,13 +102,13 @@ export async function createItemForMonth(input: CreateItemForMonthInput) {
     const period = await ensurePeriodForMonthIn(tx, userId, range);
 
     // New row's sortOrder = max(sortOrder) + 1 within (periodId, type).
-    const last = await tx.financialItem.findFirst({
+    const last = await tx.budgetItem.findFirst({
       where: { periodId: period.id, type: parsed.type, deletedAt: null },
       orderBy: { sortOrder: "desc" },
       select: { sortOrder: true },
     });
 
-    const item = await tx.financialItem.create({
+    const item = await tx.budgetItem.create({
       data: {
         periodId: period.id,
         type: parsed.type,
@@ -127,7 +127,7 @@ export async function updateItem(input: UpdateItemInput) {
   const userId = await requireUserId();
   const parsed = updateItemSchema.parse(input);
 
-  const item = await prisma.financialItem.findFirst({
+  const item = await prisma.budgetItem.findFirst({
     where: { id: parsed.itemId, deletedAt: null },
     include: { period: { select: { userId: true } } },
   });
@@ -144,7 +144,7 @@ export async function updateItem(input: UpdateItemInput) {
   }
 
   return toClientItem(
-    await prisma.financialItem.update({
+    await prisma.budgetItem.update({
       where: { id: parsed.itemId },
       data: {
         ...(parsed.label !== undefined && { label: parsed.label }),
@@ -164,7 +164,7 @@ export async function deleteItem(input: DeleteItemInput) {
   const userId = await requireUserId();
   const parsed = deleteItemSchema.parse(input);
 
-  const item = await prisma.financialItem.findFirst({
+  const item = await prisma.budgetItem.findFirst({
     where: { id: parsed.itemId, deletedAt: null },
     include: { period: { select: { userId: true } } },
   });
@@ -172,7 +172,7 @@ export async function deleteItem(input: DeleteItemInput) {
     throw new Error("Item not found");
   }
 
-  await prisma.financialItem.update({
+  await prisma.budgetItem.update({
     where: { id: parsed.itemId },
     data: { deletedAt: new Date() },
   });
@@ -225,7 +225,7 @@ export async function copyPeriodFrom(input: CopyPeriodFromInput) {
     throw new Error("Cannot copy a period onto itself");
   }
 
-  const sourceItems = await prisma.financialItem.findMany({
+  const sourceItems = await prisma.budgetItem.findMany({
     where: { periodId: source.id, deletedAt: null },
     orderBy: { createdAt: "asc" },
     select: {
@@ -246,11 +246,11 @@ export async function copyPeriodFrom(input: CopyPeriodFromInput) {
   );
 
   await prisma.$transaction([
-    prisma.financialItem.updateMany({
+    prisma.budgetItem.updateMany({
       where: { periodId: target.id, deletedAt: null },
       data: { deletedAt: new Date() },
     }),
-    prisma.financialItem.createMany({
+    prisma.budgetItem.createMany({
       data: copied.map((it) => ({
         id: it.id,
         periodId: target.id,
@@ -314,7 +314,7 @@ export async function saveBudgetTemplate(input: SaveBudgetTemplateInput) {
     throw new Error("Source period not found");
   }
 
-  const sourceItems = await prisma.financialItem.findMany({
+  const sourceItems = await prisma.budgetItem.findMany({
     where: { periodId: period.id, deletedAt: null },
     orderBy: { createdAt: "asc" },
     select: {
@@ -399,11 +399,11 @@ export async function copyBudgetTemplateInto(input: CopyBudgetTemplateInput) {
   );
 
   await prisma.$transaction([
-    prisma.financialItem.updateMany({
+    prisma.budgetItem.updateMany({
       where: { periodId: target.id, deletedAt: null },
       data: { deletedAt: new Date() },
     }),
-    prisma.financialItem.createMany({
+    prisma.budgetItem.createMany({
       data: copied.map((it) => ({
         id: it.id,
         periodId: target.id,

@@ -43,7 +43,7 @@ describe("createPlan (integration)", () => {
         sortOrder: 0,
       },
     });
-    await prisma.financialItem.create({
+    await prisma.budgetItem.create({
       data: {
         periodId: period.id,
         categoryId: category.id,

@@ -27,7 +27,7 @@ describe("latestReality (integration)", () => {
       },
     });
     const period = await monthPeriod(TEST_USER_ID, "March 2026", "2026-03-01");
-    await prisma.financialItem.create({
+    await prisma.budgetItem.create({
       data: {
         periodId: period.id,
         categoryId: category.id,
@@ -88,7 +88,7 @@ describe("latestReality (integration)", () => {
         label: "2026",
       },
     });
-    await prisma.financialItem.create({
+    await prisma.budgetItem.create({
       data: {
         periodId: yearPeriod.id,
         categoryId: category.id,
@@ -310,7 +310,7 @@ describe("latestReality (integration)", () => {
       },
     });
     const period = await monthPeriod(TEST_USER_ID, "March 2026", "2026-03-01");
-    await prisma.financialItem.create({
+    await prisma.budgetItem.create({
       data: {
         periodId: period.id,
         categoryId: category.id,

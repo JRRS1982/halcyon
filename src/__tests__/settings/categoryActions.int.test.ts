@@ -24,7 +24,7 @@ const makePeriod = (startDate: Date) =>
   });
 
 const makeItem = (periodId: string, categoryId: string, budget: number) =>
-  prisma.financialItem.create({
+  prisma.budgetItem.create({
     data: {
       periodId,
       categoryId,
@@ -64,12 +64,12 @@ describe("mergeCategories (integration)", () => {
     });
     expect(movedTx?.categoryId).toBe(survivor.id);
 
-    const survivorItem = await prisma.financialItem.findFirst({
+    const survivorItem = await prisma.budgetItem.findFirst({
       where: { categoryId: survivor.id, periodId: period.id, deletedAt: null },
     });
     expect(Number(survivorItem?.budget)).toBe(140);
 
-    const removedItem = await prisma.financialItem.findUnique({
+    const removedItem = await prisma.budgetItem.findUnique({
       where: { id: srcItem.id },
     });
     expect(removedItem?.deletedAt).not.toBeNull();
@@ -88,7 +88,7 @@ describe("mergeCategories (integration)", () => {
 
     await mergeCategories({ sourceId: source.id, survivorId: survivor.id });
 
-    const moved = await prisma.financialItem.findUnique({
+    const moved = await prisma.budgetItem.findUnique({
       where: { id: srcItem.id },
     });
     expect(moved?.categoryId).toBe(survivor.id);

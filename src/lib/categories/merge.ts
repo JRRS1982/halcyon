@@ -1,6 +1,6 @@
 // Pure planner for merging one category's budget line items into another.
 //
-// When two categories merge, the loser's FinancialItems must move to the
+// When two categories merge, the loser's BudgetItems must move to the
 // survivor. In any month where the survivor *also* has a row, the two would
 // collide (one category, two rows in a period) — so we combine them: add the
 // loser's budget to the survivor's row and drop the loser's. In months the

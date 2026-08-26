@@ -18,7 +18,7 @@ const makePeriod = () =>
   });
 
 const expenseItem = (periodId: string, label: string) =>
-  prisma.financialItem.create({
+  prisma.budgetItem.create({
     data: { periodId, type: "EXPENSE", category: "VARIABLE", label, budget: 0 },
   });
 
@@ -32,7 +32,7 @@ describe("getOrProvisionCategories (integration)", () => {
     const cats = await getOrProvisionCategories(TEST_USER_ID);
 
     expect(cats.map((c) => c.label).sort()).toEqual(["Groceries", "Rent"]);
-    const items = await prisma.financialItem.findMany({
+    const items = await prisma.budgetItem.findMany({
       where: { period: { userId: TEST_USER_ID } },
       select: { categoryId: true },
     });

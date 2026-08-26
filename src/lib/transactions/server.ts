@@ -53,7 +53,7 @@ export type LedgerPage = {
 // Returns the user's categories, lazily provisioning them from existing budget
 // line items the first time (when none exist yet). This is the one-time
 // backfill described in the spec: distinct (type, normalized-label) pairs across
-// all FinancialItems become Category rows, and each item is linked to its
+// all BudgetItems become Category rows, and each item is linked to its
 // category so budget actuals can later roll up by categoryId. Idempotent — once
 // any category exists it's a plain read.
 export async function getOrProvisionCategories(
@@ -79,7 +79,7 @@ export async function getOrProvisionCategories(
     }));
   }
 
-  const items = await prisma.financialItem.findMany({
+  const items = await prisma.budgetItem.findMany({
     where: { period: { userId }, deletedAt: null },
     select: {
       id: true,
@@ -127,7 +127,7 @@ export async function getOrProvisionCategories(
       },
       select: { id: true, label: true, type: true },
     });
-    await prisma.financialItem.updateMany({
+    await prisma.budgetItem.updateMany({
       where: { id: { in: group.itemIds } },
       data: { categoryId: category.id },
     });
