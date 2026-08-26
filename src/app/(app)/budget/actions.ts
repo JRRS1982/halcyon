@@ -1,8 +1,9 @@
 "use server";
 
 import { randomUUID } from "node:crypto";
-import type { AccountKind, BudgetItem, ItemType, Prisma } from "@prisma/client";
+import type { BudgetItem, ItemType, Prisma } from "@prisma/client";
 import { redirect } from "next/navigation";
+import { assertAnchorMatches, requiredAnchorKind } from "@/lib/budget/anchors";
 import {
   buildCopiedItems,
   type CopiedItem,
@@ -107,36 +108,20 @@ async function requireAnchorAccount(
     throw new Error("Account not found");
   }
 
-  const required = requiredAnchorKind(type);
-  if (required && account.kind !== required) {
-    throw new Error(
-      `A ${type} must target ${ANCHOR_NOUN[required]} account, not ${account.kind.toLowerCase()}`,
-    );
-  }
+  assertAnchorMatches(type, account.kind);
 }
-
-// The two Account kinds a budget row can anchor to — AccountKind's third
-// member, NONE, is a plain transaction account and anchors nothing.
-type AnchorKind = Extract<AccountKind, "ASSET" | "LIABILITY">;
-
-// A TRANSFER funds an asset; a REPAYMENT pays down a liability. INCOME and
-// EXPENSE anchor to a category instead and take no account at all.
-function requiredAnchorKind(type: ItemType): AnchorKind | null {
-  if (type === "TRANSFER") return "ASSET";
-  if (type === "REPAYMENT") return "LIABILITY";
-  return null;
-}
-
-const ANCHOR_NOUN = {
-  ASSET: "an asset",
-  LIABILITY: "a liability",
-} as const satisfies Record<AnchorKind, string>;
 
 // A copy reads its account ids out of rows the caller already owns — but a
 // write never trusts an id because of where it came from. Per ADR-002 the
 // server Prisma role bypasses RLS, so this userId filter is the only fence,
 // and an account can have been archived, deleted or re-kinded since the source
 // row was written.
+//
+// The lookup sits outside the copy's $transaction, and moving it inside would
+// buy nothing: under READ COMMITTED each statement takes its own snapshot, so
+// a transaction gives rollback scope, not a frozen view of Account. The
+// ownership half cannot race at all — nothing in the codebase reassigns
+// Account.userId.
 //
 // A row whose anchor no longer holds is dropped rather than copied stripped:
 // an anchor-less TRANSFER is a row createItemForMonth could not produce (zod
@@ -168,8 +153,10 @@ async function withValidAnchorsOnly(
     if (kindById.get(row.accountId) !== required) return [];
     // A TRANSFER without a direction is unsigned: copying it would flip the
     // month's surplus by its budget.
-    if (row.type === "TRANSFER" && !row.direction) return [];
-    return [row];
+    if (row.type === "TRANSFER") return row.direction ? [row] : [];
+    // A REPAYMENT is always inward to the debt and never carries a direction —
+    // a stray one is cleaned off for the same reason as a stray accountId.
+    return [{ ...row, direction: null }];
   });
 
   return { kept, skipped: rows.length - kept.length };

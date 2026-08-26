@@ -150,6 +150,69 @@ describe("copyPeriodFrom anchor handling (integration)", () => {
     expect(await targetItems(result.periodId)).toHaveLength(0);
   });
 
+  // Zod forbids an accountId on INCOME/EXPENSE, so a row carrying one arrived
+  // some other way. It is still the user's budget line — cleaning the stray
+  // anchor keeps the line and stops the id travelling on a row nothing checks;
+  // dropping the line would lose data over a meaningless column.
+  test("cleans a stray anchor off an unanchored kind instead of dropping it", async () => {
+    const spending = await prisma.account.create({
+      data: { userId: TEST_USER_ID, name: "Current account", kind: "NONE" },
+    });
+    const { item, periodId: sourcePeriodId } = await createItemForMonth({
+      ...SOURCE,
+      type: "EXPENSE",
+      label: "Rent",
+      category: "FIXED",
+    });
+    await prisma.budgetItem.update({
+      where: { id: item.id },
+      data: { accountId: spending.id },
+    });
+
+    const result = await copyPeriodFrom({
+      sourcePeriodId,
+      targetYear: TARGET.year,
+      targetMonth: TARGET.month,
+    });
+
+    expect(result.skipped).toBe(0);
+
+    const rows = await targetItems(result.periodId);
+    expect(rows.map((r) => r.label)).toEqual(["Rent"]);
+    expect(rows[0]?.accountId).toBeNull();
+    expect(result.items[0]?.accountId).toBeNull();
+  });
+
+  // Same argument as the stray accountId above: anchorInvariants forbids a
+  // direction on any kind but TRANSFER, so this row could not have been
+  // created — but a REPAYMENT is valid without it, so clean rather than drop.
+  test("cleans a stray direction off a repayment instead of dropping it", async () => {
+    const debt = await createAccount(TEST_USER_ID, "Mortgage", "LIABILITY");
+    const { item, periodId: sourcePeriodId } = await createItemForMonth({
+      ...SOURCE,
+      type: "REPAYMENT",
+      label: "Mortgage",
+      accountId: debt.id,
+    });
+    await prisma.budgetItem.update({
+      where: { id: item.id },
+      data: { direction: "INFLOW" },
+    });
+
+    const result = await copyPeriodFrom({
+      sourcePeriodId,
+      targetYear: TARGET.year,
+      targetMonth: TARGET.month,
+    });
+
+    expect(result.skipped).toBe(0);
+
+    const rows = await targetItems(result.periodId);
+    expect(rows[0]?.accountId).toBe(debt.id);
+    expect(rows[0]?.direction).toBeNull();
+    expect(result.items[0]?.direction).toBeNull();
+  });
+
   test("skips a TRANSFER left without a direction", async () => {
     const { item, periodId: sourcePeriodId } = await seedSourceTransfer();
     await prisma.budgetItem.update({
