@@ -122,8 +122,9 @@ export const TotalsRow = styled.div`
 export const GrandRow = styled.div`
   ${baseRow}
 
-  /* Grand total (Net income): same size as the section headings (Inter 14px),
-     semibold — the dark band carries the emphasis, not an oversized type size. */
+  /* Grand total ("Left over", "Net worth"): same size as the section headings
+     (Inter 14px), semibold — the dark band carries the emphasis, not an
+     oversized type size. */
   > div {
     background: ${({ theme }) => theme.colors.primary};
     color: ${({ theme }) => theme.colors.onPrimary};

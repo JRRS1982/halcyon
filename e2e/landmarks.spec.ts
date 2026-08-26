@@ -111,7 +111,7 @@ test.describe("Sheet semantics", () => {
     }
 
     // The Income band row names itself as a row header. Exact, because the
-    // sheet also carries "Side income" and "Net income".
+    // sheet also carries "Side income".
     await expect(
       sheet.getByRole("rowheader", { name: "Income", exact: true }),
     ).toBeVisible();
