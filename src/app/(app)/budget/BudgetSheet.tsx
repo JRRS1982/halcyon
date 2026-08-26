@@ -472,6 +472,9 @@ const PickerMonth = styled.button<{ $current?: boolean }>`
 const CopyWrapper = styled.div`
   position: relative;
   display: inline-flex;
+  /* Matches ToolbarGroup's own gap, so wrapping two tools together doesn't
+     bunch them tighter than their neighbours. */
+  gap: ${({ theme }) => theme.spacing.xs};
 `;
 
 const CopyPopover = styled.div`
