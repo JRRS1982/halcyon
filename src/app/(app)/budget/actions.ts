@@ -1,7 +1,7 @@
 "use server";
 
 import { randomUUID } from "node:crypto";
-import type { BudgetItem } from "@prisma/client";
+import type { BudgetItem, ItemType, Prisma } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { buildCopiedItems, type CopiedItem } from "@/lib/budget/copyPeriod";
 import { ensurePeriodForMonthIn } from "@/lib/budget/ensurePeriod";
@@ -80,6 +80,37 @@ async function ensurePeriodForMonthInternal(
   return ensurePeriodForMonthIn(prisma, userId, { startDate, endDate, label });
 }
 
+// accountId arrives from the client. Confirm the caller owns it AND that its
+// kind matches the row's type — a TRANSFER funds an asset, a REPAYMENT pays a
+// liability. Without the ownership half this is the Critical P1 shipped: an id
+// used in a write without checking who it belongs to. Per ADR-002 the Prisma
+// role bypasses RLS, so this filter is the only fence, not a second one.
+//
+// Zod (createItemForMonthSchema) has already established that an accountId is
+// present exactly for the two anchored kinds; this is the half that needs a
+// database read.
+async function requireAnchorAccount(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  type: ItemType,
+  accountId: string,
+): Promise<void> {
+  const account = await tx.account.findFirst({
+    where: { id: accountId, userId, deletedAt: null },
+    select: { kind: true },
+  });
+  if (!account) {
+    throw new Error("Account not found");
+  }
+
+  const required = type === "TRANSFER" ? "ASSET" : "LIABILITY";
+  if (account.kind !== required) {
+    throw new Error(
+      `A ${type} must target a ${required.toLowerCase()} account, not ${account.kind.toLowerCase()}`,
+    );
+  }
+}
+
 // Adds a row to a month, creating that month's FinancialPeriod if this is the
 // first row in it.
 //
@@ -92,13 +123,18 @@ export async function createItemForMonth(input: CreateItemForMonthInput) {
   const parsed = createItemForMonthSchema.parse(input);
   const range = monthRangeFor(parsed.year, parsed.month);
 
-  // Income rows get an incomeCategory; expense rows get a category.
+  // Income rows get an incomeCategory; expense rows get a category. Both
+  // stay null for TRANSFER/REPAYMENT rows, which anchor to an account instead.
   const category =
     parsed.type === "EXPENSE" ? (parsed.category ?? "FIXED") : null;
   const incomeCategory =
     parsed.type === "INCOME" ? (parsed.incomeCategory ?? "OTHER") : null;
 
   return prisma.$transaction(async (tx) => {
+    if (parsed.accountId) {
+      await requireAnchorAccount(tx, userId, parsed.type, parsed.accountId);
+    }
+
     const period = await ensurePeriodForMonthIn(tx, userId, range);
 
     // New row's sortOrder = max(sortOrder) + 1 within (periodId, type).
@@ -115,6 +151,8 @@ export async function createItemForMonth(input: CreateItemForMonthInput) {
         category,
         incomeCategory,
         label: parsed.label,
+        accountId: parsed.accountId ?? null,
+        direction: parsed.direction ?? null,
         sortOrder: (last?.sortOrder ?? 0) + 1,
       },
     });
