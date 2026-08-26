@@ -616,6 +616,37 @@ describe("latestReality (integration)", () => {
     expect(rows[0]?.flow).toBe(0);
   });
 
+  // The double-count guarantee rests on "a row with a categoryId is never a
+  // TRANSFER or a REPAYMENT". That holds by construction across every write
+  // path today, but the category query must enforce it rather than infer it:
+  // a future write path that broke the invariant would otherwise double-count
+  // silently — once on the account's flow, once as an expense.
+  it("ignores a transfer or repayment that somehow carries a categoryId", async () => {
+    const category = await prisma.category.create({
+      data: {
+        userId: TEST_USER_ID,
+        type: "EXPENSE",
+        category: "FIXED",
+        label: "Pension contribution",
+      },
+    });
+    const period = await monthPeriod(TEST_USER_ID, "March 2026", "2026-03-01");
+    await prisma.budgetItem.create({
+      data: {
+        periodId: period.id,
+        categoryId: category.id,
+        type: "TRANSFER",
+        direction: "INFLOW",
+        label: "Pension contribution",
+        budget: 500,
+      },
+    });
+
+    const rows = await latestReality(TEST_USER_ID);
+
+    expect(rows).toEqual([]);
+  });
+
   // Per ADR-002 the server Prisma role bypasses RLS, so the query's own
   // userId filter is the only fence. A foreign period must not feed this
   // user's account a flow.

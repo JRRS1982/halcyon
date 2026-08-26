@@ -246,8 +246,18 @@ export function resolvePlanSync(
   // £0 is also correct. Applying it here rather than in the caller keeps the
   // button's count, the markers and the confirmation honest, since all three
   // render this one object.
+  //
+  // A budgeted flow rescues a zero-valued row, because an account you have
+  // just opened at £0 and are paying £500/mo into is not an empty row — it is
+  // the case the feature exists for. Without this a Sync would report "Up to
+  // date" while the contribution never reached the projection, self-healing
+  // only once the balance went positive. A category can never take this
+  // branch: its flow is null, which is what keeps the starter-rows guard
+  // above doing its job.
   const additions = reality.filter(
-    (r) => r.value > 0 && !matched.has(keyOf(r.kind, r.linkId)),
+    (r) =>
+      (r.value > 0 || (r.flow ?? 0) > 0) &&
+      !matched.has(keyOf(r.kind, r.linkId)),
   );
 
   cascadeRemovals(removals, dependentsByParent(rows, dependents));

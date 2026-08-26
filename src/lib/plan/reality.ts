@@ -160,6 +160,15 @@ async function latestCategoryRows(userId: string): Promise<RealityRow[]> {
         where: {
           categoryId: category.id,
           deletedAt: null,
+          // The double-count guarantee, enforced rather than inferred. It
+          // rests on "a row with a categoryId is never a TRANSFER or a
+          // REPAYMENT", which holds by construction across every write path
+          // today — but this query would otherwise take whatever type it
+          // found, and a future write path that broke the invariant would
+          // double-count silently: once on the account's flow, once here as
+          // an income or expense. budgetedFlow already keys off type; this is
+          // the matching half.
+          type: { in: ["INCOME", "EXPENSE"] },
           // × 12 below assumes a monthly figure — a YEAR period would
           // otherwise inflate the annualised value twelvefold.
           period: { userId, deletedAt: null, granularity: "MONTH" },

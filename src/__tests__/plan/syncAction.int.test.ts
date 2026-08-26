@@ -997,6 +997,91 @@ describe("syncPlan (integration)", () => {
     expect(Number(after.annualContribution)).toBe(0);
   });
 
+  // An account opened at £0 and funded monthly is the case the feature exists
+  // for. The additions guard drops zero-valued rows so a new user's plan does
+  // not open on ~17 empty starter categories — but a row with a flow is not an
+  // empty row. Dropped, this Sync would report "Up to date" while £6,000/yr
+  // never reached the projection, self-healing only once the balance went
+  // positive.
+  it("adds a row for an account worth nothing that is being paid into", async () => {
+    await emptyPlan();
+    const account = await prisma.account.create({
+      data: {
+        userId: TEST_USER_ID,
+        name: "Vanguard SIPP",
+        kind: "ASSET",
+        category: "LONG_TERM",
+        wrapper: "PENSION",
+      },
+    });
+    const p = await period("2026-03-01", "2026-03-01");
+    await prisma.balanceItem.create({
+      data: {
+        periodId: p.id,
+        accountId: account.id,
+        type: "ASSET",
+        category: "LONG_TERM",
+        label: "Vanguard SIPP",
+        value: 0,
+      },
+    });
+    await prisma.budgetItem.create({
+      data: {
+        periodId: p.id,
+        accountId: account.id,
+        type: "TRANSFER",
+        direction: "INFLOW",
+        label: "Pension contribution",
+        budget: 500,
+      },
+    });
+
+    const result = await syncPlan();
+
+    expect(result.additions).toHaveLength(1);
+    const asset = await prisma.planAsset.findFirstOrThrow({
+      where: { accountId: account.id },
+    });
+    expect(Number(asset.openingValue)).toBe(0);
+    expect(Number(asset.annualContribution)).toBe(6000);
+
+    const second = await syncPlan();
+
+    expect(second.additions).toEqual([]);
+    expect(second.updates).toEqual([]);
+    expect(second.unchanged).toEqual([asset.id]);
+  });
+
+  // The guard's original purpose still holds: provisionUserSettings seeds ~17
+  // starter categories at £0, and a category has no flow to rescue it.
+  it("still adds nothing for a category budgeted at zero", async () => {
+    await emptyPlan();
+    const category = await prisma.category.create({
+      data: {
+        userId: TEST_USER_ID,
+        type: "EXPENSE",
+        category: "FIXED",
+        label: "Childcare",
+      },
+    });
+    const p = await period("2026-03-01", "2026-03-01");
+    await prisma.budgetItem.create({
+      data: {
+        periodId: p.id,
+        categoryId: category.id,
+        type: "EXPENSE",
+        category: "FIXED",
+        label: "Childcare",
+        budget: 0,
+      },
+    });
+
+    const result = await syncPlan();
+
+    expect(result.additions).toEqual([]);
+    expect(await prisma.planExpense.count()).toBe(0);
+  });
+
   // A withdrawal is not a contribution: TRANSFER OUTFLOW has no plan wiring,
   // and it must not reach annualContribution by the back door.
   it("does not turn a TRANSFER OUTFLOW into a contribution", async () => {

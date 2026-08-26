@@ -200,10 +200,52 @@ describe("resolvePlanSync", () => {
   it("does not add a row worth nothing", () => {
     const result = resolve(
       [],
-      [realityRow({ linkId: "c1", kind: "EXPENSE", value: 0, wrapper: null })],
+      [
+        realityRow({
+          linkId: "c1",
+          kind: "EXPENSE",
+          value: 0,
+          wrapper: null,
+          // What latestCategoryRows actually produces for a category: no flow
+          // column exists for one, so nothing rescues this row from the guard.
+          flow: null,
+        }),
+      ],
     );
     expect(result.additions).toEqual([]);
     expect(syncChangeCount(result)).toBe(0);
+  });
+
+  // The other side of that guard. An account recorded at £0 that you are
+  // budgeting £500/mo into is not an empty row — it is the whole point of the
+  // feature, and dropping it would report "Up to date" while £6,000/yr never
+  // reached the projection. It would self-heal only once the balance went
+  // positive, which is exactly the silent failure this plan guards against.
+  it("adds a row worth nothing that carries a budgeted flow", () => {
+    const opened = realityRow({ linkId: "a9", value: 0, flow: 6000 });
+    const result = resolve([], [opened]);
+    expect(result.additions).toEqual([opened]);
+    expect(syncChangeCount(result)).toBe(1);
+  });
+
+  // The flow rescues a zero-valued row, it does not rescue every row: a zero
+  // flow is as absent as no flow at all.
+  it("does not add a zero-valued row whose flow is also zero", () => {
+    const result = resolve(
+      [],
+      [realityRow({ linkId: "a9", value: 0, flow: 0 })],
+    );
+    expect(result.additions).toEqual([]);
+  });
+
+  // Symmetric with "worth less than nothing" above: a negative flow is not a
+  // contribution, so it cannot stand in for one.
+  it("does not add a zero-valued row whose flow is less than nothing", () => {
+    const result = resolve(
+      [],
+      [realityRow({ linkId: "a9", value: 0, flow: -50 })],
+    );
+    expect(result.additions).toEqual([]);
   });
 
   it("does not add a row worth less than nothing", () => {
