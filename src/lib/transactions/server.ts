@@ -4,12 +4,7 @@ import { sectionLabel } from "@/lib/categories/buckets";
 import { categoryKey, cleanLabel } from "@/lib/categories/normalize";
 import { prisma } from "@/lib/prisma";
 import { PAGE_SIZE } from "./pagination";
-import {
-  netTransfersByAccount,
-  netTransfersForAccounts,
-  type TransferAccountRow,
-  type TransferLeg,
-} from "./transfers";
+import { netTransfersForAccounts, type TransferLeg } from "./transfers";
 
 export type LedgerCategory = {
   id: string;
@@ -347,18 +342,6 @@ async function transferLegs(
         ]
       : [],
   );
-}
-
-// Per-account transfer flow for a period: signed net plus counterparty
-// breakdown. Only transfer-tagged rows (transferAccountId set) participate, so
-// income/expense is untouched. The owning account keys each row (see
-// netTransfersByAccount) — the two legs of one transfer never collapse.
-export async function getTransfersByAccount(
-  userId: string,
-  start: Date,
-  end: Date,
-): Promise<TransferAccountRow[]> {
-  return netTransfersByAccount(await transferLegs(userId, start, end));
 }
 
 // Net transfer flow per account for a period, signed relative to each account.
