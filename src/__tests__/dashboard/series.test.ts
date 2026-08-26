@@ -1,4 +1,8 @@
-import { balanceSeries, cashFlowSeries } from "@/lib/dashboard/series";
+import {
+  balanceSeries,
+  cashFlowSeries,
+  monthFlow,
+} from "@/lib/dashboard/series";
 
 describe("balanceSeries", () => {
   const sums = (overrides = {}) => ({
@@ -75,5 +79,44 @@ describe("cashFlowSeries", () => {
     ]);
     expect(point?.net).toBe(-1000);
     expect(point?.savingsRatePct).toBe(-50);
+  });
+});
+
+describe("monthFlow", () => {
+  test("income and expenses are the two series", () => {
+    expect(
+      monthFlow([
+        { type: "INCOME", actual: 8000 },
+        { type: "EXPENSE", actual: 2000 },
+        { type: "EXPENSE", actual: 500 },
+      ]),
+    ).toEqual({ income: 8000, expense: 2500 });
+  });
+
+  // The loop this replaces was `if INCOME … else expense`, which files a
+  // transfer — money you still own — under spending the moment such a row
+  // exists.
+  test("a transfer is not spending", () => {
+    expect(
+      monthFlow([
+        { type: "INCOME", actual: 8000 },
+        { type: "TRANSFER", actual: 500 },
+      ]),
+    ).toEqual({ income: 8000, expense: 0 });
+  });
+
+  // A repayment's actual is netted by account, a source this chart does not
+  // read, so counting it as spending would report a figure nothing computed.
+  test("a repayment is not counted here either", () => {
+    expect(
+      monthFlow([
+        { type: "EXPENSE", actual: 2000 },
+        { type: "REPAYMENT", actual: 1250 },
+      ]),
+    ).toEqual({ income: 0, expense: 2000 });
+  });
+
+  test("a month with nothing in it flows nothing", () => {
+    expect(monthFlow([])).toEqual({ income: 0, expense: 0 });
   });
 });

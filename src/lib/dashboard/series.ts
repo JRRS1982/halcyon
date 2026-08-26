@@ -86,6 +86,32 @@ export function trailingAverageSeries(
 
 export type MonthFlow = { month: string; income: number; expense: number };
 
+// One month's budget rows, as this chart sees them.
+export type FlowRow = {
+  type: "INCOME" | "EXPENSE" | "TRANSFER" | "REPAYMENT";
+  actual: number;
+};
+
+// Splits a month's rows into the chart's two series. Only the category-keyed
+// kinds classify. A TRANSFER is money you still own, not spending. A REPAYMENT
+// is spending on the budget sheet, but its actual is netted by account — a
+// source this page does not read — so counting it here would chart a figure
+// nothing computed. Both are excluded rather than lumped in with expenses,
+// which is what an `if INCOME … else expense` does the moment such a row
+// exists. A transfers series would be its own chart; this is not it.
+export function monthFlow(rows: FlowRow[]): {
+  income: number;
+  expense: number;
+} {
+  let income = 0;
+  let expense = 0;
+  for (const row of rows) {
+    if (row.type === "INCOME") income += row.actual;
+    else if (row.type === "EXPENSE") expense += row.actual;
+  }
+  return { income, expense };
+}
+
 export type CashFlowPoint = {
   month: string;
   income: number;

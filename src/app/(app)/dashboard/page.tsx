@@ -8,6 +8,7 @@ import {
   cashFlowSeries,
   type ExpenditurePoint,
   type MonthFlow,
+  monthFlow,
 } from "@/lib/dashboard/series";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserSettings } from "@/lib/settings/server";
@@ -97,7 +98,8 @@ export default async function DashboardPage() {
     // Mirrors the full Prisma ItemType enum: a BudgetItem can be any of the
     // four kinds. netActual computes only the category-keyed ones and returns
     // 0 for TRANSFER/REPAYMENT, whose actual comes from the account-keyed
-    // source — no dashboard chart reads such rows yet.
+    // source this page does not read. No chart counts such a row — see
+    // monthFlow, which excludes them rather than filing them as spending.
     type: "INCOME" | "EXPENSE" | "TRANSFER" | "REPAYMENT";
     categoryId: string | null;
     actual: unknown;
@@ -219,14 +221,12 @@ export default async function DashboardPage() {
       })),
     );
 
-    let income = 0;
-    let expense = 0;
-    for (const it of p.items) {
-      const r = rollups.get(it.id);
-      if (!r) continue;
-      if (it.type === "INCOME") income += r.actual;
-      else expense += r.actual;
-    }
+    const { income, expense } = monthFlow(
+      p.items.flatMap((it) => {
+        const r = rollups.get(it.id);
+        return r ? [{ type: it.type, actual: r.actual }] : [];
+      }),
+    );
     cashFlowInput.push({ month: monthLabel(p.startDate), income, expense });
   }
   const cashFlowData = cashFlowSeries(cashFlowInput);
