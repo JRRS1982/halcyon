@@ -95,9 +95,9 @@ export default async function DashboardPage() {
 
   type OverlayableItem = {
     // Mirrors the full Prisma ItemType enum: a BudgetItem can be any of the
-    // four kinds. netActual only special-cases EXPENSE, so a
-    // TRANSFER/REPAYMENT item nets the same way INCOME does today — no
-    // dashboard chart currently reads such rows differently.
+    // four kinds. netActual computes only the category-keyed ones and returns
+    // 0 for TRANSFER/REPAYMENT, whose actual comes from the account-keyed
+    // source — no dashboard chart reads such rows yet.
     type: "INCOME" | "EXPENSE" | "TRANSFER" | "REPAYMENT";
     categoryId: string | null;
     actual: unknown;

@@ -27,6 +27,14 @@ describe("netActual", () => {
   test("sums are rounded to cents (no float drift)", () => {
     expect(netActual([-0.1, -0.2], "EXPENSE")).toBe(0.3);
   });
+
+  test("account-keyed kinds never take a category-keyed actual", () => {
+    // TRANSFER/REPAYMENT rows key on an account, not a category: their actual
+    // comes from netTransfersForAccounts. Excluded explicitly here rather than
+    // by relying on such rows happening to carry no categoryId.
+    expect(netActual([500, -200], "TRANSFER")).toBe(0);
+    expect(netActual([-500, 200], "REPAYMENT")).toBe(0);
+  });
 });
 
 describe("amountsByMonthAndCategory", () => {

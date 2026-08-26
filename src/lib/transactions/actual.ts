@@ -6,12 +6,20 @@
 // net correctly. Rounded to cents to avoid float drift on the sum.
 
 // Mirrors the full Prisma ItemType enum (INCOME/EXPENSE/TRANSFER/REPAYMENT):
-// a BudgetItem's type can be any of the four, even though only EXPENSE flips
-// the sign below — TRANSFER/REPAYMENT netting is unowned by this function
-// until a later task defines it.
+// a BudgetItem's type can be any of the four, but only the two category-keyed
+// kinds have an actual this function can compute.
 export type ItemType = "INCOME" | "EXPENSE" | "TRANSFER" | "REPAYMENT";
 
+// TRANSFER/REPAYMENT rows key on an account, not a category, so their actual
+// comes from netTransfersForAccounts (see ./transfers). Excluded here by kind
+// rather than by relying on such rows happening to carry no categoryId — an
+// accident is not a boundary.
+const isAccountKeyed = (type: ItemType): boolean =>
+  type === "TRANSFER" || type === "REPAYMENT";
+
 export function netActual(amounts: number[], type: ItemType): number {
+  if (isAccountKeyed(type)) return 0;
+
   const sum = amounts.reduce((total, amount) => total + amount, 0);
   const oriented = type === "EXPENSE" ? -sum : sum;
   const rounded = Math.round(oriented * 100) / 100;
