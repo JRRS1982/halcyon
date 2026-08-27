@@ -1,4 +1,8 @@
-import { netTransfersForAccounts } from "@/lib/transactions/transfers";
+import {
+  monthAccountKey,
+  netTransfersByMonthAndAccount,
+  netTransfersForAccounts,
+} from "@/lib/transactions/transfers";
 
 const leg = (accountId: string, counterpartyId: string, amount: number) => ({
   accountId,
@@ -85,5 +89,52 @@ describe("netTransfersForAccounts", () => {
 
   test("no legs at all yields no entries", () => {
     expect(netTransfersForAccounts([], []).size).toBe(0);
+  });
+});
+
+describe("netTransfersByMonthAndAccount", () => {
+  const dated = (
+    accountId: string,
+    counterpartyId: string,
+    amount: number,
+    date: string,
+  ) => ({ ...leg(accountId, counterpartyId, amount), date: new Date(date) });
+
+  // The whole reason for bucketing: netting a twelve-month window in one go
+  // gives a figure that is no month's flow.
+  test("each month nets on its own", () => {
+    const flow = netTransfersByMonthAndAccount([
+      dated("current", "mortgage", -1250, "2026-03-10"),
+      dated("current", "mortgage", -1250, "2026-04-10"),
+    ]);
+
+    expect(flow.get(monthAccountKey(new Date("2026-03-01"), "mortgage"))).toBe(
+      1250,
+    );
+    expect(flow.get(monthAccountKey(new Date("2026-04-01"), "mortgage"))).toBe(
+      1250,
+    );
+  });
+
+  // The per-counterparty-pair source rule has to hold inside a bucket too, or
+  // a month with both statements imported would count one movement twice.
+  test("both legs of one movement in one month still count once", () => {
+    const flow = netTransfersByMonthAndAccount([
+      dated("current", "pension", -500, "2026-03-10"),
+      dated("pension", "current", 500, "2026-03-10"),
+    ]);
+
+    expect(flow.get(monthAccountKey(new Date("2026-03-01"), "pension"))).toBe(
+      500,
+    );
+  });
+
+  test("a month with no legs has no entry", () => {
+    const flow = netTransfersByMonthAndAccount([
+      dated("current", "pension", -500, "2026-03-10"),
+    ]);
+    expect(
+      flow.get(monthAccountKey(new Date("2026-04-01"), "pension")),
+    ).toBeUndefined();
   });
 });

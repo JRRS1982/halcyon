@@ -84,10 +84,17 @@ there — calling it an inflow because `null` is falsy is exactly the silent
 mis-signing this feature exists to avoid.
 
 Repayments *are* subtracted, transfers are not "spending": a pension
-contribution never appears in the Expenses total, and the dashboard's
-cash-flow chart excludes both new kinds rather than filing them as spending
-(`monthFlow`, [`src/lib/dashboard/series.ts`](../../src/lib/dashboard/series.ts)).
-A transfers series would be its own chart; it is not built.
+contribution never appears in the Expenses total. The dashboard's cash-flow
+chart applies the same rule — a `REPAYMENT` counts as expenditure, a `TRANSFER`
+counts as neither series (`monthFlow`,
+[`src/lib/dashboard/series.ts`](../../src/lib/dashboard/series.ts)) — so
+converting a mortgage from an `EXPENSE` category row to a `REPAYMENT` row
+leaves the charted expenditure and the savings rate where they were. That
+takes two things, not one: `monthFlow` classifying the row, and the dashboard
+reading the account-keyed actual source in transactions mode
+(`getTransferFlowByMonthAndAccount`), without which a repayment charts zero
+however it is classified. A transfers series would be its own chart; it is
+not built.
 
 ## Where an anchored row's actual comes from
 

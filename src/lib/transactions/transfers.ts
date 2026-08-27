@@ -62,3 +62,43 @@ export function netTransfersForAccounts(
   }
   return net;
 }
+
+// A leg with the date it fell on, so a multi-month window can be split into
+// months before netting. Netting per month rather than over the whole window
+// is what keeps each month's figure its own: the window-wide net of twelve
+// mortgage payments is not any month's flow.
+export type DatedTransferLeg = TransferLeg & { date: Date };
+
+const utcMonth = (date: Date): string =>
+  `${date.getUTCFullYear()}-${date.getUTCMonth()}`;
+
+// Key for one account's flow within one calendar month. Mirrors
+// monthCategoryKey in ./actual — both a transaction date and a period start
+// date resolve to the same key via the UTC month.
+export function monthAccountKey(date: Date, accountId: string): string {
+  return `${utcMonth(date)}:${accountId}`;
+}
+
+// Net transfer flow per (UTC month, account), so a whole window can be
+// overlaid onto budget rows from one query. Each month is netted on its own by
+// netTransfersForAccounts, so the per-counterparty-pair source rule — and with
+// it the impossibility of double-counting — applies within each month.
+export function netTransfersByMonthAndAccount(
+  legs: DatedTransferLeg[],
+): Map<string, number> {
+  const byMonth = new Map<string, DatedTransferLeg[]>();
+  for (const leg of legs) {
+    const month = utcMonth(leg.date);
+    const bucket = byMonth.get(month);
+    if (bucket) bucket.push(leg);
+    else byMonth.set(month, [leg]);
+  }
+
+  const flow = new Map<string, number>();
+  for (const [month, bucket] of byMonth) {
+    for (const [accountId, net] of netTransfersForAccounts(bucket, bucket)) {
+      flow.set(`${month}:${accountId}`, net);
+    }
+  }
+  return flow;
+}

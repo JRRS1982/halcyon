@@ -5,7 +5,11 @@ import { sectionLabel } from "@/lib/categories/buckets";
 import { categoryKey, cleanLabel } from "@/lib/categories/normalize";
 import { prisma } from "@/lib/prisma";
 import { PAGE_SIZE } from "./pagination";
-import { netTransfersForAccounts, type TransferLeg } from "./transfers";
+import {
+  type DatedTransferLeg,
+  netTransfersByMonthAndAccount,
+  netTransfersForAccounts,
+} from "./transfers";
 
 export type LedgerCategory = {
   id: string;
@@ -315,7 +319,7 @@ async function transferLegs(
   userId: string,
   start: Date,
   end: Date,
-): Promise<TransferLeg[]> {
+): Promise<DatedTransferLeg[]> {
   const rows = await prisma.transaction.findMany({
     where: {
       userId,
@@ -325,6 +329,7 @@ async function transferLegs(
     },
     select: {
       amount: true,
+      date: true,
       account: { select: { id: true, name: true } },
       transferAccount: { select: { id: true, name: true } },
     },
@@ -339,6 +344,7 @@ async function transferLegs(
             counterpartyId: r.transferAccount.id,
             counterpartyName: r.transferAccount.name,
             amount: Number(r.amount),
+            date: r.date,
           },
         ]
       : [],
@@ -359,6 +365,18 @@ export async function getTransferFlowByAccount(
   // counterparty pair, so passing the whole set to both is correct, not
   // double-counting.
   return netTransfersForAccounts(legs, legs);
+}
+
+// The same flow bucketed by (UTC month, account), for a window spanning more
+// than one month — the dashboard's twelve. One query for the whole window, the
+// account-keyed mirror of getAmountsByCategory's month-bucketed form; look a
+// row up with monthAccountKey(period.startDate, item.accountId).
+export async function getTransferFlowByMonthAndAccount(
+  userId: string,
+  start: Date,
+  end: Date,
+): Promise<Map<string, number>> {
+  return netTransfersByMonthAndAccount(await transferLegs(userId, start, end));
 }
 
 // Active accounts for the ledger's transfer picker (id + name + kind). Not

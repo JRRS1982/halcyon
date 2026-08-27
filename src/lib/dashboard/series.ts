@@ -92,13 +92,19 @@ export type FlowRow = {
   actual: number;
 };
 
-// Splits a month's rows into the chart's two series. Only the category-keyed
-// kinds classify. A TRANSFER is money you still own, not spending. A REPAYMENT
-// is spending on the budget sheet, but its actual is netted by account — a
-// source this page does not read — so counting it here would chart a figure
-// nothing computed. Both are excluded rather than lumped in with expenses,
-// which is what an `if INCOME … else expense` does the moment such a row
-// exists. A transfers series would be its own chart; this is not it.
+// Splits a month's rows into the chart's two series, on the same rule the
+// budget sheet uses (`sectionOf`, `surplus`): a REPAYMENT is spending — the
+// money genuinely left the account — and a TRANSFER is not, because a pension
+// contribution is money you still own.
+//
+// Getting the repayment half wrong is not a rounding error: converting a
+// mortgage from an EXPENSE category row to a REPAYMENT row, which is exactly
+// what this feature invites, would otherwise halve the charted expenditure
+// and jump the savings rate while the budget sheet's total stood still.
+//
+// A transfer is excluded rather than lumped in with expenses, which is what an
+// `if INCOME … else expense` does the moment such a row exists. A transfers
+// series would be its own chart; this is not it.
 export function monthFlow(rows: FlowRow[]): {
   income: number;
   expense: number;
@@ -107,7 +113,8 @@ export function monthFlow(rows: FlowRow[]): {
   let expense = 0;
   for (const row of rows) {
     if (row.type === "INCOME") income += row.actual;
-    else if (row.type === "EXPENSE") expense += row.actual;
+    else if (row.type === "EXPENSE" || row.type === "REPAYMENT")
+      expense += row.actual;
   }
   return { income, expense };
 }
