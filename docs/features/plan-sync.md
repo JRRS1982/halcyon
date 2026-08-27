@@ -24,7 +24,7 @@ record.
 | | |
 |---|---|
 | **Replaced** | opening values, annual amounts, labels, an asset's wrapper, the budgeted flow into an account (an asset's annual contribution, a liability's monthly repayment), and *which rows exist* |
-| **Kept** | expected return, fees, drawdown priority, min access age, contribution end age, interest rate, interest-only flag, growth kind, taxable flag, start/end ages, retirement age, inflation, return spread, tax rate, state pension, and every `PlanEvent` **except** a `PROPERTY_SALE` whose property is being removed |
+| **Kept** | expected return, fees, drawdown priority, min access age, contribution end age, interest rate, interest-only flag, growth kind, taxable flag, start/end ages, retirement age, inflation, return spread, tax regime, inflation-linked thresholds, state pension, and every `PlanEvent` **except** a `PROPERTY_SALE` whose property is being removed |
 | **Removed** | rows whose link is null (plan-only), rows whose account or category is gone — archived or hard-deleted alike — and everything that cannot outlive one of those: a property's mortgage, a mortgage's repayment expense, a property's sale events |
 
 One press, decided by `resolvePlanSync`
