@@ -27,8 +27,15 @@ import {
 } from "@/lib/budget/schemas";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
-import { netActual } from "@/lib/transactions/actual";
-import { getAmountsByCategory } from "@/lib/transactions/server";
+import {
+  accountActual,
+  isAccountKeyed,
+  netActual,
+} from "@/lib/transactions/actual";
+import {
+  getAmountsByCategory,
+  getTransferFlowByAccount,
+} from "@/lib/transactions/server";
 
 // Prisma `Decimal` can't cross the server→client boundary (it serialises to
 // `{}`); the budget sheet consumes budget/actual as numbers (`SerializedItem`),
@@ -410,9 +417,16 @@ export async function copyPeriodFrom(input: CopyPeriodFromInput) {
   };
 }
 
-// In transactions mode a row's actual is computed from its category's
-// transactions, not the stored column — mirror the budget page's overlay so
-// the client can adopt the returned rows without a refetch showing 0s.
+// In transactions mode a row's actual is computed from its transactions, not
+// the stored column — mirror the budget page's overlay so the client can adopt
+// the returned rows without a refetch showing 0s.
+//
+// Both halves of that overlay, routed on the row's kind exactly as the page
+// routes: a category-keyed row nets its category's transactions, an
+// account-keyed one nets its account's transfer flow. With only the category
+// half, copying a month with a real mortgage flow already recorded returned
+// the repayment at £0.00 — the row, the Expenses actual and "Left over" all
+// wrong until the user navigated away and back.
 async function withComputedActuals(
   userId: string,
   items: CopiedItem[],
@@ -430,11 +444,21 @@ async function withComputedActuals(
     range.startDate,
     range.endDate,
   );
+  const transferFlow = items.some((i) => isAccountKeyed(i.type))
+    ? await getTransferFlowByAccount(userId, range.startDate, range.endDate)
+    : new Map<string, number>();
+
   return items.map((i) => ({
     ...i,
-    actual: i.categoryId
-      ? netActual(amounts.get(i.categoryId) ?? [], i.type)
-      : 0,
+    actual: isAccountKeyed(i.type)
+      ? accountActual(
+          transferFlow.get(i.accountId ?? "") ?? 0,
+          i.type,
+          i.direction,
+        )
+      : i.categoryId
+        ? netActual(amounts.get(i.categoryId) ?? [], i.type)
+        : 0,
   }));
 }
 
