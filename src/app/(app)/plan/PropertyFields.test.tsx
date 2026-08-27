@@ -1,6 +1,12 @@
 /** @jest-environment jsdom */
 
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { ThemeProvider } from "styled-components";
 import { theme } from "@/lib/theme";
 import { PropertyFields } from "./PropertyFields";
@@ -73,7 +79,7 @@ describe("PropertyFields", () => {
     ).toBeInTheDocument();
   });
 
-  it("calls createMortgageForProperty with the property id on Add mortgage", () => {
+  it("calls createMortgageForProperty with the property id on Add mortgage", async () => {
     renderWithTheme(
       <PropertyFields
         property={property}
@@ -81,7 +87,11 @@ describe("PropertyFields", () => {
         repayment={undefined}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: /add mortgage/i }));
+    // The click starts an async action that settles state when it finishes, so
+    // the interaction has to be awaited rather than asserted on mid-flight.
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /add mortgage/i }));
+    });
     expect(createMortgageForProperty).toHaveBeenCalledWith({
       assetId: "asset-1",
     });
@@ -145,7 +155,7 @@ describe("PropertyFields", () => {
     );
   });
 
-  it("calls deletePlanLiability with the mortgage id on Remove mortgage", () => {
+  it("calls deletePlanLiability with the mortgage id on Remove mortgage", async () => {
     renderWithTheme(
       <PropertyFields
         property={property}
@@ -153,8 +163,46 @@ describe("PropertyFields", () => {
         repayment={repayment}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: /remove mortgage/i }));
+    // See Add mortgage above: awaited, same assertion.
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /remove mortgage/i }));
+    });
     expect(deletePlanLiability).toHaveBeenCalledWith({ id: mortgage.id });
+  });
+
+  // A mortgage is created by a bare button with no form and no navigation
+  // behind it, so nothing but the disabled state stops a second click landing
+  // while the first is still in flight and creating a second mortgage.
+  it("disables Add mortgage until it settles, so a double-click adds one", async () => {
+    let settle: (id: string) => void = () => {};
+    // Nothing in this file clears mocks between tests, and an earlier test
+    // already clicked this button — so the count starts from zero here.
+    createMortgageForProperty.mockClear();
+    createMortgageForProperty.mockImplementationOnce(
+      () =>
+        new Promise<string>((resolve) => {
+          settle = resolve;
+        }),
+    );
+    renderWithTheme(
+      <PropertyFields
+        property={property}
+        mortgage={undefined}
+        repayment={undefined}
+      />,
+    );
+    const button = screen.getByRole("button", { name: /add mortgage/i });
+
+    fireEvent.click(button);
+    expect(button).toBeDisabled();
+
+    fireEvent.click(button);
+    expect(createMortgageForProperty).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      settle("liab-1");
+    });
+    expect(button).not.toBeDisabled();
   });
 
   it("toggling interest-only calls updatePlanLiability with interestOnly true", () => {
