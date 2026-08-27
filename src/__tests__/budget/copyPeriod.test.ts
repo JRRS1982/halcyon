@@ -15,6 +15,8 @@ const src = (
   category: "FIXED",
   incomeCategory: null,
   categoryId: null,
+  accountId: null,
+  direction: null,
   label: id,
   budget: 100,
   sortOrder: 0,
@@ -42,6 +44,35 @@ describe("buildCopiedItems", () => {
     );
     expect(copied[0]?.categoryId).toBe("cat-1");
     expect(copied[1]?.categoryId).toBeNull();
+  });
+
+  test("carries the anchor a transfer/repayment row hangs on", () => {
+    const copied = buildCopiedItems(
+      [
+        src("isa", {
+          type: "TRANSFER",
+          category: null,
+          accountId: "acct-1",
+          direction: "OUTFLOW",
+        }),
+        src("mortgage", {
+          type: "REPAYMENT",
+          category: null,
+          accountId: "acct-2",
+        }),
+      ],
+      seqIds(),
+    );
+    expect(copied[0]).toMatchObject({
+      type: "TRANSFER",
+      accountId: "acct-1",
+      direction: "OUTFLOW",
+    });
+    expect(copied[1]).toMatchObject({
+      type: "REPAYMENT",
+      accountId: "acct-2",
+      direction: null,
+    });
   });
 
   test("keeps type, category, incomeCategory, label and sortOrder", () => {

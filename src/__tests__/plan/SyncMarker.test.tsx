@@ -49,7 +49,12 @@ describe("SyncMarker", () => {
 
     render(
       <ThemeProvider theme={theme}>
-        <SyncMarker {...rowMarkerProps("l1", plan, "GBP", "COMMA_0")} />
+        <SyncMarker
+          {...rowMarkerProps("l1", plan, "GBP", "COMMA_0", {
+            value: 250000,
+            flow: 1250,
+          })}
+        />
       </ThemeProvider>,
     );
 
@@ -61,7 +66,13 @@ describe("SyncMarker", () => {
   test("the changed marker shows the source figure from plan.updates", () => {
     const plan: SyncPlan = {
       updates: [
-        { id: "p1", value: 81002, label: "AJ Bell SIPP", wrapper: null },
+        {
+          id: "p1",
+          value: 81002,
+          label: "AJ Bell SIPP",
+          wrapper: null,
+          flow: 0,
+        },
       ],
       additions: [],
       removals: [],
@@ -70,7 +81,12 @@ describe("SyncMarker", () => {
 
     render(
       <ThemeProvider theme={theme}>
-        <SyncMarker {...rowMarkerProps("p1", plan, "GBP", "COMMA_0")} />
+        <SyncMarker
+          {...rowMarkerProps("p1", plan, "GBP", "COMMA_0", {
+            value: 70000,
+            flow: 0,
+          })}
+        />
       </ThemeProvider>,
     );
 
@@ -87,7 +103,12 @@ describe("SyncMarker", () => {
 
     render(
       <ThemeProvider theme={theme}>
-        <SyncMarker {...rowMarkerProps("p3", plan, "GBP", "COMMA_0")} />
+        <SyncMarker
+          {...rowMarkerProps("p3", plan, "GBP", "COMMA_0", {
+            value: 70000,
+            flow: 0,
+          })}
+        />
       </ThemeProvider>,
     );
 
@@ -107,7 +128,114 @@ describe("SyncMarker", () => {
 
     render(
       <ThemeProvider theme={theme}>
-        <SyncMarker {...rowMarkerProps("p2", plan, "GBP", "COMMA_0")} />
+        <SyncMarker
+          {...rowMarkerProps("p2", plan, "GBP", "COMMA_0", {
+            value: 70000,
+            flow: null,
+          })}
+        />
+      </ThemeProvider>,
+    );
+
+    expect(screen.queryByText(/£/)).not.toBeInTheDocument();
+  });
+  // The documented mitigation for this branch's one deliberate behaviour
+  // change is this marker: a hand-typed monthlyRepayment with no REPAYMENT
+  // budget row resets to 0 on the next Sync, and the ● is the only warning.
+  // Showing the row's own £250,000 back at it made that warning useless —
+  // nothing on screen had changed.
+  test("when only the flow differs, the figure shown is the flow", () => {
+    const plan: SyncPlan = {
+      updates: [
+        {
+          id: "l1",
+          value: 250000,
+          label: "Halifax mortgage",
+          wrapper: null,
+          flow: 0,
+        },
+      ],
+      additions: [],
+      removals: [],
+      unchanged: [],
+    };
+
+    render(
+      <ThemeProvider theme={theme}>
+        <SyncMarker
+          {...rowMarkerProps("l1", plan, "GBP", "COMMA_0", {
+            value: 250000,
+            flow: 1250,
+          })}
+        />
+      </ThemeProvider>,
+    );
+
+    expect(screen.queryByText("£250,000")).not.toBeInTheDocument();
+    expect(screen.getByText("£0")).toBeInTheDocument();
+    // And the name says what it is: the flow comes from the budget sheet, not
+    // the balance sheet the default name names.
+    expect(screen.getByRole("img").getAttribute("aria-label")).toMatch(
+      /budget sheet/i,
+    );
+  });
+
+  test("when both differ, the value is the figure shown", () => {
+    const plan: SyncPlan = {
+      updates: [
+        {
+          id: "l1",
+          value: 240000,
+          label: "Halifax mortgage",
+          wrapper: null,
+          flow: 0,
+        },
+      ],
+      additions: [],
+      removals: [],
+      unchanged: [],
+    };
+
+    render(
+      <ThemeProvider theme={theme}>
+        <SyncMarker
+          {...rowMarkerProps("l1", plan, "GBP", "COMMA_0", {
+            value: 250000,
+            flow: 1250,
+          })}
+        />
+      </ThemeProvider>,
+    );
+
+    expect(screen.getByText("£240,000")).toBeInTheDocument();
+  });
+
+  // A label-only rename is a real update, and neither figure moved. Printing
+  // the row's own value beside it would be the same false statement.
+  test("when neither figure differs, no figure is shown", () => {
+    const plan: SyncPlan = {
+      updates: [
+        {
+          id: "p1",
+          value: 70000,
+          label: "AJ Bell SIPP",
+          wrapper: null,
+          flow: 0,
+        },
+      ],
+      additions: [],
+      removals: [],
+      unchanged: [],
+    };
+
+    render(
+      <ThemeProvider theme={theme}>
+        <SyncMarker
+          {...rowMarkerProps("p1", plan, "GBP", "COMMA_0", {
+            value: 70000,
+            flow: 0,
+          })}
+        />
       </ThemeProvider>,
     );
 

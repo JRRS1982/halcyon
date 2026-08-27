@@ -8,16 +8,23 @@ import {
   cashFlowSeries,
   type ExpenditurePoint,
   type MonthFlow,
+  monthFlow,
 } from "@/lib/dashboard/series";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserSettings } from "@/lib/settings/server";
 import { getCurrentUser } from "@/lib/supabase/user";
 import {
+  accountActual,
   amountsByMonthAndCategory,
+  isAccountKeyed,
   monthCategoryKey,
   netActual,
 } from "@/lib/transactions/actual";
-import { countUncategorized } from "@/lib/transactions/server";
+import {
+  countUncategorized,
+  getTransferFlowByMonthAndAccount,
+} from "@/lib/transactions/server";
+import { monthAccountKey } from "@/lib/transactions/transfers";
 import { DashboardView } from "./DashboardView";
 
 const WINDOW_MONTHS = 12;
@@ -93,21 +100,49 @@ export default async function DashboardPage() {
       )
     : new Map<string, number[]>();
 
+  // The account-keyed half of the same overlay: a TRANSFER/REPAYMENT row's
+  // actual is netted by account, not by category, so it needs its own source.
+  // Without it a repayment charted 0 in transactions mode however monthFlow
+  // classified it — the second of the two exclusions that dropped repayments
+  // from the cash-flow chart. Bucketed by month from one query, exactly as the
+  // category amounts above are; bounded by the last period loaded, so it spans
+  // the same window the charts do.
+  const windowEnd = periods.at(-1)?.endDate ?? now.endDate;
+  const transferFlow =
+    transactionsEnabled &&
+    periods.some((p) => p.items.some((i) => isAccountKeyed(i.type)))
+      ? await getTransferFlowByMonthAndAccount(user.id, windowStart, windowEnd)
+      : new Map<string, number>();
+
   type OverlayableItem = {
-    type: "INCOME" | "EXPENSE";
+    // Mirrors the full Prisma ItemType enum: a BudgetItem can be any of the
+    // four kinds, and each half of the overlay computes only its own — routed
+    // on the row's kind rather than on whether an id happens to be set, the
+    // same rule the budget page uses.
+    type: "INCOME" | "EXPENSE" | "TRANSFER" | "REPAYMENT";
     categoryId: string | null;
+    accountId: string | null;
+    direction: "INFLOW" | "OUTFLOW" | null;
     actual: unknown;
   };
-  const actualFor = (periodStart: Date, item: OverlayableItem): number =>
-    transactionsEnabled
-      ? netActual(
-          item.categoryId
-            ? (txAmounts.get(monthCategoryKey(periodStart, item.categoryId)) ??
-                [])
-            : [],
-          item.type,
-        )
-      : Number(item.actual);
+  const actualFor = (periodStart: Date, item: OverlayableItem): number => {
+    if (!transactionsEnabled) return Number(item.actual);
+    if (isAccountKeyed(item.type))
+      return accountActual(
+        item.accountId
+          ? (transferFlow.get(monthAccountKey(periodStart, item.accountId)) ??
+              0)
+          : 0,
+        item.type,
+        item.direction,
+      );
+    return netActual(
+      item.categoryId
+        ? (txAmounts.get(monthCategoryKey(periodStart, item.categoryId)) ?? [])
+        : [],
+      item.type,
+    );
+  };
 
   // ─── Balance series: one point per month that has balance data ────────────
   const balanceSums: BalanceSums[] = [];
@@ -202,9 +237,11 @@ export default async function DashboardPage() {
   // ─── Cash flow: income vs expense actuals per month ───────────────────────
   const cashFlowInput: MonthFlow[] = [];
   for (const p of periods) {
-    const hasIncome = p.items.some((i) => i.type === "INCOME");
-    const hasExpense = p.items.some((i) => i.type === "EXPENSE");
-    if (!hasIncome && !hasExpense) continue;
+    // REPAYMENT counts here for the same reason it counts in monthFlow: it is
+    // spending, so a month holding only repayments has a cash flow to chart.
+    // A TRANSFER is the one kind neither series reads.
+    const hasChartedRow = p.items.some((i) => i.type !== "TRANSFER");
+    if (!hasChartedRow) continue;
 
     const rollups = computeRollups(
       p.items.map((i) => ({
@@ -215,14 +252,12 @@ export default async function DashboardPage() {
       })),
     );
 
-    let income = 0;
-    let expense = 0;
-    for (const it of p.items) {
-      const r = rollups.get(it.id);
-      if (!r) continue;
-      if (it.type === "INCOME") income += r.actual;
-      else expense += r.actual;
-    }
+    const { income, expense } = monthFlow(
+      p.items.flatMap((it) => {
+        const r = rollups.get(it.id);
+        return r ? [{ type: it.type, actual: r.actual }] : [];
+      }),
+    );
     cashFlowInput.push({ month: monthLabel(p.startDate), income, expense });
   }
   const cashFlowData = cashFlowSeries(cashFlowInput);

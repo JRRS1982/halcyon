@@ -203,7 +203,16 @@ export function ExpensesTable({
               secondary={`${e.liabilityId ? "Repayment" : e.category} · ${formatAmount(currency, e.annualAmount, numberFormat)}/yr`}
               marker={
                 <SyncMarker
-                  {...rowMarkerProps(e.id, syncPreview, currency, numberFormat)}
+                  {...rowMarkerProps(
+                    e.id,
+                    syncPreview,
+                    currency,
+                    numberFormat,
+                    {
+                      value: e.annualAmount,
+                      flow: null,
+                    },
+                  )}
                 />
               }
               onOpen={() => onOpen(e.id)}

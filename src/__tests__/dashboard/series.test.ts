@@ -1,4 +1,8 @@
-import { balanceSeries, cashFlowSeries } from "@/lib/dashboard/series";
+import {
+  balanceSeries,
+  cashFlowSeries,
+  monthFlow,
+} from "@/lib/dashboard/series";
 
 describe("balanceSeries", () => {
   const sums = (overrides = {}) => ({
@@ -75,5 +79,68 @@ describe("cashFlowSeries", () => {
     ]);
     expect(point?.net).toBe(-1000);
     expect(point?.savingsRatePct).toBe(-50);
+  });
+});
+
+describe("monthFlow", () => {
+  test("income and expenses are the two series", () => {
+    expect(
+      monthFlow([
+        { type: "INCOME", actual: 8000 },
+        { type: "EXPENSE", actual: 2000 },
+        { type: "EXPENSE", actual: 500 },
+      ]),
+    ).toEqual({ income: 8000, expense: 2500 });
+  });
+
+  // The loop this replaces was `if INCOME … else expense`, which files a
+  // transfer — money you still own — under spending the moment such a row
+  // exists.
+  test("a transfer is not spending", () => {
+    expect(
+      monthFlow([
+        { type: "INCOME", actual: 8000 },
+        { type: "TRANSFER", actual: 500 },
+      ]),
+    ).toEqual({ income: 8000, expense: 0 });
+  });
+
+  // A repayment IS spending — the budget sheet files it under Expenses and
+  // `surplus` subtracts it. Excluding it here made converting a mortgage from
+  // an EXPENSE category row to a REPAYMENT row look like the money stopped
+  // going out.
+  test("a repayment is spending", () => {
+    expect(
+      monthFlow([
+        { type: "EXPENSE", actual: 2000 },
+        { type: "REPAYMENT", actual: 1250 },
+      ]),
+    ).toEqual({ income: 0, expense: 3250 });
+  });
+
+  // The concrete regression: £4,000 in, £1,250 of ordinary expenses and a
+  // £1,250 mortgage. Charting the mortgage as an EXPENSE category row and as a
+  // REPAYMENT row must give the same savings rate — nothing about the user's
+  // finances changed.
+  test("converting a mortgage to a repayment does not move the savings rate", () => {
+    const asExpense = monthFlow([
+      { type: "INCOME", actual: 4000 },
+      { type: "EXPENSE", actual: 1250 },
+      { type: "EXPENSE", actual: 1250 },
+    ]);
+    const asRepayment = monthFlow([
+      { type: "INCOME", actual: 4000 },
+      { type: "EXPENSE", actual: 1250 },
+      { type: "REPAYMENT", actual: 1250 },
+    ]);
+
+    expect(asRepayment).toEqual(asExpense);
+    expect(
+      cashFlowSeries([{ month: "Mar 26", ...asRepayment }])[0]?.savingsRatePct,
+    ).toBe(37.5);
+  });
+
+  test("a month with nothing in it flows nothing", () => {
+    expect(monthFlow([])).toEqual({ income: 0, expense: 0 });
   });
 });

@@ -1,5 +1,7 @@
 import {
+  accountActual,
   amountsByMonthAndCategory,
+  isAccountKeyed,
   monthCategoryKey,
   netActual,
 } from "@/lib/transactions/actual";
@@ -26,6 +28,14 @@ describe("netActual", () => {
 
   test("sums are rounded to cents (no float drift)", () => {
     expect(netActual([-0.1, -0.2], "EXPENSE")).toBe(0.3);
+  });
+
+  test("account-keyed kinds never take a category-keyed actual", () => {
+    // TRANSFER/REPAYMENT rows key on an account, not a category: their actual
+    // comes from netTransfersForAccounts. Excluded explicitly here rather than
+    // by relying on such rows happening to carry no categoryId.
+    expect(netActual([500, -200], "TRANSFER")).toBe(0);
+    expect(netActual([-500, 200], "REPAYMENT")).toBe(0);
   });
 });
 
@@ -57,5 +67,57 @@ describe("amountsByMonthAndCategory", () => {
     expect(
       grouped.get(monthCategoryKey(d("2026-03-01T00:00:00Z"), "food")),
     ).toEqual([-1]);
+  });
+});
+
+describe("isAccountKeyed", () => {
+  test("names the two kinds whose actual comes from an account", () => {
+    expect(isAccountKeyed("TRANSFER")).toBe(true);
+    expect(isAccountKeyed("REPAYMENT")).toBe(true);
+    expect(isAccountKeyed("INCOME")).toBe(false);
+    expect(isAccountKeyed("EXPENSE")).toBe(false);
+  });
+});
+
+describe("accountActual", () => {
+  // netTransfersForAccounts signs its net relative to the named account:
+  // money into it is positive. An INFLOW row budgets money going in, so the
+  // account-relative sign is already the one the row means.
+  test("a transfer INFLOW reads the account's net as-is", () => {
+    expect(accountActual(500, "TRANSFER", "INFLOW")).toBe(500);
+  });
+
+  // OUTFLOW budgets money coming back out, which the account sees as negative.
+  // The row's actual is what moved, so the sign flips.
+  test("a transfer OUTFLOW flips the account's sign", () => {
+    expect(accountActual(-500, "TRANSFER", "OUTFLOW")).toBe(500);
+  });
+
+  test("the two directions are not interchangeable", () => {
+    expect(accountActual(500, "TRANSFER", "INFLOW")).toBe(
+      -accountActual(500, "TRANSFER", "OUTFLOW"),
+    );
+  });
+
+  // Money at a debt lands in the liability account, which reads positive from
+  // that account's side. A repayment carries no direction at all.
+  test("a repayment reads the debt account's net as-is", () => {
+    expect(accountActual(1250, "REPAYMENT", null)).toBe(1250);
+  });
+
+  // Budgeting an inflow and seeing money leave is a real reading, not a
+  // rounding error — it must survive rather than be clamped to zero.
+  test("a movement that went the other way reads negative", () => {
+    expect(accountActual(-200, "TRANSFER", "INFLOW")).toBe(-200);
+  });
+
+  test("category-keyed kinds have no account actual", () => {
+    expect(accountActual(500, "INCOME", null)).toBe(0);
+    expect(accountActual(500, "EXPENSE", null)).toBe(0);
+  });
+
+  test("rounds to cents and normalises -0", () => {
+    expect(accountActual(0.1 + 0.2, "TRANSFER", "INFLOW")).toBe(0.3);
+    expect(Object.is(accountActual(0, "TRANSFER", "OUTFLOW"), 0)).toBe(true);
   });
 });

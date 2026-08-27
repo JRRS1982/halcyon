@@ -164,7 +164,15 @@ export type NewCategoryInput = {
   bucket: string;
 };
 
-export type LedgerAccount = { id: string; name: string };
+export type LedgerAccount = {
+  id: string;
+  name: string;
+  kind: "ASSET" | "LIABILITY" | "NONE";
+  // Present for completeness only — never gated on. A mortgage you don't
+  // import statements from must still be a valid transfer/repayment target,
+  // so the picker deliberately ignores this field.
+  canImportTransactions?: boolean;
+};
 
 type Props = {
   categories: LedgerCategory[];
@@ -275,6 +283,13 @@ export function CategoryCombobox({
   const accountMatches = trimmed
     ? transferable.filter((a) => a.name.toLowerCase().includes(needle))
     : transferable;
+  // Split on kind, not re-derived: every account in accountMatches lands in
+  // exactly one of these two, so nothing is dropped. LIABILITY accounts are
+  // repayments; everything else — ASSET, and the plain kind: NONE accounts
+  // most current/checking accounts default to — is a Transfer, matching the
+  // single group's pre-split behaviour.
+  const liabilityMatches = accountMatches.filter((a) => a.kind === "LIABILITY");
+  const assetMatches = accountMatches.filter((a) => a.kind !== "LIABILITY");
   const accountExact = transferable.some(
     (a) => a.name.toLowerCase() === needle,
   );
@@ -353,7 +368,7 @@ export function CategoryCombobox({
     {
       heading: "Transfers",
       options: [
-        ...accountMatches.map((a) => ({
+        ...assetMatches.map((a) => ({
           key: a.id,
           label: <OptionLabel $tone="transfer">{a.name}</OptionLabel>,
           meta: `transfer ${transferWord}`,
@@ -377,6 +392,15 @@ export function CategoryCombobox({
             ]
           : []),
       ],
+    },
+    {
+      heading: "Repayments",
+      options: liabilityMatches.map((a) => ({
+        key: a.id,
+        label: <OptionLabel $tone="transfer">{a.name}</OptionLabel>,
+        meta: "repay",
+        run: () => chooseAccount(a.id),
+      })),
     },
   ];
   const navOptions = groups.flatMap((g) => g.options);
@@ -494,7 +518,11 @@ export function CategoryCombobox({
             {groups.map((group) => {
               if (group.options.length === 0) return null;
               return (
-                <li key={group.heading ?? "__top__"} role="presentation">
+                <li
+                  key={group.heading ?? "__top__"}
+                  role={group.heading ? "group" : "presentation"}
+                  aria-label={group.heading ?? undefined}
+                >
                   <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
                     {group.heading && (
                       <GroupHeading role="presentation">

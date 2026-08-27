@@ -20,6 +20,9 @@ const planRow = (over: Partial<PlanRow> = {}): PlanRow => ({
   linkId: "a1",
   value: 42300,
   wrapper: "ISA",
+  // The common case for an account row: nothing budgeted into it. Null is for
+  // INCOME/EXPENSE rows, which have no flow column to mirror at all.
+  flow: 0,
   dependsOn: null,
   ...over,
 });
@@ -30,6 +33,7 @@ const realityRow = (over: Partial<RealityRow> = {}): RealityRow => ({
   label: "Vanguard ISA",
   value: 42300,
   wrapper: "ISA",
+  flow: 0,
   defaults: { ...NO_DEFAULTS, drawdownPriority: 2 },
   ...over,
 });
@@ -56,7 +60,13 @@ describe("resolvePlanSync", () => {
   it("updates a row whose value has moved", () => {
     const result = resolve([planRow({ value: 80000 })], [realityRow()]);
     expect(result.updates).toEqual([
-      { id: "p1", value: 42300, label: "Vanguard ISA", wrapper: "ISA" },
+      {
+        id: "p1",
+        value: 42300,
+        label: "Vanguard ISA",
+        wrapper: "ISA",
+        flow: 0,
+      },
     ]);
     expect(result.unchanged).toEqual([]);
   });
@@ -74,7 +84,13 @@ describe("resolvePlanSync", () => {
       [realityRow({ label: "Vanguard S&S ISA" })],
     );
     expect(result.updates).toEqual([
-      { id: "p1", value: 42300, label: "Vanguard S&S ISA", wrapper: "ISA" },
+      {
+        id: "p1",
+        value: 42300,
+        label: "Vanguard S&S ISA",
+        wrapper: "ISA",
+        flow: 0,
+      },
     ]);
   });
 
@@ -85,7 +101,13 @@ describe("resolvePlanSync", () => {
   it("updates a row whose wrapper changed, even with value and label unchanged", () => {
     const result = resolve([planRow()], [realityRow({ wrapper: "GIA" })]);
     expect(result.updates).toEqual([
-      { id: "p1", value: 42300, label: "Vanguard ISA", wrapper: "GIA" },
+      {
+        id: "p1",
+        value: 42300,
+        label: "Vanguard ISA",
+        wrapper: "GIA",
+        flow: 0,
+      },
     ]);
     expect(result.unchanged).toEqual([]);
   });
@@ -178,10 +200,52 @@ describe("resolvePlanSync", () => {
   it("does not add a row worth nothing", () => {
     const result = resolve(
       [],
-      [realityRow({ linkId: "c1", kind: "EXPENSE", value: 0, wrapper: null })],
+      [
+        realityRow({
+          linkId: "c1",
+          kind: "EXPENSE",
+          value: 0,
+          wrapper: null,
+          // What latestCategoryRows actually produces for a category: no flow
+          // column exists for one, so nothing rescues this row from the guard.
+          flow: null,
+        }),
+      ],
     );
     expect(result.additions).toEqual([]);
     expect(syncChangeCount(result)).toBe(0);
+  });
+
+  // The other side of that guard. An account recorded at £0 that you are
+  // budgeting £500/mo into is not an empty row — it is the whole point of the
+  // feature, and dropping it would report "Up to date" while £6,000/yr never
+  // reached the projection. It would self-heal only once the balance went
+  // positive, which is exactly the silent failure this plan guards against.
+  it("adds a row worth nothing that carries a budgeted flow", () => {
+    const opened = realityRow({ linkId: "a9", value: 0, flow: 6000 });
+    const result = resolve([], [opened]);
+    expect(result.additions).toEqual([opened]);
+    expect(syncChangeCount(result)).toBe(1);
+  });
+
+  // The flow rescues a zero-valued row, it does not rescue every row: a zero
+  // flow is as absent as no flow at all.
+  it("does not add a zero-valued row whose flow is also zero", () => {
+    const result = resolve(
+      [],
+      [realityRow({ linkId: "a9", value: 0, flow: 0 })],
+    );
+    expect(result.additions).toEqual([]);
+  });
+
+  // Symmetric with "worth less than nothing" above: a negative flow is not a
+  // contribution, so it cannot stand in for one.
+  it("does not add a zero-valued row whose flow is less than nothing", () => {
+    const result = resolve(
+      [],
+      [realityRow({ linkId: "a9", value: 0, flow: -50 })],
+    );
+    expect(result.additions).toEqual([]);
   });
 
   it("does not add a row worth less than nothing", () => {
@@ -200,7 +264,7 @@ describe("resolvePlanSync", () => {
     );
     expect(result.removals).toEqual([]);
     expect(result.updates).toEqual([
-      { id: "p1", value: 0, label: "Vanguard ISA", wrapper: null },
+      { id: "p1", value: 0, label: "Vanguard ISA", wrapper: null, flow: 0 },
     ]);
   });
 
@@ -211,6 +275,106 @@ describe("resolvePlanSync", () => {
     );
     expect(result.removals).toEqual([]);
     expect(result.unchanged).toEqual(["p1"]);
+  });
+
+  // A budgeted contribution or repayment is reality-owned, exactly like the
+  // value, the label and the wrapper: change what you budget and the Sync
+  // button's count includes it. Nothing here creates a row — the flow rides
+  // on the row that already mirrors that account.
+  it("updates a row whose flow changed, with value, label and wrapper unchanged", () => {
+    const result = resolve(
+      [planRow({ flow: 2400 })],
+      [realityRow({ flow: 3000 })],
+    );
+    expect(result.updates).toEqual([
+      {
+        id: "p1",
+        value: 42300,
+        label: "Vanguard ISA",
+        wrapper: "ISA",
+        flow: 3000,
+      },
+    ]);
+    expect(result.unchanged).toEqual([]);
+  });
+
+  it("leaves a row whose flow already matches", () => {
+    const result = resolve(
+      [planRow({ flow: 2400 })],
+      [realityRow({ flow: 2400 })],
+    );
+    expect(result.updates).toEqual([]);
+    expect(result.unchanged).toEqual(["p1"]);
+  });
+
+  // Stopping a contribution is a change like any other: reality now says zero,
+  // and the row must be brought back to zero rather than paying in forever.
+  it("updates a row whose flow has fallen to zero", () => {
+    const result = resolve(
+      [planRow({ flow: 2400 })],
+      [realityRow({ flow: 0 })],
+    );
+    expect(result.updates).toEqual([
+      {
+        id: "p1",
+        value: 42300,
+        label: "Vanguard ISA",
+        wrapper: "ISA",
+        flow: 0,
+      },
+    ]);
+  });
+
+  // A monthly figure, carried across unchanged: liabilityStep does its own
+  // × 12, so the annualising that ASSET rows get must not happen twice.
+  it("carries a liability's monthly flow through an update", () => {
+    const result = resolve(
+      [planRow({ kind: "LIABILITY", wrapper: null, value: 250000, flow: 0 })],
+      [
+        realityRow({
+          kind: "LIABILITY",
+          wrapper: null,
+          value: 250000,
+          flow: 1250,
+        }),
+      ],
+    );
+    expect(result.updates).toEqual([
+      {
+        id: "p1",
+        value: 250000,
+        label: "Vanguard ISA",
+        wrapper: null,
+        flow: 1250,
+      },
+    ]);
+  });
+
+  // INCOME and EXPENSE rows mirror a category, and a category never carries a
+  // flow — there is no column on PlanIncome/PlanExpense for one to land in.
+  // Null on both sides, so a category row is never reported changed for it.
+  it("treats a category row's absent flow as no change", () => {
+    const result = resolve(
+      [planRow({ kind: "EXPENSE", linkId: "c1", wrapper: null, flow: null })],
+      [
+        realityRow({
+          kind: "EXPENSE",
+          linkId: "c1",
+          wrapper: null,
+          flow: null,
+        }),
+      ],
+    );
+    expect(result.updates).toEqual([]);
+    expect(result.unchanged).toEqual(["p1"]);
+  });
+
+  it("counts a flow-only change in the Sync button's total", () => {
+    const result = resolve(
+      [planRow({ flow: 2400 })],
+      [realityRow({ flow: 3000 })],
+    );
+    expect(syncChangeCount(result)).toBe(1);
   });
 });
 

@@ -256,7 +256,16 @@ export function LiabilitiesTable({
               }
               marker={
                 <SyncMarker
-                  {...rowMarkerProps(l.id, syncPreview, currency, numberFormat)}
+                  {...rowMarkerProps(
+                    l.id,
+                    syncPreview,
+                    currency,
+                    numberFormat,
+                    {
+                      value: l.openingBalance,
+                      flow: l.monthlyRepayment,
+                    },
+                  )}
                 />
               }
               onOpen={() => onOpen(l.id)}

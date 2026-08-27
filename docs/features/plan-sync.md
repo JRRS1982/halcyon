@@ -23,15 +23,15 @@ record.
 
 | | |
 |---|---|
-| **Replaced** | opening values, annual amounts, labels, an asset's wrapper, and *which rows exist* |
-| **Kept** | expected return, fees, drawdown priority, min access age, contribution end age, interest rate, interest-only flag, monthly repayment, growth kind, taxable flag, start/end ages, retirement age, inflation, return spread, tax rate, state pension, and every `PlanEvent` **except** a `PROPERTY_SALE` whose property is being removed |
+| **Replaced** | opening values, annual amounts, labels, an asset's wrapper, the budgeted flow into an account (an asset's annual contribution, a liability's monthly repayment), and *which rows exist* |
+| **Kept** | expected return, fees, drawdown priority, min access age, contribution end age, interest rate, interest-only flag, growth kind, taxable flag, start/end ages, retirement age, inflation, return spread, tax rate, state pension, and every `PlanEvent` **except** a `PROPERTY_SALE` whose property is being removed |
 | **Removed** | rows whose link is null (plan-only), rows whose account or category is gone — archived or hard-deleted alike — and everything that cannot outlive one of those: a property's mortgage, a mortgage's repayment expense, a property's sale events |
 
 One press, decided by `resolvePlanSync`
 ([`src/lib/plan/sync.ts`](../../src/lib/plan/sync.ts)):
 
-1. **Updates** every linked row whose value, label or wrapper differs from the
-   latest observation.
+1. **Updates** every linked row whose value, label, wrapper or budgeted flow
+   differs from the latest observation.
 2. **Adds** a row for anything on the balance sheet or budget the plan lacks
    (subject to the zero-value guard, below).
 3. **Removes** rows whose account or category no longer exists. "Stop
@@ -51,6 +51,26 @@ alone.
 Matching is by **kind *and* link id** (`keyOf` builds `ASSET::<uuid>`). An
 account id and a category id could collide, and an asset row must never
 resolve against an income — kind is part of the identity, not a filter.
+
+### ⚠️ Contributions and repayments moved from Kept to Replaced
+
+`PlanAsset.annualContribution` and `PlanLiability.monthlyRepayment` used to be
+Kept assumptions. They are now **Replaced**, fed by the budget's `TRANSFER`
+and `REPAYMENT` rows — see [`budget-transfers.md`](budget-transfers.md).
+
+They could not stay Kept and also be fed by the budget; those are contradictory
+rules. The alternative considered was "a null flow means leave it alone", and
+it was rejected because it can never **clear** a contribution when its budget
+row is deleted — a stale figure no edit can remove is worse than a visible
+reset.
+
+> **Consequence.** An existing user's hand-typed mortgage repayment, with no
+> matching `REPAYMENT` budget row, **resets to 0 on their next Sync.**
+
+It is not silent: the row carries a `●` changed marker beforehand and is
+counted in the button's change count. But nothing on screen says *why*, which
+is what this note is for. The fix for an affected user is to add the matching
+budget row, which is the thing the field now mirrors.
 
 ## Removal is complete
 
@@ -119,6 +139,8 @@ the pair, which is what selling a house means, avoids it entirely.
 | `PlanLiability.openingBalance` | latest `BalanceItem.value` for the account |
 | `PlanIncome.annualAmount` | latest `BudgetItem.budget` **× 12** for the category |
 | `PlanExpense.annualAmount` | latest `BudgetItem.budget` **× 12** for the category |
+| `PlanAsset.annualContribution` | latest `TRANSFER` `INFLOW` `BudgetItem.budget` **× 12** for the account |
+| `PlanLiability.monthlyRepayment` | latest `REPAYMENT` `BudgetItem.budget` for the account, **as stored** |
 
 Read by `latestReality` ([`src/lib/plan/reality.ts`](../../src/lib/plan/reality.ts)),
 one row per live account and per live budget category:
@@ -152,6 +174,14 @@ one row per live account and per live budget category:
 - **Labels come from `Account.name` and `Category.label`**, not from the
   period row's own label, so a rename propagates into the plan on the next
   Sync.
+- **The two flow columns are annual and monthly respectively, and that is
+  deliberate** — each is stored in the unit its own plan drawer displays, and
+  `liabilityStep` does its own × 12 inside the projection. The flow is keyed
+  off the *target account's* kind rather than the budget row's own type, so a
+  mispaired row can never be found and misread. An account row's flow is
+  always a number (`0` when nothing is budgeted, for an `OUTFLOW`, or for a
+  YEAR-only row); `null` belongs to `INCOME`/`EXPENSE` rows, which have no
+  flow column at all. See [`budget-transfers.md`](budget-transfers.md).
 
 ## Addition-time defaults are not updates
 
@@ -201,6 +231,13 @@ zeros out of `latestReality`, and the difference is not cosmetic:
 - Refusing to **create** a new row at £0 is also correct: `provisionUserSettings`
   seeds ~17 starter budget categories at £0, and without the guard a new
   user's first plan opens on a table of empty lines.
+- **A budgeted flow rescues a zero-valued account row.** The test is
+  `value > 0 || (flow ?? 0) > 0`: an account opened at £0 with £500/mo
+  budgeted into it is not an empty row, it is the case P3 exists for.
+  Otherwise Sync would report "Up to date" while the contribution never
+  reached the projection, self-healing only once the balance went positive. A
+  category can never take this branch — its flow is `null` — so the starter-row
+  guard above is untouched.
 
 Putting the guard inside `resolvePlanSync` rather than in its caller keeps the
 button's count, the row markers and the confirmation list honest — all three
@@ -361,12 +398,14 @@ tombstone never occupies the slot the next Sync needs.
 
 ## Out of scope, named so nobody builds them by accident
 
-- **Contributions and repayments.** `PlanAsset.annualContribution` and
-  `PlanLiability.monthlyRepayment` describe money *flowing* into an asset or
-  against a debt. Those come from budget **transfers**, which do not exist
-  until P3 adds `ItemType.TRANSFER`. So a synced pension shows £0 going in.
-  This ships as a visible gap rather than a guess, and it is the natural seam
-  between P2 and P3.
+- ~~**Contributions and repayments.**~~ **Built in P3** — a budget `TRANSFER`
+  now feeds `PlanAsset.annualContribution` and a budget `REPAYMENT` feeds
+  `PlanLiability.monthlyRepayment`. A synced pension no longer shows £0 going
+  in, and a synced mortgage amortises. See
+  [`budget-transfers.md`](budget-transfers.md); the rule change this forced is
+  described under *The one rule*, above. A `TRANSFER` `OUTFLOW` still does not
+  reach the projection: the plan derives withdrawals from deficits, and
+  budgeting them needs engine work.
 - **Distinguishing "you changed this" from "reality moved"** — see the
   indicator section: needs a stored `syncedValue` per field and changes no
   behaviour.
@@ -423,22 +462,32 @@ tombstone never occupies the slot the next Sync needs.
   Not silent in practice — an event is only ever `reason: "cascade"`, which
   always gates the confirmation, so it is always named before it goes — but it
   is the one removable thing the indicator does not cover.
-- **A budget category cannot say it is a debt repayment.** Nothing links a
-  `Category` to an `Account`, so a budgeted mortgage payment syncs in as an
-  ordinary `PlanExpense` with `liabilityId` null. Two consequences: a synced
-  mortgage takes `monthlyRepayment: 0`, so the payment drains cash while the
-  balance never moves; and if the user sets that field by hand or uses the plan's
-  mortgage drawer, the same payment is counted twice. The projection machinery
-  is already right — `PlanExpense.liabilityId` routes a linked expense out of the
-  category totals and into `annualPayments`, and `liabilityStep` derives the
-  interest/principal split from `interestPct` — so the whole fix is the missing
-  link, not new maths.
-- **Repayments are not transfers, and P3 must not merge them.** The design doc
-  defers "contributions and repayments" together to `ItemType.TRANSFER`. A
-  transfer is net-worth-neutral, which is right for pension contributions and
-  savings; a mortgage payment is not, because the interest is consumed. Routing
-  repayments through transfers would overstate net worth by the interest every
-  year. They are two shapes and need two mechanisms.
+- **A budget category still cannot say it is a debt repayment — half the gap
+  is closed, and the double-count is the open half.** P3 added a *parallel* row
+  kind rather than the `Category` → `Account` link this gap called for. A
+  budget row can now anchor to an `Account`: `ItemType.REPAYMENT` carries an
+  `accountId` at a `kind: LIABILITY` account and feeds
+  `PlanLiability.monthlyRepayment`, so a synced mortgage amortises — that half
+  is done, and the projection machinery needed no change, as predicted. Note
+  the shape the gap warned about is *not* what shipped: a repayment did **not**
+  get routed through a transfer. `TRANSFER` and `REPAYMENT` are two kinds,
+  because a transfer is net-worth-neutral and a mortgage payment is not — its
+  interest is consumed. See [`budget-transfers.md`](budget-transfers.md).
+
+  What is **not** closed is the double-count. Nothing detects a budget
+  `EXPENSE` row on a "Mortgage" *category* coexisting with a `REPAYMENT` row on
+  the mortgage *account*. `latestCategoryRows` mints a `PlanExpense` at
+  £15,000/yr from the first, and `monthlyRepayment` £1,250 becomes £15,000/yr
+  of `liab.repaid` from the second: £30,000/yr of outflow for one £15,000
+  payment. Keeping both rows is the *natural* migration path, because an
+  expense-category row was the only way to record a mortgage before P3. The
+  `type: { in: ["INCOME", "EXPENSE"] }` filter in `latestCategoryRows` is not
+  this fence — it stops a *single* row being counted on both sides, which is a
+  different thing from two rows describing the same payment. Closing it needs
+  the link the gap originally named, so that a category can declare itself a
+  repayment at an account and be excluded from the category totals; until then
+  the migration note in [`budget-transfers.md`](budget-transfers.md) is the
+  only mitigation.
 
 ## Code map
 
@@ -453,7 +502,7 @@ tombstone never occupies the slot the next Sync needs.
 | `createPlan` as a sync against an empty plan | [`src/app/(app)/plan/actions.ts`](<../../src/app/(app)/plan/actions.ts>) |
 | Button, counts, breakdown, confirmation gate | [`src/app/(app)/plan/SyncButton.tsx`](<../../src/app/(app)/plan/SyncButton.tsx>) |
 | Row state from a `SyncPlan` | [`src/app/(app)/plan/syncIndicator.ts`](<../../src/app/(app)/plan/syncIndicator.ts>) |
-| Marker glyphs, accessible names, source figure | [`src/app/(app)/plan/SyncMarker.tsx`](<../../src/app/(app)/plan/SyncMarker.tsx>) |
+| Marker glyphs, accessible names, which figure a changed row shows | [`src/app/(app)/plan/SyncMarker.tsx`](<../../src/app/(app)/plan/SyncMarker.tsx>) |
 | Removal confirmation | [`src/app/(app)/plan/SyncRemovalDialog.tsx`](<../../src/app/(app)/plan/SyncRemovalDialog.tsx>) |
 
 ### Testing
@@ -465,7 +514,8 @@ tombstone never occupies the slot the next Sync needs.
   (counts, breakdown, all three confirmation branches — plan-only, a `"gone"`
   row that drags something, and a `"gone"` row that does not),
   `SyncMarker.test.tsx` (four distinct accessible names, asserted structurally
-  as a set), `SyncRemovalDialog.test.tsx` (names attached rows and what they go
+  as a set; and which figure a changed row shows — the value when it moved, the
+  flow when only it moved, none when neither did), `SyncRemovalDialog.test.tsx` (names attached rows and what they go
   with; does not name the `"gone"` rows themselves).
 - **Integration** (`*.int.test.ts`, real Postgres) — `planLinks.int.test.ts`
   (the four links, and `SetNull` proved by the row surviving), `reality.int.test.ts`,
@@ -477,5 +527,7 @@ tombstone never occupies the slot the next Sync needs.
   `toPlanInput` holds no event or mortgage pointing at an asset that is gone).
 - **E2E** — `e2e/plan-sync.spec.ts`: change a balance value, see the `●`
   marker and the source figure, press Sync, see the value update and the button
-  read `Up to date`. A server-action journey, so chromium-gated per the repo's
-  browser-coverage rule.
+  read `Up to date`. `e2e/budget-transfers.spec.ts` covers the P3 half: budget
+  a repayment at a mortgage, press Sync, find it on the liability's
+  `monthlyRepayment`. Both are server-action journeys, so both are
+  chromium-gated per the repo's browser-coverage rule.

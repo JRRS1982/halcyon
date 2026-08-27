@@ -30,10 +30,12 @@ places:
 `Account` carries `kind`, `category`, `wrapper`, `canImportTransactions` and
 `linkedAccountId`. `BalanceItem` and `BudgetItem` each gained a nullable
 `accountId` — nullable because unlinked and legacy rows still parse, with
-`label` staying as the fallback exactly as it always was. P1 only wires the
+`label` staying as the fallback exactly as it always was. P1 only wired the
 balance side; the budget side (`BudgetItem.accountId`) landed in the schema
-so the delete path is honest (see "What P1 does not do," below), but nothing
-writes it yet.
+so the delete path was honest (see "What P1 does not do," below) but nothing
+wrote it. **P3 writes it**: a budget row of kind `TRANSFER` or `REPAYMENT`
+anchors to an `Account` instead of a `Category` — see
+[`budget-transfers.md`](budget-transfers.md).
 
 ## Plan values are editable — a P1 decision, reversed in P2
 
@@ -179,10 +181,14 @@ scoping:
   a Sync against an empty one. See [`plan-sync.md`](plan-sync.md).
   `PlanLiability.linkedAssetId` still exists alongside
   `Account.linkedAccountId` — retiring that duplication remains unstarted.
-- **The budget side is schema-only.** `BudgetItem.accountId` exists so the
-  delete path (`deleteAccountEverywhere`) is honest about what it removes, but
-  nothing writes it — there's no budget Add drawer, no `ItemType.TRANSFER`,
-  and `TransfersPanel` is untouched. That's all P3.
+- ~~**The budget side is schema-only.**~~ **P3 wired it.**
+  `BudgetItem.accountId` is now written by the budget sheet's `+ Transfer` and
+  `+ Repayment` drawers, `ItemType` carries `TRANSFER` and `REPAYMENT`, and
+  `TransfersPanel` has been deleted — a tagged transfer transaction no longer
+  conjures a budget row, it fills the actual of a row the user added. The
+  `Account.kind` a row may anchor to is fenced in the action:
+  `TRANSFER` → `ASSET`, `REPAYMENT` → `LIABILITY`. See
+  [`budget-transfers.md`](budget-transfers.md).
 - **`canImportTransactions` isn't consulted anywhere yet** — see the note
   under `canImportTransactions` above. Wiring the import-target picker and the
   ledger filter to it wasn't part of any task in this phase.
@@ -271,5 +277,11 @@ surfaced while building and testing this feature:
 - **`docs/DataModels/DataModels.md` still describes `Account` as
   transactions-only** ("where money sits — current, savings, ISA, SIPP"). P2
   widened the gap rather than closing it: the plan's `accountId`/`categoryId`
-  links aren't described there either. Still deferred — it wants doing
-  alongside the P3 budget-side changes, not piecemeal.
+  links aren't described there either. P3 has now widened it again —
+  `ItemType` has four members and `BudgetItem` anchors to an `Account` — so
+  the "do it alongside P3" plan has expired without being carried out. The
+  per-feature docs (this one, [`plan-sync.md`](plan-sync.md) and
+  [`budget-transfers.md`](budget-transfers.md)) are the accurate description of
+  all three phases; `DataModels.md` is the
+  one that needs rewriting, and it is now a task of its own rather than a
+  rider on someone else's.

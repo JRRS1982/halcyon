@@ -219,7 +219,16 @@ export function AssetsTable({
               }
               marker={
                 <SyncMarker
-                  {...rowMarkerProps(a.id, syncPreview, currency, numberFormat)}
+                  {...rowMarkerProps(
+                    a.id,
+                    syncPreview,
+                    currency,
+                    numberFormat,
+                    {
+                      value: a.openingValue,
+                      flow: a.annualContribution,
+                    },
+                  )}
                 />
               }
               onOpen={() => onOpen(a.id)}

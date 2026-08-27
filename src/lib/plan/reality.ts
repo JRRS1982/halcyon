@@ -22,6 +22,57 @@ function accountKindToPlanRowKind(kind: AccountKind): "ASSET" | "LIABILITY" {
   }
 }
 
+// What the budget says is flowing into an account, in the unit the plan column
+// for it is stored in.
+//
+// The plan reads the *budgeted* figure, not the actual: it is a forecast of
+// what you intend to pay in, not a record of what you did.
+//
+// Keyed off the *target* kind rather than trusting the row's own type, so a
+// REPAYMENT can never be annualised nor a TRANSFER left monthly. The Add
+// drawer's fence (requireAnchorAccount) already pairs them that way, and one
+// account carries at most one row per period (requireAccountUnbudgeted), so
+// there is exactly one row to find rather than a sum.
+//
+// Zero, never null, when nothing is budgeted: PlanAsset.annualContribution and
+// PlanLiability.monthlyRepayment both default to 0, so a null here would never
+// compare equal and every unbudgeted account would read as changed on every
+// Sync. See RealityRow.flow.
+async function budgetedFlow(
+  userId: string,
+  accountId: string,
+  kind: "ASSET" | "LIABILITY",
+): Promise<number> {
+  const latest = await prisma.budgetItem.findFirst({
+    where: {
+      accountId,
+      deletedAt: null,
+      type: kind === "ASSET" ? "TRANSFER" : "REPAYMENT",
+      // × 12 below assumes a monthly figure, and a REPAYMENT is stored monthly
+      // too — a YEAR period would misread as both.
+      period: { userId, deletedAt: null, granularity: "MONTH" },
+    },
+    orderBy: [{ period: { startDate: "desc" } }, { createdAt: "desc" }],
+    select: { direction: true, budget: true },
+  });
+  if (!latest) return 0;
+
+  // A repayment is always inward to the debt and carries no direction.
+  // monthlyRepayment is monthly because liabilityStep does its own × 12 —
+  // each column is stored in the unit its own drawer displays.
+  if (kind === "LIABILITY") return Number(latest.budget);
+
+  // A withdrawal is not a contribution. TRANSFER OUTFLOW has no plan wiring —
+  // the projection derives withdrawals from deficits — so it reads as zero
+  // rather than paying money into the asset it came out of.
+  if (latest.direction !== "INFLOW") return 0;
+
+  // Rounded to 2dp for the same reason latestCategoryRows rounds: £833.33 × 12
+  // is 9999.960000000001 in IEEE-754 and 9999.96 in the numeric(12,2) column,
+  // so an unrounded read would report this row as an update forever.
+  return Math.round(Number(latest.budget) * 1200) / 100;
+}
+
 async function latestAccountRows(userId: string): Promise<RealityRow[]> {
   const accounts = await prisma.account.findMany({
     where: { userId, deletedAt: null, kind: { not: "NONE" } },
@@ -72,6 +123,7 @@ async function latestAccountRows(userId: string): Promise<RealityRow[]> {
         // wrote last time reads back "OTHER", flagging a false update on
         // every subsequent Sync.
         wrapper: kind === "ASSET" ? (account.wrapper ?? "OTHER") : null,
+        flow: await budgetedFlow(userId, account.id, kind),
         defaults: {
           // Drawdown is an asset-only concept; PlanLiability has no such column.
           drawdownPriority:
@@ -89,7 +141,10 @@ async function latestAccountRows(userId: string): Promise<RealityRow[]> {
 
 async function latestCategoryRows(userId: string): Promise<RealityRow[]> {
   const categories = await prisma.category.findMany({
-    where: { userId, deletedAt: null },
+    // Categories are never transfers or repayments — those key on accounts,
+    // not categories — so this excludes the widened ItemType members that
+    // can never actually appear on a Category row.
+    where: { userId, deletedAt: null, type: { in: ["INCOME", "EXPENSE"] } },
     select: {
       id: true,
       label: true,
@@ -105,6 +160,15 @@ async function latestCategoryRows(userId: string): Promise<RealityRow[]> {
         where: {
           categoryId: category.id,
           deletedAt: null,
+          // The double-count guarantee, enforced rather than inferred. It
+          // rests on "a row with a categoryId is never a TRANSFER or a
+          // REPAYMENT", which holds by construction across every write path
+          // today — but this query would otherwise take whatever type it
+          // found, and a future write path that broke the invariant would
+          // double-count silently: once on the account's flow, once here as
+          // an income or expense. budgetedFlow already keys off type; this is
+          // the matching half.
+          type: { in: ["INCOME", "EXPENSE"] },
           // × 12 below assumes a monthly figure — a YEAR period would
           // otherwise inflate the annualised value twelvefold.
           period: { userId, deletedAt: null, granularity: "MONTH" },
@@ -115,10 +179,17 @@ async function latestCategoryRows(userId: string): Promise<RealityRow[]> {
       // No budget row at all: skipped, not added with zero.
       if (!latest) return null;
 
+      // The query's `where` already excludes anything but INCOME/EXPENSE —
+      // categories are never transfers or repayments — but ItemType is
+      // shared with BudgetItem/BudgetTemplateItem, so the Prisma-generated
+      // type for `category.type` is still the full enum. This narrows it
+      // back down without a cast; unreachable in practice.
+      if (category.type !== "INCOME" && category.type !== "EXPENSE") {
+        return null;
+      }
+
       const row: RealityRow = {
         linkId: category.id,
-        // ItemType's members ("INCOME" | "EXPENSE") are a subset of
-        // PlanRowKind's, so this is a direct, cast-free assignment.
         kind: category.type,
         label: category.label,
         // Rounded to 2dp, not left as the raw product: budget and
@@ -128,6 +199,9 @@ async function latestCategoryRows(userId: string): Promise<RealityRow[]> {
         // unrounded in resolvePlanSync, that row reads as an update forever.
         value: Math.round(Number(latest.budget) * 1200) / 100,
         wrapper: null,
+        // A category is not an account: there is no PlanIncome/PlanExpense
+        // column for money to flow into, so this row never carries one.
+        flow: null,
         defaults: {
           drawdownPriority: null,
           incomeKind:

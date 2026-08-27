@@ -492,7 +492,13 @@ describe("syncPlan (integration)", () => {
     const result = await syncPlan();
 
     expect(result.updates).toEqual([
-      { id: asset.id, value: 42300, label: "Vanguard ISA", wrapper: "ISA" },
+      {
+        id: asset.id,
+        value: 42300,
+        label: "Vanguard ISA",
+        wrapper: "ISA",
+        flow: 0,
+      },
     ]);
     const after = await prisma.planAsset.findUniqueOrThrow({
       where: { id: asset.id },
@@ -655,7 +661,13 @@ describe("syncPlan (integration)", () => {
 
     expect(result.removals).toEqual([]);
     expect(result.updates).toEqual([
-      { id: expense.id, value: 0, label: "Childcare", wrapper: null },
+      {
+        id: expense.id,
+        value: 0,
+        label: "Childcare",
+        wrapper: null,
+        flow: null,
+      },
     ]);
     const after = await prisma.planExpense.findUniqueOrThrow({
       where: { id: expense.id },
@@ -768,5 +780,349 @@ describe("syncPlan (integration)", () => {
     expect(second.updates).toEqual([]);
     expect(second.removals).toEqual([]);
     expect(second.unchanged).toHaveLength(1);
+  });
+
+  // The payoff. A budgeted pension contribution used to become a PlanExpense:
+  // the money left the projection and never arrived in the pension, so the
+  // user was £6,000/yr poorer *and* the pension never grew. It now rides on
+  // the asset row that already mirrors the account.
+  it("writes a TRANSFER INFLOW into the mirrored asset's annualContribution", async () => {
+    await emptyPlan();
+    const account = await prisma.account.create({
+      data: {
+        userId: TEST_USER_ID,
+        name: "Vanguard SIPP",
+        kind: "ASSET",
+        category: "LONG_TERM",
+        wrapper: "PENSION",
+      },
+    });
+    const p = await period("2026-03-01", "2026-03-01");
+    await prisma.balanceItem.create({
+      data: {
+        periodId: p.id,
+        accountId: account.id,
+        type: "ASSET",
+        category: "LONG_TERM",
+        label: "Vanguard SIPP",
+        value: 42300,
+      },
+    });
+    // Pence, not whole pounds: 833.33 * 12 is 9999.960000000001 in IEEE-754
+    // and 9999.96 in the numeric(12,2) column. An unrounded read would report
+    // this row as an update on every press, forever.
+    await prisma.budgetItem.create({
+      data: {
+        periodId: p.id,
+        accountId: account.id,
+        type: "TRANSFER",
+        direction: "INFLOW",
+        label: "Pension contribution",
+        budget: 833.33,
+      },
+    });
+
+    await syncPlan();
+
+    const asset = await prisma.planAsset.findFirstOrThrow({
+      where: { accountId: account.id },
+    });
+    expect(Number(asset.annualContribution)).toBe(9999.96);
+    // And the money did not also leave as an expense.
+    expect(await prisma.planExpense.count()).toBe(0);
+
+    const second = await syncPlan();
+
+    expect(second.updates).toEqual([]);
+    expect(second.additions).toEqual([]);
+    expect(second.removals).toEqual([]);
+    expect(second.unchanged).toEqual([asset.id]);
+  });
+
+  // monthlyRepayment stayed 0 before this: cash went out every year and the
+  // debt never moved. It is monthly, not annualised — liabilityStep does its
+  // own × 12.
+  it("writes a REPAYMENT into the mirrored liability's monthlyRepayment, unannualised", async () => {
+    await emptyPlan();
+    const account = await prisma.account.create({
+      data: {
+        userId: TEST_USER_ID,
+        name: "Halifax mortgage",
+        kind: "LIABILITY",
+        category: "LONG_TERM",
+      },
+    });
+    const p = await period("2026-03-01", "2026-03-01");
+    await prisma.balanceItem.create({
+      data: {
+        periodId: p.id,
+        accountId: account.id,
+        type: "LIABILITY",
+        category: "LONG_TERM",
+        label: "Halifax mortgage",
+        value: 250000,
+      },
+    });
+    await prisma.budgetItem.create({
+      data: {
+        periodId: p.id,
+        accountId: account.id,
+        type: "REPAYMENT",
+        label: "Mortgage payment",
+        budget: 1250,
+      },
+    });
+
+    await syncPlan();
+
+    const liability = await prisma.planLiability.findFirstOrThrow({
+      where: { accountId: account.id },
+    });
+    expect(Number(liability.monthlyRepayment)).toBe(1250);
+    expect(await prisma.planExpense.count()).toBe(0);
+
+    const second = await syncPlan();
+
+    expect(second.updates).toEqual([]);
+    expect(second.unchanged).toEqual([liability.id]);
+  });
+
+  // A flow change on an existing row is an update like any other: the Sync
+  // button's count includes it, and the tuned assumptions around it survive.
+  it("updates a contribution the user re-budgeted, keeping the row's assumptions", async () => {
+    const plan = await emptyPlan();
+    const account = await prisma.account.create({
+      data: {
+        userId: TEST_USER_ID,
+        name: "Vanguard SIPP",
+        kind: "ASSET",
+        category: "LONG_TERM",
+        wrapper: "PENSION",
+      },
+    });
+    const p = await period("2026-03-01", "2026-03-01");
+    await prisma.balanceItem.create({
+      data: {
+        periodId: p.id,
+        accountId: account.id,
+        type: "ASSET",
+        category: "LONG_TERM",
+        label: "Vanguard SIPP",
+        value: 42300,
+      },
+    });
+    await prisma.budgetItem.create({
+      data: {
+        periodId: p.id,
+        accountId: account.id,
+        type: "TRANSFER",
+        direction: "INFLOW",
+        label: "Pension contribution",
+        budget: 500,
+      },
+    });
+    const asset = await prisma.planAsset.create({
+      data: {
+        planId: plan.id,
+        label: "Vanguard SIPP",
+        accountId: account.id,
+        openingValue: 42300,
+        wrapper: "PENSION",
+        annualContribution: 2400,
+        expectedReturnPct: 4.2,
+        contributionEndAge: 55,
+      },
+    });
+
+    const result = await syncPlan();
+
+    expect(result.updates).toEqual([
+      {
+        id: asset.id,
+        value: 42300,
+        label: "Vanguard SIPP",
+        wrapper: "PENSION",
+        flow: 6000,
+      },
+    ]);
+    const after = await prisma.planAsset.findUniqueOrThrow({
+      where: { id: asset.id },
+    });
+    expect(Number(after.annualContribution)).toBe(6000);
+    expect(Number(after.expectedReturnPct)).toBe(4.2);
+    expect(after.contributionEndAge).toBe(55);
+  });
+
+  // Stopping a contribution has to reach the projection too. Left alone, the
+  // plan would pay into an account the budget no longer funds, forever — the
+  // same silent staleness the feature exists to remove.
+  it("clears a contribution the budget no longer funds", async () => {
+    const plan = await emptyPlan();
+    const account = await prisma.account.create({
+      data: {
+        userId: TEST_USER_ID,
+        name: "Vanguard SIPP",
+        kind: "ASSET",
+        category: "LONG_TERM",
+        wrapper: "PENSION",
+      },
+    });
+    const p = await period("2026-03-01", "2026-03-01");
+    await prisma.balanceItem.create({
+      data: {
+        periodId: p.id,
+        accountId: account.id,
+        type: "ASSET",
+        category: "LONG_TERM",
+        label: "Vanguard SIPP",
+        value: 42300,
+      },
+    });
+    const asset = await prisma.planAsset.create({
+      data: {
+        planId: plan.id,
+        label: "Vanguard SIPP",
+        accountId: account.id,
+        openingValue: 42300,
+        wrapper: "PENSION",
+        annualContribution: 6000,
+      },
+    });
+
+    await syncPlan();
+
+    const after = await prisma.planAsset.findUniqueOrThrow({
+      where: { id: asset.id },
+    });
+    expect(Number(after.annualContribution)).toBe(0);
+  });
+
+  // An account opened at £0 and funded monthly is the case the feature exists
+  // for. The additions guard drops zero-valued rows so a new user's plan does
+  // not open on ~17 empty starter categories — but a row with a flow is not an
+  // empty row. Dropped, this Sync would report "Up to date" while £6,000/yr
+  // never reached the projection, self-healing only once the balance went
+  // positive.
+  it("adds a row for an account worth nothing that is being paid into", async () => {
+    await emptyPlan();
+    const account = await prisma.account.create({
+      data: {
+        userId: TEST_USER_ID,
+        name: "Vanguard SIPP",
+        kind: "ASSET",
+        category: "LONG_TERM",
+        wrapper: "PENSION",
+      },
+    });
+    const p = await period("2026-03-01", "2026-03-01");
+    await prisma.balanceItem.create({
+      data: {
+        periodId: p.id,
+        accountId: account.id,
+        type: "ASSET",
+        category: "LONG_TERM",
+        label: "Vanguard SIPP",
+        value: 0,
+      },
+    });
+    await prisma.budgetItem.create({
+      data: {
+        periodId: p.id,
+        accountId: account.id,
+        type: "TRANSFER",
+        direction: "INFLOW",
+        label: "Pension contribution",
+        budget: 500,
+      },
+    });
+
+    const result = await syncPlan();
+
+    expect(result.additions).toHaveLength(1);
+    const asset = await prisma.planAsset.findFirstOrThrow({
+      where: { accountId: account.id },
+    });
+    expect(Number(asset.openingValue)).toBe(0);
+    expect(Number(asset.annualContribution)).toBe(6000);
+
+    const second = await syncPlan();
+
+    expect(second.additions).toEqual([]);
+    expect(second.updates).toEqual([]);
+    expect(second.unchanged).toEqual([asset.id]);
+  });
+
+  // The guard's original purpose still holds: provisionUserSettings seeds ~17
+  // starter categories at £0, and a category has no flow to rescue it.
+  it("still adds nothing for a category budgeted at zero", async () => {
+    await emptyPlan();
+    const category = await prisma.category.create({
+      data: {
+        userId: TEST_USER_ID,
+        type: "EXPENSE",
+        category: "FIXED",
+        label: "Childcare",
+      },
+    });
+    const p = await period("2026-03-01", "2026-03-01");
+    await prisma.budgetItem.create({
+      data: {
+        periodId: p.id,
+        categoryId: category.id,
+        type: "EXPENSE",
+        category: "FIXED",
+        label: "Childcare",
+        budget: 0,
+      },
+    });
+
+    const result = await syncPlan();
+
+    expect(result.additions).toEqual([]);
+    expect(await prisma.planExpense.count()).toBe(0);
+  });
+
+  // A withdrawal is not a contribution: TRANSFER OUTFLOW has no plan wiring,
+  // and it must not reach annualContribution by the back door.
+  it("does not turn a TRANSFER OUTFLOW into a contribution", async () => {
+    await emptyPlan();
+    const account = await prisma.account.create({
+      data: {
+        userId: TEST_USER_ID,
+        name: "Rainy day",
+        kind: "ASSET",
+        category: "CURRENT",
+        wrapper: "CASH",
+      },
+    });
+    const p = await period("2026-03-01", "2026-03-01");
+    await prisma.balanceItem.create({
+      data: {
+        periodId: p.id,
+        accountId: account.id,
+        type: "ASSET",
+        category: "CURRENT",
+        label: "Rainy day",
+        value: 8000,
+      },
+    });
+    await prisma.budgetItem.create({
+      data: {
+        periodId: p.id,
+        accountId: account.id,
+        type: "TRANSFER",
+        direction: "OUTFLOW",
+        label: "Savings raid",
+        budget: 300,
+      },
+    });
+
+    await syncPlan();
+
+    const asset = await prisma.planAsset.findFirstOrThrow({
+      where: { accountId: account.id },
+    });
+    expect(Number(asset.annualContribution)).toBe(0);
+    expect(await prisma.planExpense.count()).toBe(0);
   });
 });

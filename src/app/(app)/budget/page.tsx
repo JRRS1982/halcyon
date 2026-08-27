@@ -5,21 +5,24 @@ import {
   monthRangeFor,
   parseYm,
 } from "@/lib/budget/period";
+import type { AnchorAccount } from "@/lib/budget/sections";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserSettings } from "@/lib/settings/server";
 import { getCurrentUser } from "@/lib/supabase/user";
-import { netActual } from "@/lib/transactions/actual";
+import {
+  accountActual,
+  isAccountKeyed,
+  netActual,
+} from "@/lib/transactions/actual";
 import {
   getAmountsByCategory,
-  getTransfersByAccount,
+  getTransferFlowByAccount,
 } from "@/lib/transactions/server";
-import type { TransferAccountRow } from "@/lib/transactions/transfers";
 import {
   BudgetSheet,
   type SerializedItem,
   type SerializedPeriod,
 } from "./BudgetSheet";
-import { TransfersPanel } from "./TransfersPanel";
 
 type PageProps = {
   searchParams: Promise<{ ym?: string }>;
@@ -60,7 +63,7 @@ export default async function BudgetPage(props: PageProps) {
   }
 
   const range = monthRangeFor(year, month);
-  const { currency, numberFormat, transactionsEnabled, transfersEnabled } =
+  const { currency, numberFormat, transactionsEnabled } =
     await getCurrentUserSettings();
 
   // Find — don't create.
@@ -175,16 +178,35 @@ export default async function BudgetPage(props: PageProps) {
         )
       : new Map<string, number[]>();
 
+  // A TRANSFER/REPAYMENT row's actual is netted by account, not by category —
+  // one query, and only when there is a row that needs it. Routed on the row's
+  // kind rather than on whether it happens to carry an accountId: an accident
+  // is not a boundary.
+  const transferFlow =
+    transactionsEnabled && items.some((i) => isAccountKeyed(i.type))
+      ? await getTransferFlowByAccount(user.id, range.startDate, range.endDate)
+      : new Map<string, number>();
+
   const serializedItems: SerializedItem[] = items.map((i) => ({
     id: i.id,
     type: i.type,
     category: i.category,
     incomeCategory: i.incomeCategory,
     categoryId: i.categoryId,
+    // The anchor, carried whole. Dropping `direction` here would leave every
+    // transfer row reading as an inflow, which mis-signs the month's surplus.
+    accountId: i.accountId,
+    direction: i.direction,
     label: i.label,
     budget: Number(i.budget),
     actual: transactionsEnabled
-      ? netActual(amountsByCategory.get(i.categoryId ?? "") ?? [], i.type)
+      ? isAccountKeyed(i.type)
+        ? accountActual(
+            transferFlow.get(i.accountId ?? "") ?? 0,
+            i.type,
+            i.direction,
+          )
+        : netActual(amountsByCategory.get(i.categoryId ?? "") ?? [], i.type)
       : Number(i.actual),
     sortOrder: i.sortOrder,
   }));
@@ -196,36 +218,37 @@ export default async function BudgetPage(props: PageProps) {
       where: { userId: user.id, deletedAt: null },
     })) > 0;
 
-  // Transfers section data: per-account net flow for the period, only when both
-  // features are on (transfers are transactions). Empty otherwise.
-  const transferRows: TransferAccountRow[] =
-    transactionsEnabled && transfersEnabled
-      ? await getTransfersByAccount(user.id, range.startDate, range.endDate)
-      : [];
+  // Every account the user has, archived ones included: the Add drawer filters
+  // this to the kinds a row may target, and an already-anchored row still needs
+  // to name an account that has since been archived.
+  const accounts: AnchorAccount[] = (
+    await prisma.account.findMany({
+      where: { userId: user.id },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, kind: true, deletedAt: true },
+    })
+  ).map((a) => ({
+    id: a.id,
+    name: a.name,
+    kind: a.kind,
+    archived: a.deletedAt !== null,
+  }));
 
   // key on ym forces a fresh component instance per month, so the
   // client's local state (items, periodState, picker) doesn't leak from
   // the previous month.
   return (
-    <>
-      <BudgetSheet
-        key={formatYm(year, month)}
-        period={serializedPeriod}
-        initialItems={serializedItems}
-        year={year}
-        month={month}
-        currency={currency}
-        numberFormat={numberFormat}
-        hasTemplate={hasTemplate}
-        actualsReadOnly={transactionsEnabled}
-      />
-      {transactionsEnabled && transfersEnabled && (
-        <TransfersPanel
-          rows={transferRows}
-          currency={currency}
-          numberFormat={numberFormat}
-        />
-      )}
-    </>
+    <BudgetSheet
+      key={formatYm(year, month)}
+      period={serializedPeriod}
+      initialItems={serializedItems}
+      accounts={accounts}
+      year={year}
+      month={month}
+      currency={currency}
+      numberFormat={numberFormat}
+      hasTemplate={hasTemplate}
+      actualsReadOnly={transactionsEnabled}
+    />
   );
 }

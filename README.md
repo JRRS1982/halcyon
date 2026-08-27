@@ -25,7 +25,7 @@ or by typing.
 | | |
 | --- | --- |
 | **Transactions** | Export a CSV from your bank and drop it in. Rows you've already imported are detected and skipped, so overlapping exports are safe, and every import is a batch you can undo in one click. Tag each row with a category. |
-| **Budget** | What you meant to spend, month by month, split into Fixed, Variable and Discretionary. Once transactions are categorised the actual column fills itself in beside your plan. An optional transfers panel keeps money moved between your own accounts out of income and expenses. |
+| **Budget** | What you meant to spend, month by month, split into Fixed, Variable and Discretionary. Once transactions are categorised the actual column fills itself in beside your plan. Two more kinds of row sit alongside: a **repayment** at a debt you owe, which counts as spending, and a **transfer** into an account you own, which does not — a pension contribution is money you still have. Both feed the long-range plan. |
 | **Balance** | What you own and what you owe, sorted by how soon it matters — current, medium-term, long-term, property. The bottom line is your net worth. |
 | **Dashboard** | Read-only, and derived: cash flow, savings rate, spending by category and net worth over time, all drawn from the months filled in elsewhere. |
 | **Plan** | The long view. Project income, spending, property, mortgages and pensions decades ahead to see whether the money lasts. Independent of the month-to-month figures. |

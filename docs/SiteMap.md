@@ -103,7 +103,7 @@ Listed in `protectedPaths`. A request without a session is redirected to
 | Route | What it is |
 | --- | --- |
 | `/transactions` | The ledger. CSV import (duplicate detection, reversible batches) and categorisation. Where users land after signing in. Hidden from the nav when the Transactions setting is off. |
-| `/budget` | Per-period income and expenses — budgeted against actual, split Fixed / Variable / Discretionary, with an optional transfers panel. |
+| `/budget` | Per-period budgeted against actual, across four row kinds: income and expenses (split Fixed / Variable / Discretionary), repayments at a debt (inside Expenses), and transfers to an account you own (their own section). |
 | `/balance` | Per-period assets and liabilities by horizon (current, medium-term, long-term, property), totalling to net worth. |
 | `/dashboard` | Read-only. Balance trend, cash flow, category expenditure and balance-by-category, drawn from the months filled in elsewhere. |
 | `/plan` | Long-range forecasting — income, spending, property, mortgages and pensions projected decades ahead. Independent of the month-to-month figures. Hidden from the nav when the Plan setting is off. |

@@ -1,10 +1,15 @@
 import "server-only";
 
+import type { AccountKind } from "@prisma/client";
 import { sectionLabel } from "@/lib/categories/buckets";
 import { categoryKey, cleanLabel } from "@/lib/categories/normalize";
 import { prisma } from "@/lib/prisma";
 import { PAGE_SIZE } from "./pagination";
-import { netTransfersByAccount, type TransferAccountRow } from "./transfers";
+import {
+  type DatedTransferLeg,
+  netTransfersByMonthAndAccount,
+  netTransfersForAccounts,
+} from "./transfers";
 
 export type LedgerCategory = {
   id: string;
@@ -60,7 +65,10 @@ export async function getOrProvisionCategories(
   userId: string,
 ): Promise<LedgerCategory[]> {
   const existing = await prisma.category.findMany({
-    where: { userId, deletedAt: null },
+    // Categories are never transfers or repayments — those key on accounts,
+    // not categories — so this excludes the widened ItemType members that
+    // can never actually appear on a Category row.
+    where: { userId, deletedAt: null, type: { in: ["INCOME", "EXPENSE"] } },
     orderBy: [{ type: "asc" }, { sortOrder: "asc" }, { label: "asc" }],
     select: {
       id: true,
@@ -71,16 +79,32 @@ export async function getOrProvisionCategories(
     },
   });
   if (existing.length > 0) {
-    return existing.map((c) => ({
-      id: c.id,
-      label: c.label,
-      type: c.type,
-      section: sectionLabel(c.category ?? c.incomeCategory),
-    }));
+    return existing.flatMap((c) => {
+      // The query's `where` already excludes anything but INCOME/EXPENSE,
+      // but ItemType is shared with BudgetItem/BudgetTemplateItem, so the
+      // Prisma-generated type for `c.type` is still the full enum. This
+      // narrows it back down without a cast; unreachable in practice.
+      if (c.type !== "INCOME" && c.type !== "EXPENSE") return [];
+      return [
+        {
+          id: c.id,
+          label: c.label,
+          type: c.type,
+          section: sectionLabel(c.category ?? c.incomeCategory),
+        },
+      ];
+    });
   }
 
   const items = await prisma.budgetItem.findMany({
-    where: { period: { userId }, deletedAt: null },
+    // Categories are never transfers or repayments, so this backfill —
+    // which mints a Category per distinct BudgetItem (type, label) pair —
+    // only ever considers the item types a Category can actually hold.
+    where: {
+      period: { userId },
+      deletedAt: null,
+      type: { in: ["INCOME", "EXPENSE"] },
+    },
     select: {
       id: true,
       type: true,
@@ -100,6 +124,10 @@ export async function getOrProvisionCategories(
   const groups = new Map<string, Group>();
   for (const item of items) {
     if (!item.label.trim()) continue;
+    // Narrows the same way as the `existing` query above: the `where`
+    // filter already excludes anything but INCOME/EXPENSE, but the
+    // Prisma-generated type for `item.type` is still the full ItemType.
+    if (item.type !== "INCOME" && item.type !== "EXPENSE") continue;
     const key = `${item.type}::${categoryKey(item.label)}`;
     const group = groups.get(key) ?? {
       type: item.type,
@@ -134,7 +162,11 @@ export async function getOrProvisionCategories(
     created.push({
       id: category.id,
       label: category.label,
-      type: category.type,
+      // group.type (not category.type): the value we asked Prisma to write
+      // is already narrowed to "INCOME" | "EXPENSE"; category.type comes
+      // back typed as the full ItemType because that's the Category
+      // model's column type, regardless of what was written.
+      type: group.type,
       section: sectionLabel(group.category ?? group.incomeCategory),
     });
   }
@@ -279,15 +311,15 @@ export async function getAmountsByCategory(
   return amounts;
 }
 
-// Per-account transfer flow for a period: signed net plus counterparty
-// breakdown. Only transfer-tagged rows (transferAccountId set) participate, so
-// income/expense is untouched. The owning account keys each row (see
-// netTransfersByAccount) — the two legs of one transfer never collapse.
-export async function getTransfersByAccount(
+// Every transfer-tagged transaction in the period as a signed leg: its owning
+// account, its counterparty, and the amount. Fenced on userId — per ADR-002
+// the server Prisma role bypasses RLS, so this filter is the boundary. Shared
+// by both transfer readers so their fencing can never drift apart.
+async function transferLegs(
   userId: string,
   start: Date,
   end: Date,
-): Promise<TransferAccountRow[]> {
+): Promise<DatedTransferLeg[]> {
   const rows = await prisma.transaction.findMany({
     where: {
       userId,
@@ -297,35 +329,68 @@ export async function getTransfersByAccount(
     },
     select: {
       amount: true,
+      date: true,
       account: { select: { id: true, name: true } },
       transferAccount: { select: { id: true, name: true } },
     },
   });
 
-  return netTransfersByAccount(
-    rows.flatMap((r) =>
-      r.transferAccount
-        ? [
-            {
-              accountId: r.account.id,
-              accountName: r.account.name,
-              counterpartyId: r.transferAccount.id,
-              counterpartyName: r.transferAccount.name,
-              amount: Number(r.amount),
-            },
-          ]
-        : [],
-    ),
+  return rows.flatMap((r) =>
+    r.transferAccount
+      ? [
+          {
+            accountId: r.account.id,
+            accountName: r.account.name,
+            counterpartyId: r.transferAccount.id,
+            counterpartyName: r.transferAccount.name,
+            amount: Number(r.amount),
+            date: r.date,
+          },
+        ]
+      : [],
   );
 }
 
-// Active accounts for the ledger's transfer picker (id + name).
+// Net transfer flow per account for a period, signed relative to each account.
+// One query, and netTransfersForAccounts decides which source counts.
+export async function getTransferFlowByAccount(
+  userId: string,
+  start: Date,
+  end: Date,
+): Promise<Map<string, number>> {
+  const legs = await transferLegs(userId, start, end);
+
+  // Both arguments are the same legs: a leg is "owned" by its own account and
+  // "points at" its counterparty. The pure function picks one source per
+  // counterparty pair, so passing the whole set to both is correct, not
+  // double-counting.
+  return netTransfersForAccounts(legs, legs);
+}
+
+// The same flow bucketed by (UTC month, account), for a window spanning more
+// than one month — the dashboard's twelve. One query for the whole window, the
+// account-keyed mirror of getAmountsByCategory's month-bucketed form; look a
+// row up with monthAccountKey(period.startDate, item.accountId).
+export async function getTransferFlowByMonthAndAccount(
+  userId: string,
+  start: Date,
+  end: Date,
+): Promise<Map<string, number>> {
+  return netTransfersByMonthAndAccount(await transferLegs(userId, start, end));
+}
+
+// Active accounts for the ledger's transfer picker (id + name + kind). Not
+// filtered by kind — a plain (kind: NONE) current account is as valid a
+// transfer target as an ASSET, and not filtered by canImportTransactions
+// either, so a mortgage you don't import statements from still shows up.
+// CategoryCombobox partitions this same list into Transfers/Repayments by
+// kind rather than re-querying it.
 export async function getLedgerAccounts(
   userId: string,
-): Promise<{ id: string; name: string }[]> {
+): Promise<{ id: string; name: string; kind: AccountKind }[]> {
   return prisma.account.findMany({
     where: { userId, deletedAt: null },
     orderBy: { name: "asc" },
-    select: { id: true, name: true },
+    select: { id: true, name: true, kind: true },
   });
 }

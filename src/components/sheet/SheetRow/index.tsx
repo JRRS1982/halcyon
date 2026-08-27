@@ -141,7 +141,8 @@ export function SheetTotalsRow({
   );
 }
 
-// Grand total row (Net income). Black band.
+// Grand total row (the budget sheet's "Left over", the balance sheet's
+// "Net worth"). Black band.
 export function SheetGrandRow({
   label,
   amounts,

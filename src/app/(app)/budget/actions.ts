@@ -1,9 +1,14 @@
 "use server";
 
 import { randomUUID } from "node:crypto";
-import type { BudgetItem } from "@prisma/client";
+import type { BudgetItem, ItemType, Prisma } from "@prisma/client";
 import { redirect } from "next/navigation";
-import { buildCopiedItems, type CopiedItem } from "@/lib/budget/copyPeriod";
+import { assertAnchorMatches, requiredAnchorKind } from "@/lib/budget/anchors";
+import {
+  buildCopiedItems,
+  type CopiedItem,
+  type CopyableItem,
+} from "@/lib/budget/copyPeriod";
 import { ensurePeriodForMonthIn } from "@/lib/budget/ensurePeriod";
 import { currentMonthRange, monthRangeFor } from "@/lib/budget/period";
 import {
@@ -22,8 +27,15 @@ import {
 } from "@/lib/budget/schemas";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
-import { netActual } from "@/lib/transactions/actual";
-import { getAmountsByCategory } from "@/lib/transactions/server";
+import {
+  accountActual,
+  isAccountKeyed,
+  netActual,
+} from "@/lib/transactions/actual";
+import {
+  getAmountsByCategory,
+  getTransferFlowByAccount,
+} from "@/lib/transactions/server";
 
 // Prisma `Decimal` can't cross the server→client boundary (it serialises to
 // `{}`); the budget sheet consumes budget/actual as numbers (`SerializedItem`),
@@ -80,6 +92,119 @@ async function ensurePeriodForMonthInternal(
   return ensurePeriodForMonthIn(prisma, userId, { startDate, endDate, label });
 }
 
+// accountId arrives from the client. Confirm the caller owns it AND that its
+// kind matches the row's type — a TRANSFER funds an asset, a REPAYMENT pays a
+// liability. Without the ownership half this is the Critical P1 shipped: an id
+// used in a write without checking who it belongs to. Per ADR-002 the Prisma
+// role bypasses RLS, so this filter is the only fence, not a second one.
+//
+// Zod (createItemForMonthSchema) has already established that an accountId is
+// present exactly for the two anchored kinds; this is the half that needs a
+// database read.
+async function requireAnchorAccount(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  type: ItemType,
+  accountId: string,
+): Promise<void> {
+  const account = await tx.account.findFirst({
+    where: { id: accountId, userId, deletedAt: null },
+    select: { kind: true },
+  });
+  if (!account) {
+    throw new Error("Account not found");
+  }
+
+  assertAnchorMatches(type, account.kind);
+}
+
+// One account carries at most one row per period.
+//
+// getTransferFlowByAccount yields one net per account, so two rows on the same
+// account cannot be told apart: each would render the whole figure and its
+// section would count it twice — "Mortgage payment" plus "Overpayment" would
+// double the month's Expenses actual. Splitting the net across rows or showing
+// it on one of them was considered and rejected: with one figure per account
+// the rows are genuinely indistinguishable, so permitting only one is the
+// honest model.
+//
+// The Add drawer filters its picker on the same rule, but this is the fence —
+// the picker is a convenience and can be bypassed.
+//
+// Not a database unique index on (periodId, accountId): a soft-deleted
+// BudgetItem keeps its accountId, so the constraint would reject a legitimate
+// re-add after a delete. Clearing the link on delete would fix that and needs
+// a migration; it is disproportionate here.
+//
+// Residual race, accepted: two creates in flight at once can both read no
+// existing row and both write. It needs the same user submitting the same
+// gesture twice in the same instant, and the outcome is two rows the user can
+// see and delete — not silent corruption.
+async function requireAccountUnbudgeted(
+  tx: Prisma.TransactionClient,
+  periodId: string,
+  accountId: string,
+): Promise<void> {
+  const existing = await tx.budgetItem.findFirst({
+    where: { periodId, accountId, deletedAt: null },
+    select: { id: true },
+  });
+  if (existing) {
+    throw new Error("That account already has a row this month");
+  }
+}
+
+// A copy reads its account ids out of rows the caller already owns — but a
+// write never trusts an id because of where it came from. Per ADR-002 the
+// server Prisma role bypasses RLS, so this userId filter is the only fence,
+// and an account can have been archived, deleted or re-kinded since the source
+// row was written.
+//
+// The lookup sits outside the copy's $transaction, and moving it inside would
+// buy nothing: under READ COMMITTED each statement takes its own snapshot, so
+// a transaction gives rollback scope, not a frozen view of Account. The
+// ownership half cannot race at all — nothing in the codebase reassigns
+// Account.userId.
+//
+// A row whose anchor no longer holds is dropped rather than copied stripped:
+// an anchor-less TRANSFER is a row createItemForMonth could not produce (zod
+// rejects it), renders with no target, and mis-signs the month's surplus
+// because a null direction reads as an inflow. Skipping is the honest outcome;
+// the count comes back to the caller.
+async function withValidAnchorsOnly(
+  userId: string,
+  rows: CopyableItem[],
+): Promise<{ kept: CopyableItem[]; skipped: number }> {
+  const anchorIds = rows
+    .map((row) => row.accountId)
+    .filter((id): id is string => id !== null);
+
+  const accounts = anchorIds.length
+    ? await prisma.account.findMany({
+        where: { id: { in: anchorIds }, userId, deletedAt: null },
+        select: { id: true, kind: true },
+      })
+    : [];
+  const kindById = new Map(accounts.map((a) => [a.id, a.kind]));
+
+  const kept = rows.flatMap((row) => {
+    const required = requiredAnchorKind(row.type);
+    // An unanchored kind has no anchor to keep — and never propagates a stray
+    // one, which would carry an id past the fence on a row nothing checks.
+    if (!required) return [{ ...row, accountId: null, direction: null }];
+    if (!row.accountId) return [];
+    if (kindById.get(row.accountId) !== required) return [];
+    // A TRANSFER without a direction is unsigned: copying it would flip the
+    // month's surplus by its budget.
+    if (row.type === "TRANSFER") return row.direction ? [row] : [];
+    // A REPAYMENT is always inward to the debt and never carries a direction —
+    // a stray one is cleaned off for the same reason as a stray accountId.
+    return [{ ...row, direction: null }];
+  });
+
+  return { kept, skipped: rows.length - kept.length };
+}
+
 // Adds a row to a month, creating that month's FinancialPeriod if this is the
 // first row in it.
 //
@@ -92,14 +217,23 @@ export async function createItemForMonth(input: CreateItemForMonthInput) {
   const parsed = createItemForMonthSchema.parse(input);
   const range = monthRangeFor(parsed.year, parsed.month);
 
-  // Income rows get an incomeCategory; expense rows get a category.
+  // Income rows get an incomeCategory; expense rows get a category. Both
+  // stay null for TRANSFER/REPAYMENT rows, which anchor to an account instead.
   const category =
     parsed.type === "EXPENSE" ? (parsed.category ?? "FIXED") : null;
   const incomeCategory =
     parsed.type === "INCOME" ? (parsed.incomeCategory ?? "OTHER") : null;
 
   return prisma.$transaction(async (tx) => {
+    if (parsed.accountId) {
+      await requireAnchorAccount(tx, userId, parsed.type, parsed.accountId);
+    }
+
     const period = await ensurePeriodForMonthIn(tx, userId, range);
+
+    if (parsed.accountId) {
+      await requireAccountUnbudgeted(tx, period.id, parsed.accountId);
+    }
 
     // New row's sortOrder = max(sortOrder) + 1 within (periodId, type).
     const last = await tx.budgetItem.findFirst({
@@ -115,6 +249,8 @@ export async function createItemForMonth(input: CreateItemForMonthInput) {
         category,
         incomeCategory,
         label: parsed.label,
+        accountId: parsed.accountId ?? null,
+        direction: parsed.direction ?? null,
         sortOrder: (last?.sortOrder ?? 0) + 1,
       },
     });
@@ -234,16 +370,20 @@ export async function copyPeriodFrom(input: CopyPeriodFromInput) {
       category: true,
       incomeCategory: true,
       categoryId: true,
+      accountId: true,
+      direction: true,
       label: true,
       budget: true,
       sortOrder: true,
     },
   });
 
-  const copied = buildCopiedItems(
+  const { kept, skipped } = await withValidAnchorsOnly(
+    userId,
     sourceItems.map((it) => ({ ...it, budget: Number(it.budget) })),
-    randomUUID,
   );
+
+  const copied = buildCopiedItems(kept, randomUUID);
 
   await prisma.$transaction([
     prisma.budgetItem.updateMany({
@@ -258,6 +398,8 @@ export async function copyPeriodFrom(input: CopyPeriodFromInput) {
         category: it.category,
         incomeCategory: it.incomeCategory,
         categoryId: it.categoryId,
+        accountId: it.accountId,
+        direction: it.direction,
         label: it.label,
         budget: it.budget,
         actual: it.actual,
@@ -269,12 +411,22 @@ export async function copyPeriodFrom(input: CopyPeriodFromInput) {
   return {
     periodId: target.id,
     items: await withComputedActuals(userId, copied, range),
+    // Rows whose anchor account no longer holds are left behind rather than
+    // copied malformed; the count is the only trace of that.
+    skipped,
   };
 }
 
-// In transactions mode a row's actual is computed from its category's
-// transactions, not the stored column — mirror the budget page's overlay so
-// the client can adopt the returned rows without a refetch showing 0s.
+// In transactions mode a row's actual is computed from its transactions, not
+// the stored column — mirror the budget page's overlay so the client can adopt
+// the returned rows without a refetch showing 0s.
+//
+// Both halves of that overlay, routed on the row's kind exactly as the page
+// routes: a category-keyed row nets its category's transactions, an
+// account-keyed one nets its account's transfer flow. With only the category
+// half, copying a month with a real mortgage flow already recorded returned
+// the repayment at £0.00 — the row, the Expenses actual and "Left over" all
+// wrong until the user navigated away and back.
 async function withComputedActuals(
   userId: string,
   items: CopiedItem[],
@@ -292,11 +444,21 @@ async function withComputedActuals(
     range.startDate,
     range.endDate,
   );
+  const transferFlow = items.some((i) => isAccountKeyed(i.type))
+    ? await getTransferFlowByAccount(userId, range.startDate, range.endDate)
+    : new Map<string, number>();
+
   return items.map((i) => ({
     ...i,
-    actual: i.categoryId
-      ? netActual(amounts.get(i.categoryId) ?? [], i.type)
-      : 0,
+    actual: isAccountKeyed(i.type)
+      ? accountActual(
+          transferFlow.get(i.accountId ?? "") ?? 0,
+          i.type,
+          i.direction,
+        )
+      : i.categoryId
+        ? netActual(amounts.get(i.categoryId) ?? [], i.type)
+        : 0,
   }));
 }
 
@@ -329,8 +491,16 @@ export async function saveBudgetTemplate(input: SaveBudgetTemplateInput) {
     },
   });
 
+  // BudgetTemplateItem has no accountId/direction columns, so an anchor cannot
+  // survive the round trip; a template-sourced TRANSFER/REPAYMENT is dropped on
+  // the way back out, in copyBudgetTemplateInto.
   const copied = buildCopiedItems(
-    sourceItems.map((it) => ({ ...it, budget: Number(it.budget) })),
+    sourceItems.map((it) => ({
+      ...it,
+      budget: Number(it.budget),
+      accountId: null,
+      direction: null,
+    })),
     randomUUID,
   );
 
@@ -388,15 +558,21 @@ export async function copyBudgetTemplateInto(input: CopyBudgetTemplateInput) {
 
   // BudgetTemplateItem has no category link, so template-sourced rows start
   // unlinked; the budget page's force-show materialises linked rows for any
-  // category with spend this month.
-  const copied = buildCopiedItems(
+  // category with spend this month. It has no anchor columns either, so an
+  // anchored kind arrives with a null accountId and the fence drops it — a
+  // TRANSFER can only be re-created against an account the template can't name.
+  const { kept, skipped } = await withValidAnchorsOnly(
+    userId,
     templateItems.map((it) => ({
       ...it,
       budget: Number(it.budget),
       categoryId: null,
+      accountId: null,
+      direction: null,
     })),
-    randomUUID,
   );
+
+  const copied = buildCopiedItems(kept, randomUUID);
 
   await prisma.$transaction([
     prisma.budgetItem.updateMany({
@@ -410,6 +586,8 @@ export async function copyBudgetTemplateInto(input: CopyBudgetTemplateInput) {
         type: it.type,
         category: it.category,
         incomeCategory: it.incomeCategory,
+        accountId: it.accountId,
+        direction: it.direction,
         label: it.label,
         budget: it.budget,
         actual: it.actual,
@@ -418,5 +596,5 @@ export async function copyBudgetTemplateInto(input: CopyBudgetTemplateInput) {
     }),
   ]);
 
-  return { periodId: target.id, items: copied };
+  return { periodId: target.id, items: copied, skipped };
 }

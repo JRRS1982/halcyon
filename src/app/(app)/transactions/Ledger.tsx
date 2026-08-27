@@ -29,7 +29,11 @@ import {
 } from "./actions";
 import { CategoryCombobox, type NewCategoryInput } from "./CategoryCombobox";
 
-type LedgerAccount = { id: string; name: string };
+type LedgerAccount = {
+  id: string;
+  name: string;
+  kind: "ASSET" | "LIABILITY" | "NONE";
+};
 
 const Section = styled.section`
   margin-top: ${({ theme }) => theme.spacing["3xl"]};

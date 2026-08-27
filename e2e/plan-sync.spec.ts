@@ -163,8 +163,22 @@ test.describe("plan sync", () => {
     await withServerAction(page, () =>
       assets.getByRole("button", { name: "+ Add asset" }).click(),
     );
+    // Wait for the drawer to actually be open before closing it, rather than
+    // pressing Escape into a page that has not opened it yet.
+    //
+    // AssetsTable.add() awaits createPlanAsset, fires router.refresh() without
+    // awaiting it, then selects the new id — and PlanView only renders the
+    // drawer once that id is found in `plan.assets`, which needs the refresh to
+    // have landed. withServerAction cannot cover the gap: it counts POSTs
+    // carrying `next-action`, and a refresh is a GET with `rsc: 1`. So an
+    // Escape sent in that window closes nothing, the assertion below passes on
+    // a drawer that was never open, and the drawer then opens behind the test —
+    // leaving its scrim to swallow the Sync click 30s later. Load-dependent,
+    // which is why it passes alone and fails in a full run.
+    const drawer = page.getByRole("dialog");
+    await expect(drawer).toBeVisible({ timeout: 15_000 });
     await page.keyboard.press("Escape");
-    await expect(page.getByRole("dialog")).not.toBeVisible();
+    await expect(drawer).not.toBeVisible();
 
     const invented = assets.getByRole("button", { name: /New asset/ });
     await expect(
