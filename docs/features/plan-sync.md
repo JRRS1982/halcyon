@@ -502,7 +502,7 @@ tombstone never occupies the slot the next Sync needs.
 | `createPlan` as a sync against an empty plan | [`src/app/(app)/plan/actions.ts`](<../../src/app/(app)/plan/actions.ts>) |
 | Button, counts, breakdown, confirmation gate | [`src/app/(app)/plan/SyncButton.tsx`](<../../src/app/(app)/plan/SyncButton.tsx>) |
 | Row state from a `SyncPlan` | [`src/app/(app)/plan/syncIndicator.ts`](<../../src/app/(app)/plan/syncIndicator.ts>) |
-| Marker glyphs, accessible names, source figure | [`src/app/(app)/plan/SyncMarker.tsx`](<../../src/app/(app)/plan/SyncMarker.tsx>) |
+| Marker glyphs, accessible names, which figure a changed row shows | [`src/app/(app)/plan/SyncMarker.tsx`](<../../src/app/(app)/plan/SyncMarker.tsx>) |
 | Removal confirmation | [`src/app/(app)/plan/SyncRemovalDialog.tsx`](<../../src/app/(app)/plan/SyncRemovalDialog.tsx>) |
 
 ### Testing
@@ -514,7 +514,8 @@ tombstone never occupies the slot the next Sync needs.
   (counts, breakdown, all three confirmation branches — plan-only, a `"gone"`
   row that drags something, and a `"gone"` row that does not),
   `SyncMarker.test.tsx` (four distinct accessible names, asserted structurally
-  as a set), `SyncRemovalDialog.test.tsx` (names attached rows and what they go
+  as a set; and which figure a changed row shows — the value when it moved, the
+  flow when only it moved, none when neither did), `SyncRemovalDialog.test.tsx` (names attached rows and what they go
   with; does not name the `"gone"` rows themselves).
 - **Integration** (`*.int.test.ts`, real Postgres) — `planLinks.int.test.ts`
   (the four links, and `SetNull` proved by the row surviving), `reality.int.test.ts`,

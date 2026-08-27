@@ -385,7 +385,7 @@ picker and in `createItemForMonth`, not in the database.
 | Section sums, `surplus`, `favourableVariance` | [`src/lib/budget/totals.ts`](../../src/lib/budget/totals.ts) |
 | Net transfer flow per account, one source per counterparty pair | [`src/lib/transactions/transfers.ts`](../../src/lib/transactions/transfers.ts) |
 | `isAccountKeyed`, `netActual`, `accountActual` | [`src/lib/transactions/actual.ts`](../../src/lib/transactions/actual.ts) |
-| `transferLegs`, `getTransferFlowByAccount`, `getLedgerAccounts` | [`src/lib/transactions/server.ts`](../../src/lib/transactions/server.ts) |
+| `transferLegs`, `getTransferFlowByAccount`, `getTransferFlowByMonthAndAccount`, `getLedgerAccounts` | [`src/lib/transactions/server.ts`](../../src/lib/transactions/server.ts) |
 | Create/copy fences, `withValidAnchorsOnly`, template paths | [`src/app/(app)/budget/actions.ts`](<../../src/app/(app)/budget/actions.ts>) |
 | Actual overlay routing, `serializedItems` carrying the anchor | [`src/app/(app)/budget/page.tsx`](<../../src/app/(app)/budget/page.tsx>) |
 | Add drawers, three sections, the Repayments bucket | [`src/app/(app)/budget/BudgetSheet.tsx`](<../../src/app/(app)/budget/BudgetSheet.tsx>) |
@@ -393,7 +393,8 @@ picker and in `createItemForMonth`, not in the database.
 | `RealityRow.flow`, `budgetedFlow` | [`src/lib/plan/reality.ts`](../../src/lib/plan/reality.ts) |
 | `flow` in the update comparison and the zero-value guard | [`src/lib/plan/sync.ts`](../../src/lib/plan/sync.ts) |
 | Writing `annualContribution` / `monthlyRepayment` on add and update | [`src/lib/plan/applySyncPlan.ts`](../../src/lib/plan/applySyncPlan.ts) |
-| Cash-flow classification that excludes the new kinds | [`src/lib/dashboard/series.ts`](../../src/lib/dashboard/series.ts) |
+| Cash-flow classification: a repayment is spending, a transfer is neither | [`src/lib/dashboard/series.ts`](../../src/lib/dashboard/series.ts) |
+| The dashboard's two-source actual overlay across the 12-month window | [`src/app/(app)/dashboard/page.tsx`](<../../src/app/(app)/dashboard/page.tsx>) |
 
 ### Testing
 
@@ -409,13 +410,21 @@ picker and in `createItemForMonth`, not in the database.
   the self-transfer edge and all three double-count scenarios),
   `transactions/actual.test.ts` (`accountActual`'s sign, `netActual`'s
   exclusion), `transactions/CategoryCombobox.test.tsx` (the four groups and
-  the keyboard index across them), `dashboard/series.test.ts` (`monthFlow`
-  excludes rather than lumps in).
+  the keyboard index across them), `transactions/transferSource.test.ts` again
+  for `netTransfersByMonthAndAccount` (each month nets on its own; the per-pair
+  rule holds inside a bucket), `dashboard/series.test.ts` (`monthFlow` counts a
+  repayment and excludes a transfer, and converting a mortgage between the two
+  leaves the savings rate where it was).
 - **Integration** (`*.int.test.ts`, real Postgres) —
   `budget/transferSchema.int.test.ts`, `budget/transferActions.int.test.ts`
   (cross-tenant, both kind mismatches, the one-row-per-account fence, the
   happy path), `budget/copyAnchors.int.test.ts` (anchors carried and re-fenced
   across copy-forward; template rows dropped),
+  `budget/copyComputedActuals.int.test.ts` (a copied anchored row adopts the
+  target month's flow rather than returning 0),
+  `dashboard/cashFlow.int.test.ts` (a repayment is charted as expenditure in
+  both modes — the transactions-mode case needs the account-keyed source, not
+  just `monthFlow`),
   `transactions/transferSource.int.test.ts`, `plan/reality.int.test.ts` (the
   flow read, both units, the `OUTFLOW` zero), `plan/syncAction.int.test.ts`
   (the flow reaching both plan columns, and the widened zero-value guard).
