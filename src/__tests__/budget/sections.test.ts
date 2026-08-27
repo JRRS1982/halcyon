@@ -191,13 +191,13 @@ describe("skippedRowsNotice", () => {
 
   test("counts one row in the singular", () => {
     expect(skippedRowsNotice(1)).toBe(
-      "1 row was skipped because its account is no longer available.",
+      "1 row was skipped because its account could not be carried over.",
     );
   });
 
   test("counts several rows in the plural", () => {
     expect(skippedRowsNotice(3)).toBe(
-      "3 rows were skipped because their accounts are no longer available.",
+      "3 rows were skipped because their accounts could not be carried over.",
     );
   });
 });

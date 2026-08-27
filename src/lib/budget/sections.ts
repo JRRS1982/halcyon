@@ -121,12 +121,18 @@ export function rowsOfType<T extends Row>(items: T[], type: ItemType): T[] {
   return bySortOrder(items.filter((i) => i.type === type));
 }
 
-// A copy leaves behind any row whose anchor account has been archived, deleted
-// or re-kinded, rather than copying it malformed (see withValidAnchorsOnly).
-// The count is the only trace of that, so the sheet says it out loud.
+// A copy leaves behind any row whose anchor cannot be re-established, rather
+// than copying it malformed (see withValidAnchorsOnly). Two different causes
+// reach here: copying from a month, where the account has been archived,
+// deleted or re-kinded; and copying from the template, where BudgetTemplateItem
+// has no anchor columns and so cannot name the account at all. The wording
+// covers both — "no longer available" was a false statement about the second,
+// blaming an account that is perfectly fine.
+//
+// The count is the only trace of a skip, so the sheet says it out loud.
 export function skippedRowsNotice(skipped: number): string | null {
   if (skipped <= 0) return null;
   return skipped === 1
-    ? "1 row was skipped because its account is no longer available."
-    : `${skipped} rows were skipped because their accounts are no longer available.`;
+    ? "1 row was skipped because its account could not be carried over."
+    : `${skipped} rows were skipped because their accounts could not be carried over.`;
 }

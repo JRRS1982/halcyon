@@ -279,6 +279,29 @@ against it.
 The fix for an affected user is to add the matching `REPAYMENT` (or
 `TRANSFER`) row to their budget, which is the thing the field now mirrors.
 
+## ⚠️ Migrating a mortgage: delete the old expense row
+
+Before this feature, the only way to record a mortgage on the budget sheet was
+an ordinary `EXPENSE` row on a "Mortgage" category. Converting it is a two-step
+job, and doing only the first step **double-counts the payment in the plan**:
+
+> Add the `REPAYMENT` row at the mortgage account, **and delete the old
+> expense-category row.** Keeping both is not a harmless duplicate — the
+> projection charges the payment twice.
+
+Nothing detects the pair. `latestCategoryRows` mints a `PlanExpense` from the
+category row at £15,000/yr, and the repayment row's £1,250 becomes £15,000/yr
+of `liab.repaid` — £30,000/yr of outflow for one £15,000 payment, and no
+warning at either end. The budget sheet is not affected: it shows what you
+typed, and both rows are in the Expenses total there, which is at least
+visibly wrong. It is the plan that silently compounds it.
+
+Closing this properly needs a `Category` → `Account` link, so a category can
+declare itself a repayment and be excluded from the category totals. That is
+recorded as the open half of the corresponding gap in
+[`plan-sync.md`](plan-sync.md); until it exists, deleting the old row is the
+whole mitigation.
+
 ## Limitations
 
 Three, stated here rather than left to be discovered.
@@ -289,10 +312,12 @@ cannot survive the round trip. `saveBudgetTemplate` writes such a row with the
 anchor nulled and says nothing at save time; `copyBudgetTemplateInto` then
 drops it (`withValidAnchorsOnly`, which refuses to create a row the create
 action itself would reject) and returns a `skipped` count, which the sheet
-*does* surface as a notice. So the rows are not silently lost — but the notice
-reads "because their accounts are no longer available", which blames the
-account when the real reason is the template's schema. Persisting the anchor
-needs a migration plus a product decision about what a "template transfer"
+*does* surface as a notice. So the rows are not silently lost. The notice reads
+"because their accounts could not be carried over", which is true of both paths
+that reach it; it used to say "no longer available", which was a false
+statement here — it blamed an account that is perfectly fine when the real
+cause is the template's schema. Persisting the anchor needs a migration plus a
+product decision about what a "template transfer"
 means when the account may not exist in the target month; `BalanceTemplateItem`
 already carries an `accountId`, so there is in-repo precedent whenever that is
 built. Copying from another *month* carries anchors correctly — that path
@@ -318,8 +343,23 @@ picker and in `createItemForMonth`, not in the database.
   a direction on `REPAYMENT`, and plan-side modelling of new borrowing.
 - **`TRANSFER OUTFLOW` reaching the projection.** The plan derives withdrawals
   from deficits; budgeting them is engine work.
-- **A transfers series on the dashboard's cash-flow chart.** The chart now
-  *excludes* both new kinds; giving them a series is a different change.
+- **A transfers series on the dashboard's cash-flow chart.** The chart counts
+  a `REPAYMENT` as expenditure and a `TRANSFER` as neither series; giving
+  transfers a series of their own is a different change.
+- **A repayment in the dashboard's per-category expenditure chart.** That chart
+  buckets by `ExpenseCategory`, which a `REPAYMENT` row does not carry, so a
+  repayment appears in the cash-flow chart's expense total and not in the
+  category breakdown. The two charts answer different questions and neither is
+  wrong, but they no longer add up to the same number.
+- **Refusing an account-keyed plan row with no `BalanceItem` behind it.**
+  `latestAccountRows` drops an account with no observation before it reads the
+  budgeted flow ([`reality.ts`](../../src/lib/plan/reality.ts)), so budgeting a
+  contribution to an account you have never put on the balance sheet reaches
+  nothing. Distinct from "a budgeted flow rescues a zero-valued row" above,
+  which is about an account observed *at £0*: that one has a `BalanceItem` and
+  does reach the resolver. It is the pre-existing "no observation, no plan row"
+  rule rather than anything this branch introduced, and changing it is a
+  product decision about what an unobserved account is worth. Deferred to P4.
 - **Retiring `PlanLiability.linkedAssetId`** in favour of
   `Account.linkedAccountId`.
 - **Renaming `monthlyRepayment`** for symmetry with `annualContribution` — the

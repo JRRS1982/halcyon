@@ -364,7 +364,7 @@ describe("BudgetSheet — a copy that left rows behind", () => {
 
     expect(
       screen.getByText(
-        "3 rows were skipped because their accounts are no longer available.",
+        "3 rows were skipped because their accounts could not be carried over.",
       ),
     ).toBeInTheDocument();
   });

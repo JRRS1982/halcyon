@@ -462,16 +462,32 @@ tombstone never occupies the slot the next Sync needs.
   Not silent in practice — an event is only ever `reason: "cascade"`, which
   always gates the confirmation, so it is always named before it goes — but it
   is the one removable thing the indicator does not cover.
-- ~~**A budget category cannot say it is a debt repayment.**~~ **Closed in
-  P3.** A budget row can now anchor to an `Account` rather than a `Category`:
-  `ItemType.REPAYMENT` carries an `accountId` at a `kind: LIABILITY` account
-  and feeds `PlanLiability.monthlyRepayment`, so a synced mortgage amortises.
-  The projection machinery needed no change, as predicted — only the link.
-  Note the shape the gap warned about is *not* what shipped: a repayment did
-  **not** get routed through a transfer. `TRANSFER` and `REPAYMENT` are two
-  kinds, because a transfer is net-worth-neutral and a mortgage payment is
-  not — its interest is consumed. See
-  [`budget-transfers.md`](budget-transfers.md).
+- **A budget category still cannot say it is a debt repayment — half the gap
+  is closed, and the double-count is the open half.** P3 added a *parallel* row
+  kind rather than the `Category` → `Account` link this gap called for. A
+  budget row can now anchor to an `Account`: `ItemType.REPAYMENT` carries an
+  `accountId` at a `kind: LIABILITY` account and feeds
+  `PlanLiability.monthlyRepayment`, so a synced mortgage amortises — that half
+  is done, and the projection machinery needed no change, as predicted. Note
+  the shape the gap warned about is *not* what shipped: a repayment did **not**
+  get routed through a transfer. `TRANSFER` and `REPAYMENT` are two kinds,
+  because a transfer is net-worth-neutral and a mortgage payment is not — its
+  interest is consumed. See [`budget-transfers.md`](budget-transfers.md).
+
+  What is **not** closed is the double-count. Nothing detects a budget
+  `EXPENSE` row on a "Mortgage" *category* coexisting with a `REPAYMENT` row on
+  the mortgage *account*. `latestCategoryRows` mints a `PlanExpense` at
+  £15,000/yr from the first, and `monthlyRepayment` £1,250 becomes £15,000/yr
+  of `liab.repaid` from the second: £30,000/yr of outflow for one £15,000
+  payment. Keeping both rows is the *natural* migration path, because an
+  expense-category row was the only way to record a mortgage before P3. The
+  `type: { in: ["INCOME", "EXPENSE"] }` filter in `latestCategoryRows` is not
+  this fence — it stops a *single* row being counted on both sides, which is a
+  different thing from two rows describing the same payment. Closing it needs
+  the link the gap originally named, so that a category can declare itself a
+  repayment at an account and be excluded from the category totals; until then
+  the migration note in [`budget-transfers.md`](budget-transfers.md) is the
+  only mitigation.
 
 ## Code map
 

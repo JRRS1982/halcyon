@@ -110,7 +110,7 @@ enum ItemType {
   REPAYMENT
 }
 
-// Relative to the named account, matching netTransfersByAccount's convention:
+// Relative to the named account, matching netTransfersForAccounts' convention:
 // money in is positive, money out negative. NOT PlanEventDirection, whose
 // INFLOW/OUTFLOW is relative to *you* — an inheritance is INFLOW there.
 // TRANSFER rows carry this; REPAYMENT rows do not (always inward to the debt).
