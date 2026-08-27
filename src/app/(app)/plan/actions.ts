@@ -22,32 +22,27 @@ import {
 } from "@/lib/plan/schemas";
 import { resolvePlanSync } from "@/lib/plan/sync";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/supabase/user";
+import { loadPlanRecordForRender } from "./planRecord";
 
+// Same contract as before — the signed-in user's id, or a redirect to sign-in
+// with /plan as the return path. The difference is the call underneath:
+// getCurrentUser is memoised with React's cache(), so a render that touches
+// several of these actions authenticates once instead of once per action.
+//
+// Per-request memoisation, not a cache across requests: a signed-out visitor
+// never inherits a previous request's session. getCurrentUser's own doc
+// comment describes this being done for the layout and settings paths; the
+// plan actions simply never adopted it.
 async function requireUserId(): Promise<string> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) redirect("/sign-in?next=/plan");
   return user.id;
 }
 
 export async function getPrimaryPlan() {
   const userId = await requireUserId();
-  return prisma.plan.findFirst({
-    where: { userId, isPrimary: true, deletedAt: null },
-    include: {
-      assets: { where: { deletedAt: null }, orderBy: { sortOrder: "asc" } },
-      liabilities: {
-        where: { deletedAt: null },
-        orderBy: { sortOrder: "asc" },
-      },
-      incomes: { where: { deletedAt: null }, orderBy: { sortOrder: "asc" } },
-      expenses: { where: { deletedAt: null }, orderBy: { sortOrder: "asc" } },
-      events: { where: { deletedAt: null }, orderBy: { sortOrder: "asc" } },
-    },
-  });
+  return loadPlanRecordForRender(userId);
 }
 
 // Retirement age is not asked for at create time — it is seeded with the same

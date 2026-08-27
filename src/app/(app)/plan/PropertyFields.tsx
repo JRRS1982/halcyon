@@ -64,6 +64,26 @@ export function PropertyFields({
     }
   };
 
+  // The two drawer actions below are bare writes: no form, no navigation, and
+  // — unlike the Add buttons on the sheet, which AddRowButton already guards —
+  // nothing stopping a second click landing while the first is still in
+  // flight, which adds a second mortgage or deletes one twice. Disabling beats
+  // debouncing: a debounce only delays the first click, whereas a disabled
+  // button never lets the second one reach the action.
+  //
+  // Only these two, not `run` itself: the field commits below already have the
+  // cell they were typed into to hold the interaction, and flipping this on
+  // every save would grey the buttons out mid-edit for no reason.
+  const [actionPending, setActionPending] = useState(false);
+  const runAction = async (fn: () => Promise<unknown>) => {
+    setActionPending(true);
+    try {
+      await run(fn);
+    } finally {
+      setActionPending(false);
+    }
+  };
+
   const saveProperty = (next: SerializedPlanAsset) =>
     run(() =>
       updatePlanAsset({
@@ -206,7 +226,10 @@ export function PropertyFields({
           </Field>
           <ActionButton
             type="button"
-            onClick={() => run(() => deletePlanLiability({ id: mortgage.id }))}
+            disabled={actionPending}
+            onClick={() =>
+              runAction(() => deletePlanLiability({ id: mortgage.id }))
+            }
           >
             Remove mortgage
           </ActionButton>
@@ -215,8 +238,11 @@ export function PropertyFields({
         <DrawerSection title="Mortgage" defaultOpen>
           <ActionButton
             type="button"
+            disabled={actionPending}
             onClick={() =>
-              run(() => createMortgageForProperty({ assetId: property.id }))
+              runAction(() =>
+                createMortgageForProperty({ assetId: property.id }),
+              )
             }
           >
             Add mortgage
