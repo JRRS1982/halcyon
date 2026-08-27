@@ -559,6 +559,8 @@ export function Ledger({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmDelete, setConfirmDelete] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
+  // The search value we last asked the URL for — see the sync effect below.
+  const sentSearchRef = useRef(query.search);
   // Which row's detail panel (kept import columns + editable note) is open.
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
@@ -579,8 +581,17 @@ export function Ledger({
   }, [initialCategories, initialTransferAccounts]);
 
   // Keep the search box and filter switch in step with the URL (e.g.
-  // back/forward navigation).
+  // back/forward navigation) — but never adopt the echo of our own typing.
+  //
+  // `q` is debounced 300ms and then round-trips through the server, so the
+  // `query.search` that comes back is always older than what is in the box by
+  // however long that took. Adopting it deletes every character typed in
+  // between, which reads as the box swallowing your input as you type.
+  // Comparing against what we last asked the URL for tells the two apart: an
+  // echo matches, a back/forward navigation does not.
   useEffect(() => {
+    if (query.search === sentSearchRef.current) return;
+    sentSearchRef.current = query.search;
     setSearch(query.search);
   }, [query.search]);
 
@@ -610,7 +621,11 @@ export function Ledger({
   };
 
   const runSearch = useDebouncedCallback((value: string) => {
-    updateParams({ q: value.trim() || null, page: null }, "replace");
+    // Record what the URL is being asked for, so the sync effect above can
+    // recognise the answer as ours. Trimmed, because that is what is sent.
+    const next = value.trim();
+    sentSearchRef.current = next;
+    updateParams({ q: next || null, page: null }, "replace");
   }, 300);
 
   const onSearch = (value: string) => {
