@@ -15,13 +15,23 @@ export default async function PlanPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/sign-in?next=/plan");
 
-  const { currency, numberFormat } = await getCurrentUserSettings();
-  const plan = await getPrimaryPlan();
+  // Both need the user and neither needs the other, so they overlap rather
+  // than queueing: getPrimaryPlan re-checks the session itself (a round trip
+  // to Supabase Auth) before its own query, which used to wait behind the
+  // settings read for no reason. getCurrentUser above stays sequential — it is
+  // the gate both of these are behind, and it is memoised per request.
+  const [{ currency, numberFormat }, plan] = await Promise.all([
+    getCurrentUserSettings(),
+    getPrimaryPlan(),
+  ]);
 
   if (!plan) {
     return <CreatePlanForm />;
   }
 
+  // Not hoisted into the Promise.all above: it returns null when there is no
+  // primary plan, so starting it early would cost a user who has none an
+  // extra plan look-up to produce a value this branch never reads.
   const syncPreview = await getPlanSyncPreview();
 
   const asOfYear = new Date().getUTCFullYear();
