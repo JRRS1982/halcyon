@@ -156,8 +156,43 @@ export async function withServerAction<T>(
   page.on("requestfinished", ended);
   page.on("requestfailed", ended);
 
+  // Did any action dispatch within `ms`? Resolves the moment one does, so the
+  // happy path pays nothing.
+  const sawAction = async (ms: number): Promise<boolean> => {
+    try {
+      await expect
+        .poll(() => seen > 0, { timeout: ms, intervals: [50] })
+        .toBe(true);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
   try {
-    const result = await interact();
+    let result = await interact();
+
+    // A click can land on a server-rendered control before React has attached
+    // its handler, and is then swallowed: no action dispatches, so there is
+    // nothing to wait for and the settle below fails with "none ever started".
+    // That is not engine-specific — the same race exists everywhere — but the
+    // slower the engine the more often it loses: the comment above measures
+    // the same action at ~1.5s on chromium and ~3s on webkit, and webkit under
+    // CI load is where it actually bites.
+    //
+    // Retrying is safe *because* the listeners are attached before `interact`
+    // runs: if `seen` is still 0, nothing was dispatched, so re-running cannot
+    // double-write. That guarantee is what makes this generic — every caller
+    // gets it without naming the effect its interaction was supposed to have.
+    //
+    // It follows that `interact` must be re-runnable when it did nothing.
+    // Every current caller is a single click or select, which qualifies.
+    let attempts = 1;
+    while (attempts < 3 && !(await sawAction(1_000))) {
+      attempts += 1;
+      result = await interact();
+    }
+
     // lastChange > 0 means at least one action was seen, so an interaction that
     // writes nothing fails here rather than passing on an empty quiet window.
     try {
@@ -182,7 +217,7 @@ export async function withServerAction<T>(
           ? "none ever started"
           : `${Date.now() - lastChange}ms since one last changed state`;
       throw new Error(
-        `Server actions did not settle — ${seen} started, ${inFlight} still in flight, ${sinceLastChange}`,
+        `Server actions did not settle — ${seen} started, ${inFlight} still in flight, ${sinceLastChange} (interaction attempted ${attempts}x)`,
       );
     }
     return result;
