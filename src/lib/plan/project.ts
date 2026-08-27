@@ -1,9 +1,11 @@
 // src/lib/plan/project.ts
+
+import { taxContextFor } from "@/lib/tax/bands";
+import { taxOn } from "@/lib/tax/compute";
 import { contributionTargetId, drawable, fundDeficit } from "./assets";
 import { amountThisYear, grow, round, sum } from "./helpers";
 import { liabilityStep } from "./liabilities";
 import { activeExpenses, activeIncome } from "./streams";
-import { incomeTax } from "./tax";
 import type {
   AssetInput,
   ExpenseInput,
@@ -82,7 +84,16 @@ const projectYears = (
       yearsElapsed,
       input.inflationPct,
     );
-    const incTax = incomeTax(income.taxableTotal, input.taxRatePct);
+    // One tax context for the whole year: the income below and any withdrawal
+    // further down are two halves of a single calculation, so the personal
+    // allowance is granted once and the withdrawal stacks on the income.
+    const taxCtx = taxContextFor({
+      projectionYear: input.startYear + yearsElapsed,
+      regime: input.taxRegime,
+      inflationPct: input.inflationPct,
+      inflationLinked: input.thresholdsInflationLinked,
+    });
+    const incTax = taxOn({ income: income.taxableTotal, ...taxCtx }).tax;
     const netIncome = income.gross - incTax;
 
     const expenses = activeExpenses(
@@ -187,7 +198,7 @@ const projectYears = (
         runAssets,
         assetBal,
         -cashflow,
-        input.taxRatePct,
+        { alreadyTaxed: income.taxableTotal, ...taxCtx },
         age,
       );
       Object.assign(assetBal, fund.balances);

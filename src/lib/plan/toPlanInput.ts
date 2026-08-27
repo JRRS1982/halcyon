@@ -61,7 +61,8 @@ export function toPlanInput(
     inflationPct: num(plan.inflationPct),
     defaultReturnPct: num(plan.defaultReturnPct),
     returnSpreadPct: num(plan.returnSpreadPct),
-    taxRatePct: num(plan.blendedTaxRatePct),
+    taxRegime: plan.taxRegime,
+    thresholdsInflationLinked: plan.thresholdsInflationLinked,
     statePension,
     assets: plan.assets.map((a) => ({
       id: a.id,

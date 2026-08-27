@@ -4,9 +4,16 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import styled from "styled-components";
+import type { Regime } from "@/lib/tax/types";
 import { updatePlanAssumptions } from "./actions";
-import { NumberCell, TextCell } from "./EditableCell";
+import { BoolCell, NumberCell, SelectCell, TextCell } from "./EditableCell";
 import type { SerializedPlanAssumptions } from "./serialized";
+
+const TAX_REGIMES: Regime[] = ["RUK", "SCOTLAND"];
+const TAX_REGIME_LABELS: Record<Regime, string> = {
+  RUK: "Rest of UK",
+  SCOTLAND: "Scotland",
+};
 
 const Panel = styled.section`
   border: 1px solid ${({ theme }) => theme.colors.hairline};
@@ -60,7 +67,8 @@ export function AssumptionsPanel({
         inflationPct: next.inflationPct,
         defaultReturnPct: next.defaultReturnPct,
         returnSpreadPct: next.returnSpreadPct,
-        blendedTaxRatePct: next.blendedTaxRatePct,
+        taxRegime: next.taxRegime,
+        thresholdsInflationLinked: next.thresholdsInflationLinked,
         statePensionAge: next.statePensionAge,
         statePensionAnnual: next.statePensionAnnual,
         expectedDeathAge: next.expectedDeathAge,
@@ -141,15 +149,19 @@ export function AssumptionsPanel({
           />
         </Field>
         <Field>
-          Tax rate %
-          <NumberCell
-            value={a.blendedTaxRatePct}
-            step="0.1"
-            min={0}
-            max={60}
-            onCommit={(v) =>
-              save({ ...a, blendedTaxRatePct: v ?? a.blendedTaxRatePct })
-            }
+          Tax regime
+          <SelectCell
+            value={a.taxRegime}
+            options={TAX_REGIMES}
+            labels={TAX_REGIME_LABELS}
+            onCommit={(v) => save({ ...a, taxRegime: v })}
+          />
+        </Field>
+        <Field>
+          Thresholds rise with inflation
+          <BoolCell
+            value={a.thresholdsInflationLinked}
+            onCommit={(v) => save({ ...a, thresholdsInflationLinked: v })}
           />
         </Field>
         <Field>

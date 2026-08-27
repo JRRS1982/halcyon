@@ -8,7 +8,8 @@ const plan: PlanInput = {
   planToAge: 95,
   inflationPct: 2.5,
   defaultReturnPct: 5,
-  taxRatePct: 22,
+  taxRegime: "RUK",
+  thresholdsInflationLinked: true,
   statePension: { startAge: 67, annualAmount: 11000 },
   assets: [
     {

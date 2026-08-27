@@ -10,7 +10,8 @@ const plan: SerializedPlan = {
     inflationPct: 2.5,
     defaultReturnPct: 5,
     returnSpreadPct: 2,
-    blendedTaxRatePct: 20,
+    taxRegime: "SCOTLAND",
+    thresholdsInflationLinked: false,
     statePensionAge: 67,
     statePensionAnnual: 11500,
     expectedDeathAge: 90,
@@ -86,7 +87,8 @@ describe("serializedToPlanInput", () => {
     expect(input.currentAge).toBe(2026 - 1982);
     expect(input.startYear).toBe(2026);
     expect(input.retirementAge).toBe(60);
-    expect(input.taxRatePct).toBe(20); // blendedTaxRatePct → taxRatePct
+    expect(input.taxRegime).toBe("SCOTLAND");
+    expect(input.thresholdsInflationLinked).toBe(false);
     expect(input.returnSpreadPct).toBe(2);
     expect(input.statePension).toEqual({ startAge: 67, annualAmount: 11500 });
     expect(input.assets[0]?.expectedReturnPct).toBeUndefined();

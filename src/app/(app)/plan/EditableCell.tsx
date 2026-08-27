@@ -101,10 +101,12 @@ export function NumberCell({
 export function SelectCell<T extends string>({
   value,
   options,
+  labels,
   onCommit,
 }: {
   value: T;
   options: readonly T[];
+  labels?: Partial<Record<T, string>>;
   onCommit: (value: T) => Promise<void> | void;
 }) {
   const [buf, setBuf] = useState<T>(value);
@@ -126,7 +128,7 @@ export function SelectCell<T extends string>({
     <Select value={buf} onChange={(e) => change(e.target.value as T)}>
       {options.map((o) => (
         <option key={o} value={o}>
-          {o}
+          {labels?.[o] ?? o}
         </option>
       ))}
     </Select>

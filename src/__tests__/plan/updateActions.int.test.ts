@@ -44,7 +44,8 @@ describe("plan update actions (integration)", () => {
       inflationPct: 3,
       defaultReturnPct: 6,
       returnSpreadPct: 3,
-      blendedTaxRatePct: 25,
+      taxRegime: "SCOTLAND",
+      thresholdsInflationLinked: false,
       statePensionAge: 68,
       statePensionAnnual: 12000,
       expectedDeathAge: 88,
@@ -57,6 +58,8 @@ describe("plan update actions (integration)", () => {
     expect(Number(after.defaultReturnPct)).toBe(6);
     expect(Number(after.returnSpreadPct)).toBe(3);
     expect(after.expectedDeathAge).toBe(88);
+    expect(after.taxRegime).toBe("SCOTLAND");
+    expect(after.thresholdsInflationLinked).toBe(false);
   });
 
   it("updatePlanAsset sets the wrapper + return for the owner", async () => {

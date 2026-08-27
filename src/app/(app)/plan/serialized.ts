@@ -1,5 +1,6 @@
 // src/app/plan/serialized.ts
 import type { ExpenseCategory, IncomeKind, Wrapper } from "@/lib/plan";
+import type { Regime } from "@/lib/tax/types";
 
 export type SerializedPlanAssumptions = {
   id: string;
@@ -9,7 +10,8 @@ export type SerializedPlanAssumptions = {
   inflationPct: number;
   defaultReturnPct: number;
   returnSpreadPct: number;
-  blendedTaxRatePct: number;
+  taxRegime: Regime;
+  thresholdsInflationLinked: boolean;
   statePensionAge: number | null;
   statePensionAnnual: number | null;
   expectedDeathAge: number | null;

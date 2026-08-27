@@ -1,5 +1,7 @@
 // src/lib/plan/types.ts
 
+import type { Regime } from "@/lib/tax/types";
+
 export type Wrapper =
   | "PENSION"
   | "ISA"
@@ -100,7 +102,12 @@ export interface PlanInput {
   inflationPct: number;
   defaultReturnPct: number;
   returnSpreadPct?: number; // ± shift applied to every asset's return for the low/high passes; default 0
-  taxRatePct: number; // v1 blended tax rate
+  taxRegime: Regime; // which set of bands the year's income is walked through
+  // Whether thresholds rise with inflation beyond the last known tax year. Read
+  // by taxContextFor, which scales the personal allowance and every band
+  // threshold by (1 + inflationPct/100) ** years-since-that-year-ended when
+  // true, and leaves them frozen when false.
+  thresholdsInflationLinked: boolean;
   statePension?: { startAge: number; annualAmount: number };
   assets: AssetInput[];
   liabilities: LiabilityInput[];
