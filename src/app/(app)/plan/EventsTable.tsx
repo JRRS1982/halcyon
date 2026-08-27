@@ -190,8 +190,11 @@ export function EventsTable({
   const router = useRouter();
   const add = async () => {
     const id = await createPlanEvent();
-    router.refresh();
+    // Select before refreshing, not after: router.refresh() runs inside a
+    // React transition, and a setState queued behind it waits on the server
+    // round trip it starts. The selection does not depend on that payload.
     onOpen(id);
+    router.refresh();
   };
 
   const secondary = (ev: SerializedPlanEvent) => {

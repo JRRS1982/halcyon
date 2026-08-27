@@ -176,8 +176,11 @@ export function IncomesTable({
   const router = useRouter();
   const add = async () => {
     const id = await createPlanIncome();
-    router.refresh();
+    // Select before refreshing, not after: router.refresh() runs inside a
+    // React transition, and a setState queued behind it waits on the server
+    // round trip it starts. The selection does not depend on that payload.
     onOpen(id);
+    router.refresh();
   };
   const span = (i: SerializedPlanIncome) =>
     `age ${i.startAge ?? "now"}→${i.endAge ?? "end"}`;

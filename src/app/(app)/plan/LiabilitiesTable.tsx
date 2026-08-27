@@ -228,13 +228,17 @@ export function LiabilitiesTable({
   const router = useRouter();
   const add = async () => {
     const id = await createPlanLiability();
-    router.refresh();
+    // Select before refreshing, not after: router.refresh() runs inside a
+    // React transition, and a setState queued behind it waits on the server
+    // round trip it starts. The selection does not depend on that payload.
     onOpen(id);
+    router.refresh();
   };
   const addMortgage = async () => {
     const assetId = await createMortgage();
-    router.refresh();
+    // See `add` above: selection first, refresh after.
     onAddMortgage(assetId);
+    router.refresh();
   };
 
   return (
