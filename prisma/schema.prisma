@@ -468,24 +468,36 @@ enum GrowthKind {
   NONE
 }
 
+// Which UK income tax regime the user is taxed under. Wales sets no separate
+// rates; Northern Ireland follows rest-of-UK.
+enum TaxRegime {
+  RUK
+  SCOTLAND
+}
+
 model Plan {
-  id                 String    @id @default(uuid()) @db.Uuid
-  userId             String    @db.Uuid
-  name               String    @default("My plan")
-  dateOfBirth        DateTime  @db.Date
-  retirementAge      Int
-  planToAge          Int       @default(95)
-  inflationPct       Decimal   @default(2.5) @db.Decimal(5, 2)
-  defaultReturnPct   Decimal   @default(5) @db.Decimal(5, 2)
-  returnSpreadPct    Decimal   @default(0) @db.Decimal(5, 2)
-  blendedTaxRatePct  Decimal   @default(20) @db.Decimal(5, 2)
-  statePensionAge    Int?
-  statePensionAnnual Decimal?  @db.Decimal(12, 2)
-  expectedDeathAge   Int?      @default(90)
-  isPrimary          Boolean   @default(true)
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
-  deletedAt          DateTime?
+  id                        String    @id @default(uuid()) @db.Uuid
+  userId                    String    @db.Uuid
+  name                      String    @default("My plan")
+  dateOfBirth               DateTime  @db.Date
+  retirementAge             Int
+  planToAge                 Int       @default(95)
+  inflationPct              Decimal   @default(2.5) @db.Decimal(5, 2)
+  defaultReturnPct          Decimal   @default(5) @db.Decimal(5, 2)
+  returnSpreadPct           Decimal   @default(0) @db.Decimal(5, 2)
+  taxRegime                 TaxRegime @default(RUK)
+  // Whether tax thresholds rise with inflation beyond the last known tax year.
+  // Default true: frozen thresholds are accurate short-term but implausible over
+  // a fifty-year projection — at 2.5% inflation a £50k salary becomes ~£134k
+  // nominal against a higher-rate threshold still at £50,270.
+  thresholdsInflationLinked Boolean   @default(true)
+  statePensionAge           Int?
+  statePensionAnnual        Decimal?  @db.Decimal(12, 2)
+  expectedDeathAge          Int?      @default(90)
+  isPrimary                 Boolean   @default(true)
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
+  deletedAt                 DateTime?
 
   user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   assets      PlanAsset[]
