@@ -1,6 +1,6 @@
 // src/lib/plan/index.ts
 export { project, projectWithBand } from "./project";
-export { grossUp, incomeTax, isTaxableOnWithdrawal } from "./tax";
+export { isTaxableOnWithdrawal } from "./tax";
 export type {
   AssetBalance,
   AssetInput,

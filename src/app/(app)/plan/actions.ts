@@ -135,7 +135,6 @@ export async function updatePlanAssumptions(
       inflationPct: p.inflationPct,
       defaultReturnPct: p.defaultReturnPct,
       returnSpreadPct: p.returnSpreadPct,
-      blendedTaxRatePct: p.blendedTaxRatePct,
       statePensionAge: p.statePensionAge,
       statePensionAnnual: p.statePensionAnnual,
       expectedDeathAge: p.expectedDeathAge,

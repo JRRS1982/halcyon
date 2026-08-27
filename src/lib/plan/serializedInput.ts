@@ -32,7 +32,8 @@ export function serializedToPlanInput(
     inflationPct: a.inflationPct,
     defaultReturnPct: a.defaultReturnPct,
     returnSpreadPct: a.returnSpreadPct,
-    taxRatePct: a.blendedTaxRatePct,
+    taxRegime: a.taxRegime,
+    thresholdsInflationLinked: a.thresholdsInflationLinked,
     statePension,
     assets: plan.assets.map((x) => ({
       id: x.id,

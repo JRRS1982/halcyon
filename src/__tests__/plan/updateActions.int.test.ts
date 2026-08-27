@@ -44,7 +44,6 @@ describe("plan update actions (integration)", () => {
       inflationPct: 3,
       defaultReturnPct: 6,
       returnSpreadPct: 3,
-      blendedTaxRatePct: 25,
       statePensionAge: 68,
       statePensionAnnual: 12000,
       expectedDeathAge: 88,

@@ -18,7 +18,6 @@ export const updatePlanAssumptionsSchema = z.object({
   inflationPct: z.number().min(0).max(20),
   defaultReturnPct: z.number().min(-20).max(30),
   returnSpreadPct: z.number().min(0).max(10),
-  blendedTaxRatePct: z.number().min(0).max(60),
   statePensionAge: z.number().int().min(50).max(80).nullable(),
   statePensionAnnual: z.number().min(0).nullable(),
   expectedDeathAge: z.number().int().min(1).max(120).nullable(),

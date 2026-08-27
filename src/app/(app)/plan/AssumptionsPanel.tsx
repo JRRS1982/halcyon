@@ -60,7 +60,6 @@ export function AssumptionsPanel({
         inflationPct: next.inflationPct,
         defaultReturnPct: next.defaultReturnPct,
         returnSpreadPct: next.returnSpreadPct,
-        blendedTaxRatePct: next.blendedTaxRatePct,
         statePensionAge: next.statePensionAge,
         statePensionAnnual: next.statePensionAnnual,
         expectedDeathAge: next.expectedDeathAge,
@@ -137,18 +136,6 @@ export function AssumptionsPanel({
             max={10}
             onCommit={(v) =>
               save({ ...a, returnSpreadPct: v ?? a.returnSpreadPct })
-            }
-          />
-        </Field>
-        <Field>
-          Tax rate %
-          <NumberCell
-            value={a.blendedTaxRatePct}
-            step="0.1"
-            min={0}
-            max={60}
-            onCommit={(v) =>
-              save({ ...a, blendedTaxRatePct: v ?? a.blendedTaxRatePct })
             }
           />
         </Field>

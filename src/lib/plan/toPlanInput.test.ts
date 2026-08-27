@@ -60,7 +60,8 @@ const basePlan = (over: Partial<PlanWithChildren> = {}): PlanWithChildren => ({
   inflationPct: d(2.5),
   defaultReturnPct: d(5),
   returnSpreadPct: d(0),
-  blendedTaxRatePct: d(20),
+  taxRegime: "RUK",
+  thresholdsInflationLinked: true,
   statePensionAge: 67,
   statePensionAnnual: d(11000),
   expectedDeathAge: 90,
@@ -81,7 +82,8 @@ describe("toPlanInput", () => {
     const input = toPlanInput(basePlan(), 2026);
     expect(input.currentAge).toBe(40); // 2026 - 1986
     expect(input.startYear).toBe(2026);
-    expect(input.taxRatePct).toBe(20);
+    expect(input.taxRegime).toBe("RUK");
+    expect(input.thresholdsInflationLinked).toBe(true);
     expect(input.statePension).toEqual({ startAge: 67, annualAmount: 11000 });
   });
 

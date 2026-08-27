@@ -51,7 +51,8 @@ export default async function PlanPage() {
       inflationPct: Number(plan.inflationPct),
       defaultReturnPct: Number(plan.defaultReturnPct),
       returnSpreadPct: Number(plan.returnSpreadPct),
-      blendedTaxRatePct: Number(plan.blendedTaxRatePct),
+      taxRegime: plan.taxRegime,
+      thresholdsInflationLinked: plan.thresholdsInflationLinked,
       statePensionAge: plan.statePensionAge,
       statePensionAnnual:
         plan.statePensionAnnual === null

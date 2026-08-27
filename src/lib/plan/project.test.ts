@@ -1,4 +1,5 @@
 // src/lib/plan/project.test.ts
+import { taxOn } from "@/lib/tax/compute";
 import { project, projectWithBand } from "./project";
 import type { PlanInput, PlanProjection, YearProjection } from "./types";
 
@@ -15,7 +16,8 @@ const base = (over: Partial<PlanInput> = {}): PlanInput => ({
   planToAge: 41,
   inflationPct: 0,
   defaultReturnPct: 0,
-  taxRatePct: 0,
+  taxRegime: "RUK",
+  thresholdsInflationLinked: true,
   assets: [],
   liabilities: [],
   incomes: [],
@@ -87,7 +89,6 @@ describe("project", () => {
             inflationLinked: false,
           },
         ],
-        taxRatePct: 20,
         assets: [
           {
             id: "cash",
@@ -106,8 +107,10 @@ describe("project", () => {
         ],
       }),
     );
-    expect(at(p, 0).surplus).toBe(10000);
-    expect(wrapperTotal(at(p, 0), "CASH")).toBe(10000);
+    // 50000 − 12570 allowance = 37430 taxable, all inside the 20% band
+    // (which ends at 37700): tax 7486, net 42514, less 30000 spent = 12514.
+    expect(at(p, 0).surplus).toBe(12514);
+    expect(wrapperTotal(at(p, 0), "CASH")).toBe(12514);
     expect(wrapperTotal(at(p, 0), "PENSION")).toBe(0);
   });
 
@@ -181,16 +184,15 @@ describe("project", () => {
     expect(wrapperTotal(at(p, 0), "CASH")).toBe(0);
   });
 
-  it("taxes a pension drawdown (gross-up) and records it on the asset", () => {
-    const p = project(
+  const drawdown = (spend: number) =>
+    project(
       base({
         planToAge: 40,
-        taxRatePct: 20,
         expenses: [
           {
             id: "e",
             label: "Living",
-            annualAmount: 8000,
+            annualAmount: spend,
             inflationLinked: false,
           },
         ],
@@ -206,9 +208,72 @@ describe("project", () => {
         ],
       }),
     );
-    expect(at(p, 0).withdrawals).toBe(10000);
-    expect(at(p, 0).tax).toBe(2000);
-    expect(at(p, 0).assets.find((a) => a.id === "sipp")?.withdrawn).toBe(10000);
+
+  it("does not tax a drawdown that fits inside the unused personal allowance", () => {
+    // No income at all, so all 12570 of the allowance is free: 8000 out is
+    // 8000 in hand, and there is nothing to gross up.
+    const p = drawdown(8000);
+    expect(at(p, 0).withdrawals).toBe(8000);
+    expect(at(p, 0).tax).toBe(0);
+    expect(at(p, 0).assets.find((a) => a.id === "sipp")?.withdrawn).toBe(8000);
+  });
+
+  it("grosses up a pension drawdown past the allowance and records it", () => {
+    // 22570 needed net: the first 12570 comes out of the allowance untaxed,
+    // the remaining 10000 net costs 12500 gross at 20% (10000 / 0.8). Total
+    // gross 25070, tax 2500.
+    const p = drawdown(22570);
+    expect(at(p, 0).withdrawals).toBe(25070);
+    expect(at(p, 0).tax).toBe(2500);
+    expect(at(p, 0).assets.find((a) => a.id === "sipp")?.withdrawn).toBe(25070);
+  });
+
+  // The defect this closes: the year's income and the year's withdrawal used to
+  // be taxed by two independent calculations, so the personal allowance was
+  // granted twice and both sat low in the bands. One year is one income.
+  it("taxes income and a withdrawal as one income, not two", () => {
+    const income = 20000;
+    const p = project(
+      base({
+        planToAge: 40,
+        incomes: [
+          {
+            id: "s",
+            label: "Salary",
+            kind: "SALARY",
+            annualAmount: income,
+            growth: { kind: "NONE" },
+            taxable: true,
+          },
+        ],
+        // 20000 gross − 1486 tax = 18514 net, so a 48514 expense leaves a
+        // 30000 net deficit for the pension to fund.
+        expenses: [
+          {
+            id: "e",
+            label: "Living",
+            annualAmount: 48514,
+            inflationLinked: false,
+          },
+        ],
+        assets: [
+          {
+            id: "sipp",
+            label: "SIPP",
+            wrapper: "PENSION",
+            openingValue: 200000,
+            minAccessAge: 40,
+            drawdownPriority: 0,
+          },
+        ],
+      }),
+    );
+    const y = at(p, 0);
+    expect(y.shortfall).toBe(false);
+    expect(y.tax).toBe(
+      taxOn({ income: income + y.withdrawals, year: "2025/26", regime: "RUK" })
+        .tax,
+    );
   });
 
   it("captures income by kind", () => {
@@ -325,7 +390,6 @@ describe("contribution funding (no leak)", () => {
     const p = project(
       base({
         planToAge: 40,
-        taxRatePct: 40,
         assets: [
           {
             id: "sipp",
@@ -355,7 +419,6 @@ describe("contribution funding (no leak)", () => {
     const p = project(
       base({
         planToAge: 40,
-        taxRatePct: 0,
         incomes: [
           {
             id: "s",
@@ -469,7 +532,8 @@ describe("projectWithBand", () => {
       planToAge: 45,
       inflationPct: 0,
       defaultReturnPct: 0,
-      taxRatePct: 0,
+      taxRegime: "RUK",
+      thresholdsInflationLinked: true,
       assets: [
         {
           id: "cash",
