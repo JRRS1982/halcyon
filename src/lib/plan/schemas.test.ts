@@ -12,6 +12,8 @@ const validAssumptions = {
   inflationPct: 2.5,
   defaultReturnPct: 5,
   returnSpreadPct: 2,
+  taxRegime: "RUK",
+  thresholdsInflationLinked: true,
   statePensionAge: 67,
   statePensionAnnual: 11500,
   expectedDeathAge: 90,
@@ -82,6 +84,20 @@ describe("updatePlanAssumptionsSchema", () => {
       updatePlanAssumptionsSchema.parse({
         ...validAssumptions,
         returnSpreadPct: -1,
+      }),
+    ).toThrow();
+  });
+  it("accepts SCOTLAND and rejects an unknown regime", () => {
+    expect(
+      updatePlanAssumptionsSchema.parse({
+        ...validAssumptions,
+        taxRegime: "SCOTLAND",
+      }).taxRegime,
+    ).toBe("SCOTLAND");
+    expect(() =>
+      updatePlanAssumptionsSchema.parse({
+        ...validAssumptions,
+        taxRegime: "ENGLAND",
       }),
     ).toThrow();
   });

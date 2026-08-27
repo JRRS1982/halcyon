@@ -113,6 +113,8 @@ export function usePlanProjection(
         inflationPct: a.inflationPct,
         defaultReturnPct: a.defaultReturnPct,
         returnSpreadPct: a.returnSpreadPct,
+        taxRegime: a.taxRegime,
+        thresholdsInflationLinked: a.thresholdsInflationLinked,
         statePensionAge: a.statePensionAge,
         statePensionAnnual: a.statePensionAnnual,
         expectedDeathAge: a.expectedDeathAge,
