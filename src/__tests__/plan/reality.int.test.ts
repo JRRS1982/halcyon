@@ -522,6 +522,44 @@ describe("latestReality (integration)", () => {
     expect(rows.find((r) => r.linkId === mortgage.id)?.flow).toBe(1250);
   });
 
+  // One findMany now fetches every account's transfers and repayments at
+  // once, so the pair (account, type) — not the account alone — has to decide
+  // which row wins. A newer mispaired row must stay unfindable rather than
+  // shadowing the correctly paired one behind it.
+  it("reads an asset's transfer even when a newer repayment names the same account", async () => {
+    const march = await monthPeriod(TEST_USER_ID, "March 2026", "2026-03-01");
+    const april = await monthPeriod(TEST_USER_ID, "April 2026", "2026-04-01");
+    const account = await accountWithBalance(
+      "Vanguard SIPP",
+      "ASSET",
+      42300,
+      march.id,
+    );
+    await prisma.budgetItem.create({
+      data: {
+        periodId: march.id,
+        accountId: account.id,
+        type: "TRANSFER",
+        direction: "INFLOW",
+        label: "Pension contribution",
+        budget: 500,
+      },
+    });
+    await prisma.budgetItem.create({
+      data: {
+        periodId: april.id,
+        accountId: account.id,
+        type: "REPAYMENT",
+        label: "Mispaired repayment",
+        budget: 9999,
+      },
+    });
+
+    const rows = await latestReality(TEST_USER_ID);
+
+    expect(rows[0]?.flow).toBe(6000);
+  });
+
   // × 12 assumes a monthly figure, exactly as the category read does.
   it("ignores a YEAR period's transfer when reading an account's flow", async () => {
     const period = await monthPeriod(TEST_USER_ID, "March 2026", "2026-03-01");
