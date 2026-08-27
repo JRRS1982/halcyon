@@ -272,8 +272,12 @@ describe("project", () => {
     expect(y.shortfall).toBe(false);
     expect(y.withdrawals).toBe(39910);
     expect(y.tax).toBe(
-      taxOn({ income: income + y.withdrawals, year: "2025/26", regime: "RUK" })
-        .tax,
+      taxOn({
+        income: income + y.withdrawals,
+        year: "2025/26",
+        regime: "RUK",
+        thresholdScale: 1,
+      }).tax,
     );
   });
 
@@ -309,6 +313,51 @@ describe("project", () => {
 
     const lastIndex = linked.years.length - 1;
     expect(at(linked, lastIndex).tax).toBeLessThan(at(frozen, lastIndex).tax);
+  });
+
+  // Regime must travel from PlanInput through taxContextFor into the walk —
+  // nothing here proves that unless the two regimes actually disagree, so the
+  // income is chosen high enough that they diverge (low down they're
+  // identical). Hand-derived from src/lib/tax/bands.ts against taxable income
+  // of 90,000 − 12,570 = 77,430:
+  //   RUK falls in the 40% band (37,700 → 87,430):
+  //     37,700 × 0.20 + (77,430 − 37,700) × 0.40 = 7,540 + 15,892 = 23,432.
+  //   SCOTLAND fills starter/basic/intermediate/higher, then 15,000 of the
+  //   45% advanced band (62,430 → 87,430):
+  //     2,827 × 0.19 + 12,094 × 0.20 + 16,171 × 0.21 + 31,338 × 0.42
+  //       + 15,000 × 0.45
+  //     = 537.13 + 2,418.80 + 3,395.91 + 13,161.96 + 6,750 = 26,263.80,
+  //     rounds to 26,264.
+  it("SCOTLAND taxes a year's income differently from RUK, and matches taxOn", () => {
+    const income = 90_000;
+    const scenario = (taxRegime: "RUK" | "SCOTLAND") =>
+      project(
+        base({
+          planToAge: 40,
+          taxRegime,
+          incomes: [
+            {
+              id: "s",
+              label: "Salary",
+              kind: "SALARY",
+              annualAmount: income,
+              growth: { kind: "NONE" },
+              taxable: true,
+            },
+          ],
+        }),
+      );
+
+    const scotland = scenario("SCOTLAND");
+    const ruk = scenario("RUK");
+
+    expect(at(scotland, 0).tax).toBe(
+      taxOn({ income, year: "2025/26", regime: "SCOTLAND", thresholdScale: 1 })
+        .tax,
+    );
+    expect(at(scotland, 0).tax).toBe(26264);
+    expect(at(ruk, 0).tax).toBe(23432);
+    expect(at(scotland, 0).tax).not.toBe(at(ruk, 0).tax);
   });
 
   it("captures income by kind", () => {

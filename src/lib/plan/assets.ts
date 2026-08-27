@@ -89,9 +89,9 @@ export const fundDeficit = (
       // inverse walk answers "what gross nets X", and the answer here is capped
       // by the balance, not by the requirement.
       const taxIfDrained = taxDelta(balance);
-      const { gross, tax: due } =
+      const grossed =
         balance - taxIfDrained <= remaining
-          ? { gross: balance, tax: taxIfDrained }
+          ? undefined
           : grossFor({
               net: remaining,
               alreadyTaxed: taxedSoFar,
@@ -99,6 +99,14 @@ export const fundDeficit = (
               regime,
               thresholdScale,
             });
+      // grossFor's never-under-fund nudge can round its answer up to (or
+      // past) the whole balance when the need sits within a pound of what a
+      // full drain nets. Treat that as a drain too, so the pot closes at
+      // exactly zero instead of a fraction of a pound negative.
+      const { gross, tax: due } =
+        grossed === undefined || grossed.gross >= balance
+          ? { gross: balance, tax: taxIfDrained }
+          : grossed;
       next[a.id] = balance - gross;
       withdrawnByAsset[a.id] = gross;
       withdrawalTax += due;

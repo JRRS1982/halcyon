@@ -36,6 +36,17 @@ test("toggle off: scale is 1 at any projection year, however far out", () => {
   }
 });
 
+test("regime is carried through, not hard-coded", () => {
+  expect(
+    taxContextFor({
+      projectionYear: 2026,
+      regime: "SCOTLAND",
+      inflationPct: 2.5,
+      inflationLinked: true,
+    }).regime,
+  ).toBe("SCOTLAND");
+});
+
 test("toggle on: scale is 1 through the anchor year, then compounds from the year after", () => {
   const scaleAt = (projectionYear: number) =>
     taxContextFor({

@@ -1,7 +1,7 @@
 import { taxContextFor } from "@/lib/tax/bands";
 import { grossFor, taxOn } from "@/lib/tax/compute";
 
-const rUK = { year: "2025/26", regime: "RUK" as const };
+const rUK = { year: "2025/26", regime: "RUK" as const, thresholdScale: 1 };
 
 test("no tax below the personal allowance", () => {
   expect(taxOn({ income: 12_570, ...rUK }).tax).toBe(0);
@@ -34,20 +34,6 @@ test("additional rate above 125,140", () => {
 test("zero and negative income are not taxed", () => {
   expect(taxOn({ income: 0, ...rUK }).tax).toBe(0);
   expect(taxOn({ income: -5_000, ...rUK }).tax).toBe(0);
-});
-
-test("thresholdScale defaults to 1 and reproduces an existing unscaled figure", () => {
-  expect(taxOn({ income: 60_000, ...rUK }).tax).toBe(
-    taxOn({ income: 60_000, ...rUK, thresholdScale: 1 }).tax,
-  );
-  const unscaled = grossFor({ net: 30_000, alreadyTaxed: 20_000, ...rUK });
-  const explicit = grossFor({
-    net: 30_000,
-    alreadyTaxed: 20_000,
-    ...rUK,
-    thresholdScale: 1,
-  });
-  expect(explicit).toEqual(unscaled);
 });
 
 test("nets exactly what was asked for, from zero", () => {
@@ -134,11 +120,22 @@ test("inverse property holds across a spread, including every band boundary ±1 
         alreadyTaxed,
         year: "2025/26",
         regime,
+        thresholdScale: 1,
       });
       expect(gross - tax).toBe(net);
       const delta =
-        taxOn({ income: alreadyTaxed + gross, year: "2025/26", regime }).tax -
-        taxOn({ income: alreadyTaxed, year: "2025/26", regime }).tax;
+        taxOn({
+          income: alreadyTaxed + gross,
+          year: "2025/26",
+          regime,
+          thresholdScale: 1,
+        }).tax -
+        taxOn({
+          income: alreadyTaxed,
+          year: "2025/26",
+          regime,
+          thresholdScale: 1,
+        }).tax;
       expect(tax).toBe(delta);
     }
   }
@@ -160,6 +157,7 @@ test("works for Scotland's seven bands unchanged", () => {
     alreadyTaxed: 20_000,
     year: "2025/26",
     regime: "SCOTLAND",
+    thresholdScale: 1,
   });
   expect(gross - tax).toBe(30_000);
 });
@@ -179,7 +177,12 @@ test.each([
   const years = 10;
   const scale = (1 + inflationPct / 100) ** years;
 
-  const baseline = taxOn({ income, year: "2025/26", regime });
+  const baseline = taxOn({
+    income,
+    year: "2025/26",
+    regime,
+    thresholdScale: 1,
+  });
   const { thresholdScale } = taxContextFor({
     projectionYear: 2026 + years,
     regime,

@@ -10,18 +10,19 @@ const round = (n: number): number => Math.round(n);
  * ceiling by the same factor before walking them — equivalent to inflating
  * the published total-income thresholds, since the allowance and the band
  * boundaries move together. A `null` (unbounded) ceiling is left alone; there
- * is nothing to scale. Defaults to 1, i.e. the published 2025/26 figures.
+ * is nothing to scale. Pass 1 for the published 2025/26 figures unscaled —
+ * required, not defaulted, so a caller can't silently skip inflation.
  */
 export function taxOn({
   income,
   year,
   regime,
-  thresholdScale = 1,
+  thresholdScale,
 }: {
   income: number;
   year: string;
   regime: Regime;
-  thresholdScale?: number;
+  thresholdScale: number;
 }): { tax: number } {
   const taxable = Math.max(
     0,
@@ -68,20 +69,21 @@ export function taxOn({
  * `thresholdScale` scales the personal allowance and every finite band
  * ceiling the same way `taxOn` does, and is passed straight through to the
  * `taxOn` calls below so the band walk and its authoritative adjudication
- * agree on the same scaled thresholds. Defaults to 1.
+ * agree on the same scaled thresholds. Required, not defaulted, so a caller
+ * can't silently skip inflation — pass 1 for the unscaled figures.
  */
 export function grossFor({
   net,
   alreadyTaxed,
   year,
   regime,
-  thresholdScale = 1,
+  thresholdScale,
 }: {
   net: number;
   alreadyTaxed: number;
   year: string;
   regime: Regime;
-  thresholdScale?: number;
+  thresholdScale: number;
 }): { gross: number; tax: number } {
   if (net <= 0) return { gross: 0, tax: 0 };
 

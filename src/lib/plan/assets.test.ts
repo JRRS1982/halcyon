@@ -95,9 +95,30 @@ describe("fundDeficit", () => {
     expect(r.totalWithdrawn).toBe(46857);
     expect(r.withdrawalTax).toBe(6857);
     expect(r.withdrawalTax).toBe(
-      taxOn({ income: r.totalWithdrawn, year: "2025/26", regime: "RUK" }).tax,
+      taxOn({
+        income: r.totalWithdrawn,
+        year: "2025/26",
+        regime: "RUK",
+        thresholdScale: 1,
+      }).tax,
     );
     expect(r.shortfall).toBe(false);
+  });
+  // grossFor's never-under-fund nudge rounds up to the nearest whole pound,
+  // so a need within £1 of what a full drain nets can round to a gross above
+  // a non-integer balance. Left alone that closes the pot negative, and
+  // grow() compounds a negative balance forever. balance=5000.01,
+  // need=5000.009 previously produced gross=5001 (closing balance −£0.99);
+  // widening the drain condition to catch a computed gross at or above the
+  // balance must route this through the drain branch instead, closing at
+  // exactly zero.
+  it("never closes a pot below zero, even in grossFor's rounding knife-edge", () => {
+    const assets = [
+      asset({ id: "sipp", wrapper: "PENSION", drawdownPriority: 0 }),
+    ];
+    const r = fundDeficit(assets, { sipp: 5000.01 }, 5000.009, ctx(), 65);
+    expect(r.balances.sipp).toBe(0);
+    expect(r.withdrawnByAsset.sipp).toBe(5000.01);
   });
   it("skips PROPERTY and flags a shortfall when liquid assets run out", () => {
     const assets = [

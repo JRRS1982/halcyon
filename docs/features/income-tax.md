@@ -67,11 +67,11 @@ special case in the walk.
 
 ## Two functions, one walk, both directions
 
-`taxOn({ income, year, regime, thresholdScale? })` is the forward direction:
+`taxOn({ income, year, regime, thresholdScale })` is the forward direction:
 subtract the (possibly scaled) personal allowance, walk the bands, accumulate
 tax on each width.
 
-`grossFor({ net, alreadyTaxed, year, regime, thresholdScale? })` is the
+`grossFor({ net, alreadyTaxed, year, regime, thresholdScale })` is the
 inverse the projection actually needs — "the plan requires £X in hand; how
 much must it withdraw?" It walks the same bands with the arithmetic inverted:
 each band's *net capacity* is `width × (1 − rate)`, consumed until the
@@ -142,9 +142,10 @@ arithmetic — it just says which wrappers are taxed as income when money comes
 *out*: `PENSION` and `GIA`. Everything else (`ISA`, `CASH`, …) is drawn
 untaxed. `fundDeficit` drains assets in ascending `drawdownPriority`; for a
 taxable pot it either drains the whole balance (settled directly via
-`taxDelta`, since the requirement being smaller than the balance means the
-inverse walk isn't needed) or grosses up through `grossFor` when the balance
-alone can't cover the remaining need.
+`taxDelta`, when the balance's net proceeds can't cover the remaining need —
+there's nothing left to solve for, so the inverse walk isn't needed) or
+grosses up through `grossFor` when the balance alone can cover the remaining
+need, to work out exactly how much of it to withdraw.
 
 ## GIA: the most misleading number this feature can produce
 
@@ -282,9 +283,12 @@ Named so nobody builds these by accident:
   (the double-allowance case: income plus a withdrawal taxed as one income,
   not two; a drawdown that fits inside the unused allowance costs nothing;
   `thresholdsInflationLinked` leaves year-0 tax unchanged but strictly lowers
-  later years' tax).
+  later years' tax; `project.test.ts` also has the regime case — SCOTLAND and
+  RUK taxing the same income differently, and the SCOTLAND figure matching
+  `taxOn` by hand).
 - **Integration** — [`src/__tests__/plan/taxRegime.int.test.ts`](../../src/__tests__/plan/taxRegime.int.test.ts)
-  (a plan round-trips `taxRegime`/`thresholdsInflationLinked`; the projection
-  changes when the regime changes).
+  (a plan round-trips `taxRegime`/`thresholdsInflationLinked`; both tests are
+  Prisma round-trips and don't run the projection — that's covered by the
+  `project.test.ts` regime case above).
 - **No e2e.** Nothing here is a journey; it's arithmetic behind the existing
   Assumptions panel and projection screens.
