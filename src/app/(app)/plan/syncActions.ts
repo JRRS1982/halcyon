@@ -12,13 +12,19 @@ import {
   type SyncPlan,
 } from "@/lib/plan/sync";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/supabase/user";
 
+// Same contract as before — the signed-in user's id, or a redirect to sign-in
+// with /plan as the return path. The difference is the call underneath:
+// getCurrentUser is memoised with React's cache(), so a render that touches
+// several of these actions authenticates once instead of once per action.
+//
+// Per-request memoisation, not a cache across requests: a signed-out visitor
+// never inherits a previous request's session. getCurrentUser's own doc
+// comment describes this being done for the layout and settings paths; the
+// plan actions simply never adopted it.
 async function requireUserId(): Promise<string> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) redirect("/sign-in?next=/plan");
   return user.id;
 }
