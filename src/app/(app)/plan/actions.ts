@@ -23,6 +23,7 @@ import {
 import { resolvePlanSync } from "@/lib/plan/sync";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/supabase/user";
+import { loadPlanRecordForRender } from "./planRecord";
 
 // Same contract as before — the signed-in user's id, or a redirect to sign-in
 // with /plan as the return path. The difference is the call underneath:
@@ -41,19 +42,7 @@ async function requireUserId(): Promise<string> {
 
 export async function getPrimaryPlan() {
   const userId = await requireUserId();
-  return prisma.plan.findFirst({
-    where: { userId, isPrimary: true, deletedAt: null },
-    include: {
-      assets: { where: { deletedAt: null }, orderBy: { sortOrder: "asc" } },
-      liabilities: {
-        where: { deletedAt: null },
-        orderBy: { sortOrder: "asc" },
-      },
-      incomes: { where: { deletedAt: null }, orderBy: { sortOrder: "asc" } },
-      expenses: { where: { deletedAt: null }, orderBy: { sortOrder: "asc" } },
-      events: { where: { deletedAt: null }, orderBy: { sortOrder: "asc" } },
-    },
-  });
+  return loadPlanRecordForRender(userId);
 }
 
 // Retirement age is not asked for at create time — it is seeded with the same

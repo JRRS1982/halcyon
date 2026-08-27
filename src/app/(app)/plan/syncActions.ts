@@ -13,6 +13,11 @@ import {
 } from "@/lib/plan/sync";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/supabase/user";
+import {
+  loadPlanRecord,
+  loadPlanRecordForRender,
+  type PlanRecord,
+} from "./planRecord";
 
 // Same contract as before — the signed-in user's id, or a redirect to sign-in
 // with /plan as the return path. The difference is the call underneath:
@@ -39,29 +44,7 @@ type LoadedPlan = {
 // The primary plan's rows, flattened into the shape resolvePlanSync compares
 // against reality, plus the sale events that hang off them. Null when the user
 // has no primary plan.
-async function loadPrimaryPlanRows(userId: string): Promise<LoadedPlan | null> {
-  const plan = await prisma.plan.findFirst({
-    where: { userId, deletedAt: null, isPrimary: true },
-    include: {
-      assets: { where: { deletedAt: null } },
-      liabilities: { where: { deletedAt: null } },
-      incomes: { where: { deletedAt: null } },
-      expenses: { where: { deletedAt: null } },
-      // Only a sale that still names a property can be resolved against one.
-      // An event whose assetId is already null is an existing orphan: there is
-      // nothing left to say what it depended on, so Sync leaves it alone
-      // rather than guessing.
-      events: {
-        where: {
-          deletedAt: null,
-          kind: "PROPERTY_SALE",
-          assetId: { not: null },
-        },
-      },
-    },
-  });
-  if (!plan) return null;
-
+function toLoadedPlan(plan: PlanRecord): LoadedPlan {
   const rows: PlanRow[] = [
     ...plan.assets.map(
       (a): PlanRow => ({
@@ -124,10 +107,17 @@ async function loadPrimaryPlanRows(userId: string): Promise<LoadedPlan | null> {
 
   // A sale event is not a PlanRow — it mirrors nothing on the balance sheet,
   // so it can be neither plan-only nor gone — but it cannot outlive the
-  // property it sells. flatMap rather than map: it also narrows assetId, which
-  // the query has already filtered to non-null.
+  // property it sells.
+  //
+  // Only a sale that still names a property can be resolved against one. An
+  // event whose assetId is already null is an existing orphan: there is
+  // nothing left to say what it depended on, so Sync leaves it alone rather
+  // than guessing. That pair of conditions used to be the query's `where`;
+  // the shared record carries every live event (the sheet renders them all),
+  // so the same predicate is applied here instead. flatMap rather than filter
+  // + map because it also narrows assetId to non-null for the type.
   const dependents: DependentRow[] = plan.events.flatMap((e) =>
-    e.assetId === null
+    e.kind !== "PROPERTY_SALE" || e.assetId === null
       ? []
       : [{ id: e.id, label: e.label, dependsOn: e.assetId }],
   );
@@ -154,8 +144,11 @@ function rowKindsOf(
 // the per-row indicators and the confirmation dialog all render.
 export async function getPlanSyncPreview(): Promise<SyncPlan | null> {
   const userId = await requireUserId();
-  const loaded = await loadPrimaryPlanRows(userId);
-  if (!loaded) return null;
+  // The memoised read: /plan renders the sheet and this preview in one pass,
+  // and they used to fetch the same plan twice.
+  const plan = await loadPlanRecordForRender(userId);
+  if (!plan) return null;
+  const loaded = toLoadedPlan(plan);
 
   const reality = await latestReality(userId);
   return resolvePlanSync(loaded.rows, reality, loaded.dependents);
@@ -164,8 +157,15 @@ export async function getPlanSyncPreview(): Promise<SyncPlan | null> {
 // Performs a Sync and returns what it did.
 export async function syncPlan(): Promise<SyncPlan> {
   const userId = await requireUserId();
-  const loaded = await loadPrimaryPlanRows(userId);
-  if (!loaded) throw new Error("Plan not found");
+  // Deliberately the *unmemoised* read, unlike the preview above. This path
+  // writes, and Next re-renders /plan inside the same request afterwards — so
+  // a plan cached here could be handed to the render that follows the write
+  // and show pre-Sync values. Reading straight through keeps the memoised
+  // entry unpopulated, so that render fetches fresh whatever the request
+  // scoping turns out to be.
+  const record = await loadPlanRecord(userId);
+  if (!record) throw new Error("Plan not found");
+  const loaded = toLoadedPlan(record);
 
   const reality = await latestReality(userId);
   const plan = resolvePlanSync(loaded.rows, reality, loaded.dependents);
