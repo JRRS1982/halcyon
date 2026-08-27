@@ -41,7 +41,12 @@ describe("contributionTargetId", () => {
 
 describe("fundDeficit", () => {
   const ctx = (alreadyTaxed = 0) =>
-    ({ alreadyTaxed, year: "2025/26", regime: "RUK" }) as const;
+    ({
+      alreadyTaxed,
+      year: "2025/26",
+      regime: "RUK",
+      thresholdScale: 1,
+    }) as const;
 
   it("draws tax-free pots in priority order, no gross-up", () => {
     const assets = [

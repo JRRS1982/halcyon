@@ -1,4 +1,4 @@
-import type { Regime, TaxYear } from "./types";
+import type { Regime, TaxContext, TaxYear } from "./types";
 
 // Bands are on TAXABLE income — total income minus a constant personal
 // allowance. The personal-allowance taper (£1 lost per £2 above £100,000) is
@@ -27,6 +27,7 @@ import type { Regime, TaxYear } from "./types";
 const YEARS: TaxYear[] = [
   {
     year: "2025/26",
+    endsInCalendarYear: 2026,
     personalAllowance: 12_570,
     bands: {
       RUK: [
@@ -59,15 +60,33 @@ export function bandsFor(year: string, regime: Regime) {
 }
 
 /**
- * Which tax year applies to a projection year. Derived, never stored.
+ * The tax context for a projection year. Derived, never stored.
  *
- * The table holds one entry today, so this returns it. When a second year is
- * added, a projection year at or before a known year uses that year's entry;
- * beyond the last known one, `thresholdsInflationLinked` decides whether the
- * thresholds are inflated forward or left frozen. That branch is deliberately
- * not written yet — there is nothing to choose between with a single entry, and
- * writing it now would be untested speculation.
+ * The table holds one entry today, so every projection year is walked against
+ * it — but its thresholds may need scaling first. A tax year is a straddling
+ * period (2025/26 runs 6 Apr 2025 → 5 Apr 2026); a projection year is a plain
+ * calendar year. The anchor for "how many years of inflation have passed" is
+ * the calendar year the latest known tax year *ends* in (2026, for 2025/26),
+ * not the year it's named after: that's the year most of calendar 2026 falls
+ * in, so calendar 2026 is still served by the 2025/26 table unscaled, and
+ * calendar 2027 is the first year that needs one year of inflation applied.
+ * Everything on or before the anchor year gets scale 1, whether or not the
+ * toggle is on — there's nothing to inflate yet.
  */
-export function taxYearOf(_projectionYear: number): string {
-  return LATEST_YEAR.year;
+export function taxContextFor({
+  projectionYear,
+  regime,
+  inflationPct,
+  inflationLinked,
+}: {
+  projectionYear: number;
+  regime: Regime;
+  inflationPct: number;
+  inflationLinked: boolean;
+}): TaxContext {
+  const exponent = Math.max(0, projectionYear - LATEST_YEAR.endsInCalendarYear);
+  const thresholdScale = inflationLinked
+    ? (1 + inflationPct / 100) ** exponent
+    : 1;
+  return { year: LATEST_YEAR.year, regime, thresholdScale };
 }

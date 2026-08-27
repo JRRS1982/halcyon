@@ -42,6 +42,7 @@ export interface WithdrawalTaxContext {
   alreadyTaxed: number;
   year: string;
   regime: Regime;
+  thresholdScale: number;
 }
 
 // Funds a net `need` from non-PROPERTY assets in ascending drawdownPriority.
@@ -63,12 +64,12 @@ export const fundDeficit = (
   let withdrawalTax = 0;
   let taxedSoFar = tax.alreadyTaxed;
 
-  const { year, regime } = tax;
+  const { year, regime, thresholdScale } = tax;
   // What a gross withdrawal of `gross` adds to the year's tax bill, stacked on
   // everything taxed before it.
   const taxDelta = (gross: number): number =>
-    taxOn({ income: taxedSoFar + gross, year, regime }).tax -
-    taxOn({ income: taxedSoFar, year, regime }).tax;
+    taxOn({ income: taxedSoFar + gross, year, regime, thresholdScale }).tax -
+    taxOn({ income: taxedSoFar, year, regime, thresholdScale }).tax;
 
   const order = assets
     .filter(drawable)
@@ -96,6 +97,7 @@ export const fundDeficit = (
               alreadyTaxed: taxedSoFar,
               year,
               regime,
+              thresholdScale,
             });
       next[a.id] = balance - gross;
       withdrawnByAsset[a.id] = gross;

@@ -104,7 +104,9 @@ export interface PlanInput {
   returnSpreadPct?: number; // ± shift applied to every asset's return for the low/high passes; default 0
   taxRegime: Regime; // which set of bands the year's income is walked through
   // Whether thresholds rise with inflation beyond the last known tax year. Read
-  // by taxYearOf once a second year exists; a single year has nothing to choose.
+  // by taxContextFor, which scales the personal allowance and every band
+  // threshold by (1 + inflationPct/100) ** years-since-that-year-ended when
+  // true, and leaves them frozen when false.
   thresholdsInflationLinked: boolean;
   statePension?: { startAge: number; annualAmount: number };
   assets: AssetInput[];

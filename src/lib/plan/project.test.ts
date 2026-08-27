@@ -270,10 +270,45 @@ describe("project", () => {
     );
     const y = at(p, 0);
     expect(y.shortfall).toBe(false);
+    expect(y.withdrawals).toBe(39910);
     expect(y.tax).toBe(
       taxOn({ income: income + y.withdrawals, year: "2025/26", regime: "RUK" })
         .tax,
     );
+  });
+
+  // The anchor is what pins this: startYear 2026 means year 0's projection
+  // year is 2026 itself, so its thresholdScale is 1 regardless of the toggle
+  // — the two runs must agree there. Beyond the anchor, frozen thresholds
+  // fall behind an income that keeps inflating, so tax must be strictly
+  // higher unlinked (equivalently, strictly lower linked) by the last year.
+  it("thresholdsInflationLinked leaves year 0 tax unchanged but strictly lowers late-year tax", () => {
+    const scenario = (thresholdsInflationLinked: boolean) =>
+      project(
+        base({
+          planToAge: 60,
+          inflationPct: 3,
+          thresholdsInflationLinked,
+          incomes: [
+            {
+              id: "s",
+              label: "Salary",
+              kind: "SALARY",
+              annualAmount: 90_000,
+              growth: { kind: "INFLATION" },
+              taxable: true,
+            },
+          ],
+        }),
+      );
+
+    const linked = scenario(true);
+    const frozen = scenario(false);
+
+    expect(at(linked, 0).tax).toBe(at(frozen, 0).tax);
+
+    const lastIndex = linked.years.length - 1;
+    expect(at(linked, lastIndex).tax).toBeLessThan(at(frozen, lastIndex).tax);
   });
 
   it("captures income by kind", () => {

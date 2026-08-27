@@ -1,6 +1,6 @@
 // src/lib/plan/project.ts
 
-import { taxYearOf } from "@/lib/tax/bands";
+import { taxContextFor } from "@/lib/tax/bands";
 import { taxOn } from "@/lib/tax/compute";
 import { contributionTargetId, drawable, fundDeficit } from "./assets";
 import { amountThisYear, grow, round, sum } from "./helpers";
@@ -87,10 +87,12 @@ const projectYears = (
     // One tax context for the whole year: the income below and any withdrawal
     // further down are two halves of a single calculation, so the personal
     // allowance is granted once and the withdrawal stacks on the income.
-    const taxCtx = {
-      year: taxYearOf(input.startYear + yearsElapsed),
+    const taxCtx = taxContextFor({
+      projectionYear: input.startYear + yearsElapsed,
       regime: input.taxRegime,
-    };
+      inflationPct: input.inflationPct,
+      inflationLinked: input.thresholdsInflationLinked,
+    });
     const incTax = taxOn({ income: income.taxableTotal, ...taxCtx }).tax;
     const netIncome = income.gross - incTax;
 

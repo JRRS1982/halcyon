@@ -5,8 +5,13 @@ export type Band = { upTo: number | null; ratePct: number };
 
 export type TaxYear = {
   year: string;
+  endsInCalendarYear: number;
   personalAllowance: number;
   bands: Record<Regime, Band[]>;
 };
 
-export type TaxContext = { year: string; regime: Regime };
+export type TaxContext = {
+  year: string;
+  regime: Regime;
+  thresholdScale: number;
+};

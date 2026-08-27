@@ -12,7 +12,6 @@ const validAssumptions = {
   inflationPct: 2.5,
   defaultReturnPct: 5,
   returnSpreadPct: 2,
-  blendedTaxRatePct: 20,
   statePensionAge: 67,
   statePensionAnnual: 11500,
   expectedDeathAge: 90,

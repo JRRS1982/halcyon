@@ -1,3 +1,4 @@
+import { taxContextFor } from "@/lib/tax/bands";
 import { grossFor, taxOn } from "@/lib/tax/compute";
 
 const rUK = { year: "2025/26", regime: "RUK" as const };
@@ -33,6 +34,20 @@ test("additional rate above 125,140", () => {
 test("zero and negative income are not taxed", () => {
   expect(taxOn({ income: 0, ...rUK }).tax).toBe(0);
   expect(taxOn({ income: -5_000, ...rUK }).tax).toBe(0);
+});
+
+test("thresholdScale defaults to 1 and reproduces an existing unscaled figure", () => {
+  expect(taxOn({ income: 60_000, ...rUK }).tax).toBe(
+    taxOn({ income: 60_000, ...rUK, thresholdScale: 1 }).tax,
+  );
+  const unscaled = grossFor({ net: 30_000, alreadyTaxed: 20_000, ...rUK });
+  const explicit = grossFor({
+    net: 30_000,
+    alreadyTaxed: 20_000,
+    ...rUK,
+    thresholdScale: 1,
+  });
+  expect(explicit).toEqual(unscaled);
 });
 
 test("nets exactly what was asked for, from zero", () => {
@@ -147,4 +162,97 @@ test("works for Scotland's seven bands unchanged", () => {
     regime: "SCOTLAND",
   });
   expect(gross - tax).toBe(30_000);
+});
+
+// The property that is the point of the feature: inflating an income and the
+// thresholds together by the same factor for the same number of years leaves
+// the effective rate unchanged — a scaled income sits in exactly the same
+// place in the (scaled) bands as the unscaled income did in the unscaled
+// ones. Checked at an income high enough to sit in the taper, for both
+// regimes.
+test.each([
+  "RUK",
+  "SCOTLAND",
+] as const)("an income and the thresholds inflated together preserve the effective rate (%s)", (regime) => {
+  const income = 110_000; // in the taper for both regimes
+  const inflationPct = 2.5;
+  const years = 10;
+  const scale = (1 + inflationPct / 100) ** years;
+
+  const baseline = taxOn({ income, year: "2025/26", regime });
+  const { thresholdScale } = taxContextFor({
+    projectionYear: 2026 + years,
+    regime,
+    inflationPct,
+    inflationLinked: true,
+  });
+  expect(thresholdScale).toBe(scale);
+
+  const inflated = taxOn({
+    income: income * scale,
+    year: "2025/26",
+    regime,
+    thresholdScale,
+  });
+
+  const baselineRate = baseline.tax / income;
+  const inflatedRate = inflated.tax / (income * scale);
+  // Within a rounding pound or two of income, translated to a rate.
+  expect(Math.abs(inflatedRate - baselineRate)).toBeLessThan(2 / income);
+});
+
+// The Critical this module already had once was a rounding divergence between
+// grossFor and taxOn that a scale-1-only grid missed. Re-run the same wide
+// grid with thresholdScale !== 1 to guard against reintroducing it at a
+// different set of whole-pound boundaries.
+test("inverse property and no-under-funding hold across the grid at a non-1 thresholdScale", () => {
+  const thresholdScale = 1.025 ** 20; // matches the 20-years-out toggle-on case
+  const startingPoints: Array<{
+    alreadyTaxed: number;
+    regime: "RUK" | "SCOTLAND";
+  }> = [
+    { alreadyTaxed: 0, regime: "RUK" },
+    { alreadyTaxed: 0, regime: "SCOTLAND" },
+    ...RUK_BOUNDARIES.flatMap((b) =>
+      around(b).map((alreadyTaxed) => ({
+        alreadyTaxed,
+        regime: "RUK" as const,
+      })),
+    ),
+    ...SCOTLAND_BOUNDARIES.flatMap((b) =>
+      around(b).map((alreadyTaxed) => ({
+        alreadyTaxed,
+        regime: "SCOTLAND" as const,
+      })),
+    ),
+    { alreadyTaxed: 130_000, regime: "RUK" },
+    { alreadyTaxed: 200_000, regime: "RUK" },
+    { alreadyTaxed: 300_000, regime: "RUK" },
+    { alreadyTaxed: 130_000, regime: "SCOTLAND" },
+    { alreadyTaxed: 200_000, regime: "SCOTLAND" },
+    { alreadyTaxed: 300_000, regime: "SCOTLAND" },
+  ];
+
+  for (const { alreadyTaxed, regime } of startingPoints) {
+    for (const net of NET_TARGETS) {
+      const { gross, tax } = grossFor({
+        net,
+        alreadyTaxed,
+        year: "2025/26",
+        regime,
+        thresholdScale,
+      });
+      const delta =
+        taxOn({
+          income: alreadyTaxed + gross,
+          year: "2025/26",
+          regime,
+          thresholdScale,
+        }).tax -
+        taxOn({ income: alreadyTaxed, year: "2025/26", regime, thresholdScale })
+          .tax;
+      expect(tax).toBe(delta);
+      expect(gross - tax).toBeGreaterThanOrEqual(net);
+    }
+  }
 });

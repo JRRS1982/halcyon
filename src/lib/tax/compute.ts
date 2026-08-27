@@ -3,21 +3,37 @@ import type { Regime } from "./types";
 
 const round = (n: number): number => Math.round(n);
 
-/** Tax due on a total income. The forward direction. */
+/**
+ * Tax due on a total income. The forward direction.
+ *
+ * `thresholdScale` scales the personal allowance and every finite band
+ * ceiling by the same factor before walking them — equivalent to inflating
+ * the published total-income thresholds, since the allowance and the band
+ * boundaries move together. A `null` (unbounded) ceiling is left alone; there
+ * is nothing to scale. Defaults to 1, i.e. the published 2025/26 figures.
+ */
 export function taxOn({
   income,
   year,
   regime,
+  thresholdScale = 1,
 }: {
   income: number;
   year: string;
   regime: Regime;
+  thresholdScale?: number;
 }): { tax: number } {
-  const taxable = Math.max(0, income - taxYearFor(year).personalAllowance);
+  const taxable = Math.max(
+    0,
+    income - taxYearFor(year).personalAllowance * thresholdScale,
+  );
   let tax = 0;
   let floor = 0;
   for (const band of bandsFor(year, regime)) {
-    const ceiling = band.upTo ?? Number.POSITIVE_INFINITY;
+    const ceiling =
+      band.upTo === null
+        ? Number.POSITIVE_INFINITY
+        : band.upTo * thresholdScale;
     const width = Math.min(taxable, ceiling) - floor;
     if (width > 0) tax += (width * band.ratePct) / 100;
     floor = ceiling;
@@ -48,21 +64,28 @@ export function taxOn({
  * there, nudging gross by the fewest whole pounds so the pair never
  * under-funds the requested net (a pound short compounds over the years a
  * pound over does not).
+ *
+ * `thresholdScale` scales the personal allowance and every finite band
+ * ceiling the same way `taxOn` does, and is passed straight through to the
+ * `taxOn` calls below so the band walk and its authoritative adjudication
+ * agree on the same scaled thresholds. Defaults to 1.
  */
 export function grossFor({
   net,
   alreadyTaxed,
   year,
   regime,
+  thresholdScale = 1,
 }: {
   net: number;
   alreadyTaxed: number;
   year: string;
   regime: Regime;
+  thresholdScale?: number;
 }): { gross: number; tax: number } {
   if (net <= 0) return { gross: 0, tax: 0 };
 
-  const allowance = taxYearFor(year).personalAllowance;
+  const allowance = taxYearFor(year).personalAllowance * thresholdScale;
   const used = Math.max(0, alreadyTaxed - allowance);
 
   let remaining = net;
@@ -79,7 +102,10 @@ export function grossFor({
 
   for (const band of bandsFor(year, regime)) {
     if (remaining <= 0) break;
-    const ceiling = band.upTo ?? Number.POSITIVE_INFINITY;
+    const ceiling =
+      band.upTo === null
+        ? Number.POSITIVE_INFINITY
+        : band.upTo * thresholdScale;
     if (ceiling <= used) {
       floor = ceiling;
       continue;
@@ -93,9 +119,15 @@ export function grossFor({
     floor = ceiling;
   }
 
-  const taxOnAlreadyTaxed = taxOn({ income: alreadyTaxed, year, regime }).tax;
+  const taxOnAlreadyTaxed = taxOn({
+    income: alreadyTaxed,
+    year,
+    regime,
+    thresholdScale,
+  }).tax;
   const taxAt = (g: number) =>
-    taxOn({ income: alreadyTaxed + g, year, regime }).tax - taxOnAlreadyTaxed;
+    taxOn({ income: alreadyTaxed + g, year, regime, thresholdScale }).tax -
+    taxOnAlreadyTaxed;
 
   // The band walk's rounding puts this within a pound of the true answer, so
   // the correction is bounded: nudge up until funded, then back down to the
