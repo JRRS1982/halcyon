@@ -40,12 +40,12 @@ describe("contributionTargetId", () => {
 });
 
 describe("fundDeficit", () => {
-  const ctx = (alreadyTaxed = 0) =>
+  const ctx = (alreadyTaxed = 0, thresholdScale = 1) =>
     ({
       alreadyTaxed,
       year: "2025/26",
       regime: "RUK",
-      thresholdScale: 1,
+      thresholdScale,
     }) as const;
 
   it("draws tax-free pots in priority order, no gross-up", () => {
@@ -162,5 +162,44 @@ describe("fundDeficit", () => {
     expect(
       fundDeficit([earlyPension], { p: 100000 }, 10000, ctx(), 52).shortfall,
     ).toBe(false);
+  });
+
+  it("scales thresholds down the tax bill on a withdrawal that reaches beyond the basic band", () => {
+    const pension = [
+      asset({ id: "sipp", wrapper: "PENSION", drawdownPriority: 0 }),
+    ];
+    const balances = { sipp: 500000 };
+    // £100,000 net on top of £30,000 already-taxed income, RUK, 2025/26 —
+    // reaches through the 20/40/60 bands into the 45% top band either way.
+    // Hand-derived from the band walk in src/lib/tax/compute.ts:
+    //   unscaled (thresholdScale 1): allowance 12,570, used = 30,000 −
+    //   12,570 = 17,430 already inside the 20% band. Remaining band widths
+    //   post-`used`: 20,270 @20% (nets 16,216), 49,730 @40% (nets 29,838),
+    //   25,140 @60% (nets 10,056) = 56,110 net across 95,140 gross, leaving
+    //   43,890 net still owed at 45%: 43,890 / 0.55 = 79,800 gross. Total
+    //   gross = 20,270 + 49,730 + 25,140 + 79,800 = 174,940; tax = 174,940 −
+    //   100,000 = 74,940.
+    //   scaled (thresholdScale = 1.03**30 ≈ 2.427262, 30 years of 3%
+    //   inflation): every threshold above widens by that factor, so more of
+    //   the withdrawal lands in the lower bands. Working the same walk with
+    //   each ceiling multiplied by 2.427262 gives gross 135,823 and tax
+    //   35,823 (verified by direct calculation against the same formulas as
+    //   taxOn/grossFor, not read off a test run).
+    const scale = 1.03 ** 30;
+    const unscaled = fundDeficit(pension, balances, 100000, ctx(30000, 1), 65);
+    const scaled = fundDeficit(
+      pension,
+      balances,
+      100000,
+      ctx(30000, scale),
+      65,
+    );
+
+    expect(unscaled.totalWithdrawn).toBe(174940);
+    expect(unscaled.withdrawalTax).toBe(74940);
+    expect(scaled.totalWithdrawn).toBe(135823);
+    expect(scaled.withdrawalTax).toBe(35823);
+    expect(scaled.totalWithdrawn).toBeLessThan(unscaled.totalWithdrawn);
+    expect(scaled.withdrawalTax).toBeLessThan(unscaled.withdrawalTax);
   });
 });
