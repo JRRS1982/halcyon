@@ -142,10 +142,17 @@ arithmetic — it just says which wrappers are taxed as income when money comes
 *out*: `PENSION` and `GIA`. Everything else (`ISA`, `CASH`, …) is drawn
 untaxed. `fundDeficit` drains assets in ascending `drawdownPriority`; for a
 taxable pot it either drains the whole balance (settled directly via
-`taxDelta`, when the balance's net proceeds can't cover the remaining need —
+`taxDelta`, when the balance's net proceeds don't exceed the remaining need —
 there's nothing left to solve for, so the inverse walk isn't needed) or
-grosses up through `grossFor` when the balance alone can cover the remaining
+grosses up through `grossFor` when the balance's net proceeds do exceed the
 need, to work out exactly how much of it to withdraw.
+
+A gross that comes back at or above the balance drains too. `grossFor`
+deliberately rounds up rather than risk under-funding (see the rounding note
+above), so when the need sits within a pound of what a full drain nets it can
+answer with more than the pot holds. Draining instead closes the pot at
+exactly zero rather than a fraction of a pound negative — which `grow()` would
+otherwise compound for every remaining year of the projection.
 
 ## GIA: the most misleading number this feature can produce
 
