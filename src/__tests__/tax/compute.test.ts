@@ -65,14 +65,65 @@ test("the allowance is not granted twice", () => {
   expect(tax).toBe(combined - onIncomeAlone);
 });
 
-test("inverse property holds across a spread", () => {
-  for (const alreadyTaxed of [0, 12_570, 20_000, 60_000, 99_000]) {
-    for (const net of [1_000, 10_000, 30_000, 80_000]) {
-      const { gross, tax } = grossFor({ net, alreadyTaxed, ...rUK });
+// Total-income boundaries where a band starts or ends, for each regime — the
+// personal allowance edge, every band ceiling, and (RUK) the taper start/end.
+// Derived from bands.ts's taxable-income ceilings by adding back the £12,570
+// allowance.
+const RUK_BOUNDARIES = [12_570, 50_270, 100_000, 125_140];
+const SCOTLAND_BOUNDARIES = [
+  12_570, 15_397, 27_491, 43_662, 75_000, 100_000, 125_140,
+];
+
+const around = (boundary: number): number[] => [
+  boundary - 1,
+  boundary,
+  boundary + 1,
+];
+
+const NET_TARGETS = [
+  1, 500, 999, 1_000, 12_570, 30_000, 80_000, 150_000, 500_000, 1_000_000,
+];
+
+test("inverse property holds across a spread, including every band boundary ±1 and the taper zone", () => {
+  const startingPoints: Array<{
+    alreadyTaxed: number;
+    regime: "RUK" | "SCOTLAND";
+  }> = [
+    { alreadyTaxed: 0, regime: "RUK" },
+    { alreadyTaxed: 0, regime: "SCOTLAND" },
+    ...RUK_BOUNDARIES.flatMap((b) =>
+      around(b).map((alreadyTaxed) => ({
+        alreadyTaxed,
+        regime: "RUK" as const,
+      })),
+    ),
+    ...SCOTLAND_BOUNDARIES.flatMap((b) =>
+      around(b).map((alreadyTaxed) => ({
+        alreadyTaxed,
+        regime: "SCOTLAND" as const,
+      })),
+    ),
+    // Above the top band, both regimes.
+    { alreadyTaxed: 130_000, regime: "RUK" },
+    { alreadyTaxed: 200_000, regime: "RUK" },
+    { alreadyTaxed: 300_000, regime: "RUK" },
+    { alreadyTaxed: 130_000, regime: "SCOTLAND" },
+    { alreadyTaxed: 200_000, regime: "SCOTLAND" },
+    { alreadyTaxed: 300_000, regime: "SCOTLAND" },
+  ];
+
+  for (const { alreadyTaxed, regime } of startingPoints) {
+    for (const net of NET_TARGETS) {
+      const { gross, tax } = grossFor({
+        net,
+        alreadyTaxed,
+        year: "2025/26",
+        regime,
+      });
       expect(gross - tax).toBe(net);
       const delta =
-        taxOn({ income: alreadyTaxed + gross, ...rUK }).tax -
-        taxOn({ income: alreadyTaxed, ...rUK }).tax;
+        taxOn({ income: alreadyTaxed + gross, year: "2025/26", regime }).tax -
+        taxOn({ income: alreadyTaxed, year: "2025/26", regime }).tax;
       expect(tax).toBe(delta);
     }
   }
@@ -88,7 +139,7 @@ test("crossing a band boundary", () => {
   expect(gross - tax).toBe(40_000);
 });
 
-test("works for Scotland's six bands unchanged", () => {
+test("works for Scotland's seven bands unchanged", () => {
   const { gross, tax } = grossFor({
     net: 30_000,
     alreadyTaxed: 20_000,

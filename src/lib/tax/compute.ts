@@ -36,8 +36,18 @@ export function taxOn({
  * `alreadyTaxed` is why the personal allowance is granted once rather than
  * twice: the withdrawal starts where the year's income left off.
  *
- * Exact in one pass, and indifferent to how many bands there are — three for
- * rest-of-UK, seven for Scotland, whatever 2035 brings.
+ * Indifferent to how many bands there are — three for rest-of-UK, seven for
+ * Scotland, whatever 2035 brings.
+ *
+ * `taxOn` is the one source of truth for tax: the withdrawal's tax IS the
+ * difference it makes to the year's total, taxOn(alreadyTaxed) held fixed.
+ * The band walk below rounds an accumulated *gross*; taxOn rounds an
+ * accumulated *tax* — two roundings of two different running totals, which
+ * can land on different whole pounds right at a band boundary. So the walk
+ * only gets gross to within a pound of the answer; taxOn adjudicates from
+ * there, nudging gross by the fewest whole pounds so the pair never
+ * under-funds the requested net (a pound short compounds over the years a
+ * pound over does not).
  */
 export function grossFor({
   net,
@@ -83,6 +93,16 @@ export function grossFor({
     floor = ceiling;
   }
 
-  const rounded = round(gross);
-  return { gross: rounded, tax: rounded - net };
+  const taxOnAlreadyTaxed = taxOn({ income: alreadyTaxed, year, regime }).tax;
+  const taxAt = (g: number) =>
+    taxOn({ income: alreadyTaxed + g, year, regime }).tax - taxOnAlreadyTaxed;
+
+  // The band walk's rounding puts this within a pound of the true answer, so
+  // the correction is bounded: nudge up until funded, then back down to the
+  // smallest gross that still is.
+  let g = round(gross);
+  while (g - taxAt(g) < net) g += 1;
+  while (g > 0 && g - 1 - taxAt(g - 1) >= net) g -= 1;
+
+  return { gross: g, tax: taxAt(g) };
 }
