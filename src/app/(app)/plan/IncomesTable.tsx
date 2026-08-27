@@ -196,7 +196,16 @@ export function IncomesTable({
               secondary={`${formatAmount(currency, i.annualAmount, numberFormat)}/yr · ${span(i)}`}
               marker={
                 <SyncMarker
-                  {...rowMarkerProps(i.id, syncPreview, currency, numberFormat)}
+                  {...rowMarkerProps(
+                    i.id,
+                    syncPreview,
+                    currency,
+                    numberFormat,
+                    {
+                      value: i.annualAmount,
+                      flow: null,
+                    },
+                  )}
                 />
               }
               onOpen={() => onOpen(i.id)}
