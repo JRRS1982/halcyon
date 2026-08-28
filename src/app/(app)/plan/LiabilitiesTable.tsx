@@ -6,9 +6,8 @@ import { useState } from "react";
 import styled from "styled-components";
 import type { SyncPlan } from "@/lib/plan/sync";
 import { formatAmount, type NumberFormat } from "@/lib/settings/currency";
+import { AddLiabilityDrawer } from "./AddLiabilityDrawer";
 import {
-  createMortgage,
-  createPlanLiability,
   linkRepaymentExpense,
   unlinkRepaymentExpense,
   updatePlanLiability,
@@ -215,29 +214,34 @@ export function LiabilitiesTable({
   currency,
   numberFormat,
   syncPreview,
+  unmortgagedProperties,
   onOpen,
-  onAddMortgage,
+  onOpenProperty,
 }: {
   liabilities: SerializedPlanLiability[];
   currency: string;
   numberFormat: NumberFormat;
   syncPreview: SyncPlan;
+  /** Properties with no mortgage yet — offered as a link when adding one. */
+  unmortgagedProperties: { id: string; label: string }[];
   onOpen: (id: string) => void;
-  onAddMortgage: (assetId: string) => void;
+  onOpenProperty: (assetId: string) => void;
 }) {
   const router = useRouter();
-  const add = async () => {
-    const id = await createPlanLiability();
+  const [addOpen, setAddOpen] = useState(false);
+
+  const onCreated = (created: {
+    liabilityId: string;
+    linkedAssetId: string | null;
+  }) => {
+    setAddOpen(false);
     // Select before refreshing, not after: router.refresh() runs inside a
     // React transition, and a setState queued behind it waits on the server
     // round trip it starts. The selection does not depend on that payload.
-    onOpen(id);
-    router.refresh();
-  };
-  const addMortgage = async () => {
-    const assetId = await createMortgage();
-    // See `add` above: selection first, refresh after.
-    onAddMortgage(assetId);
+    // A mortgage opens its property card, which shows the property and the
+    // mortgage together; anything else opens itself.
+    if (created.linkedAssetId) onOpenProperty(created.linkedAssetId);
+    else onOpen(created.liabilityId);
     router.refresh();
   };
 
@@ -277,8 +281,13 @@ export function LiabilitiesTable({
           ))}
         </SummaryList>
       )}
-      <AddRowButton label="Add liability" onAdd={add} />
-      <AddRowButton label="Add mortgage" onAdd={addMortgage} />
+      <AddRowButton label="Add liability" onAdd={() => setAddOpen(true)} />
+      <AddLiabilityDrawer
+        open={addOpen}
+        unmortgagedProperties={unmortgagedProperties}
+        onClose={() => setAddOpen(false)}
+        onCreated={onCreated}
+      />
     </Panel>
   );
 }

@@ -28,7 +28,20 @@ test("withServerAction retries an interaction that dispatched nothing", async ({
   await page.goto("/plan");
   await createPlanWithDob(page);
 
-  const liabilityPanel = page.locator("section", { hasText: "Liabilities" });
+  // The Add drawer's own button is the server action now — the toolbar button
+  // only opens the drawer.
+  const panel = page
+    .locator("section")
+    .filter({ has: page.getByRole("button", { name: "+ Add liability" }) });
+  const drawer = page.getByRole("dialog", { name: "Add a liability" });
+  await expect(async () => {
+    if (!(await drawer.isVisible())) {
+      await panel.getByRole("button", { name: "+ Add liability" }).click();
+    }
+    await expect(drawer).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 15_000 });
+  await drawer.getByLabel("Name").fill("Car loan");
+  await drawer.getByLabel("Balance owed today").fill("5000");
 
   // Simulate the hydration race deterministically: the first interaction does
   // nothing at all, exactly as a click swallowed by an unhydrated button does.
@@ -39,11 +52,14 @@ test("withServerAction retries an interaction that dispatched nothing", async ({
   await withServerAction(page, async () => {
     calls += 1;
     if (calls === 1) return;
-    await liabilityPanel
-      .getByRole("button", { name: "+ Add mortgage" })
-      .click();
+    await drawer.getByRole("button", { name: "Add", exact: true }).click();
   });
 
   expect(calls).toBeGreaterThan(1);
-  await expect(page.getByRole("dialog")).toBeVisible();
+  // One row, not two: the retry only fires when nothing dispatched, so it
+  // cannot double-write. Counted on the summary rows themselves — the drawer
+  // that opens after the add also carries the name.
+  await expect(
+    panel.getByRole("button", { name: /Car loan/, expanded: undefined }),
+  ).toHaveCount(1);
 });

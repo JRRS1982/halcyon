@@ -8,6 +8,7 @@
 
 import type { Page } from "@playwright/test";
 import {
+  addPlanAsset,
   clearStarterPeriods,
   createPlanWithDob,
   expect,
@@ -160,9 +161,9 @@ test.describe("plan sync", () => {
     // Sync destroys rather than overwrites, and the reason a confirmation
     // exists at all. Its drawer opens on creation; Escape closes it.
     const assets = await planAssets(page);
-    await withServerAction(page, () =>
-      assets.getByRole("button", { name: "+ Add asset" }).click(),
-    );
+    // Named to match the row locators below: this asset exists only in the
+    // plan, with no account behind it.
+    await addPlanAsset(page, { name: "New asset", value: "0" });
     // Wait for the drawer to actually be open before closing it, rather than
     // pressing Escape into a page that has not opened it yet.
     //

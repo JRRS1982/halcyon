@@ -7,11 +7,8 @@ import styled from "styled-components";
 import { WRAPPERS } from "@/lib/plan";
 import type { SyncPlan } from "@/lib/plan/sync";
 import { formatAmount, type NumberFormat } from "@/lib/settings/currency";
-import {
-  createPlanAsset,
-  createPlanProperty,
-  updatePlanAsset,
-} from "./actions";
+import { AddAssetDrawer } from "./AddAssetDrawer";
+import { updatePlanAsset } from "./actions";
 import { NumberCell, SelectCell, TextCell } from "./EditableCell";
 import { MortgageBadge } from "./MortgageBadge";
 import { DrawerSection, Field } from "./PlanDrawer";
@@ -180,25 +177,22 @@ export function AssetsTable({
   currency,
   numberFormat,
   syncPreview,
+  unlinkedMortgages,
   onOpen,
 }: {
   assets: SerializedPlanAsset[];
   currency: string;
   numberFormat: NumberFormat;
   syncPreview: SyncPlan;
+  /** Mortgages with no property yet — offered as a link when adding one. */
+  unlinkedMortgages: { id: string; label: string }[];
   onOpen: (id: string) => void;
 }) {
   const router = useRouter();
-  const add = async () => {
-    const id = await createPlanAsset();
-    // Select before refreshing, not after: router.refresh() runs inside a
-    // React transition, and a setState queued behind it waits on the server
-    // round trip it starts. The selection does not depend on that payload.
-    onOpen(id);
-    router.refresh();
-  };
-  const addProperty = async () => {
-    const id = await createPlanProperty();
+  const [addOpen, setAddOpen] = useState(false);
+
+  const onCreated = (id: string) => {
+    setAddOpen(false);
     // Select before refreshing, not after: router.refresh() runs inside a
     // React transition, and a setState queued behind it waits on the server
     // round trip it starts. The selection does not depend on that payload.
@@ -242,8 +236,13 @@ export function AssetsTable({
           ))}
         </SummaryList>
       )}
-      <AddRowButton label="Add asset" onAdd={add} />
-      <AddRowButton label="Add property" onAdd={addProperty} />
+      <AddRowButton label="Add asset" onAdd={() => setAddOpen(true)} />
+      <AddAssetDrawer
+        open={addOpen}
+        unlinkedMortgages={unlinkedMortgages}
+        onClose={() => setAddOpen(false)}
+        onCreated={onCreated}
+      />
     </Panel>
   );
 }

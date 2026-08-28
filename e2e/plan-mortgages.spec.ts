@@ -1,4 +1,5 @@
 import {
+  addPlanLiability,
   createPlanWithDob,
   expect,
   openFresh,
@@ -9,7 +10,7 @@ import {
   withServerAction,
 } from "./_helpers/fixtures";
 
-// Phase 1 first-class mortgages: "Add mortgage" creates a property + mortgage
+// Phase 1 first-class mortgages: a mortgage liability creates a property
 // + repayment trio and opens the shared property card (not the plain
 // liability drawer) — the routing PlanView derives from linkedAssetId.
 test("add a mortgage opens the property card with a mortgage section", async ({
@@ -26,11 +27,15 @@ test("add a mortgage opens the property card with a mortgage section", async ({
   // date field's onChange sets state, which needs the client bundle attached.
   await createPlanWithDob(page);
 
-  // "Add mortgage" lives in the Liabilities card.
-  const liabilityPanel = page.locator("section", { hasText: "Liabilities" });
-  await withServerAction(page, () =>
-    liabilityPanel.getByRole("button", { name: "+ Add mortgage" }).click(),
-  );
+  // A mortgage is a liability that names the property it is secured on; the
+  // Add drawer creates both, and opens the shared property card.
+  await addPlanLiability(page, {
+    name: "Mortgage",
+    balance: "0",
+    mortgage: true,
+    property: "Add a new one",
+    propertyLabel: "New property",
+  });
 
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
@@ -61,9 +66,13 @@ test("toggling interest-only persists after reload and hides the repayment field
   await createPlanWithDob(page);
 
   const liabilityPanel = page.locator("section", { hasText: "Liabilities" });
-  await withServerAction(page, () =>
-    liabilityPanel.getByRole("button", { name: "+ Add mortgage" }).click(),
-  );
+  await addPlanLiability(page, {
+    name: "Mortgage",
+    balance: "0",
+    mortgage: true,
+    property: "Add a new one",
+    propertyLabel: "New property",
+  });
 
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
