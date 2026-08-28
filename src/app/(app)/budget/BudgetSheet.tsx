@@ -148,18 +148,20 @@ const ADD_KIND_LABEL = {
 
 const ANCHORED_KIND_COPY = {
   TRANSFER: {
-    button: "+ Transfer",
     title: "Transfer to an account",
-    empty: "asset",
+    noun: "asset",
+    // Reads into the empty-state sentence below. A transfer can go either
+    // way, so it is "to or from", not just "to".
+    purpose: "to transfer to or from",
   },
   REPAYMENT: {
-    button: "+ Repayment",
     title: "Repay a debt",
-    empty: "liability",
+    noun: "liability",
+    purpose: "to repay",
   },
 } as const satisfies Record<
   AnchoredKind,
-  { button: string; title: string; empty: string }
+  { title: string; noun: string; purpose: string }
 >;
 
 // ─── Formatting helpers ─────────────────────────────────────────────────────
@@ -1550,16 +1552,15 @@ export function BudgetSheet({
                 {isAnchoredKind(addKind) &&
                   (addEmptyReason === "ALL_TAKEN" ? (
                     <CopyMuted>
-                      Every {ANCHORED_KIND_COPY[addKind].empty} account you have
+                      Every {ANCHORED_KIND_COPY[addKind].noun} account you have
                       already has a row this month — one account carries one row
                       per period. Edit that row, or delete it to start again.
                     </CopyMuted>
                   ) : addEmptyReason === "NO_ACCOUNTS" ? (
                     <CopyMuted>
-                      You have no {ANCHORED_KIND_COPY[addKind].empty} accounts
-                      yet. An account becomes one on the{" "}
-                      <Link href="/balance">balance sheet</Link>, from its Add
-                      drawer — then it can be a target here.
+                      You have no {ANCHORED_KIND_COPY[addKind].noun} accounts{" "}
+                      {ANCHORED_KIND_COPY[addKind].purpose} yet — you can add
+                      one on the <Link href="/balance">balance sheet</Link>.
                     </CopyMuted>
                   ) : (
                     <>

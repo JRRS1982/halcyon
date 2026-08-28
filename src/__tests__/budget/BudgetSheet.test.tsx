@@ -256,6 +256,30 @@ describe("BudgetSheet — the Add drawer's account picker", () => {
     expect(
       screen.getByRole("link", { name: /balance sheet/i }),
     ).toHaveAttribute("href", "/balance");
+    // The sentence names what the account would be FOR, not just that none
+    // exist — "no asset accounts" alone leaves the reader to work out why a
+    // transfer needs one.
+    expect(
+      screen.getByText(/no asset accounts to transfer to or from yet/i),
+    ).toBeVisible();
+  });
+
+  test("the repayment empty state says what the account would be for", async () => {
+    renderSheet(items, [
+      {
+        id: "dddddddd-dddd-dddd-dddd-dddddddddddd",
+        name: "Current account",
+        kind: "NONE",
+        archived: false,
+      },
+    ]);
+    await openAddDrawer("Repayment");
+    expect(
+      screen.getByText(/no liability accounts to repay yet/i),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("link", { name: /balance sheet/i }),
+    ).toHaveAttribute("href", "/balance");
   });
 
   test("adding a transfer sends the anchor and defaults the label to the account", async () => {
