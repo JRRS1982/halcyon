@@ -1,4 +1,4 @@
-import { createMortgage, deletePlanAsset } from "@/app/(app)/plan/actions";
+import { createPlanAsset, deletePlanAsset } from "@/app/(app)/plan/actions";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
 
@@ -16,7 +16,12 @@ async function makePrimaryPlan() {
 describe("deletePlanAsset cascade to mortgage", () => {
   it("soft-deletes the linked mortgage and its repayment expense", async () => {
     await makePrimaryPlan();
-    const assetId = await createMortgage();
+    const assetId = await createPlanAsset({
+      label: "New property",
+      wrapper: "PROPERTY",
+      openingValue: 0,
+      mortgage: { mode: "NEW", label: "Mortgage" },
+    });
     const liability = await prisma.planLiability.findFirstOrThrow({
       where: { linkedAssetId: assetId },
     });

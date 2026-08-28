@@ -213,6 +213,19 @@ export function PlanView({
     router.refresh();
   };
 
+  // The property–mortgage link is one-to-one, so an add drawer may only offer
+  // the halves still free. Derived here rather than fetched: the page already
+  // holds every row.
+  const mortgagedAssetIds = new Set(
+    plan.liabilities.flatMap((l) => (l.linkedAssetId ? [l.linkedAssetId] : [])),
+  );
+  const unlinkedMortgages = plan.liabilities
+    .filter((l) => l.linkedAssetId === null)
+    .map((l) => ({ id: l.id, label: l.label }));
+  const unmortgagedProperties = plan.assets
+    .filter((a) => a.wrapper === "PROPERTY" && !mortgagedAssetIds.has(a.id))
+    .map((a) => ({ id: a.id, label: a.label }));
+
   return (
     <Shell>
       <Title>Your plan</Title>
@@ -256,6 +269,7 @@ export function PlanView({
           currency={currency}
           numberFormat={numberFormat}
           syncPreview={preview}
+          unlinkedMortgages={unlinkedMortgages}
           onOpen={open("asset")}
         />
         <LiabilitiesTable
@@ -263,8 +277,9 @@ export function PlanView({
           currency={currency}
           numberFormat={numberFormat}
           syncPreview={preview}
+          unmortgagedProperties={unmortgagedProperties}
           onOpen={open("liability")}
-          onAddMortgage={open("asset")}
+          onOpenProperty={open("asset")}
         />
         <IncomesTable
           incomes={plan.incomes}

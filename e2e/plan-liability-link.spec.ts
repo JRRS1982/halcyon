@@ -1,6 +1,7 @@
 import type { Page } from "@playwright/test";
 import type { PrismaClient } from "@prisma/client";
 import {
+  addPlanLiability,
   createPlanWithDob,
   expect,
   openFresh,
@@ -29,16 +30,12 @@ async function seedAndCreatePlan(page: Page, db: PrismaClient): Promise<void> {
   await createPlanWithDob(page);
 }
 
-// Adds a liability via the panel button (which opens its drawer), then sets a
-// real balance/interest/monthly repayment. Returns the open drawer dialog.
+// Adds a liability through the Add drawer, then sets a real
+// interest/monthly repayment on the row's own drawer, which the add opens.
 async function addMortgage(page: Page) {
-  const liabilityPanel = page.locator("section", { hasText: "Liabilities" });
-  await liabilityPanel.getByRole("button", { name: "+ Add liability" }).click();
+  await addPlanLiability(page, { name: "New liability", balance: "200000" });
   const drawer = page.getByRole("dialog");
   await expect(drawer).toBeVisible();
-
-  await drawer.getByLabel("Balance").fill("200000");
-  await drawer.getByLabel("Balance").blur();
 
   // Interest / repayment / start-age all live in the "Terms" section, which is
   // collapsed by default — expand it before reaching them.
@@ -167,8 +164,8 @@ test("plan: a liability's start handle drags (keyboard) and persists", async ({
 }) => {
   await seedAndCreatePlan(page, db);
 
-  const liabilityPanel = page.locator("section", { hasText: "Liabilities" });
-  await liabilityPanel.getByRole("button", { name: "+ Add liability" }).click();
+  await addPlanLiability(page, { name: "New liability", balance: "0" });
+  // The add opens the new row's own drawer; close it to reach the timeline.
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).not.toBeVisible();

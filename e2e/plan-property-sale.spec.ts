@@ -1,4 +1,5 @@
 import {
+  addPlanLiability,
   createPlanWithDob,
   expect,
   seedPlanReality,
@@ -23,12 +24,14 @@ test("switching an event to Property sale shows the property picker and labels t
   await page.goto("/plan");
   await createPlanWithDob(page);
 
-  // Add a property (via "Add mortgage", which creates the property + mortgage
-  // + repayment trio) so the Events picker has something to offer.
-  const liabilityPanel = page.locator("section", { hasText: "Liabilities" });
-  await withServerAction(page, () =>
-    liabilityPanel.getByRole("button", { name: "+ Add mortgage" }).click(),
-  );
+  // A mortgage with a new property gives the Events picker something to offer.
+  await addPlanLiability(page, {
+    name: "Mortgage",
+    balance: "0",
+    mortgage: true,
+    property: "Add a new one",
+    propertyLabel: "New property",
+  });
   await page.getByRole("button", { name: "Close" }).click();
 
   // Add an event and switch its type to Property sale.

@@ -117,3 +117,51 @@ export const deleteRowSchema = z.object({ id: z.string().uuid() });
 export type UpdatePlanIncomeInput = z.infer<typeof updatePlanIncomeSchema>;
 export type UpdatePlanExpenseInput = z.infer<typeof updatePlanExpenseSchema>;
 export type UpdatePlanEventInput = z.infer<typeof updatePlanEventSchema>;
+
+// ─── Creating a row ─────────────────────────────────────────────────────────
+//
+// A row is created once, from a filled-in drawer, rather than written with
+// placeholder values and edited afterwards. That is why label and the opening
+// figure are required here: a row that exists with "New asset" and 0 in it is
+// indistinguishable from one the user meant to leave at zero.
+
+// What a new property should do about a mortgage, and what a new mortgage
+// should do about a property. The link is one-to-one (PlanLiability
+// .linkedAssetId is @unique), so EXISTING can only name something not already
+// spoken for — the action re-checks that rather than trusting the client.
+// NEW carries its own label: a half named by the app rather than the user is
+// the placeholder value this whole flow exists to get rid of.
+const mortgageChoice = z.discriminatedUnion("mode", [
+  z.object({ mode: z.literal("NONE") }),
+  z.object({ mode: z.literal("NEW"), label: z.string().min(1) }),
+  z.object({ mode: z.literal("EXISTING"), liabilityId: z.string().uuid() }),
+]);
+
+const propertyChoice = z.discriminatedUnion("mode", [
+  z.object({ mode: z.literal("NONE") }),
+  z.object({ mode: z.literal("NEW"), label: z.string().min(1) }),
+  z.object({ mode: z.literal("EXISTING"), assetId: z.string().uuid() }),
+]);
+
+export const createPlanAssetSchema = z
+  .object({
+    label: z.string().min(1),
+    wrapper: WRAPPER,
+    openingValue: z.number().min(0),
+    mortgage: mortgageChoice.optional(),
+  })
+  .refine((a) => a.wrapper === "PROPERTY" || a.mortgage === undefined, {
+    message: "Only a property can carry a mortgage",
+    path: ["mortgage"],
+  });
+
+export const createPlanLiabilitySchema = z.object({
+  label: z.string().min(1),
+  openingBalance: z.number().min(0),
+  property: propertyChoice.optional(),
+});
+
+export type CreatePlanAssetInput = z.infer<typeof createPlanAssetSchema>;
+export type CreatePlanLiabilityInput = z.infer<
+  typeof createPlanLiabilitySchema
+>;

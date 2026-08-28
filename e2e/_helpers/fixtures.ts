@@ -537,3 +537,97 @@ export async function openAddDrawer(page: Page): Promise<void> {
     await expect(title).toBeVisible({ timeout: 1_000 });
   }).toPass({ timeout: 15_000 });
 }
+
+/**
+ * Adds a plan asset through the Add drawer.
+ *
+ * The row is created on the drawer's Add, not on the toolbar button, so the
+ * whole thing is one gesture: open, fill, confirm. The open is retried like
+ * openAddDrawer's — the panel is server-rendered, so its button is clickable
+ * before React attaches a handler.
+ */
+export async function addPlanAsset(
+  page: Page,
+  opts: {
+    name: string;
+    type?: string;
+    value: string;
+    mortgage?: "No mortgage" | "Add a new one" | "Link one I already have";
+    /** Names the new mortgage, or picks the existing one, per `mortgage`. */
+    mortgageLabel?: string;
+  },
+): Promise<void> {
+  const panel = page
+    .locator("section")
+    .filter({ has: page.getByRole("button", { name: "+ Add asset" }) });
+  const drawer = page.getByRole("dialog", { name: "Add an asset" });
+  await expect(async () => {
+    if (!(await drawer.isVisible())) {
+      await panel.getByRole("button", { name: "+ Add asset" }).click();
+    }
+    await expect(drawer).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 15_000 });
+
+  await drawer.getByLabel("Name").fill(opts.name);
+  if (opts.type) await drawer.getByLabel("Type").selectOption(opts.type);
+  await drawer.getByLabel("Value today").fill(opts.value);
+  if (opts.mortgage) {
+    await drawer.getByRole("radio", { name: opts.mortgage }).check();
+    if (opts.mortgage === "Add a new one" && opts.mortgageLabel) {
+      await drawer.getByLabel("Mortgage name").fill(opts.mortgageLabel);
+    }
+    if (opts.mortgage === "Link one I already have" && opts.mortgageLabel) {
+      await drawer
+        .getByLabel("Which mortgage")
+        .selectOption({ label: opts.mortgageLabel });
+    }
+  }
+  await withServerAction(page, () =>
+    drawer.getByRole("button", { name: "Add", exact: true }).click(),
+  );
+}
+
+/** The mirror of addPlanAsset, for the Liabilities card. */
+export async function addPlanLiability(
+  page: Page,
+  opts: {
+    name: string;
+    balance: string;
+    mortgage?: boolean;
+    property?: "Add a new one" | "Link one I already have";
+    propertyLabel?: string;
+  },
+): Promise<void> {
+  const panel = page
+    .locator("section")
+    .filter({ has: page.getByRole("button", { name: "+ Add liability" }) });
+  const drawer = page.getByRole("dialog", { name: "Add a liability" });
+  await expect(async () => {
+    if (!(await drawer.isVisible())) {
+      await panel.getByRole("button", { name: "+ Add liability" }).click();
+    }
+    await expect(drawer).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 15_000 });
+
+  await drawer.getByLabel("Name").fill(opts.name);
+  await drawer.getByLabel("Balance owed today").fill(opts.balance);
+  if (opts.mortgage) {
+    await drawer
+      .getByRole("checkbox", { name: "This is a mortgage on a property" })
+      .check();
+    if (opts.property) {
+      await drawer.getByRole("radio", { name: opts.property }).check();
+    }
+    if (opts.property === "Add a new one" && opts.propertyLabel) {
+      await drawer.getByLabel("Property name").fill(opts.propertyLabel);
+    }
+    if (opts.property === "Link one I already have" && opts.propertyLabel) {
+      await drawer
+        .getByLabel("Which property")
+        .selectOption({ label: opts.propertyLabel });
+    }
+  }
+  await withServerAction(page, () =>
+    drawer.getByRole("button", { name: "Add", exact: true }).click(),
+  );
+}

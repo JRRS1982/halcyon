@@ -1,4 +1,5 @@
 import {
+  addPlanLiability,
   createPlanWithDob,
   expect,
   openFresh,
@@ -267,9 +268,7 @@ test("plan: create, edit assumptions/assets, and the data-loss guard holds", asy
   const liabilityPanel = page.locator("section", { hasText: "Liabilities" });
   // Wait for the create to answer so the new bar has rendered on the timeline
   // before asserting.
-  await withServerAction(page, () =>
-    liabilityPanel.getByRole("button", { name: "+ Add liability" }).click(),
-  );
+  await addPlanLiability(page, { name: "New liability", balance: "0" });
   await expect(timeline.getByText("New liability")).toBeVisible();
 
   await page.screenshot({ path: "test-results/plan-1b.png", fullPage: true });
