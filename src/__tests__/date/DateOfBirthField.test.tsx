@@ -144,3 +144,38 @@ describe("DateOfBirthField", () => {
     expect(screen.getByLabelText("Year")).toHaveValue("1990");
   });
 });
+
+describe("DateOfBirthField — moving between the fields", () => {
+  test("a filled day jumps to month, and a filled month to year", () => {
+    renderField("");
+    const { day, month, year } = fields();
+
+    day.focus();
+    fireEvent.change(day, { target: { value: "09" } });
+    expect(document.activeElement).toBe(month);
+
+    fireEvent.change(month, { target: { value: "07" } });
+    expect(document.activeElement).toBe(year);
+  });
+
+  test("one digit does not jump — there is more to type", () => {
+    renderField("");
+    const { day, month } = fields();
+    day.focus();
+    fireEvent.change(day, { target: { value: "9" } });
+    expect(document.activeElement).toBe(day);
+    expect(month).not.toHaveFocus();
+  });
+
+  // Deleting back to one digit and retyping must stay put: jumping on the way
+  // down would make a typo impossible to correct.
+  test("correcting a two-digit value does not fling focus forward", () => {
+    renderField("1986-06-09");
+    const { day, month } = fields();
+    day.focus();
+    fireEvent.change(day, { target: { value: "0" } });
+    expect(document.activeElement).toBe(day);
+    fireEvent.change(day, { target: { value: "03" } });
+    expect(document.activeElement).toBe(month);
+  });
+});
