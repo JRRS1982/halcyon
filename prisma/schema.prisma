@@ -39,8 +39,6 @@ model User {
 
   periods              FinancialPeriod[]
   settings             UserSettings?
-  budgetTemplateItems  BudgetTemplateItem[]
-  balanceTemplateItems BalanceTemplateItem[]
   categories           Category[]
   accounts             Account[]
   transactions         Transaction[]
@@ -239,51 +237,6 @@ model BalanceItem {
   @@index([accountId])
 }
 
-// A reusable budget template row, owned directly by a user (not tied to a
-// period). "Save this month as template" snapshots a month into these;
-// "Copy from → Template" seeds a month from them. A flat list — no `actual`,
-// a template is the plan, not spending.
-model BudgetTemplateItem {
-  id             String           @id @default(uuid()) @db.Uuid
-  userId         String           @db.Uuid
-  type           ItemType
-  category       ExpenseCategory?
-  incomeCategory IncomeCategory?
-  label          String
-  budget         Decimal          @default(0) @db.Decimal(12, 2)
-  sortOrder      Int              @default(0)
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  deletedAt      DateTime?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId, type, sortOrder])
-}
-
-// A reusable balance-sheet template row, owned directly by a user. Flat, like
-// BalanceItem. "Copy from → Template" seeds a month's balance from these.
-model BalanceTemplateItem {
-  id        String              @id @default(uuid()) @db.Uuid
-  userId    String              @db.Uuid
-  type      BalanceItemType
-  category  BalanceItemCategory
-  label     String
-  value     Decimal             @default(0) @db.Decimal(14, 2)
-  notes     String?
-  sortOrder Int                 @default(0)
-  createdAt DateTime            @default(now())
-  updatedAt DateTime            @updatedAt
-  deletedAt DateTime?
-  accountId String?             @db.Uuid
-
-  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  account Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
-
-  @@index([userId, type, category, sortOrder])
-  @@index([accountId])
-}
-
 // A stable, user-owned spending/earning category — the spine both the budget
 // and transactions hang off (per docs/superpowers/specs). Present regardless
 // of whether the transactions feature is enabled. `label` is mutable so a
@@ -357,7 +310,6 @@ model Account {
   importBatches        ImportBatch[]
   balanceItems         BalanceItem[]
   budgetItems          BudgetItem[]
-  balanceTemplateItems BalanceTemplateItem[]
   linkedAccount        Account?              @relation("AccountLink", fields: [linkedAccountId], references: [id], onDelete: SetNull)
   linkedBy             Account?              @relation("AccountLink")
   planAssets           PlanAsset[]
