@@ -51,6 +51,18 @@ export const createAccountWithBalanceSchema = z
 
 export const accountIdSchema = z.object({ accountId: z.string().uuid() });
 
+// Archiving carries the same choice as deleting: a mortgage on a property you
+// have stopped tracking should not carry on appearing by itself.
+export const archiveAccountSchema = accountIdSchema.extend({
+  alsoLinked: z.boolean(),
+  // The month the user is looking at when they stop tracking. Rows from this
+  // month on go; earlier ones are observations that were true when they were
+  // made. Taken from the sheet rather than from the clock, so the row leaves
+  // the sheet the button was on.
+  fromYear: z.number().int(),
+  fromMonth: z.number().int().min(0).max(11),
+});
+
 export const deleteAccountEverywhereSchema = accountIdSchema.extend({
   // The linked property or mortgage goes too. Always an explicit choice —
   // never inferred, never hidden when a link exists.
@@ -61,6 +73,7 @@ export type CreateAccountWithBalanceInput = z.infer<
   typeof createAccountWithBalanceSchema
 >;
 export type AccountIdInput = z.infer<typeof accountIdSchema>;
+export type ArchiveAccountInput = z.infer<typeof archiveAccountSchema>;
 export type DeleteAccountEverywhereInput = z.infer<
   typeof deleteAccountEverywhereSchema
 >;

@@ -29,6 +29,9 @@ type DeleteAccountPanelProps = {
   name: string;
   counts: DeleteAccountPanelCounts;
   isProperty: boolean;
+  /** The month whose sheet this was opened from — see archiveAccount. */
+  year: number;
+  month: number;
   onClose: () => void;
   onDone: () => void;
 };
@@ -146,6 +149,8 @@ export function DeleteAccountPanel({
   name,
   counts,
   isProperty,
+  year,
+  month,
   onClose,
   onDone,
 }: DeleteAccountPanelProps) {
@@ -163,7 +168,12 @@ export function DeleteAccountPanel({
     setPending(true);
     try {
       if (mode === "archive") {
-        await archiveAccount({ accountId });
+        await archiveAccount({
+          accountId,
+          alsoLinked,
+          fromYear: year,
+          fromMonth: month,
+        });
       } else {
         await deleteAccountEverywhere({ accountId, alsoLinked });
       }
@@ -191,9 +201,9 @@ export function DeleteAccountPanel({
             Stop tracking it
           </RadioLabel>
           <Text>
-            Keeps the {counts.months} months of history already recorded. {name}{" "}
-            leaves next month&rsquo;s sheet and the pickers, and can be restored
-            from Settings.
+            {name} leaves this month&rsquo;s sheet and the pickers now. The
+            months already closed keep what they recorded, and it can be
+            restored from Settings.
           </Text>
         </RadioOption>
 
@@ -215,7 +225,12 @@ export function DeleteAccountPanel({
         </RadioOption>
       </RadioFieldset>
 
-      {linked && mode === "everywhere" && (
+      {/* Offered for BOTH modes: a mortgage on a property nobody tracks any
+          more has nothing to sit against, so stopping tracking one should
+          offer to stop tracking the other. It used to appear only when
+          deleting, which left an archived property's mortgage on the sheet
+          by itself. */}
+      {linked && (
         <PartnerBlock>
           <CheckboxLabel>
             <input
@@ -223,7 +238,8 @@ export function DeleteAccountPanel({
               checked={alsoLinked}
               onChange={(e) => setAlsoLinked(e.target.checked)}
             />
-            Also delete &quot;{linked.name}&quot;
+            {mode === "everywhere" ? "Also delete" : "Also stop tracking"}{" "}
+            &quot;{linked.name}&quot;
           </CheckboxLabel>
           <Text>Currently valued at {money(linked.latestValue)}.</Text>
           {mode === "everywhere" && alsoLinked && (

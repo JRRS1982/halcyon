@@ -54,7 +54,12 @@ describe("balance copy-forward (integration)", () => {
       mortgage: null,
     });
 
-    await archiveAccount({ accountId });
+    await archiveAccount({
+      accountId,
+      alsoLinked: false,
+      fromYear: 2026,
+      fromMonth: 2,
+    });
     await copyBalancePeriodFrom({
       sourcePeriodId: periodId,
       targetYear: 2026,
