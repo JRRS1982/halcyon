@@ -75,7 +75,6 @@ test("toggling interest-only persists after reload and hides the repayment field
   await page.goto("/plan");
   await createPlanWithDob(page);
 
-  const liabilityPanel = page.locator("section", { hasText: "Liabilities" });
   await addPlanLiability(page, {
     name: "Mortgage",
     balance: "0",

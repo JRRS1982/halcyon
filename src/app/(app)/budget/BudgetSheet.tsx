@@ -134,8 +134,6 @@ type AddKind = "INCOME" | "EXPENSE" | AnchoredKind;
 // kind of its own.
 const ADD_KINDS = ["INCOME", "EXPENSE", "TRANSFER"] as const;
 
-type TopKind = (typeof ADD_KINDS)[number];
-
 const isAnchoredKind = (kind: AddKind): kind is AnchoredKind =>
   kind === "TRANSFER" || kind === "REPAYMENT";
 

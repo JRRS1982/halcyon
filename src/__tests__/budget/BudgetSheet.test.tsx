@@ -493,11 +493,6 @@ describe("BudgetSheet — the Add drawer's sections", () => {
 });
 
 describe("BudgetSheet — Enter at the end of a section", () => {
-  const budgetCell = (label: string) =>
-    screen
-      .getByRole("row", { name: new RegExp(label) })
-      .querySelectorAll("input")[1] as HTMLInputElement;
-
   test("Enter on the last row of a bucket adds another row to that bucket", async () => {
     createItemForMonth.mockResolvedValue({
       periodId: "p1",

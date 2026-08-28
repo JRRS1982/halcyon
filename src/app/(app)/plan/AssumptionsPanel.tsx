@@ -8,7 +8,7 @@ import { DateOfBirthField } from "@/components/ui/DateOfBirthField";
 import { InfoTip } from "@/components/ui/InfoTip";
 import type { Regime } from "@/lib/tax/types";
 import { updatePlanAssumptions } from "./actions";
-import { BoolCell, NumberCell, SelectCell, TextCell } from "./EditableCell";
+import { BoolCell, NumberCell, SelectCell } from "./EditableCell";
 import type { SerializedPlanAssumptions } from "./serialized";
 
 const TAX_REGIMES: Regime[] = ["RUK", "SCOTLAND"];
