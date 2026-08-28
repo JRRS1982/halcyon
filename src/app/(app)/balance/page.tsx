@@ -84,11 +84,6 @@ export default async function BalancePage(props: PageProps) {
     accountId: i.accountId,
   }));
 
-  const hasTemplate =
-    (await prisma.balanceTemplateItem.count({
-      where: { userId: user.id, deletedAt: null },
-    })) > 0;
-
   return (
     <BalanceSheet
       key={formatYm(year, month)}
@@ -98,7 +93,6 @@ export default async function BalancePage(props: PageProps) {
       month={month}
       currency={currency}
       numberFormat={numberFormat}
-      hasTemplate={hasTemplate}
     />
   );
 }

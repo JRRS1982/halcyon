@@ -7,16 +7,12 @@ import { toCarriedOverRows } from "@/lib/balance/copyRows";
 import { computeMove } from "@/lib/balance/reorder";
 import {
   type CopyBalancePeriodFromInput,
-  type CopyBalanceTemplateInput,
   copyBalancePeriodFromSchema,
-  copyBalanceTemplateSchema,
   type DeleteBalanceItemInput,
   deleteBalanceItemSchema,
   type MoveBalanceItemInput,
   moveBalanceItemSchema,
-  type SaveBalanceTemplateInput,
   type SetBalanceItemSectionInput,
-  saveBalanceTemplateSchema,
   setBalanceItemSectionSchema,
   type UpdateBalanceItemInput,
   updateBalanceItemSchema,
@@ -250,107 +246,6 @@ export async function copyBalancePeriodFrom(input: CopyBalancePeriodFromInput) {
   });
 
   const copied = toCarriedOverRows(sourceItems);
-
-  await prisma.$transaction([
-    prisma.balanceItem.updateMany({
-      where: { periodId: target.id, deletedAt: null },
-      data: { deletedAt: new Date() },
-    }),
-    prisma.balanceItem.createMany({
-      data: copied.map((it) => ({ ...it, periodId: target.id })),
-    }),
-  ]);
-
-  return { periodId: target.id, items: copied };
-}
-
-// Snapshot a month's balance rows into the user's reusable balance template,
-// replacing whatever was there. Balance rows are flat, so this is a straight
-// copy of type/category/label/value/notes.
-export async function saveBalanceTemplate(input: SaveBalanceTemplateInput) {
-  const userId = await requireUserId();
-  const parsed = saveBalanceTemplateSchema.parse(input);
-
-  const period = await prisma.financialPeriod.findFirst({
-    where: { id: parsed.sourcePeriodId, userId, deletedAt: null },
-  });
-  if (!period) {
-    throw new Error("Source period not found");
-  }
-
-  const sourceItems = await prisma.balanceItem.findMany({
-    where: { periodId: period.id, deletedAt: null },
-    orderBy: { sortOrder: "asc" },
-    select: {
-      type: true,
-      category: true,
-      label: true,
-      value: true,
-      notes: true,
-      sortOrder: true,
-      accountId: true,
-    },
-  });
-
-  const rows = sourceItems.map((it) => ({
-    id: randomUUID(),
-    userId,
-    type: it.type,
-    category: it.category,
-    label: it.label,
-    value: Number(it.value),
-    notes: it.notes,
-    sortOrder: it.sortOrder,
-    accountId: it.accountId,
-  }));
-
-  await prisma.$transaction([
-    prisma.balanceTemplateItem.updateMany({
-      where: { userId, deletedAt: null },
-      data: { deletedAt: new Date() },
-    }),
-    prisma.balanceTemplateItem.createMany({ data: rows }),
-  ]);
-
-  return { count: rows.length };
-}
-
-// Seed a month from the user's balance template, replacing the month's rows.
-// Mirror of copyBalancePeriodFrom but the source is the template.
-export async function copyBalanceTemplateInto(input: CopyBalanceTemplateInput) {
-  const userId = await requireUserId();
-  const parsed = copyBalanceTemplateSchema.parse(input);
-
-  const templateItems = await prisma.balanceTemplateItem.findMany({
-    where: {
-      userId,
-      deletedAt: null,
-      // Same rule as copyBalancePeriodFrom: an archived account's row must
-      // not repopulate a new month, even from the saved template. Legacy
-      // rows with no accountId always copy.
-      OR: [{ accountId: null }, { account: { deletedAt: null } }],
-    },
-    orderBy: { sortOrder: "asc" },
-    select: {
-      type: true,
-      category: true,
-      label: true,
-      value: true,
-      notes: true,
-      sortOrder: true,
-      accountId: true,
-    },
-  });
-  if (templateItems.length === 0) {
-    throw new Error("No balance template saved yet");
-  }
-
-  const target = await ensurePeriodForMonth(
-    parsed.targetYear,
-    parsed.targetMonth,
-  );
-
-  const copied = toCarriedOverRows(templateItems);
 
   await prisma.$transaction([
     prisma.balanceItem.updateMany({

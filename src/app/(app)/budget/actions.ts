@@ -12,16 +12,12 @@ import {
 import { ensurePeriodForMonthIn } from "@/lib/budget/ensurePeriod";
 import { currentMonthRange, monthRangeFor } from "@/lib/budget/period";
 import {
-  type CopyBudgetTemplateInput,
   type CopyPeriodFromInput,
   type CreateItemForMonthInput,
-  copyBudgetTemplateSchema,
   copyPeriodFromSchema,
   createItemForMonthSchema,
   type DeleteItemInput,
   deleteItemSchema,
-  type SaveBudgetTemplateInput,
-  saveBudgetTemplateSchema,
   type UpdateItemInput,
   updateItemSchema,
 } from "@/lib/budget/schemas";
@@ -460,141 +456,4 @@ async function withComputedActuals(
         ? netActual(amounts.get(i.categoryId) ?? [], i.type)
         : 0,
   }));
-}
-
-// Snapshot a month's rows into the user's reusable budget template, replacing
-// whatever was there. Hierarchy and budgets carry over (via buildCopiedItems);
-// actuals are dropped — a template is the plan, not spending.
-export async function saveBudgetTemplate(input: SaveBudgetTemplateInput) {
-  const userId = await requireUserId();
-  const parsed = saveBudgetTemplateSchema.parse(input);
-
-  const period = await prisma.financialPeriod.findFirst({
-    where: { id: parsed.sourcePeriodId, userId, deletedAt: null },
-  });
-  if (!period) {
-    throw new Error("Source period not found");
-  }
-
-  const sourceItems = await prisma.budgetItem.findMany({
-    where: { periodId: period.id, deletedAt: null },
-    orderBy: { createdAt: "asc" },
-    select: {
-      id: true,
-      type: true,
-      category: true,
-      incomeCategory: true,
-      categoryId: true,
-      label: true,
-      budget: true,
-      sortOrder: true,
-    },
-  });
-
-  // BudgetTemplateItem has no accountId/direction columns, so an anchor cannot
-  // survive the round trip; a template-sourced TRANSFER/REPAYMENT is dropped on
-  // the way back out, in copyBudgetTemplateInto.
-  const copied = buildCopiedItems(
-    sourceItems.map((it) => ({
-      ...it,
-      budget: Number(it.budget),
-      accountId: null,
-      direction: null,
-    })),
-    randomUUID,
-  );
-
-  await prisma.$transaction([
-    prisma.budgetTemplateItem.updateMany({
-      where: { userId, deletedAt: null },
-      data: { deletedAt: new Date() },
-    }),
-    prisma.budgetTemplateItem.createMany({
-      data: copied.map((it) => ({
-        id: it.id,
-        userId,
-        type: it.type,
-        category: it.category,
-        incomeCategory: it.incomeCategory,
-        label: it.label,
-        budget: it.budget,
-        sortOrder: it.sortOrder,
-      })),
-    }),
-  ]);
-
-  return { count: copied.length };
-}
-
-// Seed a month from the user's budget template, replacing the month's rows.
-// Mirror of copyPeriodFrom but the source is the template, not a period.
-export async function copyBudgetTemplateInto(input: CopyBudgetTemplateInput) {
-  const userId = await requireUserId();
-  const parsed = copyBudgetTemplateSchema.parse(input);
-
-  const templateItems = await prisma.budgetTemplateItem.findMany({
-    where: { userId, deletedAt: null },
-    orderBy: { createdAt: "asc" },
-    select: {
-      id: true,
-      type: true,
-      category: true,
-      incomeCategory: true,
-      label: true,
-      budget: true,
-      sortOrder: true,
-    },
-  });
-  if (templateItems.length === 0) {
-    throw new Error("No budget template saved yet");
-  }
-
-  const range = monthRangeFor(parsed.targetYear, parsed.targetMonth);
-  const target = await ensurePeriodForMonthInternal(
-    range.startDate,
-    range.endDate,
-    range.label,
-  );
-
-  // BudgetTemplateItem has no category link, so template-sourced rows start
-  // unlinked; the budget page's force-show materialises linked rows for any
-  // category with spend this month. It has no anchor columns either, so an
-  // anchored kind arrives with a null accountId and the fence drops it — a
-  // TRANSFER can only be re-created against an account the template can't name.
-  const { kept, skipped } = await withValidAnchorsOnly(
-    userId,
-    templateItems.map((it) => ({
-      ...it,
-      budget: Number(it.budget),
-      categoryId: null,
-      accountId: null,
-      direction: null,
-    })),
-  );
-
-  const copied = buildCopiedItems(kept, randomUUID);
-
-  await prisma.$transaction([
-    prisma.budgetItem.updateMany({
-      where: { periodId: target.id, deletedAt: null },
-      data: { deletedAt: new Date() },
-    }),
-    prisma.budgetItem.createMany({
-      data: copied.map((it) => ({
-        id: it.id,
-        periodId: target.id,
-        type: it.type,
-        category: it.category,
-        incomeCategory: it.incomeCategory,
-        accountId: it.accountId,
-        direction: it.direction,
-        label: it.label,
-        budget: it.budget,
-        actual: it.actual,
-        sortOrder: it.sortOrder,
-      })),
-    }),
-  ]);
-
-  return { periodId: target.id, items: copied, skipped };
 }

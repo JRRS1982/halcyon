@@ -122,12 +122,9 @@ export function rowsOfType<T extends Row>(items: T[], type: ItemType): T[] {
 }
 
 // A copy leaves behind any row whose anchor cannot be re-established, rather
-// than copying it malformed (see withValidAnchorsOnly). Two different causes
-// reach here: copying from a month, where the account has been archived,
-// deleted or re-kinded; and copying from the template, where BudgetTemplateItem
-// has no anchor columns and so cannot name the account at all. The wording
-// covers both — "no longer available" was a false statement about the second,
-// blaming an account that is perfectly fine.
+// than copying it malformed (see withValidAnchorsOnly). It reaches here when
+// the source month's row names an account that has since been archived,
+// deleted or re-kinded.
 //
 // The count is the only trace of a skip, so the sheet says it out loud.
 export function skippedRowsNotice(skipped: number): string | null {

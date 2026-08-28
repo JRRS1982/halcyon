@@ -18,12 +18,10 @@ const createItemForMonth = jest.fn();
 const copyPeriodFrom = jest.fn();
 const listCopyablePeriods = jest.fn();
 jest.mock("@/app/(app)/budget/actions", () => ({
-  copyBudgetTemplateInto: jest.fn(),
   copyPeriodFrom: (...args: unknown[]) => copyPeriodFrom(...args),
   createItemForMonth: (...args: unknown[]) => createItemForMonth(...args),
   deleteItem: jest.fn(),
   listCopyablePeriods: (...args: unknown[]) => listCopyablePeriods(...args),
-  saveBudgetTemplate: jest.fn(),
   updateItem: jest.fn(),
 }));
 
@@ -129,7 +127,6 @@ const renderSheet = (
         month={2}
         currency="GBP"
         numberFormat="COMMA_0"
-        hasTemplate={false}
       />
     </ThemeProvider>,
   );

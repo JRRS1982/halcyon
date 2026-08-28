@@ -66,12 +66,10 @@ import {
   significantBefore,
 } from "@/lib/settings/currency";
 import {
-  copyBudgetTemplateInto,
   copyPeriodFrom,
   createItemForMonth,
   deleteItem,
   listCopyablePeriods,
-  saveBudgetTemplate,
   updateItem,
 } from "./actions";
 
@@ -680,10 +678,6 @@ const formatRelative = (then: Date | null, now: Date): string => {
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
-// Sentinel "source" id for the saved template entry in the Copy-from list,
-// distinct from any real period uuid.
-const TEMPLATE_SOURCE_ID = "__template__";
-
 export function BudgetSheet({
   period,
   initialItems,
@@ -692,7 +686,6 @@ export function BudgetSheet({
   month,
   currency,
   numberFormat,
-  hasTemplate,
   actualsReadOnly = false,
 }: {
   period: SerializedPeriod;
@@ -705,7 +698,6 @@ export function BudgetSheet({
   month: number;
   currency: string;
   numberFormat: NumberFormat;
-  hasTemplate: boolean;
   actualsReadOnly?: boolean;
 }) {
   // Bind currency + number format once so the many call sites stay terse.
@@ -863,8 +855,7 @@ export function BudgetSheet({
     });
   }, [periodState.id]);
 
-  // Overwrite the current month with a copy of the selected source — either a
-  // chosen month, or the user's saved budget template (TEMPLATE_SOURCE_ID).
+  // Overwrite the current month with a copy of the selected month.
   const confirmCopy = useCallback(() => {
     if (!copySelectedId) return;
     setCopyBusy(true);
@@ -873,17 +864,11 @@ export function BudgetSheet({
     setPendingCount(pendingSavesRef.current);
     startTransition(async () => {
       try {
-        const result =
-          copySelectedId === TEMPLATE_SOURCE_ID
-            ? await copyBudgetTemplateInto({
-                targetYear: year,
-                targetMonth: month,
-              })
-            : await copyPeriodFrom({
-                sourcePeriodId: copySelectedId,
-                targetYear: year,
-                targetMonth: month,
-              });
+        const result = await copyPeriodFrom({
+          sourcePeriodId: copySelectedId,
+          targetYear: year,
+          targetMonth: month,
+        });
         setPeriodState((prev) => ({ ...prev, id: result.periodId }));
         setItems(result.items);
         setFocusedCell(null);
@@ -903,50 +888,6 @@ export function BudgetSheet({
       }
     });
   }, [copySelectedId, year, month]);
-
-  // ─── Save-as-template state ───────────────────────────────────────────────
-
-  const [templateExists, setTemplateExists] = useState(hasTemplate);
-  const [saveTplOpen, setSaveTplOpen] = useState(false);
-  const [saveTplBusy, setSaveTplBusy] = useState(false);
-  const saveTplWrapperRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!saveTplOpen) return;
-    const onMouseDown = (e: MouseEvent) => {
-      if (
-        saveTplWrapperRef.current &&
-        !saveTplWrapperRef.current.contains(e.target as Node)
-      ) {
-        setSaveTplOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", onMouseDown);
-    return () => document.removeEventListener("mousedown", onMouseDown);
-  }, [saveTplOpen]);
-
-  // Snapshot this month's rows into the user's reusable budget template.
-  const confirmSaveTemplate = useCallback(() => {
-    if (!periodState.id) return;
-    setSaveTplBusy(true);
-    pendingSavesRef.current += 1;
-    setPendingCount(pendingSavesRef.current);
-    startTransition(async () => {
-      try {
-        await saveBudgetTemplate({ sourcePeriodId: periodState.id });
-        setTemplateExists(true);
-        setLastSavedAt(new Date());
-        setSaveError(null);
-        setSaveTplOpen(false);
-      } catch (e) {
-        setSaveError(e instanceof Error ? e.message : "Save template failed");
-      } finally {
-        setSaveTplBusy(false);
-        pendingSavesRef.current = Math.max(0, pendingSavesRef.current - 1);
-        setPendingCount(pendingSavesRef.current);
-      }
-    });
-  }, [periodState.id]);
 
   // When a row is just added, we want the user to land in its label input
   // immediately so they can type a name without an extra click.
@@ -1542,8 +1483,7 @@ export function BudgetSheet({
         </ToolbarGroup>
         {/* Adding rows comes first because it is what people do most, and the
             leftmost group after the period is the one they read. Filling from
-            elsewhere and saving a template are month-level operations, so they
-            sit together after it. */}
+            elsewhere is a month-level operation, so it sits after it. */}
         <ToolbarGroup>
           <ToolbarTool onClick={() => onAddRow("INCOME")}>+ Income</ToolbarTool>
           <ToolbarTool onClick={() => onAddRow("EXPENSE")}>
@@ -1650,21 +1590,10 @@ export function BudgetSheet({
                 <CopyTitle>Fill {periodState.label} from</CopyTitle>
                 {copyList === null ? (
                   <CopyMuted>Loading…</CopyMuted>
-                ) : copyList.length === 0 && !templateExists ? (
-                  <CopyMuted>
-                    No template or other months to copy from yet.
-                  </CopyMuted>
+                ) : copyList.length === 0 ? (
+                  <CopyMuted>No other months to copy from yet.</CopyMuted>
                 ) : (
                   <CopyList>
-                    {templateExists && (
-                      <CopySource
-                        type="button"
-                        $selected={copySelectedId === TEMPLATE_SOURCE_ID}
-                        onClick={() => setCopySelectedId(TEMPLATE_SOURCE_ID)}
-                      >
-                        ★ Template
-                      </CopySource>
-                    )}
                     {copyList.map((p) => (
                       <CopySource
                         key={p.id}
@@ -1704,44 +1633,6 @@ export function BudgetSheet({
                     </CopyActions>
                   </CopyConfirm>
                 )}
-              </CopyPopover>
-            )}
-          </CopyWrapper>
-          <CopyWrapper ref={saveTplWrapperRef}>
-            <ToolbarTool
-              onClick={() => setSaveTplOpen((o) => !o)}
-              aria-expanded={saveTplOpen}
-              disabled={items.length === 0}
-            >
-              Save as template
-            </ToolbarTool>
-            {saveTplOpen && (
-              <CopyPopover aria-label="Save this month as your budget template">
-                <CopyTitle>Save as budget template</CopyTitle>
-                <CopyConfirmText>
-                  {templateExists
-                    ? "Replaces your current budget template. "
-                    : ""}
-                  Saves this month's rows (structure + budgets) as your reusable
-                  template.
-                </CopyConfirmText>
-                <CopyActions>
-                  <CopyButton
-                    type="button"
-                    onClick={() => setSaveTplOpen(false)}
-                    disabled={saveTplBusy}
-                  >
-                    Cancel
-                  </CopyButton>
-                  <CopyButton
-                    type="button"
-                    $primary
-                    onClick={confirmSaveTemplate}
-                    disabled={saveTplBusy}
-                  >
-                    {saveTplBusy ? "Saving…" : "Save"}
-                  </CopyButton>
-                </CopyActions>
               </CopyPopover>
             )}
           </CopyWrapper>
