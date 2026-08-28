@@ -18,6 +18,12 @@ const createItemForMonth = jest.fn();
 const copyPeriodFrom = jest.fn();
 const listCopyablePeriods = jest.fn();
 const deleteItem = jest.fn();
+// The transfer picker can open the balance sheet's own Add-account drawer, so
+// that feature's server actions are now in this file's module graph.
+jest.mock("@/app/(app)/balance/accountActions", () => ({
+  createAccountWithBalance: jest.fn(),
+}));
+
 jest.mock("@/app/(app)/budget/actions", () => ({
   copyPeriodFrom: (...args: unknown[]) => copyPeriodFrom(...args),
   createItemForMonth: (...args: unknown[]) => createItemForMonth(...args),
@@ -154,13 +160,13 @@ describe("BudgetSheet — three sections", () => {
     expect(within(expenses).getByText(fmt(3250))).toBeInTheDocument();
     // The bucket's accessible name carries its info button's "i" too.
     expect(
-      screen.getByRole("rowheader", { name: /^Repayments/ }),
+      screen.getByRole("rowheader", { name: /^Debt payments/ }),
     ).toBeVisible();
   });
 
   test("transfers get a section of their own", () => {
     renderSheet();
-    const transfers = bandFor("Transfers");
+    const transfers = bandFor("Transfers and saving");
     expect(within(transfers).getByText(fmt(500))).toBeInTheDocument();
     expect(within(transfers).getByText(fmt(400))).toBeInTheDocument();
   });
@@ -562,5 +568,24 @@ describe("BudgetSheet — untouched rows", () => {
     await focusLabel("Housing");
 
     expect(deleteItem).toHaveBeenCalledWith({ itemId: "blank" });
+  });
+});
+
+describe("BudgetSheet — adding an account from the transfer picker", () => {
+  // The account you want to transfer to may not exist yet. Leaving for the
+  // balance sheet loses the row you were part-way through adding, so the same
+  // drawer the balance sheet uses opens here.
+  test("offers a new account alongside the eligible ones", async () => {
+    renderSheet(unanchoredItems);
+    await act(async () => {
+      screen.getByRole("button", { name: "+ Add" }).click();
+    });
+    await act(async () => {
+      screen.getByRole("button", { name: "Transfer" }).click();
+    });
+
+    expect(
+      screen.getByRole("button", { name: "+ New account…" }),
+    ).toBeVisible();
   });
 });

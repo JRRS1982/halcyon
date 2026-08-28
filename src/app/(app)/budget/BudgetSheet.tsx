@@ -13,6 +13,7 @@ import {
   useTransition,
 } from "react";
 import styled from "styled-components";
+import { AddAccountDrawer } from "@/app/(app)/balance/AddAccountDrawer";
 import { Sheet } from "@/components/sheet/Sheet";
 import {
   SheetGrandRow,
@@ -141,7 +142,7 @@ const ADD_KIND_LABEL = {
   INCOME: "Income",
   EXPENSE: "Expense",
   TRANSFER: "Transfer",
-  REPAYMENT: "Repayment",
+  REPAYMENT: "Debt payment",
 } as const satisfies Record<AddKind, string>;
 
 // Expense's second level: the sheet's three expense sections, plus Repayment.
@@ -543,6 +544,26 @@ const CopyMuted = styled.div`
   `}
 `;
 
+// The drawer asks two questions in sequence — the kind, then what that kind
+// needs. Styled like CopyTitle, the second one reads as another top-level
+// heading and the list under it looks like a sibling of the kind buttons
+// rather than the answer to the choice above. Smaller, muted, and separated
+// by a rule from the group it follows.
+const CopySubTitle = styled.div`
+  ${({ theme }) => `
+    font-family: ${theme.typography.bodyMd.family};
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: ${theme.colors.bodyMuted};
+    padding-top: ${theme.spacing.md};
+    margin-top: ${theme.spacing.xs};
+    margin-bottom: ${theme.spacing.xs};
+    border-top: 1px solid ${theme.colors.hairline};
+  `}
+`;
+
 const CopyList = styled.div`
   display: flex;
   flex-direction: column;
@@ -693,6 +714,18 @@ const INCOME_CATEGORIES: {
 // Repayments are a bucket inside Expenses rather than a section of their own:
 // the money left, so it is spending, and a mortgage is the first thing people
 // look for under Expenses.
+// A link-looking button inside the empty state, so "add one now" reads as part
+// of the sentence rather than as another control.
+const LinkBtn = styled.button`
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: ${({ theme }) => theme.colors.primary};
+  text-decoration: underline;
+  cursor: pointer;
+`;
+
 const REPAYMENTS_HELP =
   "Money paid at a debt you owe — a mortgage, a loan, a credit card. It counts as spending here because it left your account; the plan works out how much of it cleared the debt.";
 
@@ -1119,6 +1152,7 @@ export function BudgetSheet({
   // Defaults to EXPENSE: it is what people add most.
   const [addKind, setAddKind] = useState<AddKind>("EXPENSE");
   const [addAccountId, setAddAccountId] = useState<string | null>(null);
+  const [newAccountOpen, setNewAccountOpen] = useState(false);
   // INFLOW by default: saving into an account is the ordinary case, and
   // raiding one is the deliberate act.
   const [addDirection, setAddDirection] = useState<"INFLOW" | "OUTFLOW">(
@@ -1666,7 +1700,7 @@ export function BudgetSheet({
                 </CopyList>
                 {addKind === "INCOME" && (
                   <>
-                    <CopyTitle>Which section?</CopyTitle>
+                    <CopySubTitle>Which section?</CopySubTitle>
                     <CopyList>
                       {INCOME_CATEGORIES.map((c) => (
                         <CopySource
@@ -1684,7 +1718,7 @@ export function BudgetSheet({
                 )}
                 {(addKind === "EXPENSE" || addKind === "REPAYMENT") && (
                   <>
-                    <CopyTitle>Which section?</CopyTitle>
+                    <CopySubTitle>Which section?</CopySubTitle>
                     <CopyList>
                       {EXPENSE_SECTIONS.map((c) => (
                         <CopySource
@@ -1715,12 +1749,20 @@ export function BudgetSheet({
                   ) : addEmptyReason === "NO_ACCOUNTS" ? (
                     <CopyMuted>
                       You have no {ANCHORED_KIND_COPY[addKind].noun} accounts{" "}
-                      {ANCHORED_KIND_COPY[addKind].purpose} yet — you can add
-                      one on the <Link href="/balance">balance sheet</Link>.
+                      {ANCHORED_KIND_COPY[addKind].purpose} yet.{" "}
+                      <LinkBtn
+                        type="button"
+                        onClick={() => setNewAccountOpen(true)}
+                      >
+                        Add one now
+                      </LinkBtn>
+                      , or from the <Link href="/balance">balance sheet</Link>.
                     </CopyMuted>
                   ) : (
                     <>
-                      <CopyTitle>{ANCHORED_KIND_COPY[addKind].title}</CopyTitle>
+                      <CopySubTitle>
+                        {ANCHORED_KIND_COPY[addKind].title}
+                      </CopySubTitle>
                       <CopyList>
                         {addCandidates.map((account) => (
                           <CopySource
@@ -1732,6 +1774,16 @@ export function BudgetSheet({
                             {account.name}
                           </CopySource>
                         ))}
+                        {/* The account you want may not exist yet, and
+                            leaving to the balance sheet to make one loses the
+                            row you were part-way through adding. Same drawer
+                            the balance sheet uses. */}
+                        <CopySource
+                          type="button"
+                          onClick={() => setNewAccountOpen(true)}
+                        >
+                          + New account…
+                        </CopySource>
                       </CopyList>
                       {addKind === "TRANSFER" && addAccount && (
                         <CopyConfirm>
@@ -1842,6 +1894,24 @@ export function BudgetSheet({
             )}
           </CopyWrapper>
         </ToolbarGroup>
+        <AddAccountDrawer
+          open={newAccountOpen}
+          year={year}
+          month={month}
+          onClose={() => setNewAccountOpen(false)}
+          onCreated={({
+            accountId,
+          }: {
+            periodId: string;
+            accountId: string;
+          }) => {
+            setNewAccountOpen(false);
+            // Select it straight away when this kind can target it; the refresh
+            // brings it into `accounts`, and the picker reads from there.
+            setAddAccountId(accountId);
+            router.refresh();
+          }}
+        />
         {focusedItem?.type === "EXPENSE" && (
           <ToolbarGroup $rowScoped $engaged>
             <ToolbarSelect
@@ -1921,12 +1991,16 @@ export function BudgetSheet({
           </div>
         ))}
         <div>
-          {renderBucketSubhead("Repayments", REPAYMENTS_HELP, repaymentTotals)}
+          {renderBucketSubhead(
+            "Debt payments",
+            REPAYMENTS_HELP,
+            repaymentTotals,
+          )}
           {repaymentRows.map((item) => renderItemRow(item))}
         </div>
 
         <SheetSectionRow
-          label="Transfers"
+          label="Transfers and saving"
           amounts={{
             budget: fmtAmount(transferTotals.budget),
             actual: fmtAmount(transferTotals.actual),

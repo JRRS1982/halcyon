@@ -138,7 +138,9 @@ test.describe("budget transfers and repayments", () => {
     // rather than switching it — and still switches it on if a future default
     // moves back.
     await ensureTransactionsEnabled(page);
-    const transfersToggle = page.getByRole("checkbox", { name: "Transfers" });
+    const transfersToggle = page.getByRole("checkbox", {
+      name: "Transfers and saving",
+    });
     if (!(await transfersToggle.isChecked())) {
       await transfersToggle.check({ force: true });
     }
@@ -174,7 +176,9 @@ test.describe("budget transfers and repayments", () => {
 
     // In Transfers, and nowhere else: a pension contribution is not spending,
     // so the Expenses total must not move.
-    await expect(budgetCell(bandRow(page, "Transfers"))).toHaveText("£500");
+    await expect(budgetCell(bandRow(page, "Transfers and saving"))).toHaveText(
+      "£500",
+    );
     await expect(budgetCell(bandRow(page, "Expenses"))).toHaveText("£0");
     // It still moves money, and the anchor is the account — money into your
     // ISA is money out of your pocket, so the surplus falls by it.
@@ -208,7 +212,9 @@ test.describe("budget transfers and repayments", () => {
     // happened. Nothing new appeared: a tagged transfer fills an existing
     // row's actual, it does not create one.
     await page.goto("/budget?ym=2026-03");
-    await expect(actualCell(bandRow(page, "Transfers"))).toHaveText("£500");
+    await expect(actualCell(bandRow(page, "Transfers and saving"))).toHaveText(
+      "£500",
+    );
     await expect(rowInput(page, ISA)).toHaveCount(1);
   });
 
@@ -260,11 +266,13 @@ test.describe("budget transfers and repayments", () => {
     // Under Expenses, and counted there — the money genuinely left, and a
     // mortgage is the first thing people look for under Expenses. It is not a
     // transfer: the Transfers band stays at zero.
-    await expect(budgetCell(bandRow(page, "Repayments", false))).toHaveText(
+    await expect(budgetCell(bandRow(page, "Debt payments", false))).toHaveText(
       "£1,200",
     );
     await expect(budgetCell(bandRow(page, "Expenses"))).toHaveText("£1,200");
-    await expect(budgetCell(bandRow(page, "Transfers"))).toHaveText("£0");
+    await expect(budgetCell(bandRow(page, "Transfers and saving"))).toHaveText(
+      "£0",
+    );
 
     // The plan now has something to do, and says so before it does it.
     await page.goto("/plan");

@@ -366,7 +366,7 @@ export function CategoryCombobox({
       })),
     },
     {
-      heading: "Transfers",
+      heading: "Transfers and saving",
       options: [
         ...assetMatches.map((a) => ({
           key: a.id,
@@ -394,7 +394,7 @@ export function CategoryCombobox({
       ],
     },
     {
-      heading: "Repayments",
+      heading: "Debt payments",
       options: liabilityMatches.map((a) => ({
         key: a.id,
         label: <OptionLabel $tone="transfer">{a.name}</OptionLabel>,
