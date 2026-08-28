@@ -1309,8 +1309,35 @@ export function BudgetSheet({
     [incomeBuckets, expenseBuckets, repaymentRows, transferRows],
   );
 
-  // Enter moves focus to the same field one row down (matching the header's
-  // "Enter drops down"). No-op on the last row.
+  // The bucket a row sits in, so Enter on the last row of one can add another
+  // there rather than falling into the next bucket.
+  const bucketOf = useCallback(
+    (itemId: string) => {
+      for (const b of incomeBuckets) {
+        const last = b.rows[b.rows.length - 1];
+        if (last?.id === itemId) {
+          return { type: "INCOME" as const, incomeCategory: b.cat.key };
+        }
+      }
+      for (const b of expenseBuckets) {
+        const last = b.rows[b.rows.length - 1];
+        if (last?.id === itemId) {
+          return { type: "EXPENSE" as const, category: b.cat.key };
+        }
+      }
+      return null;
+    },
+    [incomeBuckets, expenseBuckets],
+  );
+
+  // Enter moves focus to the same field one row down, matching the header's
+  // "Enter drops down" — except on the last row of an income or expense
+  // bucket, where it adds another row to that bucket and lands in its label.
+  // That is the flow of typing a list out: the row you want next is the one
+  // below the one you just filled in.
+  //
+  // Anchored rows (transfers, repayments) are left alone: they cannot exist
+  // without an account, so there is nothing useful for Enter to create.
   const onCellKeyDown = useCallback(
     (
       itemId: string,
@@ -1319,11 +1346,20 @@ export function BudgetSheet({
       (e) => {
         if (e.key !== "Enter") return;
         e.preventDefault();
+        // The bucket check comes first: "last row" means last of its own
+        // section, not last of the whole sheet. Ordering these the other way
+        // round only ever added on the very final row of the page.
+        const bucket = bucketOf(itemId);
+        if (bucket) {
+          const { type, ...section } = bucket;
+          onAddRow(type, undefined, section);
+          return;
+        }
         const idx = orderedItemIds.indexOf(itemId);
         const nextId = orderedItemIds[idx + 1];
         if (nextId) cellRefs.current.get(`${nextId}:${field}`)?.focus();
       },
-    [orderedItemIds],
+    [orderedItemIds, bucketOf, onAddRow],
   );
 
   // ─── Delete ───────────────────────────────────────────────────────────────
@@ -1351,6 +1387,54 @@ export function BudgetSheet({
       }
     })();
   }, [focusedItem]);
+
+  // Drop a row nobody typed into.
+  //
+  // Enter hands you a fresh row; changing your mind should not leave an empty
+  // one behind. "Untouched" is deliberately strict — no label AND nothing in
+  // either amount — because a NAMED row budgeted at zero is a real answer: it
+  // exists, it reaches the plan, and there may be contributions to it later.
+  // Treating an empty amount as "delete me" would take those with it.
+  //
+  // Anchored rows are exempt: a transfer or repayment names an account even
+  // when its label is blank, so it is never untouched in the sense meant here.
+  const removeIfUntouched = useCallback(
+    (itemId: string) => {
+      const row = items.find((it) => it.id === itemId);
+      if (!row) return;
+      if (row.accountId !== null) return;
+      if (row.label.trim() !== "") return;
+      if (row.budget !== 0 || row.actual !== 0) return;
+
+      setItems((prev) => prev.filter((it) => it.id !== itemId));
+      pendingSavesRef.current += 1;
+      setPendingCount(pendingSavesRef.current);
+      void (async () => {
+        try {
+          await deleteItem({ itemId });
+          setLastSavedAt(new Date());
+        } catch {
+          // Losing an empty row is not worth an error banner; the next render
+          // from the server puts it back if the delete failed.
+        } finally {
+          pendingSavesRef.current = Math.max(0, pendingSavesRef.current - 1);
+          setPendingCount(pendingSavesRef.current);
+        }
+      })();
+    },
+    [items],
+  );
+
+  // Focus leaving a row is what "blur" means here — moving between that row's
+  // own cells is not leaving it. Tracked centrally rather than plumbed through
+  // every cell's onBlur, which would fire on each Tab within a row.
+  const lastFocusedItemRef = useRef<string | null>(null);
+  useEffect(() => {
+    const current = focusedCell?.itemId ?? null;
+    const previous = lastFocusedItemRef.current;
+    lastFocusedItemRef.current = current;
+    if (previous && previous !== current) removeIfUntouched(previous);
+  }, [focusedCell, removeIfUntouched]);
 
   // ─── Status pip state ─────────────────────────────────────────────────────
 

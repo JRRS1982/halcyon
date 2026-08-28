@@ -1,5 +1,5 @@
 // src/__tests__/budget/BudgetSheet.test.tsx
-import { act, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { ThemeProvider } from "styled-components";
 import {
   BudgetSheet,
@@ -17,10 +17,11 @@ jest.mock("next/navigation", () => ({
 const createItemForMonth = jest.fn();
 const copyPeriodFrom = jest.fn();
 const listCopyablePeriods = jest.fn();
+const deleteItem = jest.fn();
 jest.mock("@/app/(app)/budget/actions", () => ({
   copyPeriodFrom: (...args: unknown[]) => copyPeriodFrom(...args),
   createItemForMonth: (...args: unknown[]) => createItemForMonth(...args),
-  deleteItem: jest.fn(),
+  deleteItem: (...args: unknown[]) => deleteItem(...args),
   listCopyablePeriods: (...args: unknown[]) => listCopyablePeriods(...args),
   updateItem: jest.fn(),
 }));
@@ -488,5 +489,83 @@ describe("BudgetSheet — the Add drawer's sections", () => {
       screen.getByRole("button", { name: "Repayment" }).click();
     });
     expect(screen.getByRole("button", { name: "Add" })).toBeDisabled();
+  });
+});
+
+describe("BudgetSheet — Enter at the end of a section", () => {
+  const budgetCell = (label: string) =>
+    screen
+      .getByRole("row", { name: new RegExp(label) })
+      .querySelectorAll("input")[1] as HTMLInputElement;
+
+  test("Enter on the last row of a bucket adds another row to that bucket", async () => {
+    createItemForMonth.mockResolvedValue({
+      periodId: "p1",
+      item: {
+        id: "new-3",
+        type: "EXPENSE",
+        category: "FIXED",
+        incomeCategory: null,
+        label: "",
+        budget: 0,
+        actual: 0,
+        sortOrder: 9,
+      },
+    });
+    // "Housing" is the only FIXED expense in the fixture, so it is the last
+    // row of its bucket — which is where Enter adds rather than moves.
+    renderSheet(items);
+    const cell = screen.getByDisplayValue("Housing");
+    const row = cell.closest("[role='row']");
+    const budget = row?.querySelectorAll("input")[1];
+    if (!budget) throw new Error("no budget cell found");
+
+    await act(async () => {
+      fireEvent.keyDown(budget, { key: "Enter" });
+    });
+
+    // The new row lands in the same section as the row Enter was pressed on,
+    // rather than at the default the toolbar would have used.
+    expect(createItemForMonth).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "EXPENSE" }),
+    );
+  });
+});
+
+describe("BudgetSheet — untouched rows", () => {
+  const focusLabel = async (value: string) => {
+    await act(async () => {
+      fireEvent.focus(screen.getByDisplayValue(value));
+    });
+  };
+
+  // A named row budgeted at zero is a real answer: it exists, it reaches the
+  // plan, and there may be contributions to it later. Only a row nobody typed
+  // into at all is swept up.
+  test("keeps a named row budgeted at zero when focus leaves it", async () => {
+    renderSheet([
+      row({ id: "z", label: "Sinking fund", budget: 0, actual: 0 }),
+      row({ id: "y", label: "Housing", budget: 2200, actual: 2000 }),
+    ]);
+    await focusLabel("Sinking fund");
+    await focusLabel("Housing");
+
+    expect(deleteItem).not.toHaveBeenCalled();
+    expect(screen.getByDisplayValue("Sinking fund")).toBeInTheDocument();
+  });
+
+  test("removes a row with no label and no amounts once focus leaves", async () => {
+    renderSheet([
+      row({ id: "blank", label: "", budget: 0, actual: 0 }),
+      row({ id: "y", label: "Housing", budget: 2200, actual: 2000 }),
+    ]);
+    await act(async () => {
+      fireEvent.focus(
+        screen.getAllByPlaceholderText("Name this row")[0] as HTMLElement,
+      );
+    });
+    await focusLabel("Housing");
+
+    expect(deleteItem).toHaveBeenCalledWith({ itemId: "blank" });
   });
 });

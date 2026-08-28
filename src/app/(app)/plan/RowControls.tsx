@@ -56,8 +56,11 @@ export function AddRowButton({
 
 export function RemoveCell({
   onConfirm,
+  confirmLabel = "Remove?",
 }: {
   onConfirm: () => Promise<void> | void;
+  /** Says what else goes with it, when removing one row removes others. */
+  confirmLabel?: string;
 }) {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -82,7 +85,7 @@ export function RemoveCell({
 
   return (
     <Confirm>
-      Remove?
+      {confirmLabel}
       <LinkBtn type="button" onClick={yes} disabled={busy}>
         yes
       </LinkBtn>

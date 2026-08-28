@@ -309,11 +309,22 @@ export function PlanView({
         eyebrow={eyebrow}
         title={title}
         onClose={close}
+        // A property can be removed, and deletePlanAsset cascades to its
+        // mortgage and that mortgage's repayment expense — so the confirm says
+        // so rather than leaving the user to discover it.
+        //
+        // A repayment expense still cannot be removed on its own: it belongs
+        // to the mortgage, and deleting it alone would leave a mortgage
+        // nothing pays.
         onRemove={
-          propertyAsset ||
-          (selected?.kind === "expense" && expense?.liabilityId)
+          selected?.kind === "expense" && expense?.liabilityId
             ? undefined
             : onRemove
+        }
+        removeConfirmLabel={
+          propertyAsset && propertyMortgage
+            ? "Remove the property, its mortgage and the repayment?"
+            : undefined
         }
       >
         {propertyAsset ? (
