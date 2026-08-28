@@ -472,11 +472,16 @@ export async function createPlanWithDob(
 ): Promise<void> {
   await page.waitForLoadState("networkidle");
 
-  const dateField = page.locator("input[type='date']");
+  // Three fields in day-month-year order, not a native date input: that one
+  // renders in the browser's locale, so its text and its calendar differ per
+  // engine. `dob` stays YYYY-MM-DD, the form's own value shape.
+  const [year, month, day] = dob.split("-");
   const create = page.getByRole("button", { name: /create my plan/i });
 
   await expect(async () => {
-    await dateField.fill(dob);
+    await page.getByLabel("Day").fill(day ?? "");
+    await page.getByLabel("Month").fill(month ?? "");
+    await page.getByLabel("Year").fill(year ?? "");
     await expect(create).toBeEnabled({ timeout: 2_000 });
   }).toPass({ timeout: 20_000 });
 

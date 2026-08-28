@@ -38,7 +38,7 @@ describe("AssumptionsPanel", () => {
     expect(screen.queryByLabelText(/tax rate/i)).not.toBeInTheDocument();
     expect(screen.getByLabelText(/tax regime/i)).toHaveValue("RUK");
     expect(
-      screen.getByLabelText(/thresholds rise with inflation/i),
+      screen.getByLabelText(/tax bands rise with inflation/i),
     ).toBeChecked();
   });
 
