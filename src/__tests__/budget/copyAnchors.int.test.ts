@@ -1,9 +1,4 @@
-import {
-  copyBudgetTemplateInto,
-  copyPeriodFrom,
-  createItemForMonth,
-  saveBudgetTemplate,
-} from "@/app/(app)/budget/actions";
+import { copyPeriodFrom, createItemForMonth } from "@/app/(app)/budget/actions";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
 
@@ -228,33 +223,5 @@ describe("copyPeriodFrom anchor handling (integration)", () => {
 
     expect(result.skipped).toBe(1);
     expect(await targetItems(result.periodId)).toHaveLength(0);
-  });
-});
-
-describe("copyBudgetTemplateInto anchor handling (integration)", () => {
-  // BudgetTemplateItem has no accountId/direction columns, so an anchored kind
-  // cannot survive a round trip through the template. Materialising one would
-  // produce exactly the malformed row this fence exists to prevent, so it is
-  // skipped instead.
-  test("skips anchored kinds the template cannot carry", async () => {
-    const { periodId: sourcePeriodId } = await seedSourceTransfer();
-    await createItemForMonth({
-      ...SOURCE,
-      type: "EXPENSE",
-      label: "Rent",
-      category: "FIXED",
-    });
-    await saveBudgetTemplate({ sourcePeriodId });
-
-    const result = await copyBudgetTemplateInto({
-      targetYear: TARGET.year,
-      targetMonth: TARGET.month,
-    });
-
-    expect(result.skipped).toBe(1);
-
-    const rows = await targetItems(result.periodId);
-    expect(rows.map((r) => r.label)).toEqual(["Rent"]);
-    expect(rows.every((r) => r.accountId === null)).toBe(true);
   });
 });

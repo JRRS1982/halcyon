@@ -5,9 +5,8 @@ import type {
   Prisma,
 } from "@prisma/client";
 
-// The shared shape of a BalanceItem or BalanceTemplateItem row that
-// copy-forward carries into a target period — either source is flat enough
-// that this is a straight field-for-field copy.
+// The shape of a BalanceItem row that copy-forward carries into a target
+// period — flat enough that this is a straight field-for-field copy.
 type SourceBalanceRow = {
   type: BalanceItemType;
   category: BalanceItemCategory;
@@ -30,10 +29,9 @@ export type CopiedBalanceRow = {
   carriedOver: true;
 };
 
-// Turns a source period's or the template's rows into fresh rows for a
-// target period: a new id per row, and `carriedOver: true` because the
-// value is last month's (or the template's) number, not one the user has
-// confirmed for the target month yet.
+// Turns a source period's rows into fresh rows for a target period: a new id
+// per row, and `carriedOver: true` because the value is last month's number,
+// not one the user has confirmed for the target month yet.
 export function toCarriedOverRows(
   items: SourceBalanceRow[],
 ): CopiedBalanceRow[] {

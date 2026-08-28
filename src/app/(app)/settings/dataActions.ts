@@ -31,8 +31,6 @@ function financialDeletes(userId: string) {
     prisma.balanceItem.deleteMany({ where: { period: { userId } } }),
     prisma.financialPeriod.deleteMany({ where: { userId } }),
     prisma.account.deleteMany({ where: { userId } }),
-    prisma.budgetTemplateItem.deleteMany({ where: { userId } }),
-    prisma.balanceTemplateItem.deleteMany({ where: { userId } }),
     prisma.plan.deleteMany({ where: { userId } }),
   ];
 }
@@ -47,8 +45,6 @@ export async function exportMyData(): Promise<string> {
     periods,
     budgetItems,
     balanceItems,
-    budgetTemplateItems,
-    balanceTemplateItems,
     transactions,
     importBatches,
     plans,
@@ -60,8 +56,6 @@ export async function exportMyData(): Promise<string> {
     prisma.financialPeriod.findMany({ where: { userId } }),
     prisma.budgetItem.findMany({ where: { period: { userId } } }),
     prisma.balanceItem.findMany({ where: { period: { userId } } }),
-    prisma.budgetTemplateItem.findMany({ where: { userId } }),
-    prisma.balanceTemplateItem.findMany({ where: { userId } }),
     prisma.transaction.findMany({ where: { userId } }),
     prisma.importBatch.findMany({ where: { userId } }),
     prisma.plan.findMany({
@@ -88,8 +82,6 @@ export async function exportMyData(): Promise<string> {
     periods,
     budgetItems,
     balanceItems,
-    budgetTemplateItems,
-    balanceTemplateItems,
     transactions,
     importBatches,
     plans,

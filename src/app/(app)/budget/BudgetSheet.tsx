@@ -66,12 +66,10 @@ import {
   significantBefore,
 } from "@/lib/settings/currency";
 import {
-  copyBudgetTemplateInto,
   copyPeriodFrom,
   createItemForMonth,
   deleteItem,
   listCopyablePeriods,
-  saveBudgetTemplate,
   updateItem,
 } from "./actions";
 
@@ -123,23 +121,47 @@ type NewRowAnchor = {
   label: string;
 };
 
-// The two kinds the Add drawer builds — the ones that target an account.
+// The two kinds that target an account, and so need a picker before the row
+// can exist. Income and Expense are added outright.
 type AnchoredKind = "TRANSFER" | "REPAYMENT";
+
+// Every kind the Add drawer builds. Income and Expense come first because they
+// are the ordinary ones.
+type AddKind = "INCOME" | "EXPENSE" | AnchoredKind;
+
+const ADD_KINDS = [
+  "INCOME",
+  "EXPENSE",
+  "TRANSFER",
+  "REPAYMENT",
+] as const satisfies readonly AddKind[];
+
+const isAnchoredKind = (kind: AddKind): kind is AnchoredKind =>
+  kind === "TRANSFER" || kind === "REPAYMENT";
+
+const ADD_KIND_LABEL = {
+  INCOME: "Income",
+  EXPENSE: "Expense",
+  TRANSFER: "Transfer",
+  REPAYMENT: "Repayment",
+} as const satisfies Record<AddKind, string>;
 
 const ANCHORED_KIND_COPY = {
   TRANSFER: {
-    button: "+ Transfer",
     title: "Transfer to an account",
-    empty: "asset",
+    noun: "asset",
+    // Reads into the empty-state sentence below. A transfer can go either
+    // way, so it is "to or from", not just "to".
+    purpose: "to transfer to or from",
   },
   REPAYMENT: {
-    button: "+ Repayment",
     title: "Repay a debt",
-    empty: "liability",
+    noun: "liability",
+    purpose: "to repay",
   },
 } as const satisfies Record<
   AnchoredKind,
-  { button: string; title: string; empty: string }
+  { title: string; noun: string; purpose: string }
 >;
 
 // ─── Formatting helpers ─────────────────────────────────────────────────────
@@ -680,10 +702,6 @@ const formatRelative = (then: Date | null, now: Date): string => {
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
-// Sentinel "source" id for the saved template entry in the Copy-from list,
-// distinct from any real period uuid.
-const TEMPLATE_SOURCE_ID = "__template__";
-
 export function BudgetSheet({
   period,
   initialItems,
@@ -692,7 +710,6 @@ export function BudgetSheet({
   month,
   currency,
   numberFormat,
-  hasTemplate,
   actualsReadOnly = false,
 }: {
   period: SerializedPeriod;
@@ -705,7 +722,6 @@ export function BudgetSheet({
   month: number;
   currency: string;
   numberFormat: NumberFormat;
-  hasTemplate: boolean;
   actualsReadOnly?: boolean;
 }) {
   // Bind currency + number format once so the many call sites stay terse.
@@ -863,8 +879,7 @@ export function BudgetSheet({
     });
   }, [periodState.id]);
 
-  // Overwrite the current month with a copy of the selected source — either a
-  // chosen month, or the user's saved budget template (TEMPLATE_SOURCE_ID).
+  // Overwrite the current month with a copy of the selected month.
   const confirmCopy = useCallback(() => {
     if (!copySelectedId) return;
     setCopyBusy(true);
@@ -873,17 +888,11 @@ export function BudgetSheet({
     setPendingCount(pendingSavesRef.current);
     startTransition(async () => {
       try {
-        const result =
-          copySelectedId === TEMPLATE_SOURCE_ID
-            ? await copyBudgetTemplateInto({
-                targetYear: year,
-                targetMonth: month,
-              })
-            : await copyPeriodFrom({
-                sourcePeriodId: copySelectedId,
-                targetYear: year,
-                targetMonth: month,
-              });
+        const result = await copyPeriodFrom({
+          sourcePeriodId: copySelectedId,
+          targetYear: year,
+          targetMonth: month,
+        });
         setPeriodState((prev) => ({ ...prev, id: result.periodId }));
         setItems(result.items);
         setFocusedCell(null);
@@ -903,50 +912,6 @@ export function BudgetSheet({
       }
     });
   }, [copySelectedId, year, month]);
-
-  // ─── Save-as-template state ───────────────────────────────────────────────
-
-  const [templateExists, setTemplateExists] = useState(hasTemplate);
-  const [saveTplOpen, setSaveTplOpen] = useState(false);
-  const [saveTplBusy, setSaveTplBusy] = useState(false);
-  const saveTplWrapperRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!saveTplOpen) return;
-    const onMouseDown = (e: MouseEvent) => {
-      if (
-        saveTplWrapperRef.current &&
-        !saveTplWrapperRef.current.contains(e.target as Node)
-      ) {
-        setSaveTplOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", onMouseDown);
-    return () => document.removeEventListener("mousedown", onMouseDown);
-  }, [saveTplOpen]);
-
-  // Snapshot this month's rows into the user's reusable budget template.
-  const confirmSaveTemplate = useCallback(() => {
-    if (!periodState.id) return;
-    setSaveTplBusy(true);
-    pendingSavesRef.current += 1;
-    setPendingCount(pendingSavesRef.current);
-    startTransition(async () => {
-      try {
-        await saveBudgetTemplate({ sourcePeriodId: periodState.id });
-        setTemplateExists(true);
-        setLastSavedAt(new Date());
-        setSaveError(null);
-        setSaveTplOpen(false);
-      } catch (e) {
-        setSaveError(e instanceof Error ? e.message : "Save template failed");
-      } finally {
-        setSaveTplBusy(false);
-        pendingSavesRef.current = Math.max(0, pendingSavesRef.current - 1);
-        setPendingCount(pendingSavesRef.current);
-      }
-    });
-  }, [periodState.id]);
 
   // When a row is just added, we want the user to land in its label input
   // immediately so they can type a name without an extra click.
@@ -1132,7 +1097,9 @@ export function BudgetSheet({
 
   // ─── Add drawer for the anchored kinds ────────────────────────────────────
 
-  const [addKind, setAddKind] = useState<AnchoredKind | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
+  // Defaults to EXPENSE: it is what people add most.
+  const [addKind, setAddKind] = useState<AddKind>("EXPENSE");
   const [addAccountId, setAddAccountId] = useState<string | null>(null);
   // INFLOW by default: saving into an account is the ordinary case, and
   // raiding one is the deliberate act.
@@ -1142,23 +1109,31 @@ export function BudgetSheet({
   const addWrapperRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (!addKind) return;
+    if (!addOpen) return;
     const onMouseDown = (e: MouseEvent) => {
       if (
         addWrapperRef.current &&
         !addWrapperRef.current.contains(e.target as Node)
       ) {
-        setAddKind(null);
+        setAddOpen(false);
       }
     };
     document.addEventListener("mousedown", onMouseDown);
     return () => document.removeEventListener("mousedown", onMouseDown);
-  }, [addKind]);
+  }, [addOpen]);
 
-  const openAddDrawer = useCallback((kind: AnchoredKind) => {
+  const toggleAddDrawer = useCallback(() => {
     setAddAccountId(null);
     setAddDirection("INFLOW");
-    setAddKind((open) => (open === kind ? null : kind));
+    setAddOpen((open) => !open);
+  }, []);
+
+  // Switching kind clears the account chosen for the previous one — the
+  // candidate list differs per kind, so a carried-over id could name an
+  // account this kind may not target.
+  const chooseAddKind = useCallback((kind: AddKind) => {
+    setAddKind(kind);
+    setAddAccountId(null);
   }, []);
 
   // The accounts this month's live rows already point at. One account carries
@@ -1173,7 +1148,7 @@ export function BudgetSheet({
   // onboarding is kind NONE.
   const addCandidates = useMemo(
     () =>
-      addKind
+      isAnchoredKind(addKind)
         ? eligibleAnchorAccounts(addKind, accounts, anchoredAccountIds)
         : [],
     [addKind, accounts, anchoredAccountIds],
@@ -1184,21 +1159,28 @@ export function BudgetSheet({
   );
   const addEmptyReason = useMemo(
     () =>
-      addKind
+      isAnchoredKind(addKind)
         ? anchorPickerEmptyReason(addKind, accounts, anchoredAccountIds)
         : null,
     [addKind, accounts, anchoredAccountIds],
   );
 
-  const confirmAddAnchored = useCallback(() => {
-    if (!addKind || !addAccount) return;
+  // One confirm for all four kinds: the anchored ones carry the account they
+  // target, the plain ones add a row outright.
+  const confirmAdd = useCallback(() => {
+    if (!isAnchoredKind(addKind)) {
+      onAddRow(addKind);
+      setAddOpen(false);
+      return;
+    }
+    if (!addAccount) return;
     onAddRow(addKind, {
       accountId: addAccount.id,
       // A repayment is always money at the debt, so it carries no direction.
       direction: addKind === "TRANSFER" ? addDirection : null,
       label: addAccount.name,
     });
-    setAddKind(null);
+    setAddOpen(false);
   }, [addKind, addAccount, addDirection, onAddRow]);
 
   // ─── Derived data ─────────────────────────────────────────────────────────
@@ -1542,92 +1524,95 @@ export function BudgetSheet({
         </ToolbarGroup>
         {/* Adding rows comes first because it is what people do most, and the
             leftmost group after the period is the one they read. Filling from
-            elsewhere and saving a template are month-level operations, so they
-            sit together after it. */}
+            elsewhere is a month-level operation, so it sits after it. */}
         <ToolbarGroup>
-          <ToolbarTool onClick={() => onAddRow("INCOME")}>+ Income</ToolbarTool>
-          <ToolbarTool onClick={() => onAddRow("EXPENSE")}>
-            + Expense
-          </ToolbarTool>
-          {/* The anchored kinds need a target before the row can exist, so
-              they open a drawer where the plain kinds add a row outright. */}
+          {/* One button for all four kinds, matching the balance sheet: the
+              kind is the drawer's first field rather than four toolbar
+              buttons. Income and Expense add a row outright; Transfer and
+              Repayment must name the account they target first. */}
           <CopyWrapper ref={addWrapperRef}>
-            {(["TRANSFER", "REPAYMENT"] as const).map((kind) => (
-              <ToolbarTool
-                key={kind}
-                onClick={() => openAddDrawer(kind)}
-                aria-expanded={addKind === kind}
-              >
-                {ANCHORED_KIND_COPY[kind].button}
-              </ToolbarTool>
-            ))}
-            {addKind && (
-              <CopyPopover aria-label={ANCHORED_KIND_COPY[addKind].title}>
-                <CopyTitle>{ANCHORED_KIND_COPY[addKind].title}</CopyTitle>
-                {addEmptyReason === "ALL_TAKEN" ? (
-                  <CopyMuted>
-                    Every {ANCHORED_KIND_COPY[addKind].empty} account you have
-                    already has a row this month — one account carries one row
-                    per period. Edit that row, or delete it to start again.
-                  </CopyMuted>
-                ) : addEmptyReason === "NO_ACCOUNTS" ? (
-                  <CopyMuted>
-                    You have no {ANCHORED_KIND_COPY[addKind].empty} accounts
-                    yet. An account becomes one on the{" "}
-                    <Link href="/balance">balance sheet</Link>, from its Add
-                    drawer — then it can be a target here.
-                  </CopyMuted>
-                ) : (
-                  <>
-                    <CopyList>
-                      {addCandidates.map((account) => (
-                        <CopySource
-                          key={account.id}
-                          type="button"
-                          $selected={account.id === addAccountId}
-                          onClick={() => setAddAccountId(account.id)}
-                        >
-                          {account.name}
-                        </CopySource>
-                      ))}
-                    </CopyList>
-                    {addKind === "TRANSFER" && addAccount && (
-                      <CopyConfirm>
-                        {/* Never INFLOW/OUTFLOW: the stored direction is
-                            relative to the account, and money "into" your ISA
-                            is money out of your pocket. */}
-                        <CopyList>
-                          {(["INFLOW", "OUTFLOW"] as const).map((direction) => (
-                            <CopySource
-                              key={direction}
-                              type="button"
-                              $selected={direction === addDirection}
-                              onClick={() => setAddDirection(direction)}
-                            >
-                              {transferRowLabel(direction, addAccount.name)}
-                            </CopySource>
-                          ))}
-                        </CopyList>
-                      </CopyConfirm>
-                    )}
-                    <CopyActions>
-                      <CopyButton
-                        type="button"
-                        onClick={() => setAddKind(null)}
-                      >
-                        Cancel
-                      </CopyButton>
-                      <CopyButton
-                        type="button"
-                        $primary
-                        onClick={confirmAddAnchored}
-                        disabled={!addAccount}
-                      >
-                        Add
-                      </CopyButton>
-                    </CopyActions>
-                  </>
-                )}
+            <ToolbarTool onClick={toggleAddDrawer} aria-expanded={addOpen}>
+              + Add
+            </ToolbarTool>
+            {addOpen && (
+              <CopyPopover aria-label="Add a budget row">
+                <CopyTitle>Add a row</CopyTitle>
+                <CopyList>
+                  {ADD_KINDS.map((kind) => (
+                    <CopySource
+                      key={kind}
+                      type="button"
+                      $selected={kind === addKind}
+                      onClick={() => chooseAddKind(kind)}
+                    >
+                      {ADD_KIND_LABEL[kind]}
+                    </CopySource>
+                  ))}
+                </CopyList>
+                {isAnchoredKind(addKind) &&
+                  (addEmptyReason === "ALL_TAKEN" ? (
+                    <CopyMuted>
+                      Every {ANCHORED_KIND_COPY[addKind].noun} account you have
+                      already has a row this month — one account carries one row
+                      per period. Edit that row, or delete it to start again.
+                    </CopyMuted>
+                  ) : addEmptyReason === "NO_ACCOUNTS" ? (
+                    <CopyMuted>
+                      You have no {ANCHORED_KIND_COPY[addKind].noun} accounts{" "}
+                      {ANCHORED_KIND_COPY[addKind].purpose} yet — you can add
+                      one on the <Link href="/balance">balance sheet</Link>.
+                    </CopyMuted>
+                  ) : (
+                    <>
+                      <CopyTitle>{ANCHORED_KIND_COPY[addKind].title}</CopyTitle>
+                      <CopyList>
+                        {addCandidates.map((account) => (
+                          <CopySource
+                            key={account.id}
+                            type="button"
+                            $selected={account.id === addAccountId}
+                            onClick={() => setAddAccountId(account.id)}
+                          >
+                            {account.name}
+                          </CopySource>
+                        ))}
+                      </CopyList>
+                      {addKind === "TRANSFER" && addAccount && (
+                        <CopyConfirm>
+                          {/* Never INFLOW/OUTFLOW: the stored direction is
+                              relative to the account, and money "into" your ISA
+                              is money out of your pocket. */}
+                          <CopyList>
+                            {(["INFLOW", "OUTFLOW"] as const).map(
+                              (direction) => (
+                                <CopySource
+                                  key={direction}
+                                  type="button"
+                                  $selected={direction === addDirection}
+                                  onClick={() => setAddDirection(direction)}
+                                >
+                                  {transferRowLabel(direction, addAccount.name)}
+                                </CopySource>
+                              ),
+                            )}
+                          </CopyList>
+                        </CopyConfirm>
+                      )}
+                    </>
+                  ))}
+                <CopyActions>
+                  <CopyButton type="button" onClick={() => setAddOpen(false)}>
+                    Cancel
+                  </CopyButton>
+                  <CopyButton
+                    type="button"
+                    $primary
+                    onClick={confirmAdd}
+                    disabled={isAnchoredKind(addKind) && !addAccount}
+                  >
+                    Add
+                  </CopyButton>
+                </CopyActions>
               </CopyPopover>
             )}
           </CopyWrapper>
@@ -1650,21 +1635,10 @@ export function BudgetSheet({
                 <CopyTitle>Fill {periodState.label} from</CopyTitle>
                 {copyList === null ? (
                   <CopyMuted>Loading…</CopyMuted>
-                ) : copyList.length === 0 && !templateExists ? (
-                  <CopyMuted>
-                    No template or other months to copy from yet.
-                  </CopyMuted>
+                ) : copyList.length === 0 ? (
+                  <CopyMuted>No other months to copy from yet.</CopyMuted>
                 ) : (
                   <CopyList>
-                    {templateExists && (
-                      <CopySource
-                        type="button"
-                        $selected={copySelectedId === TEMPLATE_SOURCE_ID}
-                        onClick={() => setCopySelectedId(TEMPLATE_SOURCE_ID)}
-                      >
-                        ★ Template
-                      </CopySource>
-                    )}
                     {copyList.map((p) => (
                       <CopySource
                         key={p.id}
@@ -1704,44 +1678,6 @@ export function BudgetSheet({
                     </CopyActions>
                   </CopyConfirm>
                 )}
-              </CopyPopover>
-            )}
-          </CopyWrapper>
-          <CopyWrapper ref={saveTplWrapperRef}>
-            <ToolbarTool
-              onClick={() => setSaveTplOpen((o) => !o)}
-              aria-expanded={saveTplOpen}
-              disabled={items.length === 0}
-            >
-              Save as template
-            </ToolbarTool>
-            {saveTplOpen && (
-              <CopyPopover aria-label="Save this month as your budget template">
-                <CopyTitle>Save as budget template</CopyTitle>
-                <CopyConfirmText>
-                  {templateExists
-                    ? "Replaces your current budget template. "
-                    : ""}
-                  Saves this month's rows (structure + budgets) as your reusable
-                  template.
-                </CopyConfirmText>
-                <CopyActions>
-                  <CopyButton
-                    type="button"
-                    onClick={() => setSaveTplOpen(false)}
-                    disabled={saveTplBusy}
-                  >
-                    Cancel
-                  </CopyButton>
-                  <CopyButton
-                    type="button"
-                    $primary
-                    onClick={confirmSaveTemplate}
-                    disabled={saveTplBusy}
-                  >
-                    {saveTplBusy ? "Saving…" : "Save"}
-                  </CopyButton>
-                </CopyActions>
               </CopyPopover>
             )}
           </CopyWrapper>

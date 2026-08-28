@@ -5,12 +5,35 @@
 // unreachable. The columns now narrow enough that all three fit an ordinary
 // phone, and below the row's floor the sheet pans with the label column pinned
 // left. Only a real viewport can tell us either of those worked.
-import { expect, signIn, test } from "./_helpers/fixtures";
+import type { Page } from "@playwright/test";
+import { expect, signIn, test, withServerAction } from "./_helpers/fixtures";
 
 const PHONE = { width: 390, height: 844 };
 // Narrower than the row's 320px floor plus the page's gutters, so the sheet
 // still has somewhere to pan to.
 const NARROW_PHONE = { width: 320, height: 720 };
+
+// The budget's four add buttons became one "+ Add" whose drawer picks the
+// kind, so adding a row is open → choose → confirm rather than a single click.
+//
+// The open is retried like fixtures' openAddDrawer and mobile-nav's openMenu:
+// the sheet is server-rendered, so the button is clickable before React
+// attaches its handler and the first click is swallowed with no error. The
+// confirm is barriered because it fires ensurePeriodForMonth and then
+// createItem, and these tests measure the row the server sends back.
+async function addExpenseRow(page: Page) {
+  const drawer = page.locator('[aria-label="Add a budget row"]');
+  await expect(async () => {
+    if (!(await drawer.isVisible())) {
+      await page.getByRole("button", { name: "+ Add" }).click();
+    }
+    await expect(drawer).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 15_000 });
+  await drawer.getByRole("button", { name: "Expense", exact: true }).click();
+  await withServerAction(page, () =>
+    drawer.getByRole("button", { name: "Add", exact: true }).click(),
+  );
+}
 
 test.describe("Sheets on a phone", () => {
   test.use({ viewport: PHONE });
@@ -22,7 +45,7 @@ test.describe("Sheets on a phone", () => {
     await page.goto("/budget");
 
     // Add a row so the sheet has an item to measure against.
-    await page.getByRole("button", { name: /\+ expense/i }).click();
+    await addExpenseRow(page);
 
     const sheet = page.locator("[data-sheet-scroller]");
     await expect(sheet).toBeVisible();
@@ -54,7 +77,7 @@ test.describe("Sheets on a phone", () => {
     await expect(deleteRow).toBeHidden();
 
     // Adding a row focuses it, and the row-scoped tools appear with it.
-    await page.getByRole("button", { name: /\+ expense/i }).click();
+    await addExpenseRow(page);
     await expect(deleteRow).toBeVisible();
   });
 
@@ -86,7 +109,7 @@ test.describe("Sheets on a viewport narrower than the row floor", () => {
   }) => {
     await signIn(page);
     await page.goto("/budget");
-    await page.getByRole("button", { name: /\+ expense/i }).click();
+    await addExpenseRow(page);
 
     const sheet = page.locator("[data-sheet-scroller]");
     const { scrollWidth, clientWidth } = await sheet.evaluate((el) => ({

@@ -108,19 +108,8 @@ export const copyPeriodFromSchema = z.object({
   targetMonth: z.number().int().min(0).max(11),
 });
 
-export const saveBudgetTemplateSchema = z.object({
-  sourcePeriodId: z.string().uuid(),
-});
-
-export const copyBudgetTemplateSchema = z.object({
-  targetYear: z.number().int(),
-  targetMonth: z.number().int().min(0).max(11),
-});
-
 export type CreateItemInput = z.infer<typeof createItemSchema>;
 export type CreateItemForMonthInput = z.infer<typeof createItemForMonthSchema>;
 export type UpdateItemInput = z.infer<typeof updateItemSchema>;
 export type DeleteItemInput = z.infer<typeof deleteItemSchema>;
 export type CopyPeriodFromInput = z.infer<typeof copyPeriodFromSchema>;
-export type SaveBudgetTemplateInput = z.infer<typeof saveBudgetTemplateSchema>;
-export type CopyBudgetTemplateInput = z.infer<typeof copyBudgetTemplateSchema>;

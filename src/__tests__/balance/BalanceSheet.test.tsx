@@ -24,11 +24,8 @@ const deleteBalanceItem = jest.fn();
 const updateBalanceItem = jest.fn();
 jest.mock("@/app/(app)/balance/actions", () => ({
   copyBalancePeriodFrom: jest.fn(),
-  copyBalanceTemplateInto: jest.fn(),
   deleteBalanceItem: (...args: unknown[]) => deleteBalanceItem(...args),
   listCopyableBalancePeriods: jest.fn().mockResolvedValue([]),
-  moveBalanceItem: jest.fn(),
-  saveBalanceTemplate: jest.fn(),
   setBalanceItemSection: jest.fn(),
   updateBalanceItem: (...args: unknown[]) => updateBalanceItem(...args),
 }));
@@ -67,7 +64,6 @@ const renderSheet = (items: SerializedBalanceItem[]) =>
         month={2}
         currency="GBP"
         numberFormat="COMMA_0"
-        hasTemplate={false}
       />
     </ThemeProvider>,
   );
@@ -111,7 +107,6 @@ describe("BalanceSheet — refresh adoption vs. an unsaved edit", () => {
           month={2}
           currency="GBP"
           numberFormat="COMMA_0"
-          hasTemplate={false}
         />
       </ThemeProvider>,
     );
@@ -198,7 +193,6 @@ describe("BalanceSheet — dirty tracking is per item, not one shared flag", () 
           month={2}
           currency="GBP"
           numberFormat="COMMA_0"
-          hasTemplate={false}
         />
       </ThemeProvider>,
     );

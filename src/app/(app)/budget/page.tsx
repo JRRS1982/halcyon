@@ -211,13 +211,6 @@ export default async function BudgetPage(props: PageProps) {
     sortOrder: i.sortOrder,
   }));
 
-  // Whether the user has a saved budget template, so the sheet can show the
-  // "★ Template" copy source and the right save-confirm wording.
-  const hasTemplate =
-    (await prisma.budgetTemplateItem.count({
-      where: { userId: user.id, deletedAt: null },
-    })) > 0;
-
   // Every account the user has, archived ones included: the Add drawer filters
   // this to the kinds a row may target, and an already-anchored row still needs
   // to name an account that has since been archived.
@@ -247,7 +240,6 @@ export default async function BudgetPage(props: PageProps) {
       month={month}
       currency={currency}
       numberFormat={numberFormat}
-      hasTemplate={hasTemplate}
       actualsReadOnly={transactionsEnabled}
     />
   );

@@ -188,9 +188,6 @@ describe("deleteMyAccount (integration)", () => {
 
   test("hard-deletes all rows, calls auth admin deleteUser, then redirects", async () => {
     await seedFinancialData(TEST_USER_ID);
-    await prisma.budgetTemplateItem.create({
-      data: { userId: TEST_USER_ID, type: "EXPENSE", label: "Tmpl", budget: 1 },
-    });
 
     // redirect("/") is mocked to throw `redirect:/`.
     await expect(deleteMyAccount()).rejects.toThrow("redirect:/");
@@ -212,11 +209,6 @@ describe("deleteMyAccount (integration)", () => {
     ).toBe(0);
     expect(
       await prisma.account.count({ where: { userId: TEST_USER_ID } }),
-    ).toBe(0);
-    expect(
-      await prisma.budgetTemplateItem.count({
-        where: { userId: TEST_USER_ID },
-      }),
     ).toBe(0);
     expect(
       await prisma.importBatch.count({ where: { userId: TEST_USER_ID } }),
