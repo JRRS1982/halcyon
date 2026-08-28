@@ -1376,6 +1376,43 @@ export function BudgetSheet({
       field: "label" | "budget" | "actual",
     ): KeyboardEventHandler<HTMLInputElement> =>
       (e) => {
+        // Up and down step rows in the same column. Safe to take outright:
+        // these are text inputs with inputMode="decimal", not number inputs,
+        // so the arrows are not already spinning a value.
+        if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+          e.preventDefault();
+          const here = orderedItemIds.indexOf(itemId);
+          const to = orderedItemIds[here + (e.key === "ArrowDown" ? 1 : -1)];
+          if (to) cellRefs.current.get(`${to}:${field}`)?.focus();
+          return;
+        }
+
+        // Left and right step columns — but only from the edge of the value.
+        // Taking them outright would make it impossible to move the caret
+        // inside a number, and these cells restore the caret by hand after
+        // regrouping thousands separators, so it is the most keyboard-
+        // sensitive input in the app. Mid-value, the arrow does what the
+        // browser would.
+        if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+          const el = e.currentTarget;
+          const collapsed = el.selectionStart === el.selectionEnd;
+          const atStart = collapsed && el.selectionStart === 0;
+          const atEnd = collapsed && el.selectionEnd === el.value.length;
+          const back = e.key === "ArrowLeft";
+          if (back ? !atStart : !atEnd) return;
+
+          const columns = ["label", "budget", "actual"] as const;
+          const to = columns[columns.indexOf(field) + (back ? -1 : 1)];
+          // Missing when the column is not editable in this row — an actual
+          // is read-only once transactions compute it — so the arrow simply
+          // stops rather than jumping somewhere unrelated.
+          const target = to && cellRefs.current.get(`${itemId}:${to}`);
+          if (!target) return;
+          e.preventDefault();
+          target.focus();
+          return;
+        }
+
         if (e.key !== "Enter") return;
         e.preventDefault();
         // The bucket check comes first: "last row" means last of its own
@@ -1615,7 +1652,7 @@ export function BudgetSheet({
             Budget · <PeriodLabel>{periodState.label}</PeriodLabel>
           </>
         }
-        lead="Click any cell to edit. Tab moves right, Enter drops down. Totals recalc as you type."
+        lead="Click any cell to edit. Arrows and Tab move around, Enter drops down and adds a row at the end of a section. Totals recalc as you type."
       />
 
       <Toolbar>

@@ -589,3 +589,59 @@ describe("BudgetSheet — adding an account from the transfer picker", () => {
     ).toBeVisible();
   });
 });
+
+describe("BudgetSheet — arrow navigation", () => {
+  const cellsOf = (label: string) => {
+    const row = screen.getByDisplayValue(label).closest("[role='row']");
+    if (!row) throw new Error(`no row for ${label}`);
+    return row.querySelectorAll("input");
+  };
+
+  test("up and down step rows in the same column", () => {
+    renderSheet(items);
+    const housingBudget = cellsOf("Housing")[1] as HTMLInputElement;
+    const salaryBudget = cellsOf("Salary")[1] as HTMLInputElement;
+
+    housingBudget.focus();
+    fireEvent.keyDown(housingBudget, { key: "ArrowUp" });
+    expect(document.activeElement).toBe(salaryBudget);
+
+    fireEvent.keyDown(salaryBudget, { key: "ArrowDown" });
+    expect(document.activeElement).toBe(housingBudget);
+  });
+
+  // The caret has to keep working inside a value: these cells restore it by
+  // hand after regrouping thousands separators, so hijacking left/right
+  // outright would make a number uneditable in the middle.
+  test("left and right move the caret mid-value, and only step columns at the edge", () => {
+    renderSheet(items);
+    const cells = cellsOf("Housing");
+    const label = cells[0] as HTMLInputElement;
+    const budget = cells[1] as HTMLInputElement;
+
+    // Caret parked mid-word: the arrow belongs to the text, not the grid.
+    label.focus();
+    label.setSelectionRange(3, 3);
+    fireEvent.keyDown(label, { key: "ArrowRight" });
+    expect(document.activeElement).toBe(label);
+
+    // At the end of the value, it steps to the next column.
+    label.setSelectionRange(label.value.length, label.value.length);
+    fireEvent.keyDown(label, { key: "ArrowRight" });
+    expect(document.activeElement).toBe(budget);
+
+    // And back again from the start of that one.
+    budget.setSelectionRange(0, 0);
+    fireEvent.keyDown(budget, { key: "ArrowLeft" });
+    expect(document.activeElement).toBe(label);
+  });
+
+  test("stops at the first column rather than wrapping", () => {
+    renderSheet(items);
+    const label = cellsOf("Housing")[0] as HTMLInputElement;
+    label.focus();
+    label.setSelectionRange(0, 0);
+    fireEvent.keyDown(label, { key: "ArrowLeft" });
+    expect(document.activeElement).toBe(label);
+  });
+});
