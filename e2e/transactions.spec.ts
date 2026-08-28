@@ -129,13 +129,13 @@ test.describe("amount cells", () => {
       .getByRole("button", { name: "Income", exact: true })
       .click();
 
-    // Barriered: Add fires ensurePeriodForMonth and then createItem, and the
-    // row is replaced by the server's when createItem answers. Typing into the
-    // optimistic row before that lands has the reconcile throw the value away,
-    // and the amount cell reads "" — which is exactly how this test fails under
-    // load, and only under load.
+    // Barriered: choosing the section fires ensurePeriodForMonth and then
+    // createItem, and the row is replaced by the server's when createItem
+    // answers. Typing into the optimistic row before that lands has the
+    // reconcile throw the value away, and the amount cell reads "" — which is
+    // exactly how this test fails under load, and only under load.
     await withServerAction(page, () =>
-      addDrawer.getByRole("button", { name: "Add", exact: true }).click(),
+      addDrawer.getByRole("button", { name: "Salary", exact: true }).click(),
     );
     // The sheet already has the starter rows a new account is provisioned with,
     // so the row this test adds is the last one, not the first — `.first()`

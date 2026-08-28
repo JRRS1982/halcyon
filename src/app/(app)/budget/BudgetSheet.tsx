@@ -129,12 +129,12 @@ type AnchoredKind = "TRANSFER" | "REPAYMENT";
 // are the ordinary ones.
 type AddKind = "INCOME" | "EXPENSE" | AnchoredKind;
 
-const ADD_KINDS = [
-  "INCOME",
-  "EXPENSE",
-  "TRANSFER",
-  "REPAYMENT",
-] as const satisfies readonly AddKind[];
+// The drawer's first level. Repayment is not here: it renders inside Expenses
+// on the sheet, so it is offered as one of Expense's sections rather than as a
+// kind of its own.
+const ADD_KINDS = ["INCOME", "EXPENSE", "TRANSFER"] as const;
+
+type TopKind = (typeof ADD_KINDS)[number];
 
 const isAnchoredKind = (kind: AddKind): kind is AnchoredKind =>
   kind === "TRANSFER" || kind === "REPAYMENT";
@@ -145,6 +145,15 @@ const ADD_KIND_LABEL = {
   TRANSFER: "Transfer",
   REPAYMENT: "Repayment",
 } as const satisfies Record<AddKind, string>;
+
+// Expense's second level: the sheet's three expense sections, plus Repayment.
+// The three plain ones add a row outright — the section IS the answer, so
+// asking for a second click on Add would be asking nothing.
+const EXPENSE_SECTIONS = [
+  { key: "FIXED", label: "Fixed" },
+  { key: "VARIABLE", label: "Variable" },
+  { key: "DISCRETIONARY", label: "Discretionary" },
+] as const;
 
 const ANCHORED_KIND_COPY = {
   TRANSFER: {
@@ -1037,7 +1046,14 @@ export function BudgetSheet({
   );
 
   const onAddRow = useCallback(
-    (type: SerializedItem["type"], anchor?: NewRowAnchor) => {
+    (
+      type: SerializedItem["type"],
+      anchor?: NewRowAnchor,
+      section?: {
+        category?: ExpenseCategory;
+        incomeCategory?: IncomeCategory;
+      },
+    ) => {
       startTransition(async () => {
         pendingSavesRef.current += 1;
         setPendingCount(pendingSavesRef.current);
@@ -1054,6 +1070,10 @@ export function BudgetSheet({
             month,
             type,
             label: anchor?.label ?? "",
+            ...(section?.category && { category: section.category }),
+            ...(section?.incomeCategory && {
+              incomeCategory: section.incomeCategory,
+            }),
             ...(anchor && {
               accountId: anchor.accountId,
               direction: anchor.direction,
@@ -1136,6 +1156,24 @@ export function BudgetSheet({
     setAddAccountId(null);
   }, []);
 
+  // Choosing a section IS the add: an income or expense needs nothing else, so
+  // a second click on a confirm button would be asking a question already
+  // answered.
+  const addInSection = useCallback(
+    (section: {
+      category?: ExpenseCategory;
+      incomeCategory?: IncomeCategory;
+    }) => {
+      onAddRow(
+        section.incomeCategory ? "INCOME" : "EXPENSE",
+        undefined,
+        section,
+      );
+      setAddOpen(false);
+    },
+    [onAddRow],
+  );
+
   // The accounts this month's live rows already point at. One account carries
   // at most one row per period — see eligibleAnchorAccounts.
   const anchoredAccountIds = useMemo(
@@ -1165,15 +1203,10 @@ export function BudgetSheet({
     [addKind, accounts, anchoredAccountIds],
   );
 
-  // One confirm for all four kinds: the anchored ones carry the account they
-  // target, the plain ones add a row outright.
+  // Only the anchored kinds reach this: an income or expense is added by
+  // clicking its section, which answers everything the row needs.
   const confirmAdd = useCallback(() => {
-    if (!isAnchoredKind(addKind)) {
-      onAddRow(addKind);
-      setAddOpen(false);
-      return;
-    }
-    if (!addAccount) return;
+    if (!isAnchoredKind(addKind) || !addAccount) return;
     onAddRow(addKind, {
       accountId: addAccount.id,
       // A repayment is always money at the debt, so it carries no direction.
@@ -1549,6 +1582,47 @@ export function BudgetSheet({
                     </CopySource>
                   ))}
                 </CopyList>
+                {addKind === "INCOME" && (
+                  <>
+                    <CopyTitle>Which section?</CopyTitle>
+                    <CopyList>
+                      {INCOME_CATEGORIES.map((c) => (
+                        <CopySource
+                          key={c.key}
+                          type="button"
+                          onClick={() =>
+                            addInSection({ incomeCategory: c.key })
+                          }
+                        >
+                          {c.label}
+                        </CopySource>
+                      ))}
+                    </CopyList>
+                  </>
+                )}
+                {(addKind === "EXPENSE" || addKind === "REPAYMENT") && (
+                  <>
+                    <CopyTitle>Which section?</CopyTitle>
+                    <CopyList>
+                      {EXPENSE_SECTIONS.map((c) => (
+                        <CopySource
+                          key={c.key}
+                          type="button"
+                          onClick={() => addInSection({ category: c.key })}
+                        >
+                          {c.label}
+                        </CopySource>
+                      ))}
+                      <CopySource
+                        type="button"
+                        $selected={addKind === "REPAYMENT"}
+                        onClick={() => chooseAddKind("REPAYMENT")}
+                      >
+                        Repayment
+                      </CopySource>
+                    </CopyList>
+                  </>
+                )}
                 {isAnchoredKind(addKind) &&
                   (addEmptyReason === "ALL_TAKEN" ? (
                     <CopyMuted>
@@ -1604,14 +1678,18 @@ export function BudgetSheet({
                   <CopyButton type="button" onClick={() => setAddOpen(false)}>
                     Cancel
                   </CopyButton>
-                  <CopyButton
-                    type="button"
-                    $primary
-                    onClick={confirmAdd}
-                    disabled={isAnchoredKind(addKind) && !addAccount}
-                  >
-                    Add
-                  </CopyButton>
+                  {/* Only the anchored kinds get this far: an income or
+                      expense was already added by the section click. */}
+                  {isAnchoredKind(addKind) && (
+                    <CopyButton
+                      type="button"
+                      $primary
+                      onClick={confirmAdd}
+                      disabled={!addAccount}
+                    >
+                      Add
+                    </CopyButton>
+                  )}
                 </CopyActions>
               </CopyPopover>
             )}

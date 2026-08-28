@@ -413,3 +413,80 @@ describe("BudgetSheet — a copy that left rows behind", () => {
     expect(screen.queryByText(/were skipped/)).not.toBeInTheDocument();
   });
 });
+
+describe("BudgetSheet — the Add drawer's sections", () => {
+  const openAdd = async () => {
+    await act(async () => {
+      screen.getByRole("button", { name: "+ Add" }).click();
+    });
+  };
+
+  // Expense is the default kind, so its sections are on screen already —
+  // choosing one is the whole gesture, with no second click on Add.
+  test("clicking an expense section adds a row there, with no confirm step", async () => {
+    createItemForMonth.mockResolvedValue({
+      periodId: "p1",
+      item: {
+        id: "new-1",
+        type: "EXPENSE",
+        category: "DISCRETIONARY",
+        incomeCategory: null,
+        label: "",
+        budget: 0,
+        actual: 0,
+        sortOrder: 9,
+      },
+    });
+    renderSheet(items);
+    await openAdd();
+    await act(async () => {
+      screen.getByRole("button", { name: "Discretionary" }).click();
+    });
+
+    expect(createItemForMonth).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "EXPENSE", category: "DISCRETIONARY" }),
+    );
+  });
+
+  test("clicking an income section adds an income row there", async () => {
+    createItemForMonth.mockResolvedValue({
+      periodId: "p1",
+      item: {
+        id: "new-2",
+        type: "INCOME",
+        category: null,
+        incomeCategory: "SIDE_INCOME",
+        label: "",
+        budget: 0,
+        actual: 0,
+        sortOrder: 9,
+      },
+    });
+    renderSheet(items);
+    await openAdd();
+    await act(async () => {
+      screen.getByRole("button", { name: "Income" }).click();
+    });
+    await act(async () => {
+      screen.getByRole("button", { name: "Side income" }).click();
+    });
+
+    expect(createItemForMonth).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "INCOME",
+        incomeCategory: "SIDE_INCOME",
+      }),
+    );
+  });
+
+  // Repayment still needs an account, so it keeps its confirm step — the
+  // section click cannot finish the job there.
+  test("Repayment still asks for an account before adding", async () => {
+    renderSheet(items);
+    await openAdd();
+    await act(async () => {
+      screen.getByRole("button", { name: "Repayment" }).click();
+    });
+    expect(screen.getByRole("button", { name: "Add" })).toBeDisabled();
+  });
+});

@@ -29,9 +29,10 @@ async function addExpenseRow(page: Page) {
     }
     await expect(drawer).toBeVisible({ timeout: 1_000 });
   }).toPass({ timeout: 15_000 });
-  await drawer.getByRole("button", { name: "Expense", exact: true }).click();
+  // Expense is the drawer's default kind, so its sections are already on
+  // screen — choosing one adds the row, with no confirm step.
   await withServerAction(page, () =>
-    drawer.getByRole("button", { name: "Add", exact: true }).click(),
+    drawer.getByRole("button", { name: "Fixed", exact: true }).click(),
   );
 }
 
