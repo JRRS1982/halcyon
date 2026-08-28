@@ -38,9 +38,3 @@ export function isValidBalanceCategory(
 ): boolean {
   return !(type === "LIABILITY" && category === "PROPERTY");
 }
-
-function bucketIndex(type: BalanceType, category: BalanceCategory): number {
-  return BUCKET_ORDER.findIndex(
-    (b) => b.type === type && b.category === category,
-  );
-}
