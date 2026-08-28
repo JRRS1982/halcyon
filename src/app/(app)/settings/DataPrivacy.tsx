@@ -4,7 +4,12 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import styled from "styled-components";
 import { Button } from "@/components/ui/Button";
-import { clearMyData, deleteMyAccount, exportMyData } from "./dataActions";
+import {
+  clearMyData,
+  deleteMyAccount,
+  exportMyData,
+  resetToDefaults,
+} from "./dataActions";
 import { SectionHeading, SettingsCard } from "./SectionHeading";
 
 const Shell = styled.section`
@@ -108,7 +113,7 @@ const Alert = styled.p`
   font-size: 13px;
 `;
 
-type Mode = "clear" | "delete" | null;
+type Mode = "reset" | "clear" | "delete" | null;
 
 export function DataPrivacy() {
   const router = useRouter();
@@ -142,6 +147,18 @@ export function DataPrivacy() {
         URL.revokeObjectURL(url);
       } catch {
         setError("Export failed. Please try again.");
+      }
+    });
+
+  const onReset = () =>
+    startTransition(async () => {
+      setError(null);
+      try {
+        await resetToDefaults();
+        setMode(null);
+        router.refresh();
+      } catch {
+        setError("Couldn't reset your data. Please try again.");
       }
     });
 
@@ -191,6 +208,52 @@ export function DataPrivacy() {
             Export my data
           </Button>
         </Group>
+
+        {mode === "reset" ? (
+          <WarningBox role="alertdialog" aria-label="Confirm reset to defaults">
+            <WarningTitle>⚠ Start again from the defaults?</WarningTitle>
+            <WarningText>
+              Every account, budget and balance goes — past months included —
+              along with your transactions, imports, categories and plans. The
+              starter categories, accounts and an empty budget for this month
+              are put back, exactly as they were on your first day. Your login
+              and settings stay. This can&rsquo;t be undone.
+            </WarningText>
+            <Actions>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={onReset}
+                disabled={pending}
+              >
+                Reset to defaults
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={cancel}
+                disabled={pending}
+              >
+                Cancel
+              </Button>
+            </Actions>
+          </WarningBox>
+        ) : (
+          <Group>
+            <GroupText>
+              Clear everything and lay the starter categories, accounts and an
+              empty budget back down — the state a new account begins in.
+            </GroupText>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => open("reset")}
+              disabled={pending}
+            >
+              Reset to defaults
+            </Button>
+          </Group>
+        )}
 
         {mode === "clear" ? (
           <WarningBox role="alertdialog" aria-label="Confirm clear data">

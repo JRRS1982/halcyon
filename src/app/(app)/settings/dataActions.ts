@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { serializeExport } from "@/lib/data/serialize";
 import { log } from "@/lib/log";
 import { prisma } from "@/lib/prisma";
+import { seedStarterData } from "@/lib/settings/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -86,6 +87,41 @@ export async function exportMyData(): Promise<string> {
     importBatches,
     plans,
   });
+}
+
+// Back to how the app looked on day one: every financial row goes, and the
+// starter categories, accounts and £0 budget sheet are laid down again.
+//
+// One transaction, and the deletes are spelled out here rather than reusing
+// financialDeletes because they must run in order against `tx` — the FK order
+// that comment describes is the same, and Category goes too, which the other
+// paths deliberately keep. Seeding after a partial delete would duplicate the
+// starter categories, so the two halves cannot be separate transactions.
+export async function resetToDefaults(): Promise<void> {
+  const userId = await requireUserId();
+
+  await prisma.$transaction(async (tx) => {
+    // Transactions first: Transaction.transferAccount is onDelete: Restrict,
+    // so an account cannot go while a transfer still points at it.
+    await tx.transaction.deleteMany({ where: { userId } });
+    await tx.budgetItem.deleteMany({ where: { period: { userId } } });
+    await tx.balanceItem.deleteMany({ where: { period: { userId } } });
+    await tx.financialPeriod.deleteMany({ where: { userId } });
+    await tx.account.deleteMany({ where: { userId } });
+    await tx.plan.deleteMany({ where: { userId } });
+    // Unlike clearMyData: the starter data brings its own categories, and
+    // keeping the old ones would leave two of each.
+    await tx.category.deleteMany({ where: { userId } });
+
+    await seedStarterData(tx, userId);
+  });
+
+  revalidatePath("/dashboard");
+  revalidatePath("/budget");
+  revalidatePath("/balance");
+  revalidatePath("/transactions");
+  revalidatePath("/plan");
+  revalidatePath("/settings");
 }
 
 export async function clearMyData(): Promise<void> {
