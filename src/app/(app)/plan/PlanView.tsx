@@ -25,6 +25,7 @@ import { PlanDrawer } from "./PlanDrawer";
 import { PropertyFields } from "./PropertyFields";
 import { SyncButton } from "./SyncButton";
 import type { SerializedPlan } from "./serialized";
+import { TaxBandsCard } from "./TaxBandsCard";
 import { Timeline } from "./Timeline";
 import { usePlanProjection } from "./usePlanProjection";
 import { VerdictBanner } from "./VerdictBanner";
@@ -221,6 +222,7 @@ export function PlanView({
         numberFormat={numberFormat}
       />
       <AssumptionsPanel assumptions={plan.assumptions} />
+      <TaxBandsCard regime={plan.assumptions.taxRegime} />
       <ChartPanel
         low={liveBand.low}
         mid={liveBand.mid}

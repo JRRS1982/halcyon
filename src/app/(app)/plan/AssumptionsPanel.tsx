@@ -12,8 +12,12 @@ import { BoolCell, NumberCell, SelectCell, TextCell } from "./EditableCell";
 import type { SerializedPlanAssumptions } from "./serialized";
 
 const TAX_REGIMES: Regime[] = ["RUK", "SCOTLAND"];
+// HMRC says "rest of UK"; the stored enum still does. But that is a term you
+// have to be taught, and "UK" alone invites a Scottish user to pick it — so
+// the label names the countries instead and nobody has to know which way the
+// carve-out runs.
 const TAX_REGIME_LABELS: Record<Regime, string> = {
-  RUK: "Rest of UK",
+  RUK: "England, Wales and NI",
   SCOTLAND: "Scotland",
 };
 
@@ -179,9 +183,9 @@ export function AssumptionsPanel({
           <LabelRow>
             <BoolLabel htmlFor={regimeId}>Tax regime</BoolLabel>
             <InfoTip
-              label="What is rest of UK?"
+              label="About UK and Scottish tax bands"
               title="Which bands your income is taxed at"
-              body="Scotland sets its own income tax rates and bands; England, Wales and Northern Ireland share one set. HMRC calls that second set the rest of UK — it means the UK apart from Scotland, which is why it is not simply called UK. Pick whichever applies to where you are resident for tax."
+              body="Scotland sets its own income tax rates and bands; England, Wales and Northern Ireland share a different set. Pick whichever applies to where you are resident for tax — it is where you live that decides it, not where you work or who pays you."
             />
           </LabelRow>
           <SelectCell
