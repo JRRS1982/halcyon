@@ -35,11 +35,6 @@ export const deleteBalanceItemSchema = z.object({
   itemId: z.string().uuid(),
 });
 
-export const moveBalanceItemSchema = z.object({
-  itemId: z.string().uuid(),
-  direction: z.enum(["up", "down"]),
-});
-
 export const setBalanceItemSectionSchema = z.object({
   itemId: z.string().uuid(),
   type: balanceItemTypeSchema,
@@ -55,7 +50,6 @@ export const copyBalancePeriodFromSchema = z.object({
 export type CreateBalanceItemInput = z.infer<typeof createBalanceItemSchema>;
 export type UpdateBalanceItemInput = z.infer<typeof updateBalanceItemSchema>;
 export type DeleteBalanceItemInput = z.infer<typeof deleteBalanceItemSchema>;
-export type MoveBalanceItemInput = z.infer<typeof moveBalanceItemSchema>;
 export type SetBalanceItemSectionInput = z.infer<
   typeof setBalanceItemSectionSchema
 >;

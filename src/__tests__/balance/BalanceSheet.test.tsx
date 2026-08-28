@@ -26,7 +26,6 @@ jest.mock("@/app/(app)/balance/actions", () => ({
   copyBalancePeriodFrom: jest.fn(),
   deleteBalanceItem: (...args: unknown[]) => deleteBalanceItem(...args),
   listCopyableBalancePeriods: jest.fn().mockResolvedValue([]),
-  moveBalanceItem: jest.fn(),
   setBalanceItemSection: jest.fn(),
   updateBalanceItem: (...args: unknown[]) => updateBalanceItem(...args),
 }));

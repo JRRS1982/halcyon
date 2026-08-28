@@ -183,11 +183,20 @@ describe("BudgetSheet — three sections", () => {
 });
 
 describe("BudgetSheet — the Add drawer's account picker", () => {
+  // One "+ Add" opens the drawer; the kind is its first field. Both clicks
+  // are one user gesture, so they share an act().
+  const openAddDrawer = async (kind: "Transfer" | "Repayment") => {
+    await act(async () => {
+      screen.getByRole("button", { name: "+ Add" }).click();
+    });
+    await act(async () => {
+      screen.getByRole("button", { name: kind }).click();
+    });
+  };
+
   test("a transfer may only target an asset account", async () => {
     renderSheet(unanchoredItems);
-    await act(async () => {
-      screen.getByRole("button", { name: "+ Transfer" }).click();
-    });
+    await openAddDrawer("Transfer");
     expect(screen.getByRole("button", { name: "Vanguard ISA" })).toBeVisible();
     expect(
       screen.queryByRole("button", { name: "Halifax Mortgage" }),
@@ -208,9 +217,7 @@ describe("BudgetSheet — the Add drawer's account picker", () => {
   // pickers should now be empty.
   test("an account already anchored this month is no longer on offer", async () => {
     renderSheet();
-    await act(async () => {
-      screen.getByRole("button", { name: "+ Transfer" }).click();
-    });
+    await openAddDrawer("Transfer");
     expect(
       screen.queryByRole("button", { name: "Vanguard ISA" }),
     ).not.toBeInTheDocument();
@@ -224,9 +231,7 @@ describe("BudgetSheet — the Add drawer's account picker", () => {
 
   test("a repayment may only target a liability account", async () => {
     renderSheet(unanchoredItems);
-    await act(async () => {
-      screen.getByRole("button", { name: "+ Repayment" }).click();
-    });
+    await openAddDrawer("Repayment");
     expect(
       screen.getByRole("button", { name: "Halifax Mortgage" }),
     ).toBeVisible();
@@ -247,9 +252,7 @@ describe("BudgetSheet — the Add drawer's account picker", () => {
         archived: false,
       },
     ]);
-    await act(async () => {
-      screen.getByRole("button", { name: "+ Transfer" }).click();
-    });
+    await openAddDrawer("Transfer");
     expect(
       screen.getByRole("link", { name: /balance sheet/i }),
     ).toHaveAttribute("href", "/balance");
@@ -274,9 +277,7 @@ describe("BudgetSheet — the Add drawer's account picker", () => {
     });
     renderSheet(unanchoredItems);
 
-    await act(async () => {
-      screen.getByRole("button", { name: "+ Transfer" }).click();
-    });
+    await openAddDrawer("Transfer");
     await act(async () => {
       screen.getByRole("button", { name: "Vanguard ISA" }).click();
     });
@@ -316,9 +317,7 @@ describe("BudgetSheet — the Add drawer's account picker", () => {
     });
     renderSheet(unanchoredItems);
 
-    await act(async () => {
-      screen.getByRole("button", { name: "+ Repayment" }).click();
-    });
+    await openAddDrawer("Repayment");
     await act(async () => {
       screen.getByRole("button", { name: "Halifax Mortgage" }).click();
     });

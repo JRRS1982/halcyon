@@ -116,13 +116,26 @@ test.describe("amount cells", () => {
     await signIn(page);
     await page.goto("/budget");
 
-    // Barriered: "+ Income" fires ensurePeriodForMonth and then createItem, and
-    // the row is replaced by the server's when createItem answers. Typing into
-    // the optimistic row before that lands has the reconcile throw the value
-    // away, and the amount cell reads "" — which is exactly how this test fails
-    // under load, and only under load.
+    // The kind is chosen inside the "+ Add" drawer now, rather than from its
+    // own toolbar button.
+    const addDrawer = page.locator('[aria-label="Add a budget row"]');
+    await expect(async () => {
+      if (!(await addDrawer.isVisible())) {
+        await page.getByRole("button", { name: "+ Add" }).click();
+      }
+      await expect(addDrawer).toBeVisible({ timeout: 1_000 });
+    }).toPass({ timeout: 15_000 });
+    await addDrawer
+      .getByRole("button", { name: "Income", exact: true })
+      .click();
+
+    // Barriered: Add fires ensurePeriodForMonth and then createItem, and the
+    // row is replaced by the server's when createItem answers. Typing into the
+    // optimistic row before that lands has the reconcile throw the value away,
+    // and the amount cell reads "" — which is exactly how this test fails under
+    // load, and only under load.
     await withServerAction(page, () =>
-      page.getByRole("button", { name: /\+ income/i }).click(),
+      addDrawer.getByRole("button", { name: "Add", exact: true }).click(),
     );
     // The sheet already has the starter rows a new account is provisioned with,
     // so the row this test adds is the last one, not the first — `.first()`

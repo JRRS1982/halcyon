@@ -27,8 +27,6 @@ import type { AccountDeletionCounts } from "@/lib/accounts/schemas";
 import {
   type BalanceCategory,
   type BalanceType,
-  canMove,
-  computeMove,
   isValidBalanceCategory,
 } from "@/lib/balance/reorder";
 import {
@@ -49,7 +47,6 @@ import {
   copyBalancePeriodFrom,
   deleteBalanceItem,
   listCopyableBalancePeriods,
-  moveBalanceItem,
   setBalanceItemSection,
   updateBalanceItem,
 } from "./actions";
@@ -1132,43 +1129,6 @@ export function BalanceSheet({
     };
   }, [deletePanel]);
 
-  // Move the focused row up / down. computeMove handles crossing the
-  // category and Asset/Liability boundaries one slot at a time. Optimistic:
-  // apply locally, then persist; revert on error.
-  const onMove = useCallback(
-    (direction: "up" | "down") => {
-      if (!focusedCell) return;
-      const target = focusedCell.itemId;
-      const next = computeMove(items, target, direction);
-      if (!next) return;
-      const previous = items;
-      setItems(next);
-      startTransition(async () => {
-        pendingSavesRef.current += 1;
-        setPendingCount(pendingSavesRef.current);
-        try {
-          await moveBalanceItem({ itemId: target, direction });
-          setLastSavedAt(new Date());
-          setSaveError(null);
-        } catch (e) {
-          setItems(previous);
-          setSaveError(e instanceof Error ? e.message : "Move failed");
-        } finally {
-          pendingSavesRef.current = Math.max(0, pendingSavesRef.current - 1);
-          setPendingCount(pendingSavesRef.current);
-        }
-      });
-    },
-    [focusedCell, items],
-  );
-
-  const canMoveUp = focusedCell
-    ? canMove(items, focusedCell.itemId, "up")
-    : false;
-  const canMoveDown = focusedCell
-    ? canMove(items, focusedCell.itemId, "down")
-    : false;
-
   const focusedItem = useMemo(
     () =>
       focusedCell
@@ -1179,7 +1139,7 @@ export function BalanceSheet({
 
   // Jump the focused row to another (type, category) section, appending it to
   // the end of that bucket. Optimistic + immediate save (a discrete pick, not
-  // typing); revert on error like onMove/onDelete.
+  // typing); revert on error like onDelete.
   const editSection = useCallback(
     (itemId: string, type: BalanceType, category: BalanceCategory) => {
       const target = items.find((it) => it.id === itemId);
@@ -1540,14 +1500,6 @@ export function BalanceSheet({
               </CopyPopover>
             )}
           </CopyWrapper>
-        </ToolbarGroup>
-        <ToolbarGroup $rowScoped $engaged={!!focusedCell}>
-          <ToolbarTool onClick={() => onMove("up")} disabled={!canMoveUp}>
-            ↑ Move up
-          </ToolbarTool>
-          <ToolbarTool onClick={() => onMove("down")} disabled={!canMoveDown}>
-            ↓ Move down
-          </ToolbarTool>
         </ToolbarGroup>
         {focusedItem && (
           <ToolbarGroup $rowScoped $engaged>

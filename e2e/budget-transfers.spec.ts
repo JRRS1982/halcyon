@@ -66,7 +66,7 @@ const actualCell = (row: ReturnType<typeof bandRow>) =>
   row.getByRole("cell").nth(1);
 
 /**
- * Opens the toolbar's "+ Transfer" / "+ Repayment" drawer, re-clicking if the
+ * Opens the toolbar's "+ Add" drawer and picks a kind, re-clicking if the
  * first click didn't take.
  *
  * Same shape as fixtures' openAddDrawer and mobile-nav's openMenu: the sheet
@@ -74,19 +74,19 @@ const actualCell = (row: ReturnType<typeof bandRow>) =>
  * handler and the first click is swallowed with no error anywhere. Retrying
  * while the drawer is still closed converges as soon as hydration catches up,
  * without a fixed sleep.
+ *
+ * The kind is the drawer's first field now, rather than one toolbar button
+ * per kind, so opening and choosing are two steps.
  */
-async function openAnchoredDrawer(
-  page: Page,
-  button: "+ Transfer" | "+ Repayment",
-  title: string,
-) {
-  const drawer = page.locator(`[aria-label="${title}"]`);
+async function openAnchoredDrawer(page: Page, kind: "Transfer" | "Repayment") {
+  const drawer = page.locator('[aria-label="Add a budget row"]');
   await expect(async () => {
     if (!(await drawer.isVisible())) {
-      await page.getByRole("button", { name: button }).click();
+      await page.getByRole("button", { name: "+ Add" }).click();
     }
     await expect(drawer).toBeVisible({ timeout: 1_000 });
   }).toPass({ timeout: 15_000 });
+  await drawer.getByRole("button", { name: kind, exact: true }).click();
   return drawer;
 }
 
@@ -162,11 +162,7 @@ test.describe("budget transfers and repayments", () => {
     // Budget £500/mo into it. The direction is stated from the user's side:
     // "To Vanguard ISA", never the stored INFLOW.
     await page.goto("/budget?ym=2026-03");
-    const drawer = await openAnchoredDrawer(
-      page,
-      "+ Transfer",
-      "Transfer to an account",
-    );
+    const drawer = await openAnchoredDrawer(page, "Transfer");
     await drawer.getByRole("button", { name: ISA, exact: true }).click();
     await drawer.getByRole("button", { name: `To ${ISA}` }).click();
     await withServerAction(page, () =>
@@ -252,11 +248,7 @@ test.describe("budget transfers and repayments", () => {
 
     // Budget £1,200/mo at the debt.
     await page.goto("/budget");
-    const drawer = await openAnchoredDrawer(
-      page,
-      "+ Repayment",
-      "Repay a debt",
-    );
+    const drawer = await openAnchoredDrawer(page, "Repayment");
     await drawer.getByRole("button", { name: MORTGAGE, exact: true }).click();
     await withServerAction(page, () =>
       drawer.getByRole("button", { name: "Add", exact: true }).click(),

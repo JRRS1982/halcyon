@@ -121,8 +121,30 @@ type NewRowAnchor = {
   label: string;
 };
 
-// The two kinds the Add drawer builds — the ones that target an account.
+// The two kinds that target an account, and so need a picker before the row
+// can exist. Income and Expense are added outright.
 type AnchoredKind = "TRANSFER" | "REPAYMENT";
+
+// Every kind the Add drawer builds. Income and Expense come first because they
+// are the ordinary ones.
+type AddKind = "INCOME" | "EXPENSE" | AnchoredKind;
+
+const ADD_KINDS = [
+  "INCOME",
+  "EXPENSE",
+  "TRANSFER",
+  "REPAYMENT",
+] as const satisfies readonly AddKind[];
+
+const isAnchoredKind = (kind: AddKind): kind is AnchoredKind =>
+  kind === "TRANSFER" || kind === "REPAYMENT";
+
+const ADD_KIND_LABEL = {
+  INCOME: "Income",
+  EXPENSE: "Expense",
+  TRANSFER: "Transfer",
+  REPAYMENT: "Repayment",
+} as const satisfies Record<AddKind, string>;
 
 const ANCHORED_KIND_COPY = {
   TRANSFER: {
@@ -1073,7 +1095,9 @@ export function BudgetSheet({
 
   // ─── Add drawer for the anchored kinds ────────────────────────────────────
 
-  const [addKind, setAddKind] = useState<AnchoredKind | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
+  // Defaults to EXPENSE: it is what people add most.
+  const [addKind, setAddKind] = useState<AddKind>("EXPENSE");
   const [addAccountId, setAddAccountId] = useState<string | null>(null);
   // INFLOW by default: saving into an account is the ordinary case, and
   // raiding one is the deliberate act.
@@ -1083,23 +1107,31 @@ export function BudgetSheet({
   const addWrapperRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (!addKind) return;
+    if (!addOpen) return;
     const onMouseDown = (e: MouseEvent) => {
       if (
         addWrapperRef.current &&
         !addWrapperRef.current.contains(e.target as Node)
       ) {
-        setAddKind(null);
+        setAddOpen(false);
       }
     };
     document.addEventListener("mousedown", onMouseDown);
     return () => document.removeEventListener("mousedown", onMouseDown);
-  }, [addKind]);
+  }, [addOpen]);
 
-  const openAddDrawer = useCallback((kind: AnchoredKind) => {
+  const toggleAddDrawer = useCallback(() => {
     setAddAccountId(null);
     setAddDirection("INFLOW");
-    setAddKind((open) => (open === kind ? null : kind));
+    setAddOpen((open) => !open);
+  }, []);
+
+  // Switching kind clears the account chosen for the previous one — the
+  // candidate list differs per kind, so a carried-over id could name an
+  // account this kind may not target.
+  const chooseAddKind = useCallback((kind: AddKind) => {
+    setAddKind(kind);
+    setAddAccountId(null);
   }, []);
 
   // The accounts this month's live rows already point at. One account carries
@@ -1114,7 +1146,7 @@ export function BudgetSheet({
   // onboarding is kind NONE.
   const addCandidates = useMemo(
     () =>
-      addKind
+      isAnchoredKind(addKind)
         ? eligibleAnchorAccounts(addKind, accounts, anchoredAccountIds)
         : [],
     [addKind, accounts, anchoredAccountIds],
@@ -1125,21 +1157,28 @@ export function BudgetSheet({
   );
   const addEmptyReason = useMemo(
     () =>
-      addKind
+      isAnchoredKind(addKind)
         ? anchorPickerEmptyReason(addKind, accounts, anchoredAccountIds)
         : null,
     [addKind, accounts, anchoredAccountIds],
   );
 
-  const confirmAddAnchored = useCallback(() => {
-    if (!addKind || !addAccount) return;
+  // One confirm for all four kinds: the anchored ones carry the account they
+  // target, the plain ones add a row outright.
+  const confirmAdd = useCallback(() => {
+    if (!isAnchoredKind(addKind)) {
+      onAddRow(addKind);
+      setAddOpen(false);
+      return;
+    }
+    if (!addAccount) return;
     onAddRow(addKind, {
       accountId: addAccount.id,
       // A repayment is always money at the debt, so it carries no direction.
       direction: addKind === "TRANSFER" ? addDirection : null,
       label: addAccount.name,
     });
-    setAddKind(null);
+    setAddOpen(false);
   }, [addKind, addAccount, addDirection, onAddRow]);
 
   // ─── Derived data ─────────────────────────────────────────────────────────
@@ -1485,89 +1524,94 @@ export function BudgetSheet({
             leftmost group after the period is the one they read. Filling from
             elsewhere is a month-level operation, so it sits after it. */}
         <ToolbarGroup>
-          <ToolbarTool onClick={() => onAddRow("INCOME")}>+ Income</ToolbarTool>
-          <ToolbarTool onClick={() => onAddRow("EXPENSE")}>
-            + Expense
-          </ToolbarTool>
-          {/* The anchored kinds need a target before the row can exist, so
-              they open a drawer where the plain kinds add a row outright. */}
+          {/* One button for all four kinds, matching the balance sheet: the
+              kind is the drawer's first field rather than four toolbar
+              buttons. Income and Expense add a row outright; Transfer and
+              Repayment must name the account they target first. */}
           <CopyWrapper ref={addWrapperRef}>
-            {(["TRANSFER", "REPAYMENT"] as const).map((kind) => (
-              <ToolbarTool
-                key={kind}
-                onClick={() => openAddDrawer(kind)}
-                aria-expanded={addKind === kind}
-              >
-                {ANCHORED_KIND_COPY[kind].button}
-              </ToolbarTool>
-            ))}
-            {addKind && (
-              <CopyPopover aria-label={ANCHORED_KIND_COPY[addKind].title}>
-                <CopyTitle>{ANCHORED_KIND_COPY[addKind].title}</CopyTitle>
-                {addEmptyReason === "ALL_TAKEN" ? (
-                  <CopyMuted>
-                    Every {ANCHORED_KIND_COPY[addKind].empty} account you have
-                    already has a row this month — one account carries one row
-                    per period. Edit that row, or delete it to start again.
-                  </CopyMuted>
-                ) : addEmptyReason === "NO_ACCOUNTS" ? (
-                  <CopyMuted>
-                    You have no {ANCHORED_KIND_COPY[addKind].empty} accounts
-                    yet. An account becomes one on the{" "}
-                    <Link href="/balance">balance sheet</Link>, from its Add
-                    drawer — then it can be a target here.
-                  </CopyMuted>
-                ) : (
-                  <>
-                    <CopyList>
-                      {addCandidates.map((account) => (
-                        <CopySource
-                          key={account.id}
-                          type="button"
-                          $selected={account.id === addAccountId}
-                          onClick={() => setAddAccountId(account.id)}
-                        >
-                          {account.name}
-                        </CopySource>
-                      ))}
-                    </CopyList>
-                    {addKind === "TRANSFER" && addAccount && (
-                      <CopyConfirm>
-                        {/* Never INFLOW/OUTFLOW: the stored direction is
-                            relative to the account, and money "into" your ISA
-                            is money out of your pocket. */}
-                        <CopyList>
-                          {(["INFLOW", "OUTFLOW"] as const).map((direction) => (
-                            <CopySource
-                              key={direction}
-                              type="button"
-                              $selected={direction === addDirection}
-                              onClick={() => setAddDirection(direction)}
-                            >
-                              {transferRowLabel(direction, addAccount.name)}
-                            </CopySource>
-                          ))}
-                        </CopyList>
-                      </CopyConfirm>
-                    )}
-                    <CopyActions>
-                      <CopyButton
-                        type="button"
-                        onClick={() => setAddKind(null)}
-                      >
-                        Cancel
-                      </CopyButton>
-                      <CopyButton
-                        type="button"
-                        $primary
-                        onClick={confirmAddAnchored}
-                        disabled={!addAccount}
-                      >
-                        Add
-                      </CopyButton>
-                    </CopyActions>
-                  </>
-                )}
+            <ToolbarTool onClick={toggleAddDrawer} aria-expanded={addOpen}>
+              + Add
+            </ToolbarTool>
+            {addOpen && (
+              <CopyPopover aria-label="Add a budget row">
+                <CopyTitle>Add a row</CopyTitle>
+                <CopyList>
+                  {ADD_KINDS.map((kind) => (
+                    <CopySource
+                      key={kind}
+                      type="button"
+                      $selected={kind === addKind}
+                      onClick={() => chooseAddKind(kind)}
+                    >
+                      {ADD_KIND_LABEL[kind]}
+                    </CopySource>
+                  ))}
+                </CopyList>
+                {isAnchoredKind(addKind) &&
+                  (addEmptyReason === "ALL_TAKEN" ? (
+                    <CopyMuted>
+                      Every {ANCHORED_KIND_COPY[addKind].empty} account you have
+                      already has a row this month — one account carries one row
+                      per period. Edit that row, or delete it to start again.
+                    </CopyMuted>
+                  ) : addEmptyReason === "NO_ACCOUNTS" ? (
+                    <CopyMuted>
+                      You have no {ANCHORED_KIND_COPY[addKind].empty} accounts
+                      yet. An account becomes one on the{" "}
+                      <Link href="/balance">balance sheet</Link>, from its Add
+                      drawer — then it can be a target here.
+                    </CopyMuted>
+                  ) : (
+                    <>
+                      <CopyTitle>{ANCHORED_KIND_COPY[addKind].title}</CopyTitle>
+                      <CopyList>
+                        {addCandidates.map((account) => (
+                          <CopySource
+                            key={account.id}
+                            type="button"
+                            $selected={account.id === addAccountId}
+                            onClick={() => setAddAccountId(account.id)}
+                          >
+                            {account.name}
+                          </CopySource>
+                        ))}
+                      </CopyList>
+                      {addKind === "TRANSFER" && addAccount && (
+                        <CopyConfirm>
+                          {/* Never INFLOW/OUTFLOW: the stored direction is
+                              relative to the account, and money "into" your ISA
+                              is money out of your pocket. */}
+                          <CopyList>
+                            {(["INFLOW", "OUTFLOW"] as const).map(
+                              (direction) => (
+                                <CopySource
+                                  key={direction}
+                                  type="button"
+                                  $selected={direction === addDirection}
+                                  onClick={() => setAddDirection(direction)}
+                                >
+                                  {transferRowLabel(direction, addAccount.name)}
+                                </CopySource>
+                              ),
+                            )}
+                          </CopyList>
+                        </CopyConfirm>
+                      )}
+                    </>
+                  ))}
+                <CopyActions>
+                  <CopyButton type="button" onClick={() => setAddOpen(false)}>
+                    Cancel
+                  </CopyButton>
+                  <CopyButton
+                    type="button"
+                    $primary
+                    onClick={confirmAdd}
+                    disabled={isAnchoredKind(addKind) && !addAccount}
+                  >
+                    Add
+                  </CopyButton>
+                </CopyActions>
               </CopyPopover>
             )}
           </CopyWrapper>
