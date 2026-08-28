@@ -29,10 +29,13 @@ async function addExpenseRow(page: Page) {
     }
     await expect(drawer).toBeVisible({ timeout: 1_000 });
   }).toPass({ timeout: 15_000 });
-  // Expense is the drawer's default kind, so its sections are already on
-  // screen — choosing one adds the row, with no confirm step.
+  // Expense is the drawer's default section, so its buckets are already on
+  // screen. The drawer collects the name and amount before creating the row.
+  await drawer.getByRole("button", { name: "Fixed", exact: true }).click();
+  await drawer.getByLabel("Name").fill("A row to measure");
+  await drawer.getByLabel("Amount").fill("0");
   await withServerAction(page, () =>
-    drawer.getByRole("button", { name: "Fixed", exact: true }).click(),
+    drawer.getByRole("button", { name: "Add", exact: true }).click(),
   );
 }
 

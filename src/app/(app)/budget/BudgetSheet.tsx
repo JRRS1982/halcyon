@@ -141,11 +141,12 @@ const isAnchoredKind = (kind: AddKind): kind is AnchoredKind =>
 const ADD_KIND_LABEL = {
   INCOME: "Income",
   EXPENSE: "Expense",
-  TRANSFER: "Transfer",
+  TRANSFER: "Transfers and saving",
   REPAYMENT: "Debt payment",
 } as const satisfies Record<AddKind, string>;
 
-// Expense's second level: the sheet's three expense sections, plus Repayment.
+// Expense's second level: the sheet's three expense sections, plus debt
+// payments.
 // The three plain ones add a row outright — the section IS the answer, so
 // asking for a second click on Add would be asking nothing.
 const EXPENSE_SECTIONS = [
@@ -549,6 +550,15 @@ const CopyMuted = styled.div`
 // heading and the list under it looks like a sibling of the kind buttons
 // rather than the answer to the choice above. Smaller, muted, and separated
 // by a rule from the group it follows.
+const AddFieldInput = styled.input`
+  border: 1px solid ${({ theme }) => theme.colors.hairline};
+  border-radius: ${({ theme }) => theme.rounded.sm};
+  padding: ${({ theme }) => theme.spacing.sm};
+  font: inherit;
+  color: ${({ theme }) => theme.colors.ink};
+  width: 100%;
+`;
+
 const CopySubTitle = styled.div`
   ${({ theme }) => `
     font-family: ${theme.typography.bodyMd.family};
@@ -1084,6 +1094,8 @@ export function BudgetSheet({
         category?: ExpenseCategory;
         incomeCategory?: IncomeCategory;
       },
+      budget?: number,
+      label?: string,
     ) => {
       startTransition(async () => {
         pendingSavesRef.current += 1;
@@ -1100,7 +1112,8 @@ export function BudgetSheet({
             year,
             month,
             type,
-            label: anchor?.label ?? "",
+            label: label ?? anchor?.label ?? "",
+            ...(budget !== undefined && { budget }),
             ...(section?.category && { category: section.category }),
             ...(section?.incomeCategory && {
               incomeCategory: section.incomeCategory,
@@ -1153,6 +1166,13 @@ export function BudgetSheet({
   const [addKind, setAddKind] = useState<AddKind>("EXPENSE");
   const [addAccountId, setAddAccountId] = useState<string | null>(null);
   const [newAccountOpen, setNewAccountOpen] = useState(false);
+  const [addIncomeSection, setAddIncomeSection] =
+    useState<IncomeCategory>("SALARY");
+  const [addExpenseSection, setAddExpenseSection] =
+    useState<ExpenseCategory>("FIXED");
+  const [addLabel, setAddLabel] = useState("");
+  // A string, not a number: "" means unanswered, which is not zero.
+  const [addValue, setAddValue] = useState("");
   // INFLOW by default: saving into an account is the ordinary case, and
   // raiding one is the deliberate act.
   const [addDirection, setAddDirection] = useState<"INFLOW" | "OUTFLOW">(
@@ -1188,24 +1208,6 @@ export function BudgetSheet({
     setAddAccountId(null);
   }, []);
 
-  // Choosing a section IS the add: an income or expense needs nothing else, so
-  // a second click on a confirm button would be asking a question already
-  // answered.
-  const addInSection = useCallback(
-    (section: {
-      category?: ExpenseCategory;
-      incomeCategory?: IncomeCategory;
-    }) => {
-      onAddRow(
-        section.incomeCategory ? "INCOME" : "EXPENSE",
-        undefined,
-        section,
-      );
-      setAddOpen(false);
-    },
-    [onAddRow],
-  );
-
   // The accounts this month's live rows already point at. One account carries
   // at most one row per period — see eligibleAnchorAccounts.
   const anchoredAccountIds = useMemo(
@@ -1235,18 +1237,56 @@ export function BudgetSheet({
     [addKind, accounts, anchoredAccountIds],
   );
 
-  // Only the anchored kinds reach this: an income or expense is added by
-  // clicking its section, which answers everything the row needs.
+  // Everything the row needs is in the drawer, so one Add serves every kind.
+  //
+  // The amount must have been typed, even if what was typed is 0: a row that
+  // exists with no name and 0 in it cannot be told apart from one meant to sit
+  // at zero. An anchored row is named by its account and so needs no name.
+  const addComplete =
+    addValue.trim() !== "" &&
+    Number.isFinite(Number(addValue)) &&
+    (isAnchoredKind(addKind) ? addAccount !== null : addLabel.trim() !== "");
+
   const confirmAdd = useCallback(() => {
-    if (!isAnchoredKind(addKind) || !addAccount) return;
-    onAddRow(addKind, {
-      accountId: addAccount.id,
-      // A repayment is always money at the debt, so it carries no direction.
-      direction: addKind === "TRANSFER" ? addDirection : null,
-      label: addAccount.name,
-    });
+    if (!addComplete) return;
+    const budget = Number(addValue);
+
+    if (isAnchoredKind(addKind)) {
+      if (!addAccount) return;
+      onAddRow(
+        addKind,
+        {
+          accountId: addAccount.id,
+          // A repayment is always money at the debt, so no direction.
+          direction: addKind === "TRANSFER" ? addDirection : null,
+          label: addAccount.name,
+        },
+        undefined,
+        budget,
+      );
+    } else {
+      onAddRow(
+        addKind,
+        undefined,
+        addKind === "INCOME"
+          ? { incomeCategory: addIncomeSection }
+          : { category: addExpenseSection },
+        budget,
+        addLabel.trim(),
+      );
+    }
     setAddOpen(false);
-  }, [addKind, addAccount, addDirection, onAddRow]);
+  }, [
+    addComplete,
+    addKind,
+    addAccount,
+    addDirection,
+    addIncomeSection,
+    addExpenseSection,
+    addLabel,
+    addValue,
+    onAddRow,
+  ]);
 
   // ─── Derived data ─────────────────────────────────────────────────────────
 
@@ -1723,29 +1763,34 @@ export function BudgetSheet({
             {addOpen && (
               <CopyPopover aria-label="Add a budget row">
                 <CopyTitle>Add a row</CopyTitle>
+
+                <CopySubTitle>Section</CopySubTitle>
                 <CopyList>
                   {ADD_KINDS.map((kind) => (
                     <CopySource
                       key={kind}
                       type="button"
-                      $selected={kind === addKind}
+                      $selected={
+                        kind === addKind ||
+                        (kind === "EXPENSE" && addKind === "REPAYMENT")
+                      }
                       onClick={() => chooseAddKind(kind)}
                     >
                       {ADD_KIND_LABEL[kind]}
                     </CopySource>
                   ))}
                 </CopyList>
+
                 {addKind === "INCOME" && (
                   <>
-                    <CopySubTitle>Which section?</CopySubTitle>
+                    <CopySubTitle>What are you adding?</CopySubTitle>
                     <CopyList>
                       {INCOME_CATEGORIES.map((c) => (
                         <CopySource
                           key={c.key}
                           type="button"
-                          onClick={() =>
-                            addInSection({ incomeCategory: c.key })
-                          }
+                          $selected={c.key === addIncomeSection}
+                          onClick={() => setAddIncomeSection(c.key)}
                         >
                           {c.label}
                         </CopySource>
@@ -1753,15 +1798,22 @@ export function BudgetSheet({
                     </CopyList>
                   </>
                 )}
+
                 {(addKind === "EXPENSE" || addKind === "REPAYMENT") && (
                   <>
-                    <CopySubTitle>Which section?</CopySubTitle>
+                    <CopySubTitle>What are you adding?</CopySubTitle>
                     <CopyList>
                       {EXPENSE_SECTIONS.map((c) => (
                         <CopySource
                           key={c.key}
                           type="button"
-                          onClick={() => addInSection({ category: c.key })}
+                          $selected={
+                            addKind === "EXPENSE" && c.key === addExpenseSection
+                          }
+                          onClick={() => {
+                            chooseAddKind("EXPENSE");
+                            setAddExpenseSection(c.key);
+                          }}
                         >
                           {c.label}
                         </CopySource>
@@ -1771,11 +1823,12 @@ export function BudgetSheet({
                         $selected={addKind === "REPAYMENT"}
                         onClick={() => chooseAddKind("REPAYMENT")}
                       >
-                        Repayment
+                        {ADD_KIND_LABEL.REPAYMENT}
                       </CopySource>
                     </CopyList>
                   </>
                 )}
+
                 {isAnchoredKind(addKind) &&
                   (addEmptyReason === "ALL_TAKEN" ? (
                     <CopyMuted>
@@ -1811,10 +1864,9 @@ export function BudgetSheet({
                             {account.name}
                           </CopySource>
                         ))}
-                        {/* The account you want may not exist yet, and
-                            leaving to the balance sheet to make one loses the
-                            row you were part-way through adding. Same drawer
-                            the balance sheet uses. */}
+                        {/* The account you want may not exist yet, and leaving
+                            to the balance sheet loses the row you were part-way
+                            through. Same drawer the balance sheet uses. */}
                         <CopySource
                           type="button"
                           onClick={() => setNewAccountOpen(true)}
@@ -1845,22 +1897,45 @@ export function BudgetSheet({
                       )}
                     </>
                   ))}
+
+                {/* Name and value live here rather than being typed into the
+                    sheet afterwards: a row that exists with no name and 0 in
+                    it cannot be told apart from one meant to sit at zero, and
+                    it is the name that gives the row the category the plan
+                    reads it through. An anchored row is named by its account,
+                    so it only needs the amount. */}
+                {!isAnchoredKind(addKind) && (
+                  <>
+                    <CopySubTitle>Name</CopySubTitle>
+                    <AddFieldInput
+                      aria-label="Name"
+                      value={addLabel}
+                      placeholder="Council tax"
+                      onChange={(e) => setAddLabel(e.target.value)}
+                    />
+                  </>
+                )}
+                <CopySubTitle>Amount</CopySubTitle>
+                <AddFieldInput
+                  aria-label="Amount"
+                  inputMode="decimal"
+                  value={addValue}
+                  placeholder="0"
+                  onChange={(e) => setAddValue(e.target.value)}
+                />
+
                 <CopyActions>
                   <CopyButton type="button" onClick={() => setAddOpen(false)}>
                     Cancel
                   </CopyButton>
-                  {/* Only the anchored kinds get this far: an income or
-                      expense was already added by the section click. */}
-                  {isAnchoredKind(addKind) && (
-                    <CopyButton
-                      type="button"
-                      $primary
-                      onClick={confirmAdd}
-                      disabled={!addAccount}
-                    >
-                      Add
-                    </CopyButton>
-                  )}
+                  <CopyButton
+                    type="button"
+                    $primary
+                    onClick={confirmAdd}
+                    disabled={!addComplete}
+                  >
+                    Add
+                  </CopyButton>
                 </CopyActions>
               </CopyPopover>
             )}

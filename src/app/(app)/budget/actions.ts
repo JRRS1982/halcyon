@@ -301,6 +301,7 @@ export async function createItemForMonth(input: CreateItemForMonthInput) {
         category,
         incomeCategory,
         label: parsed.label,
+        ...(parsed.budget !== undefined && { budget: parsed.budget }),
         categoryId: await categoryIdForRow(tx, userId, {
           type: parsed.type,
           label: parsed.label,

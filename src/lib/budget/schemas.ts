@@ -76,6 +76,9 @@ export const createItemForMonthSchema = z
     label: z.string().trim().max(120),
     accountId: z.string().uuid().nullable().optional(),
     direction: transferDirectionSchema.nullable().optional(),
+    // The Add drawer collects the amount up front, so the row is never
+    // written as a placeholder to be filled in afterwards.
+    budget: z.number().nonnegative().optional(),
   })
   .superRefine(anchorInvariants);
 

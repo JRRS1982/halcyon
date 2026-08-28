@@ -192,7 +192,9 @@ describe("BudgetSheet — three sections", () => {
 describe("BudgetSheet — the Add drawer's account picker", () => {
   // One "+ Add" opens the drawer; the kind is its first field. Both clicks
   // are one user gesture, so they share an act().
-  const openAddDrawer = async (kind: "Transfer" | "Repayment") => {
+  const openAddDrawer = async (
+    kind: "Transfers and saving" | "Debt payment",
+  ) => {
     await act(async () => {
       screen.getByRole("button", { name: "+ Add" }).click();
     });
@@ -203,7 +205,7 @@ describe("BudgetSheet — the Add drawer's account picker", () => {
 
   test("a transfer may only target an asset account", async () => {
     renderSheet(unanchoredItems);
-    await openAddDrawer("Transfer");
+    await openAddDrawer("Transfers and saving");
     expect(screen.getByRole("button", { name: "Vanguard ISA" })).toBeVisible();
     expect(
       screen.queryByRole("button", { name: "Halifax Mortgage" }),
@@ -224,7 +226,7 @@ describe("BudgetSheet — the Add drawer's account picker", () => {
   // pickers should now be empty.
   test("an account already anchored this month is no longer on offer", async () => {
     renderSheet();
-    await openAddDrawer("Transfer");
+    await openAddDrawer("Transfers and saving");
     expect(
       screen.queryByRole("button", { name: "Vanguard ISA" }),
     ).not.toBeInTheDocument();
@@ -238,7 +240,7 @@ describe("BudgetSheet — the Add drawer's account picker", () => {
 
   test("a repayment may only target a liability account", async () => {
     renderSheet(unanchoredItems);
-    await openAddDrawer("Repayment");
+    await openAddDrawer("Debt payment");
     expect(
       screen.getByRole("button", { name: "Halifax Mortgage" }),
     ).toBeVisible();
@@ -259,7 +261,7 @@ describe("BudgetSheet — the Add drawer's account picker", () => {
         archived: false,
       },
     ]);
-    await openAddDrawer("Transfer");
+    await openAddDrawer("Transfers and saving");
     expect(
       screen.getByRole("link", { name: /balance sheet/i }),
     ).toHaveAttribute("href", "/balance");
@@ -280,7 +282,7 @@ describe("BudgetSheet — the Add drawer's account picker", () => {
         archived: false,
       },
     ]);
-    await openAddDrawer("Repayment");
+    await openAddDrawer("Debt payment");
     expect(
       screen.getByText(/no liability accounts to repay yet/i),
     ).toBeVisible();
@@ -308,15 +310,19 @@ describe("BudgetSheet — the Add drawer's account picker", () => {
     });
     renderSheet(unanchoredItems);
 
-    await openAddDrawer("Transfer");
+    await openAddDrawer("Transfers and saving");
     await act(async () => {
       screen.getByRole("button", { name: "Vanguard ISA" }).click();
     });
     await act(async () => {
       screen.getByRole("button", { name: "From Vanguard ISA" }).click();
     });
+    // Named by its account, but the amount is still asked for.
+    fireEvent.change(screen.getByLabelText("Amount"), {
+      target: { value: "500" },
+    });
     await act(async () => {
-      screen.getByRole("button", { name: "Add" }).click();
+      screen.getByRole("button", { name: /^Add$/ }).click();
     });
 
     expect(createItemForMonth).toHaveBeenCalledWith({
@@ -326,6 +332,7 @@ describe("BudgetSheet — the Add drawer's account picker", () => {
       label: "Vanguard ISA",
       accountId: ISA,
       direction: "OUTFLOW",
+      budget: 500,
     });
   });
 
@@ -348,12 +355,15 @@ describe("BudgetSheet — the Add drawer's account picker", () => {
     });
     renderSheet(unanchoredItems);
 
-    await openAddDrawer("Repayment");
+    await openAddDrawer("Debt payment");
     await act(async () => {
       screen.getByRole("button", { name: "Halifax Mortgage" }).click();
     });
+    fireEvent.change(screen.getByLabelText("Amount"), {
+      target: { value: "1250" },
+    });
     await act(async () => {
-      screen.getByRole("button", { name: "Add" }).click();
+      screen.getByRole("button", { name: /^Add$/ }).click();
     });
 
     expect(createItemForMonth).toHaveBeenCalledWith({
@@ -363,6 +373,7 @@ describe("BudgetSheet — the Add drawer's account picker", () => {
       label: "Halifax Mortgage",
       accountId: MORTGAGE,
       direction: null,
+      budget: 1250,
     });
   });
 });
@@ -421,16 +432,27 @@ describe("BudgetSheet — a copy that left rows behind", () => {
   });
 });
 
-describe("BudgetSheet — the Add drawer's sections", () => {
+describe("BudgetSheet — the Add drawer", () => {
   const openAdd = async () => {
     await act(async () => {
       screen.getByRole("button", { name: "+ Add" }).click();
     });
   };
+  const fill = (label: string, value: string) => {
+    fireEvent.change(screen.getByLabelText("Name"), {
+      target: { value: label },
+    });
+    fireEvent.change(screen.getByLabelText("Amount"), {
+      target: { value },
+    });
+  };
+  const add = async () => {
+    await act(async () => {
+      screen.getByRole("button", { name: /^Add$/ }).click();
+    });
+  };
 
-  // Expense is the default kind, so its sections are on screen already —
-  // choosing one is the whole gesture, with no second click on Add.
-  test("clicking an expense section adds a row there, with no confirm step", async () => {
+  test("an expense carries its section, name and amount", async () => {
     createItemForMonth.mockResolvedValue({
       periodId: "p1",
       item: {
@@ -438,8 +460,8 @@ describe("BudgetSheet — the Add drawer's sections", () => {
         type: "EXPENSE",
         category: "DISCRETIONARY",
         incomeCategory: null,
-        label: "",
-        budget: 0,
+        label: "Cinema",
+        budget: 25,
         actual: 0,
         sortOrder: 9,
       },
@@ -449,13 +471,20 @@ describe("BudgetSheet — the Add drawer's sections", () => {
     await act(async () => {
       screen.getByRole("button", { name: "Discretionary" }).click();
     });
+    fill("Cinema", "25");
+    await add();
 
     expect(createItemForMonth).toHaveBeenCalledWith(
-      expect.objectContaining({ type: "EXPENSE", category: "DISCRETIONARY" }),
+      expect.objectContaining({
+        type: "EXPENSE",
+        category: "DISCRETIONARY",
+        label: "Cinema",
+        budget: 25,
+      }),
     );
   });
 
-  test("clicking an income section adds an income row there", async () => {
+  test("an income carries its section", async () => {
     createItemForMonth.mockResolvedValue({
       periodId: "p1",
       item: {
@@ -463,8 +492,8 @@ describe("BudgetSheet — the Add drawer's sections", () => {
         type: "INCOME",
         category: null,
         incomeCategory: "SIDE_INCOME",
-        label: "",
-        budget: 0,
+        label: "Freelance",
+        budget: 400,
         actual: 0,
         sortOrder: 9,
       },
@@ -477,24 +506,37 @@ describe("BudgetSheet — the Add drawer's sections", () => {
     await act(async () => {
       screen.getByRole("button", { name: "Side income" }).click();
     });
+    fill("Freelance", "400");
+    await add();
 
     expect(createItemForMonth).toHaveBeenCalledWith(
       expect.objectContaining({
         type: "INCOME",
         incomeCategory: "SIDE_INCOME",
+        label: "Freelance",
+        budget: 400,
       }),
     );
   });
 
-  // Repayment still needs an account, so it keeps its confirm step — the
-  // section click cannot finish the job there.
-  test("Repayment still asks for an account before adding", async () => {
+  // The amount must have been typed, even if what was typed is 0: a row that
+  // exists with no name and 0 in it cannot be told apart from one meant to sit
+  // at zero.
+  test("Add waits for a name and an amount, and 0 counts as an answer", async () => {
     renderSheet(items);
     await openAdd();
-    await act(async () => {
-      screen.getByRole("button", { name: "Repayment" }).click();
+    const addButton = screen.getByRole("button", { name: /^Add$/ });
+    expect(addButton).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText("Name"), {
+      target: { value: "Sinking fund" },
     });
-    expect(screen.getByRole("button", { name: "Add" })).toBeDisabled();
+    expect(addButton).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText("Amount"), {
+      target: { value: "0" },
+    });
+    expect(addButton).toBeEnabled();
   });
 });
 
@@ -581,7 +623,7 @@ describe("BudgetSheet — adding an account from the transfer picker", () => {
       screen.getByRole("button", { name: "+ Add" }).click();
     });
     await act(async () => {
-      screen.getByRole("button", { name: "Transfer" }).click();
+      screen.getByRole("button", { name: "Transfers and saving" }).click();
     });
 
     expect(

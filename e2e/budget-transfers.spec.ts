@@ -164,9 +164,12 @@ test.describe("budget transfers and repayments", () => {
     // Budget £500/mo into it. The direction is stated from the user's side:
     // "To Vanguard ISA", never the stored INFLOW.
     await page.goto("/budget?ym=2026-03");
-    const drawer = await openAnchoredDrawer(page, "Transfer");
+    const drawer = await openAnchoredDrawer(page, "Transfers and saving");
     await drawer.getByRole("button", { name: ISA, exact: true }).click();
     await drawer.getByRole("button", { name: `To ${ISA}` }).click();
+    // The drawer asks for an amount; these tests are about typing it into the
+    // sheet afterwards, so answer 0 and leave that part doing the work.
+    await drawer.getByLabel("Amount").fill("0");
     await withServerAction(page, () =>
       drawer.getByRole("button", { name: "Add", exact: true }).click(),
     );
@@ -254,8 +257,11 @@ test.describe("budget transfers and repayments", () => {
 
     // Budget £1,200/mo at the debt.
     await page.goto("/budget");
-    const drawer = await openAnchoredDrawer(page, "Repayment");
+    const drawer = await openAnchoredDrawer(page, "Debt payment");
     await drawer.getByRole("button", { name: MORTGAGE, exact: true }).click();
+    // The drawer asks for an amount; these tests are about typing it into the
+    // sheet afterwards, so answer 0 and leave that part doing the work.
+    await drawer.getByLabel("Amount").fill("0");
     await withServerAction(page, () =>
       drawer.getByRole("button", { name: "Add", exact: true }).click(),
     );

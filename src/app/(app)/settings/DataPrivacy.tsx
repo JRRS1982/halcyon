@@ -247,7 +247,7 @@ export function DataPrivacy() {
             <Button
               type="button"
               variant="outline"
-              onClick={() => open("reset")}
+              onClick={() => start("reset")}
               disabled={pending}
             >
               Reset to defaults
