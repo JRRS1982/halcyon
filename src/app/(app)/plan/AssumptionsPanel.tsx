@@ -2,8 +2,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useId, useState } from "react";
 import styled from "styled-components";
+import { DateOfBirthField } from "@/components/ui/DateOfBirthField";
+import { InfoTip } from "@/components/ui/InfoTip";
 import type { Regime } from "@/lib/tax/types";
 import { updatePlanAssumptions } from "./actions";
 import { BoolCell, NumberCell, SelectCell, TextCell } from "./EditableCell";
@@ -39,6 +41,22 @@ const Field = styled.label`
   font-size: 13px;
   color: ${({ theme }) => theme.colors.body};
 `;
+// Same shape as Field, but a div — see its use below.
+const FieldGroup = styled.div`
+  display: grid;
+  gap: ${({ theme }) => theme.spacing.xs};
+  font-size: 13px;
+  color: ${({ theme }) => theme.colors.body};
+`;
+const BoolLabel = styled.label`
+  cursor: pointer;
+`;
+// The label and its "i" sit on one line.
+const LabelRow = styled.span`
+  display: flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.xs};
+`;
 const Err = styled.p`
   color: ${({ theme }) => theme.colors.negative};
   font-size: 13px;
@@ -52,6 +70,8 @@ export function AssumptionsPanel({
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const thresholdsId = useId();
+  const regimeId = useId();
 
   // `assumptions` is the committed server value; each field sends the one value
   // it changed, spread over the latest. On success we refresh the route so the
@@ -86,14 +106,18 @@ export function AssumptionsPanel({
     <Panel>
       <Heading>Assumptions</Heading>
       <Grid>
-        <Field>
-          Date of birth
-          <TextCell
-            type="date"
-            value={a.dateOfBirth}
-            onCommit={(v) => save({ ...a, dateOfBirth: v })}
-          />
-        </Field>
+        {/* Three fields rather than a native date input: that renders in the
+            browser's locale, so a UK user on a US-locale browser reads
+            mm/dd/yyyy, and its calendar is a poor way to reach a birth year.
+            An incomplete date arrives as "" and is simply not saved. */}
+        <DateOfBirthField
+          legend="Date of birth"
+          value={a.dateOfBirth}
+          onCommit={(iso) => {
+            if (!iso) return;
+            void save({ ...a, dateOfBirth: iso });
+          }}
+        />
         <Field>
           Retirement age
           <NumberCell
@@ -148,22 +172,46 @@ export function AssumptionsPanel({
             }
           />
         </Field>
-        <Field>
-          Tax regime
+        {/* A div for the same reason as the toggle below: the "i" must not
+            sit inside a label. A select is its own control, so the label
+            points at it by id. */}
+        <FieldGroup>
+          <LabelRow>
+            <BoolLabel htmlFor={regimeId}>Tax regime</BoolLabel>
+            <InfoTip
+              label="What is rest of UK?"
+              title="Which bands your income is taxed at"
+              body="Scotland sets its own income tax rates and bands; England, Wales and Northern Ireland share one set. HMRC calls that second set the rest of UK — it means the UK apart from Scotland, which is why it is not simply called UK. Pick whichever applies to where you are resident for tax."
+            />
+          </LabelRow>
           <SelectCell
+            id={regimeId}
             value={a.taxRegime}
             options={TAX_REGIMES}
             labels={TAX_REGIME_LABELS}
             onCommit={(v) => save({ ...a, taxRegime: v })}
           />
-        </Field>
-        <Field>
-          Thresholds rise with inflation
+        </FieldGroup>
+        {/* A div, not the usual Field label: the "i" sits beside the label
+            text, and a label that wrapped it would claim its clicks for the
+            checkbox. The label points at the box by id instead. */}
+        <FieldGroup>
+          <LabelRow>
+            <BoolLabel htmlFor={thresholdsId}>
+              Tax bands rise with inflation
+            </BoolLabel>
+            <InfoTip
+              label="What rises with inflation?"
+              title="Tax bands rise with inflation"
+              body="The income tax bands themselves — the personal allowance and the points where the higher and additional rates start. Published bands only exist up to the current tax year, so beyond it the projection either lifts them each year with your inflation rate, or leaves them frozen at today's figures. Frozen means more of your income crosses into higher bands every year purely because the numbers grew, which over decades swamps every other assumption in the plan."
+            />
+          </LabelRow>
           <BoolCell
+            id={thresholdsId}
             value={a.thresholdsInflationLinked}
             onCommit={(v) => save({ ...a, thresholdsInflationLinked: v })}
           />
-        </Field>
+        </FieldGroup>
         <Field>
           State pension age
           <NumberCell

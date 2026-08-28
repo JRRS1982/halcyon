@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import styled from "styled-components";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { DateOfBirthField } from "@/components/ui/DateOfBirthField";
 import { createPlan } from "./actions";
 
 // Empty state for /plan: one centred card asking only for the date of birth.
@@ -46,10 +47,10 @@ const Field = styled.label`
   font-size: ${({ theme }) => theme.typography.bodyMd.size};
   color: ${({ theme }) => theme.colors.body};
 `;
-const Input = styled.input`
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  padding: ${({ theme }) => theme.spacing.sm};
+// The card's only action, so it is sized as one rather than as a toolbar
+// button — the shared Button is tuned for rows of them.
+const CreateButton = styled(Button)`
+  padding: ${({ theme }) => `${theme.spacing.md} ${theme.spacing.lg}`};
   font-size: ${({ theme }) => theme.typography.bodyMd.size};
 `;
 
@@ -74,18 +75,20 @@ export function CreatePlanForm() {
             });
           }}
         >
-          <Field>
-            Date of birth
-            <Input
-              type="date"
-              value={dob}
-              onChange={(e) => setDob(e.target.value)}
-              required
-            />
-          </Field>
-          <Button type="submit" disabled={pending || !dob}>
+          {/* See DateOfBirthField: a native date input reads mm/dd/yyyy on a
+              US-locale browser and its calendar cannot reach a birth year
+              without scrolling back decades. "" until the fields describe a
+              real date, which is what keeps the button disabled. */}
+          <DateOfBirthField
+            legend="Date of birth"
+            value={dob}
+            onCommit={setDob}
+            required
+            standalone
+          />
+          <CreateButton type="submit" disabled={pending || !dob}>
             Create my plan
-          </Button>
+          </CreateButton>
         </Form>
       </Panel>
     </Shell>

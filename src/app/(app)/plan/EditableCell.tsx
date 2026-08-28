@@ -99,11 +99,14 @@ export function NumberCell({
 }
 
 export function SelectCell<T extends string>({
+  id,
   value,
   options,
   labels,
   onCommit,
 }: {
+  // As BoolCell: set when the label is a sibling rather than a wrapper.
+  id?: string;
   value: T;
   options: readonly T[];
   labels?: Partial<Record<T, string>>;
@@ -125,7 +128,7 @@ export function SelectCell<T extends string>({
   };
 
   return (
-    <Select value={buf} onChange={(e) => change(e.target.value as T)}>
+    <Select id={id} value={buf} onChange={(e) => change(e.target.value as T)}>
       {options.map((o) => (
         <option key={o} value={o}>
           {labels?.[o] ?? o}
@@ -173,9 +176,13 @@ export function TextCell({
 }
 
 export function BoolCell({
+  id,
   value,
   onCommit,
 }: {
+  // Set when the label is a sibling rather than a wrapper — a label that also
+  // wraps other controls would claim their clicks.
+  id?: string;
   value: boolean;
   onCommit: (value: boolean) => Promise<void> | void;
 }) {
@@ -193,6 +200,7 @@ export function BoolCell({
   };
   return (
     <input
+      id={id}
       type="checkbox"
       checked={value}
       onChange={(e) => handle(e.target.checked)}
