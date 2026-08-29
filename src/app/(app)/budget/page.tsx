@@ -81,6 +81,9 @@ export default async function BudgetPage(props: PageProps) {
     ? await prisma.budgetItem.findMany({
         where: { periodId: period.id, deletedAt: null },
         orderBy: [{ type: "asc" }, { sortOrder: "asc" }],
+        // The debt this row's category says it pays off, so the sheet can show
+        // the link back — see setExpensePaysOff and reality.ts.
+        include: { linkedCategory: { select: { accountId: true } } },
       })
     : [];
 
@@ -147,6 +150,7 @@ export default async function BudgetPage(props: PageProps) {
       items = await prisma.budgetItem.findMany({
         where: { periodId: targetPeriod.id, deletedAt: null },
         orderBy: [{ type: "asc" }, { sortOrder: "asc" }],
+        include: { linkedCategory: { select: { accountId: true } } },
       });
     }
   }
@@ -193,6 +197,7 @@ export default async function BudgetPage(props: PageProps) {
     category: i.category,
     incomeCategory: i.incomeCategory,
     categoryId: i.categoryId,
+    paysOffAccountId: i.linkedCategory?.accountId ?? null,
     // The anchor, carried whole. Dropping `direction` here would leave every
     // transfer row reading as an inflow, which mis-signs the month's surplus.
     accountId: i.accountId,

@@ -9,6 +9,7 @@ import type {
   Prisma,
 } from "@prisma/client";
 import { redirect } from "next/navigation";
+import { z } from "zod";
 import { assertAnchorMatches, requiredAnchorKind } from "@/lib/budget/anchors";
 import {
   buildCopiedItems,
@@ -315,6 +316,51 @@ export async function createItemForMonth(input: CreateItemForMonthInput) {
     });
 
     return { periodId: period.id, item: toClientItem(item) };
+  });
+}
+
+const setPaysOffSchema = z.object({
+  itemId: z.string().uuid(),
+  accountId: z.string().uuid().nullable(),
+});
+
+// Declares that this expense IS the payment for a debt.
+//
+// Set on the row, stored on its Category: the plan reads the budget through
+// categories, and the whole point is to stop reality.ts counting the category
+// again when the account already carries a repayment for it. Clearing it
+// (accountId null) puts the expense back in the plan's expense totals.
+export async function setExpensePaysOff(input: {
+  itemId: string;
+  accountId: string | null;
+}): Promise<void> {
+  const userId = await requireUserId();
+  const { itemId, accountId } = setPaysOffSchema.parse(input);
+
+  const item = await prisma.budgetItem.findFirst({
+    where: { id: itemId, deletedAt: null },
+    include: { period: { select: { userId: true } } },
+  });
+  if (!item || item.period.userId !== userId) throw new Error("Item not found");
+  if (item.type !== "EXPENSE") {
+    throw new Error("Only an expense can pay off a debt");
+  }
+  if (!item.categoryId) {
+    throw new Error("Name the row first, so it has a category to link");
+  }
+
+  if (accountId !== null) {
+    // Own it, and it must be a debt: paying off an asset is not a thing.
+    const account = await prisma.account.findFirst({
+      where: { id: accountId, userId, kind: "LIABILITY" },
+      select: { id: true },
+    });
+    if (!account) throw new Error("Liability account not found");
+  }
+
+  await prisma.category.updateMany({
+    where: { id: item.categoryId, userId },
+    data: { accountId },
   });
 }
 

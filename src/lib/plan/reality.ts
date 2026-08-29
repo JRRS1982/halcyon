@@ -195,6 +195,8 @@ async function latestCategoryRows(userId: string): Promise<RealityRow[]> {
       type: true,
       incomeCategory: true,
       category: true,
+      // The debt this category pays off, when it says so — see below.
+      accountId: true,
     },
   });
   if (categories.length === 0) return [];
@@ -222,8 +224,44 @@ async function latestCategoryRows(userId: string): Promise<RealityRow[]> {
 
   const latestBudget = latestByKey(budgets, (row) => row.categoryId);
 
+  // Accounts that already carry a payment of their own.
+  //
+  // An expense category that declares itself the payment for one of these is
+  // the SAME money as that account's repayment row, and counting both is the
+  // mortgage double-count: £30,000/yr of outflow for one £15,000 payment,
+  // silently, because keeping the old expense row is the natural thing to do
+  // when adding a repayment.
+  //
+  // Only when a repayment actually exists. The link says "I am this account's
+  // payment", so with nothing else carrying it, dropping the expense would
+  // lose the money rather than de-duplicate it — and a value that quietly
+  // stops travelling is the failure this codebase keeps producing.
+  //
+  // Never inferred from the label: "Mortgage" beside an account called
+  // "Halifax mortgage" is a guess, and a guess here deletes real spending
+  // from someone's forecast.
+  const declaredAccountIds = categories.flatMap((c) =>
+    c.accountId ? [c.accountId] : [],
+  );
+  const paidByRepayment = new Set(
+    declaredAccountIds.length === 0
+      ? []
+      : (
+          await prisma.budgetItem.findMany({
+            where: {
+              accountId: { in: declaredAccountIds },
+              type: "REPAYMENT",
+              deletedAt: null,
+              period: { userId, deletedAt: null, granularity: "MONTH" },
+            },
+            select: { accountId: true },
+          })
+        ).flatMap((row) => (row.accountId ? [row.accountId] : [])),
+  );
+
   const rows: RealityRow[] = [];
   for (const category of categories) {
+    if (category.accountId && paidByRepayment.has(category.accountId)) continue;
     const latest = latestBudget.get(category.id);
     // No budget row at all: skipped, not added with zero.
     if (!latest) continue;

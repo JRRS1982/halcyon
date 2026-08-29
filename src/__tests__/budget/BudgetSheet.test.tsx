@@ -18,6 +18,7 @@ const createItemForMonth = jest.fn();
 const copyPeriodFrom = jest.fn();
 const listCopyablePeriods = jest.fn();
 const deleteItem = jest.fn();
+const setExpensePaysOff = jest.fn();
 // The transfer picker can open the balance sheet's own Add-account drawer, so
 // that feature's server actions are now in this file's module graph.
 jest.mock("@/app/(app)/balance/accountActions", () => ({
@@ -28,6 +29,7 @@ jest.mock("@/app/(app)/budget/actions", () => ({
   copyPeriodFrom: (...args: unknown[]) => copyPeriodFrom(...args),
   createItemForMonth: (...args: unknown[]) => createItemForMonth(...args),
   deleteItem: (...args: unknown[]) => deleteItem(...args),
+  setExpensePaysOff: (...args: unknown[]) => setExpensePaysOff(...args),
   listCopyablePeriods: (...args: unknown[]) => listCopyablePeriods(...args),
   updateItem: jest.fn(),
 }));
@@ -685,5 +687,55 @@ describe("BudgetSheet — arrow navigation", () => {
     label.setSelectionRange(0, 0);
     fireEvent.keyDown(label, { key: "ArrowLeft" });
     expect(document.activeElement).toBe(label);
+  });
+});
+
+describe("BudgetSheet — declaring which debt an expense pays", () => {
+  // The control is how the mortgage double-count gets closed: an expense that
+  // says it IS the account's payment is not counted again by the plan. It only
+  // appears on a named row, because the link is stored on the row's category
+  // and an unnamed row has none.
+  const focusRow = (label: string) => {
+    fireEvent.focus(screen.getByDisplayValue(label));
+  };
+
+  test("offers the debts, and sends the one chosen", async () => {
+    renderSheet([
+      row({
+        id: "2",
+        label: "Housing",
+        budget: 2200,
+        // Named rows have a category; the link is stored on it.
+        categoryId: "cccccccc-cccc-cccc-cccc-cccccccccccc",
+      }),
+    ]);
+    await act(async () => {
+      focusRow("Housing");
+    });
+
+    const select = screen.getByLabelText("Pays off");
+    expect(select).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.change(select, { target: { value: MORTGAGE } });
+    });
+
+    expect(setExpensePaysOff).toHaveBeenCalledWith({
+      itemId: "2",
+      accountId: MORTGAGE,
+    });
+  });
+
+  test("does not offer it on a row with no category yet", async () => {
+    renderSheet([
+      row({ id: "blank", label: "", budget: 0, actual: 0, categoryId: null }),
+    ]);
+    await act(async () => {
+      fireEvent.focus(
+        screen.getAllByPlaceholderText("Name this row")[0] as HTMLElement,
+      );
+    });
+
+    expect(screen.queryByLabelText("Pays off")).not.toBeInTheDocument();
   });
 });

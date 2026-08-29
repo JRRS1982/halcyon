@@ -474,7 +474,17 @@ tombstone never occupies the slot the next Sync needs.
   because a transfer is net-worth-neutral and a mortgage payment is not — its
   interest is consumed. See [`budget-transfers.md`](budget-transfers.md).
 
-  What is **not** closed is the double-count. Nothing detects a budget
+  **Closed as of the `Category.accountId` link.** An expense category can now
+  declare itself the payment for a debt, and `latestCategoryRows` skips it when
+  that account already carries a `REPAYMENT` row — so the payment is counted
+  once, by the repayment. Only when a repayment exists: the link says "I am
+  this account's payment", so with nothing else carrying it the expense is
+  still counted, or the money would vanish from the projection rather than be
+  de-duplicated. Never inferred from the label, because "Mortgage" beside an
+  account called "Halifax mortgage" is a guess, and a guess here deletes real
+  spending from someone's forecast. What follows is the gap as it stood.
+
+  What **was** not closed is the double-count. Nothing detects a budget
   `EXPENSE` row on a "Mortgage" *category* coexisting with a `REPAYMENT` row on
   the mortgage *account*. `latestCategoryRows` mints a `PlanExpense` at
   £15,000/yr from the first, and `monthlyRepayment` £1,250 becomes £15,000/yr

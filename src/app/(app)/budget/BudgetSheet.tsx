@@ -71,6 +71,7 @@ import {
   createItemForMonth,
   deleteItem,
   listCopyablePeriods,
+  setExpensePaysOff,
   updateItem,
 } from "./actions";
 
@@ -97,6 +98,8 @@ export type SerializedItem = {
   category: ExpenseCategory | null;
   incomeCategory: IncomeCategory | null;
   categoryId: string | null;
+  // The debt this row's category says it pays off, if any.
+  paysOffAccountId?: string | null;
   // The anchor a TRANSFER/REPAYMENT hangs on: the account the money moves to
   // or from, and (TRANSFER only) which way, relative to that account. Null on
   // the category-keyed kinds. Both must survive the trip from the server —
@@ -1208,6 +1211,38 @@ export function BudgetSheet({
     setAddAccountId(null);
   }, []);
 
+  const liabilityAccounts = useMemo(
+    () => accounts.filter((a) => a.kind === "LIABILITY" && !a.archived),
+    [accounts],
+  );
+
+  // Held locally so the dropdown answers immediately; the server value
+  // arrives on the next render.
+  const [paysOff, setPaysOff] = useState<Record<string, string | null>>({});
+
+  const editPaysOff = useCallback(
+    (itemId: string, accountId: string | null) => {
+      setPaysOff((prev) => ({ ...prev, [itemId]: accountId }));
+      startTransition(async () => {
+        pendingSavesRef.current += 1;
+        setPendingCount(pendingSavesRef.current);
+        try {
+          await setExpensePaysOff({ itemId, accountId });
+          setLastSavedAt(new Date());
+          setSaveError(null);
+          router.refresh();
+        } catch (e) {
+          setPaysOff((prev) => ({ ...prev, [itemId]: null }));
+          setSaveError(e instanceof Error ? e.message : "Couldn't link it");
+        } finally {
+          pendingSavesRef.current = Math.max(0, pendingSavesRef.current - 1);
+          setPendingCount(pendingSavesRef.current);
+        }
+      });
+    },
+    [router],
+  );
+
   // The accounts this month's live rows already point at. One account carries
   // at most one row per period — see eligibleAnchorAccounts.
   const anchoredAccountIds = useMemo(
@@ -1367,6 +1402,11 @@ export function BudgetSheet({
         : null,
     [focusedCell, items],
   );
+
+  // Which debt the focused row says it pays, if any.
+  const paysOffAccountId = focusedItem
+    ? (paysOff[focusedItem.id] ?? focusedItem.paysOffAccountId ?? null)
+    : null;
 
   // Item ids in the order they're rendered (income buckets, expense buckets,
   // repayments, then transfers), so Enter can step to the next row down.
@@ -2039,6 +2079,26 @@ export function BudgetSheet({
                 </option>
               ))}
             </ToolbarSelect>
+            {/* Says this expense IS the payment for a debt, so the plan does
+                not charge for it twice — once here and once as that account's
+                debt payment. Only offered on a named row: the link is stored
+                on the row's category, and an unnamed row has none. */}
+            {focusedItem.categoryId && liabilityAccounts.length > 0 && (
+              <ToolbarSelect
+                aria-label="Pays off"
+                value={paysOffAccountId ?? ""}
+                onChange={(e) =>
+                  editPaysOff(focusedItem.id, e.target.value || null)
+                }
+              >
+                <option value="">Pays off nothing</option>
+                {liabilityAccounts.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    Pays off {a.name}
+                  </option>
+                ))}
+              </ToolbarSelect>
+            )}
           </ToolbarGroup>
         )}
         {focusedItem?.type === "INCOME" && (

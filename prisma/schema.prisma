@@ -255,13 +255,24 @@ model Category {
   updatedAt      DateTime         @updatedAt
   deletedAt      DateTime?
 
+  // The debt this category pays off, when it is one. Set on an EXPENSE
+  // category like "Mortgage" to say it IS the payment for that account —
+  // which stops the projection charging for it twice, once as an expense and
+  // once as the account's repayment. See reality.ts.
+  //
+  // SetNull rather than Cascade: losing the account should un-declare the
+  // link, not delete a category the user still budgets against.
+  accountId    String?       @db.Uuid
+
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account      Account?      @relation(fields: [accountId], references: [id], onDelete: SetNull)
   budgetItems  BudgetItem[]
   transactions Transaction[]
   planIncomes  PlanIncome[]
   planExpenses PlanExpense[]
 
   @@index([userId, type, sortOrder])
+  @@index([accountId])
 }
 
 // What this account is on a balance sheet. NONE is a plain transaction
@@ -310,6 +321,7 @@ model Account {
   importBatches        ImportBatch[]
   balanceItems         BalanceItem[]
   budgetItems          BudgetItem[]
+  payingCategories     Category[]
   linkedAccount        Account?              @relation("AccountLink", fields: [linkedAccountId], references: [id], onDelete: SetNull)
   linkedBy             Account?              @relation("AccountLink")
   planAssets           PlanAsset[]
