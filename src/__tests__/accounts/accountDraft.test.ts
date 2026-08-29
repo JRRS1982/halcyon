@@ -3,7 +3,6 @@ import {
   accountTypeById,
   canSubmitAccountDraft,
   defaultCanImportTransactions,
-  resolveCanImportTransactions,
 } from "@/lib/accounts/accountDraft";
 
 describe("defaultCanImportTransactions", () => {
@@ -19,38 +18,6 @@ describe("defaultCanImportTransactions", () => {
 
   test("a property asset defaults off — a property isn't a statement-import account", () => {
     expect(defaultCanImportTransactions("ASSET", "PROPERTY")).toBe(false);
-  });
-});
-
-describe("resolveCanImportTransactions", () => {
-  test("untouched: always mirrors the fresh default for the new account type", () => {
-    expect(resolveCanImportTransactions(true, false, "LIABILITY", null)).toBe(
-      false,
-    );
-    expect(resolveCanImportTransactions(false, false, "ASSET", "CASH")).toBe(
-      true,
-    );
-    expect(resolveCanImportTransactions(true, false, "ASSET", "PROPERTY")).toBe(
-      false,
-    );
-  });
-
-  // The subtlest rule the brief calls out: once touched, an account-type
-  // change that would otherwise flip the fresh default must not un-check
-  // (or re-check) the box behind the user's back.
-  test("touched on, then switched to a type whose fresh default is off — the override sticks", () => {
-    expect(resolveCanImportTransactions(true, true, "LIABILITY", null)).toBe(
-      true,
-    );
-    expect(resolveCanImportTransactions(true, true, "ASSET", "PROPERTY")).toBe(
-      true,
-    );
-  });
-
-  test("touched off, then switched to a type whose fresh default is on — the override sticks", () => {
-    expect(resolveCanImportTransactions(false, true, "ASSET", "CASH")).toBe(
-      false,
-    );
   });
 });
 

@@ -41,12 +41,6 @@ const Form = styled.form`
   gap: ${({ theme }) => theme.spacing.md};
   text-align: left;
 `;
-const Field = styled.label`
-  display: grid;
-  gap: ${({ theme }) => theme.spacing.xs};
-  font-size: ${({ theme }) => theme.typography.bodyMd.size};
-  color: ${({ theme }) => theme.colors.body};
-`;
 // The card's only action, so it is sized as one rather than as a toolbar
 // button — the shared Button is tuned for rows of them.
 const CreateButton = styled(Button)`

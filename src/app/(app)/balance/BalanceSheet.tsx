@@ -1581,6 +1581,8 @@ export function BalanceSheet({
           <DeleteModal ref={deleteModalRef} tabIndex={-1}>
             <DeleteAccountPanel
               accountId={deletePanel.accountId}
+              year={year}
+              month={month}
               name={deletePanel.name}
               counts={deletePanel.counts}
               isProperty={deletePanel.isProperty}

@@ -27,6 +27,8 @@ const renderPanel = (
         name="Vanguard ISA"
         counts={counts}
         isProperty={false}
+        year={2026}
+        month={2}
         onClose={jest.fn()}
         onDone={jest.fn()}
         {...props}
@@ -51,7 +53,12 @@ describe("DeleteAccountPanel", () => {
     renderPanel();
     fireEvent.click(screen.getByRole("button", { name: /^delete$/i }));
     await waitFor(() =>
-      expect(archive).toHaveBeenCalledWith({ accountId: "a1" }),
+      expect(archive).toHaveBeenCalledWith({
+        accountId: "a1",
+        alsoLinked: false,
+        fromYear: 2026,
+        fromMonth: 2,
+      }),
     );
   });
 
@@ -69,16 +76,17 @@ describe("DeleteAccountPanel", () => {
     expect(screen.getByRole("button", { name: /^delete$/i })).toBeEnabled();
   });
 
-  // The checkbox promises "Also delete X", but archiveAccount (the mode this
-  // panel defaults to) takes only the one account id — there is no way for
-  // that promise to be kept while in this mode, so the control must not be
-  // offered at all.
-  test("hides the partner checkbox in archive mode, the default", () => {
+  // The checkbox used to be hidden here, because archiveAccount took a single
+  // account id and could not keep the promise. It takes the partner now: a
+  // mortgage on a property you have stopped tracking has nothing to sit
+  // against, so archiving one offers to archive the other — pre-ticked for a
+  // property, as deleting is.
+  test("offers the partner in archive mode, the default, worded for archiving", () => {
     renderPanel({ name: "Home", counts: linkedCounts, isProperty: true });
     expect(screen.getByRole("radio", { name: /stop tracking/i })).toBeChecked();
     expect(
-      screen.queryByLabelText(/also delete "halifax mortgage"/i),
-    ).not.toBeInTheDocument();
+      screen.getByLabelText(/also stop tracking "halifax mortgage"/i),
+    ).toBeChecked();
   });
 
   // Deleting a property: you rarely keep a debt secured on a house you no

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { type RefObject, useEffect, useId, useRef, useState } from "react";
 import {
   type DateParts,
   isoFromParts,
@@ -75,6 +75,8 @@ export function DateOfBirthField({
   const [parts, setParts] = useState<DateParts>(() => partsFromIso(value));
   const groupRef = useRef<HTMLFieldSetElement>(null);
   const pickerRef = useRef<HTMLInputElement>(null);
+  const monthRef = useRef<HTMLInputElement>(null);
+  const yearRef = useRef<HTMLInputElement>(null);
   const ids = useId();
 
   // Adopt `value` from outside — but never over someone's typing.
@@ -114,6 +116,18 @@ export function DateOfBirthField({
   const digits = (raw: string, max: number) =>
     raw.replace(/\D/g, "").slice(0, max);
 
+  // Filling a field moves to the next: typing 09 07 1982 straight through
+  // beats reaching for Tab twice in the middle of a date. Only on the way up —
+  // deleting back to one digit must not fling the caret forward, which would
+  // make correcting a typo impossible.
+  const advanceWhenFull = (
+    next: string,
+    previous: string,
+    to: RefObject<HTMLInputElement | null>,
+  ) => {
+    if (next.length === 2 && previous.length < 2) to.current?.focus();
+  };
+
   return (
     <Group ref={groupRef}>
       <Legend $standalone={standalone}>{legend}</Legend>
@@ -128,24 +142,29 @@ export function DateOfBirthField({
             placeholder="DD"
             required={required}
             value={parts.day}
-            onChange={(e) =>
-              update({ ...parts, day: digits(e.target.value, 2) })
-            }
+            onChange={(e) => {
+              const day = digits(e.target.value, 2);
+              update({ ...parts, day });
+              advanceWhenFull(day, parts.day, monthRef);
+            }}
           />
         </Part>
         <Part htmlFor={`${ids}-month`}>
           <PartName>Month</PartName>
           <PartInput
             $standalone={standalone}
+            ref={monthRef}
             id={`${ids}-month`}
             inputMode="numeric"
             autoComplete="bday-month"
             placeholder="MM"
             required={required}
             value={parts.month}
-            onChange={(e) =>
-              update({ ...parts, month: digits(e.target.value, 2) })
-            }
+            onChange={(e) => {
+              const month = digits(e.target.value, 2);
+              update({ ...parts, month });
+              advanceWhenFull(month, parts.month, yearRef);
+            }}
           />
         </Part>
         <Part htmlFor={`${ids}-year`}>
@@ -153,6 +172,7 @@ export function DateOfBirthField({
           <PartInput
             $standalone={standalone}
             $wide
+            ref={yearRef}
             id={`${ids}-year`}
             inputMode="numeric"
             autoComplete="bday-year"

@@ -452,18 +452,18 @@ export function SettingsForm({
 
         <ToggleField>
           <ToggleText>
-            <FieldLabel>Transfers</FieldLabel>
+            <FieldLabel>Transfers and saving</FieldLabel>
             <FieldHint>
-              Adds a Transfers section to the budget that totals money moved
-              between your own accounts (e.g. Current → ISA) — kept out of
-              income and expenses. Tag a transaction as a transfer from the
-              Transactions page. Needs Transactions switched on.
+              Adds a Transfers and saving section to the budget that totals
+              money moved between your own accounts (e.g. Current → ISA) — kept
+              out of income and expenses. Tag a transaction as a transfer from
+              the Transactions page. Needs Transactions switched on.
             </FieldHint>
           </ToggleText>
           <SwitchControl>
             <SwitchInput
               type="checkbox"
-              aria-label="Transfers"
+              aria-label="Transfers and saving"
               checked={transfersOn}
               disabled={transfersPending || !enabled}
               onChange={(event) => onToggleTransfers(event.target.checked)}

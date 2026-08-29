@@ -49,6 +49,16 @@ test("add a mortgage opens the property card with a mortgage section", async ({
   await expect(
     dialog.getByRole("button", { name: /remove mortgage/i }),
   ).toBeVisible();
+
+  // The property itself can be removed too. The card had no Remove at all for
+  // a while, even though deletePlanAsset has always cascaded to the mortgage
+  // and its repayment — nothing asserted the control existed.
+  const remove = dialog.getByRole("button", { name: "Remove", exact: true });
+  await expect(remove).toBeVisible();
+  await remove.click();
+  await expect(
+    dialog.getByText("Remove the property, its mortgage and the repayment?"),
+  ).toBeVisible();
 });
 
 // Phase 2 Task 5: the interest-only toggle persists (updatePlanLiability) and
@@ -65,7 +75,6 @@ test("toggling interest-only persists after reload and hides the repayment field
   await page.goto("/plan");
   await createPlanWithDob(page);
 
-  const liabilityPanel = page.locator("section", { hasText: "Liabilities" });
   await addPlanLiability(page, {
     name: "Mortgage",
     balance: "0",

@@ -84,7 +84,7 @@ async function provisionUserSettings(userId: string) {
 // which keeps the whole thing to three statements inside the caller's
 // transaction. The link matters: a categoryId-linked row is what lets the
 // transactions feature overlay a computed actual on it later.
-async function seedStarterData(
+export async function seedStarterData(
   tx: Prisma.TransactionClient,
   userId: string,
 ): Promise<void> {

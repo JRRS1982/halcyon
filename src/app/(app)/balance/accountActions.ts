@@ -10,7 +10,9 @@ import {
 import {
   type AccountDeletionCounts,
   type AccountIdInput,
+  type ArchiveAccountInput,
   accountIdSchema,
+  archiveAccountSchema,
   type CreateAccountWithBalanceInput,
   createAccountWithBalanceSchema,
   type DeleteAccountEverywhereInput,
@@ -180,20 +182,50 @@ export async function createAccountWithBalance(
   return result;
 }
 
-// Stop tracking: the account leaves next month's sheet and the pickers, and
-// every observation already recorded stays exactly where it is. A single
-// statement rather than check-then-act: the `userId` filter on the update
-// itself is the ownership check, so there's no gap between proving ownership
-// and acting on it.
-export async function archiveAccount(input: AccountIdInput): Promise<void> {
+// Stop tracking: the account leaves the pickers and THIS month's sheet, and
+// the months already closed keep what they recorded.
+//
+// From this month, not the next one: the user has just said they no longer
+// track this account, so leaving it on the sheet in front of them reads as the
+// button not having worked. Earlier months are untouched — those are
+// observations that were true when they were made, which is what separates
+// archiving from deleting everywhere.
+//
+// A mortgaged property takes its mortgage with it when `alsoLinked`. A debt
+// secured on a property nobody tracks any more has nothing to sit against, and
+// would otherwise keep appearing on its own.
+export async function archiveAccount(
+  input: ArchiveAccountInput,
+): Promise<void> {
   const userId = await requireUserId();
-  const { accountId } = accountIdSchema.parse(input);
+  const { accountId, alsoLinked, fromYear, fromMonth } =
+    archiveAccountSchema.parse(input);
 
-  const result = await prisma.account.updateMany({
-    where: { id: accountId, userId },
-    data: { deletedAt: new Date() },
+  const partnerId = alsoLinked
+    ? await resolveLinkedPartnerId(userId, accountId)
+    : null;
+  const ids = partnerId ? [accountId, partnerId] : [accountId];
+
+  // The first day of the month the user is on: every period starting on or
+  // after it is "this month and onwards".
+  const from = new Date(Date.UTC(fromYear, fromMonth, 1));
+
+  await prisma.$transaction(async (tx) => {
+    const result = await tx.account.updateMany({
+      where: { id: { in: ids }, userId },
+      data: { deletedAt: new Date() },
+    });
+    if (result.count === 0) throw new Error("Account not found");
+
+    await tx.balanceItem.updateMany({
+      where: {
+        accountId: { in: ids },
+        deletedAt: null,
+        period: { userId, deletedAt: null, startDate: { gte: from } },
+      },
+      data: { deletedAt: new Date() },
+    });
   });
-  if (result.count === 0) throw new Error("Account not found");
   revalidateAll();
 }
 

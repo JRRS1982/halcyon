@@ -67,18 +67,16 @@ describe("AddAccountDrawer", () => {
     expect(screen.getByLabelText(/is there a mortgage/i)).toBeInTheDocument();
   });
 
-  test("defaults canImportTransactions off for a liability and on for an asset", () => {
+  // Whether a SIPP can take a CSV is not a decision worth making while naming
+  // one, and the answer is the same for everyone with that type. The drawer
+  // no longer asks; Settings lists every account with its own switch for the
+  // rare case where the default is wrong.
+  test("does not ask about statement imports", () => {
     renderDrawer();
-
     pickType("STOCKS_ISA");
     expect(
-      screen.getByLabelText(/allow importing of statements/i),
-    ).toBeChecked();
-
-    pickType("CREDIT_CARD");
-    expect(
-      screen.getByLabelText(/allow importing of statements/i),
-    ).not.toBeChecked();
+      screen.queryByLabelText(/allow importing of statements/i),
+    ).not.toBeInTheDocument();
   });
 
   // The section follows the type as a default the user can override — a final
@@ -198,34 +196,6 @@ describe("AddAccountDrawer", () => {
         mortgage: null,
       }),
     );
-  });
-
-  // Wiring check for resolveCanImportTransactions (unit-tested exhaustively
-  // in accountDraft.test.ts): once the user has touched the checkbox
-  // directly, a later type/section change must not revert it back to that
-  // combination's fresh default.
-  test("a manual override of the imports checkbox survives later type and section changes", () => {
-    renderDrawer();
-
-    pickType("STOCKS_ISA");
-    expect(
-      screen.getByLabelText(/allow importing of statements/i),
-    ).toBeChecked();
-
-    // Touch it: asset's fresh default is on, so switch it off.
-    fireEvent.click(screen.getByLabelText(/allow importing of statements/i));
-    expect(
-      screen.getByLabelText(/allow importing of statements/i),
-    ).not.toBeChecked();
-
-    // Liability's fresh default is also off — bounce through it and back to
-    // asset, whose fresh default is on, to prove the override (not a
-    // coincidental match) is what's holding it unchecked.
-    pickType("CREDIT_CARD");
-    pickType("STOCKS_ISA");
-    expect(
-      screen.getByLabelText(/allow importing of statements/i),
-    ).not.toBeChecked();
   });
 
   // Regression test for a fix reviewed in round 1: closing without

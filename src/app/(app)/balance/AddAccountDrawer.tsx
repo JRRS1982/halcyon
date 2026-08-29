@@ -16,7 +16,7 @@ import {
   type AccountTypeId,
   accountTypeById,
   canSubmitAccountDraft,
-  resolveCanImportTransactions,
+  defaultCanImportTransactions,
 } from "@/lib/accounts/accountDraft";
 import type { CreateAccountWithBalanceInput } from "@/lib/accounts/schemas";
 import {
@@ -234,9 +234,16 @@ export function AddAccountDrawer({
   const [typeId, setTypeId] = useState<AccountTypeId | null>(null);
   const [category, setCategory] = useState<BalanceCategory | null>(null);
   const [name, setName] = useState("");
+  const nameRef = useRef<HTMLInputElement | null>(null);
   const [value, setValue] = useState("");
-  const [canImportTransactions, setCanImportTransactions] = useState(false);
-  const [importTouched, setImportTouched] = useState(false);
+  // Follows the account type, and is not asked about here. Whether a SIPP can
+  // take a CSV is not a decision worth making while naming one, and the answer
+  // is the same for everyone with that type — Settings lists every account with
+  // its own switch for the rare case where the default is wrong.
+  const canImportTransactions = defaultCanImportTransactions(
+    accountTypeById(typeId)?.kind ?? "ASSET",
+    accountTypeById(typeId)?.wrapper ?? null,
+  );
   const [sectionTouched, setSectionTouched] = useState(false);
   const [hasMortgage, setHasMortgage] = useState(false);
   const [mortgageName, setMortgageName] = useState("");
@@ -265,14 +272,11 @@ export function AddAccountDrawer({
     const nextCategory = keepsChoice ? category : option.defaultSection;
     setTypeId(next);
     setCategory(nextCategory);
-    setCanImportTransactions((current) =>
-      resolveCanImportTransactions(
-        current,
-        importTouched,
-        option.kind,
-        option.wrapper,
-      ),
-    );
+    // The name is always the next thing typed, and until a type is picked the
+    // field does not exist to be focused — so it is focused here rather than
+    // left for the user to reach for.
+    queueMicrotask(() => nameRef.current?.focus());
+
     // The mortgage question belongs to the Property type, not the section, so
     // leaving Property clears it.
     if (option.wrapper !== "PROPERTY") {
@@ -286,11 +290,6 @@ export function AddAccountDrawer({
   const selectCategory = (next: BalanceCategory) => {
     setSectionTouched(true);
     setCategory(next);
-  };
-
-  const toggleImport = (checked: boolean) => {
-    setImportTouched(true);
-    setCanImportTransactions(checked);
   };
 
   const draft: AccountDraft = {
@@ -309,8 +308,7 @@ export function AddAccountDrawer({
     setCategory(null);
     setName("");
     setValue("");
-    setCanImportTransactions(false);
-    setImportTouched(false);
+
     setSectionTouched(false);
     setHasMortgage(false);
     setMortgageName("");
@@ -470,6 +468,7 @@ export function AddAccountDrawer({
                 <>
                   <Field label="Name">
                     <TextInput
+                      ref={nameRef}
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder={accountType?.namePlaceholder ?? "Name"}
@@ -499,15 +498,6 @@ export function AddAccountDrawer({
                       placeholder="0.00"
                     />
                   </Field>
-
-                  <CheckboxLabel>
-                    <input
-                      type="checkbox"
-                      checked={canImportTransactions}
-                      onChange={(e) => toggleImport(e.target.checked)}
-                    />
-                    Allow importing of statements
-                  </CheckboxLabel>
 
                   {wrapper === "PROPERTY" ? (
                     <>

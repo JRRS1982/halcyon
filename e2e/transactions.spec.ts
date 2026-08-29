@@ -129,11 +129,16 @@ test.describe("amount cells", () => {
       .getByRole("button", { name: "Income", exact: true })
       .click();
 
-    // Barriered: Add fires ensurePeriodForMonth and then createItem, and the
-    // row is replaced by the server's when createItem answers. Typing into the
-    // optimistic row before that lands has the reconcile throw the value away,
-    // and the amount cell reads "" — which is exactly how this test fails under
-    // load, and only under load.
+    // Barriered: choosing the section fires ensurePeriodForMonth and then
+    // createItem, and the row is replaced by the server's when createItem
+    // answers. Typing into the optimistic row before that lands has the
+    // reconcile throw the value away, and the amount cell reads "" — which is
+    // exactly how this test fails under load, and only under load.
+    await addDrawer
+      .getByRole("button", { name: "Salary", exact: true })
+      .click();
+    await addDrawer.getByLabel("Name").fill("Bonus");
+    await addDrawer.getByLabel("Amount").fill("0");
     await withServerAction(page, () =>
       addDrawer.getByRole("button", { name: "Add", exact: true }).click(),
     );

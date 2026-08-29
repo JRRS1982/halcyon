@@ -132,7 +132,12 @@ describe("account actions (integration)", () => {
   it("archiving keeps history and hides the account", async () => {
     const { accountId } = await createAccountWithBalance(isaInput);
 
-    await archiveAccount({ accountId });
+    await archiveAccount({
+      accountId,
+      alsoLinked: false,
+      fromYear: 2026,
+      fromMonth: 2,
+    });
 
     const account = await prisma.account.findUniqueOrThrow({
       where: { id: accountId },
@@ -144,7 +149,12 @@ describe("account actions (integration)", () => {
 
   it("restoring clears the archive flag", async () => {
     const { accountId } = await createAccountWithBalance(isaInput);
-    await archiveAccount({ accountId });
+    await archiveAccount({
+      accountId,
+      alsoLinked: false,
+      fromYear: 2026,
+      fromMonth: 2,
+    });
 
     await restoreAccount({ accountId });
 
@@ -385,7 +395,12 @@ describe("account actions (integration)", () => {
     });
     // Archiving doesn't clear the link — the mortgage is hidden, not
     // forgotten, so `alsoLinked: true` should still reach it.
-    await archiveAccount({ accountId: mortgage.id });
+    await archiveAccount({
+      accountId: mortgage.id,
+      alsoLinked: false,
+      fromYear: 2026,
+      fromMonth: 2,
+    });
 
     await deleteAccountEverywhere({ accountId, alsoLinked: true });
 
@@ -513,7 +528,12 @@ describe("account actions ownership boundary (integration)", () => {
     });
 
     await expect(
-      archiveAccount({ accountId: foreignAccount.id }),
+      archiveAccount({
+        accountId: foreignAccount.id,
+        alsoLinked: false,
+        fromYear: 2026,
+        fromMonth: 2,
+      }),
     ).rejects.toThrow("Account not found");
     await expect(
       restoreAccount({ accountId: foreignAccount.id }),
@@ -586,5 +606,96 @@ describe("account actions ownership boundary (integration)", () => {
     expect(
       await prisma.balanceItem.findUnique({ where: { id: foreignItem.id } }),
     ).not.toBeNull();
+  });
+});
+
+describe("archiving a mortgaged property (integration)", () => {
+  it("takes the mortgage with it when asked", async () => {
+    const { accountId } = await createAccountWithBalance(homeWithMortgageInput);
+    const mortgage = await prisma.account.findFirstOrThrow({
+      where: { linkedAccountId: accountId },
+    });
+
+    await archiveAccount({
+      accountId,
+      alsoLinked: true,
+      fromYear: 2026,
+      fromMonth: 2,
+    });
+
+    const property = await prisma.account.findUniqueOrThrow({
+      where: { id: accountId },
+    });
+    const after = await prisma.account.findUniqueOrThrow({
+      where: { id: mortgage.id },
+    });
+    // A debt secured on a property nobody tracks any more has nothing to sit
+    // against; leaving it live is what put a lone mortgage on the sheet.
+    expect(property.deletedAt).not.toBeNull();
+    expect(after.deletedAt).not.toBeNull();
+  });
+
+  it("leaves the mortgage alone when not asked", async () => {
+    const { accountId } = await createAccountWithBalance(homeWithMortgageInput);
+    const mortgage = await prisma.account.findFirstOrThrow({
+      where: { linkedAccountId: accountId },
+    });
+
+    await archiveAccount({
+      accountId,
+      alsoLinked: false,
+      fromYear: 2026,
+      fromMonth: 2,
+    });
+
+    const after = await prisma.account.findUniqueOrThrow({
+      where: { id: mortgage.id },
+    });
+    expect(after.deletedAt).toBeNull();
+  });
+
+  // "Stop tracking" now means from this month, not the next one — clicking it
+  // and still seeing the row reads as the button not having worked. Months
+  // already closed keep what they recorded, which is what separates this from
+  // deleting everywhere.
+  it("clears this month's row and keeps the closed months", async () => {
+    const { accountId, periodId } = await createAccountWithBalance(isaInput);
+    const thisMonth = await prisma.financialPeriod.findUniqueOrThrow({
+      where: { id: periodId },
+    });
+
+    // An earlier month, closed, with its own observation.
+    const earlier = await prisma.financialPeriod.create({
+      data: {
+        userId: TEST_USER_ID,
+        label: "Earlier",
+        startDate: new Date("2020-01-01"),
+        endDate: new Date("2020-01-31"),
+      },
+    });
+    await prisma.balanceItem.create({
+      data: {
+        periodId: earlier.id,
+        accountId,
+        type: "ASSET",
+        category: "LONG_TERM",
+        label: "Vanguard ISA",
+        value: 100,
+      },
+    });
+
+    await archiveAccount({
+      accountId,
+      alsoLinked: false,
+      fromYear: 2026,
+      fromMonth: 2,
+    });
+
+    const live = await prisma.balanceItem.findMany({
+      where: { accountId, deletedAt: null },
+      select: { periodId: true },
+    });
+    expect(live.map((r) => r.periodId)).toEqual([earlier.id]);
+    expect(thisMonth.id).not.toBe(earlier.id);
   });
 });

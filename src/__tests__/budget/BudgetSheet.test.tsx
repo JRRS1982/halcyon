@@ -1,5 +1,5 @@
 // src/__tests__/budget/BudgetSheet.test.tsx
-import { act, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { ThemeProvider } from "styled-components";
 import {
   BudgetSheet,
@@ -17,10 +17,17 @@ jest.mock("next/navigation", () => ({
 const createItemForMonth = jest.fn();
 const copyPeriodFrom = jest.fn();
 const listCopyablePeriods = jest.fn();
+const deleteItem = jest.fn();
+// The transfer picker can open the balance sheet's own Add-account drawer, so
+// that feature's server actions are now in this file's module graph.
+jest.mock("@/app/(app)/balance/accountActions", () => ({
+  createAccountWithBalance: jest.fn(),
+}));
+
 jest.mock("@/app/(app)/budget/actions", () => ({
   copyPeriodFrom: (...args: unknown[]) => copyPeriodFrom(...args),
   createItemForMonth: (...args: unknown[]) => createItemForMonth(...args),
-  deleteItem: jest.fn(),
+  deleteItem: (...args: unknown[]) => deleteItem(...args),
   listCopyablePeriods: (...args: unknown[]) => listCopyablePeriods(...args),
   updateItem: jest.fn(),
 }));
@@ -153,13 +160,13 @@ describe("BudgetSheet — three sections", () => {
     expect(within(expenses).getByText(fmt(3250))).toBeInTheDocument();
     // The bucket's accessible name carries its info button's "i" too.
     expect(
-      screen.getByRole("rowheader", { name: /^Repayments/ }),
+      screen.getByRole("rowheader", { name: /^Debt payments/ }),
     ).toBeVisible();
   });
 
   test("transfers get a section of their own", () => {
     renderSheet();
-    const transfers = bandFor("Transfers");
+    const transfers = bandFor("Transfers and saving");
     expect(within(transfers).getByText(fmt(500))).toBeInTheDocument();
     expect(within(transfers).getByText(fmt(400))).toBeInTheDocument();
   });
@@ -185,7 +192,9 @@ describe("BudgetSheet — three sections", () => {
 describe("BudgetSheet — the Add drawer's account picker", () => {
   // One "+ Add" opens the drawer; the kind is its first field. Both clicks
   // are one user gesture, so they share an act().
-  const openAddDrawer = async (kind: "Transfer" | "Repayment") => {
+  const openAddDrawer = async (
+    kind: "Transfers and saving" | "Debt payment",
+  ) => {
     await act(async () => {
       screen.getByRole("button", { name: "+ Add" }).click();
     });
@@ -196,7 +205,7 @@ describe("BudgetSheet — the Add drawer's account picker", () => {
 
   test("a transfer may only target an asset account", async () => {
     renderSheet(unanchoredItems);
-    await openAddDrawer("Transfer");
+    await openAddDrawer("Transfers and saving");
     expect(screen.getByRole("button", { name: "Vanguard ISA" })).toBeVisible();
     expect(
       screen.queryByRole("button", { name: "Halifax Mortgage" }),
@@ -217,7 +226,7 @@ describe("BudgetSheet — the Add drawer's account picker", () => {
   // pickers should now be empty.
   test("an account already anchored this month is no longer on offer", async () => {
     renderSheet();
-    await openAddDrawer("Transfer");
+    await openAddDrawer("Transfers and saving");
     expect(
       screen.queryByRole("button", { name: "Vanguard ISA" }),
     ).not.toBeInTheDocument();
@@ -231,7 +240,7 @@ describe("BudgetSheet — the Add drawer's account picker", () => {
 
   test("a repayment may only target a liability account", async () => {
     renderSheet(unanchoredItems);
-    await openAddDrawer("Repayment");
+    await openAddDrawer("Debt payment");
     expect(
       screen.getByRole("button", { name: "Halifax Mortgage" }),
     ).toBeVisible();
@@ -252,7 +261,7 @@ describe("BudgetSheet — the Add drawer's account picker", () => {
         archived: false,
       },
     ]);
-    await openAddDrawer("Transfer");
+    await openAddDrawer("Transfers and saving");
     expect(
       screen.getByRole("link", { name: /balance sheet/i }),
     ).toHaveAttribute("href", "/balance");
@@ -273,7 +282,7 @@ describe("BudgetSheet — the Add drawer's account picker", () => {
         archived: false,
       },
     ]);
-    await openAddDrawer("Repayment");
+    await openAddDrawer("Debt payment");
     expect(
       screen.getByText(/no liability accounts to repay yet/i),
     ).toBeVisible();
@@ -301,15 +310,19 @@ describe("BudgetSheet — the Add drawer's account picker", () => {
     });
     renderSheet(unanchoredItems);
 
-    await openAddDrawer("Transfer");
+    await openAddDrawer("Transfers and saving");
     await act(async () => {
       screen.getByRole("button", { name: "Vanguard ISA" }).click();
     });
     await act(async () => {
       screen.getByRole("button", { name: "From Vanguard ISA" }).click();
     });
+    // Named by its account, but the amount is still asked for.
+    fireEvent.change(screen.getByLabelText("Amount"), {
+      target: { value: "500" },
+    });
     await act(async () => {
-      screen.getByRole("button", { name: "Add" }).click();
+      screen.getByRole("button", { name: /^Add$/ }).click();
     });
 
     expect(createItemForMonth).toHaveBeenCalledWith({
@@ -319,6 +332,7 @@ describe("BudgetSheet — the Add drawer's account picker", () => {
       label: "Vanguard ISA",
       accountId: ISA,
       direction: "OUTFLOW",
+      budget: 500,
     });
   });
 
@@ -341,12 +355,15 @@ describe("BudgetSheet — the Add drawer's account picker", () => {
     });
     renderSheet(unanchoredItems);
 
-    await openAddDrawer("Repayment");
+    await openAddDrawer("Debt payment");
     await act(async () => {
       screen.getByRole("button", { name: "Halifax Mortgage" }).click();
     });
+    fireEvent.change(screen.getByLabelText("Amount"), {
+      target: { value: "1250" },
+    });
     await act(async () => {
-      screen.getByRole("button", { name: "Add" }).click();
+      screen.getByRole("button", { name: /^Add$/ }).click();
     });
 
     expect(createItemForMonth).toHaveBeenCalledWith({
@@ -356,6 +373,7 @@ describe("BudgetSheet — the Add drawer's account picker", () => {
       label: "Halifax Mortgage",
       accountId: MORTGAGE,
       direction: null,
+      budget: 1250,
     });
   });
 });
@@ -411,5 +429,261 @@ describe("BudgetSheet — a copy that left rows behind", () => {
     });
 
     expect(screen.queryByText(/were skipped/)).not.toBeInTheDocument();
+  });
+});
+
+describe("BudgetSheet — the Add drawer", () => {
+  const openAdd = async () => {
+    await act(async () => {
+      screen.getByRole("button", { name: "+ Add" }).click();
+    });
+  };
+  const fill = (label: string, value: string) => {
+    fireEvent.change(screen.getByLabelText("Name"), {
+      target: { value: label },
+    });
+    fireEvent.change(screen.getByLabelText("Amount"), {
+      target: { value },
+    });
+  };
+  const add = async () => {
+    await act(async () => {
+      screen.getByRole("button", { name: /^Add$/ }).click();
+    });
+  };
+
+  test("an expense carries its section, name and amount", async () => {
+    createItemForMonth.mockResolvedValue({
+      periodId: "p1",
+      item: {
+        id: "new-1",
+        type: "EXPENSE",
+        category: "DISCRETIONARY",
+        incomeCategory: null,
+        label: "Cinema",
+        budget: 25,
+        actual: 0,
+        sortOrder: 9,
+      },
+    });
+    renderSheet(items);
+    await openAdd();
+    await act(async () => {
+      screen.getByRole("button", { name: "Discretionary" }).click();
+    });
+    fill("Cinema", "25");
+    await add();
+
+    expect(createItemForMonth).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "EXPENSE",
+        category: "DISCRETIONARY",
+        label: "Cinema",
+        budget: 25,
+      }),
+    );
+  });
+
+  test("an income carries its section", async () => {
+    createItemForMonth.mockResolvedValue({
+      periodId: "p1",
+      item: {
+        id: "new-2",
+        type: "INCOME",
+        category: null,
+        incomeCategory: "SIDE_INCOME",
+        label: "Freelance",
+        budget: 400,
+        actual: 0,
+        sortOrder: 9,
+      },
+    });
+    renderSheet(items);
+    await openAdd();
+    await act(async () => {
+      screen.getByRole("button", { name: "Income" }).click();
+    });
+    await act(async () => {
+      screen.getByRole("button", { name: "Side income" }).click();
+    });
+    fill("Freelance", "400");
+    await add();
+
+    expect(createItemForMonth).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "INCOME",
+        incomeCategory: "SIDE_INCOME",
+        label: "Freelance",
+        budget: 400,
+      }),
+    );
+  });
+
+  // The amount must have been typed, even if what was typed is 0: a row that
+  // exists with no name and 0 in it cannot be told apart from one meant to sit
+  // at zero.
+  test("Add waits for a name and an amount, and 0 counts as an answer", async () => {
+    renderSheet(items);
+    await openAdd();
+    const addButton = screen.getByRole("button", { name: /^Add$/ });
+    expect(addButton).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText("Name"), {
+      target: { value: "Sinking fund" },
+    });
+    expect(addButton).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText("Amount"), {
+      target: { value: "0" },
+    });
+    expect(addButton).toBeEnabled();
+  });
+});
+
+describe("BudgetSheet — Enter at the end of a section", () => {
+  test("Enter on the last row of a bucket adds another row to that bucket", async () => {
+    createItemForMonth.mockResolvedValue({
+      periodId: "p1",
+      item: {
+        id: "new-3",
+        type: "EXPENSE",
+        category: "FIXED",
+        incomeCategory: null,
+        label: "",
+        budget: 0,
+        actual: 0,
+        sortOrder: 9,
+      },
+    });
+    // "Housing" is the only FIXED expense in the fixture, so it is the last
+    // row of its bucket — which is where Enter adds rather than moves.
+    renderSheet(items);
+    const cell = screen.getByDisplayValue("Housing");
+    const row = cell.closest("[role='row']");
+    const budget = row?.querySelectorAll("input")[1];
+    if (!budget) throw new Error("no budget cell found");
+
+    await act(async () => {
+      fireEvent.keyDown(budget, { key: "Enter" });
+    });
+
+    // The new row lands in the same section as the row Enter was pressed on,
+    // rather than at the default the toolbar would have used.
+    expect(createItemForMonth).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "EXPENSE" }),
+    );
+  });
+});
+
+describe("BudgetSheet — untouched rows", () => {
+  const focusLabel = async (value: string) => {
+    await act(async () => {
+      fireEvent.focus(screen.getByDisplayValue(value));
+    });
+  };
+
+  // A named row budgeted at zero is a real answer: it exists, it reaches the
+  // plan, and there may be contributions to it later. Only a row nobody typed
+  // into at all is swept up.
+  test("keeps a named row budgeted at zero when focus leaves it", async () => {
+    renderSheet([
+      row({ id: "z", label: "Sinking fund", budget: 0, actual: 0 }),
+      row({ id: "y", label: "Housing", budget: 2200, actual: 2000 }),
+    ]);
+    await focusLabel("Sinking fund");
+    await focusLabel("Housing");
+
+    expect(deleteItem).not.toHaveBeenCalled();
+    expect(screen.getByDisplayValue("Sinking fund")).toBeInTheDocument();
+  });
+
+  test("removes a row with no label and no amounts once focus leaves", async () => {
+    renderSheet([
+      row({ id: "blank", label: "", budget: 0, actual: 0 }),
+      row({ id: "y", label: "Housing", budget: 2200, actual: 2000 }),
+    ]);
+    await act(async () => {
+      fireEvent.focus(
+        screen.getAllByPlaceholderText("Name this row")[0] as HTMLElement,
+      );
+    });
+    await focusLabel("Housing");
+
+    expect(deleteItem).toHaveBeenCalledWith({ itemId: "blank" });
+  });
+});
+
+describe("BudgetSheet — adding an account from the transfer picker", () => {
+  // The account you want to transfer to may not exist yet. Leaving for the
+  // balance sheet loses the row you were part-way through adding, so the same
+  // drawer the balance sheet uses opens here.
+  test("offers a new account alongside the eligible ones", async () => {
+    renderSheet(unanchoredItems);
+    await act(async () => {
+      screen.getByRole("button", { name: "+ Add" }).click();
+    });
+    await act(async () => {
+      screen.getByRole("button", { name: "Transfers and saving" }).click();
+    });
+
+    expect(
+      screen.getByRole("button", { name: "+ New account…" }),
+    ).toBeVisible();
+  });
+});
+
+describe("BudgetSheet — arrow navigation", () => {
+  const cellsOf = (label: string) => {
+    const row = screen.getByDisplayValue(label).closest("[role='row']");
+    if (!row) throw new Error(`no row for ${label}`);
+    return row.querySelectorAll("input");
+  };
+
+  test("up and down step rows in the same column", () => {
+    renderSheet(items);
+    const housingBudget = cellsOf("Housing")[1] as HTMLInputElement;
+    const salaryBudget = cellsOf("Salary")[1] as HTMLInputElement;
+
+    housingBudget.focus();
+    fireEvent.keyDown(housingBudget, { key: "ArrowUp" });
+    expect(document.activeElement).toBe(salaryBudget);
+
+    fireEvent.keyDown(salaryBudget, { key: "ArrowDown" });
+    expect(document.activeElement).toBe(housingBudget);
+  });
+
+  // The caret has to keep working inside a value: these cells restore it by
+  // hand after regrouping thousands separators, so hijacking left/right
+  // outright would make a number uneditable in the middle.
+  test("left and right move the caret mid-value, and only step columns at the edge", () => {
+    renderSheet(items);
+    const cells = cellsOf("Housing");
+    const label = cells[0] as HTMLInputElement;
+    const budget = cells[1] as HTMLInputElement;
+
+    // Caret parked mid-word: the arrow belongs to the text, not the grid.
+    label.focus();
+    label.setSelectionRange(3, 3);
+    fireEvent.keyDown(label, { key: "ArrowRight" });
+    expect(document.activeElement).toBe(label);
+
+    // At the end of the value, it steps to the next column.
+    label.setSelectionRange(label.value.length, label.value.length);
+    fireEvent.keyDown(label, { key: "ArrowRight" });
+    expect(document.activeElement).toBe(budget);
+
+    // And back again from the start of that one.
+    budget.setSelectionRange(0, 0);
+    fireEvent.keyDown(budget, { key: "ArrowLeft" });
+    expect(document.activeElement).toBe(label);
+  });
+
+  test("stops at the first column rather than wrapping", () => {
+    renderSheet(items);
+    const label = cellsOf("Housing")[0] as HTMLInputElement;
+    label.focus();
+    label.setSelectionRange(0, 0);
+    fireEvent.keyDown(label, { key: "ArrowLeft" });
+    expect(document.activeElement).toBe(label);
   });
 });

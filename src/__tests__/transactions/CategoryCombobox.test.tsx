@@ -100,7 +100,7 @@ describe("CategoryCombobox flat grouped list", () => {
 
     expect(screen.getByText("Income")).toBeInTheDocument();
     expect(screen.getByText("Expenses")).toBeInTheDocument();
-    expect(screen.getByText("Transfers")).toBeInTheDocument();
+    expect(screen.getByText("Transfers and saving")).toBeInTheDocument();
 
     const options = screen.getAllByRole("option").map((o) => o.textContent);
     // Income first, then expenses alphabetical, then the other accounts.
@@ -121,7 +121,7 @@ describe("CategoryCombobox flat grouped list", () => {
   test("no transfer group when transfers are disabled", () => {
     renderit();
     openPopup();
-    expect(screen.queryByText("Transfers")).not.toBeInTheDocument();
+    expect(screen.queryByText("Transfers and saving")).not.toBeInTheDocument();
     expect(
       screen.queryByRole("option", { name: /savings/i }),
     ).not.toBeInTheDocument();
@@ -137,12 +137,12 @@ describe("CategoryCombobox flat grouped list", () => {
     });
     openPopup();
 
-    expect(screen.getByRole("group", { name: "Transfers" })).toHaveTextContent(
-      "Vanguard ISA",
-    );
-    expect(screen.getByRole("group", { name: "Repayments" })).toHaveTextContent(
-      "Mortgage",
-    );
+    expect(
+      screen.getByRole("group", { name: "Transfers and saving" }),
+    ).toHaveTextContent("Vanguard ISA");
+    expect(
+      screen.getByRole("group", { name: "Debt payments" }),
+    ).toHaveTextContent("Mortgage");
   });
 
   test("a mortgage you cannot import statements from is still offered as a repayment target", () => {

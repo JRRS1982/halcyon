@@ -1,7 +1,13 @@
 "use server";
 
 import { randomUUID } from "node:crypto";
-import type { BudgetItem, ItemType, Prisma } from "@prisma/client";
+import type {
+  BudgetItem,
+  ExpenseCategory,
+  IncomeCategory,
+  ItemType,
+  Prisma,
+} from "@prisma/client";
 import { redirect } from "next/navigation";
 import { assertAnchorMatches, requiredAnchorKind } from "@/lib/budget/anchors";
 import {
@@ -208,6 +214,56 @@ async function withValidAnchorsOnly(
 // as two requests from the sheet, so navigating between them left a period row
 // with nothing in it — a month that looks visited but is empty. One transaction
 // also halves the round trips on the slowest interaction in the sheet.
+// The Category a named income or expense row belongs to, created if this is
+// the first row to use that name.
+//
+// The plan reads the budget through categories, not through budget rows —
+// reality.ts joins on categoryId — so a row without one is invisible to the
+// plan no matter what is typed into it. Only the starter rows seeded at signup
+// ever carried the link, which meant every row a user added themselves silently
+// never reached their forecast.
+//
+// Matched on label alone within a type, deliberately: moving a row from Fixed
+// to Variable should not fork "Groceries" into two categories that then compete
+// for the same spending.
+//
+// Returns null for the anchored kinds. A transfer or repayment keys on an
+// account, and giving it a categoryId would double-count it — once on the
+// account's flow and once as an expense. That invariant is what reality.ts's
+// own query relies on.
+async function categoryIdForRow(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  row: {
+    type: ItemType;
+    label: string;
+    category: ExpenseCategory | null;
+    incomeCategory: IncomeCategory | null;
+  },
+): Promise<string | null> {
+  const label = row.label.trim();
+  if (label === "") return null;
+  if (row.type !== "INCOME" && row.type !== "EXPENSE") return null;
+
+  const existing = await tx.category.findFirst({
+    where: { userId, deletedAt: null, type: row.type, label },
+    select: { id: true },
+  });
+  if (existing) return existing.id;
+
+  const created = await tx.category.create({
+    data: {
+      userId,
+      type: row.type,
+      label,
+      category: row.category,
+      incomeCategory: row.incomeCategory,
+    },
+    select: { id: true },
+  });
+  return created.id;
+}
+
 export async function createItemForMonth(input: CreateItemForMonthInput) {
   const userId = await requireUserId();
   const parsed = createItemForMonthSchema.parse(input);
@@ -245,6 +301,13 @@ export async function createItemForMonth(input: CreateItemForMonthInput) {
         category,
         incomeCategory,
         label: parsed.label,
+        ...(parsed.budget !== undefined && { budget: parsed.budget }),
+        categoryId: await categoryIdForRow(tx, userId, {
+          type: parsed.type,
+          label: parsed.label,
+          category,
+          incomeCategory,
+        }),
         accountId: parsed.accountId ?? null,
         direction: parsed.direction ?? null,
         sortOrder: (last?.sortOrder ?? 0) + 1,
@@ -275,18 +338,38 @@ export async function updateItem(input: UpdateItemInput) {
     throw new Error("Only income rows have an income category");
   }
 
+  // Naming a row is what gives it a category, and therefore what makes it
+  // visible to the plan. Rows are added blank from the Add drawer and named
+  // afterwards, so this — not create — is where the link is usually made.
+  // Re-resolved whenever the label changes so a rename follows the row.
   return toClientItem(
-    await prisma.budgetItem.update({
-      where: { id: parsed.itemId },
-      data: {
-        ...(parsed.label !== undefined && { label: parsed.label }),
-        ...(parsed.budget !== undefined && { budget: parsed.budget }),
-        ...(parsed.actual !== undefined && { actual: parsed.actual }),
-        ...(parsed.category !== undefined && { category: parsed.category }),
-        ...(parsed.incomeCategory !== undefined && {
-          incomeCategory: parsed.incomeCategory,
-        }),
-      },
+    await prisma.$transaction(async (tx) => {
+      const label = parsed.label ?? item.label;
+      const relink =
+        parsed.label !== undefined || item.categoryId === null
+          ? {
+              categoryId: await categoryIdForRow(tx, userId, {
+                type: item.type,
+                label,
+                category: parsed.category ?? item.category,
+                incomeCategory: parsed.incomeCategory ?? item.incomeCategory,
+              }),
+            }
+          : {};
+
+      return tx.budgetItem.update({
+        where: { id: parsed.itemId },
+        data: {
+          ...(parsed.label !== undefined && { label: parsed.label }),
+          ...(parsed.budget !== undefined && { budget: parsed.budget }),
+          ...(parsed.actual !== undefined && { actual: parsed.actual }),
+          ...(parsed.category !== undefined && { category: parsed.category }),
+          ...(parsed.incomeCategory !== undefined && {
+            incomeCategory: parsed.incomeCategory,
+          }),
+          ...relink,
+        },
+      });
     }),
   );
 }

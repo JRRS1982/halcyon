@@ -208,21 +208,6 @@ export function defaultCanImportTransactions(
   return type === "ASSET" && wrapper !== "PROPERTY";
 }
 
-// What the checkbox should read after the account type changes. A
-// decision, not a derivation: once the user has touched the checkbox
-// directly, their choice sticks — a later type/section change never
-// overrides it, even to a type whose fresh default disagrees with what's
-// currently checked. Untouched, it always mirrors the fresh default for
-// whatever the draft has just become.
-export function resolveCanImportTransactions(
-  current: boolean,
-  touched: boolean,
-  type: BalanceType,
-  wrapper: Wrapper | null,
-): boolean {
-  return touched ? current : defaultCanImportTransactions(type, wrapper);
-}
-
 // Whether the draft has everything createAccountWithBalance needs. Section
 // has no default (per the user's decision — see AddAccountDrawer), so its
 // absence alone blocks submission; a mortgage, once switched on, is held to
