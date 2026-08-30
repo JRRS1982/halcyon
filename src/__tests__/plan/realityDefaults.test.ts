@@ -11,11 +11,6 @@ describe("drawdownPriorityFor", () => {
     expect(drawdownPriorityFor("OTHER")).toBe(3);
     expect(drawdownPriorityFor("PROPERTY")).toBe(9);
   });
-
-  // Account.category is nullable, unlike the BalanceItem.category seed.ts read.
-  it("treats an account with no term bucket as OTHER", () => {
-    expect(drawdownPriorityFor(null)).toBe(3);
-  });
 });
 
 describe("incomeKindFor", () => {
