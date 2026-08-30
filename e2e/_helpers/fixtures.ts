@@ -377,7 +377,7 @@ export async function seedPlanReality(
           {
             categoryId: salary.id,
             type: "INCOME",
-            incomeCategory: "SALARY",
+            section: "SALARY",
             label: "Salary",
             budget: 4000,
           },

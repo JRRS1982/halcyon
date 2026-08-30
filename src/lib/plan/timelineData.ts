@@ -15,7 +15,7 @@ export type TimelineBar = {
   id: string;
   label: string;
   lane: "income" | "expense" | "liability";
-  subKind: string | null; // income kind / expense category; null for liability
+  subKind: string | null; // income kind / expense section; null for liability
   startAge: number; // resolved + clamped to range
   endAge: number; // resolved + clamped to range
   leftPct: number; // 0..100

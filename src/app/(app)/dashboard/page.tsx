@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { currentMonthRange, MONTH_LABELS_SHORT } from "@/lib/budget/period";
 import { computeRollups } from "@/lib/budget/totals";
+import { isExpenseSection } from "@/lib/categories/sections";
 import { monthChecklist } from "@/lib/dashboard/checklist";
 import {
   type BalanceSums,
@@ -207,7 +208,10 @@ export default async function DashboardPage() {
       if (it.type !== "EXPENSE") continue;
       const r = rollups.get(it.id);
       if (!r) continue;
-      const c: Cat = it.category ?? "FIXED";
+      const c: Cat =
+        it.section !== null && isExpenseSection(it.section)
+          ? it.section
+          : "FIXED";
       cat[c].actual += r.actual;
       cat[c].budget += r.budget;
     }

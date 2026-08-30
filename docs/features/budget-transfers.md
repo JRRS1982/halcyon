@@ -347,7 +347,7 @@ picker and in `createItemForMonth`, not in the database.
   a `REPAYMENT` as expenditure and a `TRANSFER` as neither series; giving
   transfers a series of their own is a different change.
 - **A repayment in the dashboard's per-category expenditure chart.** That chart
-  buckets by `ExpenseCategory`, which a `REPAYMENT` row does not carry, so a
+  groups by `section` (`CategorySection`), which a `REPAYMENT` row does not carry, so a
   repayment appears in the cash-flow chart's expense total and not in the
   category breakdown. The two charts answer different questions and neither is
   wrong, but they no longer add up to the same number.
