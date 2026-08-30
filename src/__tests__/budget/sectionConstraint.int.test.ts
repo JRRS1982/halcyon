@@ -34,6 +34,25 @@ describe("Category_section_matches_type", () => {
     ).rejects.toThrow(/BudgetItem_section_matches_type/);
   });
 
+  it("rejects a NULL section on an INCOME budget row", async () => {
+    const period = await prisma.financialPeriod.create({
+      data: {
+        userId: TEST_USER_ID,
+        granularity: "MONTH",
+        startDate: new Date("2026-04-01"),
+        endDate: new Date("2026-04-30"),
+        label: "April 2026",
+      },
+    });
+    await expect(
+      prisma.$executeRawUnsafe(
+        `INSERT INTO "BudgetItem" ("id","periodId","type","label","updatedAt")
+         VALUES (gen_random_uuid(), $1::uuid, 'INCOME', 'Wrong', now())`,
+        period.id,
+      ),
+    ).rejects.toThrow(/BudgetItem_section_matches_type/);
+  });
+
   it("rejects an income section on a PlanExpense", async () => {
     const plan = await prisma.plan.create({
       data: {

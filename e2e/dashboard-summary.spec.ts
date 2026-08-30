@@ -54,6 +54,7 @@ test.describe("Dashboard summary", () => {
           {
             periodId: period.id,
             type: "INCOME",
+            section: "SALARY",
             label: "Salary",
             budget: 3000,
             actual: 3000,
@@ -158,6 +159,7 @@ test.describe("Dashboard summary", () => {
           {
             periodId: period.id,
             type: "INCOME",
+            section: "SALARY",
             label: "Salary",
             budget: 3000,
             actual: 3000,
@@ -252,6 +254,7 @@ test.describe("Dashboard summary", () => {
           {
             periodId: period.id,
             type: "INCOME",
+            section: "SALARY",
             label: "Salary",
             budget: 3000,
             actual: 3000,

@@ -239,9 +239,9 @@ async function addRow(
           categoryId: addition.linkId,
           annualAmount: addition.value,
           sortOrder,
-          // Nullable on both sides: a category with no expense section stays
-          // unsectioned rather than reading as UNCATEGORISED in the
-          // projection and the timeline.
+          // Carried straight from the category's section: Category.section
+          // is NOT NULL and constrained to match its type, so this is
+          // non-null for every EXPENSE addition.
           section: defaults.expenseSection,
         },
       });

@@ -28,9 +28,11 @@ ALTER TABLE "BudgetItem" ADD COLUMN "section" "CategorySection";
 UPDATE "BudgetItem"
   SET "section" = COALESCE("category"::text, "incomeCategory"::text)::"CategorySection";
 ALTER TABLE "BudgetItem" DROP COLUMN "category", DROP COLUMN "incomeCategory";
+-- IS NOT NULL is load-bearing: a CHECK passes on NULL, so without it an
+-- INCOME/EXPENSE row with no section would be accepted.
 ALTER TABLE "BudgetItem" ADD CONSTRAINT "BudgetItem_section_matches_type" CHECK (
-  ("type" = 'EXPENSE' AND "section" IN ('FIXED','VARIABLE','DISCRETIONARY')) OR
-  ("type" = 'INCOME'  AND "section" IN ('SALARY','SIDE_INCOME','INVESTMENTS','PENSIONS','OTHER')) OR
+  ("type" = 'EXPENSE' AND "section" IS NOT NULL AND "section" IN ('FIXED','VARIABLE','DISCRETIONARY')) OR
+  ("type" = 'INCOME'  AND "section" IS NOT NULL AND "section" IN ('SALARY','SIDE_INCOME','INVESTMENTS','PENSIONS','OTHER')) OR
   ("type" IN ('TRANSFER','REPAYMENT') AND "section" IS NULL)
 );
 

@@ -14,11 +14,8 @@
 // file importing src/lib/prisma drags in env validation that is unset in CI.
 // The @prisma/client imports below are type-only and erased at compile time.
 
-import type {
-  BalanceItemCategory,
-  CategorySection,
-  PlanIncomeKind,
-} from "@prisma/client";
+import type { BalanceItemCategory, PlanIncomeKind } from "@prisma/client";
+import type { CategorySection, IncomeSection } from "@/lib/categories/sections";
 import type { IncomeKind } from "@/lib/plan/types";
 
 // Ascending = drawn down first. Cash before investments before property.
@@ -30,14 +27,13 @@ const DRAWDOWN_BY_CATEGORY: Record<BalanceItemCategory, number> = {
   PROPERTY: 9,
 };
 
-const INCOME_KIND_BY_SECTION: Partial<Record<CategorySection, PlanIncomeKind>> =
-  {
-    SALARY: "SALARY",
-    PENSIONS: "DB_PENSION",
-    SIDE_INCOME: "SELF_EMPLOYMENT",
-    INVESTMENTS: "OTHER",
-    OTHER: "OTHER",
-  };
+const INCOME_KIND_BY_SECTION = {
+  SALARY: "SALARY",
+  PENSIONS: "DB_PENSION",
+  SIDE_INCOME: "SELF_EMPLOYMENT",
+  INVESTMENTS: "OTHER",
+  OTHER: "OTHER",
+} satisfies Record<IncomeSection, PlanIncomeKind>;
 
 // `Account.category` is nullable — unlike `BalanceItem.category`, which is the
 // column seed.ts read — so an account with no stated term bucket falls back to
@@ -52,5 +48,7 @@ export function drawdownPriorityFor(
 // expense section reaching here is a caller bug that reads as OTHER rather
 // than crashing the projection.
 export function incomeKindFor(section: CategorySection): IncomeKind {
-  return INCOME_KIND_BY_SECTION[section] ?? "OTHER";
+  const byAnySection: Partial<Record<CategorySection, PlanIncomeKind>> =
+    INCOME_KIND_BY_SECTION;
+  return byAnySection[section] ?? "OTHER";
 }

@@ -59,6 +59,7 @@ describe("dashboard cash flow counts repayments (integration)", () => {
         {
           periodId: period.id,
           type: "INCOME",
+          section: "SALARY",
           label: "Salary",
           budget: 4000,
           actual: 4000,
@@ -127,6 +128,7 @@ describe("dashboard cash flow counts repayments (integration)", () => {
           periodId: period.id,
           categoryId: salary.id,
           type: "INCOME",
+          section: "SALARY",
           label: "Salary",
           budget: 4000,
           // Dead data in transactions mode — the overlay must win. A stored
@@ -216,6 +218,7 @@ describe("dashboard cash flow counts repayments (integration)", () => {
           periodId: period.id,
           categoryId: salary.id,
           type: "INCOME",
+          section: "SALARY",
           label: "Salary",
           budget: 4000,
           actual: 0,

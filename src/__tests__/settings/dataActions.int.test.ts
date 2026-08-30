@@ -44,7 +44,13 @@ async function seedFinancialData(userId: string) {
     },
   });
   await prisma.budgetItem.create({
-    data: { periodId: period.id, type: "EXPENSE", label: "Rent", budget: 1000 },
+    data: {
+      periodId: period.id,
+      type: "EXPENSE",
+      section: "FIXED",
+      label: "Rent",
+      budget: 1000,
+    },
   });
   await prisma.balanceItem.create({
     data: {

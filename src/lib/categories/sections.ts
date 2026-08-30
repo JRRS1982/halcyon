@@ -57,7 +57,7 @@ export function sectionLabel(section: CategorySection): string {
 }
 
 // Display order: expenses first (Fixed → Variable → Discretionary), then
-// income, with OTHER last. Used to group the category list.
+// income, with OTHER last.
 export function sectionOrderIndex(section: CategorySection): number {
   return ALL_SECTIONS.findIndex((s) => s.value === section);
 }
