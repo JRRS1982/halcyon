@@ -204,7 +204,7 @@ one and it is the user's.
 | `PlanAsset.drawdownPriority` | `Account.category` (cash 0 → medium 1 → long 2 → other 3 → property 9) | Left at the schema default, every synced asset ties at 0 and drawdown order becomes incidental |
 | `PlanIncome.kind` | `Category.section` | Hard-coding `OTHER` misclassifies a salary |
 | `PlanIncome.endAge` | `retirementAge` when the kind is `SALARY`, else null | Left null a synced salary runs to `expectedDeathAge` and overstates lifetime income by decades |
-| `PlanExpense.section` | `Category.section` (nullable both sides) | An unsectioned category stays unsectioned rather than reading as a guess |
+| `PlanExpense.section` | `Category.section`, set only when `category.type === "EXPENSE"` (see [`reality.ts`](../../src/lib/plan/reality.ts)'s `isExpenseSection` narrowing) | Stays null for a plan-only row (no linked category) rather than reading as a guess |
 
 The type system carries the rule: `RealityRow.defaults` is a **nested** object
 precisely so `resolvePlanSync`'s equality check reads three flat fields
