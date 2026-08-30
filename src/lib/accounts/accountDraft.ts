@@ -222,7 +222,7 @@ export function kindOf(type: AccountType): BalanceType {
 }
 
 export function wrapperOf(type: AccountType): PlanAssetWrapper | null {
-  return optionOf(type).wrapper as PlanAssetWrapper | null;
+  return optionOf(type).wrapper;
 }
 
 export function defaultSectionOf(type: AccountType): BalanceCategory {

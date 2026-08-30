@@ -5,7 +5,10 @@ import {
   kindOf,
   wrapperOf,
 } from "@/lib/accounts/accountDraft";
-import { buildAccountData } from "@/lib/accounts/creation";
+import {
+  buildAccountData,
+  buildMortgageAccountData,
+} from "@/lib/accounts/creation";
 
 describe("type derivations", () => {
   it("agrees with the ACCOUNT_TYPES table for all fourteen types", () => {
@@ -40,5 +43,13 @@ describe("type derivations", () => {
         wrapper: null,
       },
     );
+  });
+
+  it("buildMortgageAccountData includes type in its output", () => {
+    const result = buildMortgageAccountData({
+      name: "Test Mortgage",
+      canImportTransactions: true,
+    });
+    expect(result).toHaveProperty("type", "MORTGAGE");
   });
 });
