@@ -204,11 +204,9 @@ model BudgetItem {
   @@index([accountId])
 }
 
-// Balance sheet line items belonging to a FinancialPeriod (shared with the
-// budget so /budget and /balance for a given month touch the same period
-// row). Flat — no parent self-reference — because the three category
-// buckets (CURRENT / LONG_TERM / OTHER) replace hierarchy. Notes is free-
-// form context attached to the row.
+// A per-month observation of an account. type/category/label/sortOrder are
+// legacy mirrors of the account, still written for deploy-window safety; the
+// contract PR drops them. Do not read them in new code.
 model BalanceItem {
   id          String              @id @default(uuid()) @db.Uuid
   periodId    String              @db.Uuid
@@ -225,10 +223,10 @@ model BalanceItem {
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
   deletedAt   DateTime?
-  accountId   String?             @db.Uuid
+  accountId   String              @db.Uuid
 
   period  FinancialPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
-  account Account?        @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  account Account         @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   @@index([periodId, type, category, sortOrder])
   @@index([accountId])
@@ -268,18 +266,52 @@ enum AccountKind {
   NONE
 }
 
+// The account type the user picks in the Add drawer — the ONE stored fact.
+// kind (asset/liability) and wrapper (tax treatment) are computed from it in
+// code (kindOf/wrapperOf in src/lib/accounts/accountDraft.ts), never stored
+// as new facts. The legacy kind/wrapper/category columns are still WRITTEN as
+// mirrors until the contract PR drops them; no new code reads them.
+enum AccountType {
+  CURRENT_ACCOUNT
+  SAVINGS
+  CASH_ISA
+  STOCKS_ISA
+  SIPP
+  FINAL_SALARY
+  GIA
+  PROPERTY
+  OTHER_ASSET
+  MORTGAGE
+  CREDIT_CARD
+  LOAN
+  OVERDRAFT
+  OTHER_DEBT
+}
+
 // The durable registry for everything a user owns or owes — a bank account,
 // an ISA, a mortgage. Picked or created at import time and managed in
 // Settings; also the identity a BalanceItem observes month to month and a
 // PlanAsset/PlanLiability attaches its assumptions to.
+//
+// NOTE: the live-row uniqueness on BalanceItem (one value per account per
+// month) is enforced by a partial unique index — "BalanceItem_period_account_live"
+// on ("periodId", "accountId") WHERE "deletedAt" IS NULL — added in the
+// add_account_type migration. Prisma cannot express a partial index, so it is
+// not declared as an @@unique here; see that migration for the DDL.
 model Account {
   id                    String               @id @default(uuid()) @db.Uuid
   userId                String               @db.Uuid
   name                  String
+  type                  AccountType
+  // Where the account sits on the balance sheet. Defaulted from type at
+  // creation, user-editable, and a fact about the account, not the month.
+  // Holds BalanceItemCategory until the contract PR renames the enum
+  // AccountSection.
+  section               BalanceItemCategory
+  sortOrder             Int                  @default(0)
   kind                  AccountKind          @default(NONE)
   // Term bucket and tax wrapper reuse the balance-sheet and plan enums rather
   // than introducing parallel ones. Null on a plain transaction account.
-  category              BalanceItemCategory?
   wrapper               PlanAssetWrapper?
   // The user's choice, not a derived fact: plenty of mortgage providers issue
   // statements. `kind` supplies only the initial default at creation time and
