@@ -60,7 +60,7 @@ const plan: SerializedPlan = {
     {
       id: "e1",
       label: "Rent",
-      category: "FIXED",
+      section: "FIXED",
       annualAmount: 14400,
       startAge: null,
       endAge: null,

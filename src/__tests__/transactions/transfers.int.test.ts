@@ -13,7 +13,12 @@ describe("setTransactionTransfer / mutual exclusion (integration)", () => {
     const current = await makeAccount("Current");
     const isa = await makeAccount("ISA");
     const category = await prisma.category.create({
-      data: { userId: TEST_USER_ID, type: "EXPENSE", label: "Groceries" },
+      data: {
+        userId: TEST_USER_ID,
+        type: "EXPENSE",
+        section: "VARIABLE",
+        label: "Groceries",
+      },
     });
     const tx = await prisma.transaction.create({
       data: {

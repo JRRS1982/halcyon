@@ -69,14 +69,14 @@ const plan: PlanInput = {
     {
       id: "living",
       label: "Living",
-      category: "FIXED",
+      section: "FIXED",
       annualAmount: 28000,
       inflationLinked: true,
     },
     {
       id: "uni",
       label: "University",
-      category: "DISCRETIONARY",
+      section: "DISCRETIONARY",
       annualAmount: 12000,
       startAge: 52,
       endAge: 57,

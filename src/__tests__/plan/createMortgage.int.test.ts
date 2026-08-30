@@ -48,7 +48,7 @@ describe("property + mortgage create actions", () => {
       where: { liabilityId },
     });
     expect(expense.label).toBe("Mortgage repayment");
-    expect(expense.category).toBeNull();
+    expect(expense.section).toBeNull();
     expect(expense.inflationLinked).toBe(false);
   });
 

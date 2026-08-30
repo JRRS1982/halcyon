@@ -54,7 +54,7 @@ const mortgage = {
 const repayment = {
   id: "exp-1",
   label: "Mortgage repayment",
-  category: "FIXED" as const,
+  section: "FIXED" as const,
   annualAmount: 14400,
   startAge: null,
   endAge: null,

@@ -48,7 +48,7 @@ describe("SyncButton", () => {
           defaults: {
             drawdownPriority: 0,
             incomeKind: null,
-            expenseCategory: null,
+            expenseSection: null,
           },
         },
       ],

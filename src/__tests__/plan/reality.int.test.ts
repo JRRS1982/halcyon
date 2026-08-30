@@ -46,7 +46,7 @@ describe("latestReality (integration)", () => {
       data: {
         userId: TEST_USER_ID,
         type: "INCOME",
-        incomeCategory: "SALARY",
+        section: "SALARY",
         label: "Salary",
       },
     });
@@ -56,7 +56,7 @@ describe("latestReality (integration)", () => {
         periodId: period.id,
         categoryId: category.id,
         type: "INCOME",
-        incomeCategory: "SALARY",
+        section: "SALARY",
         label: "Salary",
         budget: 3000,
       },
@@ -75,7 +75,7 @@ describe("latestReality (integration)", () => {
       defaults: {
         drawdownPriority: null,
         incomeKind: "SALARY",
-        expenseCategory: null,
+        expenseSection: null,
       },
     });
   });
@@ -85,7 +85,7 @@ describe("latestReality (integration)", () => {
       data: {
         userId: TEST_USER_ID,
         type: "EXPENSE",
-        category: "FIXED",
+        section: "FIXED",
         label: "Rent",
       },
     });
@@ -100,7 +100,7 @@ describe("latestReality (integration)", () => {
       data: {
         userId: TEST_USER_ID,
         type: "EXPENSE",
-        category: "FIXED",
+        section: "FIXED",
         label: "Rent",
       },
     });
@@ -118,7 +118,7 @@ describe("latestReality (integration)", () => {
         periodId: yearPeriod.id,
         categoryId: category.id,
         type: "EXPENSE",
-        category: "FIXED",
+        section: "FIXED",
         label: "Rent",
         budget: 24000, // a full-year figure, not a monthly one
       },
@@ -176,7 +176,7 @@ describe("latestReality (integration)", () => {
       defaults: {
         drawdownPriority: 3,
         incomeKind: null,
-        expenseCategory: null,
+        expenseSection: null,
       },
     });
   });
@@ -282,7 +282,7 @@ describe("latestReality (integration)", () => {
       defaults: {
         drawdownPriority: 2,
         incomeKind: null,
-        expenseCategory: null,
+        expenseSection: null,
       },
     });
   });
@@ -323,17 +323,17 @@ describe("latestReality (integration)", () => {
       defaults: {
         drawdownPriority: null,
         incomeKind: null,
-        expenseCategory: null,
+        expenseSection: null,
       },
     });
   });
 
-  it("carries an expense category's own ExpenseCategory", async () => {
+  it("carries an expense category's own section", async () => {
     const category = await prisma.category.create({
       data: {
         userId: TEST_USER_ID,
         type: "EXPENSE",
-        category: "DISCRETIONARY",
+        section: "DISCRETIONARY",
         label: "Holidays",
       },
     });
@@ -343,7 +343,7 @@ describe("latestReality (integration)", () => {
         periodId: period.id,
         categoryId: category.id,
         type: "EXPENSE",
-        category: "DISCRETIONARY",
+        section: "DISCRETIONARY",
         label: "Holidays",
         budget: 150,
       },
@@ -361,7 +361,7 @@ describe("latestReality (integration)", () => {
       defaults: {
         drawdownPriority: null,
         incomeKind: null,
-        expenseCategory: "DISCRETIONARY",
+        expenseSection: "DISCRETIONARY",
       },
     });
   });
@@ -664,7 +664,7 @@ describe("latestReality (integration)", () => {
       data: {
         userId: TEST_USER_ID,
         type: "EXPENSE",
-        category: "FIXED",
+        section: "FIXED",
         label: "Pension contribution",
       },
     });

@@ -38,7 +38,7 @@ describe("createAndAssignCategory (integration)", () => {
       transactionIds: [transaction.id],
       label: "Coffee shops",
       type: "EXPENSE",
-      bucket: "VARIABLE",
+      section: "VARIABLE",
     });
 
     expect(created.label).toBe("Coffee shops");
@@ -63,7 +63,7 @@ describe("createAndAssignCategory (integration)", () => {
       transactionIds: [transaction.id],
       label: "Coffee shops",
       type: "EXPENSE",
-      bucket: "VARIABLE",
+      section: "VARIABLE",
     });
 
     const row = await prisma.transaction.findUniqueOrThrow({
@@ -95,7 +95,7 @@ describe("createAndAssignCategory (integration)", () => {
         transactionIds: [theirs.id],
         label: "Sneaky",
         type: "EXPENSE",
-        bucket: "VARIABLE",
+        section: "VARIABLE",
       }),
     ).rejects.toThrow(/Transaction not found/);
 

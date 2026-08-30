@@ -19,7 +19,7 @@ describe("createPlan (integration)", () => {
       data: {
         userId: TEST_USER_ID,
         type: "INCOME",
-        incomeCategory: "SALARY",
+        section: "SALARY",
         label: "Salary",
       },
     });
@@ -48,7 +48,7 @@ describe("createPlan (integration)", () => {
         periodId: period.id,
         categoryId: category.id,
         type: "INCOME",
-        incomeCategory: "SALARY",
+        section: "SALARY",
         label: "Salary",
         budget: 3000,
         actual: 3000,

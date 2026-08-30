@@ -88,7 +88,7 @@ describe("copyPeriodFrom computed actuals (integration)", () => {
         userId: TEST_USER_ID,
         label: "Groceries",
         type: "EXPENSE",
-        category: "VARIABLE",
+        section: "VARIABLE",
       },
     });
 
@@ -108,7 +108,7 @@ describe("copyPeriodFrom computed actuals (integration)", () => {
         periodId: source.id,
         categoryId: groceries.id,
         type: "EXPENSE",
-        category: "VARIABLE",
+        section: "VARIABLE",
         label: "Groceries",
         budget: 400,
       },

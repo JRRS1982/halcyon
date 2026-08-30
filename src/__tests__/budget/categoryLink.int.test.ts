@@ -13,7 +13,7 @@ describe("a budget row reaches the plan", () => {
       year: 2026,
       month: 2,
       type: "INCOME",
-      incomeCategory: "SALARY",
+      section: "SALARY",
       label: "Salary",
     });
 
@@ -28,7 +28,7 @@ describe("a budget row reaches the plan", () => {
       year: 2026,
       month: 2,
       type: "EXPENSE",
-      category: "FIXED",
+      section: "FIXED",
       label: "",
     });
 
@@ -43,14 +43,14 @@ describe("a budget row reaches the plan", () => {
       year: 2026,
       month: 2,
       type: "EXPENSE",
-      category: "FIXED",
+      section: "FIXED",
       label: "Rent",
     });
     const b = await createItemForMonth({
       year: 2026,
       month: 3,
       type: "EXPENSE",
-      category: "FIXED",
+      section: "FIXED",
       label: "Rent",
     });
 

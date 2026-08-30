@@ -28,8 +28,8 @@ describe("createItemForMonth (integration)", () => {
     expect(period.label).toBe("March 2026");
     expect(item.periodId).toBe(periodId);
     expect(item.label).toBe("Rent");
-    // Expenses default to FIXED when no bucket is given.
-    expect(item.category).toBe("FIXED");
+    // Expenses default to FIXED when no section is given.
+    expect(item.section).toBe("FIXED");
   });
 
   test("reuses the period for the second row rather than making another", async () => {
@@ -52,7 +52,7 @@ describe("createItemForMonth (integration)", () => {
     expect(second.item.sortOrder).toBeGreaterThan(first.item.sortOrder);
   });
 
-  test("income rows get an incomeCategory, not a category", async () => {
+  test("income rows default their section to OTHER", async () => {
     const { item } = await createItemForMonth({
       year: 2026,
       month: 2,
@@ -60,8 +60,7 @@ describe("createItemForMonth (integration)", () => {
       label: "Salary",
     });
 
-    expect(item.incomeCategory).toBe("OTHER");
-    expect(item.category).toBeNull();
+    expect(item.section).toBe("OTHER");
   });
 
   // The point of the merge: a period is never left behind on its own.

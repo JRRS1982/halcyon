@@ -61,7 +61,7 @@ describe("getCurrentUserSettings lazy row creation (integration)", () => {
     ).toBe(1);
   });
 
-  it("gives a new user the default categories, in list order and bucketed", async () => {
+  it("gives a new user the default categories, in list order and sectioned", async () => {
     await asBrandNewUser();
     await getCurrentUserSettings();
 
@@ -80,9 +80,7 @@ describe("getCurrentUserSettings lazy row creation (integration)", () => {
       const expected = DEFAULT_CATEGORIES[i];
       if (!expected) throw new Error(`no expectation for index ${i}`);
       expect(row.type).toBe(expected.type);
-      const bucket =
-        expected.type === "EXPENSE" ? row.category : row.incomeCategory;
-      expect(bucket).toBe(expected.bucket);
+      expect(row.section).toBe(expected.section);
     }
   });
 

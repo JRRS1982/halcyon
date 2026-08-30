@@ -10,7 +10,7 @@ import {
 const NO_DEFAULTS: RealityDefaults = {
   drawdownPriority: null,
   incomeKind: null,
-  expenseCategory: null,
+  expenseSection: null,
 };
 
 const planRow = (over: Partial<PlanRow> = {}): PlanRow => ({

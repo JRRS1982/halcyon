@@ -88,7 +88,7 @@ describe("activeIncome", () => {
 const living: ExpenseInput = {
   id: "l",
   label: "Living",
-  category: "FIXED",
+  section: "FIXED",
   annualAmount: 24000,
   inflationLinked: true,
 };
@@ -119,7 +119,7 @@ describe("activeExpenses", () => {
     const uni: ExpenseInput = {
       id: "u",
       label: "Uni",
-      category: "DISCRETIONARY",
+      section: "DISCRETIONARY",
       annualAmount: 13000,
       startAge: 54,
       endAge: 60,

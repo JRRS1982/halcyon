@@ -27,7 +27,7 @@ describe("incomeKindFor", () => {
     expect(incomeKindFor("OTHER")).toBe("OTHER");
   });
 
-  it("treats a category with no income bucket as OTHER", () => {
-    expect(incomeKindFor("OTHER")).toBe("OTHER");
+  it("reads an expense section reaching here as OTHER rather than crashing", () => {
+    expect(incomeKindFor("FIXED")).toBe("OTHER");
   });
 });
