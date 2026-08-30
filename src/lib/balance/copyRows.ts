@@ -14,7 +14,7 @@ type SourceBalanceRow = {
   value: Prisma.Decimal;
   notes: string | null;
   sortOrder: number;
-  accountId: string | null;
+  accountId: string;
 };
 
 export type CopiedBalanceRow = {
@@ -25,7 +25,7 @@ export type CopiedBalanceRow = {
   value: number;
   notes: string | null;
   sortOrder: number;
-  accountId: string | null;
+  accountId: string;
   carriedOver: true;
 };
 

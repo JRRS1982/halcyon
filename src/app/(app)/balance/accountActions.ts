@@ -3,7 +3,11 @@
 import type { AccountType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { accountTypesOfKind } from "@/lib/accounts/accountDraft";
+import {
+  accountTypesOfKind,
+  kindOf,
+  wrapperOf,
+} from "@/lib/accounts/accountDraft";
 import {
   buildAccountData,
   buildMortgageAccountData,
@@ -20,6 +24,15 @@ import {
   type DeleteAccountEverywhereInput,
   deleteAccountEverywhereSchema,
 } from "@/lib/accounts/schemas";
+import { isValidBalanceCategory } from "@/lib/balance/reorder";
+import {
+  type RenameAccountInput,
+  renameAccountSchema,
+  type SetAccountSectionInput,
+  type SetAccountTypeInput,
+  setAccountSectionSchema,
+  setAccountTypeSchema,
+} from "@/lib/balance/schemas";
 import { ensurePeriodForMonthIn } from "@/lib/budget/ensurePeriod";
 import { monthRangeFor } from "@/lib/budget/period";
 import { cleanLabel } from "@/lib/categories/normalize";
@@ -220,6 +233,149 @@ export async function createAccount(
 // Kept under its old name until Task 5 rewires AddAccountDrawer.tsx to call
 // createAccount directly.
 export const createAccountWithBalance = createAccount;
+
+/**
+ * Change what kind of account this is — Savings to a Stocks ISA, a plain Loan
+ * to a Credit Card — without disturbing anything else about it. Refused
+ * outright rather than silently worked around whenever something else in the
+ * data model depends on the account staying exactly what it is; see the
+ * inline reasons below.
+ */
+export async function setAccountType(
+  input: SetAccountTypeInput,
+): Promise<void> {
+  const userId = await requireUserId();
+  const { accountId, type } = setAccountTypeSchema.parse(input);
+
+  await prisma.$transaction(async (tx) => {
+    const account = await tx.account.findFirst({
+      where: { id: accountId, userId, deletedAt: null },
+      select: {
+        id: true,
+        type: true,
+        name: true,
+        linkedAccountId: true,
+        linkedBy: { select: { id: true } },
+      },
+    });
+    if (!account) throw new Error("Account not found");
+    if (account.type === type) return;
+
+    // Same kind only: Sync keys plan rows by kind::accountId, and budget
+    // anchors (assertAnchorMatches) rely on the kind never changing.
+    if (kindOf(account.type) !== kindOf(type)) {
+      throw new Error(
+        "An account cannot change between asset and liability — create a new account instead",
+      );
+    }
+
+    // A linked pair (property ↔ mortgage) is a structure; neither half may
+    // change type while linked.
+    if (account.linkedAccountId !== null || account.linkedBy !== null) {
+      throw new Error(
+        `${account.name} is linked to its mortgage/property — unlink or delete the pair first`,
+      );
+    }
+
+    // Leaving PROPERTY with a sale event aimed at it would leave the event
+    // pointing at a non-property. Refuse and NAME the blocker rather than
+    // silently deleting the user's plan event.
+    if (account.type === "PROPERTY") {
+      const saleEvents = await tx.planEvent.count({
+        where: {
+          deletedAt: null,
+          kind: "PROPERTY_SALE",
+          saleAsset: { accountId: account.id, deletedAt: null },
+          plan: { userId, deletedAt: null },
+        },
+      });
+      if (saleEvents > 0) {
+        throw new Error(
+          `${account.name} has a property sale event in your plan — remove that first`,
+        );
+      }
+    }
+
+    // Section is the user's: a type change never moves the account. Mirrors
+    // follow the type so old deployed code keeps agreeing.
+    await tx.account.updateMany({
+      where: { id: account.id, userId },
+      data: { type, kind: kindOf(type), wrapper: wrapperOf(type) },
+    });
+  });
+  revalidateAll();
+}
+
+// Moves an account directly into a chosen section, appending it to the end
+// of that bucket. The bucket is scoped by the account's own kind (via
+// accountTypesOfKind, never the stored kind mirror) so an ASSET's sortOrder
+// never collides with a LIABILITY's in the same section.
+export async function setAccountSection(
+  input: SetAccountSectionInput,
+): Promise<void> {
+  const userId = await requireUserId();
+  const { accountId, section } = setAccountSectionSchema.parse(input);
+
+  await prisma.$transaction(async (tx) => {
+    const account = await tx.account.findFirst({
+      where: { id: accountId, userId, deletedAt: null },
+      select: { id: true, type: true, section: true },
+    });
+    if (!account) throw new Error("Account not found");
+
+    const kind = kindOf(account.type);
+    if (!isValidBalanceCategory(kind, section)) {
+      throw new Error(`${section} is not a valid section for that account`);
+    }
+    if (account.section === section) return;
+
+    const typesOfKind = accountTypesOfKind(kind).map((t) => t.id);
+    const last = await tx.account.findFirst({
+      where: {
+        userId,
+        deletedAt: null,
+        section,
+        type: { in: typesOfKind },
+      },
+      orderBy: { sortOrder: "desc" },
+      select: { sortOrder: true },
+    });
+
+    await tx.account.updateMany({
+      where: { id: account.id, userId },
+      data: { section, sortOrder: nextSortOrder(last?.sortOrder) },
+    });
+  });
+  revalidateAll();
+}
+
+// The one implementation behind both balance/accountActions.ts's own callers
+// and settings/accountActions.ts's re-export — a rename touches the account's
+// name plus every live budget/balance row's label mirror in the same
+// transaction, so the sheets never show a stale name next to a fresh one.
+export async function renameAccount(input: RenameAccountInput): Promise<void> {
+  const userId = await requireUserId();
+  const { accountId, name } = renameAccountSchema.parse(input);
+  const label = cleanLabel(name);
+
+  await prisma.$transaction(async (tx) => {
+    const result = await tx.account.updateMany({
+      where: { id: accountId, userId, deletedAt: null },
+      data: { name: label },
+    });
+    if (result.count === 0) throw new Error("Account not found");
+
+    await tx.budgetItem.updateMany({
+      where: { accountId, deletedAt: null },
+      data: { label },
+    });
+    await tx.balanceItem.updateMany({
+      where: { accountId, deletedAt: null },
+      data: { label },
+    });
+  });
+  revalidateAll();
+}
 
 // Stop tracking: the account leaves the pickers and THIS month's sheet, and
 // the months already closed keep what they recorded.

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { renameAccount as renameAccountShared } from "@/app/(app)/balance/accountActions";
 import { buildAccountData } from "@/lib/accounts/creation";
 import { cleanLabel } from "@/lib/categories/normalize";
 import { prisma } from "@/lib/prisma";
@@ -47,20 +48,11 @@ export async function createManagedAccount(
   revalidateAll();
 }
 
-const renameSchema = createSchema.extend({ accountId: z.string().uuid() });
-
-export async function renameAccount(
-  input: z.input<typeof renameSchema>,
-): Promise<void> {
-  const userId = await requireUserId();
-  const { accountId, name } = renameSchema.parse(input);
-  const result = await prisma.account.updateMany({
-    where: { id: accountId, userId, deletedAt: null },
-    data: { name: cleanLabel(name) },
-  });
-  if (result.count === 0) throw new Error("Account not found");
-  revalidateAll();
-}
+// One implementation, shared with the balance sheet's own rename entry point
+// (src/app/(app)/balance/accountActions.ts) — it also propagates the name
+// into every live budget/balance row's label mirror, which this form needs
+// exactly as much as that one does.
+export const renameAccount = renameAccountShared;
 
 const idSchema = z.object({ accountId: z.string().uuid() });
 
