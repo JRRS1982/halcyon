@@ -144,7 +144,7 @@ export function cashFlowSeries(months: MonthFlow[]): CashFlowPoint[] {
 }
 
 // Per-category expenditure point: actual, budget, and trailing-6-month average
-// for each expense bucket. One element per recorded month.
+// for each expense section. One element per recorded month.
 export type ExpenditurePoint = {
   month: string;
   fixedActual: number;

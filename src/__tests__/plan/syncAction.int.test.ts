@@ -320,7 +320,7 @@ describe("syncPlan (integration)", () => {
     expect(incomes).toHaveLength(1);
     expect(Number(incomes[0]?.annualAmount)).toBe(36000);
     // Was asserted as OTHER while addRow hard-coded it; the category's own
-    // SALARY bucket is the fact seed.ts mapped through INCOME_KIND_BY_BUCKET.
+    // SALARY section is the fact seed.ts mapped through INCOME_KIND_BY_SECTION.
     expect(incomes[0]?.kind).toBe("SALARY");
     // A salary stops at retirement. Without this the stream runs on to
     // expectedDeathAge (src/lib/plan/streams.ts → helpers.ts), overstating

@@ -178,7 +178,7 @@ describe("rowsInSection / rowsOfType", () => {
     ]);
   });
 
-  test("rowsOfType narrows to one kind, so repayments can head their own bucket", () => {
+  test("rowsOfType narrows to one kind, so repayments can head their own group", () => {
     expect(rowsOfType(items, "REPAYMENT").map((i) => i.id)).toEqual(["r1"]);
     expect(rowsOfType(items, "TRANSFER").map((i) => i.id)).toEqual(["t1"]);
   });

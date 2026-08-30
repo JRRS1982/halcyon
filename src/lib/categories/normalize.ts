@@ -21,7 +21,7 @@ export type LabelGroup = {
 
 // Groups raw labels by their comparison key, preserving first-appearance order
 // of the keys. The canonical `label` is the most frequent cleaned form, ties
-// broken by first appearance. Callers partition by type/bucket before calling
+// broken by first appearance. Callers partition by type/section before calling
 // so a group never mixes income with expense.
 export function dedupeLabels(labels: string[]): LabelGroup[] {
   // Map preserves insertion order, so iterating it yields first-appearance

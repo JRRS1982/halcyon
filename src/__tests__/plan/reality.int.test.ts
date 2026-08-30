@@ -71,7 +71,7 @@ describe("latestReality (integration)", () => {
       value: 36000,
       wrapper: null,
       flow: null,
-      // INCOME_KIND_BY_BUCKET, restored from the deleted seed.ts.
+      // INCOME_KIND_BY_SECTION, restored from the deleted seed.ts.
       defaults: {
         drawdownPriority: null,
         incomeKind: "SALARY",

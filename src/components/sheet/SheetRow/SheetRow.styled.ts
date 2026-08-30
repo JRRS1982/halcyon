@@ -71,7 +71,7 @@ export const SectionRow = styled.div`
 export const SubheadRow = styled.div`
   ${baseRow}
 
-  /* Sub-header (category buckets): Inter medium, label dim. */
+  /* Sub-header (category sections): Inter medium, label dim. */
   > div {
     background: ${({ theme }) => theme.colors.canvasSoft};
     border-top: 1px solid ${({ theme }) => theme.colors.hairline};

@@ -98,7 +98,7 @@ export function dashboardSummary({
 
 /**
  * Actual spending as a percentage of what was budgeted, across all three
- * expense buckets. 100 means exactly on plan.
+ * expense sections. 100 means exactly on plan.
  *
  * Returns null rather than 0 when nothing was budgeted: "0% of budget used"
  * reads as excellent restraint when it actually means "no budget set".

@@ -115,8 +115,8 @@ export function rowsInSection<T extends Row>(
   return bySortOrder(items.filter((i) => sectionOf(i.type) === section));
 }
 
-// The rows of one kind, for a bucket inside a section — repayments head their
-// own bucket within Expenses.
+// The rows of one kind, for a group inside a section — repayments head their
+// own group within Expenses.
 export function rowsOfType<T extends Row>(items: T[], type: ItemType): T[] {
   return bySortOrder(items.filter((i) => i.type === type));
 }

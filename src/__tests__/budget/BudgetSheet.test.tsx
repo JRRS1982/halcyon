@@ -156,7 +156,7 @@ describe("BudgetSheet — three sections", () => {
     // left is part of what was spent.
     expect(within(expenses).getByText(fmt(3450))).toBeInTheDocument();
     expect(within(expenses).getByText(fmt(3250))).toBeInTheDocument();
-    // The bucket's accessible name carries its info button's "i" too.
+    // The subhead's accessible name carries its info button's "i" too.
     expect(
       screen.getByRole("rowheader", { name: /^Debt payments/ }),
     ).toBeVisible();
@@ -535,7 +535,7 @@ describe("BudgetSheet — the Add drawer", () => {
 });
 
 describe("BudgetSheet — Enter at the end of a section", () => {
-  test("Enter on the last row of a bucket adds another row to that bucket", async () => {
+  test("Enter on the last row of a group adds another row to that group", async () => {
     createItemForMonth.mockResolvedValue({
       periodId: "p1",
       item: {
@@ -549,7 +549,7 @@ describe("BudgetSheet — Enter at the end of a section", () => {
       },
     });
     // "Housing" is the only FIXED expense in the fixture, so it is the last
-    // row of its bucket — which is where Enter adds rather than moves.
+    // row of its group — which is where Enter adds rather than moves.
     renderSheet(items);
     const cell = screen.getByDisplayValue("Housing");
     const row = cell.closest("[role='row']");
