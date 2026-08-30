@@ -1,8 +1,7 @@
 import type { AccountType, PlanAssetWrapper } from "@prisma/client";
 import type { BalanceCategory, BalanceType } from "@/lib/balance/reorder";
-import type { CreateAccountWithBalanceInput } from "./schemas";
 
-type Wrapper = CreateAccountWithBalanceInput["wrapper"];
+type Wrapper = PlanAssetWrapper;
 
 /**
  * What the drawer's single "What are you adding?" picker offers.
@@ -168,7 +167,7 @@ export function accountTypeById(
 }
 
 // The AddAccountDrawer's in-progress form state, before it's parsed into
-// createAccountWithBalanceSchema's shape. Amounts stay as raw input strings
+// createAccountSchema's shape. Amounts stay as raw input strings
 // here — that's what the fields hold while the user is typing.
 export type AccountDraft = {
   type: BalanceType | null;
@@ -195,7 +194,7 @@ export function defaultCanImportTransactions(
   return type === "ASSET" && wrapper !== "PROPERTY";
 }
 
-// Whether the draft has everything createAccountWithBalance needs. Section
+// Whether the draft has everything createAccount needs. Section
 // has no default (per the user's decision — see AddAccountDrawer), so its
 // absence alone blocks submission; a mortgage, once switched on, is held to
 // the same name+value bar as the primary account.

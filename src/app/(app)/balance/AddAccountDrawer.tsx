@@ -18,16 +18,13 @@ import {
   canSubmitAccountDraft,
   defaultCanImportTransactions,
 } from "@/lib/accounts/accountDraft";
-import type { CreateAccountWithBalanceInput } from "@/lib/accounts/schemas";
 import {
   type BalanceCategory,
   type BalanceType,
   isValidBalanceCategory,
 } from "@/lib/balance/reorder";
 import { balanceItemCategorySchema } from "@/lib/balance/schemas";
-import { createAccountWithBalance } from "./accountActions";
-
-type Wrapper = CreateAccountWithBalanceInput["wrapper"];
+import { createAccount } from "./accountActions";
 
 // Display labels for the five balance-sheet sections — the same wording
 // BalanceSheet.tsx uses for its own subheads (CATEGORIES, BalanceSheet.tsx:87-91),
@@ -251,10 +248,12 @@ export function AddAccountDrawer({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  // `kind` and `wrapper` are two columns but one decision — see ACCOUNT_TYPES.
+  // One picked type answers asset-or-liability and the tax wrapper both — see
+  // ACCOUNT_TYPES. `kind` is what the drawer's own fields branch on; the
+  // payload sends the type itself and the server derives the rest.
   const accountType = accountTypeById(typeId);
   const type: BalanceType | null = accountType?.kind ?? null;
-  const wrapper: Wrapper | null = accountType?.wrapper ?? null;
+  const isProperty = accountType?.id === "PROPERTY";
 
   const selectAccountType = (next: AccountTypeId) => {
     const option = accountTypeById(next);
@@ -279,7 +278,7 @@ export function AddAccountDrawer({
 
     // The mortgage question belongs to the Property type, not the section, so
     // leaving Property clears it.
-    if (option.wrapper !== "PROPERTY") {
+    if (option.id !== "PROPERTY") {
       setHasMortgage(false);
     }
   };
@@ -326,19 +325,18 @@ export function AddAccountDrawer({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!canSubmit || !type || !category) return;
+    if (!canSubmit || !typeId || !category) return;
     setError(null);
     startTransition(async () => {
       try {
-        const result = await createAccountWithBalance({
+        const result = await createAccount({
           year,
           month,
           name,
-          type,
-          category,
-          // The schema still takes a wrapper; liabilities send OTHER and the
-          // action nulls it, so the payload shape is unchanged.
-          wrapper: wrapper ?? "OTHER",
+          // The one thing the user picked. kind and wrapper are derived from
+          // it server-side rather than sent alongside it.
+          type: typeId,
+          section: category,
           value: Number(value),
           canImportTransactions,
           mortgage: hasMortgage
@@ -499,7 +497,7 @@ export function AddAccountDrawer({
                     />
                   </Field>
 
-                  {wrapper === "PROPERTY" ? (
+                  {isProperty ? (
                     <>
                       <CheckboxLabel>
                         <input

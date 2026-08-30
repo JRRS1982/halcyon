@@ -1,6 +1,5 @@
 "use server";
 
-import type { AccountType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
@@ -19,8 +18,8 @@ import {
   type ArchiveAccountInput,
   accountIdSchema,
   archiveAccountSchema,
-  type CreateAccountWithBalanceInput,
-  createAccountWithBalanceSchema,
+  type CreateAccountInput,
+  createAccountSchema,
   type DeleteAccountEverywhereInput,
   deleteAccountEverywhereSchema,
 } from "@/lib/accounts/schemas";
@@ -110,31 +109,6 @@ async function resolveLinkedPartnerId(
   return partner?.id ?? null;
 }
 
-// Placeholder until Task 5 rewires AddAccountDrawer.tsx to send the
-// AccountTypeId it already collects (its `typeId` state) instead of the
-// older (kind, category, wrapper) triple this schema still carries. Wrapper
-// alone resolves every asset type except two forks that share one — Current
-// Account vs Savings both CASH, Cash vs Stocks & Shares both ISA — so those
-// (and every liability, none of which carries a wrapper at all) fall back to
-// whichever candidate matches the section the user picked, then the first in
-// ACCOUNT_TYPES order. This never changes the kind/wrapper mirrors actually
-// stored — every candidate on a shared fork shares both — only which of the
-// fourteen labels is recorded, which Task 5 makes exact.
-function inferAccountType(
-  kind: CreateAccountWithBalanceInput["type"],
-  category: CreateAccountWithBalanceInput["category"],
-  wrapper: CreateAccountWithBalanceInput["wrapper"],
-): AccountType {
-  const candidates = accountTypesOfKind(kind);
-  const pool =
-    kind === "ASSET"
-      ? candidates.filter((t) => t.wrapper === wrapper)
-      : candidates;
-  const match = pool.find((t) => t.defaultSection === category) ?? pool[0];
-  if (!match) throw new Error(`No account type for kind ${kind}`);
-  return match.id;
-}
-
 /**
  * One gesture, one transaction: the account, its first observation, and — for a
  * mortgaged property — the second account, its observation and the link.
@@ -143,13 +117,20 @@ function inferAccountType(
  * opens here rather than being passed in.
  */
 export async function createAccount(
-  input: CreateAccountWithBalanceInput,
+  input: CreateAccountInput,
 ): Promise<{ periodId: string; accountId: string }> {
   const userId = await requireUserId();
-  const parsed = createAccountWithBalanceSchema.parse(input);
+  const parsed = createAccountSchema.parse(input);
   const range = monthRangeFor(parsed.year, parsed.month);
 
   const name = cleanLabel(parsed.name);
+  // The drawer sends the one type it asked for; everything else the row needs
+  // — asset-or-liability included — is derived from it.
+  const accountData = buildAccountData({
+    type: parsed.type,
+    section: parsed.section,
+  });
+  const kind = kindOf(parsed.type);
 
   const result = await prisma.$transaction(async (tx) => {
     const period = await ensurePeriodForMonthIn(tx, userId, range);
@@ -157,8 +138,8 @@ export async function createAccount(
     const last = await tx.balanceItem.findFirst({
       where: {
         periodId: period.id,
-        type: parsed.type,
-        category: parsed.category,
+        type: kind,
+        category: parsed.section,
         deletedAt: null,
       },
       orderBy: { sortOrder: "desc" },
@@ -170,10 +151,7 @@ export async function createAccount(
         userId,
         name,
         canImportTransactions: parsed.canImportTransactions,
-        ...buildAccountData({
-          type: inferAccountType(parsed.type, parsed.category, parsed.wrapper),
-          section: parsed.category,
-        }),
+        ...accountData,
       },
     });
 
@@ -181,8 +159,8 @@ export async function createAccount(
       data: {
         periodId: period.id,
         accountId: account.id,
-        type: parsed.type,
-        category: parsed.category,
+        type: kind,
+        category: parsed.section,
         label: name,
         value: parsed.value,
         sortOrder: nextSortOrder(last?.sortOrder),
@@ -234,10 +212,6 @@ export async function createAccount(
   revalidateAll();
   return result;
 }
-
-// Kept under its old name until Task 5 rewires AddAccountDrawer.tsx to call
-// createAccount directly.
-export const createAccountWithBalance = createAccount;
 
 /**
  * Change what kind of account this is — Savings to a Stocks ISA, a plain Loan
