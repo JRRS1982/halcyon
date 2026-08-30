@@ -78,6 +78,16 @@ export async function upsertBalanceValue(input: UpsertBalanceValueInput) {
       });
     }
 
+    // A note describes this month's figure, so it needs one to describe.
+    // Without this, a notes-only edit on a month the account has never been
+    // observed in would invent a £0 the user never typed — and quietly move
+    // the account out of the "without a value" count on the sheet.
+    if (parsed.value === undefined) {
+      throw new Error(
+        "Enter a value first — a note describes this month's figure",
+      );
+    }
+
     return tx.balanceItem.create({
       data: {
         periodId: period.id,
@@ -85,7 +95,7 @@ export async function upsertBalanceValue(input: UpsertBalanceValueInput) {
         type: kindOf(account.type),
         category: account.section,
         label: account.name,
-        value: parsed.value ?? 0,
+        value: parsed.value,
         notes: parsed.notes ?? null,
         sortOrder: account.sortOrder,
       },

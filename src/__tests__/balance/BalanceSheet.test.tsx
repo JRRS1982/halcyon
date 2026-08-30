@@ -226,6 +226,28 @@ describe("BalanceSheet — an account with no value this month", () => {
     expect(screen.getByText("1 account without a value")).toBeInTheDocument();
   });
 
+  // A note describes this month's figure. With no figure there is no row to
+  // hang it on, and saving one would invent a £0 the user never typed — so
+  // the notes cell waits rather than letting them type into a dead end.
+  test("the notes cell waits for a value", () => {
+    upsertBalanceValue.mockReset();
+    renderSheet([{ ...baseRow, value: null }]);
+
+    const notes = screen.getByPlaceholderText(
+      "Enter a value first",
+    ) as HTMLInputElement;
+    expect(notes).toBeDisabled();
+
+    fireEvent.change(notes, { target: { value: "Chase the statement" } });
+    expect(upsertBalanceValue).not.toHaveBeenCalled();
+  });
+
+  test("the notes cell opens up once the row has a value", () => {
+    renderSheet([baseRow]);
+
+    expect(screen.getByPlaceholderText("Notes (optional)")).toBeEnabled();
+  });
+
   test("counts every account still without one", () => {
     renderSheet([
       { ...baseRow, value: null },

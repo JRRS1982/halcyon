@@ -299,6 +299,15 @@ const CellInput = styled.input<{ $align?: "left" | "right" }>`
   &::placeholder {
     color: ${({ theme }) => theme.colors.dim};
   }
+
+  /* A cell that is waiting on something else (the notes cell of a row with
+     no value yet). It stays in place and readable rather than greying out —
+     only the cursor says it isn't ready. */
+  &:disabled {
+    cursor: not-allowed;
+    color: ${({ theme }) => theme.colors.dim};
+    -webkit-text-fill-color: ${({ theme }) => theme.colors.dim};
+  }
 `;
 
 // Same pattern as /budget's AmountInput — raw editable string while focused,
@@ -1374,9 +1383,21 @@ export function BalanceSheet({
           focusedCell.field === "notes"
         }
       >
+        {/* A note describes this month's figure, so it waits for one: with
+            nothing recorded there is no row to hang it on, and saving one
+            would have to invent a £0 the user never typed. The server
+            refuses that too — this stops the user reaching it. */}
         <CellInput
           value={row.notes ?? ""}
-          placeholder="Notes (optional)"
+          disabled={row.value === null}
+          title={
+            row.value === null
+              ? "Enter a value first — a note describes this month's figure"
+              : undefined
+          }
+          placeholder={
+            row.value === null ? "Enter a value first" : "Notes (optional)"
+          }
           onChange={(e) =>
             editField(row.accountId, { notes: e.target.value || null })
           }
