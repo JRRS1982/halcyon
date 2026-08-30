@@ -7,17 +7,21 @@ export const itemTypeSchema = z.enum([
   "REPAYMENT",
 ]);
 export const transferDirectionSchema = z.enum(["INFLOW", "OUTFLOW"]);
-export const expenseCategorySchema = z.enum([
+export const expenseSectionSchema = z.enum([
   "FIXED",
   "VARIABLE",
   "DISCRETIONARY",
 ]);
-export const incomeCategorySchema = z.enum([
+export const incomeSectionSchema = z.enum([
   "SALARY",
   "SIDE_INCOME",
   "INVESTMENTS",
   "PENSIONS",
   "OTHER",
+]);
+export const categorySectionSchema = z.enum([
+  ...expenseSectionSchema.options,
+  ...incomeSectionSchema.options,
 ]);
 
 // A TRANSFER or REPAYMENT is anchored to an account, never to a category; a
@@ -29,6 +33,7 @@ const anchorInvariants = <
     type: z.infer<typeof itemTypeSchema>;
     accountId?: string | null;
     direction?: "INFLOW" | "OUTFLOW" | null;
+    section?: string | null;
   },
 >(
   v: T,
@@ -49,14 +54,35 @@ const anchorInvariants = <
       code: "custom",
       message: `${v.type} cannot carry a direction`,
     });
+  if (v.section == null) return;
+  if (
+    v.type === "EXPENSE" &&
+    !(expenseSectionSchema.options as readonly string[]).includes(v.section)
+  )
+    ctx.addIssue({
+      code: "custom",
+      message: `${v.section} is not an EXPENSE section`,
+    });
+  if (
+    v.type === "INCOME" &&
+    !(incomeSectionSchema.options as readonly string[]).includes(v.section)
+  )
+    ctx.addIssue({
+      code: "custom",
+      message: `${v.section} is not an INCOME section`,
+    });
+  if (v.type === "TRANSFER" || v.type === "REPAYMENT")
+    ctx.addIssue({
+      code: "custom",
+      message: `${v.type} cannot carry a section`,
+    });
 };
 
 export const createItemSchema = z
   .object({
     periodId: z.string().uuid(),
     type: itemTypeSchema,
-    category: expenseCategorySchema.nullable().optional(),
-    incomeCategory: incomeCategorySchema.nullable().optional(),
+    section: categorySectionSchema.nullable().optional(),
     label: z.string().trim().max(120),
     accountId: z.string().uuid().nullable().optional(),
     direction: transferDirectionSchema.nullable().optional(),
@@ -71,8 +97,7 @@ export const createItemForMonthSchema = z
     year: z.number().int(),
     month: z.number().int().min(0).max(11),
     type: itemTypeSchema,
-    category: expenseCategorySchema.nullable().optional(),
-    incomeCategory: incomeCategorySchema.nullable().optional(),
+    section: categorySectionSchema.nullable().optional(),
     label: z.string().trim().max(120),
     accountId: z.string().uuid().nullable().optional(),
     direction: transferDirectionSchema.nullable().optional(),
@@ -88,16 +113,14 @@ export const updateItemSchema = z
     label: z.string().trim().max(120).optional(),
     budget: z.number().nonnegative().optional(),
     actual: z.number().nonnegative().optional(),
-    category: expenseCategorySchema.optional(),
-    incomeCategory: incomeCategorySchema.optional(),
+    section: categorySectionSchema.optional(),
   })
   .refine(
     (patch) =>
       patch.label !== undefined ||
       patch.budget !== undefined ||
       patch.actual !== undefined ||
-      patch.category !== undefined ||
-      patch.incomeCategory !== undefined,
+      patch.section !== undefined,
     { message: "At least one field must be updated" },
   );
 

@@ -29,7 +29,7 @@ export type IncomeKind =
   | "RENTAL"
   | "OTHER";
 
-export type ExpenseCategory = "FIXED" | "VARIABLE" | "DISCRETIONARY";
+export type ExpenseSection = "FIXED" | "VARIABLE" | "DISCRETIONARY";
 
 export type Growth =
   | { kind: "INFLATION" }
@@ -75,12 +75,12 @@ export interface IncomeInput {
 export interface ExpenseInput {
   id: string;
   label: string;
-  category?: ExpenseCategory;
+  section?: ExpenseSection;
   annualAmount: number;
   startAge?: number;
   endAge?: number;
   inflationLinked: boolean;
-  liabilityId?: string; // repayment of this liability; excluded from category totals
+  liabilityId?: string; // repayment of this liability; excluded from section totals
 }
 
 export interface EventInput {

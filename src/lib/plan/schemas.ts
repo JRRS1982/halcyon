@@ -72,7 +72,7 @@ const INCOME_KIND = z.enum([
   "OTHER",
 ]);
 const GROWTH_KIND = z.enum(["INFLATION", "FIXED", "NONE"]);
-const EXPENSE_CATEGORY = z.enum(["FIXED", "VARIABLE", "DISCRETIONARY"]);
+const EXPENSE_SECTION = z.enum(["FIXED", "VARIABLE", "DISCRETIONARY"]);
 const EVENT_DIRECTION = z.enum(["INFLOW", "OUTFLOW"]);
 const EVENT_KIND = z.enum(["MANUAL", "PROPERTY_SALE"]);
 
@@ -91,7 +91,7 @@ export const updatePlanIncomeSchema = z.object({
 export const updatePlanExpenseSchema = z.object({
   expenseId: z.string().uuid(),
   label: z.string().min(1),
-  category: EXPENSE_CATEGORY,
+  section: EXPENSE_SECTION,
   annualAmount: z.number().min(0),
   startAge: z.number().int().min(0).max(120).nullable(),
   endAge: z.number().int().min(0).max(120).nullable(),

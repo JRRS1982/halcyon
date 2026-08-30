@@ -146,3 +146,40 @@ describe("createItemSchema anchor invariants", () => {
     ).toThrow("EXPENSE cannot carry an accountId");
   });
 });
+
+describe("section matches type", () => {
+  const base = { year: 2026, month: 2, label: "x" };
+
+  it("rejects an income section on an expense", () => {
+    const r = createItemForMonthSchema.safeParse({
+      ...base,
+      type: "EXPENSE",
+      section: "SALARY",
+    });
+    expect(r.success).toBe(false);
+    expect(JSON.stringify(r.error?.issues)).toContain(
+      "SALARY is not an EXPENSE section",
+    );
+  });
+
+  it("rejects any section on a transfer", () => {
+    const r = createItemForMonthSchema.safeParse({
+      ...base,
+      type: "TRANSFER",
+      section: "FIXED",
+      accountId: "00000000-0000-0000-0000-000000000001",
+      direction: "INFLOW",
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it("accepts a matching section", () => {
+    expect(
+      createItemForMonthSchema.safeParse({
+        ...base,
+        type: "INCOME",
+        section: "SALARY",
+      }).success,
+    ).toBe(true);
+  });
+});
