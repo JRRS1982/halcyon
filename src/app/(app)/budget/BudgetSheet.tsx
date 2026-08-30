@@ -1522,7 +1522,7 @@ export function BudgetSheet({
 
   // The section header inside a section: its name, an info popover, and its
   // subtotal. Shared by all three sections' subheads.
-  const renderBucketSubhead = (
+  const renderSectionSubhead = (
     label: string,
     help: string,
     totals: ItemAmounts,
@@ -2039,7 +2039,7 @@ export function BudgetSheet({
         />
         {incomeSections.map(({ cat, rows, totals }) => (
           <div key={cat.key}>
-            {renderBucketSubhead(cat.label, cat.help, totals)}
+            {renderSectionSubhead(cat.label, cat.help, totals)}
             {rows.map((item) => renderItemRow(item))}
           </div>
         ))}
@@ -2053,12 +2053,12 @@ export function BudgetSheet({
         />
         {expenseSections.map(({ cat, rows, totals }) => (
           <div key={cat.key}>
-            {renderBucketSubhead(cat.label, cat.help, totals)}
+            {renderSectionSubhead(cat.label, cat.help, totals)}
             {rows.map((item) => renderItemRow(item))}
           </div>
         ))}
         <div>
-          {renderBucketSubhead(
+          {renderSectionSubhead(
             "Debt payments",
             REPAYMENTS_HELP,
             repaymentTotals,

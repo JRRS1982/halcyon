@@ -24,7 +24,7 @@ export type CopyableItem = {
 export type CopiedItem = CopyableItem & { actual: number };
 
 // Produce a fresh set of items mirroring `source` for another period: every
-// item gets a new id (via makeId), its category/budget/label carry over, and
+// item gets a new id (via makeId), its section/budget/label carry over, and
 // actuals reset to 0 — a freshly-copied month hasn't been spent yet.
 export function buildCopiedItems(
   source: CopyableItem[],
