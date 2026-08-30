@@ -42,6 +42,20 @@ describe("category sections", () => {
     expect(sectionOrderIndex("OTHER")).toBe(7);
   });
 
+  // Pins every ordinal, not just one inequality — FIXED/VARIABLE/DISCRETIONARY
+  // swapped would still pass "FIXED < SALARY" above. Every expense section
+  // sorts before every income section, in each table's declared order.
+  // sectionOrderIndex now takes CategorySection, not string | null | undefined,
+  // so the old null/undefined/"NONSENSE" cases no longer typecheck — the type
+  // itself rules them out, so there is nothing left to test there.
+  it("pins the full display order", () => {
+    const ALL = [...EXPENSE_SECTIONS, ...INCOME_SECTIONS].map((s) => s.value);
+    expect(ALL.map(sectionOrderIndex)).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
+    expect(sectionOrderIndex("DISCRETIONARY")).toBeLessThan(
+      sectionOrderIndex("SALARY"),
+    );
+  });
+
   it("narrows to the expense subset", () => {
     expect(isExpenseSection("VARIABLE")).toBe(true);
     expect(isExpenseSection("PENSIONS")).toBe(false);
