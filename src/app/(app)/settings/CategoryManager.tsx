@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import styled from "styled-components";
 import { Button } from "@/components/ui/Button";
-import { EXPENSE_BUCKETS, INCOME_BUCKETS } from "@/lib/categories/buckets";
+import type { CategorySection } from "@/lib/categories/sections";
+import { sectionsFor } from "@/lib/categories/sections";
 import {
   createManagedCategory,
   deleteCategory,
@@ -17,8 +18,8 @@ export type ManagedCategory = {
   id: string;
   label: string;
   type: "INCOME" | "EXPENSE";
-  bucket: string | null;
-  section: string;
+  section: CategorySection;
+  sectionLabel: string;
   txnCount: number;
 };
 
@@ -161,10 +162,6 @@ const TYPES = [
   { type: "INCOME" as const, label: "Income" },
 ];
 
-function bucketsFor(type: "INCOME" | "EXPENSE") {
-  return type === "EXPENSE" ? EXPENSE_BUCKETS : INCOME_BUCKETS;
-}
-
 function SectionSelect({
   type,
   value,
@@ -176,9 +173,9 @@ function SectionSelect({
 }) {
   return (
     <Select value={value} onChange={(e) => onChange(e.target.value)}>
-      {bucketsFor(type).map((b) => (
-        <option key={b.value} value={b.value}>
-          {b.label}
+      {sectionsFor(type).map((s) => (
+        <option key={s.value} value={s.value}>
+          {s.label}
         </option>
       ))}
     </Select>
@@ -204,12 +201,16 @@ export function CategoryManager({
   // Create form.
   const [newLabel, setNewLabel] = useState("");
   const [newType, setNewType] = useState<"EXPENSE" | "INCOME">("EXPENSE");
-  const [newBucket, setNewBucket] = useState<string>(EXPENSE_BUCKETS[0].value);
+  const [newSection, setNewSection] = useState<CategorySection>(
+    sectionsFor("EXPENSE")[0].value,
+  );
 
   // Edit form.
   const [editLabel, setEditLabel] = useState("");
   const [editType, setEditType] = useState<"EXPENSE" | "INCOME">("EXPENSE");
-  const [editBucket, setEditBucket] = useState("");
+  const [editSection, setEditSection] = useState<CategorySection>(
+    sectionsFor("EXPENSE")[0].value,
+  );
 
   // Merge target.
   const [mergeTarget, setMergeTarget] = useState("");
@@ -227,7 +228,7 @@ export function CategoryManager({
       createManagedCategory({
         label: newLabel,
         type: newType,
-        bucket: newBucket,
+        section: newSection,
       }),
     );
     setNewLabel("");
@@ -237,7 +238,7 @@ export function CategoryManager({
     setMode({ kind: "edit", id: c.id });
     setEditLabel(c.label);
     setEditType(c.type);
-    setEditBucket(c.bucket ?? bucketsFor(c.type)[0].value);
+    setEditSection(c.section);
   };
 
   const renderRow = (c: ManagedCategory) => {
@@ -253,7 +254,7 @@ export function CategoryManager({
             onChange={(e) => {
               const t = e.target.value as "EXPENSE" | "INCOME";
               setEditType(t);
-              setEditBucket(bucketsFor(t)[0].value);
+              setEditSection(sectionsFor(t)[0].value);
             }}
           >
             <option value="EXPENSE">Expense</option>
@@ -261,8 +262,8 @@ export function CategoryManager({
           </Select>
           <SectionSelect
             type={editType}
-            value={editBucket}
-            onChange={setEditBucket}
+            value={editSection}
+            onChange={(v) => setEditSection(v as CategorySection)}
           />
           <TextButton
             type="button"
@@ -273,7 +274,7 @@ export function CategoryManager({
                   categoryId: c.id,
                   label: editLabel,
                   type: editType,
-                  bucket: editBucket,
+                  section: editSection,
                 }),
               )
             }
@@ -304,7 +305,7 @@ export function CategoryManager({
             <option value="">Choose…</option>
             {others.map((o) => (
               <option key={o.id} value={o.id}>
-                {o.label} ({o.section})
+                {o.label} ({o.sectionLabel})
               </option>
             ))}
           </Select>
@@ -354,7 +355,7 @@ export function CategoryManager({
       <Row key={c.id}>
         <Grow>{c.label}</Grow>
         <Meta>
-          {c.section} · {c.txnCount} txns
+          {c.sectionLabel} · {c.txnCount} txns
         </Meta>
         <RowActions>
           <TextButton type="button" onClick={() => startEdit(c)}>
@@ -412,7 +413,7 @@ export function CategoryManager({
             onChange={(e) => {
               const t = e.target.value as "EXPENSE" | "INCOME";
               setNewType(t);
-              setNewBucket(bucketsFor(t)[0].value);
+              setNewSection(sectionsFor(t)[0].value);
             }}
           >
             <option value="EXPENSE">Expense</option>
@@ -420,8 +421,8 @@ export function CategoryManager({
           </Select>
           <SectionSelect
             type={newType}
-            value={newBucket}
-            onChange={setNewBucket}
+            value={newSection}
+            onChange={(v) => setNewSection(v as CategorySection)}
           />
           <Button type="button" onClick={onCreate} disabled={pending}>
             Add

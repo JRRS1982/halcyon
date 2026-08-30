@@ -1,4 +1,4 @@
-import { sectionLabel } from "@/lib/categories/buckets";
+import { sectionLabel } from "@/lib/categories/sections";
 import { prisma } from "@/lib/prisma";
 import {
   CURRENCY_CODES,
@@ -57,8 +57,7 @@ export default async function SettingsPage() {
         id: true,
         label: true,
         type: true,
-        category: true,
-        incomeCategory: true,
+        section: true,
       },
     }),
     prisma.transaction.groupBy({
@@ -79,14 +78,13 @@ export default async function SettingsPage() {
     // Prisma-generated type for `c.type` is still the full enum. This
     // narrows it back down without a cast; unreachable in practice.
     if (c.type !== "INCOME" && c.type !== "EXPENSE") return [];
-    const bucket = c.category ?? c.incomeCategory;
     return [
       {
         id: c.id,
         label: c.label,
         type: c.type,
-        bucket,
-        section: sectionLabel(bucket),
+        section: c.section,
+        sectionLabel: sectionLabel(c.section),
         txnCount: countByCategory[c.id] ?? 0,
       },
     ];

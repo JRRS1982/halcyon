@@ -3,9 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { bucketFields } from "@/lib/categories/buckets";
+import { categorySectionSchema } from "@/lib/budget/schemas";
 import { planItemMerge } from "@/lib/categories/merge";
 import { cleanLabel } from "@/lib/categories/normalize";
+import { sectionFor } from "@/lib/categories/sections";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 
@@ -31,20 +32,20 @@ function revalidateAll() {
 const upsertSchema = z.object({
   label: z.string().trim().min(1).max(120),
   type: z.enum(["INCOME", "EXPENSE"]),
-  bucket: z.string().nullable().optional(),
+  section: categorySectionSchema,
 });
 
 export async function createManagedCategory(
   input: z.input<typeof upsertSchema>,
 ): Promise<void> {
   const userId = await requireUserId();
-  const { label, type, bucket } = upsertSchema.parse(input);
+  const { label, type, section } = upsertSchema.parse(input);
   await prisma.category.create({
     data: {
       userId,
       label: cleanLabel(label),
       type,
-      ...bucketFields(type, bucket),
+      section: sectionFor(type, section),
     },
   });
   revalidateAll();
@@ -56,10 +57,14 @@ export async function updateCategory(
   input: z.input<typeof updateSchema>,
 ): Promise<void> {
   const userId = await requireUserId();
-  const { categoryId, label, type, bucket } = updateSchema.parse(input);
+  const { categoryId, label, type, section } = updateSchema.parse(input);
   const result = await prisma.category.updateMany({
     where: { id: categoryId, userId, deletedAt: null },
-    data: { label: cleanLabel(label), type, ...bucketFields(type, bucket) },
+    data: {
+      label: cleanLabel(label),
+      type,
+      section: sectionFor(type, section),
+    },
   });
   if (result.count === 0) throw new Error("Category not found");
   revalidateAll();

@@ -1,8 +1,8 @@
 import "server-only";
 
 import type { AccountKind } from "@prisma/client";
-import { sectionLabel } from "@/lib/categories/buckets";
 import { categoryKey, cleanLabel } from "@/lib/categories/normalize";
+import { sectionLabel } from "@/lib/categories/sections";
 import { prisma } from "@/lib/prisma";
 import { PAGE_SIZE } from "./pagination";
 import {
@@ -74,8 +74,7 @@ export async function getOrProvisionCategories(
       id: true,
       label: true,
       type: true,
-      category: true,
-      incomeCategory: true,
+      section: true,
     },
   });
   if (existing.length > 0) {
@@ -90,7 +89,7 @@ export async function getOrProvisionCategories(
           id: c.id,
           label: c.label,
           type: c.type,
-          section: sectionLabel(c.category ?? c.incomeCategory),
+          section: sectionLabel(c.section),
         },
       ];
     });
@@ -108,16 +107,14 @@ export async function getOrProvisionCategories(
     select: {
       id: true,
       type: true,
-      category: true,
-      incomeCategory: true,
+      section: true,
       label: true,
     },
   });
 
   type Group = {
     type: "INCOME" | "EXPENSE";
-    category: (typeof items)[number]["category"];
-    incomeCategory: (typeof items)[number]["incomeCategory"];
+    section: NonNullable<(typeof items)[number]["section"]>;
     label: string;
     itemIds: string[];
   };
@@ -128,11 +125,14 @@ export async function getOrProvisionCategories(
     // filter already excludes anything but INCOME/EXPENSE, but the
     // Prisma-generated type for `item.type` is still the full ItemType.
     if (item.type !== "INCOME" && item.type !== "EXPENSE") continue;
+    // The DB check constraint (BudgetItem_section_matches_type) guarantees
+    // an INCOME/EXPENSE row always carries a section; null here would be
+    // corrupt data, not a case to silently seed a category for.
+    if (item.section === null) continue;
     const key = `${item.type}::${categoryKey(item.label)}`;
     const group = groups.get(key) ?? {
       type: item.type,
-      category: item.category,
-      incomeCategory: item.incomeCategory,
+      section: item.section,
       label: cleanLabel(item.label),
       itemIds: [],
     };
@@ -148,8 +148,7 @@ export async function getOrProvisionCategories(
       data: {
         userId,
         type: group.type,
-        category: group.category,
-        incomeCategory: group.incomeCategory,
+        section: group.section,
         label: group.label,
         sortOrder: i,
       },
@@ -167,7 +166,7 @@ export async function getOrProvisionCategories(
       // back typed as the full ItemType because that's the Category
       // model's column type, regardless of what was written.
       type: group.type,
-      section: sectionLabel(group.category ?? group.incomeCategory),
+      section: sectionLabel(group.section),
     });
   }
 

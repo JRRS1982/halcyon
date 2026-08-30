@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { cache } from "react";
 import { ensurePeriodForMonthIn } from "@/lib/budget/ensurePeriod";
 import { currentMonthRange } from "@/lib/budget/period";
-import { bucketFields } from "@/lib/categories/buckets";
+import { sectionFor } from "@/lib/categories/sections";
 import {
   DEFAULT_ACCOUNTS,
   DEFAULT_CATEGORIES,
@@ -94,7 +94,7 @@ export async function seedStarterData(
     label: c.label,
     type: c.type,
     sortOrder,
-    ...bucketFields(c.type, c.bucket),
+    section: sectionFor(c.type, c.section),
   }));
 
   await tx.category.createMany({ data: categories });
@@ -115,8 +115,7 @@ export async function seedStarterData(
         periodId: period.id,
         categoryId: category.id,
         type: category.type,
-        category: category.category,
-        incomeCategory: category.incomeCategory,
+        section: category.section,
         label: category.label,
         budget: 0,
         sortOrder,

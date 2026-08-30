@@ -2,7 +2,8 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import styled from "styled-components";
-import { EXPENSE_BUCKETS, INCOME_BUCKETS } from "@/lib/categories/buckets";
+import type { CategorySection } from "@/lib/categories/sections";
+import { sectionsFor } from "@/lib/categories/sections";
 import type { LedgerCategory } from "@/lib/transactions/server";
 
 const Wrap = styled.div`
@@ -161,7 +162,7 @@ const CreateButton = styled.button`
 export type NewCategoryInput = {
   label: string;
   type: "EXPENSE" | "INCOME";
-  bucket: string;
+  section: CategorySection;
 };
 
 export type LedgerAccount = {
@@ -239,7 +240,7 @@ export function CategoryCombobox({
   // Index into the keyboard-navigable options below; -1 means none highlighted.
   const [activeIndex, setActiveIndex] = useState(-1);
   const [newType, setNewType] = useState<"EXPENSE" | "INCOME">(defaultType);
-  const [newBucket, setNewBucket] = useState<string>("");
+  const [newSection, setNewSection] = useState<CategorySection | "">("");
   const inputRef = useRef<HTMLInputElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const listboxId = useId();
@@ -296,8 +297,7 @@ export function CategoryCombobox({
   const canCreateAccount =
     transfersEnabled && trimmed.length > 0 && !accountExact;
 
-  const bucketOptions =
-    newType === "EXPENSE" ? EXPENSE_BUCKETS : INCOME_BUCKETS;
+  const sectionOptions = sectionsFor(newType);
 
   useEffect(() => {
     if (open) inputRef.current?.focus();
@@ -446,16 +446,12 @@ export function CategoryCombobox({
 
   const startCreate = () => {
     setNewType(defaultType);
-    setNewBucket(
-      (defaultType === "EXPENSE" ? EXPENSE_BUCKETS : INCOME_BUCKETS)[0].value,
-    );
+    setNewSection(sectionsFor(defaultType)[0].value);
   };
 
   const submitCreate = () => {
-    const bucket =
-      newBucket ||
-      (newType === "EXPENSE" ? EXPENSE_BUCKETS : INCOME_BUCKETS)[0].value;
-    onCreate({ label: trimmed, type: newType, bucket });
+    const section = newSection || sectionsFor(newType)[0].value;
+    onCreate({ label: trimmed, type: newType, section });
     close();
   };
 
@@ -571,22 +567,21 @@ export function CategoryCombobox({
                   onChange={(e) => {
                     const t = e.target.value as "EXPENSE" | "INCOME";
                     setNewType(t);
-                    setNewBucket(
-                      (t === "EXPENSE" ? EXPENSE_BUCKETS : INCOME_BUCKETS)[0]
-                        .value,
-                    );
+                    setNewSection(sectionsFor(t)[0].value);
                   }}
                 >
                   <option value="EXPENSE">Expense</option>
                   <option value="INCOME">Income</option>
                 </MiniSelect>
                 <MiniSelect
-                  value={newBucket}
-                  onChange={(e) => setNewBucket(e.target.value)}
+                  value={newSection}
+                  onChange={(e) =>
+                    setNewSection(e.target.value as CategorySection)
+                  }
                 >
-                  {bucketOptions.map((b) => (
-                    <option key={b.value} value={b.value}>
-                      {b.label}
+                  {sectionOptions.map((s) => (
+                    <option key={s.value} value={s.value}>
+                      {s.label}
                     </option>
                   ))}
                 </MiniSelect>

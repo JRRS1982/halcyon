@@ -9,12 +9,12 @@
 // somewhere for money to sit, and a name to file spending under — are exactly
 // the two the app used to ask you to invent from scratch.
 
-import type { ExpenseBucket, IncomeBucket } from "@/lib/categories/buckets";
+import type { CategorySection } from "@/lib/categories/sections";
 
 export type DefaultCategory = {
   label: string;
   type: "INCOME" | "EXPENSE";
-  bucket: ExpenseBucket | IncomeBucket;
+  section: CategorySection;
   // Whether this category is also written as a £0 row on the first budget
   // sheet. Only the lines nearly every household has every month are, so the
   // sheet opens as a page you fill in rather than a wall to scroll past. The
@@ -31,110 +31,110 @@ export const DEFAULT_CATEGORIES: readonly DefaultCategory[] = [
   {
     label: "Salary",
     type: "INCOME",
-    bucket: "SALARY",
+    section: "SALARY",
     inStarterBudget: true,
   },
   {
     label: "Side Income",
     type: "INCOME",
-    bucket: "SIDE_INCOME",
+    section: "SIDE_INCOME",
     inStarterBudget: true,
   },
-  { label: "Investment Income", type: "INCOME", bucket: "INVESTMENTS" },
-  { label: "Pension Income", type: "INCOME", bucket: "PENSIONS" },
-  { label: "Benefits & Child Benefit", type: "INCOME", bucket: "OTHER" },
-  { label: "Rental Income", type: "INCOME", bucket: "OTHER" },
-  { label: "Other Income", type: "INCOME", bucket: "OTHER" },
+  { label: "Investment Income", type: "INCOME", section: "INVESTMENTS" },
+  { label: "Pension Income", type: "INCOME", section: "PENSIONS" },
+  { label: "Benefits & Child Benefit", type: "INCOME", section: "OTHER" },
+  { label: "Rental Income", type: "INCOME", section: "OTHER" },
+  { label: "Other Income", type: "INCOME", section: "OTHER" },
 
   // ─── Fixed expenses ───────────────────────────────────────────────────────
   // Bills that arrive whether or not you change your behaviour this month.
   {
     label: "Rent / Mortgage",
     type: "EXPENSE",
-    bucket: "FIXED",
+    section: "FIXED",
     inStarterBudget: true,
   },
   {
     label: "Council Tax",
     type: "EXPENSE",
-    bucket: "FIXED",
+    section: "FIXED",
     inStarterBudget: true,
   },
   {
     label: "Utilities",
     type: "EXPENSE",
-    bucket: "FIXED",
+    section: "FIXED",
     inStarterBudget: true,
   },
   // Separate from Utilities: billed on its own cycle by a different supplier,
   // so a combined line can never be reconciled against either bill.
-  { label: "Water", type: "EXPENSE", bucket: "FIXED" },
+  { label: "Water", type: "EXPENSE", section: "FIXED" },
   {
     label: "Phone & Internet",
     type: "EXPENSE",
-    bucket: "FIXED",
+    section: "FIXED",
     inStarterBudget: true,
   },
-  { label: "TV Licence", type: "EXPENSE", bucket: "FIXED" },
+  { label: "TV Licence", type: "EXPENSE", section: "FIXED" },
   {
     label: "Insurance",
     type: "EXPENSE",
-    bucket: "FIXED",
+    section: "FIXED",
     inStarterBudget: true,
   },
   {
     label: "Subscriptions",
     type: "EXPENSE",
-    bucket: "FIXED",
+    section: "FIXED",
     inStarterBudget: true,
   },
-  { label: "Childcare", type: "EXPENSE", bucket: "FIXED" },
-  { label: "School & Education", type: "EXPENSE", bucket: "FIXED" },
+  { label: "Childcare", type: "EXPENSE", section: "FIXED" },
+  { label: "School & Education", type: "EXPENSE", section: "FIXED" },
   // Repayments to an outside lender are spending. Paying off a credit card you
   // hold as an Account is not — that is a transfer between your own accounts,
   // and filing it here would count the original purchases twice.
-  { label: "Loan Repayments", type: "EXPENSE", bucket: "FIXED" },
+  { label: "Loan Repayments", type: "EXPENSE", section: "FIXED" },
 
   // ─── Variable expenses ────────────────────────────────────────────────────
   // Necessary, but the amount moves with how the month goes.
   {
     label: "Groceries",
     type: "EXPENSE",
-    bucket: "VARIABLE",
+    section: "VARIABLE",
     inStarterBudget: true,
   },
-  { label: "Household & Cleaning", type: "EXPENSE", bucket: "VARIABLE" },
+  { label: "Household & Cleaning", type: "EXPENSE", section: "VARIABLE" },
   {
     label: "Fuel",
     type: "EXPENSE",
-    bucket: "VARIABLE",
+    section: "VARIABLE",
     inStarterBudget: true,
   },
-  { label: "Public Transport", type: "EXPENSE", bucket: "VARIABLE" },
-  { label: "Parking & Tolls", type: "EXPENSE", bucket: "VARIABLE" },
+  { label: "Public Transport", type: "EXPENSE", section: "VARIABLE" },
+  { label: "Parking & Tolls", type: "EXPENSE", section: "VARIABLE" },
   // Tax, MOT, servicing, repairs — the annualised cost of running the car,
   // as distinct from the fuel you put in it.
-  { label: "Motoring", type: "EXPENSE", bucket: "VARIABLE" },
-  { label: "Health & Medical", type: "EXPENSE", bucket: "VARIABLE" },
-  { label: "Fitness", type: "EXPENSE", bucket: "VARIABLE" },
+  { label: "Motoring", type: "EXPENSE", section: "VARIABLE" },
+  { label: "Health & Medical", type: "EXPENSE", section: "VARIABLE" },
+  { label: "Fitness", type: "EXPENSE", section: "VARIABLE" },
   {
     label: "Home & Maintenance",
     type: "EXPENSE",
-    bucket: "VARIABLE",
+    section: "VARIABLE",
     inStarterBudget: true,
   },
   {
     label: "Clothing",
     type: "EXPENSE",
-    bucket: "VARIABLE",
+    section: "VARIABLE",
     inStarterBudget: true,
   },
-  { label: "Personal Care", type: "EXPENSE", bucket: "VARIABLE" },
-  { label: "Pets", type: "EXPENSE", bucket: "VARIABLE" },
-  { label: "Kids' Activities", type: "EXPENSE", bucket: "VARIABLE" },
+  { label: "Personal Care", type: "EXPENSE", section: "VARIABLE" },
+  { label: "Pets", type: "EXPENSE", section: "VARIABLE" },
+  { label: "Kids' Activities", type: "EXPENSE", section: "VARIABLE" },
   // Somewhere for an imported row to go when none of the above fits, so
   // "uncategorised" never has to mean "unfiled".
-  { label: "Other Expenses", type: "EXPENSE", bucket: "VARIABLE" },
+  { label: "Other Expenses", type: "EXPENSE", section: "VARIABLE" },
 
   // ─── Discretionary expenses ───────────────────────────────────────────────
   // What you would cut first. Split finely because "eating out" is several
@@ -147,37 +147,37 @@ export const DEFAULT_CATEGORIES: readonly DefaultCategory[] = [
   {
     label: "Meals Out",
     type: "EXPENSE",
-    bucket: "DISCRETIONARY",
+    section: "DISCRETIONARY",
     inStarterBudget: true,
   },
   {
     label: "Takeaways & Fast Food",
     type: "EXPENSE",
-    bucket: "DISCRETIONARY",
+    section: "DISCRETIONARY",
     inStarterBudget: true,
   },
-  { label: "Coffee & Snacks", type: "EXPENSE", bucket: "DISCRETIONARY" },
-  { label: "Alcohol", type: "EXPENSE", bucket: "DISCRETIONARY" },
+  { label: "Coffee & Snacks", type: "EXPENSE", section: "DISCRETIONARY" },
+  { label: "Alcohol", type: "EXPENSE", section: "DISCRETIONARY" },
   {
     label: "Entertainment",
     type: "EXPENSE",
-    bucket: "DISCRETIONARY",
+    section: "DISCRETIONARY",
     inStarterBudget: true,
   },
-  { label: "Hobbies & Sport", type: "EXPENSE", bucket: "DISCRETIONARY" },
+  { label: "Hobbies & Sport", type: "EXPENSE", section: "DISCRETIONARY" },
   {
     label: "Holidays",
     type: "EXPENSE",
-    bucket: "DISCRETIONARY",
+    section: "DISCRETIONARY",
     inStarterBudget: true,
   },
   {
     label: "Gifts",
     type: "EXPENSE",
-    bucket: "DISCRETIONARY",
+    section: "DISCRETIONARY",
     inStarterBudget: true,
   },
-  { label: "Charity", type: "EXPENSE", bucket: "DISCRETIONARY" },
+  { label: "Charity", type: "EXPENSE", section: "DISCRETIONARY" },
 ];
 
 // `type` is deliberately left unset: the Settings account form doesn't collect
