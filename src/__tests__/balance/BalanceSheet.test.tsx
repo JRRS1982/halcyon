@@ -9,9 +9,10 @@ import {
 import { ThemeProvider } from "styled-components";
 import {
   BalanceSheet,
-  type SerializedBalanceItem,
+  type SerializedAccountRow,
   type SerializedPeriod,
 } from "@/app/(app)/balance/BalanceSheet";
+import { accountTypesOfKind } from "@/lib/accounts/accountDraft";
 import { formatAmount } from "@/lib/settings/currency";
 import { theme } from "@/lib/theme";
 
@@ -20,20 +21,25 @@ jest.mock("next/navigation", () => ({
   useRouter: () => ({ push: jest.fn(), refresh }),
 }));
 
-const deleteBalanceItem = jest.fn();
-const updateBalanceItem = jest.fn();
+const upsertBalanceValue = jest.fn();
+const clearBalanceValue = jest.fn();
 jest.mock("@/app/(app)/balance/actions", () => ({
+  clearBalanceValue: (...args: unknown[]) => clearBalanceValue(...args),
   copyBalancePeriodFrom: jest.fn(),
-  deleteBalanceItem: (...args: unknown[]) => deleteBalanceItem(...args),
   listCopyableBalancePeriods: jest.fn().mockResolvedValue([]),
-  setBalanceItemSection: jest.fn(),
-  updateBalanceItem: (...args: unknown[]) => updateBalanceItem(...args),
+  upsertBalanceValue: (...args: unknown[]) => upsertBalanceValue(...args),
 }));
 
 const accountDeletionCounts = jest.fn();
+const setAccountType = jest.fn();
+const setAccountSection = jest.fn();
+const renameAccount = jest.fn();
 jest.mock("@/app/(app)/balance/accountActions", () => ({
-  createAccountWithBalance: jest.fn(),
   accountDeletionCounts: (...args: unknown[]) => accountDeletionCounts(...args),
+  createAccount: jest.fn(),
+  renameAccount: (...args: unknown[]) => renameAccount(...args),
+  setAccountSection: (...args: unknown[]) => setAccountSection(...args),
+  setAccountType: (...args: unknown[]) => setAccountType(...args),
 }));
 
 const period: SerializedPeriod = {
@@ -43,23 +49,24 @@ const period: SerializedPeriod = {
   endDate: "2026-03-31T00:00:00.000Z",
 };
 
-const baseItem: SerializedBalanceItem = {
-  id: "22222222-2222-2222-2222-222222222222",
-  type: "ASSET",
-  category: "CURRENT",
-  label: "Current account",
+const baseRow: SerializedAccountRow = {
+  accountId: "22222222-2222-2222-2222-222222222222",
+  name: "Current account",
+  type: "CURRENT_ACCOUNT",
+  kind: "ASSET",
+  section: "CURRENT",
+  sortOrder: 1,
   value: 100,
   notes: null,
-  sortOrder: 1,
   carriedOver: false,
 };
 
-const renderSheet = (items: SerializedBalanceItem[]) =>
+const renderSheet = (rows: SerializedAccountRow[]) =>
   render(
     <ThemeProvider theme={theme}>
       <BalanceSheet
         period={period}
-        initialItems={items}
+        initialRows={rows}
         year={2026}
         month={2}
         currency="GBP"
@@ -73,8 +80,8 @@ describe("BalanceSheet — refresh adoption vs. an unsaved edit", () => {
     jest.useFakeTimers();
     // Never resolves within this test — the debounce that would call it is
     // never allowed to fire (fake timers, never advanced).
-    updateBalanceItem.mockReset();
-    updateBalanceItem.mockImplementation(() => new Promise(() => {}));
+    upsertBalanceValue.mockReset();
+    upsertBalanceValue.mockImplementation(() => new Promise(() => {}));
   });
 
   afterEach(() => {
@@ -85,10 +92,10 @@ describe("BalanceSheet — refresh adoption vs. an unsaved edit", () => {
   // a 500ms-debounced write; pendingSavesRef only increments once that
   // timer fires. A router.refresh() landing during the debounce window
   // (simulated here as a rerender with the server's still-stale
-  // initialItems) must not let the "adopt fresh server data" effect
+  // initialRows) must not let the "adopt fresh server data" effect
   // clobber the edit that's still waiting to be sent.
   test("an edit mid-debounce survives a refresh that lands with stale props", () => {
-    const { rerender } = renderSheet([baseItem]);
+    const { rerender } = renderSheet([baseRow]);
 
     const amountInput = screen.getByPlaceholderText("0") as HTMLInputElement;
     fireEvent.focus(amountInput);
@@ -102,7 +109,7 @@ describe("BalanceSheet — refresh adoption vs. an unsaved edit", () => {
       <ThemeProvider theme={theme}>
         <BalanceSheet
           period={period}
-          initialItems={[{ ...baseItem, value: 100 }]}
+          initialRows={[{ ...baseRow, value: 100 }]}
           year={2026}
           month={2}
           currency="GBP"
@@ -118,8 +125,8 @@ describe("BalanceSheet — refresh adoption vs. an unsaved edit", () => {
 describe("BalanceSheet — dirty tracking is per item, not one shared flag", () => {
   beforeEach(() => {
     jest.useFakeTimers();
-    updateBalanceItem.mockReset();
-    updateBalanceItem.mockResolvedValue(undefined);
+    upsertBalanceValue.mockReset();
+    upsertBalanceValue.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -134,21 +141,21 @@ describe("BalanceSheet — dirty tracking is per item, not one shared flag", () 
   // pending" and silently overwrites the second item's still-unsaved
   // optimistic value with the server's stale snapshot.
   test("editing a second cell shortly after the first survives a refresh landing once the first save completes", async () => {
-    const itemA: SerializedBalanceItem = {
-      ...baseItem,
-      id: "item-a",
-      label: "Current account",
+    const rowA: SerializedAccountRow = {
+      ...baseRow,
+      accountId: "account-a",
+      name: "Current account",
       value: 100,
       sortOrder: 1,
     };
-    const itemB: SerializedBalanceItem = {
-      ...baseItem,
-      id: "item-b",
-      label: "Savings",
+    const rowB: SerializedAccountRow = {
+      ...baseRow,
+      accountId: "account-b",
+      name: "Savings",
       value: 50,
       sortOrder: 2,
     };
-    const { rerender } = renderSheet([itemA, itemB]);
+    const { rerender } = renderSheet([rowA, rowB]);
 
     const amountInputs = screen.getAllByPlaceholderText(
       "0",
@@ -176,9 +183,11 @@ describe("BalanceSheet — dirty tracking is per item, not one shared flag", () 
     await act(async () => {
       await jest.advanceTimersByTimeAsync(400);
     });
-    expect(updateBalanceItem).toHaveBeenCalledTimes(1);
-    expect(updateBalanceItem).toHaveBeenCalledWith({
-      itemId: "item-a",
+    expect(upsertBalanceValue).toHaveBeenCalledTimes(1);
+    expect(upsertBalanceValue).toHaveBeenCalledWith({
+      accountId: "account-a",
+      year: 2026,
+      month: 2,
       value: 200,
     });
 
@@ -188,7 +197,7 @@ describe("BalanceSheet — dirty tracking is per item, not one shared flag", () 
       <ThemeProvider theme={theme}>
         <BalanceSheet
           period={period}
-          initialItems={[itemA, itemB]}
+          initialRows={[rowA, rowB]}
           year={2026}
           month={2}
           currency="GBP"
@@ -205,17 +214,96 @@ describe("BalanceSheet — dirty tracking is per item, not one shared flag", () 
   });
 });
 
-describe("BalanceSheet — onDelete branches on accountId", () => {
+describe("BalanceSheet — an account with no value this month", () => {
+  // The whole point of listing accounts rather than rows: an account the
+  // user hasn't got to yet still has a line, with an empty cell to type
+  // into. A zero would be a number they never gave.
+  test("renders an empty cell and says how many accounts are waiting", () => {
+    renderSheet([{ ...baseRow, value: null }]);
+
+    const amountInput = screen.getByPlaceholderText("0") as HTMLInputElement;
+    expect(amountInput.value).toBe("");
+    expect(screen.getByText("1 account without a value")).toBeInTheDocument();
+  });
+
+  test("counts every account still without one", () => {
+    renderSheet([
+      { ...baseRow, value: null },
+      { ...baseRow, accountId: "account-b", name: "Savings", value: null },
+      { ...baseRow, accountId: "account-c", name: "ISA", value: 12 },
+    ]);
+
+    expect(screen.getByText("2 accounts without a value")).toBeInTheDocument();
+  });
+});
+
+describe("BalanceSheet — the row's type control", () => {
   beforeEach(() => {
-    deleteBalanceItem.mockClear();
+    setAccountType.mockReset();
+    setAccountType.mockResolvedValue(undefined);
+  });
+
+  // Same kind only: an account never crosses between assets and liabilities
+  // (setAccountType refuses it), so the list is the nine asset types and
+  // nothing else.
+  test("an asset row offers exactly the nine asset types", () => {
+    renderSheet([baseRow]);
+    fireEvent.focus(screen.getByDisplayValue(baseRow.name));
+
+    const select = screen.getByLabelText("Account type") as HTMLSelectElement;
+    expect([...select.options].map((o) => o.textContent)).toEqual(
+      accountTypesOfKind("ASSET").map((t) => t.label),
+    );
+    expect(select.options).toHaveLength(9);
+  });
+
+  test("picking a type saves it against the account", async () => {
+    renderSheet([baseRow]);
+    fireEvent.focus(screen.getByDisplayValue(baseRow.name));
+
+    fireEvent.change(screen.getByLabelText("Account type"), {
+      target: { value: "SAVINGS" },
+    });
+
+    await waitFor(() =>
+      expect(setAccountType).toHaveBeenCalledWith({
+        accountId: baseRow.accountId,
+        type: "SAVINGS",
+      }),
+    );
+  });
+
+  // A refusal names the blocker — a linked mortgage, a plan sale event — and
+  // that sentence is the only thing telling the user what to deal with
+  // first, so it is shown as written rather than as "Save failed".
+  test("a refusal is shown in the sheet's error slot, verbatim", async () => {
+    setAccountType.mockRejectedValue(
+      new Error("Home is linked to its mortgage/property — unlink first"),
+    );
+    renderSheet([baseRow]);
+    fireEvent.focus(screen.getByDisplayValue(baseRow.name));
+
+    fireEvent.change(screen.getByLabelText("Account type"), {
+      target: { value: "SAVINGS" },
+    });
+
+    expect(
+      await screen.findByText(
+        "Home is linked to its mortgage/property — unlink first",
+      ),
+    ).toBeInTheDocument();
+  });
+});
+
+describe("BalanceSheet — deleting a row", () => {
+  beforeEach(() => {
     accountDeletionCounts.mockClear();
   });
 
-  // The hard risk this pins: a row backed by a durable Account must go
-  // through the counts-then-confirm panel, never straight to
-  // deleteBalanceItem — that path skips the "how much history does this
-  // remove" step entirely.
-  test("a row with an accountId opens the delete panel instead of deleting directly", async () => {
+  // Every row is an account now, so the delete gesture always goes through
+  // the counts-then-confirm panel — the one hard delete in the app never
+  // happens without the size of what it removes stated up front.
+  test("opens the delete panel with the account's counts", async () => {
     accountDeletionCounts.mockResolvedValue({
       months: 3,
       budgetRows: 1,
@@ -223,33 +311,14 @@ describe("BalanceSheet — onDelete branches on accountId", () => {
       importBatches: 0,
       linked: null,
     });
-    const item: SerializedBalanceItem = { ...baseItem, accountId: "account-1" };
-    renderSheet([item]);
+    renderSheet([baseRow]);
 
-    fireEvent.focus(screen.getByDisplayValue(item.label));
+    fireEvent.focus(screen.getByDisplayValue(baseRow.name));
     fireEvent.click(screen.getByRole("button", { name: /delete row/i }));
 
     expect(await screen.findByRole("alertdialog")).toBeInTheDocument();
     expect(accountDeletionCounts).toHaveBeenCalledWith({
-      accountId: "account-1",
+      accountId: baseRow.accountId,
     });
-    expect(deleteBalanceItem).not.toHaveBeenCalled();
-  });
-
-  // The other hard risk: a legacy row that predates the backfill (no
-  // accountId at all) must keep the old direct-delete path — it must never
-  // reach the panel, which would fetch counts for an account that doesn't
-  // exist.
-  test("a legacy row with no accountId still deletes directly, bypassing the panel", async () => {
-    renderSheet([baseItem]);
-
-    fireEvent.focus(screen.getByDisplayValue(baseItem.label));
-    fireEvent.click(screen.getByRole("button", { name: /delete row/i }));
-
-    await waitFor(() =>
-      expect(deleteBalanceItem).toHaveBeenCalledWith({ itemId: baseItem.id }),
-    );
-    expect(accountDeletionCounts).not.toHaveBeenCalled();
-    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
   });
 });

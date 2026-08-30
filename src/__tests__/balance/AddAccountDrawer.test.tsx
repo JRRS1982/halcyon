@@ -6,7 +6,7 @@ import { theme } from "@/lib/theme";
 
 const created = jest.fn();
 jest.mock("@/app/(app)/balance/accountActions", () => ({
-  createAccountWithBalance: (...args: unknown[]) => created(...args),
+  createAccount: (...args: unknown[]) => created(...args),
 }));
 
 const renderDrawer = () =>
@@ -120,7 +120,7 @@ describe("AddAccountDrawer", () => {
     expect(screen.getByLabelText(/section/i)).toHaveValue("CURRENT");
   });
 
-  test("a liability choice yields kind LIABILITY and no wrapper", async () => {
+  test("a liability choice sends its own type and section", async () => {
     renderDrawer();
 
     pickType("MORTGAGE");
@@ -139,11 +139,13 @@ describe("AddAccountDrawer", () => {
       fireEvent.click(screen.getByRole("button", { name: /^add$/i }));
     });
 
+    // The one type the user picked travels as itself — kind and wrapper are
+    // derived from it server-side, never sent alongside it.
     expect(created).toHaveBeenCalledWith(
       expect.objectContaining({
         name: "Halifax mortgage",
-        type: "LIABILITY",
-        category: "LONG_TERM",
+        type: "MORTGAGE",
+        section: "LONG_TERM",
         mortgage: null,
       }),
     );
@@ -189,9 +191,8 @@ describe("AddAccountDrawer", () => {
         year: 2026,
         month: 2,
         name: "Vanguard ISA",
-        type: "ASSET",
-        category: "LONG_TERM",
-        wrapper: "ISA",
+        type: "STOCKS_ISA",
+        section: "LONG_TERM",
         value: 42300,
         mortgage: null,
       }),

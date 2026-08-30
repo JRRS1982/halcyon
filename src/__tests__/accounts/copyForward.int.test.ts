@@ -1,6 +1,6 @@
 import {
   archiveAccount,
-  createAccountWithBalance,
+  createAccount,
 } from "@/app/(app)/balance/accountActions";
 import { copyBalancePeriodFrom } from "@/app/(app)/balance/actions";
 import { prisma } from "@/lib/prisma";
@@ -8,13 +8,12 @@ import { TEST_USER_ID } from "../../../test/integration/helpers";
 
 describe("balance copy-forward (integration)", () => {
   it("carries the account link into the next month", async () => {
-    const { accountId, periodId } = await createAccountWithBalance({
+    const { accountId, periodId } = await createAccount({
       year: 2026,
       month: 2,
       name: "Vanguard ISA",
-      type: "ASSET",
-      category: "LONG_TERM",
-      wrapper: "ISA",
+      type: "STOCKS_ISA",
+      section: "LONG_TERM",
       value: 42300,
       canImportTransactions: false,
       mortgage: null,
@@ -42,13 +41,12 @@ describe("balance copy-forward (integration)", () => {
   // sheet" — copy-forward is the only thing that populates a new month, so
   // that promise is only true if it excludes the account's row.
   it("does not carry an archived account's row into the next month", async () => {
-    const { accountId, periodId } = await createAccountWithBalance({
+    const { accountId, periodId } = await createAccount({
       year: 2026,
       month: 2,
       name: "Premium bonds",
-      type: "ASSET",
-      category: "OTHER",
-      wrapper: "CASH",
+      type: "SAVINGS",
+      section: "OTHER",
       value: 5000,
       canImportTransactions: false,
       mortgage: null,

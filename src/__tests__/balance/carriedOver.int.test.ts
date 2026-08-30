@@ -1,75 +1,44 @@
+import { createAccount } from "@/app/(app)/balance/accountActions";
 import {
   copyBalancePeriodFrom,
-  updateBalanceItem,
+  upsertBalanceValue,
 } from "@/app/(app)/balance/actions";
-import { ensurePeriodForMonth } from "@/app/(app)/budget/actions";
 import { prisma } from "@/lib/prisma";
 
 // Copied balance values are last month's numbers, not this month's — until the
 // user confirms each one it must stay visibly provisional. These pin the flag's
-// whole lifecycle: set by copy, cleared by a value edit, untouched by other
-// edits.
+// whole lifecycle: set by copy, cleared by a value edit, untouched by a
+// notes-only edit.
 
-// A fixture row created directly against the DB — standing in for the removed
-// createBalanceItemForMonth (the app now only creates a non-legacy balance row
-// through an Account via createAccountWithBalance). These tests are about
-// copyBalancePeriodFrom / updateBalanceItem, not about how the fixture row got
-// there.
-async function seedBalanceItem(input: {
-  year: number;
-  month: number;
-  type: "ASSET" | "LIABILITY";
-  category: "CURRENT" | "MEDIUM_TERM" | "LONG_TERM" | "PROPERTY" | "OTHER";
-  label: string;
-}) {
-  const period = await ensurePeriodForMonth(input.year, input.month);
-  const item = await prisma.balanceItem.create({
-    data: {
-      periodId: period.id,
-      type: input.type,
-      category: input.category,
-      label: input.label,
-    },
+const seedFebruary = async () => {
+  const { accountId, periodId } = await createAccount({
+    year: 2026,
+    month: 1,
+    name: "Savings",
+    type: "SAVINGS",
+    section: "CURRENT",
+    value: 5000,
+    canImportTransactions: false,
+    mortgage: null,
   });
-  return { item: { ...item, value: Number(item.value) } };
-}
+  return { accountId, periodId };
+};
 
 describe("balance carried-over flag (integration)", () => {
-  const seedSourceMonth = async () => {
-    const { item } = await seedBalanceItem({
-      year: 2026,
-      month: 1,
-      type: "ASSET",
-      category: "CURRENT",
-      label: "Savings",
-    });
-    await updateBalanceItem({ itemId: item.id, value: 5000 });
-    const period = await prisma.balanceItem.findUniqueOrThrow({
-      where: { id: item.id },
-      select: { periodId: true },
-    });
-    return period.periodId;
-  };
+  test("a value the user typed for the month is not carried over", async () => {
+    const { accountId } = await seedFebruary();
 
-  test("a row created by hand is not carried over", async () => {
-    const { item } = await seedBalanceItem({
-      year: 2026,
-      month: 1,
-      type: "ASSET",
-      category: "CURRENT",
-      label: "Savings",
-    });
-    const row = await prisma.balanceItem.findUniqueOrThrow({
-      where: { id: item.id },
+    const row = await prisma.balanceItem.findFirstOrThrow({
+      where: { accountId },
     });
     expect(row.carriedOver).toBe(false);
   });
 
   test("copying a month marks every clone carried over, in the DB and the returned rows", async () => {
-    const sourcePeriodId = await seedSourceMonth();
+    const { periodId } = await seedFebruary();
 
     const result = await copyBalancePeriodFrom({
-      sourcePeriodId,
+      sourcePeriodId: periodId,
       targetYear: 2026,
       targetMonth: 2,
     });
@@ -84,23 +53,28 @@ describe("balance carried-over flag (integration)", () => {
     expect(Number(clone.value)).toBe(5000);
   });
 
-  test("editing the value confirms the row; editing the label does not", async () => {
-    const sourcePeriodId = await seedSourceMonth();
+  test("editing the value confirms the row; editing the notes does not", async () => {
+    const { accountId, periodId } = await seedFebruary();
     const { items } = await copyBalancePeriodFrom({
-      sourcePeriodId,
+      sourcePeriodId: periodId,
       targetYear: 2026,
       targetMonth: 2,
     });
     const cloneId = items[0]?.id ?? "";
 
-    const afterLabel = await updateBalanceItem({
-      itemId: cloneId,
-      label: "Savings ISA",
+    const afterNotes = await upsertBalanceValue({
+      accountId,
+      year: 2026,
+      month: 2,
+      notes: "Still to check",
     });
-    expect(afterLabel.carriedOver).toBe(true);
+    expect(afterNotes.id).toBe(cloneId);
+    expect(afterNotes.carriedOver).toBe(true);
 
-    const afterValue = await updateBalanceItem({
-      itemId: cloneId,
+    const afterValue = await upsertBalanceValue({
+      accountId,
+      year: 2026,
+      month: 2,
       value: 5100,
     });
     expect(afterValue.carriedOver).toBe(false);
@@ -109,5 +83,6 @@ describe("balance carried-over flag (integration)", () => {
       where: { id: cloneId },
     });
     expect(row.carriedOver).toBe(false);
+    expect(Number(row.value)).toBe(5100);
   });
 });

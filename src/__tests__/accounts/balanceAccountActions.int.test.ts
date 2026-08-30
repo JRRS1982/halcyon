@@ -1,7 +1,7 @@
 import {
   accountDeletionCounts,
   archiveAccount,
-  createAccountWithBalance,
+  createAccount,
   deleteAccountEverywhere,
   restoreAccount,
 } from "@/app/(app)/balance/accountActions";
@@ -15,9 +15,8 @@ const isaInput = {
   year: 2026,
   month: 2,
   name: "Vanguard ISA",
-  type: "ASSET" as const,
-  category: "LONG_TERM" as const,
-  wrapper: "ISA" as const,
+  type: "STOCKS_ISA" as const,
+  section: "LONG_TERM" as const,
   value: 42300,
   canImportTransactions: false,
   mortgage: null,
@@ -26,8 +25,8 @@ const isaInput = {
 const homeWithMortgageInput = {
   ...isaInput,
   name: "Home",
-  category: "PROPERTY" as const,
-  wrapper: "PROPERTY" as const,
+  type: "PROPERTY" as const,
+  section: "PROPERTY" as const,
   value: 420000,
   mortgage: {
     name: "Halifax mortgage",
@@ -38,7 +37,7 @@ const homeWithMortgageInput = {
 
 describe("account actions (integration)", () => {
   it("creates the account and its first observation together", async () => {
-    const { accountId, periodId } = await createAccountWithBalance(isaInput);
+    const { accountId, periodId } = await createAccount(isaInput);
 
     const account = await prisma.account.findUniqueOrThrow({
       where: { id: accountId },
@@ -57,12 +56,13 @@ describe("account actions (integration)", () => {
   });
 
   it("creates a property and its mortgage as one linked pair", async () => {
-    const { accountId } = await createAccountWithBalance(homeWithMortgageInput);
+    const { accountId } = await createAccount(homeWithMortgageInput);
 
     const property = await prisma.account.findUniqueOrThrow({
       where: { id: accountId },
     });
-    expect(property.category).toBe("PROPERTY");
+    expect(property.type).toBe("PROPERTY");
+    expect(property.section).toBe("PROPERTY");
     expect(property.wrapper).toBe("PROPERTY");
 
     const mortgage = await prisma.account.findFirstOrThrow({
@@ -72,7 +72,8 @@ describe("account actions (integration)", () => {
     // Mortgage debt files under long-term liabilities, not PROPERTY —
     // PROPERTY is asset-only and the balance sheet doesn't render a
     // LIABILITY/PROPERTY row at all (see BalanceSheet.tsx).
-    expect(mortgage.category).toBe("LONG_TERM");
+    expect(mortgage.type).toBe("MORTGAGE");
+    expect(mortgage.section).toBe("LONG_TERM");
     // A tax wrapper describes an asset, not a debt.
     expect(mortgage.wrapper).toBeNull();
 
@@ -102,9 +103,18 @@ describe("account actions (integration)", () => {
         label: range.label,
       },
     });
+    const carLoan = await prisma.account.create({
+      data: {
+        userId: TEST_USER_ID,
+        name: "Car loan",
+        type: "LOAN",
+        section: "LONG_TERM",
+      },
+    });
     const existingLiability = await prisma.balanceItem.create({
       data: {
         periodId: period.id,
+        accountId: carLoan.id,
         type: "LIABILITY",
         category: "LONG_TERM",
         label: "Car loan",
@@ -113,7 +123,7 @@ describe("account actions (integration)", () => {
       },
     });
 
-    const { accountId } = await createAccountWithBalance(homeWithMortgageInput);
+    const { accountId } = await createAccount(homeWithMortgageInput);
 
     const mortgage = await prisma.account.findFirstOrThrow({
       where: { linkedAccountId: accountId },
@@ -130,7 +140,7 @@ describe("account actions (integration)", () => {
   });
 
   it("archiving keeps history and hides the account", async () => {
-    const { accountId } = await createAccountWithBalance(isaInput);
+    const { accountId } = await createAccount(isaInput);
 
     await archiveAccount({
       accountId,
@@ -148,7 +158,7 @@ describe("account actions (integration)", () => {
   });
 
   it("restoring clears the archive flag", async () => {
-    const { accountId } = await createAccountWithBalance(isaInput);
+    const { accountId } = await createAccount(isaInput);
     await archiveAccount({
       accountId,
       alsoLinked: false,
@@ -165,7 +175,7 @@ describe("account actions (integration)", () => {
   });
 
   it("counts what a full delete would remove, before it happens", async () => {
-    const { accountId } = await createAccountWithBalance(homeWithMortgageInput);
+    const { accountId } = await createAccount(homeWithMortgageInput);
 
     const counts = await accountDeletionCounts({ accountId });
 
@@ -175,7 +185,7 @@ describe("account actions (integration)", () => {
   });
 
   it("counts the account's own transactions and import batches", async () => {
-    const { accountId } = await createAccountWithBalance(isaInput);
+    const { accountId } = await createAccount(isaInput);
     const batch = await prisma.importBatch.create({
       data: { userId: TEST_USER_ID, accountId, fileName: "statement.csv" },
     });
@@ -197,7 +207,7 @@ describe("account actions (integration)", () => {
   });
 
   it("counts a reversed transaction too, because the delete removes it regardless", async () => {
-    const { accountId } = await createAccountWithBalance(isaInput);
+    const { accountId } = await createAccount(isaInput);
     await prisma.transaction.create({
       data: {
         userId: TEST_USER_ID,
@@ -227,7 +237,7 @@ describe("account actions (integration)", () => {
   });
 
   it("deleting everywhere removes every observation", async () => {
-    const { accountId } = await createAccountWithBalance(isaInput);
+    const { accountId } = await createAccount(isaInput);
 
     await deleteAccountEverywhere({ accountId, alsoLinked: false });
 
@@ -238,7 +248,7 @@ describe("account actions (integration)", () => {
   });
 
   it("deleting everywhere also removes the account's transactions and import batches", async () => {
-    const { accountId } = await createAccountWithBalance(isaInput);
+    const { accountId } = await createAccount(isaInput);
     const batch = await prisma.importBatch.create({
       data: { userId: TEST_USER_ID, accountId, fileName: "statement.csv" },
     });
@@ -264,9 +274,14 @@ describe("account actions (integration)", () => {
   });
 
   it("refuses to delete an account still named as another transaction's transfer counterparty", async () => {
-    const { accountId } = await createAccountWithBalance(isaInput);
+    const { accountId } = await createAccount(isaInput);
     const other = await prisma.account.create({
-      data: { userId: TEST_USER_ID, name: "Current", kind: "NONE" },
+      data: {
+        userId: TEST_USER_ID,
+        name: "Current",
+        type: "CURRENT_ACCOUNT",
+        section: "CURRENT",
+      },
     });
     const transferTxn = await prisma.transaction.create({
       data: {
@@ -294,7 +309,7 @@ describe("account actions (integration)", () => {
   });
 
   it("does not block deleting a linked pair over a transfer transaction between them", async () => {
-    const { accountId } = await createAccountWithBalance(homeWithMortgageInput);
+    const { accountId } = await createAccount(homeWithMortgageInput);
     const mortgage = await prisma.account.findFirstOrThrow({
       where: { linkedAccountId: accountId },
     });
@@ -326,9 +341,14 @@ describe("account actions (integration)", () => {
   // otherwise the account delete hits the schema's Restrict FK and throws a
   // raw P2003.
   it("hard-deletes an account even when a reversed transaction elsewhere still names it as the transfer counterparty", async () => {
-    const { accountId } = await createAccountWithBalance(isaInput);
+    const { accountId } = await createAccount(isaInput);
     const other = await prisma.account.create({
-      data: { userId: TEST_USER_ID, name: "Current", kind: "NONE" },
+      data: {
+        userId: TEST_USER_ID,
+        name: "Current",
+        type: "CURRENT_ACCOUNT",
+        section: "CURRENT",
+      },
     });
     const reversedTransfer = await prisma.transaction.create({
       data: {
@@ -354,7 +374,7 @@ describe("account actions (integration)", () => {
   });
 
   it("takes the linked mortgage only when asked", async () => {
-    const { accountId } = await createAccountWithBalance(homeWithMortgageInput);
+    const { accountId } = await createAccount(homeWithMortgageInput);
     const mortgage = await prisma.account.findFirstOrThrow({
       where: { linkedAccountId: accountId },
     });
@@ -370,8 +390,8 @@ describe("account actions (integration)", () => {
   });
 
   it("takes both sides when asked", async () => {
-    await createAccountWithBalance(homeWithMortgageInput);
-    const { accountId } = await createAccountWithBalance(homeWithMortgageInput);
+    await createAccount(homeWithMortgageInput);
+    const { accountId } = await createAccount(homeWithMortgageInput);
 
     await deleteAccountEverywhere({ accountId, alsoLinked: true });
 
@@ -389,7 +409,7 @@ describe("account actions (integration)", () => {
   });
 
   it("still finds an archived partner when asked to take it along", async () => {
-    const { accountId } = await createAccountWithBalance(homeWithMortgageInput);
+    const { accountId } = await createAccount(homeWithMortgageInput);
     const mortgage = await prisma.account.findFirstOrThrow({
       where: { linkedAccountId: accountId },
     });
@@ -410,11 +430,10 @@ describe("account actions (integration)", () => {
   });
 
   it("does not store a tax wrapper on a plain liability entry", async () => {
-    const { accountId } = await createAccountWithBalance({
+    const { accountId } = await createAccount({
       ...isaInput,
-      type: "LIABILITY",
-      category: "OTHER",
-      wrapper: "OTHER",
+      type: "OTHER_DEBT",
+      section: "OTHER",
       mortgage: null,
     });
 
@@ -426,15 +445,18 @@ describe("account actions (integration)", () => {
 
   it("rejects a mortgage attached to anything other than a PROPERTY asset", async () => {
     await expect(
-      createAccountWithBalance({
+      createAccount({
         ...isaInput,
         mortgage: { name: "Nope", value: 100, canImportTransactions: false },
       }),
     ).rejects.toThrow();
   });
 
-  it("leaves an already-archived balance row alone in the delete, letting the FK null its accountId", async () => {
-    const { accountId } = await createAccountWithBalance(isaInput);
+  // Task 1 made BalanceItem.accountId required and its FK ON DELETE CASCADE,
+  // so a balance row can no longer outlive its account with a null accountId
+  // — the row it was an observation of is gone, and so is the row.
+  it("takes an already-archived balance row with the account, via the FK's cascade", async () => {
+    const { accountId } = await createAccount(isaInput);
     const item = await prisma.balanceItem.findFirstOrThrow({
       where: { accountId },
     });
@@ -448,39 +470,34 @@ describe("account actions (integration)", () => {
 
     await deleteAccountEverywhere({ accountId, alsoLinked: false });
 
-    // Not force-deleted by the action's deleteMany (which only targets live
-    // rows) — instead left for the FK's own ON DELETE SET NULL to clear its
-    // accountId when the account goes.
-    const survivor = await prisma.balanceItem.findUniqueOrThrow({
-      where: { id: item.id },
-    });
-    expect(survivor.accountId).toBeNull();
-    expect(survivor.deletedAt).not.toBeNull();
+    // Not touched by the action's own deleteMany (which only targets live
+    // rows) — the FK's ON DELETE CASCADE removes it when the account goes.
+    expect(
+      await prisma.balanceItem.findUnique({ where: { id: item.id } }),
+    ).toBeNull();
   });
 
-  // Task 1's reviewer flagged that nothing tests the ON DELETE SET NULL
-  // behaviour on BalanceItem.accountId. deleteAccountEverywhere deletes the
-  // children before the account, so that FK action never fires on the happy
-  // path — it's a safety net for any other deletion route, present or future.
-  // Exercised here against the raw Prisma call, not through the action.
-  it("hard-deleting an account nulls out balance rows that still point at it, rather than deleting them", async () => {
-    const { accountId } = await createAccountWithBalance(isaInput);
+  // deleteAccountEverywhere deletes the children before the account, so the
+  // FK action never fires on the happy path — it's the safety net for any
+  // other deletion route, present or future. Exercised here against the raw
+  // Prisma call, not through the action.
+  it("hard-deleting an account takes the balance rows that point at it", async () => {
+    const { accountId } = await createAccount(isaInput);
     const balanceItem = await prisma.balanceItem.findFirstOrThrow({
       where: { accountId },
     });
 
     await prisma.account.delete({ where: { id: accountId } });
 
-    const item = await prisma.balanceItem.findUniqueOrThrow({
-      where: { id: balanceItem.id },
-    });
-    expect(item.accountId).toBeNull();
+    expect(
+      await prisma.balanceItem.findUnique({ where: { id: balanceItem.id } }),
+    ).toBeNull();
   });
 
   // Same FK safety net, other model: BudgetItem.accountId is also
   // ON DELETE SET NULL. Not created by these actions, so seeded directly.
   it("hard-deleting an account nulls out budget rows that still point at it, rather than deleting them", async () => {
-    const { accountId, periodId } = await createAccountWithBalance(isaInput);
+    const { accountId, periodId } = await createAccount(isaInput);
     const budgetItem = await prisma.budgetItem.create({
       data: {
         periodId,
@@ -504,7 +521,12 @@ describe("account actions ownership boundary (integration)", () => {
   it("refuses to touch another user's account", async () => {
     await prisma.user.create({ data: { id: OTHER_USER_ID } });
     const foreignAccount = await prisma.account.create({
-      data: { userId: OTHER_USER_ID, name: "Their ISA", kind: "ASSET" },
+      data: {
+        userId: OTHER_USER_ID,
+        name: "Their ISA",
+        type: "STOCKS_ISA",
+        section: "LONG_TERM",
+      },
     });
     const range = monthRangeFor(isaInput.year, isaInput.month);
     const foreignPeriod = await prisma.financialPeriod.create({
@@ -559,16 +581,21 @@ describe("account actions ownership boundary (integration)", () => {
 
   // The Critical #1 case: `linkedAccountId` on the caller's own (owned) row is
   // made to point at another user's account — not something
-  // createAccountWithBalance would ever do, but nothing in the schema stops
+  // createAccount would ever do, but nothing in the schema stops
   // it, and a forged/future-written value must not let deleteAccountEverywhere
   // reach across the tenant boundary. This test must fail before the fix in
   // resolveLinkedPartnerId (see report for the RED run).
   it("does not let a forged link reach another user's account when deleting", async () => {
-    const { accountId } = await createAccountWithBalance(isaInput);
+    const { accountId } = await createAccount(isaInput);
 
     await prisma.user.create({ data: { id: OTHER_USER_ID } });
     const foreignAccount = await prisma.account.create({
-      data: { userId: OTHER_USER_ID, name: "Their ISA", kind: "ASSET" },
+      data: {
+        userId: OTHER_USER_ID,
+        name: "Their ISA",
+        type: "STOCKS_ISA",
+        section: "LONG_TERM",
+      },
     });
     const range = monthRangeFor(isaInput.year, isaInput.month);
     const foreignPeriod = await prisma.financialPeriod.create({
@@ -612,7 +639,7 @@ describe("account actions ownership boundary (integration)", () => {
 
 describe("archiving a mortgaged property (integration)", () => {
   it("takes the mortgage with it when asked", async () => {
-    const { accountId } = await createAccountWithBalance(homeWithMortgageInput);
+    const { accountId } = await createAccount(homeWithMortgageInput);
     const mortgage = await prisma.account.findFirstOrThrow({
       where: { linkedAccountId: accountId },
     });
@@ -637,7 +664,7 @@ describe("archiving a mortgaged property (integration)", () => {
   });
 
   it("leaves the mortgage alone when not asked", async () => {
-    const { accountId } = await createAccountWithBalance(homeWithMortgageInput);
+    const { accountId } = await createAccount(homeWithMortgageInput);
     const mortgage = await prisma.account.findFirstOrThrow({
       where: { linkedAccountId: accountId },
     });
@@ -660,7 +687,7 @@ describe("archiving a mortgaged property (integration)", () => {
   // already closed keep what they recorded, which is what separates this from
   // deleting everywhere.
   it("clears this month's row and keeps the closed months", async () => {
-    const { accountId, periodId } = await createAccountWithBalance(isaInput);
+    const { accountId, periodId } = await createAccount(isaInput);
     const thisMonth = await prisma.financialPeriod.findUniqueOrThrow({
       where: { id: periodId },
     });

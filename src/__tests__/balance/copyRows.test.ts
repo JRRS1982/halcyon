@@ -37,7 +37,7 @@ describe("toCarriedOverRows", () => {
         value: new Prisma.Decimal(184200),
         notes: null,
         sortOrder: 1,
-        accountId: null,
+        accountId: "acc-1",
       },
       {
         type: "LIABILITY",
@@ -46,7 +46,7 @@ describe("toCarriedOverRows", () => {
         value: new Prisma.Decimal(5000),
         notes: null,
         sortOrder: 2,
-        accountId: null,
+        accountId: "acc-2",
       },
     ]);
 
