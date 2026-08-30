@@ -96,7 +96,7 @@ export default async function SettingsPage() {
     prisma.account.findMany({
       where: { userId, deletedAt: null },
       orderBy: { name: "asc" },
-      select: { id: true, name: true, canImportTransactions: true },
+      select: { id: true, name: true, type: true, canImportTransactions: true },
     }),
     prisma.account.findMany({
       where: { userId, deletedAt: { not: null } },
@@ -126,6 +126,7 @@ export default async function SettingsPage() {
   const managedAccounts: ManagedAccount[] = accountRows.map((a) => ({
     id: a.id,
     name: a.name,
+    type: a.type,
     ownedCount: ownedByAccount[a.id] ?? 0,
     counterpartyCount: counterpartyByAccount[a.id] ?? 0,
     canImportTransactions: a.canImportTransactions,

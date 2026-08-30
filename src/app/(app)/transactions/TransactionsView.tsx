@@ -13,7 +13,7 @@ type Account = { id: string; name: string };
 type TransferAccount = {
   id: string;
   name: string;
-  kind: "ASSET" | "LIABILITY" | "NONE";
+  kind: "ASSET" | "LIABILITY";
 };
 
 const Shell = styled.main`

@@ -533,7 +533,7 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
   // gets noticed before committing.
   const destinationName =
     accountChoice === NEW_ACCOUNT
-      ? newAccountName.trim() || "a new account"
+      ? newAccountName.trim() || "a new current account"
       : (accounts.find((a) => a.id === accountChoice)?.name ?? "");
 
   return (

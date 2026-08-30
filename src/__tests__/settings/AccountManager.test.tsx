@@ -10,7 +10,6 @@ jest.mock("@/app/(app)/balance/accountActions", () => ({
 
 const setImports = jest.fn();
 jest.mock("@/app/(app)/settings/accountActions", () => ({
-  createManagedAccount: jest.fn(),
   deleteAccount: jest.fn(),
   renameAccount: jest.fn(),
   setAccountImports: (...a: unknown[]) => setImports(...a),
@@ -32,6 +31,7 @@ describe("AccountManager", () => {
             {
               id: "a1",
               name: "Halifax mortgage",
+              type: "MORTGAGE",
               ownedCount: 0,
               counterpartyCount: 0,
               canImportTransactions: false,
@@ -41,6 +41,8 @@ describe("AccountManager", () => {
         />
       </ThemeProvider>,
     );
+
+    expect(screen.getByText("Mortgage")).toBeInTheDocument();
 
     const toggle = screen.getByRole("checkbox", {
       name: /allow importing of statements/i,
@@ -64,6 +66,7 @@ describe("AccountManager", () => {
             {
               id: "a1",
               name: "Barclays Current",
+              type: "CURRENT_ACCOUNT",
               ownedCount: 0,
               counterpartyCount: 0,
             },
@@ -92,6 +95,7 @@ describe("AccountManager", () => {
             {
               id: "a1",
               name: "Barclays Current",
+              type: "CURRENT_ACCOUNT",
               ownedCount: 0,
               counterpartyCount: 0,
             },

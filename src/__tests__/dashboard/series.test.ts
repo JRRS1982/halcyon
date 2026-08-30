@@ -1,4 +1,5 @@
 import {
+  accountBalanceSums,
   balanceSeries,
   cashFlowSeries,
   monthFlow,
@@ -53,6 +54,49 @@ describe("balanceSeries", () => {
       }),
     ]);
     expect(point?.net).toBe(-20);
+  });
+});
+
+describe("accountBalanceSums", () => {
+  // The regression this closes: BalanceItem carries its own type/category
+  // mirror columns, written at creation and never kept in step with a later
+  // setAccountType/setAccountSection call on the account. A stale mirror must
+  // not move the chart — only the account's current kindOf(type)/section may.
+  test("follows the account's current type, not the item's stale mirror", () => {
+    const sums = accountBalanceSums([
+      {
+        value: 500,
+        // The item's own mirrors (absent from this input on purpose — the
+        // function never reads them) would have said EXPENSE/ASSET:CURRENT
+        // before the account was switched to a mortgage; only the account's
+        // present-day type/section reach this function.
+        account: { type: "MORTGAGE", section: "LONG_TERM" },
+      },
+    ]);
+
+    expect(sums.liabilityLongTerm).toBe(500);
+    expect(sums.assetCurrent).toBe(0);
+  });
+
+  test("sums assets and liabilities into the right bucket by account section", () => {
+    const sums = accountBalanceSums([
+      { value: 1000, account: { type: "CURRENT_ACCOUNT", section: "CURRENT" } },
+      { value: 5000, account: { type: "SAVINGS", section: "MEDIUM_TERM" } },
+      { value: 200000, account: { type: "PROPERTY", section: "PROPERTY" } },
+      { value: 150000, account: { type: "MORTGAGE", section: "LONG_TERM" } },
+      { value: 300, account: { type: "CREDIT_CARD", section: "CURRENT" } },
+    ]);
+
+    expect(sums.assetCurrent).toBe(1000);
+    expect(sums.assetMediumTerm).toBe(5000);
+    expect(sums.assetProperty).toBe(200000);
+    expect(sums.liabilityLongTerm).toBe(150000);
+    expect(sums.liabilityCurrent).toBe(300);
+  });
+
+  test("a month with nothing recorded sums to all zeroes", () => {
+    const sums = accountBalanceSums([]);
+    expect(Object.values(sums).every((v) => v === 0)).toBe(true);
   });
 });
 

@@ -1,9 +1,10 @@
 "use server";
 
-import type { AccountKind } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { kindOf } from "@/lib/accounts/accountDraft";
 import { buildAccountData } from "@/lib/accounts/creation";
+import type { BalanceType } from "@/lib/balance/reorder";
 import { categorySectionSchema } from "@/lib/budget/schemas";
 import { cleanLabel } from "@/lib/categories/normalize";
 import { sectionFor, sectionLabel } from "@/lib/categories/sections";
@@ -637,7 +638,7 @@ const createAccountAndTransferSchema = z.object({
 // orphaned account behind.
 export async function createAccountAndTransfer(
   input: z.input<typeof createAccountAndTransferSchema>,
-): Promise<{ id: string; name: string; kind: AccountKind }> {
+): Promise<{ id: string; name: string; kind: BalanceType }> {
   const userId = await requireTransactionsEnabled();
   const { transactionIds, name } = createAccountAndTransferSchema.parse(input);
 
@@ -652,7 +653,7 @@ export async function createAccountAndTransfer(
         name: cleanLabel(name),
         ...buildAccountData({ type: "SAVINGS" }),
       },
-      select: { id: true, name: true, kind: true },
+      select: { id: true, name: true, type: true },
     });
 
     // A freshly-created account can't own any existing transaction, so no
@@ -671,7 +672,11 @@ export async function createAccountAndTransfer(
   revalidatePath("/settings");
   revalidatePath("/budget");
   revalidatePath("/dashboard");
-  return created;
+  return {
+    id: created.id,
+    name: created.name,
+    kind: kindOf(created.type),
+  };
 }
 
 const createAndAssignCategorySchema = z.object({

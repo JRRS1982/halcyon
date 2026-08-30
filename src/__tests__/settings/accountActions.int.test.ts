@@ -1,9 +1,9 @@
 import {
-  createManagedAccount,
   deleteAccount,
   renameAccount,
   setAccountImports,
 } from "@/app/(app)/settings/accountActions";
+import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
 
@@ -11,9 +11,15 @@ const OTHER_USER_ID = "00000000-0000-0000-0000-0000000000bb";
 
 describe("account CRUD (integration)", () => {
   test("creates and renames an account", async () => {
-    await createManagedAccount({ name: "Savings" });
-    const created = await prisma.account.findFirstOrThrow({
-      where: { userId: TEST_USER_ID, name: "Savings" },
+    // createManagedAccount is gone — the drawer (Task 6) is the one way to
+    // create an account now — so this creates the fixture directly, the same
+    // way that action used to.
+    const created = await prisma.account.create({
+      data: {
+        userId: TEST_USER_ID,
+        name: "Savings",
+        ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+      },
     });
     await renameAccount({ accountId: created.id, name: "ISA" });
     const renamed = await prisma.account.findUniqueOrThrow({

@@ -21,7 +21,7 @@ const deleteItem = jest.fn();
 // The transfer picker can open the balance sheet's own Add-account drawer, so
 // that feature's server actions are now in this file's module graph.
 jest.mock("@/app/(app)/balance/accountActions", () => ({
-  createAccountWithBalance: jest.fn(),
+  createAccount: jest.fn(),
 }));
 
 jest.mock("@/app/(app)/budget/actions", () => ({
@@ -174,6 +174,14 @@ describe("BudgetSheet — three sections", () => {
     expect(screen.getByText("To Vanguard ISA")).toBeInTheDocument();
     expect(screen.getByText("Towards Halifax Mortgage")).toBeInTheDocument();
     expect(screen.queryByText(/INFLOW|OUTFLOW/)).not.toBeInTheDocument();
+  });
+
+  // An anchored row's name is the account's — editing it here would only
+  // recreate the rename divergence the account restructure closes.
+  test("an anchored row's label is read-only; a plain expense row's is not", () => {
+    renderSheet();
+    expect(screen.getByDisplayValue("Mortgage")).toHaveAttribute("readonly");
+    expect(screen.getByDisplayValue("Housing")).not.toHaveAttribute("readonly");
   });
 
   // Budgeted: 8500 − 2200 − 1250 − 500 into the ISA. Actual: 8000 − 2000 −
