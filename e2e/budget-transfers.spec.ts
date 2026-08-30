@@ -37,10 +37,10 @@ const MORTGAGE = "Halifax mortgage";
  * The budget sheet's table, and one of its rows by the label its rowheader
  * carries.
  *
- * Section bands, group subheads and the grand total are all `role="row"`
+ * Section bands, section subheads and the grand total are all `role="row"`
  * with a `rowheader` naming them (src/components/sheet/SheetRow), so one
  * helper reaches all three. `exact` because "Income" is also a substring of
- * "Side income" — but a group subhead carries its info button's "i" as well,
+ * "Side income" — but a section subhead carries its info button's "i" as well,
  * so those callers pass exact: false.
  */
 function sheetOf(page: Page) {
