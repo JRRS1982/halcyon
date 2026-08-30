@@ -53,6 +53,11 @@ function revalidateAll() {
   revalidatePath("/settings");
   revalidatePath("/dashboard");
   revalidatePath("/transactions");
+  // renameAccount and deleteAccountEverywhere both touch BudgetItem rows
+  // (label propagation, cascade delete respectively) in the same
+  // transaction — every action in this file shares one revalidateAll rather
+  // than each remembering its own paths, so /budget belongs here too.
+  revalidatePath("/budget");
 }
 
 // Throws unless the account is the caller's. Every action starts here — the
