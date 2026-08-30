@@ -1,17 +1,12 @@
+import type { CategorySection } from "@prisma/client";
+
 export type CopyableItem = {
   id: string;
   // Mirrors the full Prisma ItemType enum: a BudgetItem being copied can be
   // any of the four kinds. This function doesn't branch on type, so widening
   // it changes nothing about what gets copied.
   type: "INCOME" | "EXPENSE" | "TRANSFER" | "REPAYMENT";
-  category: "FIXED" | "VARIABLE" | "DISCRETIONARY" | null;
-  incomeCategory:
-    | "SALARY"
-    | "SIDE_INCOME"
-    | "INVESTMENTS"
-    | "PENSIONS"
-    | "OTHER"
-    | null;
+  section: CategorySection | null;
   // Link to the user's Category, when the source row has one. Carrying it
   // over is what keeps transaction-computed actuals attached to the copy.
   categoryId: string | null;
@@ -38,8 +33,7 @@ export function buildCopiedItems(
   return source.map((item) => ({
     id: makeId(),
     type: item.type,
-    category: item.category,
-    incomeCategory: item.incomeCategory,
+    section: item.section,
     categoryId: item.categoryId,
     accountId: item.accountId,
     direction: item.direction,

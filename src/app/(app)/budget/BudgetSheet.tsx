@@ -54,6 +54,11 @@ import {
   sumAmounts,
   surplus,
 } from "@/lib/budget/totals";
+import type {
+  CategorySection,
+  ExpenseSection,
+  IncomeSection,
+} from "@/lib/categories/sections";
 import { useDebouncedCallback } from "@/lib/hooks/useDebouncedCallback";
 import {
   caretAfterSignificant,
@@ -83,19 +88,12 @@ export type SerializedPeriod = {
   endDate: string;
 };
 
-export type ExpenseCategory = "FIXED" | "VARIABLE" | "DISCRETIONARY";
-export type IncomeCategory =
-  | "SALARY"
-  | "SIDE_INCOME"
-  | "INVESTMENTS"
-  | "PENSIONS"
-  | "OTHER";
+export type { ExpenseSection, IncomeSection };
 
 export type SerializedItem = {
   id: string;
   type: "INCOME" | "EXPENSE" | "TRANSFER" | "REPAYMENT";
-  category: ExpenseCategory | null;
-  incomeCategory: IncomeCategory | null;
+  section: CategorySection | null;
   categoryId: string | null;
   // The anchor a TRANSFER/REPAYMENT hangs on: the account the money moves to
   // or from, and (TRANSFER only) which way, relative to that account. Null on
@@ -310,7 +308,7 @@ const PeriodLabel = styled.span`
   font-weight: 600;
 `;
 
-// Category subhead label cell content: the bucket name + an info "i" button.
+// Category subhead label cell content: the section name + an info "i" button.
 const SubheadLabel = styled.span`
   display: inline-flex;
   align-items: center;
@@ -647,27 +645,20 @@ const CopyButton = styled.button<{ $primary?: boolean }>`
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-// The rows for one category bucket, sorted by sortOrder. Expenses match on
-// `category`, income on `incomeCategory`.
+// The rows for one section, sorted by sortOrder.
 function buildSectionOrder(
   items: SerializedItem[],
   type: "INCOME" | "EXPENSE",
-  category: ExpenseCategory | IncomeCategory,
+  section: CategorySection,
 ): SerializedItem[] {
   return items
-    .filter(
-      (i) =>
-        i.type === type &&
-        (type === "EXPENSE"
-          ? i.category === category
-          : i.incomeCategory === category),
-    )
+    .filter((i) => i.type === type && i.section === section)
     .sort((a, b) => a.sortOrder - b.sortOrder);
 }
 
-// The three expense buckets, in display order, with labels + help text.
-const EXPENSE_CATEGORIES: {
-  key: ExpenseCategory;
+// The three expense sections, in display order, with labels + help text.
+const EXPENSE_SECTION_META: {
+  key: ExpenseSection;
   label: string;
   help: string;
 }[] = [
@@ -688,9 +679,9 @@ const EXPENSE_CATEGORIES: {
   },
 ];
 
-// The five income buckets, in display order, with labels + help text.
-const INCOME_CATEGORIES: {
-  key: IncomeCategory;
+// The five income sections, in display order, with labels + help text.
+const INCOME_SECTION_META: {
+  key: IncomeSection;
   label: string;
   help: string;
 }[] = [
@@ -721,9 +712,9 @@ const INCOME_CATEGORIES: {
   },
 ];
 
-// Repayments are a bucket inside Expenses rather than a section of their own:
-// the money left, so it is spending, and a mortgage is the first thing people
-// look for under Expenses.
+// Repayments are grouped inside Expenses rather than getting a page section of
+// their own: the money left, so it is spending, and a mortgage is the first
+// thing people look for under Expenses.
 // A link-looking button inside the empty state, so "add one now" reads as part
 // of the sentence rather than as another control.
 const LinkBtn = styled.button`
@@ -1038,41 +1029,18 @@ export function BudgetSheet({
     [debouncedUpdate],
   );
 
-  // Re-bucket a top-level expense row. Optimistic + immediate save (not
-  // debounced — it's a discrete click, not typing).
-  const editCategory = useCallback(
-    (itemId: string, category: ExpenseCategory) => {
+  // Re-section a top-level income/expense row. Optimistic + immediate save
+  // (not debounced — it's a discrete click, not typing).
+  const editSection = useCallback(
+    (itemId: string, section: CategorySection) => {
       setItems((prev) =>
-        prev.map((it) => (it.id === itemId ? { ...it, category } : it)),
+        prev.map((it) => (it.id === itemId ? { ...it, section } : it)),
       );
       startTransition(async () => {
         pendingSavesRef.current += 1;
         setPendingCount(pendingSavesRef.current);
         try {
-          await updateItem({ itemId, category });
-          setLastSavedAt(new Date());
-          setSaveError(null);
-        } catch (e) {
-          setSaveError(e instanceof Error ? e.message : "Save failed");
-        } finally {
-          pendingSavesRef.current = Math.max(0, pendingSavesRef.current - 1);
-          setPendingCount(pendingSavesRef.current);
-        }
-      });
-    },
-    [],
-  );
-
-  const editIncomeCategory = useCallback(
-    (itemId: string, incomeCategory: IncomeCategory) => {
-      setItems((prev) =>
-        prev.map((it) => (it.id === itemId ? { ...it, incomeCategory } : it)),
-      );
-      startTransition(async () => {
-        pendingSavesRef.current += 1;
-        setPendingCount(pendingSavesRef.current);
-        try {
-          await updateItem({ itemId, incomeCategory });
+          await updateItem({ itemId, section });
           setLastSavedAt(new Date());
           setSaveError(null);
         } catch (e) {
@@ -1090,10 +1058,7 @@ export function BudgetSheet({
     (
       type: SerializedItem["type"],
       anchor?: NewRowAnchor,
-      section?: {
-        category?: ExpenseCategory;
-        incomeCategory?: IncomeCategory;
-      },
+      section?: CategorySection,
       budget?: number,
       label?: string,
     ) => {
@@ -1114,10 +1079,7 @@ export function BudgetSheet({
             type,
             label: label ?? anchor?.label ?? "",
             ...(budget !== undefined && { budget }),
-            ...(section?.category && { category: section.category }),
-            ...(section?.incomeCategory && {
-              incomeCategory: section.incomeCategory,
-            }),
+            ...(section && { section }),
             ...(anchor && {
               accountId: anchor.accountId,
               direction: anchor.direction,
@@ -1131,8 +1093,7 @@ export function BudgetSheet({
             {
               id: created.id,
               type: created.type,
-              category: created.category,
-              incomeCategory: created.incomeCategory,
+              section: created.section,
               categoryId: created.categoryId ?? null,
               accountId: created.accountId ?? null,
               direction: created.direction ?? null,
@@ -1167,9 +1128,9 @@ export function BudgetSheet({
   const [addAccountId, setAddAccountId] = useState<string | null>(null);
   const [newAccountOpen, setNewAccountOpen] = useState(false);
   const [addIncomeSection, setAddIncomeSection] =
-    useState<IncomeCategory>("SALARY");
+    useState<IncomeSection>("SALARY");
   const [addExpenseSection, setAddExpenseSection] =
-    useState<ExpenseCategory>("FIXED");
+    useState<ExpenseSection>("FIXED");
   const [addLabel, setAddLabel] = useState("");
   // A string, not a number: "" means unanswered, which is not zero.
   const [addValue, setAddValue] = useState("");
@@ -1268,9 +1229,7 @@ export function BudgetSheet({
       onAddRow(
         addKind,
         undefined,
-        addKind === "INCOME"
-          ? { incomeCategory: addIncomeSection }
-          : { category: addExpenseSection },
+        addKind === "INCOME" ? addIncomeSection : addExpenseSection,
         budget,
         addLabel.trim(),
       );
@@ -1299,28 +1258,28 @@ export function BudgetSheet({
     [accounts],
   );
 
-  // Expenses grouped into their three category buckets, each with its rows and
-  // a bucket subtotal.
-  const expenseBuckets = useMemo(
+  // Expenses grouped into their three sections, each with its rows and
+  // a section subtotal.
+  const expenseSections = useMemo(
     () =>
-      EXPENSE_CATEGORIES.map((cat) => {
+      EXPENSE_SECTION_META.map((cat) => {
         const rows = buildSectionOrder(items, "EXPENSE", cat.key);
         return { cat, rows, totals: sumAmounts(rows, rollups) };
       }),
     [items, rollups],
   );
 
-  // Income grouped into the five income buckets, same shape as expenseBuckets.
-  const incomeBuckets = useMemo(
+  // Income grouped into the five income sections, same shape as expenseSections.
+  const incomeSections = useMemo(
     () =>
-      INCOME_CATEGORIES.map((cat) => {
+      INCOME_SECTION_META.map((cat) => {
         const rows = buildSectionOrder(items, "INCOME", cat.key);
         return { cat, rows, totals: sumAmounts(rows, rollups) };
       }),
     [items, rollups],
   );
 
-  // Repayments are a bucket inside Expenses — that is where people look for a
+  // Repayments group inside Expenses — that is where people look for a
   // mortgage, and the money genuinely left, so it belongs in that total.
   const repaymentRows = useMemo(() => rowsOfType(items, "REPAYMENT"), [items]);
   const repaymentTotals = useMemo(
@@ -1368,43 +1327,43 @@ export function BudgetSheet({
     [focusedCell, items],
   );
 
-  // Item ids in the order they're rendered (income buckets, expense buckets,
+  // Item ids in the order they're rendered (income sections, expense sections,
   // repayments, then transfers), so Enter can step to the next row down.
   const orderedItemIds = useMemo(
     () =>
       [
-        ...incomeBuckets.flatMap((b) => b.rows),
-        ...expenseBuckets.flatMap((b) => b.rows),
+        ...incomeSections.flatMap((b) => b.rows),
+        ...expenseSections.flatMap((b) => b.rows),
         ...repaymentRows,
         ...transferRows,
       ].map((it) => it.id),
-    [incomeBuckets, expenseBuckets, repaymentRows, transferRows],
+    [incomeSections, expenseSections, repaymentRows, transferRows],
   );
 
-  // The bucket a row sits in, so Enter on the last row of one can add another
-  // there rather than falling into the next bucket.
-  const bucketOf = useCallback(
+  // The section a row sits in, so Enter on the last row of one can add another
+  // there rather than falling into the next section.
+  const sectionOf = useCallback(
     (itemId: string) => {
-      for (const b of incomeBuckets) {
+      for (const b of incomeSections) {
         const last = b.rows[b.rows.length - 1];
         if (last?.id === itemId) {
-          return { type: "INCOME" as const, incomeCategory: b.cat.key };
+          return { type: "INCOME" as const, section: b.cat.key };
         }
       }
-      for (const b of expenseBuckets) {
+      for (const b of expenseSections) {
         const last = b.rows[b.rows.length - 1];
         if (last?.id === itemId) {
-          return { type: "EXPENSE" as const, category: b.cat.key };
+          return { type: "EXPENSE" as const, section: b.cat.key };
         }
       }
       return null;
     },
-    [incomeBuckets, expenseBuckets],
+    [incomeSections, expenseSections],
   );
 
   // Enter moves focus to the same field one row down, matching the header's
   // "Enter drops down" — except on the last row of an income or expense
-  // bucket, where it adds another row to that bucket and lands in its label.
+  // section, where it adds another row to that section and lands in its label.
   // That is the flow of typing a list out: the row you want next is the one
   // below the one you just filled in.
   //
@@ -1455,20 +1414,19 @@ export function BudgetSheet({
 
         if (e.key !== "Enter") return;
         e.preventDefault();
-        // The bucket check comes first: "last row" means last of its own
+        // The section check comes first: "last row" means last of its own
         // section, not last of the whole sheet. Ordering these the other way
         // round only ever added on the very final row of the page.
-        const bucket = bucketOf(itemId);
-        if (bucket) {
-          const { type, ...section } = bucket;
-          onAddRow(type, undefined, section);
+        const found = sectionOf(itemId);
+        if (found) {
+          onAddRow(found.type, undefined, found.section);
           return;
         }
         const idx = orderedItemIds.indexOf(itemId);
         const nextId = orderedItemIds[idx + 1];
         if (nextId) cellRefs.current.get(`${nextId}:${field}`)?.focus();
       },
-    [orderedItemIds, bucketOf, onAddRow],
+    [orderedItemIds, sectionOf, onAddRow],
   );
 
   // ─── Delete ───────────────────────────────────────────────────────────────
@@ -1562,8 +1520,8 @@ export function BudgetSheet({
 
   // ─── Render ───────────────────────────────────────────────────────────────
 
-  // The bucket header inside a section: its name, an info popover, and its
-  // subtotal. Shared by all three sections' buckets.
+  // The section header inside a section: its name, an info popover, and its
+  // subtotal. Shared by all three sections' subheads.
   const renderBucketSubhead = (
     label: string,
     help: string,
@@ -1785,7 +1743,7 @@ export function BudgetSheet({
                   <>
                     <CopySubTitle>What are you adding?</CopySubTitle>
                     <CopyList>
-                      {INCOME_CATEGORIES.map((c) => (
+                      {INCOME_SECTION_META.map((c) => (
                         <CopySource
                           key={c.key}
                           type="button"
@@ -2027,13 +1985,13 @@ export function BudgetSheet({
         {focusedItem?.type === "EXPENSE" && (
           <ToolbarGroup $rowScoped $engaged>
             <ToolbarSelect
-              aria-label="Expense category"
-              value={focusedItem.category ?? "FIXED"}
+              aria-label="Expense section"
+              value={focusedItem.section ?? "FIXED"}
               onChange={(e) =>
-                editCategory(focusedItem.id, e.target.value as ExpenseCategory)
+                editSection(focusedItem.id, e.target.value as ExpenseSection)
               }
             >
-              {EXPENSE_CATEGORIES.map((c) => (
+              {EXPENSE_SECTION_META.map((c) => (
                 <option key={c.key} value={c.key}>
                   {c.label}
                 </option>
@@ -2044,16 +2002,13 @@ export function BudgetSheet({
         {focusedItem?.type === "INCOME" && (
           <ToolbarGroup $rowScoped $engaged>
             <ToolbarSelect
-              aria-label="Income category"
-              value={focusedItem.incomeCategory ?? "OTHER"}
+              aria-label="Income section"
+              value={focusedItem.section ?? "OTHER"}
               onChange={(e) =>
-                editIncomeCategory(
-                  focusedItem.id,
-                  e.target.value as IncomeCategory,
-                )
+                editSection(focusedItem.id, e.target.value as IncomeSection)
               }
             >
-              {INCOME_CATEGORIES.map((c) => (
+              {INCOME_SECTION_META.map((c) => (
                 <option key={c.key} value={c.key}>
                   {c.label}
                 </option>
@@ -2082,7 +2037,7 @@ export function BudgetSheet({
             actual: fmtAmount(incomeTotals.actual),
           }}
         />
-        {incomeBuckets.map(({ cat, rows, totals }) => (
+        {incomeSections.map(({ cat, rows, totals }) => (
           <div key={cat.key}>
             {renderBucketSubhead(cat.label, cat.help, totals)}
             {rows.map((item) => renderItemRow(item))}
@@ -2096,7 +2051,7 @@ export function BudgetSheet({
             actual: fmtAmount(expenseTotals.actual),
           }}
         />
-        {expenseBuckets.map(({ cat, rows, totals }) => (
+        {expenseSections.map(({ cat, rows, totals }) => (
           <div key={cat.key}>
             {renderBucketSubhead(cat.label, cat.help, totals)}
             {rows.map((item) => renderItemRow(item))}

@@ -12,8 +12,7 @@ const src = (
 ): CopyableItem => ({
   id,
   type: "EXPENSE",
-  category: "FIXED",
-  incomeCategory: null,
+  section: "FIXED",
   categoryId: null,
   accountId: null,
   direction: null,
@@ -51,13 +50,13 @@ describe("buildCopiedItems", () => {
       [
         src("isa", {
           type: "TRANSFER",
-          category: null,
+          section: null,
           accountId: "acct-1",
           direction: "OUTFLOW",
         }),
         src("mortgage", {
           type: "REPAYMENT",
-          category: null,
+          section: null,
           accountId: "acct-2",
         }),
       ],
@@ -75,30 +74,27 @@ describe("buildCopiedItems", () => {
     });
   });
 
-  test("keeps type, category, incomeCategory, label and sortOrder", () => {
+  test("keeps type, section, label and sortOrder", () => {
     const copied = buildCopiedItems(
       [
         src("income", {
           type: "INCOME",
-          category: null,
-          incomeCategory: "SALARY",
+          section: "SALARY",
           sortOrder: 3,
         }),
-        src("rent", { category: "VARIABLE", sortOrder: 7 }),
+        src("rent", { section: "VARIABLE", sortOrder: 7 }),
       ],
       seqIds(),
     );
     expect(copied[0]).toMatchObject({
       type: "INCOME",
-      category: null,
-      incomeCategory: "SALARY",
+      section: "SALARY",
       label: "income",
       sortOrder: 3,
     });
     expect(copied[1]).toMatchObject({
       type: "EXPENSE",
-      category: "VARIABLE",
-      incomeCategory: null,
+      section: "VARIABLE",
       label: "rent",
       sortOrder: 7,
     });
