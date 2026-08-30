@@ -121,7 +121,10 @@ export function PropertyFields({
       updatePlanExpense({
         expenseId: repayment.id,
         label: repayment.label,
-        category: repayment.category,
+        // A repayment expense carries no section (see actions.ts's
+        // linkRepaymentExpense) — the fallback only satisfies the schema,
+        // which is shared with plain expenses that always have one.
+        section: repayment.section ?? "FIXED",
         annualAmount,
         startAge: repayment.startAge,
         endAge: repayment.endAge,

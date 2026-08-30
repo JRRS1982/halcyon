@@ -260,7 +260,7 @@ async function attachNewMortgage(
     data: {
       planId,
       label: `${label} repayment`,
-      category: null,
+      section: null,
       annualAmount: 0,
       inflationLinked: false,
       liabilityId: liability.id,
@@ -425,7 +425,7 @@ export async function createPlanLiability(
         data: {
           planId: plan.id,
           label: `${parsed.label} repayment`,
-          category: null,
+          section: null,
           annualAmount: 0,
           inflationLinked: false,
           liabilityId: liability.id,
@@ -474,7 +474,7 @@ export async function createPlanExpense(): Promise<string> {
     data: {
       planId: plan.id,
       label: "New expense",
-      category: "FIXED",
+      section: "FIXED",
       annualAmount: 0,
       inflationLinked: true,
       sortOrder: (max._max.sortOrder ?? -1) + 1,
@@ -624,7 +624,7 @@ export async function linkRepaymentExpense(input: {
       data: {
         planId: liability.planId,
         label: `${liability.label} repayment`,
-        category: null,
+        section: null,
         annualAmount: Number(liability.monthlyRepayment) * 12,
         inflationLinked: false,
         liabilityId,
@@ -711,7 +711,7 @@ export async function updatePlanExpense(
     },
     data: {
       label: p.label,
-      category: p.category,
+      section: p.section,
       annualAmount: p.annualAmount,
       startAge: p.startAge,
       endAge: p.endAge,

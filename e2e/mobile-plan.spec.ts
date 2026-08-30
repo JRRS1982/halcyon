@@ -48,7 +48,7 @@ async function seedInfeasiblePlan(
         ],
       },
       expenses: {
-        create: [{ label: "Rent", category: "FIXED", annualAmount: 36000 }],
+        create: [{ label: "Rent", section: "FIXED", annualAmount: 36000 }],
       },
     },
   });

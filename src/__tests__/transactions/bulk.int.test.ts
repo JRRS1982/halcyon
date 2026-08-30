@@ -18,7 +18,7 @@ const seed = async () => {
     data: {
       userId: TEST_USER_ID,
       type: "EXPENSE",
-      category: "VARIABLE",
+      section: "VARIABLE",
       label: "Food",
     },
   });
@@ -111,7 +111,7 @@ describe("bulkSetTransactionCategory (integration)", () => {
       data: {
         userId: OTHER_USER_ID,
         type: "EXPENSE",
-        category: "VARIABLE",
+        section: "VARIABLE",
         label: "Their cat",
       },
     });

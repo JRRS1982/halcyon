@@ -87,7 +87,7 @@ export default async function BudgetPage(props: PageProps) {
   // Force-show: when transactions mode is on, any category with spend this
   // month must appear on the budget. For categories that have transactions but
   // no line item yet, materialise a budget=0 row in the category's own section
-  // (type + bucket); the actual is filled by the overlay below. This is what
+  // (type + section); the actual is filled by the overlay below. This is what
   // makes categorised spend show up on the budget even if it was never budgeted.
   if (transactionsEnabled) {
     const transacted = await prisma.transaction.findMany({
@@ -126,8 +126,7 @@ export default async function BudgetPage(props: PageProps) {
         select: {
           id: true,
           type: true,
-          category: true,
-          incomeCategory: true,
+          section: true,
           label: true,
         },
       });
@@ -137,8 +136,7 @@ export default async function BudgetPage(props: PageProps) {
           periodId: targetPeriod.id,
           categoryId: c.id,
           type: c.type,
-          category: c.category,
-          incomeCategory: c.incomeCategory,
+          section: c.section,
           label: c.label,
           budget: 0,
           sortOrder: baseSort + 1 + idx,
@@ -190,8 +188,7 @@ export default async function BudgetPage(props: PageProps) {
   const serializedItems: SerializedItem[] = items.map((i) => ({
     id: i.id,
     type: i.type,
-    category: i.category,
-    incomeCategory: i.incomeCategory,
+    section: i.section,
     categoryId: i.categoryId,
     // The anchor, carried whole. Dropping `direction` here would leave every
     // transfer row reading as an inflow, which mis-signs the month's surplus.

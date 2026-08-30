@@ -47,13 +47,13 @@ describe("plan create/delete actions (integration)", () => {
     expect(orders).toEqual([0, 1]);
   });
 
-  it("createPlanExpense defaults category to FIXED", async () => {
+  it("createPlanExpense defaults section to FIXED", async () => {
     await makePrimaryPlan(TEST_USER_ID);
     await createPlanExpense();
     const e = await prisma.planExpense.findFirstOrThrow({
       where: { plan: { userId: TEST_USER_ID } },
     });
-    expect(e.category).toBe("FIXED");
+    expect(e.section).toBe("FIXED");
   });
 
   it("createPlanEvent defaults age to the plan's retirement age", async () => {
@@ -203,7 +203,7 @@ describe("plan update actions for income/expense/event (integration)", () => {
         dateOfBirth: new Date("1986-06-01"),
         retirementAge: 65,
         expenses: {
-          create: [{ label: "Food", category: "FIXED", annualAmount: 5000 }],
+          create: [{ label: "Food", section: "FIXED", annualAmount: 5000 }],
         },
         events: {
           create: [
@@ -216,7 +216,7 @@ describe("plan update actions for income/expense/event (integration)", () => {
     await updatePlanExpense({
       expenseId: plan.expenses[0]?.id ?? "",
       label: "Groceries",
-      category: "VARIABLE",
+      section: "VARIABLE",
       annualAmount: 6000,
       startAge: null,
       endAge: null,
@@ -237,7 +237,7 @@ describe("plan update actions for income/expense/event (integration)", () => {
     const ev = await prisma.planEvent.findUniqueOrThrow({
       where: { id: plan.events[0]?.id ?? "" },
     });
-    expect(e.category).toBe("VARIABLE");
+    expect(e.section).toBe("VARIABLE");
     expect(e.inflationLinked).toBe(false);
     expect(ev.age).toBe(72);
     expect(Number(ev.amount)).toBe(25000);

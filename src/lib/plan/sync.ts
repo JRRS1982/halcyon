@@ -5,7 +5,7 @@
 // the per-row indicators and the confirmation list are all this one object
 // rendered three ways — they cannot disagree with what the action writes.
 
-import type { ExpenseCategory, IncomeKind, Wrapper } from "@/lib/plan/types";
+import type { ExpenseSection, IncomeKind, Wrapper } from "@/lib/plan/types";
 
 export type PlanRowKind = "ASSET" | "LIABILITY" | "INCOME" | "EXPENSE";
 
@@ -71,8 +71,8 @@ export type RealityDefaults = {
   drawdownPriority: number | null;
   /** PlanIncome.kind. Null for non-INCOME rows. */
   incomeKind: IncomeKind | null;
-  /** PlanExpense.category. Null for non-EXPENSE rows, or an uncategorised one. */
-  expenseCategory: ExpenseCategory | null;
+  /** PlanExpense.section. Null for non-EXPENSE rows. */
+  expenseSection: ExpenseSection | null;
 };
 
 export type RealityRow = {

@@ -54,6 +54,7 @@ test.describe("Dashboard summary", () => {
           {
             periodId: period.id,
             type: "INCOME",
+            section: "SALARY",
             label: "Salary",
             budget: 3000,
             actual: 3000,
@@ -62,7 +63,7 @@ test.describe("Dashboard summary", () => {
           {
             periodId: period.id,
             type: "EXPENSE",
-            category: "FIXED",
+            section: "FIXED",
             label: "Rent",
             budget: 1200,
             actual: 1200 + i * 200,
@@ -71,7 +72,7 @@ test.describe("Dashboard summary", () => {
           {
             periodId: period.id,
             type: "EXPENSE",
-            category: "VARIABLE",
+            section: "VARIABLE",
             label: "Food",
             budget: 400,
             actual: 380 + i * 90,
@@ -158,6 +159,7 @@ test.describe("Dashboard summary", () => {
           {
             periodId: period.id,
             type: "INCOME",
+            section: "SALARY",
             label: "Salary",
             budget: 3000,
             actual: 3000,
@@ -166,7 +168,7 @@ test.describe("Dashboard summary", () => {
           {
             periodId: period.id,
             type: "EXPENSE",
-            category: "FIXED",
+            section: "FIXED",
             label: "Rent",
             budget: 1200,
             actual: 1200 + i * 200,
@@ -175,7 +177,7 @@ test.describe("Dashboard summary", () => {
           {
             periodId: period.id,
             type: "EXPENSE",
-            category: "VARIABLE",
+            section: "VARIABLE",
             label: "Food",
             budget: 400,
             actual: 380 + i * 90,
@@ -252,6 +254,7 @@ test.describe("Dashboard summary", () => {
           {
             periodId: period.id,
             type: "INCOME",
+            section: "SALARY",
             label: "Salary",
             budget: 3000,
             actual: 3000,
@@ -260,7 +263,7 @@ test.describe("Dashboard summary", () => {
           {
             periodId: period.id,
             type: "EXPENSE",
-            category: "FIXED",
+            section: "FIXED",
             label: "Rent",
             budget: 1200,
             actual: 1200 + i * 200,
@@ -269,7 +272,7 @@ test.describe("Dashboard summary", () => {
           {
             periodId: period.id,
             type: "EXPENSE",
-            category: "VARIABLE",
+            section: "VARIABLE",
             label: "Food",
             budget: 400,
             actual: 380 + i * 90,

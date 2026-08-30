@@ -71,7 +71,7 @@ export function serializedToPlanInput(
     expenses: plan.expenses.map((x) => ({
       id: x.id,
       label: x.label,
-      category: x.category ?? undefined,
+      section: x.section ?? undefined,
       annualAmount: x.annualAmount,
       startAge: x.startAge ?? undefined,
       endAge: x.endAge ?? undefined,

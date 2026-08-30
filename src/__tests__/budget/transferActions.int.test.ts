@@ -116,8 +116,7 @@ describe("createItemForMonth anchor account fence (integration)", () => {
     // sheet needs to render the row and to sign its variance.
     expect(item.accountId).toBe(debt.id);
     expect(item.direction).toBeNull();
-    expect(item.category).toBeNull();
-    expect(item.incomeCategory).toBeNull();
+    expect(item.section).toBeNull();
   });
 
   test("creates a transfer against an owned asset, keeping its direction", async () => {
@@ -135,8 +134,7 @@ describe("createItemForMonth anchor account fence (integration)", () => {
     expect(item.type).toBe("TRANSFER");
     expect(item.accountId).toBe(isa.id);
     expect(item.direction).toBe("OUTFLOW");
-    expect(item.category).toBeNull();
-    expect(item.incomeCategory).toBeNull();
+    expect(item.section).toBeNull();
   });
 });
 

@@ -1,5 +1,5 @@
 import { PrismaPg } from "@prisma/adapter-pg";
-import { type IncomeCategory, PrismaClient, UserStatus } from "@prisma/client";
+import { type CategorySection, PrismaClient, UserStatus } from "@prisma/client";
 import { createClient } from "@supabase/supabase-js";
 import { monthRangeFor, previousMonth } from "../src/lib/budget/period";
 import { netActual } from "../src/lib/transactions/actual";
@@ -99,8 +99,7 @@ type SeedCategory = {
   key: string;
   label: string;
   type: "INCOME" | "EXPENSE";
-  expenseCategory?: "FIXED" | "VARIABLE" | "DISCRETIONARY";
-  incomeCategory?: IncomeCategory;
+  section: CategorySection;
   budget: number;
 };
 
@@ -121,112 +120,112 @@ const CATEGORY_PLAN: SeedCategory[] = [
     key: "salary",
     label: "Salary",
     type: "INCOME",
-    incomeCategory: "SALARY",
+    section: "SALARY",
     budget: 4000,
   },
   {
     key: "sideIncome",
     label: "Side Income",
     type: "INCOME",
-    incomeCategory: "SIDE_INCOME",
+    section: "SIDE_INCOME",
     budget: 100,
   },
   {
     key: "otherIncome",
     label: "Other Income",
     type: "INCOME",
-    incomeCategory: "OTHER",
+    section: "OTHER",
     budget: 0,
   },
   {
     key: "mortgage",
     label: "Mortgage",
     type: "EXPENSE",
-    expenseCategory: "FIXED",
+    section: "FIXED",
     budget: 1250,
   },
   {
     key: "councilTax",
     label: "Council Tax",
     type: "EXPENSE",
-    expenseCategory: "FIXED",
+    section: "FIXED",
     budget: 180,
   },
   {
     key: "utilities",
     label: "Utilities",
     type: "EXPENSE",
-    expenseCategory: "FIXED",
+    section: "FIXED",
     budget: 240,
   },
   {
     key: "insurance",
     label: "Insurance",
     type: "EXPENSE",
-    expenseCategory: "FIXED",
+    section: "FIXED",
     budget: 70,
   },
   {
     key: "groceries",
     label: "Groceries",
     type: "EXPENSE",
-    expenseCategory: "VARIABLE",
+    section: "VARIABLE",
     budget: 450,
   },
   {
     key: "fuel",
     label: "Fuel",
     type: "EXPENSE",
-    expenseCategory: "VARIABLE",
+    section: "VARIABLE",
     budget: 130,
   },
   {
     key: "motoring",
     label: "Motoring",
     type: "EXPENSE",
-    expenseCategory: "VARIABLE",
+    section: "VARIABLE",
     budget: 120,
   },
   {
     key: "health",
     label: "Health",
     type: "EXPENSE",
-    expenseCategory: "VARIABLE",
+    section: "VARIABLE",
     budget: 40,
   },
   {
     key: "home",
     label: "Home & Maintenance",
     type: "EXPENSE",
-    expenseCategory: "VARIABLE",
+    section: "VARIABLE",
     budget: 80,
   },
   {
     key: "dining",
     label: "Dining Out",
     type: "EXPENSE",
-    expenseCategory: "DISCRETIONARY",
+    section: "DISCRETIONARY",
     budget: 140,
   },
   {
     key: "entertainment",
     label: "Entertainment",
     type: "EXPENSE",
-    expenseCategory: "DISCRETIONARY",
+    section: "DISCRETIONARY",
     budget: 90,
   },
   {
     key: "holidays",
     label: "Holidays",
     type: "EXPENSE",
-    expenseCategory: "DISCRETIONARY",
+    section: "DISCRETIONARY",
     budget: 200,
   },
   {
     key: "gifts",
     label: "Gifts",
     type: "EXPENSE",
-    expenseCategory: "DISCRETIONARY",
+    section: "DISCRETIONARY",
     budget: 60,
   },
 ];
@@ -238,8 +237,7 @@ async function seedCategories(userId: string) {
         data: {
           userId,
           type: c.type,
-          category: c.expenseCategory ?? null,
-          incomeCategory: c.incomeCategory ?? null,
+          section: c.section,
           label: c.label,
           sortOrder,
         },
@@ -830,8 +828,7 @@ async function seedBudgetItems(
             periodId: period.id,
             categoryId: categoryIdFor(opts.categories, plan.key),
             type: plan.type,
-            category: plan.expenseCategory ?? null,
-            incomeCategory: plan.incomeCategory ?? null,
+            section: plan.section,
             label: plan.label,
             budget: plan.budget,
             actual,

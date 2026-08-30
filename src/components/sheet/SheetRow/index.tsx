@@ -47,7 +47,7 @@ export function SheetSectionRow({
 }
 
 // Sub-section header sitting between a section and its items (e.g. expense
-// category buckets). Softer than SheetSectionRow so the hierarchy reads
+// category sections). Softer than SheetSectionRow so the hierarchy reads
 // Section > Subhead > Item.
 export function SheetSubheadRow({
   label,

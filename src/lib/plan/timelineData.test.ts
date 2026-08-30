@@ -23,7 +23,7 @@ const expense = (
 ): SerializedPlanExpense => ({
   id: "e1",
   label: "Living",
-  category: "FIXED",
+  section: "FIXED",
   annualAmount: 1000,
   startAge: null,
   endAge: null,

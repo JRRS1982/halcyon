@@ -20,7 +20,7 @@ describe("resetToDefaults (integration)", () => {
       data: {
         userId: TEST_USER_ID,
         type: "EXPENSE",
-        category: "FIXED",
+        section: "FIXED",
         label: "Something the user made",
       },
     });
@@ -29,7 +29,7 @@ describe("resetToDefaults (integration)", () => {
         periodId: period.id,
         categoryId: category.id,
         type: "EXPENSE",
-        category: "FIXED",
+        section: "FIXED",
         label: "Something the user made",
         budget: 1200,
       },

@@ -3,8 +3,9 @@
 import type { AccountKind } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { bucketFields, sectionLabel } from "@/lib/categories/buckets";
+import { categorySectionSchema } from "@/lib/budget/schemas";
 import { cleanLabel } from "@/lib/categories/normalize";
+import { sectionFor, sectionLabel } from "@/lib/categories/sections";
 import { prisma } from "@/lib/prisma";
 import { requireTransactionsEnabled } from "@/lib/settings/server";
 import { transactionFingerprint } from "@/lib/transactions/dedupe";
@@ -671,15 +672,12 @@ const createAndAssignCategorySchema = z.object({
   transactionIds: z.array(z.string().uuid()).min(1).max(500),
   label: z.string().trim().min(1).max(120),
   type: z.enum(["INCOME", "EXPENSE"]),
-  // The budget section/bucket this category belongs to, so it can be placed on
-  // the budget.
-  bucket: z.string().nullable().optional(),
+  // The budget section this category belongs to, so it can be placed on the
+  // budget.
+  section: categorySectionSchema,
 });
 
 // Creates a category and assigns it to the given transaction(s), in one call.
-// The bucket (section) is stored in `category` for expenses or
-// `incomeCategory` for income, mirroring how budget line items carry their
-// section.
 //
 // One action, not createCategory followed by setTransactionCategory: the ledger
 // showed the row as categorised as soon as the first returned, so a user who
@@ -691,9 +689,9 @@ export async function createAndAssignCategory(
   input: z.input<typeof createAndAssignCategorySchema>,
 ): Promise<LedgerCategory> {
   const userId = await requireTransactionsEnabled();
-  const { transactionIds, label, type, bucket } =
+  const { transactionIds, label, type, section } =
     createAndAssignCategorySchema.parse(input);
-  const { category, incomeCategory } = bucketFields(type, bucket);
+  const resolvedSection = sectionFor(type, section);
 
   const created = await prisma.$transaction(async (tx) => {
     const newCategory = await tx.category.create({
@@ -701,8 +699,7 @@ export async function createAndAssignCategory(
         userId,
         label: cleanLabel(label),
         type,
-        category,
-        incomeCategory,
+        section: resolvedSection,
       },
       select: { id: true, label: true, type: true },
     });
@@ -728,6 +725,6 @@ export async function createAndAssignCategory(
     // back typed as the full ItemType because that's the Category model's
     // column type, regardless of what was written.
     type,
-    section: sectionLabel(category ?? incomeCategory),
+    section: sectionLabel(resolvedSection),
   };
 }

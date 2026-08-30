@@ -172,7 +172,7 @@ describe("toPlanInput", () => {
             id: "exp-1",
             planId: "p1",
             label: "Groceries",
-            category: "VARIABLE",
+            section: "VARIABLE",
             annualAmount: d(7200),
             startAge: null,
             endAge: null,
@@ -191,7 +191,7 @@ describe("toPlanInput", () => {
     expect(input.expenses[0]).toMatchObject({
       id: "exp-1",
       label: "Groceries",
-      category: "VARIABLE",
+      section: "VARIABLE",
       annualAmount: 7200,
       inflationLinked: true,
     });

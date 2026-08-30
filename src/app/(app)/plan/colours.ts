@@ -1,5 +1,5 @@
 // src/app/plan/colours.ts
-import type { ExpenseCategory, IncomeKind, Wrapper } from "@/lib/plan";
+import type { ExpenseSection, IncomeKind, Wrapper } from "@/lib/plan";
 import { theme } from "@/lib/theme";
 
 // Reads from the palette so the set switches with the colour scheme, and so
@@ -45,9 +45,9 @@ export const INCOME_COLOURS: Record<IncomeKind, string> = {
   OTHER: theme.colors.chartGia,
 };
 
-// Outflows keyed by ExpenseCategory + tax / loan repayments.
+// Outflows keyed by ExpenseSection + tax / loan repayments.
 export const OUTFLOW_COLOURS: Record<
-  ExpenseCategory | "TAX" | "REPAYMENT",
+  ExpenseSection | "TAX" | "REPAYMENT",
   string
 > = {
   FIXED: theme.colors.negative,

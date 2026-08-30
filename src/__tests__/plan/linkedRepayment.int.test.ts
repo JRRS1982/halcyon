@@ -43,7 +43,7 @@ describe("linked repayment expense actions (integration)", () => {
     expect(Number(expense.annualAmount)).toBe(14400);
     expect(expense.liabilityId).toBe(liability.id);
     expect(expense.inflationLinked).toBe(false);
-    expect(expense.category).toBeNull();
+    expect(expense.section).toBeNull();
   });
 
   it("linkRepaymentExpense is idempotent (returns the existing link)", async () => {

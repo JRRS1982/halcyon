@@ -165,7 +165,7 @@ describe("applySyncPlan (integration, direct)", () => {
               defaults: {
                 drawdownPriority: 1,
                 incomeKind: null,
-                expenseCategory: null,
+                expenseSection: null,
               },
             },
           ],
@@ -210,7 +210,7 @@ describe("applySyncPlan (integration, direct)", () => {
           defaults: {
             drawdownPriority: 1,
             incomeKind: null,
-            expenseCategory: null,
+            expenseSection: null,
           },
         })),
         unchanged: [],

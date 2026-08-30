@@ -86,7 +86,7 @@ describe("copyPeriodFrom anchor handling (integration)", () => {
       ...SOURCE,
       type: "EXPENSE",
       label: "Rent",
-      category: "FIXED",
+      section: "FIXED",
     });
     await prisma.account.update({
       where: { id: isa.id },
@@ -157,7 +157,7 @@ describe("copyPeriodFrom anchor handling (integration)", () => {
       ...SOURCE,
       type: "EXPENSE",
       label: "Rent",
-      category: "FIXED",
+      section: "FIXED",
     });
     await prisma.budgetItem.update({
       where: { id: item.id },

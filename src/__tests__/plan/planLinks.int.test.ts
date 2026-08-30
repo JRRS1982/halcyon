@@ -55,7 +55,12 @@ describe("plan row links (integration)", () => {
   it("links incomes and expenses to a category", async () => {
     const plan = await seedPlan();
     const category = await prisma.category.create({
-      data: { userId: TEST_USER_ID, type: "INCOME", label: "Salary" },
+      data: {
+        userId: TEST_USER_ID,
+        type: "INCOME",
+        section: "SALARY",
+        label: "Salary",
+      },
     });
     const income = await prisma.planIncome.create({
       data: {
@@ -127,7 +132,12 @@ describe("plan row links (integration)", () => {
   it("rejects a second income or expense linking the same plan to the same category", async () => {
     const plan = await seedPlan();
     const category = await prisma.category.create({
-      data: { userId: TEST_USER_ID, type: "INCOME", label: "Salary" },
+      data: {
+        userId: TEST_USER_ID,
+        type: "INCOME",
+        section: "SALARY",
+        label: "Salary",
+      },
     });
     await prisma.planIncome.create({
       data: {

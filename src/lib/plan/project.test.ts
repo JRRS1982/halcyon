@@ -711,7 +711,7 @@ describe("projectWithBand", () => {
       input.expenses[0] = {
         ...input.expenses[0],
         liabilityId: "no-such-liability",
-        category: "FIXED",
+        section: "FIXED",
       };
       const { years } = project(input);
       expect(years[0]?.totalExpenses).toBe(12000); // counted once, as an expense

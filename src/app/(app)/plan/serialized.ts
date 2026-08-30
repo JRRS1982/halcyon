@@ -1,5 +1,5 @@
 // src/app/plan/serialized.ts
-import type { ExpenseCategory, IncomeKind, Wrapper } from "@/lib/plan";
+import type { ExpenseSection, IncomeKind, Wrapper } from "@/lib/plan";
 import type { Regime } from "@/lib/tax/types";
 
 export type SerializedPlanAssumptions = {
@@ -61,7 +61,7 @@ export type SerializedPlanIncome = {
 export type SerializedPlanExpense = {
   id: string;
   label: string;
-  category: ExpenseCategory;
+  section: ExpenseSection | null;
   annualAmount: number;
   startAge: number | null;
   endAge: number | null;

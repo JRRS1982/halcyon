@@ -4,7 +4,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import styled from "styled-components";
-import type { ExpenseCategory } from "@/lib/plan";
+import type { ExpenseSection } from "@/lib/plan";
 import type { SyncPlan } from "@/lib/plan/sync";
 import { formatAmount, type NumberFormat } from "@/lib/settings/currency";
 import { createPlanExpense, updatePlanExpense } from "./actions";
@@ -18,7 +18,7 @@ import type {
   SerializedPlanLiability,
 } from "./serialized";
 
-const EXPENSE_CATEGORIES: ExpenseCategory[] = [
+const EXPENSE_SECTIONS: ExpenseSection[] = [
   "FIXED",
   "VARIABLE",
   "DISCRETIONARY",
@@ -80,7 +80,7 @@ export function ExpenseFields({
       await updatePlanExpense({
         expenseId: next.id,
         label: next.label,
-        category: next.category,
+        section: next.section ?? "FIXED",
         annualAmount: next.annualAmount,
         startAge: next.startAge,
         endAge: next.endAge,
@@ -116,11 +116,11 @@ export function ExpenseFields({
           />
         </Field>
         {managedBy ? null : (
-          <Field label="Category">
+          <Field label="Section">
             <SelectCell
-              value={expense.category}
-              options={EXPENSE_CATEGORIES}
-              onCommit={(v) => save({ ...expense, category: v })}
+              value={expense.section ?? "FIXED"}
+              options={EXPENSE_SECTIONS}
+              onCommit={(v) => save({ ...expense, section: v })}
             />
           </Field>
         )}
@@ -203,7 +203,7 @@ export function ExpensesTable({
             <SummaryRow
               key={e.id}
               primary={e.label}
-              secondary={`${e.liabilityId ? "Repayment" : e.category} · ${formatAmount(currency, e.annualAmount, numberFormat)}/yr`}
+              secondary={`${e.liabilityId ? "Repayment" : (e.section ?? "Unsectioned")} · ${formatAmount(currency, e.annualAmount, numberFormat)}/yr`}
               marker={
                 <SyncMarker
                   {...rowMarkerProps(

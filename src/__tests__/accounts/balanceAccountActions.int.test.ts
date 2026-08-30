@@ -486,6 +486,7 @@ describe("account actions (integration)", () => {
         periodId,
         accountId,
         type: "EXPENSE",
+        section: "VARIABLE",
         label: "ISA contribution",
       },
     });

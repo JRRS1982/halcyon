@@ -1,4 +1,4 @@
-import { bucketFields } from "@/lib/categories/buckets";
+import { sectionFor } from "@/lib/categories/sections";
 import {
   DEFAULT_ACCOUNTS,
   DEFAULT_CATEGORIES,
@@ -9,21 +9,9 @@ import {
 // entry isn't a rendering bug — it's a row in someone's database. These check
 // the shape holds, not the specific labels, which are free to change.
 describe("onboarding defaults", () => {
-  it("gives every category a bucket its type can actually store", () => {
+  it("gives every category a section its type can actually store", () => {
     for (const c of DEFAULT_CATEGORIES) {
-      const fields = bucketFields(c.type, c.bucket);
-      const stored =
-        c.type === "EXPENSE" ? fields.category : fields.incomeCategory;
-      expect(stored).toBe(c.bucket);
-    }
-  });
-
-  it("leaves the other type's bucket column null", () => {
-    for (const c of DEFAULT_CATEGORIES) {
-      const fields = bucketFields(c.type, c.bucket);
-      const unused =
-        c.type === "EXPENSE" ? fields.incomeCategory : fields.category;
-      expect(unused).toBeNull();
+      expect(sectionFor(c.type, c.section)).toBe(c.section);
     }
   });
 
@@ -36,13 +24,13 @@ describe("onboarding defaults", () => {
     expect(new Set(DEFAULT_ACCOUNTS).size).toBe(DEFAULT_ACCOUNTS.length);
   });
 
-  it("covers both income and expenses, and every expense bucket", () => {
-    const buckets = new Set(
+  it("covers both income and expenses, and every expense section", () => {
+    const sections = new Set(
       DEFAULT_CATEGORIES.filter((c) => c.type === "EXPENSE").map(
-        (c) => c.bucket,
+        (c) => c.section,
       ),
     );
-    expect(buckets).toEqual(new Set(["FIXED", "VARIABLE", "DISCRETIONARY"]));
+    expect(sections).toEqual(new Set(["FIXED", "VARIABLE", "DISCRETIONARY"]));
     expect(DEFAULT_CATEGORIES.some((c) => c.type === "INCOME")).toBe(true);
   });
 

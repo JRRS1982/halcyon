@@ -117,18 +117,15 @@ enum TransferDirection {
   OUTFLOW
 }
 
-// Expense grouping buckets. Only set on top-level EXPENSE items; null for
-// income and for nested children (which inherit their top-level ancestor's
-// bucket visually).
-enum ExpenseCategory {
+// The sub-heading a budget row sits under. One enum for both sides because
+// the value sets do not overlap; a check constraint per table pins the
+// section to the row's type (expense sections on EXPENSE, income on INCOME).
+enum CategorySection {
+  // expenses
   FIXED
   VARIABLE
   DISCRETIONARY
-}
-
-// Income grouping buckets. Only set on top-level INCOME items; null for
-// expenses and for nested children.
-enum IncomeCategory {
+  // income
   SALARY
   SIDE_INCOME
   INVESTMENTS
@@ -176,7 +173,7 @@ model FinancialPeriod {
 }
 
 // A single line item inside a period. A flat list — items belong to a period
-// and a category bucket, with no nesting.
+// and a section, with no nesting.
 model BudgetItem {
   id             String             @id @default(uuid()) @db.Uuid
   periodId       String             @db.Uuid
@@ -186,8 +183,8 @@ model BudgetItem {
   // when one is.
   categoryId     String?            @db.Uuid
   type           ItemType
-  category       ExpenseCategory?
-  incomeCategory IncomeCategory?
+  // Null on TRANSFER/REPAYMENT rows, which key on an account instead.
+  section        CategorySection?
   label          String
   budget         Decimal            @default(0) @db.Decimal(12, 2)
   actual         Decimal            @default(0) @db.Decimal(12, 2)
@@ -240,15 +237,14 @@ model BalanceItem {
 // A stable, user-owned spending/earning category — the spine both the budget
 // and transactions hang off (per docs/superpowers/specs). Present regardless
 // of whether the transactions feature is enabled. `label` is mutable so a
-// rename touches one row and propagates by id; `type` + bucket mirror
+// rename touches one row and propagates by id; `type` + `section` mirror
 // BudgetItem so a category carries its grouping. Categories are curated in
 // Settings (rename / merge / archive). Soft-deleted via deletedAt.
 model Category {
   id             String           @id @default(uuid()) @db.Uuid
   userId         String           @db.Uuid
   type           ItemType
-  category       ExpenseCategory?
-  incomeCategory IncomeCategory?
+  section        CategorySection
   label          String
   sortOrder      Int              @default(0)
   createdAt      DateTime         @default(now())
@@ -561,7 +557,8 @@ model PlanExpense {
   id              String           @id @default(uuid()) @db.Uuid
   planId          String           @db.Uuid
   label           String
-  category        ExpenseCategory?
+  // Expense sections only (check constraint). Null for a plan-only row.
+  section         CategorySection?
   annualAmount    Decimal          @default(0) @db.Decimal(12, 2)
   startAge        Int?
   endAge          Int?

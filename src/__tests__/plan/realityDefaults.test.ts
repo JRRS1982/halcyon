@@ -19,7 +19,7 @@ describe("drawdownPriorityFor", () => {
 });
 
 describe("incomeKindFor", () => {
-  it("maps each budget income bucket to a plan income kind", () => {
+  it("maps each budget income section to a plan income kind", () => {
     expect(incomeKindFor("SALARY")).toBe("SALARY");
     expect(incomeKindFor("PENSIONS")).toBe("DB_PENSION");
     expect(incomeKindFor("SIDE_INCOME")).toBe("SELF_EMPLOYMENT");
@@ -27,7 +27,7 @@ describe("incomeKindFor", () => {
     expect(incomeKindFor("OTHER")).toBe("OTHER");
   });
 
-  it("treats a category with no income bucket as OTHER", () => {
-    expect(incomeKindFor(null)).toBe("OTHER");
+  it("reads an expense section reaching here as OTHER rather than crashing", () => {
+    expect(incomeKindFor("FIXED")).toBe("OTHER");
   });
 });

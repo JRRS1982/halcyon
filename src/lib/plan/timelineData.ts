@@ -15,7 +15,7 @@ export type TimelineBar = {
   id: string;
   label: string;
   lane: "income" | "expense" | "liability";
-  subKind: string | null; // income kind / expense category; null for liability
+  subKind: string | null; // income kind / expense section; null for liability
   startAge: number; // resolved + clamped to range
   endAge: number; // resolved + clamped to range
   leftPct: number; // 0..100
@@ -113,7 +113,7 @@ export function toTimelineModel(input: {
         e.id,
         e.label,
         "expense",
-        e.category,
+        e.section,
         e.startAge ?? minAge,
         e.endAge ?? maxAge,
       );
@@ -122,7 +122,7 @@ export function toTimelineModel(input: {
       e.id,
       e.label,
       "expense",
-      e.category,
+      e.section,
       linked.startAge ?? minAge,
       linked.endAge ?? maxAge,
       { lane: "liability", id: linked.id },

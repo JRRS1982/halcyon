@@ -33,7 +33,7 @@ async function seedFinancialData(userId: string) {
     data: { userId, name: "Current" },
   });
   const category = await prisma.category.create({
-    data: { userId, type: "EXPENSE", category: "VARIABLE", label: "Food" },
+    data: { userId, type: "EXPENSE", section: "VARIABLE", label: "Food" },
   });
   const period = await prisma.financialPeriod.create({
     data: {
@@ -44,7 +44,13 @@ async function seedFinancialData(userId: string) {
     },
   });
   await prisma.budgetItem.create({
-    data: { periodId: period.id, type: "EXPENSE", label: "Rent", budget: 1000 },
+    data: {
+      periodId: period.id,
+      type: "EXPENSE",
+      section: "FIXED",
+      label: "Rent",
+      budget: 1000,
+    },
   });
   await prisma.balanceItem.create({
     data: {

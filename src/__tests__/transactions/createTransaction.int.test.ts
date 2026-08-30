@@ -13,7 +13,12 @@ describe("createTransaction (integration)", () => {
   test("creates a categorised transaction outside any import batch", async () => {
     const account = await seedAccount();
     const category = await prisma.category.create({
-      data: { userId: TEST_USER_ID, type: "EXPENSE", label: "Coffee" },
+      data: {
+        userId: TEST_USER_ID,
+        type: "EXPENSE",
+        section: "VARIABLE",
+        label: "Coffee",
+      },
     });
 
     const created = await createTransaction({
@@ -76,6 +81,7 @@ describe("createTransaction (integration)", () => {
       data: {
         userId: TEST_USER_ID,
         type: "EXPENSE",
+        section: "VARIABLE",
         label: "Gone",
         deletedAt: new Date(),
       },

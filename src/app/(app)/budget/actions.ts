@@ -3,8 +3,7 @@
 import { randomUUID } from "node:crypto";
 import type {
   BudgetItem,
-  ExpenseCategory,
-  IncomeCategory,
+  CategorySection,
   ItemType,
   Prisma,
 } from "@prisma/client";
@@ -27,6 +26,7 @@ import {
   type UpdateItemInput,
   updateItemSchema,
 } from "@/lib/budget/schemas";
+import { sectionFor } from "@/lib/categories/sections";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -237,8 +237,7 @@ async function categoryIdForRow(
   row: {
     type: ItemType;
     label: string;
-    category: ExpenseCategory | null;
-    incomeCategory: IncomeCategory | null;
+    section: CategorySection | null;
   },
 ): Promise<string | null> {
   const label = row.label.trim();
@@ -251,13 +250,14 @@ async function categoryIdForRow(
   });
   if (existing) return existing.id;
 
+  if (row.section === null) return null;
+
   const created = await tx.category.create({
     data: {
       userId,
       type: row.type,
       label,
-      category: row.category,
-      incomeCategory: row.incomeCategory,
+      section: row.section,
     },
     select: { id: true },
   });
@@ -269,12 +269,14 @@ export async function createItemForMonth(input: CreateItemForMonthInput) {
   const parsed = createItemForMonthSchema.parse(input);
   const range = monthRangeFor(parsed.year, parsed.month);
 
-  // Income rows get an incomeCategory; expense rows get a category. Both
-  // stay null for TRANSFER/REPAYMENT rows, which anchor to an account instead.
-  const category =
-    parsed.type === "EXPENSE" ? (parsed.category ?? "FIXED") : null;
-  const incomeCategory =
-    parsed.type === "INCOME" ? (parsed.incomeCategory ?? "OTHER") : null;
+  // A section is only meaningful on INCOME/EXPENSE rows; anchored rows key on
+  // an account. Defaults match the sheet's first section on each side.
+  const section: CategorySection | null =
+    parsed.type === "EXPENSE"
+      ? (parsed.section ?? "FIXED")
+      : parsed.type === "INCOME"
+        ? (parsed.section ?? "OTHER")
+        : null;
 
   return prisma.$transaction(async (tx) => {
     if (parsed.accountId) {
@@ -298,15 +300,13 @@ export async function createItemForMonth(input: CreateItemForMonthInput) {
       data: {
         periodId: period.id,
         type: parsed.type,
-        category,
-        incomeCategory,
+        section,
         label: parsed.label,
         ...(parsed.budget !== undefined && { budget: parsed.budget }),
         categoryId: await categoryIdForRow(tx, userId, {
           type: parsed.type,
           label: parsed.label,
-          category,
-          incomeCategory,
+          section,
         }),
         accountId: parsed.accountId ?? null,
         direction: parsed.direction ?? null,
@@ -330,12 +330,13 @@ export async function updateItem(input: UpdateItemInput) {
     throw new Error("Item not found");
   }
 
-  // Category changes only make sense on the matching side.
-  if (parsed.category !== undefined && item.type !== "EXPENSE") {
-    throw new Error("Only expense rows have a category");
-  }
-  if (parsed.incomeCategory !== undefined && item.type !== "INCOME") {
-    throw new Error("Only income rows have an income category");
+  // Section changes only make sense on INCOME/EXPENSE rows, and must match
+  // the row's side.
+  if (parsed.section !== undefined) {
+    if (item.type !== "INCOME" && item.type !== "EXPENSE") {
+      throw new Error(`${item.type} rows have no section`);
+    }
+    sectionFor(item.type, parsed.section); // throws on a mismatch
   }
 
   // Naming a row is what gives it a category, and therefore what makes it
@@ -351,8 +352,7 @@ export async function updateItem(input: UpdateItemInput) {
               categoryId: await categoryIdForRow(tx, userId, {
                 type: item.type,
                 label,
-                category: parsed.category ?? item.category,
-                incomeCategory: parsed.incomeCategory ?? item.incomeCategory,
+                section: parsed.section ?? item.section,
               }),
             }
           : {};
@@ -363,10 +363,7 @@ export async function updateItem(input: UpdateItemInput) {
           ...(parsed.label !== undefined && { label: parsed.label }),
           ...(parsed.budget !== undefined && { budget: parsed.budget }),
           ...(parsed.actual !== undefined && { actual: parsed.actual }),
-          ...(parsed.category !== undefined && { category: parsed.category }),
-          ...(parsed.incomeCategory !== undefined && {
-            incomeCategory: parsed.incomeCategory,
-          }),
+          ...(parsed.section !== undefined && { section: parsed.section }),
           ...relink,
         },
       });
@@ -446,8 +443,7 @@ export async function copyPeriodFrom(input: CopyPeriodFromInput) {
     select: {
       id: true,
       type: true,
-      category: true,
-      incomeCategory: true,
+      section: true,
       categoryId: true,
       accountId: true,
       direction: true,
@@ -474,8 +470,7 @@ export async function copyPeriodFrom(input: CopyPeriodFromInput) {
         id: it.id,
         periodId: target.id,
         type: it.type,
-        category: it.category,
-        incomeCategory: it.incomeCategory,
+        section: it.section,
         categoryId: it.categoryId,
         accountId: it.accountId,
         direction: it.direction,

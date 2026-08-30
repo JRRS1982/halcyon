@@ -104,7 +104,12 @@ describe("import (integration)", () => {
         data: { userId: TEST_USER_ID, name: "History" },
       });
       const groceries = await prisma.category.create({
-        data: { userId: TEST_USER_ID, type: "EXPENSE", label: "Groceries" },
+        data: {
+          userId: TEST_USER_ID,
+          type: "EXPENSE",
+          section: "VARIABLE",
+          label: "Groceries",
+        },
       });
       await prisma.transaction.create({
         data: {

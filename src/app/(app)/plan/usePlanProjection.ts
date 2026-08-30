@@ -167,7 +167,11 @@ export function usePlanProjection(
         await updatePlanExpense({
           expenseId: e.id,
           label: e.label,
-          category: e.category,
+          // Dragging a bar-edge only reaches a plain expense — a
+          // repayment-linked one drags its liability instead (see
+          // timelineData.ts's dragLane) — so a real expense here always
+          // carries a section; the fallback only guards the type.
+          section: e.section ?? "FIXED",
           annualAmount: e.annualAmount,
           startAge: next.startAge,
           endAge: next.endAge,

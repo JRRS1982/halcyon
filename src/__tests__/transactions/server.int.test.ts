@@ -19,7 +19,7 @@ const makePeriod = () =>
 
 const expenseItem = (periodId: string, label: string) =>
   prisma.budgetItem.create({
-    data: { periodId, type: "EXPENSE", category: "VARIABLE", label, budget: 0 },
+    data: { periodId, type: "EXPENSE", section: "VARIABLE", label, budget: 0 },
   });
 
 describe("getOrProvisionCategories (integration)", () => {
@@ -60,7 +60,7 @@ describe("ledger queries (integration)", () => {
       data: {
         userId: TEST_USER_ID,
         type: "EXPENSE",
-        category: "VARIABLE",
+        section: "VARIABLE",
         label: "Food",
       },
     });

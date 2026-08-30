@@ -68,8 +68,7 @@ const row = (
   over: Partial<SerializedItem> & { id: string },
 ): SerializedItem => ({
   type: "EXPENSE",
-  category: "FIXED",
-  incomeCategory: null,
+  section: "FIXED",
   categoryId: null,
   accountId: null,
   direction: null,
@@ -84,8 +83,7 @@ const items: SerializedItem[] = [
   row({
     id: "1",
     type: "INCOME",
-    category: null,
-    incomeCategory: "SALARY",
+    section: "SALARY",
     label: "Salary",
     budget: 8500,
     actual: 8000,
@@ -94,7 +92,7 @@ const items: SerializedItem[] = [
   row({
     id: "3",
     type: "REPAYMENT",
-    category: null,
+    section: null,
     accountId: MORTGAGE,
     label: "Mortgage",
     budget: 1250,
@@ -104,7 +102,7 @@ const items: SerializedItem[] = [
   row({
     id: "4",
     type: "TRANSFER",
-    category: null,
+    section: null,
     accountId: ISA,
     direction: "INFLOW",
     label: "ISA contribution",
@@ -158,7 +156,7 @@ describe("BudgetSheet — three sections", () => {
     // left is part of what was spent.
     expect(within(expenses).getByText(fmt(3450))).toBeInTheDocument();
     expect(within(expenses).getByText(fmt(3250))).toBeInTheDocument();
-    // The bucket's accessible name carries its info button's "i" too.
+    // The group's accessible name carries its info button's "i" too.
     expect(
       screen.getByRole("rowheader", { name: /^Debt payments/ }),
     ).toBeVisible();
@@ -297,8 +295,7 @@ describe("BudgetSheet — the Add drawer's account picker", () => {
       item: {
         id: "5",
         type: "TRANSFER",
-        category: null,
-        incomeCategory: null,
+        section: null,
         categoryId: null,
         accountId: ISA,
         direction: "OUTFLOW",
@@ -342,8 +339,7 @@ describe("BudgetSheet — the Add drawer's account picker", () => {
       item: {
         id: "6",
         type: "REPAYMENT",
-        category: null,
-        incomeCategory: null,
+        section: null,
         categoryId: null,
         accountId: MORTGAGE,
         direction: null,
@@ -458,8 +454,7 @@ describe("BudgetSheet — the Add drawer", () => {
       item: {
         id: "new-1",
         type: "EXPENSE",
-        category: "DISCRETIONARY",
-        incomeCategory: null,
+        section: "DISCRETIONARY",
         label: "Cinema",
         budget: 25,
         actual: 0,
@@ -477,7 +472,7 @@ describe("BudgetSheet — the Add drawer", () => {
     expect(createItemForMonth).toHaveBeenCalledWith(
       expect.objectContaining({
         type: "EXPENSE",
-        category: "DISCRETIONARY",
+        section: "DISCRETIONARY",
         label: "Cinema",
         budget: 25,
       }),
@@ -490,8 +485,7 @@ describe("BudgetSheet — the Add drawer", () => {
       item: {
         id: "new-2",
         type: "INCOME",
-        category: null,
-        incomeCategory: "SIDE_INCOME",
+        section: "SIDE_INCOME",
         label: "Freelance",
         budget: 400,
         actual: 0,
@@ -512,7 +506,7 @@ describe("BudgetSheet — the Add drawer", () => {
     expect(createItemForMonth).toHaveBeenCalledWith(
       expect.objectContaining({
         type: "INCOME",
-        incomeCategory: "SIDE_INCOME",
+        section: "SIDE_INCOME",
         label: "Freelance",
         budget: 400,
       }),
@@ -541,14 +535,13 @@ describe("BudgetSheet — the Add drawer", () => {
 });
 
 describe("BudgetSheet — Enter at the end of a section", () => {
-  test("Enter on the last row of a bucket adds another row to that bucket", async () => {
+  test("Enter on the last row of a section adds another row to that section", async () => {
     createItemForMonth.mockResolvedValue({
       periodId: "p1",
       item: {
         id: "new-3",
         type: "EXPENSE",
-        category: "FIXED",
-        incomeCategory: null,
+        section: "FIXED",
         label: "",
         budget: 0,
         actual: 0,
@@ -556,7 +549,7 @@ describe("BudgetSheet — Enter at the end of a section", () => {
       },
     });
     // "Housing" is the only FIXED expense in the fixture, so it is the last
-    // row of its bucket — which is where Enter adds rather than moves.
+    // row of its section — which is where Enter adds rather than moves.
     renderSheet(items);
     const cell = screen.getByDisplayValue("Housing");
     const row = cell.closest("[role='row']");

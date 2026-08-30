@@ -7,7 +7,7 @@ const makeCategory = (label: string) =>
     data: {
       userId: TEST_USER_ID,
       type: "EXPENSE",
-      category: "VARIABLE",
+      section: "VARIABLE",
       label,
     },
   });
@@ -29,7 +29,7 @@ const makeItem = (periodId: string, categoryId: string, budget: number) =>
       periodId,
       categoryId,
       type: "EXPENSE",
-      category: "VARIABLE",
+      section: "VARIABLE",
       label: "x",
       budget,
     },

@@ -348,7 +348,7 @@ export function DashboardView({
   // The Fixed / Variable / Discretionary spending panels, shown under Income vs
   // expenses. Build each panel's series, then drop categories that are empty
   // across every month (no actual AND no budget) — mirroring the balance grid,
-  // so an unused bucket (e.g. Discretionary) doesn't show a flat zero line.
+  // so an unused section (e.g. Discretionary) doesn't show a flat zero line.
   const expenditurePanels = CATEGORY_PANELS.map((c) => ({
     label: c.label,
     color: c.color,

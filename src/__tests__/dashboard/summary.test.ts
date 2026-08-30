@@ -143,7 +143,7 @@ describe("dashboardSummary", () => {
     });
   });
 
-  test("sums spending across all three expense buckets", () => {
+  test("sums spending across all three expense sections", () => {
     const point: ExpenditurePoint = {
       month: "Jan",
       fixedActual: 500,
@@ -157,7 +157,7 @@ describe("dashboardSummary", () => {
       discretionaryAvg: 0,
     };
 
-    // 1000 spent against 1000 budgeted, even though the buckets differ.
+    // 1000 spent against 1000 budgeted, even though the sections differ.
     expect(
       statFor("spendVsBudget", { ...empty, expenditure: [point] }).value,
     ).toBe(100);

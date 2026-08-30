@@ -39,7 +39,7 @@ async function categoryWithBudget(label: string, budget: number, when: string) {
     data: {
       userId: TEST_USER_ID,
       type: "INCOME",
-      incomeCategory: "SALARY",
+      section: "SALARY",
       label,
     },
   });
@@ -49,7 +49,7 @@ async function categoryWithBudget(label: string, budget: number, when: string) {
       periodId: p.id,
       categoryId: category.id,
       type: "INCOME",
-      incomeCategory: "SALARY",
+      section: "SALARY",
       label,
       budget,
     },
@@ -295,7 +295,7 @@ describe("syncPlan (integration)", () => {
       data: {
         userId: TEST_USER_ID,
         type: "INCOME",
-        incomeCategory: "SALARY",
+        section: "SALARY",
         label: "Salary",
       },
     });
@@ -305,7 +305,7 @@ describe("syncPlan (integration)", () => {
         periodId: p.id,
         categoryId: category.id,
         type: "INCOME",
-        incomeCategory: "SALARY",
+        section: "SALARY",
         label: "Salary",
         budget: 3000,
       },
@@ -320,7 +320,7 @@ describe("syncPlan (integration)", () => {
     expect(incomes).toHaveLength(1);
     expect(Number(incomes[0]?.annualAmount)).toBe(36000);
     // Was asserted as OTHER while addRow hard-coded it; the category's own
-    // SALARY bucket is the fact seed.ts mapped through INCOME_KIND_BY_BUCKET.
+    // SALARY section is the fact seed.ts mapped through INCOME_KIND_BY_SECTION.
     expect(incomes[0]?.kind).toBe("SALARY");
     // A salary stops at retirement. Without this the stream runs on to
     // expectedDeathAge (src/lib/plan/streams.ts → helpers.ts), overstating
@@ -334,7 +334,7 @@ describe("syncPlan (integration)", () => {
       data: {
         userId: TEST_USER_ID,
         type: "INCOME",
-        incomeCategory: "PENSIONS",
+        section: "PENSIONS",
         label: "Final salary pension",
       },
     });
@@ -344,7 +344,7 @@ describe("syncPlan (integration)", () => {
         periodId: p.id,
         categoryId: category.id,
         type: "INCOME",
-        incomeCategory: "PENSIONS",
+        section: "PENSIONS",
         label: "Final salary pension",
         budget: 800,
       },
@@ -365,7 +365,7 @@ describe("syncPlan (integration)", () => {
       data: {
         userId: TEST_USER_ID,
         type: "EXPENSE",
-        category: "FIXED",
+        section: "FIXED",
         label: "Rent",
       },
     });
@@ -375,7 +375,7 @@ describe("syncPlan (integration)", () => {
         periodId: p.id,
         categoryId: category.id,
         type: "EXPENSE",
-        category: "FIXED",
+        section: "FIXED",
         label: "Rent",
         budget: 1200,
       },
@@ -563,13 +563,13 @@ describe("syncPlan (integration)", () => {
     expect(asset.drawdownPriority).toBe(3);
   });
 
-  it("adds a PlanExpense carrying the category's own ExpenseCategory", async () => {
+  it("adds a PlanExpense carrying the category's own section", async () => {
     await emptyPlan();
     const category = await prisma.category.create({
       data: {
         userId: TEST_USER_ID,
         type: "EXPENSE",
-        category: "DISCRETIONARY",
+        section: "DISCRETIONARY",
         label: "Holidays",
       },
     });
@@ -579,7 +579,7 @@ describe("syncPlan (integration)", () => {
         periodId: p.id,
         categoryId: category.id,
         type: "EXPENSE",
-        category: "DISCRETIONARY",
+        section: "DISCRETIONARY",
         label: "Holidays",
         budget: 150,
       },
@@ -590,7 +590,7 @@ describe("syncPlan (integration)", () => {
     const expense = await prisma.planExpense.findFirstOrThrow({
       where: { categoryId: category.id },
     });
-    expect(expense.category).toBe("DISCRETIONARY");
+    expect(expense.section).toBe("DISCRETIONARY");
   });
 
   // provisionUserSettings seeds ~17 starter budget categories at £0. Without
@@ -602,7 +602,7 @@ describe("syncPlan (integration)", () => {
       data: {
         userId: TEST_USER_ID,
         type: "EXPENSE",
-        category: "FIXED",
+        section: "FIXED",
         label: "Childcare",
       },
     });
@@ -612,7 +612,7 @@ describe("syncPlan (integration)", () => {
         periodId: p.id,
         categoryId: category.id,
         type: "EXPENSE",
-        category: "FIXED",
+        section: "FIXED",
         label: "Childcare",
         budget: 0,
       },
@@ -633,7 +633,7 @@ describe("syncPlan (integration)", () => {
       data: {
         userId: TEST_USER_ID,
         type: "EXPENSE",
-        category: "FIXED",
+        section: "FIXED",
         label: "Childcare",
       },
     });
@@ -643,7 +643,7 @@ describe("syncPlan (integration)", () => {
         periodId: p.id,
         categoryId: category.id,
         type: "EXPENSE",
-        category: "FIXED",
+        section: "FIXED",
         label: "Childcare",
         budget: 0,
       },
@@ -692,7 +692,7 @@ describe("syncPlan (integration)", () => {
       data: {
         userId: TEST_USER_ID,
         type: "INCOME",
-        incomeCategory: "SALARY",
+        section: "SALARY",
         label: "Salary",
       },
     });
@@ -712,7 +712,7 @@ describe("syncPlan (integration)", () => {
         periodId: p.id,
         categoryId: category.id,
         type: "INCOME",
-        incomeCategory: "SALARY",
+        section: "SALARY",
         label: "Salary",
         budget: 3000,
       },
@@ -1060,7 +1060,7 @@ describe("syncPlan (integration)", () => {
       data: {
         userId: TEST_USER_ID,
         type: "EXPENSE",
-        category: "FIXED",
+        section: "FIXED",
         label: "Childcare",
       },
     });
@@ -1070,7 +1070,7 @@ describe("syncPlan (integration)", () => {
         periodId: p.id,
         categoryId: category.id,
         type: "EXPENSE",
-        category: "FIXED",
+        section: "FIXED",
         label: "Childcare",
         budget: 0,
       },
@@ -1124,5 +1124,35 @@ describe("syncPlan (integration)", () => {
     });
     expect(Number(asset.annualContribution)).toBe(0);
     expect(await prisma.planExpense.count()).toBe(0);
+  });
+
+  it("carries the budget category's section onto PlanExpense unchanged", async () => {
+    const plan = await emptyPlan();
+    const category = await prisma.category.create({
+      data: {
+        userId: TEST_USER_ID,
+        type: "EXPENSE",
+        section: "DISCRETIONARY",
+        label: "Eating out",
+      },
+    });
+    const p = await period("2026-03-01", "2026-03-01");
+    await prisma.budgetItem.create({
+      data: {
+        periodId: p.id,
+        categoryId: category.id,
+        type: "EXPENSE",
+        section: "DISCRETIONARY",
+        label: "Eating out",
+        budget: 150,
+      },
+    });
+
+    await syncPlan();
+
+    const row = await prisma.planExpense.findFirstOrThrow({
+      where: { planId: plan.id, categoryId: category.id },
+    });
+    expect(row.section).toBe("DISCRETIONARY");
   });
 });

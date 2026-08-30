@@ -186,7 +186,7 @@ one row per live account and per live budget category:
 ## Addition-time defaults are not updates
 
 `drawdownPriority`, `PlanIncome.kind`, `PlanIncome.endAge` and
-`PlanExpense.category` are derived from how the user has already classified
+`PlanExpense.section` are derived from how the user has already classified
 the account or category
 ([`src/lib/plan/realityDefaults.ts`](../../src/lib/plan/realityDefaults.ts)) —
 but **only when a row is created**. `updateRow` in
@@ -202,9 +202,9 @@ one and it is the user's.
 | Field | Derived from | Why it matters |
 |---|---|---|
 | `PlanAsset.drawdownPriority` | `Account.category` (cash 0 → medium 1 → long 2 → other 3 → property 9) | Left at the schema default, every synced asset ties at 0 and drawdown order becomes incidental |
-| `PlanIncome.kind` | `Category.incomeCategory` | Hard-coding `OTHER` misclassifies a salary |
+| `PlanIncome.kind` | `Category.section` | Hard-coding `OTHER` misclassifies a salary |
 | `PlanIncome.endAge` | `retirementAge` when the kind is `SALARY`, else null | Left null a synced salary runs to `expectedDeathAge` and overstates lifetime income by decades |
-| `PlanExpense.category` | `Category.category` (nullable both sides) | An uncategorised category stays uncategorised rather than reading as a guess |
+| `PlanExpense.section` | `Category.section`, set only when `category.type === "EXPENSE"` (see [`reality.ts`](../../src/lib/plan/reality.ts)'s `isExpenseSection` narrowing) | Stays null for a plan-only row (no linked category) rather than reading as a guess |
 
 The type system carries the rule: `RealityRow.defaults` is a **nested** object
 precisely so `resolvePlanSync`'s equality check reads three flat fields
