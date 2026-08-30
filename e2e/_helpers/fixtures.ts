@@ -6,6 +6,7 @@ import {
 } from "@playwright/test";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
+import { buildAccountData } from "@/lib/accounts/creation";
 
 // Custom Playwright fixtures that give each data-touching e2e test a clean
 // database — setup (truncate before), execute (the test body), teardown
@@ -341,12 +342,10 @@ export async function seedPlanReality(
     data: {
       userId,
       name: "SIPP",
-      kind: "ASSET",
-      category: "LONG_TERM",
       // Stated on the account, not inferred from the label — a synced asset
       // takes the wrapper the user recorded, and PENSION is what the chart
       // legend reads back as "Pension".
-      wrapper: "PENSION",
+      ...buildAccountData({ type: "SIPP", section: "LONG_TERM" }),
     },
   });
 

@@ -84,7 +84,7 @@ describe("getCurrentUserSettings lazy row creation (integration)", () => {
     }
   });
 
-  it("gives a new user the default accounts, with no type set", async () => {
+  it("gives a new user the default accounts, each carrying its type", async () => {
     await asBrandNewUser();
     await getCurrentUserSettings();
 
@@ -92,8 +92,8 @@ describe("getCurrentUserSettings lazy row creation (integration)", () => {
       where: { userId: TEST_USER_ID },
     });
 
-    expect(accounts.map((a) => a.name).sort()).toEqual(
-      [...DEFAULT_ACCOUNTS].sort(),
+    expect(accounts.map((a) => [a.name, a.type]).sort()).toEqual(
+      [...DEFAULT_ACCOUNTS.map((a) => [a.name, a.type])].sort(),
     );
   });
 

@@ -9,6 +9,7 @@
 // somewhere for money to sit, and a name to file spending under — are exactly
 // the two the app used to ask you to invent from scratch.
 
+import type { AccountType } from "@prisma/client";
 import type { CategorySection } from "@/lib/categories/sections";
 
 export type DefaultCategory = {
@@ -180,24 +181,25 @@ export const DEFAULT_CATEGORIES: readonly DefaultCategory[] = [
   { label: "Charity", type: "EXPENSE", section: "DISCRETIONARY" },
 ];
 
-// `type` is deliberately left unset: the Settings account form doesn't collect
-// one, so a default carrying a type would be a row the user can see but not
-// edit. Nothing infers one from it either — a Sync reads the wrapper and term
-// bucket the user actually stated on the account (src/lib/plan/reality.ts and
-// realityDefaults.ts), and an account with neither takes the OTHER fallback.
+// Every account now carries a type from the moment it's created — see
+// buildAccountData (src/lib/accounts/creation.ts), which every creation path
+// (this one included) writes through. seedStarterData spreads
+// buildAccountData({ type }) per row, deriving `section`/`kind`/`wrapper` from
+// it rather than leaving them unset.
 //
 // Savings and Emergency Fund are both here on purpose. They hold money for
 // opposite reasons — one is for something you have chosen, the other for
 // something choosing you — and keeping them apart is the point of an emergency
 // fund.
-export const DEFAULT_ACCOUNTS: readonly string[] = [
-  "Current Account",
-  "Joint Account",
-  "Savings Account",
-  "Emergency Fund Account",
-  "ISA",
-  "SIPP",
-];
+export const DEFAULT_ACCOUNTS: readonly { name: string; type: AccountType }[] =
+  [
+    { name: "Current Account", type: "CURRENT_ACCOUNT" },
+    { name: "Joint Account", type: "CURRENT_ACCOUNT" },
+    { name: "Savings Account", type: "SAVINGS" },
+    { name: "Emergency Fund Account", type: "SAVINGS" },
+    { name: "ISA", type: "STOCKS_ISA" },
+    { name: "SIPP", type: "SIPP" },
+  ];
 
 // The subset written onto the first budget sheet, in list order.
 export const STARTER_BUDGET_CATEGORIES: readonly DefaultCategory[] =

@@ -3,6 +3,7 @@
 import type { AccountKind } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { buildAccountData } from "@/lib/accounts/creation";
 import { categorySectionSchema } from "@/lib/budget/schemas";
 import { cleanLabel } from "@/lib/categories/normalize";
 import { sectionFor, sectionLabel } from "@/lib/categories/sections";
@@ -100,7 +101,7 @@ async function resolveAccount(
   const name = cleanLabel(newAccountName ?? "");
   if (!name) throw new Error("An account is required to import");
   const created = await prisma.account.create({
-    data: { userId, name },
+    data: { userId, name, ...buildAccountData({ type: "CURRENT_ACCOUNT" }) },
     select: { id: true, name: true },
   });
   return created;
@@ -641,11 +642,16 @@ export async function createAccountAndTransfer(
   const { transactionIds, name } = createAccountAndTransferSchema.parse(input);
 
   const created = await prisma.$transaction(async (tx) => {
-    // No kind is passed, so this account is created kind: NONE (the schema
-    // default) — a plain transfer target, same as most current/checking
-    // accounts. It still lands in the ledger picker's Transfers group.
+    // No type is picked by this flow — it's a plain "add a transfer target"
+    // gesture, not the balance drawer — so it defaults to SAVINGS: a plain
+    // asset, same bucket most transfer counterparties actually are. It still
+    // lands in the ledger picker's Transfers group regardless of type.
     const account = await tx.account.create({
-      data: { userId, name: cleanLabel(name) },
+      data: {
+        userId,
+        name: cleanLabel(name),
+        ...buildAccountData({ type: "SAVINGS" }),
+      },
       select: { id: true, name: true, kind: true },
     });
 

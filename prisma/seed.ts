@@ -1,6 +1,7 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { type CategorySection, PrismaClient, UserStatus } from "@prisma/client";
 import { createClient } from "@supabase/supabase-js";
+import { buildAccountData } from "../src/lib/accounts/creation";
 import { monthRangeFor, previousMonth } from "../src/lib/budget/period";
 import { netActual } from "../src/lib/transactions/actual";
 
@@ -259,10 +260,30 @@ async function seedCategories(userId: string) {
 // `sipp` only ever receive transfer legs (cash contributions, no holdings).
 async function seedAccounts(userId: string) {
   const [current, joint, isa, sipp] = await Promise.all([
-    prisma.account.create({ data: { userId, name: "Current Account" } }),
-    prisma.account.create({ data: { userId, name: "Joint Account" } }),
-    prisma.account.create({ data: { userId, name: "ISA" } }),
-    prisma.account.create({ data: { userId, name: "SIPP" } }),
+    prisma.account.create({
+      data: {
+        userId,
+        name: "Current Account",
+        ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+      },
+    }),
+    prisma.account.create({
+      data: {
+        userId,
+        name: "Joint Account",
+        ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+      },
+    }),
+    prisma.account.create({
+      data: {
+        userId,
+        name: "ISA",
+        ...buildAccountData({ type: "STOCKS_ISA" }),
+      },
+    }),
+    prisma.account.create({
+      data: { userId, name: "SIPP", ...buildAccountData({ type: "SIPP" }) },
+    }),
   ]);
   return { current, joint, isa, sipp };
 }

@@ -1,10 +1,12 @@
 "use server";
 
+import type { AccountType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { accountTypesOfKind } from "@/lib/accounts/accountDraft";
 import {
+  buildAccountData,
   buildMortgageAccountData,
-  buildPrimaryAccountData,
   nextSortOrder,
 } from "@/lib/accounts/creation";
 import {
@@ -90,6 +92,31 @@ async function resolveLinkedPartnerId(
   return partner?.id ?? null;
 }
 
+// Placeholder until Task 5 rewires AddAccountDrawer.tsx to send the
+// AccountTypeId it already collects (its `typeId` state) instead of the
+// older (kind, category, wrapper) triple this schema still carries. Wrapper
+// alone resolves every asset type except two forks that share one — Current
+// Account vs Savings both CASH, Cash vs Stocks & Shares both ISA — so those
+// (and every liability, none of which carries a wrapper at all) fall back to
+// whichever candidate matches the section the user picked, then the first in
+// ACCOUNT_TYPES order. This never changes the kind/wrapper mirrors actually
+// stored — every candidate on a shared fork shares both — only which of the
+// fourteen labels is recorded, which Task 5 makes exact.
+function inferAccountType(
+  kind: CreateAccountWithBalanceInput["type"],
+  category: CreateAccountWithBalanceInput["category"],
+  wrapper: CreateAccountWithBalanceInput["wrapper"],
+): AccountType {
+  const candidates = accountTypesOfKind(kind);
+  const pool =
+    kind === "ASSET"
+      ? candidates.filter((t) => t.wrapper === wrapper)
+      : candidates;
+  const match = pool.find((t) => t.defaultSection === category) ?? pool[0];
+  if (!match) throw new Error(`No account type for kind ${kind}`);
+  return match.id;
+}
+
 /**
  * One gesture, one transaction: the account, its first observation, and — for a
  * mortgaged property — the second account, its observation and the link.
@@ -97,7 +124,7 @@ async function resolveLinkedPartnerId(
  * A `"use server"` export cannot take a transaction client, so the transaction
  * opens here rather than being passed in.
  */
-export async function createAccountWithBalance(
+export async function createAccount(
   input: CreateAccountWithBalanceInput,
 ): Promise<{ periodId: string; accountId: string }> {
   const userId = await requireUserId();
@@ -121,7 +148,15 @@ export async function createAccountWithBalance(
     });
 
     const account = await tx.account.create({
-      data: { userId, ...buildPrimaryAccountData(parsed) },
+      data: {
+        userId,
+        name,
+        canImportTransactions: parsed.canImportTransactions,
+        ...buildAccountData({
+          type: inferAccountType(parsed.type, parsed.category, parsed.wrapper),
+          section: parsed.category,
+        }),
+      },
     });
 
     await tx.balanceItem.create({
@@ -181,6 +216,10 @@ export async function createAccountWithBalance(
   revalidateAll();
   return result;
 }
+
+// Kept under its old name until Task 5 rewires AddAccountDrawer.tsx to call
+// createAccount directly.
+export const createAccountWithBalance = createAccount;
 
 // Stop tracking: the account leaves the pickers and THIS month's sheet, and
 // the months already closed keep what they recorded.

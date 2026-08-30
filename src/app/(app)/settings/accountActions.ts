@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { buildAccountData } from "@/lib/accounts/creation";
 import { cleanLabel } from "@/lib/categories/normalize";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
@@ -27,12 +28,22 @@ function revalidateAll() {
 
 const createSchema = z.object({ name: z.string().trim().min(1).max(120) });
 
+// Every account this form creates is stamped CURRENT_ACCOUNT — the closest
+// fit for a bare name-only account, and the same placeholder every other
+// type-blind creation path in this PR uses. This whole form is replaced by
+// the balance drawer's Add flow (Task 6), which asks for a real type.
 export async function createManagedAccount(
   input: z.input<typeof createSchema>,
 ): Promise<void> {
   const userId = await requireUserId();
   const { name } = createSchema.parse(input);
-  await prisma.account.create({ data: { userId, name: cleanLabel(name) } });
+  await prisma.account.create({
+    data: {
+      userId,
+      name: cleanLabel(name),
+      ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+    },
+  });
   revalidateAll();
 }
 
