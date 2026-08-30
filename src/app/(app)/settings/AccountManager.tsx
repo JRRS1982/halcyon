@@ -153,8 +153,12 @@ export function AccountManager({
   const [mode, setMode] = useState<Mode>(null);
   const [addOpen, setAddOpen] = useState(false);
   // Settings has no month of its own, so a new account's first observation is
-  // recorded against the month the user is in.
-  const thisMonth = new Date();
+  // recorded against the current month. UTC, not local — the same rule
+  // BalanceSheet.tsx/BudgetSheet.tsx use for "today" (and what
+  // currentMonthRange() computes server-side): a local-time getter would
+  // file a user west of UTC's month-end account under the previous month.
+  const now = new Date();
+  const thisMonth = { year: now.getUTCFullYear(), month: now.getUTCMonth() };
   const [editName, setEditName] = useState("");
 
   const run = (fn: () => Promise<unknown>) =>
@@ -291,8 +295,8 @@ export function AccountManager({
         </CreateRow>
         <AddAccountDrawer
           open={addOpen}
-          year={thisMonth.getFullYear()}
-          month={thisMonth.getMonth()}
+          year={thisMonth.year}
+          month={thisMonth.month}
           onClose={() => setAddOpen(false)}
           onCreated={() => {
             setAddOpen(false);

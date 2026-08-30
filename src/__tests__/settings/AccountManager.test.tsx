@@ -8,6 +8,16 @@ jest.mock("@/app/(app)/balance/accountActions", () => ({
   restoreAccount: (...a: unknown[]) => restore(...a),
 }));
 
+// Stubbed out so the year/month AccountManager resolves for "this month" can
+// be asserted directly, without depending on the real drawer's own rendering.
+const addAccountDrawerProps = jest.fn();
+jest.mock("@/app/(app)/balance/AddAccountDrawer", () => ({
+  AddAccountDrawer: (props: unknown) => {
+    addAccountDrawerProps(props);
+    return null;
+  },
+}));
+
 const setImports = jest.fn();
 jest.mock("@/app/(app)/settings/accountActions", () => ({
   deleteAccount: jest.fn(),
@@ -108,5 +118,35 @@ describe("AccountManager", () => {
     expect(
       screen.queryByRole("heading", { name: /archived/i }),
     ).not.toBeInTheDocument();
+  });
+
+  // BalanceSheet.tsx/BudgetSheet.tsx both resolve "today" with the UTC
+  // getters, matching currentMonthRange() server-side. Pins the system clock
+  // to 2026-02-01T04:30:00Z (2026-01-31T23:30:00-05:00 — the boundary a
+  // negative-UTC-offset user hits near month-end) and poisons the *local*
+  // getters with an obviously wrong year/month, so the assertion can only
+  // pass if the component reads the UTC ones.
+  test("resolves the new-account month from UTC, not local time", () => {
+    jest.useFakeTimers().setSystemTime(new Date("2026-02-01T04:30:00.000Z"));
+    const yearSpy = jest
+      .spyOn(Date.prototype, "getFullYear")
+      .mockReturnValue(1999);
+    const monthSpy = jest.spyOn(Date.prototype, "getMonth").mockReturnValue(0);
+
+    try {
+      render(
+        <ThemeProvider theme={theme}>
+          <AccountManager accounts={[]} archived={[]} />
+        </ThemeProvider>,
+      );
+
+      expect(addAccountDrawerProps).toHaveBeenCalledWith(
+        expect.objectContaining({ year: 2026, month: 1 }),
+      );
+    } finally {
+      yearSpy.mockRestore();
+      monthSpy.mockRestore();
+      jest.useRealTimers();
+    }
   });
 });
