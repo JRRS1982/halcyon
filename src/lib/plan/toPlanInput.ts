@@ -8,6 +8,7 @@ import type {
   PlanIncome,
   PlanLiability,
 } from "@prisma/client";
+import { isExpenseSection } from "@/lib/categories/sections";
 import type {
   BandedProjection,
   BandedVerdict,
@@ -100,7 +101,13 @@ export function toPlanInput(
     expenses: plan.expenses.map((e) => ({
       id: e.id,
       label: e.label,
-      category: e.category ?? undefined,
+      // PlanExpense.section is nullable and typed as the full CategorySection
+      // enum by Prisma; the check constraint guarantees a non-null value is
+      // always an expense section, but the type doesn't know that.
+      section:
+        e.section !== null && isExpenseSection(e.section)
+          ? e.section
+          : undefined,
       annualAmount: num(e.annualAmount),
       startAge: e.startAge ?? undefined,
       endAge: e.endAge ?? undefined,

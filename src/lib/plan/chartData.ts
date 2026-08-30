@@ -1,5 +1,5 @@
 import {
-  type ExpenseCategory,
+  type ExpenseSection,
   type IncomeKind,
   WRAPPERS,
   type Wrapper,
@@ -74,7 +74,7 @@ const EXPENSE_KEYS = [
   "FIXED",
   "VARIABLE",
   "DISCRETIONARY",
-] as const satisfies readonly ExpenseCategory[];
+] as const satisfies readonly ExpenseSection[];
 
 const OUTFLOW_KEYS = [
   "FIXED",
@@ -82,7 +82,7 @@ const OUTFLOW_KEYS = [
   "DISCRETIONARY",
   "TAX",
   "REPAYMENT",
-] as const satisfies readonly (ExpenseCategory | "TAX" | "REPAYMENT")[];
+] as const satisfies readonly (ExpenseSection | "TAX" | "REPAYMENT")[];
 
 // Per-asset segment keys. Prefixed so they never collide with the fixed income
 // / outflow keys above, and so the chart can tell the two flows apart.

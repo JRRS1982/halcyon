@@ -239,10 +239,10 @@ async function addRow(
           categoryId: addition.linkId,
           annualAmount: addition.value,
           sortOrder,
-          // Nullable on both sides: an uncategorised category stays
-          // uncategorised rather than reading as UNCATEGORISED in the
+          // Nullable on both sides: a category with no expense section stays
+          // unsectioned rather than reading as UNCATEGORISED in the
           // projection and the timeline.
-          category: defaults.expenseCategory,
+          section: defaults.expenseSection,
         },
       });
       return;

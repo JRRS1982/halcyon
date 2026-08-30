@@ -11,6 +11,7 @@
 // way — and /plan re-runs all of them on every router.refresh().
 
 import type { AccountKind, Prisma, TransferDirection } from "@prisma/client";
+import { isExpenseSection } from "@/lib/categories/sections";
 import { latestByKey } from "@/lib/plan/latestByKey";
 import { drawdownPriorityFor, incomeKindFor } from "@/lib/plan/realityDefaults";
 import type { RealityRow } from "@/lib/plan/sync";
@@ -175,7 +176,7 @@ async function latestAccountRows(userId: string): Promise<RealityRow[]> {
         drawdownPriority:
           kind === "ASSET" ? drawdownPriorityFor(account.category) : null,
         incomeKind: null,
-        expenseCategory: null,
+        expenseSection: null,
       },
     });
   }
@@ -193,8 +194,7 @@ async function latestCategoryRows(userId: string): Promise<RealityRow[]> {
       id: true,
       label: true,
       type: true,
-      incomeCategory: true,
-      category: true,
+      section: true,
     },
   });
   if (categories.length === 0) return [];
@@ -252,12 +252,14 @@ async function latestCategoryRows(userId: string): Promise<RealityRow[]> {
       defaults: {
         drawdownPriority: null,
         incomeKind:
-          category.type === "INCOME"
-            ? incomeKindFor(category.incomeCategory)
+          category.type === "INCOME" ? incomeKindFor(category.section) : null,
+        // PlanExpense.section is nullable; only an expense section may land
+        // there, and the check constraint on Category guarantees an EXPENSE
+        // category carries one.
+        expenseSection:
+          category.type === "EXPENSE" && isExpenseSection(category.section)
+            ? category.section
             : null,
-        // PlanExpense.category is nullable, so an uncategorised category
-        // stays uncategorised rather than being guessed at.
-        expenseCategory: category.type === "EXPENSE" ? category.category : null,
       },
     });
   }

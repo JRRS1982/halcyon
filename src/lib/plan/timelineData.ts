@@ -113,7 +113,7 @@ export function toTimelineModel(input: {
         e.id,
         e.label,
         "expense",
-        e.category,
+        e.section,
         e.startAge ?? minAge,
         e.endAge ?? maxAge,
       );
@@ -122,7 +122,7 @@ export function toTimelineModel(input: {
       e.id,
       e.label,
       "expense",
-      e.category,
+      e.section,
       linked.startAge ?? minAge,
       linked.endAge ?? maxAge,
       { lane: "liability", id: linked.id },

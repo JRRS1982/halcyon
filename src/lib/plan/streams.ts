@@ -70,7 +70,7 @@ export const activeExpenses = (
     const amount = e.inflationLinked
       ? amountThisYear(e.annualAmount, inflationPct, yearsElapsed)
       : e.annualAmount;
-    const key = e.category ?? "UNCATEGORISED";
+    const key = e.section ?? "UNCATEGORISED";
     result.byCategory[key] = (result.byCategory[key] ?? 0) + amount;
     result.total += amount;
   }

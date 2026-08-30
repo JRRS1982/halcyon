@@ -16,7 +16,7 @@
 
 import type {
   BalanceItemCategory,
-  IncomeCategory,
+  CategorySection,
   PlanIncomeKind,
 } from "@prisma/client";
 import type { IncomeKind } from "@/lib/plan/types";
@@ -30,13 +30,14 @@ const DRAWDOWN_BY_CATEGORY: Record<BalanceItemCategory, number> = {
   PROPERTY: 9,
 };
 
-const INCOME_KIND_BY_BUCKET: Record<IncomeCategory, PlanIncomeKind> = {
-  SALARY: "SALARY",
-  PENSIONS: "DB_PENSION",
-  SIDE_INCOME: "SELF_EMPLOYMENT",
-  INVESTMENTS: "OTHER",
-  OTHER: "OTHER",
-};
+const INCOME_KIND_BY_SECTION: Partial<Record<CategorySection, PlanIncomeKind>> =
+  {
+    SALARY: "SALARY",
+    PENSIONS: "DB_PENSION",
+    SIDE_INCOME: "SELF_EMPLOYMENT",
+    INVESTMENTS: "OTHER",
+    OTHER: "OTHER",
+  };
 
 // `Account.category` is nullable — unlike `BalanceItem.category`, which is the
 // column seed.ts read — so an account with no stated term bucket falls back to
@@ -47,8 +48,9 @@ export function drawdownPriorityFor(
   return DRAWDOWN_BY_CATEGORY[category ?? "OTHER"];
 }
 
-// `Category.incomeCategory` is likewise nullable; an unbucketed income is a
-// plain OTHER, exactly as seed.ts treated it.
-export function incomeKindFor(bucket: IncomeCategory | null): IncomeKind {
-  return INCOME_KIND_BY_BUCKET[bucket ?? "OTHER"];
+// `Category.section` is required, but its type is the whole enum — an
+// expense section reaching here is a caller bug that reads as OTHER rather
+// than crashing the projection.
+export function incomeKindFor(section: CategorySection): IncomeKind {
+  return INCOME_KIND_BY_SECTION[section] ?? "OTHER";
 }

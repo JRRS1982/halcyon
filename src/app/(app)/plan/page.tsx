@@ -1,6 +1,7 @@
 // src/app/plan/page.tsx
 
 import { redirect } from "next/navigation";
+import { isExpenseSection } from "@/lib/categories/sections";
 import { projectWithBand } from "@/lib/plan";
 import { toPlanInput, toTodaysMoneyBand } from "@/lib/plan/toPlanInput";
 import { getCurrentUserSettings } from "@/lib/settings/server";
@@ -98,7 +99,11 @@ export default async function PlanPage() {
     expenses: plan.expenses.map((e) => ({
       id: e.id,
       label: e.label,
-      category: e.category ?? "FIXED",
+      // PlanExpense.section is nullable and typed as the full CategorySection
+      // enum by Prisma; the check constraint guarantees a non-null value is
+      // always an expense section, but the type doesn't know that.
+      section:
+        e.section !== null && isExpenseSection(e.section) ? e.section : null,
       annualAmount: Number(e.annualAmount),
       startAge: e.startAge,
       endAge: e.endAge,

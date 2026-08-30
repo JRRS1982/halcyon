@@ -28,6 +28,6 @@ describe("incomeKindFor", () => {
   });
 
   it("treats a category with no income bucket as OTHER", () => {
-    expect(incomeKindFor(null)).toBe("OTHER");
+    expect(incomeKindFor("OTHER")).toBe("OTHER");
   });
 });
