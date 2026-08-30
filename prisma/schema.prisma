@@ -269,8 +269,11 @@ enum AccountKind {
 // The account type the user picks in the Add drawer — the ONE stored fact.
 // kind (asset/liability) and wrapper (tax treatment) are computed from it in
 // code (kindOf/wrapperOf in src/lib/accounts/accountDraft.ts), never stored
-// as new facts. The legacy kind/wrapper/category columns are still WRITTEN as
-// mirrors until the contract PR drops them; no new code reads them.
+// as new facts. The legacy kind/wrapper columns are still WRITTEN as mirrors
+// until the contract PR drops them; no new code reads them. `category` is
+// not a mirror-to-drop — it was renamed `section` and lives on; only its
+// enum type (BalanceItemCategory) gets renamed AccountSection in the
+// contract PR.
 enum AccountType {
   CURRENT_ACCOUNT
   SAVINGS

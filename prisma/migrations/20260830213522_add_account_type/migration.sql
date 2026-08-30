@@ -1,10 +1,12 @@
 -- Expand half of the balance restructure (PR 1 of 2). Adds the stored
 -- account type and the account-owned section/sortOrder, and requires
--- BalanceItem.accountId. NOTHING is dropped or renamed here: old code in the
--- migrate→deploy window still reads kind/wrapper/category and
--- BalanceItem.type/category/label, so those stay and keep being written as
--- mirrors until the contract PR. (Shipping a drop with the code that stops
--- reading it is the split that broke /plan on 27 Aug 2026.)
+-- BalanceItem.accountId. ONE rename happens here — Account.category →
+-- section — with the deploy-window 500 risk explicitly waived by the owner
+-- on 30 Aug 2026. Everything else is expand-only: old code in the
+-- migrate→deploy window still reads kind/wrapper and BalanceItem.type/
+-- category/label, so those columns stay and keep being written as mirrors
+-- until the contract PR drops them. (Shipping a drop with the code that
+-- stops reading it is the split that broke /plan on 27 Aug 2026.)
 
 CREATE TYPE "AccountType" AS ENUM (
   'CURRENT_ACCOUNT','SAVINGS','CASH_ISA','STOCKS_ISA','SIPP','FINAL_SALARY',
