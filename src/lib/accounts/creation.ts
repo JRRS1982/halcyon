@@ -1,9 +1,11 @@
 import type {
+  AccountType,
   BalanceItemCategory,
   BalanceItemType,
   PlanAssetWrapper,
 } from "@prisma/client";
 import { cleanLabel } from "@/lib/categories/normalize";
+import { defaultSectionOf, kindOf, wrapperOf } from "./accountDraft";
 
 type PrimaryAccountInput = {
   name: string;
@@ -17,6 +19,23 @@ type MortgageInput = {
   name: string;
   canImportTransactions: boolean;
 };
+
+export type BuildAccountDataInput = {
+  type: AccountType;
+  section?: BalanceItemCategory;
+};
+
+// Build the type, section, and derived mirrors (kind/wrapper) for an account.
+// kind/wrapper are legacy mirrors; dropped in the contract PR.
+export function buildAccountData(input: BuildAccountDataInput) {
+  const section = input.section ?? defaultSectionOf(input.type);
+  return {
+    type: input.type,
+    section,
+    kind: kindOf(input.type),
+    wrapper: wrapperOf(input.type),
+  };
+}
 
 // What the primary account (the ISA, the property, the plain liability)
 // gets written with. A tax wrapper describes what you own, not what you
@@ -37,11 +56,12 @@ export function buildPrimaryAccountData(input: PrimaryAccountInput) {
 // BalanceSheet.tsx and prisma/schema.prisma), and a debt never carries a
 // tax wrapper.
 export function buildMortgageAccountData(mortgage: MortgageInput) {
+  const accountData = buildAccountData({ type: "MORTGAGE" });
   return {
     name: cleanLabel(mortgage.name),
-    kind: "LIABILITY" as const,
-    category: "LONG_TERM" as const,
-    wrapper: null,
+    kind: accountData.kind,
+    section: accountData.section,
+    wrapper: accountData.wrapper,
     canImportTransactions: mortgage.canImportTransactions,
   };
 }
