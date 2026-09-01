@@ -2,11 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import {
-  accountTypesOfKind,
-  kindOf,
-  wrapperOf,
-} from "@/lib/accounts/accountDraft";
+import { accountTypesOfKind, kindOf } from "@/lib/accounts/accountDraft";
 import {
   buildAccountData,
   buildMortgageAccountData,
@@ -135,12 +131,15 @@ export async function createAccount(
   const result = await prisma.$transaction(async (tx) => {
     const period = await ensurePeriodForMonthIn(tx, userId, range);
 
-    const last = await tx.balanceItem.findFirst({
+    // sortOrder appends to the end of this account's (kind, section) bucket
+    // — same convention setAccountSection uses when it moves an account.
+    const typesOfKind = accountTypesOfKind(kind).map((t) => t.id);
+    const last = await tx.account.findFirst({
       where: {
-        periodId: period.id,
-        type: kind,
-        category: parsed.section,
+        userId,
         deletedAt: null,
+        section: parsed.section,
+        type: { in: typesOfKind },
       },
       orderBy: { sortOrder: "desc" },
       select: { sortOrder: true },
@@ -151,6 +150,7 @@ export async function createAccount(
         userId,
         name,
         canImportTransactions: parsed.canImportTransactions,
+        sortOrder: nextSortOrder(last?.sortOrder),
         ...accountData,
       },
     });
@@ -159,27 +159,21 @@ export async function createAccount(
       data: {
         periodId: period.id,
         accountId: account.id,
-        type: kind,
-        category: parsed.section,
-        label: name,
         value: parsed.value,
-        sortOrder: nextSortOrder(last?.sortOrder),
       },
     });
 
     if (parsed.mortgage) {
-      const mortgageName = cleanLabel(parsed.mortgage.name);
-
       // buildMortgageAccountData always classifies this as a LONG_TERM
       // liability, a different bucket from the property's own row, so its
       // sortOrder is computed against that bucket rather than appended onto
       // the asset row's.
-      const lastLiability = await tx.balanceItem.findFirst({
+      const lastLiability = await tx.account.findFirst({
         where: {
-          periodId: period.id,
-          type: "LIABILITY",
-          category: "LONG_TERM",
+          userId,
           deletedAt: null,
+          section: "LONG_TERM",
+          type: { in: accountTypesOfKind("LIABILITY").map((t) => t.id) },
         },
         orderBy: { sortOrder: "desc" },
         select: { sortOrder: true },
@@ -189,6 +183,7 @@ export async function createAccount(
         data: {
           userId,
           ...buildMortgageAccountData(parsed.mortgage),
+          sortOrder: nextSortOrder(lastLiability?.sortOrder),
           linkedAccountId: account.id,
         },
       });
@@ -197,11 +192,7 @@ export async function createAccount(
         data: {
           periodId: period.id,
           accountId: mortgage.id,
-          type: "LIABILITY",
-          category: "LONG_TERM",
-          label: mortgageName,
           value: parsed.mortgage.value,
-          sortOrder: nextSortOrder(lastLiability?.sortOrder),
         },
       });
     }
@@ -275,11 +266,10 @@ export async function setAccountType(
       }
     }
 
-    // Section is the user's: a type change never moves the account. Mirrors
-    // follow the type so old deployed code keeps agreeing.
+    // Section is the user's: a type change never moves the account.
     await tx.account.updateMany({
       where: { id: account.id, userId },
-      data: { type, kind: kindOf(type), wrapper: wrapperOf(type) },
+      data: { type },
     });
   });
   revalidateAll();
@@ -349,14 +339,6 @@ export async function renameAccount(input: RenameAccountInput): Promise<void> {
     // rather than trusting the account lookup above to have proved ownership.
     await tx.budgetItem.updateMany({
       where: { accountId, deletedAt: null, period: { userId } },
-      data: { label },
-    });
-    await tx.balanceItem.updateMany({
-      where: {
-        accountId,
-        deletedAt: null,
-        period: { userId, deletedAt: null },
-      },
       data: { label },
     });
   });

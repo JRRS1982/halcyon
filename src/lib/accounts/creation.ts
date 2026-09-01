@@ -1,6 +1,6 @@
-import type { AccountType, BalanceItemCategory } from "@prisma/client";
+import type { AccountSection, AccountType } from "@prisma/client";
 import { cleanLabel } from "@/lib/categories/normalize";
-import { defaultSectionOf, kindOf, wrapperOf } from "./accountDraft";
+import { defaultSectionOf } from "./accountDraft";
 
 type MortgageInput = {
   name: string;
@@ -9,18 +9,16 @@ type MortgageInput = {
 
 export type BuildAccountDataInput = {
   type: AccountType;
-  section?: BalanceItemCategory;
+  section?: AccountSection;
 };
 
-// Build the type, section, and derived mirrors (kind/wrapper) for an account.
-// kind/wrapper are legacy mirrors; dropped in the contract PR.
+// Build the two facts an account is created with. kind/wrapper are derived
+// on demand (kindOf/wrapperOf in accountDraft.ts), never stored.
 export function buildAccountData(input: BuildAccountDataInput) {
   const section = input.section ?? defaultSectionOf(input.type);
   return {
     type: input.type,
     section,
-    kind: kindOf(input.type),
-    wrapper: wrapperOf(input.type),
   };
 }
 
@@ -37,10 +35,13 @@ export function buildMortgageAccountData(mortgage: MortgageInput) {
   };
 }
 
-// sortOrder appends at the end of a (period, type, category) bucket — the
-// same convention the budget/balance sheets' other row-creating actions use.
+// sortOrder appends at the end of an account's (kind, section) bucket — the
+// same convention createAccount and setAccountSection both use. No last row
+// means the bucket is empty, so the first account is 0-based rather than
+// skipping straight to 1.
 export function nextSortOrder(
   lastSortOrder: number | null | undefined,
 ): number {
-  return (lastSortOrder ?? 0) + 1;
+  if (lastSortOrder === null || lastSortOrder === undefined) return 0;
+  return lastSortOrder + 1;
 }

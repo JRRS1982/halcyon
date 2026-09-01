@@ -28,19 +28,15 @@ describe("type derivations", () => {
     expect(accountTypesOfKind("LIABILITY")).toHaveLength(5);
   });
 
-  it("buildAccountData writes the type, the section, and both mirrors", () => {
+  it("buildAccountData writes exactly the type and the section", () => {
     expect(buildAccountData({ type: "STOCKS_ISA" })).toEqual({
       type: "STOCKS_ISA",
       section: "LONG_TERM",
-      kind: "ASSET",
-      wrapper: "ISA",
     });
     expect(buildAccountData({ type: "CREDIT_CARD", section: "OTHER" })).toEqual(
       {
         type: "CREDIT_CARD",
         section: "OTHER",
-        kind: "LIABILITY",
-        wrapper: null,
       },
     );
   });

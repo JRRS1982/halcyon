@@ -2,7 +2,6 @@
 
 import type { BalanceItem } from "@prisma/client";
 import { redirect } from "next/navigation";
-import { kindOf } from "@/lib/accounts/accountDraft";
 import { toCarriedOverRows } from "@/lib/balance/copyRows";
 import {
   type ClearBalanceValueInput,
@@ -92,12 +91,8 @@ export async function upsertBalanceValue(input: UpsertBalanceValueInput) {
       data: {
         periodId: period.id,
         accountId: account.id,
-        type: kindOf(account.type),
-        category: account.section,
-        label: account.name,
         value: parsed.value,
         notes: parsed.notes ?? null,
-        sortOrder: account.sortOrder,
       },
     });
   });
@@ -149,10 +144,9 @@ export async function listCopyableBalancePeriods() {
 }
 
 // Replace the target month's balance rows with a copy of the source period's
-// values. Only the account and its value travel — mirrors (type, category,
-// label, sortOrder) are re-derived from the live account rather than copied
-// from the source row, since the account may have been renamed/re-sectioned
-// since. The target period is created on the fly if it was still virtual;
+// values. Only the account and its value travel — there is nothing else to
+// carry, since a BalanceItem holds no mirrors of the account it observes.
+// The target period is created on the fly if it was still virtual;
 // existing target rows are soft-deleted in the same transaction as the
 // create, so an account with a live value in the target month gets replaced
 // rather than duplicated (the partial unique index on live
@@ -189,7 +183,6 @@ export async function copyBalancePeriodFrom(input: CopyBalancePeriodFromInput) {
       // check.
       account: { deletedAt: null },
     },
-    orderBy: { sortOrder: "asc" },
     select: { accountId: true, value: true },
   });
 
@@ -197,20 +190,16 @@ export async function copyBalancePeriodFrom(input: CopyBalancePeriodFromInput) {
 
   // userId and liveness in the same statement (ADR-002: the app filter is the
   // only fence). The source rows were already filtered on a live account, so
-  // this restates the fence on the statement that actually reads the account.
+  // this restates the fence on the statement that actually reads the
+  // account — the createMany below needs nothing from it beyond that a live,
+  // owned account exists for every id.
   const accounts = await prisma.account.findMany({
     where: {
       id: { in: copied.map((it) => it.accountId) },
       userId,
       deletedAt: null,
     },
-    select: {
-      id: true,
-      type: true,
-      section: true,
-      name: true,
-      sortOrder: true,
-    },
+    select: { id: true },
   });
   const accountById = new Map(accounts.map((a) => [a.id, a]));
 
@@ -221,17 +210,14 @@ export async function copyBalancePeriodFrom(input: CopyBalancePeriodFromInput) {
     }),
     prisma.balanceItem.createMany({
       data: copied.map((it) => {
-        const account = accountById.get(it.accountId);
-        if (!account) throw new Error("Account not found");
+        if (!accountById.has(it.accountId)) {
+          throw new Error("Account not found");
+        }
         return {
           periodId: target.id,
           accountId: it.accountId,
           value: it.value,
           carriedOver: it.carriedOver,
-          type: kindOf(account.type),
-          category: account.section,
-          label: account.name,
-          sortOrder: account.sortOrder,
         };
       }),
     }),

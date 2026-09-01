@@ -1,5 +1,6 @@
 import type { AccountType } from "@prisma/client";
 import {
+  createAccount,
   renameAccount,
   setAccountSection,
   setAccountType,
@@ -22,7 +23,7 @@ import {
 } from "../../../test/integration/helpers";
 
 // A typed account fixture — full data from buildAccountData, exactly the
-// shape every real creation path writes (type/section/kind/wrapper).
+// shape every real creation path writes (type/section).
 function typedAccount(name: string, type: AccountType) {
   return prisma.account.create({
     data: { userId: TEST_USER_ID, name, ...buildAccountData({ type }) },
@@ -35,14 +36,13 @@ beforeEach(async () => {
 });
 
 describe("setAccountType", () => {
-  it("changes type within a kind and follows with the mirrors", async () => {
+  it("changes type within a kind, leaving section alone", async () => {
     const a = await typedAccount("Pot", "SAVINGS");
     await setAccountType({ accountId: a.id, type: "STOCKS_ISA" });
     const after = await prisma.account.findUniqueOrThrow({
       where: { id: a.id },
     });
     expect(after.type).toBe("STOCKS_ISA");
-    expect(after.wrapper).toBe("ISA"); // mirror
     expect(after.section).toBe("MEDIUM_TERM"); // untouched — user's section stays
   });
 
@@ -114,7 +114,6 @@ describe("setAccountType", () => {
       where: { id: a.id },
     });
     expect(after.type).toBe("PROPERTY");
-    expect(after.wrapper).toBe("PROPERTY");
     expect(after.section).toBe("MEDIUM_TERM");
   });
 });
@@ -210,20 +209,62 @@ describe("renameAccount", () => {
     });
     expect(row.label).toBe("New ISA");
   });
+});
 
-  it("also renames the account's live balance row mirror", async () => {
-    const a = await typedAccount("Old ISA", "STOCKS_ISA");
-    await upsertBalanceValue({
-      accountId: a.id,
-      year: 2026,
-      month: 2,
+describe("createAccount", () => {
+  const baseInput = {
+    year: 2026,
+    month: 2,
+    canImportTransactions: true,
+    mortgage: null,
+  } as const;
+
+  it("assigns sortOrder 0 to the first account in a (kind, section) bucket, then max+1 for the next", async () => {
+    const first = await createAccount({
+      ...baseInput,
+      name: "Pot",
+      type: "SAVINGS",
+      section: "MEDIUM_TERM",
       value: 100,
     });
-    await renameAccount({ accountId: a.id, name: "New ISA" });
-    const row = await prisma.balanceItem.findFirstOrThrow({
-      where: { accountId: a.id },
+    const firstAccount = await prisma.account.findUniqueOrThrow({
+      where: { id: first.accountId },
     });
-    expect(row.label).toBe("New ISA");
+    expect(firstAccount.sortOrder).toBe(0);
+
+    const second = await createAccount({
+      ...baseInput,
+      name: "Second pot",
+      type: "SAVINGS",
+      section: "MEDIUM_TERM",
+      value: 50,
+    });
+    const secondAccount = await prisma.account.findUniqueOrThrow({
+      where: { id: second.accountId },
+    });
+    expect(secondAccount.sortOrder).toBe(1);
+  });
+
+  it("scopes sortOrder to the (kind, section) bucket, ignoring accounts elsewhere", async () => {
+    // A different (kind, section) bucket, sitting at a high sortOrder — must
+    // not influence the SAVINGS/MEDIUM_TERM bucket below.
+    const elsewhere = await typedAccount("Vanguard ISA", "STOCKS_ISA");
+    await prisma.account.update({
+      where: { id: elsewhere.id },
+      data: { sortOrder: 99 },
+    });
+
+    const result = await createAccount({
+      ...baseInput,
+      name: "Pot",
+      type: "SAVINGS",
+      section: "MEDIUM_TERM",
+      value: 100,
+    });
+    const account = await prisma.account.findUniqueOrThrow({
+      where: { id: result.accountId },
+    });
+    expect(account.sortOrder).toBe(0);
   });
 });
 
