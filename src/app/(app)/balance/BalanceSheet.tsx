@@ -66,8 +66,6 @@ export type SerializedPeriod = {
   endDate: string;
 };
 
-export type { AccountKind, AccountSection };
-
 // One row per account the user owns or owes, with this month's observation
 // left-joined on (see page.tsx). The account is the durable thing; `value`,
 // `notes` and `carriedOver` describe the month, and are null/false for an

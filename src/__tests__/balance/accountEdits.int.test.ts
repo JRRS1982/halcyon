@@ -266,6 +266,37 @@ describe("createAccount", () => {
     });
     expect(account.sortOrder).toBe(0);
   });
+
+  // An ASSET and a LIABILITY can file under the very same section — SAVINGS
+  // and OTHER_DEBT both accept LONG_TERM — so the bucket query has to filter
+  // on kind too, not just section. Without `type: { in: typesOfKind }`, the
+  // second account here would inherit the first's sortOrder instead of
+  // starting its own kind's bucket at 0.
+  it("keeps ASSET and LIABILITY sortOrder buckets separate within one shared section", async () => {
+    const debt = await createAccount({
+      ...baseInput,
+      name: "Personal loan",
+      type: "OTHER_DEBT",
+      section: "LONG_TERM",
+      value: 5000,
+    });
+    const debtAccount = await prisma.account.findUniqueOrThrow({
+      where: { id: debt.accountId },
+    });
+    expect(debtAccount.sortOrder).toBe(0);
+
+    const asset = await createAccount({
+      ...baseInput,
+      name: "Pot",
+      type: "SAVINGS",
+      section: "LONG_TERM",
+      value: 100,
+    });
+    const assetAccount = await prisma.account.findUniqueOrThrow({
+      where: { id: asset.accountId },
+    });
+    expect(assetAccount.sortOrder).toBe(0);
+  });
 });
 
 describe("setAccountSection", () => {

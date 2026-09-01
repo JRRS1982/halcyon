@@ -1,8 +1,8 @@
 import type { AccountKind, ItemType } from "@prisma/client";
 
-// The two Account kinds a budget row can anchor to — NONE is unused after the
-// account restructure and is dropped in the contract PR.
-export type AnchorKind = Extract<AccountKind, "ASSET" | "LIABILITY">;
+// AccountKind is now exactly the two anchorable kinds — NONE was removed in
+// the contract migration, so every Account kind can anchor a budget row.
+export type AnchorKind = AccountKind;
 
 // A TRANSFER funds an asset; a REPAYMENT pays down a liability. INCOME and
 // EXPENSE anchor to a category instead and take no account at all.

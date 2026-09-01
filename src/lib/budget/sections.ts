@@ -60,10 +60,10 @@ export type AnchorAccount = {
 };
 
 // The accounts a new row of this kind may target. A TRANSFER funds an asset, a
-// REPAYMENT pays down a liability, and createItemForMonth rejects anything else
-// — including kind NONE, which every onboarding-seeded account starts as. So an
-// empty result is the ordinary state of a user who has never used the balance
-// sheet, not an error.
+// REPAYMENT pays down a liability, and createItemForMonth rejects anything else.
+// An empty result means every eligible account is already anchored by a row
+// this period (or, for REPAYMENT, that the user has no liability accounts at
+// all) — not an error.
 //
 // `alreadyAnchored` is the accounts the period's live rows already point at.
 // One account carries at most one row per period, because the flow data yields

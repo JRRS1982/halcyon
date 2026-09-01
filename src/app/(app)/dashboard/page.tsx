@@ -62,10 +62,8 @@ export default async function DashboardPage() {
     },
     orderBy: { startDate: "asc" },
     include: {
-      // The account's current type/section, not the item's own mirror
-      // columns — those are written at creation and never kept in step with
-      // a later setAccountType/setAccountSection, so the sums below must
-      // read the account rather than the row.
+      // BalanceItem no longer carries its own type/section columns — the
+      // account is the only source, so the sums below join through it.
       balanceItems: {
         where: { deletedAt: null },
         include: { account: { select: { type: true, section: true } } },

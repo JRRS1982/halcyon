@@ -148,13 +148,15 @@ Transfers, Repayments. The two account groups are one list partitioned on
 Transfer.
 
 > **Correction to the record.** The unified-accounts design spec says this
-> picker "filters on `kind != NONE`". It never did, and it must not. Nothing
-> filtered on kind at all before this branch — `LedgerAccount` did not even
-> carry `kind` — and a `kind: NONE` account is the default for a plain current
-> account, which is a perfectly ordinary transfer target. Implementing that
-> sentence literally would have made every newly created account vanish from
-> both groups. The spec is a gitignored historical record and is not being
-> edited; this paragraph is where the correction lives.
+> picker "filters on `kind != NONE`". It never did, and it must not — `NONE`
+> was later removed from `AccountKind` entirely, so the sentence no longer
+> even parses against the schema. Nothing filtered on kind at all before this
+> branch — `LedgerAccount` did not even carry `kind` — and every account
+> (including a plain current account) is a perfectly ordinary transfer
+> target. Implementing that sentence literally would have made every newly
+> created account vanish from both groups. The spec is a gitignored
+> historical record and is not being edited; this paragraph is where the
+> correction lives.
 
 Note the asymmetry, and that it is deliberate: the **ledger** picker offers
 every account, because any account can be one end of a movement. The **budget**
@@ -170,10 +172,12 @@ The drawer lists the eligible accounts, the transfer drawer then asks which
 way ("To …" / "From …"), and the new row's label defaults to the account's
 name and stays editable.
 
-**An empty picker is an ordinary state, not an error.** Every account
-onboarding seeds is `kind: NONE`, and an account gets its kind on the balance
-sheet's Add drawer — so a user who has never used the balance sheet has
-nothing to offer here. `anchorPickerEmptyReason` distinguishes two cases,
+**An empty picker is an ordinary state, not an error.** Every account carries
+a type — and so a kind — from the moment it's created, and onboarding seeds
+six `ASSET` accounts, so a Transfer's picker is essentially never empty for
+`NO_ACCOUNTS` reasons. A Repayment's picker is, though: onboarding seeds no
+`LIABILITY` accounts, so a user who has never added one on the balance sheet
+has nothing to offer here. `anchorPickerEmptyReason` distinguishes two cases,
 because they need different words:
 
 | Reason | What it says |
@@ -368,11 +372,11 @@ picker and in `createItemForMonth`, not in the database.
   branch's job.
 - **Holdings within a wrapper** — designed for, not built; see
   [`accounts.md`](accounts.md).
-- **Giving the onboarding-seeded accounts real kinds.** All six are
-  `kind: NONE`, so a user who has never used the balance sheet meets an empty
-  picker and a signpost. Typing four of them (Savings, Emergency Fund, ISA,
-  SIPP) would change what `latestReality`, the balance sheet and the dashboard
-  see for every new user — a blast radius well beyond transfers.
+- ~~**Giving the onboarding-seeded accounts real kinds.**~~ Done by the
+  balance-accounts contract migration: every account now carries a `type` (and
+  so a `kind`) from the moment it's created, including the six onboarding
+  seeds — an empty Transfer picker is essentially never a `NO_ACCOUNTS` case
+  any more (see "Adding a row" above).
 
 ## Code map
 

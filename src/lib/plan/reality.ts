@@ -111,7 +111,8 @@ async function latestAccountRows(userId: string): Promise<RealityRow[]> {
       ORDER BY b."accountId", p."startDate" DESC, b."createdAt" DESC
     `,
     // × 12 in budgetedFlow assumes a monthly figure, and a REPAYMENT is
-    // stored monthly too — a YEAR period would misread as both.
+    // stored monthly too — WEEK and QUARTER periods also exist in the
+    // granularity enum and would misread as both, so the filter stays.
     prisma.$queryRaw<LatestFlowRow[]>`
       SELECT DISTINCT ON (b."accountId", b."type") b."accountId", b."type", b."direction", b."budget"
       FROM "BudgetItem" b

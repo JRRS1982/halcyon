@@ -320,8 +320,10 @@ export async function setAccountSection(
 
 // The one implementation behind both balance/accountActions.ts's own callers
 // and settings/accountActions.ts's re-export — a rename touches the account's
-// name plus every live budget/balance row's label mirror in the same
-// transaction, so the sheets never show a stale name next to a fresh one.
+// name plus every live budget row's label mirror in the same transaction, so
+// the budget sheet never shows a stale name next to a fresh one. BalanceItem
+// carries no label mirror to fan out to — the balance sheet always reads the
+// account's name directly.
 export async function renameAccount(input: RenameAccountInput): Promise<void> {
   const userId = await requireUserId();
   const { accountId, name } = renameAccountSchema.parse(input);
