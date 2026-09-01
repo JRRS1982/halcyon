@@ -273,11 +273,17 @@ test.describe("balance accounts", () => {
       },
     });
 
-    const nameCell = rowInput(page, "Vanguard ISA");
-    await nameCell.click();
+    // rowInput matches on the input's *live* value, not just the one it was
+    // created with (Playwright's `[value]` selector tracks the DOM property),
+    // so re-resolving it mid-rename would stop matching the instant the first
+    // keystroke lands. Click it once by its old name, then drive the rest
+    // from the keyboard rather than re-querying a locator built on a name
+    // that's about to change.
+    await rowInput(page, "Vanguard ISA").click();
     await withServerAction(page, async () => {
-      await nameCell.fill("Vanguard S&S ISA");
-      await nameCell.blur();
+      await page.keyboard.press("ControlOrMeta+A");
+      await page.keyboard.type("Vanguard S&S ISA");
+      await page.keyboard.press("Tab");
     });
 
     await page.goto("/budget");
