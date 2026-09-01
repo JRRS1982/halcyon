@@ -37,13 +37,13 @@ model User {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
-  periods              FinancialPeriod[]
-  settings             UserSettings?
-  categories           Category[]
-  accounts             Account[]
-  transactions         Transaction[]
-  importBatches        ImportBatch[]
-  plans                Plan[]
+  periods       FinancialPeriod[]
+  settings      UserSettings?
+  categories    Category[]
+  accounts      Account[]
+  transactions  Transaction[]
+  importBatches ImportBatch[]
+  plans         Plan[]
 }
 
 // Per-user app preferences. Lazily upserted on first read — there is no
@@ -96,7 +96,6 @@ enum PeriodGranularity {
   WEEK
   MONTH
   QUARTER
-  YEAR
 }
 
 enum ItemType {
@@ -106,6 +105,13 @@ enum ItemType {
   TRANSFER
   // Money out that reduces a debt: paid at a LIABILITY account.
   REPAYMENT
+}
+
+// What a Category can actually be — narrower than ItemType, which also
+// carries TRANSFER/REPAYMENT for BudgetItem rows keyed on an Account instead.
+enum CategoryKind {
+  INCOME
+  EXPENSE
 }
 
 // Relative to the named account, matching netTransfersForAccounts' convention:
@@ -133,18 +139,14 @@ enum CategorySection {
   OTHER
 }
 
-enum BalanceItemType {
-  ASSET
-  LIABILITY
-}
-
-enum BalanceItemCategory {
+// The sub-heading a balance-sheet row sits under. Asset-only PROPERTY in the
+// UI — a "property liability" doesn't make sense; mortgage debt stays under
+// Long-term liabilities. Kept on the shared enum to avoid splitting the type
+// per side.
+enum AccountSection {
   CURRENT
   MEDIUM_TERM
   LONG_TERM
-  // Asset-only in the UI — a "property liability" doesn't make sense; mortgage
-  // debt stays under Long-term liabilities. Kept on the shared enum to avoid
-  // splitting the type per side.
   PROPERTY
   OTHER
 }
@@ -175,25 +177,25 @@ model FinancialPeriod {
 // A single line item inside a period. A flat list — items belong to a period
 // and a section, with no nesting.
 model BudgetItem {
-  id             String             @id @default(uuid()) @db.Uuid
-  periodId       String             @db.Uuid
+  id         String             @id @default(uuid()) @db.Uuid
+  periodId   String             @db.Uuid
   // Links to the stable Category once the transactions feature exists. Nullable
   // so legacy/pre-migration rows and free-typed rows still parse; `label`
   // remains the source of truth when no category is linked, and a fallback even
   // when one is.
-  categoryId     String?            @db.Uuid
-  type           ItemType
+  categoryId String?            @db.Uuid
+  type       ItemType
   // Null on TRANSFER/REPAYMENT rows, which key on an account instead.
-  section        CategorySection?
-  label          String
-  budget         Decimal            @default(0) @db.Decimal(12, 2)
-  actual         Decimal            @default(0) @db.Decimal(12, 2)
-  sortOrder      Int                @default(0)
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
-  deletedAt      DateTime?
-  accountId      String?            @db.Uuid
-  direction      TransferDirection?
+  section    CategorySection?
+  label      String
+  budget     Decimal            @default(0) @db.Decimal(12, 2)
+  actual     Decimal            @default(0) @db.Decimal(12, 2)
+  sortOrder  Int                @default(0)
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+  deletedAt  DateTime?
+  accountId  String?            @db.Uuid
+  direction  TransferDirection?
 
   period         FinancialPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
   linkedCategory Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
@@ -204,31 +206,26 @@ model BudgetItem {
   @@index([accountId])
 }
 
-// A per-month observation of an account. type/category/label/sortOrder are
-// legacy mirrors of the account, still written for deploy-window safety; the
-// contract PR drops them. Do not read them in new code.
+// A per-month observation of an account: value, note, provisional flag —
+// nothing else; the partial unique index BalanceItem_period_account_live
+// enforces one live value per account per month.
 model BalanceItem {
-  id          String              @id @default(uuid()) @db.Uuid
-  periodId    String              @db.Uuid
-  type        BalanceItemType
-  category    BalanceItemCategory
-  label       String
-  value       Decimal             @default(0) @db.Decimal(14, 2)
+  id          String    @id @default(uuid()) @db.Uuid
+  periodId    String    @db.Uuid
+  value       Decimal   @default(0) @db.Decimal(14, 2)
   notes       String?
-  sortOrder   Int                 @default(0)
   // True on rows cloned by copy-from (a previous month or the template):
   // the value is last month's number, shown provisionally until the user
   // confirms it by editing the value, which clears the flag.
-  carriedOver Boolean             @default(false)
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
+  carriedOver Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
-  accountId   String              @db.Uuid
+  accountId   String    @db.Uuid
 
   period  FinancialPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
   account Account         @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
-  @@index([periodId, type, category, sortOrder])
   @@index([accountId])
 }
 
@@ -239,15 +236,15 @@ model BalanceItem {
 // BudgetItem so a category carries its grouping. Categories are curated in
 // Settings (rename / merge / archive). Soft-deleted via deletedAt.
 model Category {
-  id             String           @id @default(uuid()) @db.Uuid
-  userId         String           @db.Uuid
-  type           ItemType
-  section        CategorySection
-  label          String
-  sortOrder      Int              @default(0)
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  deletedAt      DateTime?
+  id        String          @id @default(uuid()) @db.Uuid
+  userId    String          @db.Uuid
+  type      CategoryKind
+  section   CategorySection
+  label     String
+  sortOrder Int             @default(0)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  deletedAt DateTime?
 
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   budgetItems  BudgetItem[]
@@ -258,22 +255,16 @@ model Category {
   @@index([userId, type, sortOrder])
 }
 
-// What this account is on a balance sheet. NONE is a plain transaction
-// account that is not itself an asset or a liability line.
+// Column-less — the TS grouping kindOf returns.
 enum AccountKind {
   ASSET
   LIABILITY
-  NONE
 }
 
 // The account type the user picks in the Add drawer — the ONE stored fact.
 // kind (asset/liability) and wrapper (tax treatment) are computed from it in
 // code (kindOf/wrapperOf in src/lib/accounts/accountDraft.ts), never stored
-// as new facts. The legacy kind/wrapper columns are still WRITTEN as mirrors
-// until the contract PR drops them; no new code reads them. `category` is
-// not a mirror-to-drop — it was renamed `section` and lives on; only its
-// enum type (BalanceItemCategory) gets renamed AccountSection in the
-// contract PR.
+// as facts.
 enum AccountType {
   CURRENT_ACCOUNT
   SAVINGS
@@ -302,24 +293,18 @@ enum AccountType {
 // add_account_type migration. Prisma cannot express a partial index, so it is
 // not declared as an @@unique here; see that migration for the DDL.
 model Account {
-  id                    String               @id @default(uuid()) @db.Uuid
-  userId                String               @db.Uuid
+  id                    String         @id @default(uuid()) @db.Uuid
+  userId                String         @db.Uuid
   name                  String
   type                  AccountType
   // Where the account sits on the balance sheet. Defaulted from type at
   // creation, user-editable, and a fact about the account, not the month.
-  // Holds BalanceItemCategory until the contract PR renames the enum
-  // AccountSection.
-  section               BalanceItemCategory
-  sortOrder             Int                  @default(0)
-  kind                  AccountKind          @default(NONE)
-  // Term bucket and tax wrapper reuse the balance-sheet and plan enums rather
-  // than introducing parallel ones. Null on a plain transaction account.
-  wrapper               PlanAssetWrapper?
+  section               AccountSection
+  sortOrder             Int            @default(0)
   // The user's choice, not a derived fact: plenty of mortgage providers issue
-  // statements. `kind` supplies only the initial default at creation time and
-  // never overrides it afterwards. Gates the transactions page's *importable*
-  // account list — src/app/(app)/transactions/page.tsx queries it separately
+  // statements. `kindOf(type)` supplies only the initial default at creation
+  // time and never overrides it afterwards. Gates the transactions page's
+  // *importable* account list — src/app/(app)/transactions/page.tsx queries it separately
   // and it feeds only the import target picker, quick-add and the ledger's
   // account filter. It deliberately does NOT gate transfer targets or the
   // ledger's transferAccountId → name resolution: those read from the page's
@@ -327,27 +312,26 @@ model Account {
   // `transferAccounts` prop), so an account excluded from import (e.g. a
   // mortgage) can still be a transfer counterparty and still displays by
   // name on rows that already point at it. No picker filters on `kind`.
-  canImportTransactions Boolean              @default(true)
+  canImportTransactions Boolean        @default(true)
   // Mortgage ↔ property. A fact about the house, not about one plan, which is
   // why it lives here rather than on PlanLiability.
-  linkedAccountId       String?              @unique @db.Uuid
-  createdAt             DateTime             @default(now())
-  updatedAt             DateTime             @updatedAt
+  linkedAccountId       String?        @unique @db.Uuid
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
   deletedAt             DateTime?
 
-  user                 User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transactions         Transaction[]         @relation("AccountTransactions")
-  transfersFrom        Transaction[]         @relation("TransferCounterparty")
-  importBatches        ImportBatch[]
-  balanceItems         BalanceItem[]
-  budgetItems          BudgetItem[]
-  linkedAccount        Account?              @relation("AccountLink", fields: [linkedAccountId], references: [id], onDelete: SetNull)
-  linkedBy             Account?              @relation("AccountLink")
-  planAssets           PlanAsset[]
-  planLiabilities      PlanLiability[]
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions    Transaction[]   @relation("AccountTransactions")
+  transfersFrom   Transaction[]   @relation("TransferCounterparty")
+  importBatches   ImportBatch[]
+  balanceItems    BalanceItem[]
+  budgetItems     BudgetItem[]
+  linkedAccount   Account?        @relation("AccountLink", fields: [linkedAccountId], references: [id], onDelete: SetNull)
+  linkedBy        Account?        @relation("AccountLink")
+  planAssets      PlanAsset[]
+  planLiabilities PlanLiability[]
 
   @@index([userId])
-  @@index([userId, kind])
 }
 
 // One CSV import run. Groups the transactions it created so the whole import
