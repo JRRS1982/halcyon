@@ -965,7 +965,9 @@ export function BalanceSheet({
         // The copy replaces this month's observations wholesale: every
         // account it carried takes the copied number, and every account it
         // didn't is back to having nothing recorded. The account rows
-        // themselves don't move — only the month hanging off them.
+        // themselves don't move — only the month hanging off them. Notes
+        // describe the source month's figure, not the target's, so a copy
+        // never carries them over — the target starts with none.
         const copiedByAccountId = new Map(
           result.items.map((it) => [it.accountId, it]),
         );
@@ -978,7 +980,7 @@ export function BalanceSheet({
             return {
               ...row,
               value: copied.value,
-              notes: copied.notes,
+              notes: null,
               carriedOver: copied.carriedOver,
             };
           }),

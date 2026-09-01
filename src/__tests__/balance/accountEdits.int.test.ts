@@ -3,9 +3,13 @@ import {
   renameAccount,
   setAccountType,
 } from "@/app/(app)/balance/accountActions";
-import { upsertBalanceValue } from "@/app/(app)/balance/actions";
+import {
+  copyBalancePeriodFrom,
+  upsertBalanceValue,
+} from "@/app/(app)/balance/actions";
 import { createItemForMonth } from "@/app/(app)/budget/actions";
 import { buildAccountData } from "@/lib/accounts/creation";
+import { monthRangeFor } from "@/lib/budget/period";
 import { prisma } from "@/lib/prisma";
 import {
   resetDb,
@@ -132,6 +136,56 @@ describe("upsertBalanceValue", () => {
     expect(rows).toHaveLength(1);
     expect(Number(rows[0]?.value)).toBe(250);
     expect(rows[0]?.carriedOver).toBe(false);
+  });
+});
+
+describe("copyBalancePeriodFrom", () => {
+  it("copying into a month that already has a value replaces it and marks carriedOver", async () => {
+    const a = await typedAccount("Pot", "SAVINGS");
+
+    await upsertBalanceValue({
+      accountId: a.id,
+      year: 2026,
+      month: 0,
+      value: 100,
+    });
+    const source = await prisma.financialPeriod.findFirstOrThrow({
+      where: {
+        userId: TEST_USER_ID,
+        startDate: monthRangeFor(2026, 0).startDate,
+      },
+    });
+
+    // The target month already has a live, user-confirmed value — copying
+    // must replace it, not sit alongside it.
+    await upsertBalanceValue({
+      accountId: a.id,
+      year: 2026,
+      month: 1,
+      value: 999,
+    });
+
+    const result = await copyBalancePeriodFrom({
+      sourcePeriodId: source.id,
+      targetYear: 2026,
+      targetMonth: 1,
+    });
+
+    const liveRows = await prisma.balanceItem.findMany({
+      where: { accountId: a.id, periodId: result.periodId, deletedAt: null },
+    });
+    expect(liveRows).toHaveLength(1);
+    expect(Number(liveRows[0]?.value)).toBe(100);
+    expect(liveRows[0]?.carriedOver).toBe(true);
+
+    // The old value is soft-deleted, not left live alongside the new one —
+    // the partial unique index on live (periodId, accountId) rows would
+    // reject two live rows for the same account+month.
+    const allTargetRows = await prisma.balanceItem.findMany({
+      where: { accountId: a.id, periodId: result.periodId },
+    });
+    expect(allTargetRows).toHaveLength(2);
+    expect(allTargetRows.filter((r) => r.deletedAt !== null)).toHaveLength(1);
   });
 });
 

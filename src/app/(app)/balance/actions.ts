@@ -148,13 +148,16 @@ export async function listCopyableBalancePeriods() {
   return periods.map((p) => ({ id: p.id, label: p.label }));
 }
 
-// Replace the target month's balance rows with a copy of the source period's.
-// Balance rows are flat (no hierarchy) and carry a single value, so the whole
-// line — type, category, label, value and notes — copies over as a starting
-// point the user then adjusts. The target period is created on the fly if it
-// was still virtual; existing target rows are soft-deleted in the same
-// transaction so the copy is an atomic overwrite. Returns the new item list
-// so the client can swap state without a refetch.
+// Replace the target month's balance rows with a copy of the source period's
+// values. Only the account and its value travel — mirrors (type, category,
+// label, sortOrder) are re-derived from the live account rather than copied
+// from the source row, since the account may have been renamed/re-sectioned
+// since. The target period is created on the fly if it was still virtual;
+// existing target rows are soft-deleted in the same transaction as the
+// create, so an account with a live value in the target month gets replaced
+// rather than duplicated (the partial unique index on live
+// (periodId, accountId) rows is the fence). Returns the new item list so the
+// client can swap state without a refetch.
 export async function copyBalancePeriodFrom(input: CopyBalancePeriodFromInput) {
   const userId = await requireUserId();
   const parsed = copyBalancePeriodFromSchema.parse(input);
@@ -187,18 +190,22 @@ export async function copyBalancePeriodFrom(input: CopyBalancePeriodFromInput) {
       account: { deletedAt: null },
     },
     orderBy: { sortOrder: "asc" },
-    select: {
-      type: true,
-      category: true,
-      label: true,
-      value: true,
-      notes: true,
-      sortOrder: true,
-      accountId: true,
-    },
+    select: { accountId: true, value: true },
   });
 
   const copied = toCarriedOverRows(sourceItems);
+
+  const accounts = await prisma.account.findMany({
+    where: { id: { in: copied.map((it) => it.accountId) } },
+    select: {
+      id: true,
+      type: true,
+      section: true,
+      name: true,
+      sortOrder: true,
+    },
+  });
+  const accountById = new Map(accounts.map((a) => [a.id, a]));
 
   await prisma.$transaction([
     prisma.balanceItem.updateMany({
@@ -206,7 +213,20 @@ export async function copyBalancePeriodFrom(input: CopyBalancePeriodFromInput) {
       data: { deletedAt: new Date() },
     }),
     prisma.balanceItem.createMany({
-      data: copied.map((it) => ({ ...it, periodId: target.id })),
+      data: copied.map((it) => {
+        const account = accountById.get(it.accountId);
+        if (!account) throw new Error("Account not found");
+        return {
+          periodId: target.id,
+          accountId: it.accountId,
+          value: it.value,
+          carriedOver: it.carriedOver,
+          type: kindOf(account.type),
+          category: account.section,
+          label: account.name,
+          sortOrder: account.sortOrder,
+        };
+      }),
     }),
   ]);
 

@@ -35,7 +35,7 @@ describe("balance carried-over flag (integration)", () => {
   });
 
   test("copying a month marks every clone carried over, in the DB and the returned rows", async () => {
-    const { periodId } = await seedFebruary();
+    const { accountId, periodId } = await seedFebruary();
 
     const result = await copyBalancePeriodFrom({
       sourcePeriodId: periodId,
@@ -46,8 +46,11 @@ describe("balance carried-over flag (integration)", () => {
     expect(result.items).toHaveLength(1);
     expect(result.items[0]?.carriedOver).toBe(true);
 
-    const clone = await prisma.balanceItem.findUniqueOrThrow({
-      where: { id: result.items[0]?.id ?? "" },
+    // Rows are keyed by (account, month), not by their own id — the same
+    // gesture that created February's row updates March's, so the clone is
+    // found by account + target period, not by an id the caller never sees.
+    const clone = await prisma.balanceItem.findFirstOrThrow({
+      where: { accountId, periodId: result.periodId, deletedAt: null },
     });
     expect(clone.carriedOver).toBe(true);
     expect(Number(clone.value)).toBe(5000);
@@ -55,12 +58,11 @@ describe("balance carried-over flag (integration)", () => {
 
   test("editing the value confirms the row; editing the notes does not", async () => {
     const { accountId, periodId } = await seedFebruary();
-    const { items } = await copyBalancePeriodFrom({
+    await copyBalancePeriodFrom({
       sourcePeriodId: periodId,
       targetYear: 2026,
       targetMonth: 2,
     });
-    const cloneId = items[0]?.id ?? "";
 
     const afterNotes = await upsertBalanceValue({
       accountId,
@@ -68,7 +70,7 @@ describe("balance carried-over flag (integration)", () => {
       month: 2,
       notes: "Still to check",
     });
-    expect(afterNotes.id).toBe(cloneId);
+    expect(afterNotes.accountId).toBe(accountId);
     expect(afterNotes.carriedOver).toBe(true);
 
     const afterValue = await upsertBalanceValue({
@@ -79,8 +81,8 @@ describe("balance carried-over flag (integration)", () => {
     });
     expect(afterValue.carriedOver).toBe(false);
 
-    const row = await prisma.balanceItem.findUniqueOrThrow({
-      where: { id: cloneId },
+    const row = await prisma.balanceItem.findFirstOrThrow({
+      where: { accountId, periodId: afterValue.periodId, deletedAt: null },
     });
     expect(row.carriedOver).toBe(false);
     expect(Number(row.value)).toBe(5100);
