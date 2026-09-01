@@ -70,9 +70,6 @@ describe("Account registry columns (integration)", () => {
       data: {
         periodId: period.id,
         accountId: account.id,
-        type: "ASSET",
-        category: "LONG_TERM",
-        label: "Vanguard ISA",
         value: 42300,
       },
     });

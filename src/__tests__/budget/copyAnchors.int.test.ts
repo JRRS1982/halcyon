@@ -109,9 +109,11 @@ describe("copyPeriodFrom anchor handling (integration)", () => {
 
   test("skips a row whose account is no longer the right kind", async () => {
     const { isa, periodId: sourcePeriodId } = await seedSourceTransfer();
+    // kind is derived from type, so re-kinding the account means changing
+    // its type to one whose kindOf is LIABILITY.
     await prisma.account.update({
       where: { id: isa.id },
-      data: { kind: "LIABILITY" },
+      data: { type: "OTHER_DEBT" },
     });
 
     const result = await copyPeriodFrom({

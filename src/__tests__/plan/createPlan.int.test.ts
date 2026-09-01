@@ -36,11 +36,7 @@ describe("createPlan (integration)", () => {
       data: {
         periodId: period.id,
         accountId: account.id,
-        type: "ASSET",
-        category: "OTHER",
-        label: "Cash savings",
         value: 10000,
-        sortOrder: 0,
       },
     });
     await prisma.budgetItem.create({

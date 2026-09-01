@@ -10,7 +10,6 @@
 import type { AccountType } from "@prisma/client";
 import { linkRepaymentExpense } from "@/app/(app)/plan/actions";
 import { getPlanSyncPreview, syncPlan } from "@/app/(app)/plan/syncActions";
-import { kindOf } from "@/lib/accounts/accountDraft";
 import { buildAccountData } from "@/lib/accounts/creation";
 import { toPlanInput } from "@/lib/plan/toPlanInput";
 import { prisma } from "@/lib/prisma";
@@ -29,9 +28,6 @@ async function accountWithValue(
     data: {
       periodId,
       accountId: account.id,
-      type: kindOf(type),
-      category: account.section,
-      label: name,
       value,
     },
   });

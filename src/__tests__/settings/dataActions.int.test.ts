@@ -61,9 +61,6 @@ async function seedFinancialData(userId: string) {
     data: {
       periodId: period.id,
       accountId: account.id,
-      type: "ASSET",
-      category: "CURRENT",
-      label: "Cash",
       value: 500,
     },
   });
