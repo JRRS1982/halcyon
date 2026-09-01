@@ -63,7 +63,6 @@ describe("eligibleAnchorAccounts", () => {
     { id: "a1", name: "Vanguard ISA", kind: "ASSET", archived: false },
     { id: "a2", name: "Old ISA", kind: "ASSET", archived: true },
     { id: "l1", name: "Halifax Mortgage", kind: "LIABILITY", archived: false },
-    { id: "n1", name: "Current account", kind: "NONE", archived: false },
   ];
 
   test("a transfer may only target an asset account", () => {
@@ -86,17 +85,6 @@ describe("eligibleAnchorAccounts", () => {
     expect(
       eligibleAnchorAccounts("REPAYMENT", accounts, ["a1"]).map((a) => a.id),
     ).toEqual(["l1"]);
-  });
-
-  // Every account seeded at onboarding is kind NONE, so this is the state a
-  // user who has never touched the balance sheet is actually in.
-  test("kind NONE anchors nothing, so a fresh account list offers nothing", () => {
-    const fresh: AnchorAccount[] = [
-      { id: "n1", name: "Current account", kind: "NONE", archived: false },
-      { id: "n2", name: "Savings", kind: "NONE", archived: false },
-    ];
-    expect(eligibleAnchorAccounts("TRANSFER", fresh, [])).toEqual([]);
-    expect(eligibleAnchorAccounts("REPAYMENT", fresh, [])).toEqual([]);
   });
 
   test("category-keyed rows anchor to nothing at all", () => {

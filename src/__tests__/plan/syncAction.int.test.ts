@@ -33,9 +33,6 @@ async function accountWithValue(
     data: {
       periodId: p.id,
       accountId: account.id,
-      type: "ASSET",
-      category: "LONG_TERM",
-      label: name,
       value,
     },
   });
@@ -175,9 +172,6 @@ describe("syncPlan (integration)", () => {
         data: {
           periodId: p.id,
           accountId: account.id,
-          type: "ASSET",
-          category: "LONG_TERM",
-          label: "Vanguard ISA",
           value,
         },
       });
@@ -267,9 +261,6 @@ describe("syncPlan (integration)", () => {
       data: {
         periodId: theirPeriod.id,
         accountId: foreign.id,
-        type: "ASSET",
-        category: "LONG_TERM",
-        label: "Their ISA",
         value: 999999,
       },
     });
@@ -426,9 +417,6 @@ describe("syncPlan (integration)", () => {
       data: {
         periodId: p.id,
         accountId: account.id,
-        type: "LIABILITY",
-        category: "LONG_TERM",
-        label: "Mortgage",
         value: 250000,
       },
     });
@@ -460,9 +448,6 @@ describe("syncPlan (integration)", () => {
       data: {
         periodId: p.id,
         accountId: account.id,
-        type: "ASSET",
-        category: "LONG_TERM",
-        label: "SIPP",
         value: 78244,
       },
     });
@@ -495,9 +480,6 @@ describe("syncPlan (integration)", () => {
       data: {
         periodId: p.id,
         accountId: account.id,
-        type: "ASSET",
-        category: "LONG_TERM",
-        label: "Vanguard ISA",
         value: 42300,
       },
     });
@@ -552,9 +534,6 @@ describe("syncPlan (integration)", () => {
           data: {
             periodId: p.id,
             accountId: account.id,
-            type: "ASSET",
-            category: bucket,
-            label: `${bucket} account`,
             value: 1000,
           },
         });
@@ -727,9 +706,6 @@ describe("syncPlan (integration)", () => {
       data: {
         periodId: p.id,
         accountId: account.id,
-        type: "ASSET",
-        category: "LONG_TERM",
-        label: "Vanguard ISA",
         value: 42300,
       },
     });
@@ -774,41 +750,6 @@ describe("syncPlan (integration)", () => {
     expect(income.endAge).toBe(55);
   });
 
-  // A liability account may carry a stray Account.wrapper (nothing stops it),
-  // and the wrapper enum is asset-only. Its row must round-trip clean rather
-  // than flagging a phantom update on every Sync.
-  it("leaves a liability alone when its account carries a wrapper", async () => {
-    await emptyPlan();
-    const account = await prisma.account.create({
-      data: {
-        userId: TEST_USER_ID,
-        name: "Halifax mortgage",
-        ...buildAccountData({ type: "MORTGAGE" }),
-        // A stray wrapper — nothing stops the column carrying one even
-        // though wrapper is asset-only and this account is a liability.
-        wrapper: "PROPERTY",
-      },
-    });
-    const p = await period("2026-03-01", "2026-03-01");
-    await prisma.balanceItem.create({
-      data: {
-        periodId: p.id,
-        accountId: account.id,
-        type: "LIABILITY",
-        category: "LONG_TERM",
-        label: "Halifax mortgage",
-        value: 250000,
-      },
-    });
-    await syncPlan();
-
-    const second = await syncPlan();
-
-    expect(second.updates).toEqual([]);
-    expect(second.removals).toEqual([]);
-    expect(second.unchanged).toHaveLength(1);
-  });
-
   // The payoff. A budgeted pension contribution used to become a PlanExpense:
   // the money left the projection and never arrived in the pension, so the
   // user was £6,000/yr poorer *and* the pension never grew. It now rides on
@@ -827,9 +768,6 @@ describe("syncPlan (integration)", () => {
       data: {
         periodId: p.id,
         accountId: account.id,
-        type: "ASSET",
-        category: "LONG_TERM",
-        label: "Vanguard SIPP",
         value: 42300,
       },
     });
@@ -881,9 +819,6 @@ describe("syncPlan (integration)", () => {
       data: {
         periodId: p.id,
         accountId: account.id,
-        type: "LIABILITY",
-        category: "LONG_TERM",
-        label: "Halifax mortgage",
         value: 250000,
       },
     });
@@ -927,9 +862,6 @@ describe("syncPlan (integration)", () => {
       data: {
         periodId: p.id,
         accountId: account.id,
-        type: "ASSET",
-        category: "LONG_TERM",
-        label: "Vanguard SIPP",
         value: 42300,
       },
     });
@@ -992,9 +924,6 @@ describe("syncPlan (integration)", () => {
       data: {
         periodId: p.id,
         accountId: account.id,
-        type: "ASSET",
-        category: "LONG_TERM",
-        label: "Vanguard SIPP",
         value: 42300,
       },
     });
@@ -1037,9 +966,6 @@ describe("syncPlan (integration)", () => {
       data: {
         periodId: p.id,
         accountId: account.id,
-        type: "ASSET",
-        category: "LONG_TERM",
-        label: "Vanguard SIPP",
         value: 0,
       },
     });
@@ -1116,9 +1042,6 @@ describe("syncPlan (integration)", () => {
       data: {
         periodId: p.id,
         accountId: account.id,
-        type: "ASSET",
-        category: "CURRENT",
-        label: "Rainy day",
         value: 8000,
       },
     });

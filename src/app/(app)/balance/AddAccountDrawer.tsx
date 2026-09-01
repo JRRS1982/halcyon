@@ -1,5 +1,6 @@
 "use client";
 
+import type { AccountKind, AccountSection } from "@prisma/client";
 import {
   type ReactNode,
   useEffect,
@@ -18,19 +19,15 @@ import {
   canSubmitAccountDraft,
   defaultCanImportTransactions,
 } from "@/lib/accounts/accountDraft";
-import {
-  type BalanceCategory,
-  type BalanceType,
-  isValidBalanceCategory,
-} from "@/lib/balance/reorder";
-import { balanceItemCategorySchema } from "@/lib/balance/schemas";
+import { isValidBalanceCategory } from "@/lib/balance/reorder";
+import { accountSectionSchema } from "@/lib/balance/schemas";
 import { createAccount } from "./accountActions";
 
 // Display labels for the five balance-sheet sections — the same wording
 // BalanceSheet.tsx uses for its own subheads (CATEGORIES, BalanceSheet.tsx:87-91),
 // so the drawer's "Section" field reads as the destination the user already
 // sees, not the schema's internal TERM vocabulary.
-const SECTION_LABELS: Record<BalanceCategory, string> = {
+const SECTION_LABELS: Record<AccountSection, string> = {
   CURRENT: "Current",
   MEDIUM_TERM: "Medium-term",
   LONG_TERM: "Long-term",
@@ -41,8 +38,8 @@ const SECTION_LABELS: Record<BalanceCategory, string> = {
 // PROPERTY is asset-only, so a liability's Section field never offers it —
 // shares isValidBalanceCategory with BalanceSheet.tsx's own section picker
 // and its rendered subheads rather than re-stating the same rule here too.
-function sectionOptionsFor(type: BalanceType): BalanceCategory[] {
-  return balanceItemCategorySchema.options.filter((c) =>
+function sectionOptionsFor(type: AccountKind): AccountSection[] {
+  return accountSectionSchema.options.filter((c) =>
     isValidBalanceCategory(type, c),
   );
 }
@@ -229,7 +226,7 @@ export function AddAccountDrawer({
   const titleId = useId();
 
   const [typeId, setTypeId] = useState<AccountTypeId | null>(null);
-  const [category, setCategory] = useState<BalanceCategory | null>(null);
+  const [category, setCategory] = useState<AccountSection | null>(null);
   const [name, setName] = useState("");
   const nameRef = useRef<HTMLInputElement | null>(null);
   const [value, setValue] = useState("");
@@ -252,7 +249,7 @@ export function AddAccountDrawer({
   // ACCOUNT_TYPES. `kind` is what the drawer's own fields branch on; the
   // payload sends the type itself and the server derives the rest.
   const accountType = accountTypeById(typeId);
-  const type: BalanceType | null = accountType?.kind ?? null;
+  const type: AccountKind | null = accountType?.kind ?? null;
   const isProperty = accountType?.id === "PROPERTY";
 
   const selectAccountType = (next: AccountTypeId) => {
@@ -286,7 +283,7 @@ export function AddAccountDrawer({
   // The section no longer affects the import default — that is keyed on the
   // wrapper, which the account type already fixed — so this only records the
   // choice, and the fact that it was the user's rather than the default.
-  const selectCategory = (next: BalanceCategory) => {
+  const selectCategory = (next: AccountSection) => {
     setSectionTouched(true);
     setCategory(next);
   };
@@ -477,7 +474,7 @@ export function AddAccountDrawer({
                     <Select
                       value={category ?? ""}
                       onChange={(e) =>
-                        selectCategory(e.target.value as BalanceCategory)
+                        selectCategory(e.target.value as AccountSection)
                       }
                     >
                       {sectionOptionsFor(type).map((c) => (

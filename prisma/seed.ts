@@ -975,72 +975,44 @@ async function seedBalanceItems(
     const rows = [
       {
         accountId: current.id,
-        type: "ASSET" as const,
-        category: "CURRENT" as const,
-        label: "Current Account",
         value: 3500 + i * 30 + wobble,
       },
       {
         accountId: joint.id,
-        type: "ASSET" as const,
-        category: "CURRENT" as const,
-        label: "Joint Account",
         value: 9000 + i * 15 + jointWobble,
       },
       {
         accountId: isa.id,
-        type: "ASSET" as const,
-        category: "MEDIUM_TERM" as const,
-        label: "ISA",
         value: isaSeries[i] ?? 26000,
       },
       {
         accountId: sipp.id,
-        type: "ASSET" as const,
-        category: "LONG_TERM" as const,
-        label: "SIPP",
         value: sippSeries[i] ?? 92000,
       },
       {
         accountId: home.id,
-        type: "ASSET" as const,
-        category: "PROPERTY" as const,
-        label: "Home",
         value: homeSeries[i] ?? 335000,
       },
       {
         accountId: car.id,
-        type: "ASSET" as const,
-        category: "OTHER" as const,
-        label: "Car",
         value: Math.max(8000, 14000 - i * 60),
       },
       {
         accountId: mortgage.id,
-        type: "LIABILITY" as const,
-        category: "LONG_TERM" as const,
-        label: "Mortgage",
         value: Math.max(0, 175000 - i * 250),
       },
       {
         accountId: creditCard.id,
-        type: "LIABILITY" as const,
-        category: "CURRENT" as const,
-        label: "Credit Card",
         value: CARD_BALANCE[i % CARD_BALANCE.length] ?? 450,
       },
     ];
     await Promise.all(
-      rows.map((r, sortOrder) =>
+      rows.map((r) =>
         prisma.balanceItem.create({
           data: {
             periodId: period.id,
             accountId: r.accountId,
-            type: r.type,
-            category: r.category,
-            label: r.label,
             value: r.value,
-            sortOrder,
           },
         }),
       ),

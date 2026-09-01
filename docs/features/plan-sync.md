@@ -148,13 +148,13 @@ one row per live account and per live budget category:
 - **"Latest" is not "this month".** It is the most recent non-deleted period
   that has a row for that account or category — a user may not have filled
   this month in yet. Ordering is `period.startDate desc`, then `createdAt
-  desc`: two periods can share a `startDate` (a MONTH and a YEAR period
-  collide there), and nothing stops two rows for one account inside one
-  period, so without the tiebreaker the winner is whatever order Postgres
-  happened to return.
-- **Budget rows are read from `granularity: "MONTH"` periods only.** The × 12
-  assumes a monthly figure; a YEAR period would inflate the annualised value
-  twelvefold.
+  desc`: two periods can share a `startDate` (a MONTH period and the QUARTER
+  period enclosing it both start on the same day), and nothing stops two rows
+  for one account inside one period, so without the tiebreaker the winner is
+  whatever order Postgres happened to return.
+- **Budget rows are read from `granularity: "MONTH"` periods only.** WEEK and
+  QUARTER periods also exist in the enum, and reading one of those would
+  misread its figure as the monthly one, so the filter stays.
 - **The × 12 is rounded to 2dp.** `budget` and `annualAmount` are both
   `numeric(_,2)` and the multiplication happens in doubles: £833.33 × 12 is
   `9999.960000000001` in IEEE-754 but `9999.96` in the column. Compared
@@ -162,8 +162,8 @@ one row per live account and per live budget category:
   press and the button never reaches "Up to date" — 31% of penny values are
   affected. The balance-sheet path needs no rounding: it reads a
   `numeric(14,2)` into a `numeric(14,2)` with no arithmetic between.
-- **`kind: NONE` accounts are excluded** — a plain transaction account is not
-  a balance-sheet line, so it is not a plan row.
+- **Every account is `ASSET` or `LIABILITY`, and both read into a plan row.**
+  There is no longer a third kind to exclude.
 - **Nothing observed, nothing offered.** An account with no `BalanceItem` at
   all, or a category with no monthly budget row, is skipped rather than added
   at zero.
@@ -179,9 +179,10 @@ one row per live account and per live budget category:
   `liabilityStep` does its own × 12 inside the projection. The flow is keyed
   off the *target account's* kind rather than the budget row's own type, so a
   mispaired row can never be found and misread. An account row's flow is
-  always a number (`0` when nothing is budgeted, for an `OUTFLOW`, or for a
-  YEAR-only row); `null` belongs to `INCOME`/`EXPENSE` rows, which have no
-  flow column at all. See [`budget-transfers.md`](budget-transfers.md).
+  always a number (`0` when nothing is budgeted, for an `OUTFLOW`, or when
+  the only row found is a WEEK/QUARTER period the granularity filter
+  excludes); `null` belongs to `INCOME`/`EXPENSE` rows, which have no flow
+  column at all. See [`budget-transfers.md`](budget-transfers.md).
 
 ## Addition-time defaults are not updates
 

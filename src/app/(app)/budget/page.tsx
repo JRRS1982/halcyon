@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { kindOf } from "@/lib/accounts/accountDraft";
 import {
   currentMonthRange,
   formatYm,
@@ -215,12 +216,12 @@ export default async function BudgetPage(props: PageProps) {
     await prisma.account.findMany({
       where: { userId: user.id },
       orderBy: { name: "asc" },
-      select: { id: true, name: true, kind: true, deletedAt: true },
+      select: { id: true, name: true, type: true, deletedAt: true },
     })
   ).map((a) => ({
     id: a.id,
     name: a.name,
-    kind: a.kind,
+    kind: kindOf(a.type),
     archived: a.deletedAt !== null,
   }));
 

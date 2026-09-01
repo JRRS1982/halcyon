@@ -5,6 +5,7 @@ import {
   deleteAccountEverywhere,
   restoreAccount,
 } from "@/app/(app)/balance/accountActions";
+import { kindOf, wrapperOf } from "@/lib/accounts/accountDraft";
 import { monthRangeFor } from "@/lib/budget/period";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
@@ -42,8 +43,8 @@ describe("account actions (integration)", () => {
     const account = await prisma.account.findUniqueOrThrow({
       where: { id: accountId },
     });
-    expect(account.kind).toBe("ASSET");
-    expect(account.wrapper).toBe("ISA");
+    expect(kindOf(account.type)).toBe("ASSET");
+    expect(wrapperOf(account.type)).toBe("ISA");
     expect(account.canImportTransactions).toBe(false);
 
     const item = await prisma.balanceItem.findFirstOrThrow({
@@ -63,7 +64,7 @@ describe("account actions (integration)", () => {
     });
     expect(property.type).toBe("PROPERTY");
     expect(property.section).toBe("PROPERTY");
-    expect(property.wrapper).toBe("PROPERTY");
+    expect(wrapperOf(property.type)).toBe("PROPERTY");
 
     const mortgage = await prisma.account.findFirstOrThrow({
       where: { linkedAccountId: accountId },
@@ -75,14 +76,12 @@ describe("account actions (integration)", () => {
     expect(mortgage.type).toBe("MORTGAGE");
     expect(mortgage.section).toBe("LONG_TERM");
     // A tax wrapper describes an asset, not a debt.
-    expect(mortgage.wrapper).toBeNull();
+    expect(wrapperOf(mortgage.type)).toBeNull();
+    expect(kindOf(mortgage.type)).toBe("LIABILITY");
 
-    const mortgageItem = await prisma.balanceItem.findFirstOrThrow({
+    await prisma.balanceItem.findFirstOrThrow({
       where: { accountId: mortgage.id },
     });
-    expect(mortgageItem.category).toBe("LONG_TERM");
-    expect(mortgageItem.type).toBe("LIABILITY");
-
     const rows = await prisma.balanceItem.findMany({
       where: { period: { userId: TEST_USER_ID } },
     });
@@ -109,17 +108,14 @@ describe("account actions (integration)", () => {
         name: "Car loan",
         type: "LOAN",
         section: "LONG_TERM",
+        sortOrder: 0,
       },
     });
-    const existingLiability = await prisma.balanceItem.create({
+    await prisma.balanceItem.create({
       data: {
         periodId: period.id,
         accountId: carLoan.id,
-        type: "LIABILITY",
-        category: "LONG_TERM",
-        label: "Car loan",
         value: 5000,
-        sortOrder: 1,
       },
     });
 
@@ -128,15 +124,12 @@ describe("account actions (integration)", () => {
     const mortgage = await prisma.account.findFirstOrThrow({
       where: { linkedAccountId: accountId },
     });
-    const mortgageItem = await prisma.balanceItem.findFirstOrThrow({
-      where: { accountId: mortgage.id },
-    });
-    const propertyItem = await prisma.balanceItem.findFirstOrThrow({
-      where: { accountId },
+    const property = await prisma.account.findUniqueOrThrow({
+      where: { id: accountId },
     });
 
-    expect(mortgageItem.sortOrder).toBe(existingLiability.sortOrder + 1);
-    expect(propertyItem.sortOrder).toBe(1);
+    expect(mortgage.sortOrder).toBe(carLoan.sortOrder + 1);
+    expect(property.sortOrder).toBe(0);
   });
 
   it("archiving keeps history and hides the account", async () => {
@@ -440,7 +433,7 @@ describe("account actions (integration)", () => {
     const account = await prisma.account.findUniqueOrThrow({
       where: { id: accountId },
     });
-    expect(account.wrapper).toBeNull();
+    expect(wrapperOf(account.type)).toBeNull();
   });
 
   it("rejects a mortgage attached to anything other than a PROPERTY asset", async () => {
@@ -542,11 +535,7 @@ describe("account actions ownership boundary (integration)", () => {
       data: {
         periodId: foreignPeriod.id,
         accountId: foreignAccount.id,
-        type: "ASSET",
-        category: "LONG_TERM",
-        label: "Their ISA",
         value: 500,
-        sortOrder: 1,
       },
     });
 
@@ -611,11 +600,7 @@ describe("account actions ownership boundary (integration)", () => {
       data: {
         periodId: foreignPeriod.id,
         accountId: foreignAccount.id,
-        type: "ASSET",
-        category: "LONG_TERM",
-        label: "Their ISA",
         value: 9999,
-        sortOrder: 1,
       },
     });
     await prisma.account.update({
@@ -705,9 +690,6 @@ describe("archiving a mortgaged property (integration)", () => {
       data: {
         periodId: earlier.id,
         accountId,
-        type: "ASSET",
-        category: "LONG_TERM",
-        label: "Vanguard ISA",
         value: 100,
       },
     });

@@ -102,20 +102,12 @@ test.describe("Dashboard summary", () => {
           {
             periodId: period.id,
             accountId: savings.id,
-            type: "ASSET",
-            category: "CURRENT",
-            label: "Savings",
             value: 12000 + i * 1500,
-            sortOrder: 0,
           },
           {
             periodId: period.id,
             accountId: mortgage.id,
-            type: "LIABILITY",
-            category: "LONG_TERM",
-            label: "Mortgage",
             value: 90000 - i * 500,
-            sortOrder: 1,
           },
         ],
       });
@@ -225,20 +217,12 @@ test.describe("Dashboard summary", () => {
           {
             periodId: period.id,
             accountId: savings.id,
-            type: "ASSET",
-            category: "CURRENT",
-            label: "Savings",
             value: 12000 + i * 1500,
-            sortOrder: 0,
           },
           {
             periodId: period.id,
             accountId: mortgage.id,
-            type: "LIABILITY",
-            category: "LONG_TERM",
-            label: "Mortgage",
             value: 90000 - i * 500,
-            sortOrder: 1,
           },
         ],
       });
@@ -338,20 +322,12 @@ test.describe("Dashboard summary", () => {
           {
             periodId: period.id,
             accountId: savings.id,
-            type: "ASSET",
-            category: "CURRENT",
-            label: "Savings",
             value: 12000 + i * 1500,
-            sortOrder: 0,
           },
           {
             periodId: period.id,
             accountId: mortgage.id,
-            type: "LIABILITY",
-            category: "LONG_TERM",
-            label: "Mortgage",
             value: 90000 - i * 500,
-            sortOrder: 1,
           },
         ],
       });

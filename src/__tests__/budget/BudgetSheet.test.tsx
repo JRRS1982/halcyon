@@ -56,12 +56,6 @@ const accounts: AnchorAccount[] = [
     kind: "LIABILITY",
     archived: false,
   },
-  {
-    id: "dddddddd-dddd-dddd-dddd-dddddddddddd",
-    name: "Current account",
-    kind: "NONE",
-    archived: false,
-  },
 ];
 
 const row = (
@@ -216,9 +210,6 @@ describe("BudgetSheet — the Add drawer's account picker", () => {
     expect(
       screen.queryByRole("button", { name: "Halifax Mortgage" }),
     ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Current account" }),
-    ).not.toBeInTheDocument();
     // Archived accounts still name an existing row's target, but can never be
     // a new row's.
     expect(
@@ -255,18 +246,10 @@ describe("BudgetSheet — the Add drawer's account picker", () => {
     ).not.toBeInTheDocument();
   });
 
-  // Every account seeded at onboarding is kind NONE, so a user who has never
-  // touched the balance sheet has nothing eligible. An empty dropdown would
-  // read as a bug.
+  // A user who has never added an account to the balance sheet has nothing
+  // eligible. An empty dropdown would read as a bug.
   test("with nothing eligible, it says where accounts get a kind", async () => {
-    renderSheet(items, [
-      {
-        id: "dddddddd-dddd-dddd-dddd-dddddddddddd",
-        name: "Current account",
-        kind: "NONE",
-        archived: false,
-      },
-    ]);
+    renderSheet(items, []);
     await openAddDrawer("Transfers and saving");
     expect(
       screen.getByRole("link", { name: /balance sheet/i }),
@@ -280,14 +263,7 @@ describe("BudgetSheet — the Add drawer's account picker", () => {
   });
 
   test("the repayment empty state says what the account would be for", async () => {
-    renderSheet(items, [
-      {
-        id: "dddddddd-dddd-dddd-dddd-dddddddddddd",
-        name: "Current account",
-        kind: "NONE",
-        archived: false,
-      },
-    ]);
+    renderSheet(items, []);
     await openAddDrawer("Debt payment");
     expect(
       screen.getByText(/no liability accounts to repay yet/i),

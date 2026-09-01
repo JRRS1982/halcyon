@@ -1,6 +1,7 @@
+import type { AccountType } from "@prisma/client";
 import { z } from "zod";
 
-export const balanceItemCategorySchema = z.enum([
+export const accountSectionSchema = z.enum([
   "CURRENT",
   "MEDIUM_TERM",
   "LONG_TERM",
@@ -14,25 +15,28 @@ export const copyBalancePeriodFromSchema = z.object({
   targetMonth: z.number().int().min(0).max(11),
 });
 
-// Verbatim order per the global constraints — the fourteen account types the
-// user can move an account between (same-kind moves only; setAccountType
-// enforces that).
-export const accountTypeSchema = z.enum([
-  "CURRENT_ACCOUNT",
-  "SAVINGS",
-  "CASH_ISA",
-  "STOCKS_ISA",
-  "SIPP",
-  "FINAL_SALARY",
-  "GIA",
-  "PROPERTY",
-  "OTHER_ASSET",
-  "MORTGAGE",
-  "CREDIT_CARD",
-  "LOAN",
-  "OVERDRAFT",
-  "OTHER_DEBT",
-]);
+// Compile-time exhaustiveness: adding a 15th AccountType fails here until
+// the schema learns it — an omitted value would otherwise be silently
+// unselectable.
+const ALL_ACCOUNT_TYPES = {
+  CURRENT_ACCOUNT: true,
+  SAVINGS: true,
+  CASH_ISA: true,
+  STOCKS_ISA: true,
+  SIPP: true,
+  FINAL_SALARY: true,
+  GIA: true,
+  PROPERTY: true,
+  OTHER_ASSET: true,
+  MORTGAGE: true,
+  CREDIT_CARD: true,
+  LOAN: true,
+  OVERDRAFT: true,
+  OTHER_DEBT: true,
+} satisfies Record<AccountType, true>;
+export const accountTypeSchema = z.enum(
+  Object.keys(ALL_ACCOUNT_TYPES) as [AccountType, ...AccountType[]],
+);
 
 export const setAccountTypeSchema = z.object({
   accountId: z.string().uuid(),
@@ -41,7 +45,7 @@ export const setAccountTypeSchema = z.object({
 
 export const setAccountSectionSchema = z.object({
   accountId: z.string().uuid(),
-  section: balanceItemCategorySchema,
+  section: accountSectionSchema,
 });
 
 export const renameAccountSchema = z.object({

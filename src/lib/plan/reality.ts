@@ -111,7 +111,8 @@ async function latestAccountRows(userId: string): Promise<RealityRow[]> {
       ORDER BY b."accountId", p."startDate" DESC, b."createdAt" DESC
     `,
     // × 12 in budgetedFlow assumes a monthly figure, and a REPAYMENT is
-    // stored monthly too — a YEAR period would misread as both.
+    // stored monthly too — WEEK and QUARTER periods also exist in the
+    // granularity enum and would misread as both, so the filter stays.
     prisma.$queryRaw<LatestFlowRow[]>`
       SELECT DISTINCT ON (b."accountId", b."type") b."accountId", b."type", b."direction", b."budget"
       FROM "BudgetItem" b
@@ -170,10 +171,7 @@ async function latestAccountRows(userId: string): Promise<RealityRow[]> {
 
 async function latestCategoryRows(userId: string): Promise<RealityRow[]> {
   const categories = await prisma.category.findMany({
-    // Categories are never transfers or repayments — those key on accounts,
-    // not categories — so this excludes the widened ItemType members that
-    // can never actually appear on a Category row.
-    where: { userId, deletedAt: null, type: { in: ["INCOME", "EXPENSE"] } },
+    where: { userId, deletedAt: null },
     select: {
       id: true,
       label: true,
@@ -207,13 +205,6 @@ async function latestCategoryRows(userId: string): Promise<RealityRow[]> {
     // a category is not a durable registry of ownership — it only becomes a
     // plan row once the budget has actually said something about it.
     if (latest === undefined) continue;
-
-    // The query's `where` already excludes anything but INCOME/EXPENSE —
-    // categories are never transfers or repayments — but ItemType is
-    // shared with BudgetItem/BudgetTemplateItem, so the Prisma-generated
-    // type for `category.type` is still the full enum. This narrows it
-    // back down without a cast; unreachable in practice.
-    if (category.type !== "INCOME" && category.type !== "EXPENSE") continue;
 
     rows.push({
       linkId: category.id,

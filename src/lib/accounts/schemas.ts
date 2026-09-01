@@ -1,8 +1,5 @@
 import { z } from "zod";
-import {
-  accountTypeSchema,
-  balanceItemCategorySchema,
-} from "@/lib/balance/schemas";
+import { accountSectionSchema, accountTypeSchema } from "@/lib/balance/schemas";
 
 // One gesture creates the account and its first observation, so the drawer's
 // payload carries both. The account is described by the one `type` the drawer
@@ -16,7 +13,7 @@ export const createAccountSchema = z
     month: z.number().int().min(0).max(11),
     name: z.string().trim().min(1).max(120),
     type: accountTypeSchema,
-    section: balanceItemCategorySchema,
+    section: accountSectionSchema,
     value: z.number(),
     canImportTransactions: z.boolean(),
     mortgage: z

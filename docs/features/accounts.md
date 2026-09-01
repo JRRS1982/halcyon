@@ -28,7 +28,8 @@ places:
 | Assumption | how it **behaves in future** | `PlanAsset` / `PlanLiability` |
 
 `Account` carries `type`, `section`, `canImportTransactions` and
-`linkedAccountId` (plus the `kind`/`wrapper` mirrors — see below).
+`linkedAccountId` — `kind` and `wrapper` are derived from `type`, never
+stored (see below).
 `BudgetItem` gained a nullable `accountId`; **`BalanceItem.accountId` is
 required**, `ON DELETE CASCADE`, and fenced by a partial unique index on live
 rows (`BalanceItem_period_account_live` on `(periodId, accountId) WHERE
@@ -78,22 +79,22 @@ and everything else about its classification follows from that:
 - **`type`** (`AccountType`: `CURRENT_ACCOUNT SAVINGS CASH_ISA STOCKS_ISA SIPP
   FINAL_SALARY GIA PROPERTY OTHER_ASSET MORTGAGE CREDIT_CARD LOAN OVERDRAFT
   OTHER_DEBT`) — the one stored classification, required on every account.
-- **`kind`** (asset or liability) and **`wrapper`** (ISA, GIA, pension, …,
-  asset-only — a tax wrapper describes what you own, not what you owe) are
-  **computed** from `type` by `kindOf` / `wrapperOf` in
+- **`kind`** (asset or liability, `AccountKind`) and **`wrapper`** (ISA, GIA,
+  pension, …, asset-only — a tax wrapper describes what you own, not what you
+  owe) are **computed** from `type` by `kindOf` / `wrapperOf` in
   [`src/lib/accounts/accountDraft.ts`](../../src/lib/accounts/accountDraft.ts).
-  The `kind`/`wrapper` **columns still exist and are still written**, as
-  legacy mirrors for the deploy window only. No new code may branch on them.
-- **`section`** (renamed from `category`) is the sheet grouping — Current,
-  Medium-term, Long-term, Property, Other. It is the one classification the
-  account owns rather than derives, and the user edits it from the sheet;
-  `setAccountSection` refuses `PROPERTY` on a liability and appends the moved
-  account to the end of its new section.
+  Neither is a column — nothing stores them, and nothing may write them.
+- **`section`** (`AccountSection`, renamed from `BalanceItemCategory`) is the
+  sheet grouping — Current, Medium-term, Long-term, Property, Other. It is
+  the one classification the account owns rather than derives, and the user
+  edits it from the sheet; `setAccountSection` refuses `PROPERTY` on a
+  liability and appends the moved account to the end of its new section.
 
-> **Contract PR (PR 2)** will drop the `kind`/`wrapper` mirrors and
-> `BalanceItem`'s own `type`/`category`/`label`/`sortOrder` mirrors, and rename
-> the enums (`BalanceItemCategory` → `AccountSection`). Until then both the
-> stored mirror and the derived value exist; the derived value is the truth.
+`BalanceItem` itself carries no mirrors either: `periodId`, `accountId`,
+`value`, `notes`, `carriedOver` is the whole row. A month's figure for an
+account observes that account — every other fact about it (`type`, `section`,
+`kind`, `wrapper`) is read off the `Account` it points at, never copied onto
+the observation.
 
 **`canImportTransactions` is the user's choice, not a derived fact.** Plenty
 of mortgage providers issue statements, and someone who wants that ledger
@@ -189,8 +190,9 @@ from it and still matters:
 
 - **There are no legacy rows left.** `BalanceItem.accountId` is now required:
   the type migration deleted the last null-`accountId` rows and the sheet's
-  null-account path went with them. `label` survives only as a mirror of the
-  account's name, dropped in the contract PR.
+  null-account path went with them. `label` was a mirror of the account's
+  name; the Contract PR dropped it, along with `BalanceItem`'s `type`/
+  `category`/`sortOrder` mirrors and `Account.kind`/`wrapper`.
 - **The `@unique` on `Account.linkedAccountId`** means one mortgage per
   property, enforced by the database rather than by convention.
 
@@ -242,7 +244,7 @@ scoping:
 
 | Concern | File |
 |---|---|
-| `AccountType` enum, `Account.type`/`section`/`canImportTransactions`/`linkedAccountId` (+ the `kind`/`wrapper` mirrors), required `BalanceItem.accountId` with its CASCADE and live-row partial unique index | [`prisma/schema.prisma`](../../prisma/schema.prisma) |
+| `AccountType` enum, `Account.type`/`section`/`canImportTransactions`/`linkedAccountId`, required `BalanceItem.accountId` with its CASCADE and live-row partial unique index | [`prisma/schema.prisma`](../../prisma/schema.prisma) |
 | `kindOf` / `wrapperOf` / `accountTypesOfKind` — the derivations | [`src/lib/accounts/accountDraft.ts`](../../src/lib/accounts/accountDraft.ts) |
 | Pure account-creation data shaping (primary + mortgage) | [`src/lib/accounts/creation.ts`](../../src/lib/accounts/creation.ts) |
 | Zod schemas for create / delete-everywhere | [`src/lib/accounts/schemas.ts`](../../src/lib/accounts/schemas.ts) |

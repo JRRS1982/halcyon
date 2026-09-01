@@ -1177,8 +1177,9 @@ export function BudgetSheet({
   );
 
   // Only the accounts this kind may target, minus the ones already spoken for.
-  // Empty is an ordinary state, not an error: every account seeded at
-  // onboarding is kind NONE.
+  // Empty is an ordinary state, not an error: it means every eligible account
+  // is already anchored by a row this period (or, for REPAYMENT, that the
+  // user has no liability accounts at all).
   const addCandidates = useMemo(
     () =>
       isAnchoredKind(addKind)

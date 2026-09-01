@@ -27,11 +27,6 @@ describe("assertAnchorMatches", () => {
     );
   });
 
-  test("rejects an anchored kind aimed at a plain transaction account", () => {
-    expect(() => assertAnchorMatches("TRANSFER", "NONE")).toThrow(/asset/);
-    expect(() => assertAnchorMatches("REPAYMENT", "NONE")).toThrow(/liability/);
-  });
-
   // INCOME/EXPENSE anchor to a category, never an account. Zod rejects such
   // input upstream, so nothing reaches here today — but a fence that waves the
   // row through when the kind is unexpected is no fence at all.

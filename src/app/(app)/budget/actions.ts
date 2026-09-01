@@ -8,6 +8,7 @@ import type {
   Prisma,
 } from "@prisma/client";
 import { redirect } from "next/navigation";
+import { kindOf } from "@/lib/accounts/accountDraft";
 import { assertAnchorMatches, requiredAnchorKind } from "@/lib/budget/anchors";
 import {
   buildCopiedItems,
@@ -111,13 +112,13 @@ async function requireAnchorAccount(
 ): Promise<void> {
   const account = await tx.account.findFirst({
     where: { id: accountId, userId, deletedAt: null },
-    select: { kind: true },
+    select: { type: true },
   });
   if (!account) {
     throw new Error("Account not found");
   }
 
-  assertAnchorMatches(type, account.kind);
+  assertAnchorMatches(type, kindOf(account.type));
 }
 
 // One account carries at most one row per period.
@@ -184,10 +185,10 @@ async function withValidAnchorsOnly(
   const accounts = anchorIds.length
     ? await prisma.account.findMany({
         where: { id: { in: anchorIds }, userId, deletedAt: null },
-        select: { id: true, kind: true },
+        select: { id: true, type: true },
       })
     : [];
-  const kindById = new Map(accounts.map((a) => [a.id, a.kind]));
+  const kindById = new Map(accounts.map((a) => [a.id, kindOf(a.type)]));
 
   const kept = rows.flatMap((row) => {
     const required = requiredAnchorKind(row.type);

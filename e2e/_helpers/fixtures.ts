@@ -366,9 +366,6 @@ export async function seedPlanReality(
         create: [
           {
             accountId: account.id,
-            type: "ASSET",
-            category: "LONG_TERM",
-            label: "SIPP",
             value: 100000,
           },
         ],

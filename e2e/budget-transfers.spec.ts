@@ -146,10 +146,10 @@ test.describe("budget transfers and repayments", () => {
     }
     await expect(transfersToggle).toBeChecked();
 
-    // A transfer needs somewhere to go, and only the balance sheet's Add
-    // drawer gives an account a kind. Every account onboarding seeds is
-    // kind NONE, which anchors nothing — so this step is the feature's real
-    // precondition, not scaffolding.
+    // Onboarding already seeds six ASSET accounts eligible to anchor a
+    // transfer, one of them named plain "ISA" — so this step isn't about
+    // eligibility, it's about giving the drawer and picker an exact-match
+    // name ("Vanguard ISA") that can't collide with that default account.
     await page.goto("/balance");
     await openAddDrawer(page);
     await page.getByLabel(/what are you adding/i).selectOption("STOCKS_ISA");

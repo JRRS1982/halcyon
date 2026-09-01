@@ -1,10 +1,10 @@
 "use server";
 
+import type { AccountKind } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { kindOf } from "@/lib/accounts/accountDraft";
 import { buildAccountData } from "@/lib/accounts/creation";
-import type { BalanceType } from "@/lib/balance/reorder";
 import { categorySectionSchema } from "@/lib/budget/schemas";
 import { cleanLabel } from "@/lib/categories/normalize";
 import { sectionFor, sectionLabel } from "@/lib/categories/sections";
@@ -638,7 +638,7 @@ const createAccountAndTransferSchema = z.object({
 // orphaned account behind.
 export async function createAccountAndTransfer(
   input: z.input<typeof createAccountAndTransferSchema>,
-): Promise<{ id: string; name: string; kind: BalanceType }> {
+): Promise<{ id: string; name: string; kind: AccountKind }> {
   const userId = await requireTransactionsEnabled();
   const { transactionIds, name } = createAccountAndTransferSchema.parse(input);
 
