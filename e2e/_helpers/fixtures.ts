@@ -317,11 +317,13 @@ export async function clearStarterPeriods(
  * therefore linked. No real user can create an unlinked row either: the
  * balance sheet rows on accounts.
  *
- * The asset needs an account of its own because every account provisioning
- * creates is `kind: NONE` — a plain transaction account, which latestReality
- * excludes by design. The income links to the "Salary" category provisioning
- * already made: it is already INCOME/SALARY, exactly what a plan income wants,
- * and a second category of the same name would only invite the wrong one.
+ * The asset needs an account of its own — provisioning's own accounts start
+ * with no BalanceItem, and latestReality now reads every account regardless
+ * (Task 7), but a value-less one still contributes £0 to the plan. This
+ * account exists purely to carry the £100,000 opening value the test wants.
+ * The income links to the "Salary" category provisioning already made: it is
+ * already INCOME/SALARY, exactly what a plan income wants, and a second
+ * category of the same name would only invite the wrong one.
  *
  * Both values are above zero on purpose — resolvePlanSync skips additions
  * worth nothing, so a £0 row silently produces no plan row.

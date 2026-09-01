@@ -1,4 +1,5 @@
 import { createTransaction } from "@/app/(app)/transactions/actions";
+import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
 
@@ -8,7 +9,13 @@ import { TEST_USER_ID } from "../../../test/integration/helpers";
 
 describe("createTransaction (integration)", () => {
   const seedAccount = () =>
-    prisma.account.create({ data: { userId: TEST_USER_ID, name: "Wallet" } });
+    prisma.account.create({
+      data: {
+        userId: TEST_USER_ID,
+        name: "Wallet",
+        ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+      },
+    });
 
   test("creates a categorised transaction outside any import batch", async () => {
     const account = await seedAccount();
@@ -61,7 +68,11 @@ describe("createTransaction (integration)", () => {
       data: { id: "00000000-0000-0000-0000-0000000000bb" },
     });
     const foreign = await prisma.account.create({
-      data: { userId: other.id, name: "Not yours" },
+      data: {
+        userId: other.id,
+        name: "Not yours",
+        ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+      },
     });
 
     await expect(

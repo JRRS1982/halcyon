@@ -1,3 +1,4 @@
+import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
 import {
   countUncategorized,
@@ -54,7 +55,11 @@ describe("getOrProvisionCategories (integration)", () => {
 describe("ledger queries (integration)", () => {
   const seedTxns = async () => {
     const account = await prisma.account.create({
-      data: { userId: TEST_USER_ID, name: "Cur" },
+      data: {
+        userId: TEST_USER_ID,
+        name: "Cur",
+        ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+      },
     });
     const cat = await prisma.category.create({
       data: {

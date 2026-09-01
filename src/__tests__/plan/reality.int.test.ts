@@ -214,17 +214,12 @@ describe("latestReality (integration)", () => {
         label: "January 2026",
       },
     });
-    await prisma.balanceItem.create({
-      data: {
-        periodId: yearPeriod.id,
-        accountId: account.id,
-        type: "ASSET",
-        category: account.section,
-        label: "Current account",
-        value: 100,
-        createdAt: new Date("2026-01-01T09:00:00Z"),
-      },
-    });
+    // The winning row (later createdAt) is inserted FIRST on purpose: if the
+    // query ever dropped its `createdAt DESC` tiebreak and fell back to
+    // whatever order Postgres happened to scan rows in, physical insertion
+    // order would tend to agree with it — inserting the winner last would let
+    // that bug pass unnoticed. Insert order here is the opposite of the
+    // correct read order, so only a real tiebreak can produce value: 200.
     await prisma.balanceItem.create({
       data: {
         periodId: january.id,
@@ -234,6 +229,17 @@ describe("latestReality (integration)", () => {
         label: "Current account",
         value: 200,
         createdAt: new Date("2026-01-01T10:00:00Z"),
+      },
+    });
+    await prisma.balanceItem.create({
+      data: {
+        periodId: yearPeriod.id,
+        accountId: account.id,
+        type: "ASSET",
+        category: account.section,
+        label: "Current account",
+        value: 100,
+        createdAt: new Date("2026-01-01T09:00:00Z"),
       },
     });
 

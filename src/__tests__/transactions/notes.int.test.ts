@@ -2,6 +2,7 @@ import {
   commitImport,
   setTransactionNote,
 } from "@/app/(app)/transactions/actions";
+import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
 
@@ -9,7 +10,11 @@ const OTHER_USER_ID = "00000000-0000-0000-0000-0000000000bb";
 
 const seedTxn = async (userId = TEST_USER_ID) => {
   const account = await prisma.account.create({
-    data: { userId, name: "Cur" },
+    data: {
+      userId,
+      name: "Cur",
+      ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+    },
   });
   return prisma.transaction.create({
     data: {

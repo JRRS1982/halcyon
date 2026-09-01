@@ -6,8 +6,12 @@
 // skips in three places, schemas.ts refuses to save, and EventsTable renders
 // as a sale of "?". Net worth drops at the sale age with nothing on screen
 // explaining why.
+
+import type { AccountType } from "@prisma/client";
 import { linkRepaymentExpense } from "@/app/(app)/plan/actions";
 import { getPlanSyncPreview, syncPlan } from "@/app/(app)/plan/syncActions";
+import { kindOf } from "@/lib/accounts/accountDraft";
+import { buildAccountData } from "@/lib/accounts/creation";
 import { toPlanInput } from "@/lib/plan/toPlanInput";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
@@ -15,25 +19,18 @@ import { TEST_USER_ID } from "../../../test/integration/helpers";
 async function accountWithValue(
   periodId: string,
   name: string,
-  kind: "ASSET" | "LIABILITY",
-  category: "PROPERTY" | "LONG_TERM",
+  type: AccountType,
   value: number,
 ) {
   const account = await prisma.account.create({
-    data: {
-      userId: TEST_USER_ID,
-      name,
-      kind,
-      category,
-      wrapper: kind === "ASSET" ? "PROPERTY" : null,
-    },
+    data: { userId: TEST_USER_ID, name, ...buildAccountData({ type }) },
   });
   await prisma.balanceItem.create({
     data: {
       periodId,
       accountId: account.id,
-      type: kind,
-      category,
+      type: kindOf(type),
+      category: account.section,
       label: name,
       value,
     },
@@ -62,15 +59,13 @@ async function mortgagedProperty() {
   const houseAccount = await accountWithValue(
     period.id,
     "The house",
-    "ASSET",
     "PROPERTY",
     400000,
   );
   const mortgageAccount = await accountWithValue(
     period.id,
     "Halifax mortgage",
-    "LIABILITY",
-    "LONG_TERM",
+    "MORTGAGE",
     180000,
   );
   const house = await prisma.planAsset.create({

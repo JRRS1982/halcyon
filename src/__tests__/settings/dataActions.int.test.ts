@@ -22,6 +22,7 @@ import {
   deleteMyAccount,
   exportMyData,
 } from "@/app/(app)/settings/dataActions";
+import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
 
@@ -30,7 +31,11 @@ const OTHER_USER_ID = "00000000-0000-0000-0000-0000000000bb";
 
 async function seedFinancialData(userId: string) {
   const account = await prisma.account.create({
-    data: { userId, name: "Current" },
+    data: {
+      userId,
+      name: "Current",
+      ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+    },
   });
   const category = await prisma.category.create({
     data: { userId, type: "EXPENSE", section: "VARIABLE", label: "Food" },
@@ -55,6 +60,7 @@ async function seedFinancialData(userId: string) {
   await prisma.balanceItem.create({
     data: {
       periodId: period.id,
+      accountId: account.id,
       type: "ASSET",
       category: "CURRENT",
       label: "Cash",

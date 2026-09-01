@@ -38,12 +38,12 @@ describe("every creation path produces a typed account", () => {
     expect(new Set(accounts.map((a) => a.kind))).toEqual(new Set(["ASSET"]));
   });
 
-  // EXPECTED RED until Task 7: reality.ts still skips any account with no
-  // BalanceItem, so a freshly-typed, never-observed account is still
-  // stranded off the plan today. This is deliberately written now and left
-  // failing so Task 7's fix is proven against a pre-existing test rather
-  // than one written alongside it. See Task 3's report — excluded from this
-  // task's gate for exactly that reason.
+  // Was EXPECTED RED until Task 7: reality.ts used to skip any account with
+  // no BalanceItem, stranding a freshly-typed, never-observed account off
+  // the plan. Task 7 fixed reality.ts to read every account in one indexed
+  // pass, so this now passes — written ahead of that fix, on purpose, so it
+  // proved the fix against a pre-existing test rather than one written
+  // alongside it.
   it("reaches the plan even with no BalanceItem (stranded case)", async () => {
     await prisma.$transaction((tx) => seedStarterData(tx, TEST_USER_ID));
     const accounts = await prisma.account.findMany({

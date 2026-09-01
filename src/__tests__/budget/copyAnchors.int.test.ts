@@ -1,4 +1,6 @@
+import type { AccountType } from "@prisma/client";
 import { copyPeriodFrom, createItemForMonth } from "@/app/(app)/budget/actions";
+import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
 
@@ -18,11 +20,10 @@ const OTHER_USER_ID = "00000000-0000-0000-0000-0000000000bb";
 const SOURCE = { year: 2026, month: 1 };
 const TARGET = { year: 2026, month: 2 };
 
-const createAccount = (
-  userId: string,
-  name: string,
-  kind: "ASSET" | "LIABILITY",
-) => prisma.account.create({ data: { userId, name, kind } });
+const createAccount = (userId: string, name: string, type: AccountType) =>
+  prisma.account.create({
+    data: { userId, name, ...buildAccountData({ type }) },
+  });
 
 const targetItems = (periodId: string) =>
   prisma.budgetItem.findMany({
@@ -31,7 +32,7 @@ const targetItems = (periodId: string) =>
   });
 
 const seedSourceTransfer = async () => {
-  const isa = await createAccount(TEST_USER_ID, "Vanguard ISA", "ASSET");
+  const isa = await createAccount(TEST_USER_ID, "Vanguard ISA", "STOCKS_ISA");
   const created = await createItemForMonth({
     ...SOURCE,
     type: "TRANSFER",
@@ -44,7 +45,7 @@ const seedSourceTransfer = async () => {
 
 describe("copyPeriodFrom anchor handling (integration)", () => {
   test("carries accountId and direction onto the copied rows", async () => {
-    const debt = await createAccount(TEST_USER_ID, "Mortgage", "LIABILITY");
+    const debt = await createAccount(TEST_USER_ID, "Mortgage", "MORTGAGE");
     const { isa, periodId: sourcePeriodId } = await seedSourceTransfer();
     await createItemForMonth({
       ...SOURCE,
@@ -127,7 +128,7 @@ describe("copyPeriodFrom anchor handling (integration)", () => {
     const { item, periodId: sourcePeriodId } = await seedSourceTransfer();
 
     const other = await prisma.user.create({ data: { id: OTHER_USER_ID } });
-    const theirIsa = await createAccount(other.id, "Their ISA", "ASSET");
+    const theirIsa = await createAccount(other.id, "Their ISA", "STOCKS_ISA");
     // A live, correctly-kinded account — only ownership disqualifies it, so
     // this fails if the copy's account lookup drops its userId filter.
     await prisma.budgetItem.update({
@@ -151,7 +152,11 @@ describe("copyPeriodFrom anchor handling (integration)", () => {
   // dropping the line would lose data over a meaningless column.
   test("cleans a stray anchor off an unanchored kind instead of dropping it", async () => {
     const spending = await prisma.account.create({
-      data: { userId: TEST_USER_ID, name: "Current account", kind: "NONE" },
+      data: {
+        userId: TEST_USER_ID,
+        name: "Current account",
+        ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+      },
     });
     const { item, periodId: sourcePeriodId } = await createItemForMonth({
       ...SOURCE,
@@ -182,7 +187,7 @@ describe("copyPeriodFrom anchor handling (integration)", () => {
   // direction on any kind but TRANSFER, so this row could not have been
   // created — but a REPAYMENT is valid without it, so clean rather than drop.
   test("cleans a stray direction off a repayment instead of dropping it", async () => {
-    const debt = await createAccount(TEST_USER_ID, "Mortgage", "LIABILITY");
+    const debt = await createAccount(TEST_USER_ID, "Mortgage", "MORTGAGE");
     const { item, periodId: sourcePeriodId } = await createItemForMonth({
       ...SOURCE,
       type: "REPAYMENT",

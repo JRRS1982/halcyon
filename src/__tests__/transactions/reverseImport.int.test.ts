@@ -3,6 +3,7 @@ import {
   listImportBatches,
   reverseImport,
 } from "@/app/(app)/transactions/actions";
+import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
 
@@ -113,7 +114,11 @@ describe("import batches (integration)", () => {
     // signed-in test user.
     await prisma.user.create({ data: { id: OTHER_USER_ID } });
     const otherAccount = await prisma.account.create({
-      data: { userId: OTHER_USER_ID, name: "Other" },
+      data: {
+        userId: OTHER_USER_ID,
+        name: "Other",
+        ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+      },
     });
     await prisma.transaction.updateMany({
       where: { userId: TEST_USER_ID },

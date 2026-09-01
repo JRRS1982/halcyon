@@ -1,9 +1,10 @@
 // e2e/balance-accounts.spec.ts
 //
 // Server-action journeys for the unified-accounts work: adding an account
-// (plain and property+mortgage), archiving one ("stop tracking"), and the
-// app's one hard-delete path ("delete it everywhere"). Chromium-only — see
-// the beforeEach skip below.
+// (plain and property+mortgage), archiving one ("stop tracking"), the app's
+// one hard-delete path ("delete it everywhere"), a value-less account still
+// listing itself, and a rename following its account onto the budget's
+// anchored row. Chromium-only — see the beforeEach skip below.
 
 import type { Page } from "@playwright/test";
 import {
@@ -184,5 +185,102 @@ test.describe("balance accounts", () => {
     );
 
     await expect(rowInput(page, "Crypto wallet")).toHaveCount(0);
+  });
+
+  // page.tsx lists every live account on every month, left-joining this
+  // month's observation onto it — an account is a row from the moment it
+  // exists, whether or not this month has recorded a value for it. Deleting
+  // the six starter accounts first keeps the count exactly 1: they carry no
+  // value either, and would otherwise inflate the footer's tally.
+  test("an account with no value is listed and counted in the footer", async ({
+    page,
+    db,
+  }) => {
+    await signIn(page);
+    const user = await signedInUser(db);
+    await clearStarterPeriods(db, user.id);
+    await db.account.deleteMany({ where: { userId: user.id } });
+    await page.goto("/balance");
+
+    await openAddDrawer(page);
+    await page.getByLabel(/what are you adding/i).selectOption("STOCKS_ISA");
+    await page.getByLabel(/name/i).fill("Vanguard ISA");
+    await page.getByLabel(/section/i).selectOption("LONG_TERM");
+    await page.getByLabel(/value now/i).fill("42300");
+    await withServerAction(page, () =>
+      page.getByRole("button", { name: /^add$/i }).click(),
+    );
+    await expect(rowInput(page, "Vanguard ISA")).toBeVisible();
+
+    // A month nothing has recorded yet: the account still gets a row, blank
+    // rather than absent. copy-forward is an explicit action (copyRows.ts),
+    // never automatic on navigation, so this month stays empty.
+    const now = new Date();
+    const next = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1),
+    );
+    const ym = `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, "0")}`;
+    await page.goto(`/balance?ym=${ym}`);
+
+    await expect(rowInput(page, "Vanguard ISA")).toBeVisible();
+    const row = page
+      .getByRole("row")
+      .filter({ has: rowInput(page, "Vanguard ISA") });
+    await expect(row.locator('input[inputmode="decimal"]')).toHaveValue("");
+    await expect(
+      page.getByText("1 account without a value", { exact: true }),
+    ).toBeVisible();
+  });
+
+  // BudgetSheet.tsx makes an anchored row's label cell read-only — the name
+  // comes from the account, not a value the row can diverge on — so the only
+  // way it changes is renameAccount's own propagation to BudgetItem.label
+  // (accountActions.ts). This drives that rename through the real sheet UI
+  // rather than the server action directly.
+  test("renaming on the sheet renames the budget's anchored row", async ({
+    page,
+    db,
+  }) => {
+    await signIn(page);
+    const user = await signedInUser(db);
+    await clearStarterPeriods(db, user.id);
+    await page.goto("/balance");
+
+    await openAddDrawer(page);
+    await page.getByLabel(/what are you adding/i).selectOption("STOCKS_ISA");
+    await page.getByLabel(/name/i).fill("Vanguard ISA");
+    await page.getByLabel(/section/i).selectOption("LONG_TERM");
+    await page.getByLabel(/value now/i).fill("42300");
+    await withServerAction(page, () =>
+      page.getByRole("button", { name: /^add$/i }).click(),
+    );
+    await expect(rowInput(page, "Vanguard ISA")).toBeVisible();
+
+    const account = await db.account.findFirstOrThrow({
+      where: { userId: user.id, name: "Vanguard ISA" },
+    });
+    const period = await db.financialPeriod.findFirstOrThrow({
+      where: { userId: user.id },
+    });
+    await db.budgetItem.create({
+      data: {
+        periodId: period.id,
+        accountId: account.id,
+        type: "TRANSFER",
+        direction: "INFLOW",
+        label: "Vanguard ISA",
+        budget: 500,
+      },
+    });
+
+    const nameCell = rowInput(page, "Vanguard ISA");
+    await nameCell.click();
+    await withServerAction(page, async () => {
+      await nameCell.fill("Vanguard S&S ISA");
+      await nameCell.blur();
+    });
+
+    await page.goto("/budget");
+    await expect(rowInput(page, "Vanguard S&S ISA")).toBeVisible();
   });
 });

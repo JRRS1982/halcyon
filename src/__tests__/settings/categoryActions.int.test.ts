@@ -1,4 +1,5 @@
 import { mergeCategories } from "@/app/(app)/settings/categoryActions";
+import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
 
@@ -44,7 +45,11 @@ describe("mergeCategories (integration)", () => {
     const srcItem = await makeItem(period.id, source.id, 40);
 
     const account = await prisma.account.create({
-      data: { userId: TEST_USER_ID, name: "Current" },
+      data: {
+        userId: TEST_USER_ID,
+        name: "Current",
+        ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+      },
     });
     const tx = await prisma.transaction.create({
       data: {

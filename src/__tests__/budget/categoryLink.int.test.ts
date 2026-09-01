@@ -1,4 +1,5 @@
 import { createItemForMonth, updateItem } from "@/app/(app)/budget/actions";
+import { buildAccountData } from "@/lib/accounts/creation";
 import { latestReality } from "@/lib/plan/reality";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
@@ -67,7 +68,11 @@ describe("a budget row reaches the plan", () => {
   // double-count it: once on the account's flow, once here as an expense.
   it("but a transfer never gets a category", async () => {
     const account = await prisma.account.create({
-      data: { userId: TEST_USER_ID, name: "Vanguard ISA", kind: "ASSET" },
+      data: {
+        userId: TEST_USER_ID,
+        name: "Vanguard ISA",
+        ...buildAccountData({ type: "STOCKS_ISA" }),
+      },
     });
     const { item } = await createItemForMonth({
       year: 2026,

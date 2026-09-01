@@ -30,7 +30,11 @@ describe("account CRUD (integration)", () => {
 
   test("soft-deletes an unreferenced account", async () => {
     const acct = await prisma.account.create({
-      data: { userId: TEST_USER_ID, name: "Spare" },
+      data: {
+        userId: TEST_USER_ID,
+        name: "Spare",
+        ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+      },
     });
     await deleteAccount({ accountId: acct.id });
     const after = await prisma.account.findUniqueOrThrow({
@@ -41,7 +45,11 @@ describe("account CRUD (integration)", () => {
 
   test("blocks delete while the account owns transactions", async () => {
     const acct = await prisma.account.create({
-      data: { userId: TEST_USER_ID, name: "Owns txns" },
+      data: {
+        userId: TEST_USER_ID,
+        name: "Owns txns",
+        ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+      },
     });
     await prisma.transaction.create({
       data: {
@@ -57,10 +65,18 @@ describe("account CRUD (integration)", () => {
 
   test("blocks delete while the account is a transfer counterparty", async () => {
     const owner = await prisma.account.create({
-      data: { userId: TEST_USER_ID, name: "Owner" },
+      data: {
+        userId: TEST_USER_ID,
+        name: "Owner",
+        ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+      },
     });
     const counterparty = await prisma.account.create({
-      data: { userId: TEST_USER_ID, name: "Counterparty" },
+      data: {
+        userId: TEST_USER_ID,
+        name: "Counterparty",
+        ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+      },
     });
     await prisma.transaction.create({
       data: {
@@ -82,6 +98,7 @@ describe("account CRUD (integration)", () => {
       data: {
         userId: TEST_USER_ID,
         name: "Halifax mortgage",
+        ...buildAccountData({ type: "MORTGAGE" }),
         canImportTransactions: false,
       },
     });
@@ -100,6 +117,7 @@ describe("account CRUD (integration)", () => {
       data: {
         userId: OTHER_USER_ID,
         name: "Their ISA",
+        ...buildAccountData({ type: "STOCKS_ISA" }),
         canImportTransactions: false,
       },
     });

@@ -1,4 +1,5 @@
 import { copyPeriodFrom, createItemForMonth } from "@/app/(app)/budget/actions";
+import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
 
@@ -20,17 +21,25 @@ const IN_TARGET = new Date("2026-04-10");
 describe("copyPeriodFrom computed actuals (integration)", () => {
   test("an account-keyed row adopts the target month's transfer flow", async () => {
     const current = await prisma.account.create({
-      data: { userId: TEST_USER_ID, name: "Current" },
+      data: {
+        userId: TEST_USER_ID,
+        name: "Current",
+        ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+      },
     });
     const mortgage = await prisma.account.create({
       data: {
         userId: TEST_USER_ID,
         name: "Halifax mortgage",
-        kind: "LIABILITY",
+        ...buildAccountData({ type: "MORTGAGE" }),
       },
     });
     const isa = await prisma.account.create({
-      data: { userId: TEST_USER_ID, name: "Vanguard ISA", kind: "ASSET" },
+      data: {
+        userId: TEST_USER_ID,
+        name: "Vanguard ISA",
+        ...buildAccountData({ type: "STOCKS_ISA" }),
+      },
     });
 
     const { periodId: sourcePeriodId } = await createItemForMonth({
@@ -81,7 +90,11 @@ describe("copyPeriodFrom computed actuals (integration)", () => {
 
   test("a category-keyed row still adopts its own transactions", async () => {
     const current = await prisma.account.create({
-      data: { userId: TEST_USER_ID, name: "Current" },
+      data: {
+        userId: TEST_USER_ID,
+        name: "Current",
+        ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+      },
     });
     const groceries = await prisma.category.create({
       data: {

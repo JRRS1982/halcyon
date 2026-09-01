@@ -1,16 +1,18 @@
+import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
 
 describe("Account registry columns (integration)", () => {
-  it("defaults a new account to a plain importable transaction account", async () => {
+  it("defaults a new account to importable, with no link", async () => {
     const account = await prisma.account.create({
-      data: { userId: TEST_USER_ID, name: "Barclays Current" },
+      data: {
+        userId: TEST_USER_ID,
+        name: "Barclays Current",
+        ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+      },
     });
 
-    expect(account.kind).toBe("NONE");
     expect(account.canImportTransactions).toBe(true);
-    expect(account.category).toBeNull();
-    expect(account.wrapper).toBeNull();
     expect(account.linkedAccountId).toBeNull();
   });
 
@@ -19,9 +21,7 @@ describe("Account registry columns (integration)", () => {
       data: {
         userId: TEST_USER_ID,
         name: "Home",
-        kind: "ASSET",
-        category: "PROPERTY",
-        wrapper: "PROPERTY",
+        ...buildAccountData({ type: "PROPERTY" }),
         canImportTransactions: false,
       },
     });
@@ -29,8 +29,7 @@ describe("Account registry columns (integration)", () => {
       data: {
         userId: TEST_USER_ID,
         name: "Halifax mortgage",
-        kind: "LIABILITY",
-        category: "LONG_TERM",
+        ...buildAccountData({ type: "MORTGAGE" }),
         canImportTransactions: false,
         linkedAccountId: property.id,
       },
@@ -44,7 +43,7 @@ describe("Account registry columns (integration)", () => {
         data: {
           userId: TEST_USER_ID,
           name: "Second charge",
-          kind: "LIABILITY",
+          ...buildAccountData({ type: "MORTGAGE" }),
           linkedAccountId: property.id,
         },
       }),
@@ -53,7 +52,11 @@ describe("Account registry columns (integration)", () => {
 
   it("attaches a balance observation to an account", async () => {
     const account = await prisma.account.create({
-      data: { userId: TEST_USER_ID, name: "Vanguard ISA", kind: "ASSET" },
+      data: {
+        userId: TEST_USER_ID,
+        name: "Vanguard ISA",
+        ...buildAccountData({ type: "STOCKS_ISA" }),
+      },
     });
     const period = await prisma.financialPeriod.create({
       data: {

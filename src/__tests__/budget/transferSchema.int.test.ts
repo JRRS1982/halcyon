@@ -1,3 +1,4 @@
+import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
 
@@ -23,8 +24,7 @@ describe("Budget transfer/repayment schema (integration)", () => {
       data: {
         userId: TEST_USER_ID,
         name: "Vanguard ISA",
-        kind: "ASSET",
-        wrapper: "ISA",
+        ...buildAccountData({ type: "STOCKS_ISA" }),
       },
     });
 
@@ -50,8 +50,7 @@ describe("Budget transfer/repayment schema (integration)", () => {
       data: {
         userId: TEST_USER_ID,
         name: "Mortgage",
-        kind: "LIABILITY",
-        category: "LONG_TERM",
+        ...buildAccountData({ type: "MORTGAGE" }),
       },
     });
 

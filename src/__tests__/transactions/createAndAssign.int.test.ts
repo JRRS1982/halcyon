@@ -2,6 +2,7 @@ import {
   createAccountAndTransfer,
   createAndAssignCategory,
 } from "@/app/(app)/transactions/actions";
+import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
 
@@ -16,7 +17,11 @@ const OTHER_USER_ID = "00000000-0000-0000-0000-0000000000bb";
 
 const seedTransaction = async () => {
   const account = await prisma.account.create({
-    data: { userId: TEST_USER_ID, name: "Current" },
+    data: {
+      userId: TEST_USER_ID,
+      name: "Current",
+      ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+    },
   });
   const transaction = await prisma.transaction.create({
     data: {
@@ -52,7 +57,11 @@ describe("createAndAssignCategory (integration)", () => {
   test("clears any transfer, since the two are mutually exclusive", async () => {
     const { transaction } = await seedTransaction();
     const counterparty = await prisma.account.create({
-      data: { userId: TEST_USER_ID, name: "Savings" },
+      data: {
+        userId: TEST_USER_ID,
+        name: "Savings",
+        ...buildAccountData({ type: "SAVINGS" }),
+      },
     });
     await prisma.transaction.update({
       where: { id: transaction.id },
@@ -78,7 +87,11 @@ describe("createAndAssignCategory (integration)", () => {
   test("rolls the category back when the transaction isn't the user's", async () => {
     await prisma.user.create({ data: { id: OTHER_USER_ID } });
     const theirAccount = await prisma.account.create({
-      data: { userId: OTHER_USER_ID, name: "Theirs" },
+      data: {
+        userId: OTHER_USER_ID,
+        name: "Theirs",
+        ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+      },
     });
     const theirs = await prisma.transaction.create({
       data: {
@@ -119,10 +132,11 @@ describe("createAccountAndTransfer (integration)", () => {
     });
 
     expect(created.name).toBe("Savings");
-    // No kind is set on creation, so it defaults to NONE — the ledger picker
-    // still offers it as a Transfers target (not Repayments); see
-    // CategoryCombobox's kind split.
-    expect(created.kind).toBe("NONE");
+    // No type is picked by this flow — it defaults to SAVINGS, an ASSET — and
+    // the ledger picker still offers it as a Transfers target (not
+    // Repayments) purely because it's an asset; see CategoryCombobox's kind
+    // split.
+    expect(created.kind).toBe("ASSET");
 
     const row = await prisma.transaction.findUniqueOrThrow({
       where: { id: transaction.id },
@@ -134,7 +148,11 @@ describe("createAccountAndTransfer (integration)", () => {
   test("rolls the account back when the transaction isn't the user's", async () => {
     await prisma.user.create({ data: { id: OTHER_USER_ID } });
     const theirAccount = await prisma.account.create({
-      data: { userId: OTHER_USER_ID, name: "Theirs" },
+      data: {
+        userId: OTHER_USER_ID,
+        name: "Theirs",
+        ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+      },
     });
     const theirs = await prisma.transaction.create({
       data: {

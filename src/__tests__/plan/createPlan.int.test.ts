@@ -1,4 +1,5 @@
 import { createPlan, getPrimaryPlan } from "@/app/(app)/plan/actions";
+import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
 
@@ -11,8 +12,7 @@ describe("createPlan (integration)", () => {
       data: {
         userId: TEST_USER_ID,
         name: "Cash savings",
-        kind: "ASSET",
-        wrapper: "CASH",
+        ...buildAccountData({ type: "SAVINGS" }),
       },
     });
     const category = await prisma.category.create({

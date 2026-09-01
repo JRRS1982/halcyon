@@ -2,11 +2,18 @@ import {
   setTransactionCategory,
   setTransactionTransfer,
 } from "@/app/(app)/transactions/actions";
+import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
 
 const makeAccount = (name: string) =>
-  prisma.account.create({ data: { userId: TEST_USER_ID, name } });
+  prisma.account.create({
+    data: {
+      userId: TEST_USER_ID,
+      name,
+      ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+    },
+  });
 
 describe("setTransactionTransfer / mutual exclusion (integration)", () => {
   test("sets the counterparty and clears any category; reverting to a category clears the transfer", async () => {

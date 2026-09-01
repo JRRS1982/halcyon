@@ -1,4 +1,5 @@
 import { commitImport, previewImport } from "@/app/(app)/transactions/actions";
+import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
 
@@ -56,7 +57,11 @@ describe("import (integration)", () => {
 
   test("previewImport flags rows already in the account; commit can skip them", async () => {
     const account = await prisma.account.create({
-      data: { userId: TEST_USER_ID, name: "Cur" },
+      data: {
+        userId: TEST_USER_ID,
+        name: "Cur",
+        ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+      },
     });
     await commitImport({
       accountId: account.id,
@@ -101,7 +106,11 @@ describe("import (integration)", () => {
   describe("categorisation memory", () => {
     const seedCategorisedHistory = async () => {
       const account = await prisma.account.create({
-        data: { userId: TEST_USER_ID, name: "History" },
+        data: {
+          userId: TEST_USER_ID,
+          name: "History",
+          ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+        },
       });
       const groceries = await prisma.category.create({
         data: {

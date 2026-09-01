@@ -1,5 +1,6 @@
 import type { ReactElement } from "react";
 import TransactionsPage from "@/app/(app)/transactions/page";
+import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
 
@@ -21,7 +22,7 @@ describe("TransactionsPage account list (integration)", () => {
       data: {
         userId: TEST_USER_ID,
         name: "Halifax mortgage",
-        kind: "LIABILITY",
+        ...buildAccountData({ type: "MORTGAGE" }),
         canImportTransactions: false,
       },
     });
@@ -29,6 +30,7 @@ describe("TransactionsPage account list (integration)", () => {
       data: {
         userId: TEST_USER_ID,
         name: "Monzo",
+        ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
         canImportTransactions: true,
       },
     });
@@ -46,7 +48,7 @@ describe("TransactionsPage account list (integration)", () => {
       data: {
         userId: TEST_USER_ID,
         name: "Halifax mortgage",
-        kind: "LIABILITY",
+        ...buildAccountData({ type: "MORTGAGE" }),
         canImportTransactions: false,
       },
     });
@@ -54,6 +56,7 @@ describe("TransactionsPage account list (integration)", () => {
       data: {
         userId: TEST_USER_ID,
         name: "Monzo",
+        ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
         canImportTransactions: true,
       },
     });

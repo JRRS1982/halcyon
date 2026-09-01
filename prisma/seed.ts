@@ -288,7 +288,8 @@ async function seedAccounts(userId: string) {
   return { current, joint, isa, sipp };
 }
 
-type AccountKey = keyof Awaited<ReturnType<typeof seedAccounts>>;
+type SeedAccounts = Awaited<ReturnType<typeof seedAccounts>>;
+type AccountKey = keyof SeedAccounts;
 
 // ─── Time window ──────────────────────────────────────────────────────────
 
@@ -922,8 +923,8 @@ function propertySeries(start: number, count: number): number[] {
 }
 
 async function seedBalanceItems(
-  _userId: string,
-  opts: { periods: { id: string }[] },
+  userId: string,
+  opts: { periods: { id: string }[]; accounts: SeedAccounts },
 ) {
   // A realistic homeowner household (i = 0 is the oldest month, so the last
   // entry is "today" — what a freshly-created plan bootstraps from). The
@@ -938,53 +939,91 @@ async function seedBalanceItems(
   const sippSeries = investedSeries(92000, 400, 0.8, count);
   const homeSeries = propertySeries(335000, count);
 
+  // Home/Car/Mortgage/Credit Card only ever appear on the balance sheet —
+  // seedAccounts doesn't create them because nothing transacts against them.
+  const [home, car, mortgage, creditCard] = await Promise.all([
+    prisma.account.create({
+      data: { userId, name: "Home", ...buildAccountData({ type: "PROPERTY" }) },
+    }),
+    prisma.account.create({
+      data: {
+        userId,
+        name: "Car",
+        ...buildAccountData({ type: "OTHER_ASSET" }),
+      },
+    }),
+    prisma.account.create({
+      data: {
+        userId,
+        name: "Mortgage",
+        ...buildAccountData({ type: "MORTGAGE" }),
+      },
+    }),
+    prisma.account.create({
+      data: {
+        userId,
+        name: "Credit Card",
+        ...buildAccountData({ type: "CREDIT_CARD" }),
+      },
+    }),
+  ]);
+  const { current, joint, isa, sipp } = opts.accounts;
+
   for (const [i, period] of opts.periods.entries()) {
     const wobble = LIQUID_WOBBLE[i % LIQUID_WOBBLE.length] ?? 0;
     const jointWobble = LIQUID_WOBBLE[(i + 3) % LIQUID_WOBBLE.length] ?? 0;
     const rows = [
       {
+        accountId: current.id,
         type: "ASSET" as const,
         category: "CURRENT" as const,
         label: "Current Account",
         value: 3500 + i * 30 + wobble,
       },
       {
+        accountId: joint.id,
         type: "ASSET" as const,
         category: "CURRENT" as const,
         label: "Joint Account",
         value: 9000 + i * 15 + jointWobble,
       },
       {
+        accountId: isa.id,
         type: "ASSET" as const,
         category: "MEDIUM_TERM" as const,
         label: "ISA",
         value: isaSeries[i] ?? 26000,
       },
       {
+        accountId: sipp.id,
         type: "ASSET" as const,
         category: "LONG_TERM" as const,
         label: "SIPP",
         value: sippSeries[i] ?? 92000,
       },
       {
+        accountId: home.id,
         type: "ASSET" as const,
         category: "PROPERTY" as const,
         label: "Home",
         value: homeSeries[i] ?? 335000,
       },
       {
+        accountId: car.id,
         type: "ASSET" as const,
         category: "OTHER" as const,
         label: "Car",
         value: Math.max(8000, 14000 - i * 60),
       },
       {
+        accountId: mortgage.id,
         type: "LIABILITY" as const,
         category: "LONG_TERM" as const,
         label: "Mortgage",
         value: Math.max(0, 175000 - i * 250),
       },
       {
+        accountId: creditCard.id,
         type: "LIABILITY" as const,
         category: "CURRENT" as const,
         label: "Credit Card",
@@ -996,6 +1035,7 @@ async function seedBalanceItems(
         prisma.balanceItem.create({
           data: {
             periodId: period.id,
+            accountId: r.accountId,
             type: r.type,
             category: r.category,
             label: r.label,
@@ -1057,7 +1097,7 @@ const main = async () => {
   });
   const periods = await seedPeriods(userId, { from, to });
   await seedBudgetItems(userId, { periods, categories, transactions });
-  await seedBalanceItems(userId, { periods });
+  await seedBalanceItems(userId, { periods, accounts });
 
   const txnCount = await prisma.transaction.count({ where: { userId } });
   console.log(

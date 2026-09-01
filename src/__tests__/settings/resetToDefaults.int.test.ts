@@ -1,4 +1,5 @@
 import { resetToDefaults } from "@/app/(app)/settings/dataActions";
+import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
 
@@ -35,7 +36,11 @@ describe("resetToDefaults (integration)", () => {
       },
     });
     await prisma.account.create({
-      data: { userId: TEST_USER_ID, name: "An account they added" },
+      data: {
+        userId: TEST_USER_ID,
+        name: "An account they added",
+        ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+      },
     });
 
     await resetToDefaults();
