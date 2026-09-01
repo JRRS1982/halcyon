@@ -1,5 +1,6 @@
 "use client";
 
+import type { AccountKind, AccountSection } from "@prisma/client";
 import { useRouter } from "next/navigation";
 import {
   useCallback,
@@ -28,12 +29,7 @@ import {
 } from "@/lib/accounts/accountDraft";
 import { isPropertyRow } from "@/lib/accounts/deletion";
 import type { AccountDeletionCounts } from "@/lib/accounts/schemas";
-import {
-  type BalanceCategory,
-  type BalanceType,
-  BUCKET_ORDER,
-  isValidBalanceCategory,
-} from "@/lib/balance/reorder";
+import { BUCKET_ORDER, isValidBalanceCategory } from "@/lib/balance/reorder";
 import {
   formatYm,
   MONTH_LABELS_SHORT,
@@ -70,7 +66,7 @@ export type SerializedPeriod = {
   endDate: string;
 };
 
-export type { BalanceCategory, BalanceType };
+export type { AccountKind, AccountSection };
 
 // One row per account the user owns or owes, with this month's observation
 // left-joined on (see page.tsx). The account is the durable thing; `value`,
@@ -81,8 +77,8 @@ export type SerializedAccountRow = {
   name: string;
   type: AccountTypeId;
   // Derived from `type` via kindOf — never the stored Account.kind mirror.
-  kind: BalanceType;
-  section: BalanceCategory;
+  kind: AccountKind;
+  section: AccountSection;
   sortOrder: number;
   // Null when this month holds no observation for the account: the cell is
   // blank, and the row is counted in the "without a value" note.
@@ -100,7 +96,7 @@ type FocusedCell = {
 
 // The three category buckets shown under each section. Rendered always —
 // even when empty — so the user can see where to add a row.
-const CATEGORIES: { key: BalanceCategory; label: string }[] = [
+const CATEGORIES: { key: AccountSection; label: string }[] = [
   { key: "CURRENT", label: "Current" },
   { key: "MEDIUM_TERM", label: "Medium-term" },
   { key: "LONG_TERM", label: "Long-term" },
@@ -112,15 +108,15 @@ const CATEGORIES: { key: BalanceCategory; label: string }[] = [
 // Only the section moves — an account cannot cross between assets and
 // liabilities (setAccountType refuses it), so the row's own kind fixes which
 // destinations exist.
-const sectionOptionsFor = (kind: BalanceType) =>
+const sectionOptionsFor = (kind: AccountKind) =>
   CATEGORIES.filter((c) => isValidBalanceCategory(kind, c.key));
 
 // Guidance shown in the per-subhead info popover. Plain-English, UK-flavoured
 // examples — "what should go in this bucket". Edit freely; this is the only
 // source of the help text.
 const CATEGORY_HELP: Record<
-  BalanceType,
-  Record<BalanceCategory, { title: string; body: string }>
+  AccountKind,
+  Record<AccountSection, { title: string; body: string }>
 > = {
   ASSET: {
     CURRENT: {
@@ -1248,7 +1244,7 @@ export function BalanceSheet({
   // so it saves through setAccountSection. Optimistic + immediate save (a
   // discrete pick, not typing); revert on error.
   const editSection = useCallback(
-    (accountId: string, section: BalanceCategory) => {
+    (accountId: string, section: AccountSection) => {
       const target = rows.find((r) => r.accountId === accountId);
       if (!target || target.section === section) return;
 
@@ -1330,10 +1326,10 @@ export function BalanceSheet({
   }, [rows]);
 
   const EMPTY_BUCKET = { rows: [] as SerializedAccountRow[], subtotal: 0 };
-  const bucketOf = (kind: BalanceType, section: BalanceCategory) =>
+  const bucketOf = (kind: AccountKind, section: AccountSection) =>
     groups.get(`${kind}:${section}`) ?? EMPTY_BUCKET;
 
-  const totalOf = (kind: BalanceType) =>
+  const totalOf = (kind: AccountKind) =>
     BUCKET_ORDER.filter((b) => b.type === kind).reduce(
       (sum, b) => sum + bucketOf(b.type, b.category).subtotal,
       0,
@@ -1426,7 +1422,7 @@ export function BalanceSheet({
     </ItemRow>
   );
 
-  const renderSection = (kind: BalanceType, label: string, total: number) => (
+  const renderSection = (kind: AccountKind, label: string, total: number) => (
     <>
       <SectionRow role="row">
         <SheetCell role="rowheader">{label}</SheetCell>
@@ -1638,7 +1634,7 @@ export function BalanceSheet({
               onChange={(e) =>
                 editSection(
                   focusedRow.accountId,
-                  e.target.value as BalanceCategory,
+                  e.target.value as AccountSection,
                 )
               }
             >

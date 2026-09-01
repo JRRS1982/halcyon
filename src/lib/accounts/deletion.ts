@@ -1,4 +1,4 @@
-import type { BalanceCategory, BalanceType } from "@/lib/balance/reorder";
+import type { AccountKind, AccountSection } from "@prisma/client";
 
 // The property side of a mortgaged pair is the ASSET row filed under
 // PROPERTY — never the LIABILITY row, even though isValidBalanceCategory
@@ -7,8 +7,8 @@ import type { BalanceCategory, BalanceType } from "@/lib/balance/reorder";
 // the mortgage leaves the property unticked (the commoner reason is that
 // it's paid off).
 export function isPropertyRow(
-  type: BalanceType,
-  category: BalanceCategory,
+  type: AccountKind,
+  category: AccountSection,
 ): boolean {
   return type === "ASSET" && category === "PROPERTY";
 }

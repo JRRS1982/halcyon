@@ -1,5 +1,9 @@
-import type { AccountType, PlanAssetWrapper } from "@prisma/client";
-import type { BalanceCategory, BalanceType } from "@/lib/balance/reorder";
+import type {
+  AccountKind,
+  AccountSection,
+  AccountType,
+  PlanAssetWrapper,
+} from "@prisma/client";
 
 type Wrapper = PlanAssetWrapper;
 
@@ -28,7 +32,7 @@ export type AccountTypeId = AccountType;
 export type AccountTypeOption = {
   id: AccountTypeId;
   label: string;
-  kind: BalanceType;
+  kind: AccountKind;
   /** Null for every liability — the wrapper enum is asset-only. */
   wrapper: Wrapper | null;
   /**
@@ -40,7 +44,7 @@ export type AccountTypeOption = {
    * an invested one. While "ISA" was a single option it implied nothing about
    * the section, which is why the section was originally left blank.
    */
-  defaultSection: BalanceCategory;
+  defaultSection: AccountSection;
   namePlaceholder: string;
 };
 
@@ -170,8 +174,8 @@ export function accountTypeById(
 // createAccountSchema's shape. Amounts stay as raw input strings
 // here — that's what the fields hold while the user is typing.
 export type AccountDraft = {
-  type: BalanceType | null;
-  category: BalanceCategory | null;
+  type: AccountKind | null;
+  category: AccountSection | null;
   name: string;
   value: string;
   hasMortgage: boolean;
@@ -188,7 +192,7 @@ function isNumericInput(raw: string): boolean {
 // wrapper rather than the section: the user picks "Property" explicitly, and
 // that is a more reliable signal than which section they then file it under.
 export function defaultCanImportTransactions(
-  type: BalanceType,
+  type: AccountKind,
   wrapper: Wrapper | null,
 ): boolean {
   return type === "ASSET" && wrapper !== "PROPERTY";
@@ -216,7 +220,7 @@ function optionOf(type: AccountType): AccountTypeOption {
   return option;
 }
 
-export function kindOf(type: AccountType): BalanceType {
+export function kindOf(type: AccountType): AccountKind {
   return optionOf(type).kind;
 }
 
@@ -224,10 +228,10 @@ export function wrapperOf(type: AccountType): PlanAssetWrapper | null {
   return optionOf(type).wrapper;
 }
 
-export function defaultSectionOf(type: AccountType): BalanceCategory {
+export function defaultSectionOf(type: AccountType): AccountSection {
   return optionOf(type).defaultSection;
 }
 
-export function accountTypesOfKind(kind: BalanceType) {
+export function accountTypesOfKind(kind: AccountKind) {
   return ACCOUNT_TYPES.filter((t) => t.kind === kind);
 }

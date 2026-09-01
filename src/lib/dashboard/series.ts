@@ -1,6 +1,5 @@
-import type { AccountType } from "@prisma/client";
+import type { AccountSection, AccountType } from "@prisma/client";
 import { kindOf } from "@/lib/accounts/accountDraft";
-import type { BalanceCategory } from "@/lib/balance/reorder";
 
 // Pure derivations for the dashboard charts. Each takes already-normalized
 // numeric inputs (Prisma Decimals converted to numbers in the page) and
@@ -29,7 +28,7 @@ export type BalanceSums = {
 // The account is the durable fact; the sums must follow it.
 export type AccountBalanceItem = {
   value: number;
-  account: { type: AccountType; section: BalanceCategory };
+  account: { type: AccountType; section: AccountSection };
 };
 
 // Buckets a month's balance items by their *account's* derived kind/section,

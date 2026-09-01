@@ -14,12 +14,12 @@
 // file importing src/lib/prisma drags in env validation that is unset in CI.
 // The @prisma/client imports below are type-only and erased at compile time.
 
-import type { BalanceItemCategory, PlanIncomeKind } from "@prisma/client";
+import type { AccountSection, PlanIncomeKind } from "@prisma/client";
 import type { CategorySection, IncomeSection } from "@/lib/categories/sections";
 import type { IncomeKind } from "@/lib/plan/types";
 
 // Ascending = drawn down first. Cash before investments before property.
-const DRAWDOWN_BY_CATEGORY: Record<BalanceItemCategory, number> = {
+const DRAWDOWN_BY_CATEGORY: Record<AccountSection, number> = {
   CURRENT: 0,
   MEDIUM_TERM: 1,
   LONG_TERM: 2,
@@ -37,7 +37,7 @@ const INCOME_KIND_BY_SECTION = {
 
 // `Account.section` is required (unlike the free-typed line seed.ts used to
 // read), so there is no term bucket left to fall back from.
-export function drawdownPriorityFor(section: BalanceItemCategory): number {
+export function drawdownPriorityFor(section: AccountSection): number {
   return DRAWDOWN_BY_CATEGORY[section];
 }
 

@@ -1,7 +1,7 @@
 import type { AccountType } from "@prisma/client";
 import { z } from "zod";
 
-export const balanceItemCategorySchema = z.enum([
+export const accountSectionSchema = z.enum([
   "CURRENT",
   "MEDIUM_TERM",
   "LONG_TERM",
@@ -45,7 +45,7 @@ export const setAccountTypeSchema = z.object({
 
 export const setAccountSectionSchema = z.object({
   accountId: z.string().uuid(),
-  section: balanceItemCategorySchema,
+  section: accountSectionSchema,
 });
 
 export const renameAccountSchema = z.object({

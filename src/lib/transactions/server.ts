@@ -1,7 +1,7 @@
 import "server-only";
 
+import type { AccountKind } from "@prisma/client";
 import { kindOf } from "@/lib/accounts/accountDraft";
-import type { BalanceType } from "@/lib/balance/reorder";
 import { categoryKey, cleanLabel } from "@/lib/categories/normalize";
 import { sectionLabel } from "@/lib/categories/sections";
 import { prisma } from "@/lib/prisma";
@@ -388,7 +388,7 @@ export async function getTransferFlowByMonthAndAccount(
 // Transfers/Repayments by kind rather than re-querying it.
 export async function getLedgerAccounts(
   userId: string,
-): Promise<{ id: string; name: string; kind: BalanceType }[]> {
+): Promise<{ id: string; name: string; kind: AccountKind }[]> {
   const accounts = await prisma.account.findMany({
     where: { userId, deletedAt: null },
     orderBy: { name: "asc" },

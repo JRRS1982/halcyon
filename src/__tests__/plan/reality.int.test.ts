@@ -1,5 +1,4 @@
 import type { AccountType } from "@prisma/client";
-import { kindOf } from "@/lib/accounts/accountDraft";
 import { buildAccountData } from "@/lib/accounts/creation";
 import { monthRangeFor } from "@/lib/budget/period";
 import { latestReality } from "@/lib/plan/reality";
@@ -32,9 +31,9 @@ async function typedAccount(
   });
 }
 
-// A FinancialPeriod for one UTC calendar month, plus a BalanceItem for it
-// carrying the mirror fields (type/category/label) a real write always
-// copies from the account. Several calls against the same account, made in
+// A FinancialPeriod for one UTC calendar month, plus a BalanceItem for it —
+// just the observation itself; the account is the durable fact the row
+// carries no mirror of. Several calls against the same account, made in
 // scrambled month order, is exactly the DISTINCT ON tie-break this file pins
 // against the deleted latestByKey's in-memory equivalent.
 async function valueInMonth(
@@ -60,9 +59,6 @@ async function valueInMonth(
     data: {
       periodId: period.id,
       accountId: account.id,
-      type: kindOf(account.type),
-      category: account.section,
-      label: account.name,
       value,
     },
   });
@@ -88,9 +84,6 @@ async function accountWithBalance(
     data: {
       periodId,
       accountId: account.id,
-      type: kind,
-      category: account.section,
-      label: name,
       value,
     },
   });
@@ -152,7 +145,7 @@ describe("latestReality (integration)", () => {
     expect(rows).toEqual([]);
   });
 
-  it("ignores a YEAR period's budget when computing the ×12 monthly figure", async () => {
+  it("ignores a QUARTER period's budget when computing the ×12 monthly figure", async () => {
     const category = await prisma.category.create({
       data: {
         userId: TEST_USER_ID,
@@ -161,48 +154,48 @@ describe("latestReality (integration)", () => {
         label: "Rent",
       },
     });
-    const yearPeriod = await prisma.financialPeriod.create({
+    const quarterPeriod = await prisma.financialPeriod.create({
       data: {
         userId: TEST_USER_ID,
-        granularity: "YEAR",
+        granularity: "QUARTER",
         startDate: new Date("2026-01-01"),
-        endDate: new Date("2026-12-31"),
-        label: "2026",
+        endDate: new Date("2026-03-31"),
+        label: "Q1 2026",
       },
     });
     await prisma.budgetItem.create({
       data: {
-        periodId: yearPeriod.id,
+        periodId: quarterPeriod.id,
         categoryId: category.id,
         type: "EXPENSE",
         section: "FIXED",
         label: "Rent",
-        budget: 24000, // a full-year figure, not a monthly one
+        budget: 6000, // a full-quarter figure, not a monthly one
       },
     });
 
     const rows = await latestReality(TEST_USER_ID);
 
-    // No MONTH period exists for this category, so the YEAR-period row must
-    // be skipped entirely rather than misread as a monthly budget.
+    // No MONTH period exists for this category, so the QUARTER-period row
+    // must be skipped entirely rather than misread as a monthly budget.
     expect(rows).toEqual([]);
   });
 
-  // A MONTH and a YEAR period can share a startDate — January's MONTH period
-  // and the enclosing YEAR period both start on Jan 1st — so two live rows
-  // for the same account can still collide on `startDate DESC` alone. The
-  // partial unique index on live (periodId, accountId) rules out the other
-  // way this used to arise (two rows in one period), so this is the only
-  // remaining case the `createdAt` tiebreak has to resolve.
-  it("breaks a tie between a MONTH and a YEAR period sharing a startDate, by createdAt", async () => {
+  // A MONTH and a QUARTER period can share a startDate — January's MONTH
+  // period and the enclosing Q1 QUARTER period both start on Jan 1st — so two
+  // live rows for the same account can still collide on `startDate DESC`
+  // alone. The partial unique index on live (periodId, accountId) rules out
+  // the other way this used to arise (two rows in one period), so this is
+  // the only remaining case the `createdAt` tiebreak has to resolve.
+  it("breaks a tie between a MONTH and a QUARTER period sharing a startDate, by createdAt", async () => {
     const account = await typedAccount("Current account", "OTHER_ASSET");
-    const yearPeriod = await prisma.financialPeriod.create({
+    const quarterPeriod = await prisma.financialPeriod.create({
       data: {
         userId: TEST_USER_ID,
-        granularity: "YEAR",
+        granularity: "QUARTER",
         startDate: new Date("2026-01-01"),
-        endDate: new Date("2026-12-31"),
-        label: "2026",
+        endDate: new Date("2026-03-31"),
+        label: "Q1 2026",
       },
     });
     const january = await prisma.financialPeriod.create({
@@ -224,20 +217,14 @@ describe("latestReality (integration)", () => {
       data: {
         periodId: january.id,
         accountId: account.id,
-        type: "ASSET",
-        category: account.section,
-        label: "Current account",
         value: 200,
         createdAt: new Date("2026-01-01T10:00:00Z"),
       },
     });
     await prisma.balanceItem.create({
       data: {
-        periodId: yearPeriod.id,
+        periodId: quarterPeriod.id,
         accountId: account.id,
-        type: "ASSET",
-        category: account.section,
-        label: "Current account",
         value: 100,
         createdAt: new Date("2026-01-01T09:00:00Z"),
       },
@@ -310,9 +297,6 @@ describe("latestReality (integration)", () => {
       data: {
         periodId: ownPeriod.id,
         accountId: foreign.id,
-        type: "ASSET",
-        category: "LONG_TERM",
-        label: "Their ISA",
         value: 999999,
       },
     });
@@ -343,9 +327,6 @@ describe("latestReality (integration)", () => {
       data: {
         periodId: theirPeriod.id,
         accountId: own.id,
-        type: "ASSET",
-        category: own.section,
-        label: "Vanguard ISA",
         value: 999999,
       },
     });
@@ -362,9 +343,6 @@ describe("latestReality (integration)", () => {
       data: {
         periodId: period.id,
         accountId: account.id,
-        type: "ASSET",
-        category: account.section,
-        label: "Vanguard ISA",
         value: 42300,
       },
     });
@@ -397,9 +375,6 @@ describe("latestReality (integration)", () => {
       data: {
         periodId: period.id,
         accountId: account.id,
-        type: "LIABILITY",
-        category: account.section,
-        label: "Halifax mortgage",
         value: 250000,
       },
     });
@@ -655,7 +630,7 @@ describe("latestReality (integration)", () => {
   });
 
   // × 12 assumes a monthly figure, exactly as the category read does.
-  it("ignores a YEAR period's transfer when reading an account's flow", async () => {
+  it("ignores a QUARTER period's transfer when reading an account's flow", async () => {
     const period = await monthPeriod(TEST_USER_ID, "March 2026", "2026-03-01");
     const account = await accountWithBalance(
       "Vanguard SIPP",
@@ -663,23 +638,23 @@ describe("latestReality (integration)", () => {
       42300,
       period.id,
     );
-    const yearPeriod = await prisma.financialPeriod.create({
+    const quarterPeriod = await prisma.financialPeriod.create({
       data: {
         userId: TEST_USER_ID,
-        granularity: "YEAR",
+        granularity: "QUARTER",
         startDate: new Date("2026-01-01"),
-        endDate: new Date("2026-12-31"),
-        label: "2026",
+        endDate: new Date("2026-03-31"),
+        label: "Q1 2026",
       },
     });
     await prisma.budgetItem.create({
       data: {
-        periodId: yearPeriod.id,
+        periodId: quarterPeriod.id,
         accountId: account.id,
         type: "TRANSFER",
         direction: "INFLOW",
         label: "Pension contribution",
-        budget: 6000, // a full-year figure, not a monthly one
+        budget: 1500, // a full-quarter figure, not a monthly one
       },
     });
 
