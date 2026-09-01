@@ -344,3 +344,53 @@ describe("BalanceSheet — deleting a row", () => {
     });
   });
 });
+
+describe("BalanceSheet — a value and a note typed in the same breath", () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    upsertBalanceValue.mockReset();
+    upsertBalanceValue.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  // The bug this pins: value and notes share the debounce key
+  // `${accountId}:value`, and the debounce keeps only the latest call's
+  // arguments. Typing a value and then a note inside one 500ms window used to
+  // send the note alone — on an unobserved month the server then refuses with
+  // "Enter a value first", and on an observed one the value is lost in
+  // silence. Both fields must travel in the single call that fires.
+  test("sends one save carrying both fields", async () => {
+    renderSheet([{ ...baseRow, value: null, notes: null }]);
+
+    const amountInput = screen.getByPlaceholderText("0") as HTMLInputElement;
+    fireEvent.focus(amountInput);
+    fireEvent.change(amountInput, { target: { value: "200" } });
+    fireEvent.blur(amountInput);
+
+    // The optimistic value opens the notes cell; the note is typed 100ms in,
+    // well inside the value's still-pending 500ms window.
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(100);
+    });
+    const notes = screen.getByPlaceholderText(
+      "Notes (optional)",
+    ) as HTMLInputElement;
+    fireEvent.change(notes, { target: { value: "Statement pending" } });
+
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(600);
+    });
+
+    expect(upsertBalanceValue).toHaveBeenCalledTimes(1);
+    expect(upsertBalanceValue).toHaveBeenCalledWith({
+      accountId: baseRow.accountId,
+      year: 2026,
+      month: 2,
+      value: 200,
+      notes: "Statement pending",
+    });
+  });
+});

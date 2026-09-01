@@ -1048,16 +1048,24 @@ export function BalanceSheet({
     [runSave],
   );
 
+  // Value and notes share one debounce key, and the debounce keeps only the
+  // latest call's arguments — so a value typed and then a note added inside
+  // the same window would send the note alone and drop the value. Each edit
+  // merges into the account's pending patch here instead; the save reads the
+  // union and clears it, so nothing typed is ever left behind.
+  const pendingValuePatchRef = useRef(
+    new Map<string, { value?: number | null; notes?: string | null }>(),
+  );
+
   // The value and the notes belong to (account, month), so they save through
   // upsertBalanceValue — which creates this month's row the first time the
   // user types in it. Emptying the cell removes the observation rather than
   // recording a zero.
   const performValueSave = useCallback(
-    (
-      accountId: string,
-      patch: { value?: number | null; notes?: string | null },
-    ) =>
-      runSave(`${accountId}:value`, async () => {
+    (accountId: string) => {
+      const patch = pendingValuePatchRef.current.get(accountId) ?? {};
+      pendingValuePatchRef.current.delete(accountId);
+      return runSave(`${accountId}:value`, async () => {
         const { value, notes } = patch;
         if (value === null) {
           await clearBalanceValue({ accountId, year, month });
@@ -1070,7 +1078,8 @@ export function BalanceSheet({
           ...(value !== undefined && { value }),
           ...(notes !== undefined && { notes }),
         });
-      }),
+      });
+    },
     [runSave, year, month],
   );
 
@@ -1114,10 +1123,16 @@ export function BalanceSheet({
       }
       if (patch.value !== undefined || patch.notes !== undefined) {
         dirtyItemsRef.current.add(`${accountId}:value`);
-        debouncedValueSave(accountId, {
+        // Merged, not replaced: the pending patch is the union of every
+        // value/notes edit made since the last save fired. Clearing the value
+        // drops a pending note with it, matching the optimistic row above.
+        const pending = pendingValuePatchRef.current.get(accountId) ?? {};
+        pendingValuePatchRef.current.set(accountId, {
+          ...(patch.value === null ? {} : pending),
           ...(patch.value !== undefined && { value: patch.value }),
           ...(patch.notes !== undefined && { notes: patch.notes }),
         });
+        debouncedValueSave(accountId);
       }
     },
     [debouncedRename, debouncedValueSave],

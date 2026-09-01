@@ -1,12 +1,16 @@
 import type { AccountType } from "@prisma/client";
 import {
   renameAccount,
+  setAccountSection,
   setAccountType,
 } from "@/app/(app)/balance/accountActions";
 import {
+  clearBalanceValue,
   copyBalancePeriodFrom,
   upsertBalanceValue,
 } from "@/app/(app)/balance/actions";
+import type { SerializedAccountRow } from "@/app/(app)/balance/BalanceSheet";
+import BalancePage from "@/app/(app)/balance/page";
 import { createItemForMonth } from "@/app/(app)/budget/actions";
 import { buildAccountData } from "@/lib/accounts/creation";
 import { monthRangeFor } from "@/lib/budget/period";
@@ -220,5 +224,88 @@ describe("renameAccount", () => {
       where: { accountId: a.id },
     });
     expect(row.label).toBe("New ISA");
+  });
+});
+
+describe("setAccountSection", () => {
+  it("moves the account to the section the user picked", async () => {
+    const a = await typedAccount("Pot", "SAVINGS");
+    await setAccountSection({ accountId: a.id, section: "LONG_TERM" });
+    const after = await prisma.account.findUniqueOrThrow({
+      where: { id: a.id },
+    });
+    expect(after.section).toBe("LONG_TERM");
+    expect(after.type).toBe("SAVINGS"); // the type is untouched
+  });
+
+  // Liabilities · Property is not a thing: a mortgage files under Long-term
+  // liabilities. The client never offers it — this is the server saying no.
+  it("refuses PROPERTY on a liability", async () => {
+    const debt = await typedAccount("Halifax mortgage", "MORTGAGE");
+    await expect(
+      setAccountSection({ accountId: debt.id, section: "PROPERTY" }),
+    ).rejects.toThrow(/not a valid section/);
+    const after = await prisma.account.findUniqueOrThrow({
+      where: { id: debt.id },
+    });
+    expect(after.section).toBe("LONG_TERM"); // unchanged
+  });
+
+  // The moved account lands at the end of its new section rather than
+  // colliding with whatever already sits there — and only same-kind accounts
+  // count, so an asset never inherits a liability's sortOrder.
+  it("appends the account to the end of its new section", async () => {
+    const sitting = await typedAccount("Vanguard ISA", "STOCKS_ISA");
+    await prisma.account.update({
+      where: { id: sitting.id },
+      data: { section: "LONG_TERM", sortOrder: 7 },
+    });
+    const debt = await typedAccount("Halifax mortgage", "MORTGAGE");
+    await prisma.account.update({
+      where: { id: debt.id },
+      data: { sortOrder: 99 },
+    });
+
+    const moving = await typedAccount("Pot", "SAVINGS");
+    await setAccountSection({ accountId: moving.id, section: "LONG_TERM" });
+
+    const after = await prisma.account.findUniqueOrThrow({
+      where: { id: moving.id },
+    });
+    expect(after.sortOrder).toBe(8);
+  });
+});
+
+describe("clearBalanceValue", () => {
+  // Emptying the cell removes the observation rather than recording a zero:
+  // the row is soft-deleted, and the sheet's left join goes back to showing
+  // the account with nothing against it this month.
+  it("soft-deletes this month's row, leaving the account without a value", async () => {
+    const a = await typedAccount("Pot", "SAVINGS");
+    await upsertBalanceValue({
+      accountId: a.id,
+      year: 2026,
+      month: 2,
+      value: 250,
+      notes: "Statement",
+    });
+
+    await clearBalanceValue({ accountId: a.id, year: 2026, month: 2 });
+
+    const rows = await prisma.balanceItem.findMany({
+      where: { accountId: a.id },
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.deletedAt).not.toBeNull();
+    expect(rows.filter((r) => r.deletedAt === null)).toHaveLength(0);
+
+    // A fresh page query still lists the account — with an empty cell.
+    const element = (await BalancePage({
+      searchParams: Promise.resolve({ ym: "2026-03" }),
+    })) as { props: { initialRows: SerializedAccountRow[] } };
+    const row = element.props.initialRows.find((r) => r.accountId === a.id);
+    expect(row).toBeDefined();
+    expect(row?.value).toBeNull();
+    expect(row?.notes).toBeNull();
   });
 });

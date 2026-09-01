@@ -195,8 +195,15 @@ export async function copyBalancePeriodFrom(input: CopyBalancePeriodFromInput) {
 
   const copied = toCarriedOverRows(sourceItems);
 
+  // userId and liveness in the same statement (ADR-002: the app filter is the
+  // only fence). The source rows were already filtered on a live account, so
+  // this restates the fence on the statement that actually reads the account.
   const accounts = await prisma.account.findMany({
-    where: { id: { in: copied.map((it) => it.accountId) } },
+    where: {
+      id: { in: copied.map((it) => it.accountId) },
+      userId,
+      deletedAt: null,
+    },
     select: {
       id: true,
       type: true,

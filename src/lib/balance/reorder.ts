@@ -26,7 +26,7 @@ export const BUCKET_ORDER: { type: BalanceType; category: BalanceCategory }[] =
   ];
 
 // PROPERTY is asset-only: mortgage debt files under Long-term liabilities
-// instead (createAccountWithBalance hardcodes that — see
+// instead (createAccount hardcodes that — see
 // accounts/creation.ts), so no UI surface should ever offer or render
 // "Liabilities · Property". One definition shared by every place that
 // builds a category picker (BalanceSheet.tsx's section dropdown and its own

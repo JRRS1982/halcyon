@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-export const balanceItemTypeSchema = z.enum(["ASSET", "LIABILITY"]);
 export const balanceItemCategorySchema = z.enum([
   "CURRENT",
   "MEDIUM_TERM",
@@ -8,13 +7,6 @@ export const balanceItemCategorySchema = z.enum([
   "PROPERTY",
   "OTHER",
 ]);
-
-export const createBalanceItemSchema = z.object({
-  periodId: z.string().uuid(),
-  type: balanceItemTypeSchema,
-  category: balanceItemCategorySchema,
-  label: z.string().trim().max(120),
-});
 
 export const copyBalancePeriodFromSchema = z.object({
   sourcePeriodId: z.string().uuid(),
@@ -75,7 +67,6 @@ export const clearBalanceValueSchema = z.object({
   month: z.number().int().min(0).max(11),
 });
 
-export type CreateBalanceItemInput = z.infer<typeof createBalanceItemSchema>;
 export type CopyBalancePeriodFromInput = z.infer<
   typeof copyBalancePeriodFromSchema
 >;

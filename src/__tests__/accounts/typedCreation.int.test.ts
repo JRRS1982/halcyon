@@ -23,7 +23,9 @@ describe("every creation path produces a typed account", () => {
     await prisma.$transaction((tx) => seedStarterData(tx, TEST_USER_ID));
     const accounts = await prisma.account.findMany({
       where: { userId: TEST_USER_ID },
-      orderBy: { sortOrder: "asc" },
+      // Every seeded account shares sortOrder 0, so sortOrder alone leaves the
+      // order unspecified — createdAt is what makes this list deterministic.
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
       select: { name: true, type: true, section: true, kind: true },
     });
     expect(accounts.map((a) => a.type)).toEqual([

@@ -344,12 +344,19 @@ export async function renameAccount(input: RenameAccountInput): Promise<void> {
     });
     if (result.count === 0) throw new Error("Account not found");
 
+    // Scoped through the period in the same statement: the app-level userId
+    // filter is the only fence (ADR-002), so a mirror update carries it too
+    // rather than trusting the account lookup above to have proved ownership.
     await tx.budgetItem.updateMany({
-      where: { accountId, deletedAt: null },
+      where: { accountId, deletedAt: null, period: { userId } },
       data: { label },
     });
     await tx.balanceItem.updateMany({
-      where: { accountId, deletedAt: null },
+      where: {
+        accountId,
+        deletedAt: null,
+        period: { userId, deletedAt: null },
+      },
       data: { label },
     });
   });
@@ -550,9 +557,13 @@ export async function deleteAccountEverywhere(
       },
       data: { transferAccountId: null },
     });
-    // Rows already soft-deleted are left alone here — the FK's own
-    // ON DELETE SET NULL clears their accountId when the account goes,
-    // which is exactly the behaviour under test elsewhere in this suite.
+    // Only the live rows are deleted explicitly — they are the ones
+    // accountDeletionCounts counted for the confirmation panel, so what the
+    // user was told is going is exactly what these two statements remove.
+    // The rest goes with the account below: BalanceItem.accountId is required
+    // and ON DELETE CASCADE, so the soft-deleted months disappear with it;
+    // BudgetItem.accountId is nullable and ON DELETE SET NULL, so its
+    // soft-deleted rows survive with the link cleared.
     await tx.balanceItem.deleteMany({
       where: { accountId: { in: ids }, deletedAt: null, period: { userId } },
     });
