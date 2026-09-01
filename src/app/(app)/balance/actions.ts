@@ -2,17 +2,18 @@
 
 import type { BalanceItem } from "@prisma/client";
 import { redirect } from "next/navigation";
+import { kindOf } from "@/lib/accounts/accountDraft";
 import { toCarriedOverRows } from "@/lib/balance/copyRows";
 import {
+  type ClearBalanceValueInput,
   type CopyBalancePeriodFromInput,
+  clearBalanceValueSchema,
   copyBalancePeriodFromSchema,
-  type DeleteBalanceItemInput,
-  deleteBalanceItemSchema,
-  type SetBalanceItemSectionInput,
-  setBalanceItemSectionSchema,
-  type UpdateBalanceItemInput,
-  updateBalanceItemSchema,
+  type UpsertBalanceValueInput,
+  upsertBalanceValueSchema,
 } from "@/lib/balance/schemas";
+import { ensurePeriodForMonthIn } from "@/lib/budget/ensurePeriod";
+import { monthRangeFor } from "@/lib/budget/period";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { ensurePeriodForMonth } from "../budget/actions";
@@ -38,93 +39,93 @@ async function requireUserId(): Promise<string> {
   return user.id;
 }
 
-export async function updateBalanceItem(input: UpdateBalanceItemInput) {
+// Keyed by (account, month) rather than by item id: the account is the
+// durable thing the user is naming a value for, so the same gesture that
+// created last month's row also updates this month's — never a second row
+// for the same account in the same period. BalanceItem's partial unique
+// index on live (periodId, accountId) rows means Prisma's own upsert() can't
+// target this, hence the explicit find-then-write.
+export async function upsertBalanceValue(input: UpsertBalanceValueInput) {
   const userId = await requireUserId();
-  const parsed = updateBalanceItemSchema.parse(input);
+  const parsed = upsertBalanceValueSchema.parse(input);
+  const range = monthRangeFor(parsed.year, parsed.month);
 
-  const item = await prisma.balanceItem.findFirst({
-    where: { id: parsed.itemId, deletedAt: null },
-    include: { period: { select: { userId: true } } },
-  });
-  if (!item || item.period.userId !== userId) {
-    throw new Error("Item not found");
-  }
+  const item = await prisma.$transaction(async (tx) => {
+    const account = await tx.account.findFirst({
+      where: { id: parsed.accountId, userId, deletedAt: null },
+    });
+    if (!account) throw new Error("Account not found");
 
-  return toClientItem(
-    await prisma.balanceItem.update({
-      where: { id: parsed.itemId },
+    const period = await ensurePeriodForMonthIn(tx, userId, range);
+
+    const existing = await tx.balanceItem.findFirst({
+      where: { periodId: period.id, accountId: account.id, deletedAt: null },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (existing) {
+      return tx.balanceItem.update({
+        where: { id: existing.id },
+        data: {
+          // Editing the value is what confirms a carried-over number as this
+          // month's — a notes-only edit leaves the flag alone.
+          ...(parsed.value !== undefined && {
+            value: parsed.value,
+            carriedOver: false,
+          }),
+          ...(parsed.notes !== undefined && { notes: parsed.notes }),
+        },
+      });
+    }
+
+    // A note describes this month's figure, so it needs one to describe.
+    // Without this, a notes-only edit on a month the account has never been
+    // observed in would invent a £0 the user never typed — and quietly move
+    // the account out of the "without a value" count on the sheet.
+    if (parsed.value === undefined) {
+      throw new Error(
+        "Enter a value first — a note describes this month's figure",
+      );
+    }
+
+    return tx.balanceItem.create({
       data: {
-        ...(parsed.label !== undefined && { label: parsed.label }),
-        // Editing the value is what confirms a carried-over number as this
-        // month's — label or notes edits leave the flag alone.
-        ...(parsed.value !== undefined && {
-          value: parsed.value,
-          carriedOver: false,
-        }),
-        ...(parsed.notes !== undefined && { notes: parsed.notes }),
+        periodId: period.id,
+        accountId: account.id,
+        type: kindOf(account.type),
+        category: account.section,
+        label: account.name,
+        value: parsed.value,
+        notes: parsed.notes ?? null,
+        sortOrder: account.sortOrder,
       },
-    }),
-  );
+    });
+  });
+
+  return toClientItem(item);
 }
 
-// Move an item directly into a chosen (type, category) section, appending it
-// to the end of that bucket. This jumps to any section
-// in one step; the new sortOrder is computed the same way createBalanceItem
-// appends a fresh row.
-export async function setBalanceItemSection(input: SetBalanceItemSectionInput) {
+// Soft-deletes this month's live row(s) for the account. A no-op if the
+// account has never been observed this month — there's nothing to clear.
+export async function clearBalanceValue(
+  input: ClearBalanceValueInput,
+): Promise<void> {
   const userId = await requireUserId();
-  const parsed = setBalanceItemSectionSchema.parse(input);
+  const parsed = clearBalanceValueSchema.parse(input);
+  const range = monthRangeFor(parsed.year, parsed.month);
 
-  const item = await prisma.balanceItem.findFirst({
-    where: { id: parsed.itemId, deletedAt: null },
-    include: { period: { select: { userId: true } } },
+  const account = await prisma.account.findFirst({
+    where: { id: parsed.accountId, userId, deletedAt: null },
+    select: { id: true },
   });
-  if (!item || item.period.userId !== userId) {
-    throw new Error("Item not found");
-  }
+  if (!account) throw new Error("Account not found");
 
-  if (item.type === parsed.type && item.category === parsed.category) {
-    return toClientItem(item);
-  }
-
-  const last = await prisma.balanceItem.findFirst({
+  await prisma.balanceItem.updateMany({
     where: {
-      periodId: item.periodId,
-      type: parsed.type,
-      category: parsed.category,
+      accountId: account.id,
       deletedAt: null,
+      period: { userId, granularity: "MONTH", startDate: range.startDate },
     },
-    orderBy: { sortOrder: "desc" },
-    select: { sortOrder: true },
-  });
-
-  return toClientItem(
-    await prisma.balanceItem.update({
-      where: { id: parsed.itemId },
-      data: {
-        type: parsed.type,
-        category: parsed.category,
-        sortOrder: (last?.sortOrder ?? 0) + 1,
-      },
-    }),
-  );
-}
-
-// Soft-delete a single balance item. No descendants — balance rows are flat.
-export async function deleteBalanceItem(input: DeleteBalanceItemInput) {
-  const userId = await requireUserId();
-  const parsed = deleteBalanceItemSchema.parse(input);
-
-  const item = await prisma.balanceItem.findFirst({
-    where: { id: parsed.itemId, deletedAt: null },
-    include: { period: { select: { userId: true } } },
-  });
-  if (!item || item.period.userId !== userId) {
-    throw new Error("Item not found");
-  }
-
-  await prisma.balanceItem.update({
-    where: { id: parsed.itemId },
     data: { deletedAt: new Date() },
   });
 }
@@ -147,13 +148,16 @@ export async function listCopyableBalancePeriods() {
   return periods.map((p) => ({ id: p.id, label: p.label }));
 }
 
-// Replace the target month's balance rows with a copy of the source period's.
-// Balance rows are flat (no hierarchy) and carry a single value, so the whole
-// line — type, category, label, value and notes — copies over as a starting
-// point the user then adjusts. The target period is created on the fly if it
-// was still virtual; existing target rows are soft-deleted in the same
-// transaction so the copy is an atomic overwrite. Returns the new item list
-// so the client can swap state without a refetch.
+// Replace the target month's balance rows with a copy of the source period's
+// values. Only the account and its value travel — mirrors (type, category,
+// label, sortOrder) are re-derived from the live account rather than copied
+// from the source row, since the account may have been renamed/re-sectioned
+// since. The target period is created on the fly if it was still virtual;
+// existing target rows are soft-deleted in the same transaction as the
+// create, so an account with a live value in the target month gets replaced
+// rather than duplicated (the partial unique index on live
+// (periodId, accountId) rows is the fence). Returns the new item list so the
+// client can swap state without a refetch.
 export async function copyBalancePeriodFrom(input: CopyBalancePeriodFromInput) {
   const userId = await requireUserId();
   const parsed = copyBalancePeriodFromSchema.parse(input);
@@ -179,23 +183,36 @@ export async function copyBalancePeriodFrom(input: CopyBalancePeriodFromInput) {
       periodId: source.id,
       deletedAt: null,
       // A row backed by an archived account must not carry over into a new
-      // month — that's the whole point of archiving. Legacy rows (accountId
-      // null, pre-backfill) have no account to check and always copy.
-      OR: [{ accountId: null }, { account: { deletedAt: null } }],
+      // month — that's the whole point of archiving. accountId is required
+      // now (Task 1-3's migration deleted the legacy null-accountId rows
+      // this used to also let through), so every live row has an account to
+      // check.
+      account: { deletedAt: null },
     },
     orderBy: { sortOrder: "asc" },
-    select: {
-      type: true,
-      category: true,
-      label: true,
-      value: true,
-      notes: true,
-      sortOrder: true,
-      accountId: true,
-    },
+    select: { accountId: true, value: true },
   });
 
   const copied = toCarriedOverRows(sourceItems);
+
+  // userId and liveness in the same statement (ADR-002: the app filter is the
+  // only fence). The source rows were already filtered on a live account, so
+  // this restates the fence on the statement that actually reads the account.
+  const accounts = await prisma.account.findMany({
+    where: {
+      id: { in: copied.map((it) => it.accountId) },
+      userId,
+      deletedAt: null,
+    },
+    select: {
+      id: true,
+      type: true,
+      section: true,
+      name: true,
+      sortOrder: true,
+    },
+  });
+  const accountById = new Map(accounts.map((a) => [a.id, a]));
 
   await prisma.$transaction([
     prisma.balanceItem.updateMany({
@@ -203,7 +220,20 @@ export async function copyBalancePeriodFrom(input: CopyBalancePeriodFromInput) {
       data: { deletedAt: new Date() },
     }),
     prisma.balanceItem.createMany({
-      data: copied.map((it) => ({ ...it, periodId: target.id })),
+      data: copied.map((it) => {
+        const account = accountById.get(it.accountId);
+        if (!account) throw new Error("Account not found");
+        return {
+          periodId: target.id,
+          accountId: it.accountId,
+          value: it.value,
+          carriedOver: it.carriedOver,
+          type: kindOf(account.type),
+          category: account.section,
+          label: account.name,
+          sortOrder: account.sortOrder,
+        };
+      }),
     }),
   ]);
 

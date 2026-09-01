@@ -1,4 +1,5 @@
 import { deletePlanAsset } from "@/app/(app)/plan/actions";
+import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
 
@@ -16,7 +17,11 @@ describe("plan row links (integration)", () => {
   it("links an asset to an account and a nulls it when the account goes", async () => {
     const plan = await seedPlan();
     const account = await prisma.account.create({
-      data: { userId: TEST_USER_ID, name: "Vanguard ISA", kind: "ASSET" },
+      data: {
+        userId: TEST_USER_ID,
+        name: "Vanguard ISA",
+        ...buildAccountData({ type: "STOCKS_ISA" }),
+      },
     });
     const asset = await prisma.planAsset.create({
       data: { planId: plan.id, label: "Vanguard ISA", accountId: account.id },
@@ -39,7 +44,7 @@ describe("plan row links (integration)", () => {
       data: {
         userId: TEST_USER_ID,
         name: "Halifax mortgage",
-        kind: "LIABILITY",
+        ...buildAccountData({ type: "MORTGAGE" }),
       },
     });
     const liability = await prisma.planLiability.create({
@@ -96,7 +101,11 @@ describe("plan row links (integration)", () => {
   it("rejects a second row linking the same plan to the same account", async () => {
     const plan = await seedPlan();
     const account = await prisma.account.create({
-      data: { userId: TEST_USER_ID, name: "Vanguard ISA", kind: "ASSET" },
+      data: {
+        userId: TEST_USER_ID,
+        name: "Vanguard ISA",
+        ...buildAccountData({ type: "STOCKS_ISA" }),
+      },
     });
     await prisma.planAsset.create({
       data: { planId: plan.id, label: "Vanguard ISA", accountId: account.id },
@@ -115,7 +124,7 @@ describe("plan row links (integration)", () => {
       data: {
         userId: TEST_USER_ID,
         name: "Halifax mortgage",
-        kind: "LIABILITY",
+        ...buildAccountData({ type: "MORTGAGE" }),
       },
     });
     await prisma.planLiability.create({
@@ -194,7 +203,11 @@ describe("plan row links (integration)", () => {
   it("clears the link when a row is soft-deleted, leaving the account free", async () => {
     const plan = await seedPlan();
     const account = await prisma.account.create({
-      data: { userId: TEST_USER_ID, name: "Vanguard ISA", kind: "ASSET" },
+      data: {
+        userId: TEST_USER_ID,
+        name: "Vanguard ISA",
+        ...buildAccountData({ type: "STOCKS_ISA" }),
+      },
     });
     const first = await prisma.planAsset.create({
       data: { planId: plan.id, label: "Vanguard ISA", accountId: account.id },

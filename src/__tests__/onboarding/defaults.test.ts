@@ -21,7 +21,19 @@ describe("onboarding defaults", () => {
   });
 
   it("has no duplicate account names", () => {
-    expect(new Set(DEFAULT_ACCOUNTS).size).toBe(DEFAULT_ACCOUNTS.length);
+    const names = DEFAULT_ACCOUNTS.map((a) => a.name);
+    expect(new Set(names).size).toBe(names.length);
+  });
+
+  it("seeds six typed accounts", () => {
+    expect(DEFAULT_ACCOUNTS.map((a) => [a.name, a.type])).toEqual([
+      ["Current Account", "CURRENT_ACCOUNT"],
+      ["Joint Account", "CURRENT_ACCOUNT"],
+      ["Savings Account", "SAVINGS"],
+      ["Emergency Fund Account", "SAVINGS"],
+      ["ISA", "STOCKS_ISA"],
+      ["SIPP", "SIPP"],
+    ]);
   });
 
   it("covers both income and expenses, and every expense section", () => {

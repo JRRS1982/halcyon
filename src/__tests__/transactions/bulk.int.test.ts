@@ -3,6 +3,7 @@ import {
   bulkSetTransactionCategory,
   bulkSetTransactionTransfer,
 } from "@/app/(app)/transactions/actions";
+import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
 
@@ -12,7 +13,11 @@ const OTHER_USER_ID = "00000000-0000-0000-0000-0000000000bb";
 // transaction owned by somebody else (to prove ownership scoping).
 const seed = async () => {
   const account = await prisma.account.create({
-    data: { userId: TEST_USER_ID, name: "Cur" },
+    data: {
+      userId: TEST_USER_ID,
+      name: "Cur",
+      ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+    },
   });
   const cat = await prisma.category.create({
     data: {
@@ -39,7 +44,11 @@ const seed = async () => {
 
   await prisma.user.create({ data: { id: OTHER_USER_ID } });
   const otherAccount = await prisma.account.create({
-    data: { userId: OTHER_USER_ID, name: "Other" },
+    data: {
+      userId: OTHER_USER_ID,
+      name: "Other",
+      ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+    },
   });
   const theirs = await prisma.transaction.create({
     data: {
@@ -133,7 +142,11 @@ describe("bulkSetTransactionTransfer (integration)", () => {
       categoryId: cat.id,
     });
     const counterparty = await prisma.account.create({
-      data: { userId: TEST_USER_ID, name: "Savings" },
+      data: {
+        userId: TEST_USER_ID,
+        name: "Savings",
+        ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+      },
     });
 
     const res = await bulkSetTransactionTransfer({
@@ -169,7 +182,11 @@ describe("bulkSetTransactionTransfer (integration)", () => {
   test("skips transactions owned by another user", async () => {
     const { theirs } = await seed();
     const counterparty = await prisma.account.create({
-      data: { userId: TEST_USER_ID, name: "Savings" },
+      data: {
+        userId: TEST_USER_ID,
+        name: "Savings",
+        ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+      },
     });
 
     const res = await bulkSetTransactionTransfer({
@@ -187,7 +204,11 @@ describe("bulkSetTransactionTransfer (integration)", () => {
   test("rejects an account belonging to another user", async () => {
     const { mine } = await seed();
     const foreignAccount = await prisma.account.create({
-      data: { userId: OTHER_USER_ID, name: "Theirs" },
+      data: {
+        userId: OTHER_USER_ID,
+        name: "Theirs",
+        ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+      },
     });
 
     await expect(

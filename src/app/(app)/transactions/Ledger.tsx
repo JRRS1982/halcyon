@@ -32,7 +32,7 @@ import { CategoryCombobox, type NewCategoryInput } from "./CategoryCombobox";
 type LedgerAccount = {
   id: string;
   name: string;
-  kind: "ASSET" | "LIABILITY" | "NONE";
+  kind: "ASSET" | "LIABILITY";
 };
 
 const Section = styled.section`

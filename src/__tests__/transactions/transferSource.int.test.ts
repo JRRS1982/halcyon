@@ -1,9 +1,16 @@
+import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
 import { getTransferFlowByAccount } from "@/lib/transactions/server";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
 
 const makeAccount = (name: string) =>
-  prisma.account.create({ data: { userId: TEST_USER_ID, name } });
+  prisma.account.create({
+    data: {
+      userId: TEST_USER_ID,
+      name,
+      ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+    },
+  });
 
 const MARCH_START = new Date("2026-03-01");
 const MARCH_END = new Date("2026-03-31");
@@ -118,7 +125,11 @@ describe("getTransferFlowByAccount (integration)", () => {
       data: { id: "00000000-0000-0000-0000-0000000000bb" },
     });
     const otherAccount = await prisma.account.create({
-      data: { userId: other.id, name: "Their Current" },
+      data: {
+        userId: other.id,
+        name: "Their Current",
+        ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+      },
     });
 
     await prisma.transaction.createMany({

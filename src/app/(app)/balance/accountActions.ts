@@ -3,8 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
+  accountTypesOfKind,
+  kindOf,
+  wrapperOf,
+} from "@/lib/accounts/accountDraft";
+import {
+  buildAccountData,
   buildMortgageAccountData,
-  buildPrimaryAccountData,
   nextSortOrder,
 } from "@/lib/accounts/creation";
 import {
@@ -13,11 +18,20 @@ import {
   type ArchiveAccountInput,
   accountIdSchema,
   archiveAccountSchema,
-  type CreateAccountWithBalanceInput,
-  createAccountWithBalanceSchema,
+  type CreateAccountInput,
+  createAccountSchema,
   type DeleteAccountEverywhereInput,
   deleteAccountEverywhereSchema,
 } from "@/lib/accounts/schemas";
+import { isValidBalanceCategory } from "@/lib/balance/reorder";
+import {
+  type RenameAccountInput,
+  renameAccountSchema,
+  type SetAccountSectionInput,
+  type SetAccountTypeInput,
+  setAccountSectionSchema,
+  setAccountTypeSchema,
+} from "@/lib/balance/schemas";
 import { ensurePeriodForMonthIn } from "@/lib/budget/ensurePeriod";
 import { monthRangeFor } from "@/lib/budget/period";
 import { cleanLabel } from "@/lib/categories/normalize";
@@ -38,6 +52,11 @@ function revalidateAll() {
   revalidatePath("/settings");
   revalidatePath("/dashboard");
   revalidatePath("/transactions");
+  // renameAccount and deleteAccountEverywhere both touch BudgetItem rows
+  // (label propagation, cascade delete respectively) in the same
+  // transaction — every action in this file shares one revalidateAll rather
+  // than each remembering its own paths, so /budget belongs here too.
+  revalidatePath("/budget");
 }
 
 // Throws unless the account is the caller's. Every action starts here — the
@@ -97,14 +116,21 @@ async function resolveLinkedPartnerId(
  * A `"use server"` export cannot take a transaction client, so the transaction
  * opens here rather than being passed in.
  */
-export async function createAccountWithBalance(
-  input: CreateAccountWithBalanceInput,
+export async function createAccount(
+  input: CreateAccountInput,
 ): Promise<{ periodId: string; accountId: string }> {
   const userId = await requireUserId();
-  const parsed = createAccountWithBalanceSchema.parse(input);
+  const parsed = createAccountSchema.parse(input);
   const range = monthRangeFor(parsed.year, parsed.month);
 
   const name = cleanLabel(parsed.name);
+  // The drawer sends the one type it asked for; everything else the row needs
+  // — asset-or-liability included — is derived from it.
+  const accountData = buildAccountData({
+    type: parsed.type,
+    section: parsed.section,
+  });
+  const kind = kindOf(parsed.type);
 
   const result = await prisma.$transaction(async (tx) => {
     const period = await ensurePeriodForMonthIn(tx, userId, range);
@@ -112,8 +138,8 @@ export async function createAccountWithBalance(
     const last = await tx.balanceItem.findFirst({
       where: {
         periodId: period.id,
-        type: parsed.type,
-        category: parsed.category,
+        type: kind,
+        category: parsed.section,
         deletedAt: null,
       },
       orderBy: { sortOrder: "desc" },
@@ -121,15 +147,20 @@ export async function createAccountWithBalance(
     });
 
     const account = await tx.account.create({
-      data: { userId, ...buildPrimaryAccountData(parsed) },
+      data: {
+        userId,
+        name,
+        canImportTransactions: parsed.canImportTransactions,
+        ...accountData,
+      },
     });
 
     await tx.balanceItem.create({
       data: {
         periodId: period.id,
         accountId: account.id,
-        type: parsed.type,
-        category: parsed.category,
+        type: kind,
+        category: parsed.section,
         label: name,
         value: parsed.value,
         sortOrder: nextSortOrder(last?.sortOrder),
@@ -180,6 +211,156 @@ export async function createAccountWithBalance(
 
   revalidateAll();
   return result;
+}
+
+/**
+ * Change what kind of account this is — Savings to a Stocks ISA, a plain Loan
+ * to a Credit Card — without disturbing anything else about it. Refused
+ * outright rather than silently worked around whenever something else in the
+ * data model depends on the account staying exactly what it is; see the
+ * inline reasons below.
+ */
+export async function setAccountType(
+  input: SetAccountTypeInput,
+): Promise<void> {
+  const userId = await requireUserId();
+  const { accountId, type } = setAccountTypeSchema.parse(input);
+
+  await prisma.$transaction(async (tx) => {
+    const account = await tx.account.findFirst({
+      where: { id: accountId, userId, deletedAt: null },
+      select: {
+        id: true,
+        type: true,
+        name: true,
+        linkedAccountId: true,
+        linkedBy: { select: { id: true } },
+      },
+    });
+    if (!account) throw new Error("Account not found");
+    if (account.type === type) return;
+
+    // Same kind only: Sync keys plan rows by kind::accountId, and budget
+    // anchors (assertAnchorMatches) rely on the kind never changing.
+    if (kindOf(account.type) !== kindOf(type)) {
+      throw new Error(
+        "An account cannot change between asset and liability — create a new account instead",
+      );
+    }
+
+    // A linked pair (property ↔ mortgage) is a structure; neither half may
+    // change type while linked.
+    if (account.linkedAccountId !== null || account.linkedBy !== null) {
+      throw new Error(
+        `${account.name} is linked to its mortgage/property — unlink or delete the pair first`,
+      );
+    }
+
+    // Leaving PROPERTY with a sale event aimed at it would leave the event
+    // pointing at a non-property. Refuse and NAME the blocker rather than
+    // silently deleting the user's plan event.
+    if (account.type === "PROPERTY") {
+      const saleEvents = await tx.planEvent.count({
+        where: {
+          deletedAt: null,
+          kind: "PROPERTY_SALE",
+          saleAsset: { accountId: account.id, deletedAt: null },
+          plan: { userId, deletedAt: null },
+        },
+      });
+      if (saleEvents > 0) {
+        throw new Error(
+          `${account.name} has a property sale event in your plan — remove that first`,
+        );
+      }
+    }
+
+    // Section is the user's: a type change never moves the account. Mirrors
+    // follow the type so old deployed code keeps agreeing.
+    await tx.account.updateMany({
+      where: { id: account.id, userId },
+      data: { type, kind: kindOf(type), wrapper: wrapperOf(type) },
+    });
+  });
+  revalidateAll();
+}
+
+// Moves an account directly into a chosen section, appending it to the end
+// of that bucket. The bucket is scoped by the account's own kind (via
+// accountTypesOfKind, never the stored kind mirror) so an ASSET's sortOrder
+// never collides with a LIABILITY's in the same section.
+export async function setAccountSection(
+  input: SetAccountSectionInput,
+): Promise<void> {
+  const userId = await requireUserId();
+  const { accountId, section } = setAccountSectionSchema.parse(input);
+
+  await prisma.$transaction(async (tx) => {
+    const account = await tx.account.findFirst({
+      where: { id: accountId, userId, deletedAt: null },
+      select: { id: true, type: true, section: true },
+    });
+    if (!account) throw new Error("Account not found");
+
+    const kind = kindOf(account.type);
+    if (!isValidBalanceCategory(kind, section)) {
+      throw new Error(`${section} is not a valid section for that account`);
+    }
+    if (account.section === section) return;
+
+    const typesOfKind = accountTypesOfKind(kind).map((t) => t.id);
+    const last = await tx.account.findFirst({
+      where: {
+        userId,
+        deletedAt: null,
+        section,
+        type: { in: typesOfKind },
+      },
+      orderBy: { sortOrder: "desc" },
+      select: { sortOrder: true },
+    });
+
+    await tx.account.updateMany({
+      where: { id: account.id, userId },
+      data: { section, sortOrder: nextSortOrder(last?.sortOrder) },
+    });
+  });
+  revalidateAll();
+}
+
+// The one implementation behind both balance/accountActions.ts's own callers
+// and settings/accountActions.ts's re-export — a rename touches the account's
+// name plus every live budget/balance row's label mirror in the same
+// transaction, so the sheets never show a stale name next to a fresh one.
+export async function renameAccount(input: RenameAccountInput): Promise<void> {
+  const userId = await requireUserId();
+  const { accountId, name } = renameAccountSchema.parse(input);
+  const label = cleanLabel(name);
+
+  await prisma.$transaction(async (tx) => {
+    const result = await tx.account.updateMany({
+      where: { id: accountId, userId, deletedAt: null },
+      data: { name: label },
+    });
+    if (result.count === 0) throw new Error("Account not found");
+
+    // Scoped through the period in the same statement: the app-level userId
+    // filter is the only fence (ADR-002), so a mirror update carries it too
+    // rather than trusting the account lookup above to have proved ownership.
+    await tx.budgetItem.updateMany({
+      where: { accountId, deletedAt: null, period: { userId } },
+      data: { label },
+    });
+    await tx.balanceItem.updateMany({
+      where: {
+        accountId,
+        deletedAt: null,
+        period: { userId, deletedAt: null },
+      },
+      data: { label },
+    });
+  });
+  revalidateAll();
 }
 
 // Stop tracking: the account leaves the pickers and THIS month's sheet, and
@@ -376,9 +557,13 @@ export async function deleteAccountEverywhere(
       },
       data: { transferAccountId: null },
     });
-    // Rows already soft-deleted are left alone here — the FK's own
-    // ON DELETE SET NULL clears their accountId when the account goes,
-    // which is exactly the behaviour under test elsewhere in this suite.
+    // Only the live rows are deleted explicitly — they are the ones
+    // accountDeletionCounts counted for the confirmation panel, so what the
+    // user was told is going is exactly what these two statements remove.
+    // The rest goes with the account below: BalanceItem.accountId is required
+    // and ON DELETE CASCADE, so the soft-deleted months disappear with it;
+    // BudgetItem.accountId is nullable and ON DELETE SET NULL, so its
+    // soft-deleted rows survive with the link cleared.
     await tx.balanceItem.deleteMany({
       where: { accountId: { in: ids }, deletedAt: null, period: { userId } },
     });

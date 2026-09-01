@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { kindOf } from "@/lib/accounts/accountDraft";
 import {
   currentMonthRange,
   formatYm,
@@ -10,7 +11,7 @@ import { getCurrentUserSettings } from "@/lib/settings/server";
 import { getCurrentUser } from "@/lib/supabase/user";
 import {
   BalanceSheet,
-  type SerializedBalanceItem,
+  type SerializedAccountRow,
   type SerializedPeriod,
 } from "./BalanceSheet";
 
@@ -58,12 +59,61 @@ export default async function BalancePage(props: PageProps) {
     },
   });
 
-  const items = period
+  // Accounts first, the month second: the sheet lists what the user owns and
+  // owes, and this month's numbers are an observation left-joined onto that
+  // list. An account with nothing recorded yet still gets a row — an empty
+  // cell to type into — rather than being invisible until it has a value.
+  const accounts = await prisma.account.findMany({
+    where: {
+      userId: user.id,
+      OR: [
+        { deletedAt: null },
+        // Archived accounts stay on the past months where they recorded a value.
+        ...(period
+          ? [
+              {
+                deletedAt: { not: null },
+                balanceItems: {
+                  some: { periodId: period.id, deletedAt: null },
+                },
+              },
+            ]
+          : []),
+      ],
+    },
+    orderBy: [{ section: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
+    select: {
+      id: true,
+      name: true,
+      type: true,
+      section: true,
+      sortOrder: true,
+    },
+  });
+
+  const values = period
     ? await prisma.balanceItem.findMany({
-        where: { periodId: period.id, deletedAt: null },
-        orderBy: [{ type: "asc" }, { category: "asc" }, { sortOrder: "asc" }],
+        where: {
+          periodId: period.id,
+          deletedAt: null,
+          accountId: { in: accounts.map((a) => a.id) },
+        },
+        // Newest first: the left-join below keeps the first hit per account.
+        orderBy: { createdAt: "desc" },
+        select: {
+          accountId: true,
+          value: true,
+          notes: true,
+          carriedOver: true,
+        },
       })
     : [];
+
+  const valueByAccountId = new Map<string, (typeof values)[number]>();
+  for (const value of values) {
+    if (valueByAccountId.has(value.accountId)) continue;
+    valueByAccountId.set(value.accountId, value);
+  }
 
   const serializedPeriod: SerializedPeriod = {
     id: period?.id ?? "",
@@ -72,23 +122,26 @@ export default async function BalancePage(props: PageProps) {
     endDate: range.endDate.toISOString(),
   };
 
-  const serializedItems: SerializedBalanceItem[] = items.map((i) => ({
-    id: i.id,
-    type: i.type,
-    category: i.category,
-    label: i.label,
-    value: Number(i.value),
-    notes: i.notes,
-    sortOrder: i.sortOrder,
-    carriedOver: i.carriedOver,
-    accountId: i.accountId,
-  }));
+  const serializedRows: SerializedAccountRow[] = accounts.map((account) => {
+    const observed = valueByAccountId.get(account.id);
+    return {
+      accountId: account.id,
+      name: account.name,
+      type: account.type,
+      kind: kindOf(account.type),
+      section: account.section,
+      sortOrder: account.sortOrder,
+      value: observed ? Number(observed.value) : null,
+      notes: observed?.notes ?? null,
+      carriedOver: observed?.carriedOver ?? false,
+    };
+  });
 
   return (
     <BalanceSheet
       key={formatYm(year, month)}
       period={serializedPeriod}
-      initialItems={serializedItems}
+      initialRows={serializedRows}
       year={year}
       month={month}
       currency={currency}

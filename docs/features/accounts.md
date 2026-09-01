@@ -27,15 +27,24 @@ places:
 | Observation | what it was **worth this month** | `BalanceItem` (budget side: `BudgetItem`) |
 | Assumption | how it **behaves in future** | `PlanAsset` / `PlanLiability` |
 
-`Account` carries `kind`, `category`, `wrapper`, `canImportTransactions` and
-`linkedAccountId`. `BalanceItem` and `BudgetItem` each gained a nullable
-`accountId` — nullable because unlinked and legacy rows still parse, with
-`label` staying as the fallback exactly as it always was. P1 only wired the
-balance side; the budget side (`BudgetItem.accountId`) landed in the schema
-so the delete path was honest (see "What P1 does not do," below) but nothing
-wrote it. **P3 writes it**: a budget row of kind `TRANSFER` or `REPAYMENT`
-anchors to an `Account` instead of a `Category` — see
-[`budget-transfers.md`](budget-transfers.md).
+`Account` carries `type`, `section`, `canImportTransactions` and
+`linkedAccountId` (plus the `kind`/`wrapper` mirrors — see below).
+`BudgetItem` gained a nullable `accountId`; **`BalanceItem.accountId` is
+required**, `ON DELETE CASCADE`, and fenced by a partial unique index on live
+rows (`BalanceItem_period_account_live` on `(periodId, accountId) WHERE
+deletedAt IS NULL`) — one live value per account per month, with soft-deleted
+history free to collide. P1 only wired the balance side; the budget side
+(`BudgetItem.accountId`) landed in the schema so the delete path was honest
+(see "What P1 does not do," below) but nothing wrote it. **P3 writes it**: a
+budget row of kind `TRANSFER` or `REPAYMENT` anchors to an `Account` instead
+of a `Category` — see [`budget-transfers.md`](budget-transfers.md).
+
+**The sheet lists accounts, not rows.** The balance page queries the user's
+live accounts and left-joins the month onto them, so an account the user
+hasn't got to yet still has a line with an empty cell to type into. A blank
+cell is *not* a zero — clearing a value soft-deletes the observation rather
+than recording £0, and the footer counts how many accounts are still without
+one.
 
 ## Plan values are editable — a P1 decision, reversed in P2
 
@@ -61,26 +70,39 @@ while a row is diverged, and the screen always shows both.
 The mechanism is [`plan-sync.md`](plan-sync.md). Neither document is stale —
 this one describes the registry, that one describes how the plan tracks it.
 
-## `Account.kind`, `category`, `wrapper`
+## `Account.type` is the stored fact; `kind` and `wrapper` are derived
 
-`Account.type` — free text, written by nothing, read only by an assertion
-that it was null — is dropped. In its place:
+The user picks *what the account is* once — "Stocks & Shares ISA", "Mortgage" —
+and everything else about its classification follows from that:
 
-- **`kind`** (`ASSET | LIABILITY | NONE`) — `NONE` is a plain transaction
-  account that isn't itself a balance-sheet line.
-- **`category`** reuses `BalanceItemCategory` (the term buckets: Current,
-  Medium-term, Long-term, Property, Other) rather than a parallel enum.
-- **`wrapper`** reuses `PlanAssetWrapper` (ISA, GIA, pension, …), asset-only —
-  a tax wrapper describes what you own, not what you owe.
+- **`type`** (`AccountType`: `CURRENT_ACCOUNT SAVINGS CASH_ISA STOCKS_ISA SIPP
+  FINAL_SALARY GIA PROPERTY OTHER_ASSET MORTGAGE CREDIT_CARD LOAN OVERDRAFT
+  OTHER_DEBT`) — the one stored classification, required on every account.
+- **`kind`** (asset or liability) and **`wrapper`** (ISA, GIA, pension, …,
+  asset-only — a tax wrapper describes what you own, not what you owe) are
+  **computed** from `type` by `kindOf` / `wrapperOf` in
+  [`src/lib/accounts/accountDraft.ts`](../../src/lib/accounts/accountDraft.ts).
+  The `kind`/`wrapper` **columns still exist and are still written**, as
+  legacy mirrors for the deploy window only. No new code may branch on them.
+- **`section`** (renamed from `category`) is the sheet grouping — Current,
+  Medium-term, Long-term, Property, Other. It is the one classification the
+  account owns rather than derives, and the user edits it from the sheet;
+  `setAccountSection` refuses `PROPERTY` on a liability and appends the moved
+  account to the end of its new section.
+
+> **Contract PR (PR 2)** will drop the `kind`/`wrapper` mirrors and
+> `BalanceItem`'s own `type`/`category`/`label`/`sortOrder` mirrors, and rename
+> the enums (`BalanceItemCategory` → `AccountSection`). Until then both the
+> stored mirror and the derived value exist; the derived value is the truth.
 
 **`canImportTransactions` is the user's choice, not a derived fact.** Plenty
 of mortgage providers issue statements, and someone who wants that ledger
-should have it. The Add drawer defaults it from `(type, category)` —
+should have it. The Add drawer defaults it from the derived `(kind, wrapper)` —
 `AddAccountDrawer.tsx` via `defaultCanImportTransactions` in
 [`src/lib/accounts/accountDraft.ts`](../../src/lib/accounts/accountDraft.ts):
 true for an asset that isn't a property, false otherwise — and once the user
 touches the checkbox directly, that choice sticks through further `type`/
-`category` changes in the same form session. It stays editable afterwards from
+`section` changes in the same form session. It stays editable afterwards from
 Settings → Accounts (`setAccountImports`).
 
 **As built, nothing reads this flag yet.** The schema comment (and the design
@@ -97,18 +119,20 @@ describes elsewhere; wiring it up is unstarted work, not a design decision.
 ## Adding an account
 
 One `+ Add` button on the Balance page opens `AddAccountDrawer.tsx`, which
-asks Asset/Liability, a required Section (no default — `OTHER` is a bucket
-things fall into and never leave, so defaulting into it would be a silent
-misfile), a Wrapper for assets, a value, and the import checkbox.
+asks "What are you adding?" — one `AccountType` picked from Assets and
+Liabilities optgroups — then a Section (pre-filled from the type's
+`defaultSection` but freely changed; the user's own choice sticks through
+further type changes), a name, a value, and the import checkbox. Kind and
+wrapper are never asked for: they follow from the type.
 
 **Asset → Property** adds an "Is there a mortgage on it?" branch. Ticking it
 creates the property account, the liability account, the `linkedAccountId`
 pairing, and both accounts' first `BalanceItem` in one `$transaction`
-(`createAccountWithBalance` in
+(`createAccount` in
 [`accountActions.ts`](<../../src/app/(app)/balance/accountActions.ts>)) — the
 atomic-server-action rule applies here as everywhere else. The mortgage side
-is always filed `LIABILITY` / `LONG_TERM` regardless of what the property's
-own category is, and never offers its own import checkbox — it mirrors the
+is always `type: MORTGAGE`, filed in section `LONG_TERM` regardless of what
+the property's own section is, and never offers its own import checkbox — it mirrors the
 liability default (false).
 
 ## Deleting an account
@@ -163,10 +187,10 @@ create a row without one — was deleted during this phase.
 The history is in PR #170 if the reasoning is ever needed again. What survives
 from it and still matters:
 
-- **Legacy rows still render.** `BalanceItem.label` remains populated and
-  `accountId` stays nullable, so a row without an account displays exactly as it
-  always did and deletes through the old path. `prisma/seed.ts` still creates
-  rows this way, so local development exercises that path — see Known gaps.
+- **There are no legacy rows left.** `BalanceItem.accountId` is now required:
+  the type migration deleted the last null-`accountId` rows and the sheet's
+  null-account path went with them. `label` survives only as a mirror of the
+  account's name, dropped in the contract PR.
 - **The `@unique` on `Account.linkedAccountId`** means one mortgage per
   property, enforced by the database rather than by convention.
 
@@ -218,7 +242,8 @@ scoping:
 
 | Concern | File |
 |---|---|
-| `AccountKind` enum, `Account.kind`/`category`/`wrapper`/`canImportTransactions`/`linkedAccountId`, `BalanceItem`/`BudgetItem`/`BalanceTemplateItem.accountId` | [`prisma/schema.prisma`](../../prisma/schema.prisma) |
+| `AccountType` enum, `Account.type`/`section`/`canImportTransactions`/`linkedAccountId` (+ the `kind`/`wrapper` mirrors), required `BalanceItem.accountId` with its CASCADE and live-row partial unique index | [`prisma/schema.prisma`](../../prisma/schema.prisma) |
+| `kindOf` / `wrapperOf` / `accountTypesOfKind` — the derivations | [`src/lib/accounts/accountDraft.ts`](../../src/lib/accounts/accountDraft.ts) |
 | Pure account-creation data shaping (primary + mortgage) | [`src/lib/accounts/creation.ts`](../../src/lib/accounts/creation.ts) |
 | Zod schemas for create / delete-everywhere | [`src/lib/accounts/schemas.ts`](../../src/lib/accounts/schemas.ts) |
 | Delete-mode + property-row pure rules | [`src/lib/accounts/deletion.ts`](../../src/lib/accounts/deletion.ts) |
@@ -245,9 +270,11 @@ scoping:
 - **Component** — `AddAccountDrawer.test.tsx`, `DeleteAccountPanel.test.tsx`,
   `AccountManager.test.tsx`.
 - **E2E** — [`e2e/balance-accounts.spec.ts`](../../e2e/balance-accounts.spec.ts):
-  adding an asset, a mortgaged property (both sides created), stop-tracking
-  into the Settings archive, and delete-everywhere. Server-action journeys,
-  so chromium-gated per the repo's browser-coverage rule.
+  six journeys — adding an asset, a mortgaged property (both sides created),
+  stop-tracking into the Settings archive, delete-everywhere, an account with
+  no value being listed and counted, and renaming on the sheet reaching the
+  budget's anchored row. Server-action journeys, so chromium-gated per the
+  repo's browser-coverage rule.
 
 ## Two unrelated fixes that rode along with this phase
 
@@ -266,14 +293,6 @@ surfaced while building and testing this feature:
 
 ## Known gaps
 
-- **`prisma/seed.ts` still creates balance rows with no `accountId`.** Local
-  development therefore starts with legacy-shaped rows that no longer have a
-  migration to link them. That is currently useful — it keeps the null-`accountId`
-  path in `BalanceSheet` exercised, and that path is real code — but P2 raised
-  the cost: `latestReality` reads *accounts*, so an unlinked balance row
-  contributes nothing to a plan, and a plan created from seeded data comes up
-  with no asset rows at all. The seed should create accounts and link its rows,
-  so `make db-reset` yields data shaped like production.
 - **`docs/DataModels/DataModels.md` still describes `Account` as
   transactions-only** ("where money sits — current, savings, ISA, SIPP"). P2
   widened the gap rather than closing it: the plan's `accountId`/`categoryId`

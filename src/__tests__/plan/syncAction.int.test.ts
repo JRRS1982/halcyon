@@ -1,5 +1,8 @@
+import type { AccountType } from "@prisma/client";
+import { setAccountType } from "@/app/(app)/balance/accountActions";
 import { deletePlanAsset } from "@/app/(app)/plan/actions";
 import { getPlanSyncPreview, syncPlan } from "@/app/(app)/plan/syncActions";
+import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
 
@@ -16,9 +19,14 @@ async function period(label: string, start: string) {
   });
 }
 
-async function accountWithValue(name: string, value: number, when: string) {
+async function accountWithValue(
+  name: string,
+  value: number,
+  when: string,
+  type: AccountType = "STOCKS_ISA",
+) {
   const account = await prisma.account.create({
-    data: { userId: TEST_USER_ID, name, kind: "ASSET" },
+    data: { userId: TEST_USER_ID, name, ...buildAccountData({ type }) },
   });
   const p = await period(when, when);
   await prisma.balanceItem.create({
@@ -128,7 +136,12 @@ describe("syncPlan (integration)", () => {
 
   it("removes a row whose account was archived", async () => {
     const plan = await emptyPlan();
-    const account = await accountWithValue("Old car", 8000, "2026-03-01");
+    const account = await accountWithValue(
+      "Old car",
+      8000,
+      "2026-03-01",
+      "OTHER_ASSET",
+    );
     const asset = await prisma.planAsset.create({
       data: { planId: plan.id, label: "Old car", accountId: account.id },
     });
@@ -147,7 +160,11 @@ describe("syncPlan (integration)", () => {
   it("takes the most recent observation, not the first", async () => {
     await emptyPlan();
     const account = await prisma.account.create({
-      data: { userId: TEST_USER_ID, name: "Vanguard ISA", kind: "ASSET" },
+      data: {
+        userId: TEST_USER_ID,
+        name: "Vanguard ISA",
+        ...buildAccountData({ type: "STOCKS_ISA" }),
+      },
     });
     for (const [when, value] of [
       ["2026-02-01", 41050],
@@ -232,7 +249,11 @@ describe("syncPlan (integration)", () => {
     await emptyPlan();
     await prisma.user.create({ data: { id: OTHER_USER_ID } });
     const foreign = await prisma.account.create({
-      data: { userId: OTHER_USER_ID, name: "Their ISA", kind: "ASSET" },
+      data: {
+        userId: OTHER_USER_ID,
+        name: "Their ISA",
+        ...buildAccountData({ type: "STOCKS_ISA" }),
+      },
     });
     const theirPeriod = await prisma.financialPeriod.create({
       data: {
@@ -394,7 +415,11 @@ describe("syncPlan (integration)", () => {
   it("adds a PlanLiability row for a liability account the plan does not have", async () => {
     await emptyPlan();
     const account = await prisma.account.create({
-      data: { userId: TEST_USER_ID, name: "Mortgage", kind: "LIABILITY" },
+      data: {
+        userId: TEST_USER_ID,
+        name: "Mortgage",
+        ...buildAccountData({ type: "MORTGAGE" }),
+      },
     });
     const p = await period("2026-03-01", "2026-03-01");
     await prisma.balanceItem.create({
@@ -427,8 +452,7 @@ describe("syncPlan (integration)", () => {
       data: {
         userId: TEST_USER_ID,
         name: "SIPP",
-        kind: "ASSET",
-        wrapper: "PENSION",
+        ...buildAccountData({ type: "SIPP" }),
       },
     });
     const p = await period("2026-03-01", "2026-03-01");
@@ -453,15 +477,17 @@ describe("syncPlan (integration)", () => {
 
   // Wrapper is classification, not a one-time assumption — changing an
   // account's wrapper on the balance sheet must follow into the plan on the
-  // next Sync, the same way a value or label change does.
+  // next Sync, the same way a value or label change does. Wrapper is derived
+  // from type (wrapperOf), never stored independently, so the only way an
+  // account's wrapper actually changes is a same-kind type change —
+  // setAccountType, exactly as the real balance sheet drives it.
   it("updates a plan row's wrapper when the account's wrapper changed", async () => {
     const plan = await emptyPlan();
     const account = await prisma.account.create({
       data: {
         userId: TEST_USER_ID,
         name: "Vanguard ISA",
-        kind: "ASSET",
-        wrapper: "CASH",
+        ...buildAccountData({ type: "SAVINGS" }),
       },
     });
     const p = await period("2026-03-01", "2026-03-01");
@@ -485,10 +511,8 @@ describe("syncPlan (integration)", () => {
       },
     });
 
-    await prisma.account.update({
-      where: { id: account.id },
-      data: { wrapper: "ISA" },
-    });
+    // Same kind (ASSET), different wrapper: SAVINGS (CASH) → CASH_ISA (ISA).
+    await setAccountType({ accountId: account.id, type: "CASH_ISA" });
     const result = await syncPlan();
 
     expect(result.updates).toEqual([
@@ -521,8 +545,7 @@ describe("syncPlan (integration)", () => {
           data: {
             userId: TEST_USER_ID,
             name: `${bucket} account`,
-            kind: "ASSET",
-            category: bucket,
+            ...buildAccountData({ type: "OTHER_ASSET", section: bucket }),
           },
         });
         await prisma.balanceItem.create({
@@ -549,11 +572,16 @@ describe("syncPlan (integration)", () => {
     }
   });
 
-  // Account.category is nullable — the Settings account form doesn't collect
-  // one — so an account with no term bucket lands where OTHER does.
-  it("gives an account with no term bucket the OTHER drawdown priority", async () => {
+  // Account.section is required now, but an OTHER_ASSET account still lands
+  // under the OTHER drawdown priority — same bucket, no term bucket chosen.
+  it("gives an OTHER_ASSET account the OTHER drawdown priority", async () => {
     await emptyPlan();
-    const account = await accountWithValue("Premium bonds", 5000, "2026-03-01");
+    const account = await accountWithValue(
+      "Premium bonds",
+      5000,
+      "2026-03-01",
+      "OTHER_ASSET",
+    );
 
     await syncPlan();
 
@@ -683,9 +711,7 @@ describe("syncPlan (integration)", () => {
       data: {
         userId: TEST_USER_ID,
         name: "Vanguard ISA",
-        kind: "ASSET",
-        category: "LONG_TERM",
-        wrapper: "ISA",
+        ...buildAccountData({ type: "STOCKS_ISA" }),
       },
     });
     const category = await prisma.category.create({
@@ -757,8 +783,9 @@ describe("syncPlan (integration)", () => {
       data: {
         userId: TEST_USER_ID,
         name: "Halifax mortgage",
-        kind: "LIABILITY",
-        category: "LONG_TERM",
+        ...buildAccountData({ type: "MORTGAGE" }),
+        // A stray wrapper — nothing stops the column carrying one even
+        // though wrapper is asset-only and this account is a liability.
         wrapper: "PROPERTY",
       },
     });
@@ -792,9 +819,7 @@ describe("syncPlan (integration)", () => {
       data: {
         userId: TEST_USER_ID,
         name: "Vanguard SIPP",
-        kind: "ASSET",
-        category: "LONG_TERM",
-        wrapper: "PENSION",
+        ...buildAccountData({ type: "SIPP" }),
       },
     });
     const p = await period("2026-03-01", "2026-03-01");
@@ -848,8 +873,7 @@ describe("syncPlan (integration)", () => {
       data: {
         userId: TEST_USER_ID,
         name: "Halifax mortgage",
-        kind: "LIABILITY",
-        category: "LONG_TERM",
+        ...buildAccountData({ type: "MORTGAGE" }),
       },
     });
     const p = await period("2026-03-01", "2026-03-01");
@@ -895,9 +919,7 @@ describe("syncPlan (integration)", () => {
       data: {
         userId: TEST_USER_ID,
         name: "Vanguard SIPP",
-        kind: "ASSET",
-        category: "LONG_TERM",
-        wrapper: "PENSION",
+        ...buildAccountData({ type: "SIPP" }),
       },
     });
     const p = await period("2026-03-01", "2026-03-01");
@@ -962,9 +984,7 @@ describe("syncPlan (integration)", () => {
       data: {
         userId: TEST_USER_ID,
         name: "Vanguard SIPP",
-        kind: "ASSET",
-        category: "LONG_TERM",
-        wrapper: "PENSION",
+        ...buildAccountData({ type: "SIPP" }),
       },
     });
     const p = await period("2026-03-01", "2026-03-01");
@@ -1009,9 +1029,7 @@ describe("syncPlan (integration)", () => {
       data: {
         userId: TEST_USER_ID,
         name: "Vanguard SIPP",
-        kind: "ASSET",
-        category: "LONG_TERM",
-        wrapper: "PENSION",
+        ...buildAccountData({ type: "SIPP" }),
       },
     });
     const p = await period("2026-03-01", "2026-03-01");
@@ -1090,9 +1108,7 @@ describe("syncPlan (integration)", () => {
       data: {
         userId: TEST_USER_ID,
         name: "Rainy day",
-        kind: "ASSET",
-        category: "CURRENT",
-        wrapper: "CASH",
+        ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
       },
     });
     const p = await period("2026-03-01", "2026-03-01");

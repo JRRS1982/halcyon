@@ -1,6 +1,7 @@
 import "server-only";
 
-import type { AccountKind } from "@prisma/client";
+import { kindOf } from "@/lib/accounts/accountDraft";
+import type { BalanceType } from "@/lib/balance/reorder";
 import { categoryKey, cleanLabel } from "@/lib/categories/normalize";
 import { sectionLabel } from "@/lib/categories/sections";
 import { prisma } from "@/lib/prisma";
@@ -378,18 +379,24 @@ export async function getTransferFlowByMonthAndAccount(
   return netTransfersByMonthAndAccount(await transferLegs(userId, start, end));
 }
 
-// Active accounts for the ledger's transfer picker (id + name + kind). Not
-// filtered by kind — a plain (kind: NONE) current account is as valid a
-// transfer target as an ASSET, and not filtered by canImportTransactions
-// either, so a mortgage you don't import statements from still shows up.
-// CategoryCombobox partitions this same list into Transfers/Repayments by
-// kind rather than re-querying it.
+// Active accounts for the ledger's transfer picker (id + name + kind, the
+// latter derived from the account's type rather than read off the kind
+// mirror column). Not filtered by kind — a plain current account is as valid
+// a transfer target as any other asset — and not filtered by
+// canImportTransactions either, so a mortgage you don't import statements
+// from still shows up. CategoryCombobox partitions this same list into
+// Transfers/Repayments by kind rather than re-querying it.
 export async function getLedgerAccounts(
   userId: string,
-): Promise<{ id: string; name: string; kind: AccountKind }[]> {
-  return prisma.account.findMany({
+): Promise<{ id: string; name: string; kind: BalanceType }[]> {
+  const accounts = await prisma.account.findMany({
     where: { userId, deletedAt: null },
     orderBy: { name: "asc" },
-    select: { id: true, name: true, kind: true },
+    select: { id: true, name: true, type: true },
   });
+  return accounts.map((a) => ({
+    id: a.id,
+    name: a.name,
+    kind: kindOf(a.type),
+  }));
 }

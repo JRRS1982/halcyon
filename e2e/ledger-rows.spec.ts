@@ -4,6 +4,7 @@
 // clicking the row selects it, and that opening a row's details leaves every
 // column exactly where it was. Both are layout/local-state only — no server
 // action — so they run on every engine.
+import { buildAccountData } from "@/lib/accounts/creation";
 import { expect, signedInUser, signIn, test } from "./_helpers/fixtures";
 
 // The kept import columns of a real bank statement. The count and the width
@@ -27,7 +28,11 @@ test.describe("Ledger rows", () => {
     await signIn(page);
     const user = await signedInUser(db);
     const account = await db.account.create({
-      data: { userId: user.id, name: "Current Account" },
+      data: {
+        userId: user.id,
+        name: "Current Account",
+        ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+      },
     });
     await db.transaction.createMany({
       data: [

@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import type { Prisma } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { cache } from "react";
+import { buildAccountData } from "@/lib/accounts/creation";
 import { ensurePeriodForMonthIn } from "@/lib/budget/ensurePeriod";
 import { currentMonthRange } from "@/lib/budget/period";
 import { sectionFor } from "@/lib/categories/sections";
@@ -99,7 +100,11 @@ export async function seedStarterData(
 
   await tx.category.createMany({ data: categories });
   await tx.account.createMany({
-    data: DEFAULT_ACCOUNTS.map((name) => ({ userId, name })),
+    data: DEFAULT_ACCOUNTS.map((a) => ({
+      userId,
+      name: a.name,
+      ...buildAccountData({ type: a.type }),
+    })),
   });
 
   const byLabel = new Map(categories.map((c) => [c.label, c]));

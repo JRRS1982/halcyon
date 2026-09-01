@@ -6,6 +6,7 @@
 // balance sheets get, see mobile-sheet.spec.ts). Layout-only, so it runs on
 // every engine; the rows are seeded straight into the database rather than
 // through the import journey.
+import { buildAccountData } from "@/lib/accounts/creation";
 import { expect, signedInUser, signIn, test } from "./_helpers/fixtures";
 
 const PHONE = { width: 390, height: 844 };
@@ -21,7 +22,11 @@ test.describe("Ledger on a phone", () => {
     const user = await signedInUser(db);
 
     const account = await db.account.create({
-      data: { userId: user.id, name: "Current Account" },
+      data: {
+        userId: user.id,
+        name: "Current Account",
+        ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+      },
     });
     await db.transaction.createMany({
       data: [

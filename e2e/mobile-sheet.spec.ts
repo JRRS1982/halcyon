@@ -85,6 +85,29 @@ test.describe("Sheets on a phone", () => {
     await expect(deleteRow).toBeVisible();
   });
 
+  // The balance sheet's row-scoped toolbar (BalanceSheet.tsx) grew two new
+  // selects once accounts carry a type — "Account type" and "Move to
+  // section" — which only render once a row is focused, so the page-load-only
+  // check below never exercises them. Together they are wider than the
+  // budget sheet's lone delete-row button, and are exactly the kind of
+  // toolbar growth that reintroduced horizontal overflow before.
+  test("the balance sheet's row toolbar fits the viewport with a row focused", async ({
+    page,
+  }) => {
+    await signIn(page);
+    await page.goto("/balance");
+
+    // Provisioning seeds default accounts, so the sheet always has a row to
+    // focus without needing to add one first.
+    await page.locator("[data-sheet-scroller] input[value]").first().click();
+    await expect(page.getByLabel("Account type")).toBeVisible();
+
+    const overflows = await page.evaluate(
+      () => document.documentElement.scrollWidth > window.innerWidth,
+    );
+    expect(overflows).toBe(false);
+  });
+
   test("the page itself never scrolls horizontally", async ({ page }) => {
     await signIn(page);
 

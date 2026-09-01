@@ -3,6 +3,7 @@
 // The dashboard leads with four figures rather than opening on a chart. These
 // need real data in a real browser: the values come from two months of seeded
 // periods, and the hydration check can only be made by loading the page.
+import { buildAccountData } from "@/lib/accounts/creation";
 import {
   clearStarterPeriods,
   expect,
@@ -33,7 +34,23 @@ test.describe("Dashboard summary", () => {
       where: { userId: user.id },
       data: { transactionsEnabled: false },
     });
-    // Two months of budget + balance so the KPI row has a delta to show.
+    // Two months of budget + balance so the KPI row has a delta to show. One
+    // account per label, created once — the loop below records two months of
+    // observations against the same two accounts, not four different ones.
+    const savings = await db.account.create({
+      data: {
+        userId: user.id,
+        name: "Savings",
+        ...buildAccountData({ type: "SAVINGS" }),
+      },
+    });
+    const mortgage = await db.account.create({
+      data: {
+        userId: user.id,
+        name: "Mortgage",
+        ...buildAccountData({ type: "MORTGAGE" }),
+      },
+    });
     for (const [i, m] of [
       [0, "2026-01"],
       [1, "2026-02"],
@@ -84,6 +101,7 @@ test.describe("Dashboard summary", () => {
         data: [
           {
             periodId: period.id,
+            accountId: savings.id,
             type: "ASSET",
             category: "CURRENT",
             label: "Savings",
@@ -92,6 +110,7 @@ test.describe("Dashboard summary", () => {
           },
           {
             periodId: period.id,
+            accountId: mortgage.id,
             type: "LIABILITY",
             category: "LONG_TERM",
             label: "Mortgage",
@@ -138,7 +157,23 @@ test.describe("Dashboard summary", () => {
     // sheet a new account is provisioned with has to go: it is more recent than
     // the fixture below and would be the month the KPIs report on.
     await clearStarterPeriods(db, user.id);
-    // Two months of budget + balance so the KPI row has a delta to show.
+    // Two months of budget + balance so the KPI row has a delta to show. One
+    // account per label, created once — the loop below records two months of
+    // observations against the same two accounts, not four different ones.
+    const savings = await db.account.create({
+      data: {
+        userId: user.id,
+        name: "Savings",
+        ...buildAccountData({ type: "SAVINGS" }),
+      },
+    });
+    const mortgage = await db.account.create({
+      data: {
+        userId: user.id,
+        name: "Mortgage",
+        ...buildAccountData({ type: "MORTGAGE" }),
+      },
+    });
     for (const [i, m] of [
       [0, "2026-01"],
       [1, "2026-02"],
@@ -189,6 +224,7 @@ test.describe("Dashboard summary", () => {
         data: [
           {
             periodId: period.id,
+            accountId: savings.id,
             type: "ASSET",
             category: "CURRENT",
             label: "Savings",
@@ -197,6 +233,7 @@ test.describe("Dashboard summary", () => {
           },
           {
             periodId: period.id,
+            accountId: mortgage.id,
             type: "LIABILITY",
             category: "LONG_TERM",
             label: "Mortgage",
@@ -233,7 +270,23 @@ test.describe("Dashboard summary", () => {
     // sheet a new account is provisioned with has to go: it is more recent than
     // the fixture below and would be the month the KPIs report on.
     await clearStarterPeriods(db, user.id);
-    // Two months of budget + balance so the KPI row has a delta to show.
+    // Two months of budget + balance so the KPI row has a delta to show. One
+    // account per label, created once — the loop below records two months of
+    // observations against the same two accounts, not four different ones.
+    const savings = await db.account.create({
+      data: {
+        userId: user.id,
+        name: "Savings",
+        ...buildAccountData({ type: "SAVINGS" }),
+      },
+    });
+    const mortgage = await db.account.create({
+      data: {
+        userId: user.id,
+        name: "Mortgage",
+        ...buildAccountData({ type: "MORTGAGE" }),
+      },
+    });
     for (const [i, m] of [
       [0, "2026-01"],
       [1, "2026-02"],
@@ -284,6 +337,7 @@ test.describe("Dashboard summary", () => {
         data: [
           {
             periodId: period.id,
+            accountId: savings.id,
             type: "ASSET",
             category: "CURRENT",
             label: "Savings",
@@ -292,6 +346,7 @@ test.describe("Dashboard summary", () => {
           },
           {
             periodId: period.id,
+            accountId: mortgage.id,
             type: "LIABILITY",
             category: "LONG_TERM",
             label: "Mortgage",

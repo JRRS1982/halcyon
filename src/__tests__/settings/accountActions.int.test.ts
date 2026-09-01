@@ -1,9 +1,9 @@
 import {
-  createManagedAccount,
   deleteAccount,
   renameAccount,
   setAccountImports,
 } from "@/app/(app)/settings/accountActions";
+import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
 
@@ -11,9 +11,15 @@ const OTHER_USER_ID = "00000000-0000-0000-0000-0000000000bb";
 
 describe("account CRUD (integration)", () => {
   test("creates and renames an account", async () => {
-    await createManagedAccount({ name: "Savings" });
-    const created = await prisma.account.findFirstOrThrow({
-      where: { userId: TEST_USER_ID, name: "Savings" },
+    // createManagedAccount is gone — the drawer (Task 6) is the one way to
+    // create an account now — so this creates the fixture directly, the same
+    // way that action used to.
+    const created = await prisma.account.create({
+      data: {
+        userId: TEST_USER_ID,
+        name: "Savings",
+        ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+      },
     });
     await renameAccount({ accountId: created.id, name: "ISA" });
     const renamed = await prisma.account.findUniqueOrThrow({
@@ -24,7 +30,11 @@ describe("account CRUD (integration)", () => {
 
   test("soft-deletes an unreferenced account", async () => {
     const acct = await prisma.account.create({
-      data: { userId: TEST_USER_ID, name: "Spare" },
+      data: {
+        userId: TEST_USER_ID,
+        name: "Spare",
+        ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+      },
     });
     await deleteAccount({ accountId: acct.id });
     const after = await prisma.account.findUniqueOrThrow({
@@ -35,7 +45,11 @@ describe("account CRUD (integration)", () => {
 
   test("blocks delete while the account owns transactions", async () => {
     const acct = await prisma.account.create({
-      data: { userId: TEST_USER_ID, name: "Owns txns" },
+      data: {
+        userId: TEST_USER_ID,
+        name: "Owns txns",
+        ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+      },
     });
     await prisma.transaction.create({
       data: {
@@ -51,10 +65,18 @@ describe("account CRUD (integration)", () => {
 
   test("blocks delete while the account is a transfer counterparty", async () => {
     const owner = await prisma.account.create({
-      data: { userId: TEST_USER_ID, name: "Owner" },
+      data: {
+        userId: TEST_USER_ID,
+        name: "Owner",
+        ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+      },
     });
     const counterparty = await prisma.account.create({
-      data: { userId: TEST_USER_ID, name: "Counterparty" },
+      data: {
+        userId: TEST_USER_ID,
+        name: "Counterparty",
+        ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+      },
     });
     await prisma.transaction.create({
       data: {
@@ -76,6 +98,7 @@ describe("account CRUD (integration)", () => {
       data: {
         userId: TEST_USER_ID,
         name: "Halifax mortgage",
+        ...buildAccountData({ type: "MORTGAGE" }),
         canImportTransactions: false,
       },
     });
@@ -94,6 +117,7 @@ describe("account CRUD (integration)", () => {
       data: {
         userId: OTHER_USER_ID,
         name: "Their ISA",
+        ...buildAccountData({ type: "STOCKS_ISA" }),
         canImportTransactions: false,
       },
     });

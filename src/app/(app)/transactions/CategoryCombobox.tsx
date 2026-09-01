@@ -168,7 +168,7 @@ export type NewCategoryInput = {
 export type LedgerAccount = {
   id: string;
   name: string;
-  kind: "ASSET" | "LIABILITY" | "NONE";
+  kind: "ASSET" | "LIABILITY";
   // Present for completeness only — never gated on. A mortgage you don't
   // import statements from must still be a valid transfer/repayment target,
   // so the picker deliberately ignores this field.
@@ -286,9 +286,9 @@ export function CategoryCombobox({
     : transferable;
   // Split on kind, not re-derived: every account in accountMatches lands in
   // exactly one of these two, so nothing is dropped. LIABILITY accounts are
-  // repayments; everything else — ASSET, and the plain kind: NONE accounts
-  // most current/checking accounts default to — is a Transfer, matching the
-  // single group's pre-split behaviour.
+  // repayments; everything else — every ASSET, current/checking accounts
+  // included — is a Transfer, matching the single group's pre-split
+  // behaviour.
   const liabilityMatches = accountMatches.filter((a) => a.kind === "LIABILITY");
   const assetMatches = accountMatches.filter((a) => a.kind !== "LIABILITY");
   const accountExact = transferable.some(

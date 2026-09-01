@@ -3,10 +3,14 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import styled from "styled-components";
+import { AddAccountDrawer } from "@/app/(app)/balance/AddAccountDrawer";
 import { restoreAccount } from "@/app/(app)/balance/accountActions";
 import { Button } from "@/components/ui/Button";
 import {
-  createManagedAccount,
+  type AccountTypeId,
+  accountTypeById,
+} from "@/lib/accounts/accountDraft";
+import {
   deleteAccount,
   renameAccount,
   setAccountImports,
@@ -16,6 +20,7 @@ import { SectionHeading, SettingsCard } from "./SectionHeading";
 export type ManagedAccount = {
   id: string;
   name: string;
+  type: AccountTypeId;
   // Transactions that sit IN this account.
   ownedCount: number;
   // Transactions naming this account as a transfer counterparty.
@@ -146,7 +151,14 @@ export function AccountManager({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [mode, setMode] = useState<Mode>(null);
-  const [newName, setNewName] = useState("");
+  const [addOpen, setAddOpen] = useState(false);
+  // Settings has no month of its own, so a new account's first observation is
+  // recorded against the current month. UTC, not local — the same rule
+  // BalanceSheet.tsx/BudgetSheet.tsx use for "today" (and what
+  // currentMonthRange() computes server-side): a local-time getter would
+  // file a user west of UTC's month-end account under the previous month.
+  const now = new Date();
+  const thisMonth = { year: now.getUTCFullYear(), month: now.getUTCMonth() };
   const [editName, setEditName] = useState("");
 
   const run = (fn: () => Promise<unknown>) =>
@@ -155,12 +167,6 @@ export function AccountManager({
       setMode(null);
       router.refresh();
     });
-
-  const onCreate = () => {
-    if (!newName.trim()) return;
-    run(() => createManagedAccount({ name: newName }));
-    setNewName("");
-  };
 
   const renderRow = (a: ManagedAccount) => {
     const referenced = a.ownedCount + a.counterpartyCount;
@@ -223,6 +229,7 @@ export function AccountManager({
     return (
       <Row key={a.id}>
         <Grow>{a.name}</Grow>
+        <Meta>{accountTypeById(a.type)?.label ?? a.type}</Meta>
         <Meta>{referenced} txns</Meta>
         <RowActions>
           <ImportToggle>
@@ -272,16 +279,30 @@ export function AccountManager({
           An account can’t be deleted while it still has transactions.
         </Lead>
 
+        {/* The same drawer the balance sheet uses. Adding a name alone made
+            an account with no kind and no value, which never appeared on the
+            balance sheet and never reached the plan — an account that exists,
+            looks right where it was made, and silently goes nowhere. One way
+            to create an account, not two that differ invisibly. */}
         <CreateRow>
-          <Input
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            placeholder="New account…"
-          />
-          <Button type="button" onClick={onCreate} disabled={pending}>
-            Add
+          <Button
+            type="button"
+            onClick={() => setAddOpen(true)}
+            disabled={pending}
+          >
+            Add an account
           </Button>
         </CreateRow>
+        <AddAccountDrawer
+          open={addOpen}
+          year={thisMonth.year}
+          month={thisMonth.month}
+          onClose={() => setAddOpen(false)}
+          onCreated={() => {
+            setAddOpen(false);
+            router.refresh();
+          }}
+        />
 
         {accounts.length === 0 ? (
           <Empty>

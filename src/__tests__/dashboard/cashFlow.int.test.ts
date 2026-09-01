@@ -1,5 +1,6 @@
 import type { ReactElement } from "react";
 import DashboardPage from "@/app/(app)/dashboard/page";
+import { buildAccountData } from "@/lib/accounts/creation";
 import type { CashFlowPoint } from "@/lib/dashboard/series";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
@@ -111,6 +112,7 @@ describe("dashboard cash flow counts repayments (integration)", () => {
       data: {
         userId: TEST_USER_ID,
         name: "Current",
+        ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
         canImportTransactions: true,
       },
     });
@@ -118,7 +120,7 @@ describe("dashboard cash flow counts repayments (integration)", () => {
       data: {
         userId: TEST_USER_ID,
         name: "Halifax mortgage",
-        kind: "LIABILITY",
+        ...buildAccountData({ type: "MORTGAGE" }),
       },
     });
 
@@ -197,11 +199,16 @@ describe("dashboard cash flow counts repayments (integration)", () => {
       data: {
         userId: TEST_USER_ID,
         name: "Current",
+        ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
         canImportTransactions: true,
       },
     });
     const pension = await prisma.account.create({
-      data: { userId: TEST_USER_ID, name: "Pension", kind: "ASSET" },
+      data: {
+        userId: TEST_USER_ID,
+        name: "Pension",
+        ...buildAccountData({ type: "SIPP" }),
+      },
     });
     const salary = await prisma.category.create({
       data: {

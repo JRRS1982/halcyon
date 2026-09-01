@@ -1,70 +1,111 @@
-import {
-  setBalanceItemSection,
-  updateBalanceItem,
-} from "@/app/(app)/balance/actions";
-import { ensurePeriodForMonth } from "@/app/(app)/budget/actions";
+import { createAccount } from "@/app/(app)/balance/accountActions";
+import { upsertBalanceValue } from "@/app/(app)/balance/actions";
 import { prisma } from "@/lib/prisma";
 
 // Prisma `Decimal` can't cross the server→client boundary — Next serialises it
 // to `{}` and logs "Only plain objects can be passed to Client Components".
-// The budget actions coerce through toClientItem; these pin the same guarantee
-// for every balance action that hands a mutated row back to the client.
+// The budget actions coerce through toClientItem; this pins the same guarantee
+// for the balance action that hands a mutated row back to the client.
 
-// A fixture row created directly against the DB — standing in for the removed
-// createBalanceItemForMonth (the app now only creates a non-legacy balance
-// row through an Account via createAccountWithBalance). This test is about
-// updateBalanceItem / setBalanceItemSection, not about how the fixture row
-// got there.
-async function seedBalanceItem(input: {
-  year: number;
-  month: number;
-  type: "ASSET" | "LIABILITY";
-  category: "CURRENT" | "MEDIUM_TERM" | "LONG_TERM" | "PROPERTY" | "OTHER";
-  label: string;
-}) {
-  const period = await ensurePeriodForMonth(input.year, input.month);
-  const item = await prisma.balanceItem.create({
-    data: {
-      periodId: period.id,
-      type: input.type,
-      category: input.category,
-      label: input.label,
-    },
+const seedAccount = () =>
+  createAccount({
+    year: 2026,
+    month: 2,
+    name: "Savings",
+    type: "SAVINGS",
+    section: "CURRENT",
+    value: 0,
+    canImportTransactions: false,
+    mortgage: null,
   });
-  return { item: { ...item, value: Number(item.value) } };
-}
 
 describe("balance actions return client-safe rows (integration)", () => {
-  test("update and section-move return value as a plain number", async () => {
-    const { item } = await seedBalanceItem({
+  test("upserting a value returns it as a plain number", async () => {
+    const { accountId } = await seedAccount();
+
+    const updated = await upsertBalanceValue({
+      accountId,
       year: 2026,
       month: 2,
-      type: "ASSET",
-      category: "CURRENT",
-      label: "Savings",
-    });
-    expect(typeof item.value).toBe("number");
-
-    const updated = await updateBalanceItem({
-      itemId: item.id,
       value: 1234.56,
     });
+    expect(typeof updated.value).toBe("number");
     expect(updated.value).toBe(1234.56);
 
-    const moved = await setBalanceItemSection({
-      itemId: item.id,
-      type: "ASSET",
-      category: "LONG_TERM",
+    // The notes-only path returns the same row through the same coercion —
+    // it must be a number there too, not the Decimal Prisma handed back.
+    const noted = await upsertBalanceValue({
+      accountId,
+      year: 2026,
+      month: 2,
+      notes: "Emergency fund",
     });
-    expect(typeof moved.value).toBe("number");
+    expect(typeof noted.value).toBe("number");
+    expect(noted.value).toBe(1234.56);
+  });
 
-    // The no-op path returns the row it looked up rather than an update result
-    // — it must be coerced too.
-    const unchanged = await setBalanceItemSection({
-      itemId: item.id,
-      type: "ASSET",
-      category: "LONG_TERM",
+  test("the first value of a month creates the row, still as a number", async () => {
+    const { accountId } = await seedAccount();
+
+    // A month the account has never been observed in: upsert creates the row
+    // rather than updating one, and that return path needs coercing too.
+    const created = await upsertBalanceValue({
+      accountId,
+      year: 2026,
+      month: 3,
+      value: 99.5,
     });
-    expect(typeof unchanged.value).toBe("number");
+    expect(typeof created.value).toBe("number");
+    expect(created.value).toBe(99.5);
+  });
+});
+
+describe("a note needs a value to describe (integration)", () => {
+  // The row this note would hang on doesn't exist yet, and creating one
+  // would mean inventing a £0 the user never typed — which would also move
+  // the account out of the sheet's "without a value" count. Refused, and
+  // nothing is written.
+  test("a notes-only edit on an unobserved month is refused, and creates no row", async () => {
+    const { accountId } = await seedAccount();
+
+    await expect(
+      upsertBalanceValue({
+        accountId,
+        year: 2026,
+        month: 5,
+        notes: "Chase the statement",
+      }),
+    ).rejects.toThrow(
+      "Enter a value first — a note describes this month's figure",
+    );
+
+    // Only the row the account was created with (March) — June got nothing,
+    // not even the period the refused write would have opened.
+    const rows = await prisma.balanceItem.findMany({
+      where: { accountId },
+      include: { period: { select: { startDate: true } } },
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.period.startDate).toEqual(new Date("2026-03-01"));
+    expect(
+      await prisma.financialPeriod.findFirst({
+        where: { startDate: new Date("2026-06-01") },
+      }),
+    ).toBeNull();
+  });
+
+  test("the same note lands once the month has a value", async () => {
+    const { accountId } = await seedAccount();
+
+    await upsertBalanceValue({ accountId, year: 2026, month: 5, value: 10 });
+    const noted = await upsertBalanceValue({
+      accountId,
+      year: 2026,
+      month: 5,
+      notes: "Chase the statement",
+    });
+
+    expect(noted.notes).toBe("Chase the statement");
+    expect(noted.value).toBe(10);
   });
 });

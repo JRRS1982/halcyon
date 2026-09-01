@@ -22,11 +22,16 @@ import {
 } from "@/components/sheet/Toolbar";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusPip, type StatusPipState } from "@/components/ui/StatusPip";
+import {
+  type AccountTypeId,
+  accountTypesOfKind,
+} from "@/lib/accounts/accountDraft";
 import { isPropertyRow } from "@/lib/accounts/deletion";
 import type { AccountDeletionCounts } from "@/lib/accounts/schemas";
 import {
   type BalanceCategory,
   type BalanceType,
+  BUCKET_ORDER,
   isValidBalanceCategory,
 } from "@/lib/balance/reorder";
 import {
@@ -42,13 +47,17 @@ import {
   type NumberFormat,
 } from "@/lib/settings/currency";
 import { AddAccountDrawer } from "./AddAccountDrawer";
-import { accountDeletionCounts } from "./accountActions";
 import {
+  accountDeletionCounts,
+  renameAccount,
+  setAccountSection,
+  setAccountType,
+} from "./accountActions";
+import {
+  clearBalanceValue,
   copyBalancePeriodFrom,
-  deleteBalanceItem,
   listCopyableBalancePeriods,
-  setBalanceItemSection,
-  updateBalanceItem,
+  upsertBalanceValue,
 } from "./actions";
 import { DeleteAccountPanel } from "./DeleteAccountPanel";
 
@@ -63,26 +72,29 @@ export type SerializedPeriod = {
 
 export type { BalanceCategory, BalanceType };
 
-export type SerializedBalanceItem = {
-  id: string;
-  type: BalanceType;
-  category: BalanceCategory;
-  label: string;
-  value: number;
-  notes: string | null;
+// One row per account the user owns or owes, with this month's observation
+// left-joined on (see page.tsx). The account is the durable thing; `value`,
+// `notes` and `carriedOver` describe the month, and are null/false for an
+// account that has recorded nothing this month.
+export type SerializedAccountRow = {
+  accountId: string;
+  name: string;
+  type: AccountTypeId;
+  // Derived from `type` via kindOf — never the stored Account.kind mirror.
+  kind: BalanceType;
+  section: BalanceCategory;
   sortOrder: number;
+  // Null when this month holds no observation for the account: the cell is
+  // blank, and the row is counted in the "without a value" note.
+  value: number | null;
+  notes: string | null;
   // Cloned by copy-from and not yet confirmed by a value edit — the number is
   // last month's, shown dimmed until the user touches it.
   carriedOver: boolean;
-  // Set once the row has been backfilled onto (or created from) a durable
-  // Account — null/undefined for legacy rows that predate that migration
-  // (or callers that predate this field), which keep the old free-typed
-  // delete instead of opening the delete panel.
-  accountId?: string | null;
 };
 
 type FocusedCell = {
-  itemId: string;
+  accountId: string;
   field: "label" | "value" | "notes";
 } | null;
 
@@ -96,22 +108,12 @@ const CATEGORIES: { key: BalanceCategory; label: string }[] = [
   { key: "OTHER", label: "Other" },
 ];
 
-// Every (type, category) destination for the toolbar's "move to section"
-// dropdown, in display order (Assets first, then Liabilities). The value
-// encodes both dimensions so a single <select> can move a row anywhere.
-const SECTIONS: {
-  value: string;
-  type: BalanceType;
-  category: BalanceCategory;
-  label: string;
-}[] = (["ASSET", "LIABILITY"] as const).flatMap((type) =>
-  CATEGORIES.filter((c) => isValidBalanceCategory(type, c.key)).map((c) => ({
-    value: `${type}:${c.key}`,
-    type,
-    category: c.key,
-    label: `${type === "ASSET" ? "Assets" : "Liabilities"} · ${c.label}`,
-  })),
-);
+// The sections the toolbar's "move to section" dropdown offers for a row.
+// Only the section moves — an account cannot cross between assets and
+// liabilities (setAccountType refuses it), so the row's own kind fixes which
+// destinations exist.
+const sectionOptionsFor = (kind: BalanceType) =>
+  CATEGORIES.filter((c) => isValidBalanceCategory(kind, c.key));
 
 // Guidance shown in the per-subhead info popover. Plain-English, UK-flavoured
 // examples — "what should go in this bucket". Edit freely; this is the only
@@ -263,6 +265,25 @@ const CarriedNote = styled.p`
   color: ${({ theme }) => theme.colors.body};
 `;
 
+// The sheet's one error slot: whatever the server said, verbatim. A refused
+// type change names the linked account or plan event blocking it, and that
+// sentence is the only thing that tells the user what to do next.
+const SheetError = styled.p`
+  margin: 0 0 ${({ theme }) => theme.spacing.sm};
+  font-family: ${({ theme }) => theme.typography.bodyMd.family};
+  font-size: 13px;
+  color: ${({ theme }) => theme.colors.negative};
+`;
+
+// Under the net-worth row: how many accounts are still waiting for this
+// month's number. An empty cell is easy to scroll past; a count is not.
+const MissingNote = styled.p`
+  margin: ${({ theme }) => theme.spacing.sm} 0 0;
+  font-family: ${({ theme }) => theme.typography.bodyMd.family};
+  font-size: 13px;
+  color: ${({ theme }) => theme.colors.dim};
+`;
+
 const CellInput = styled.input<{ $align?: "left" | "right" }>`
   border: none;
   background: transparent;
@@ -278,10 +299,22 @@ const CellInput = styled.input<{ $align?: "left" | "right" }>`
   &::placeholder {
     color: ${({ theme }) => theme.colors.dim};
   }
+
+  /* A cell that is waiting on something else (the notes cell of a row with
+     no value yet). It stays in place and readable rather than greying out —
+     only the cursor says it isn't ready. */
+  &:disabled {
+    cursor: not-allowed;
+    color: ${({ theme }) => theme.colors.dim};
+    -webkit-text-fill-color: ${({ theme }) => theme.colors.dim};
+  }
 `;
 
 // Same pattern as /budget's AmountInput — raw editable string while focused,
-// formatted per the user's number format when not.
+// formatted per the user's number format when not. A null value is an account
+// with nothing recorded this month: the cell renders empty rather than as a
+// zero the user never typed, and emptying it commits null again (which clears
+// the month's row) rather than writing 0.
 function AmountInput({
   value,
   currency,
@@ -289,10 +322,10 @@ function AmountInput({
   onCommit,
   onFocus,
 }: {
-  value: number;
+  value: number | null;
   currency: string;
   numberFormat: NumberFormat;
-  onCommit: (n: number) => void;
+  onCommit: (n: number | null) => void;
   onFocus: () => void;
 }) {
   const [focused, setFocused] = useState(false);
@@ -307,7 +340,7 @@ function AmountInput({
   // to no benefit the user can see.
   const display = focused
     ? draft
-    : value === 0
+    : value === null
       ? ""
       : formatAmount(currency, value, numberFormat);
 
@@ -321,14 +354,14 @@ function AmountInput({
       inputMode="decimal"
       onFocus={() => {
         setFocused(true);
-        setDraft(value === 0 ? "" : String(value));
+        setDraft(value === null ? "" : String(value));
         onFocus();
       }}
       onChange={(e) => {
         const next = e.target.value;
         setDraft(next);
         if (next === "") {
-          onCommit(0);
+          onCommit(null);
           return;
         }
         const n = Number.parseFloat(next);
@@ -336,6 +369,10 @@ function AmountInput({
       }}
       onBlur={() => {
         setFocused(false);
+        if (draft.trim() === "") {
+          if (value !== null) onCommit(null);
+          return;
+        }
         const n = Number.parseFloat(draft);
         const final = Number.isFinite(n) && n >= 0 ? n : 0;
         if (final !== value) onCommit(final);
@@ -685,14 +722,14 @@ const pipState = (
 
 export function BalanceSheet({
   period,
-  initialItems,
+  initialRows,
   year,
   month,
   currency,
   numberFormat,
 }: {
   period: SerializedPeriod;
-  initialItems: SerializedBalanceItem[];
+  initialRows: SerializedAccountRow[];
   year: number;
   month: number;
   currency: string;
@@ -703,19 +740,21 @@ export function BalanceSheet({
   const fmtAmount = (n: number) => formatAmount(currency, n, numberFormat);
 
   const [periodState, setPeriodState] = useState(period);
-  const [items, setItems] = useState(initialItems);
+  const [rows, setRows] = useState(initialRows);
   const [focusedCell, setFocusedCell] = useState<FocusedCell>(null);
   const pendingSavesRef = useRef(0);
   const [pendingCount, setPendingCount] = useState(0);
-  // Holds the id of every item whose edit has been applied locally (editField,
-  // below) but not yet started sending — a window pendingSavesRef does not
-  // cover, since useDebouncedCallback delays 500ms per item before
-  // performUpdate ever runs for it. Per-item because the debounce is: editing
-  // cell A then cell B within the same 500ms window must not let A's timer
-  // firing (and clearing A's own entry) look like "nothing is dirty" while
-  // B's edit is still only sitting in its own, separately-keyed timer. Each
-  // id hands over from this set to pendingSavesRef at performUpdate's first
-  // line for that item, rather than overlapping or gapping.
+  // Holds a key per edit that has been applied locally (editField, below) but
+  // not yet started sending — a window pendingSavesRef does not cover, since
+  // useDebouncedCallback delays 500ms per key before the save ever runs for
+  // it. Per-key because the debounce is: editing cell A then cell B within the
+  // same 500ms window must not let A's timer firing (and clearing A's own
+  // entry) look like "nothing is dirty" while B's edit is still only sitting
+  // in its own, separately-keyed timer. The name and the value are separate
+  // keys per account because they now go to two different actions
+  // (renameAccount, upsertBalanceValue) on two independent timers. Each key
+  // hands over from this set to pendingSavesRef at the save's first line,
+  // rather than overlapping or gapping.
   const dirtyItemsRef = useRef<Set<string>>(new Set());
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -729,7 +768,7 @@ export function BalanceSheet({
   // whose result carries only { periodId, accountId } and not the row(s) it
   // created. Mirrors transactions/Ledger.tsx's identical "adopt on refresh"
   // effect, but — unlike Ledger — a cell edit here can be unconfirmed when a
-  // refresh lands: optimistically applied to `items` (editField) but not yet
+  // refresh lands: optimistically applied to `rows` (editField) but not yet
   // persisted, either still sitting in debouncedUpdate's 500ms timer
   // (dirtyItemsRef) or already sent and awaiting the server (pendingSavesRef).
   // Adoption is skipped while either is non-empty/non-zero: otherwise the server's
@@ -745,8 +784,8 @@ export function BalanceSheet({
       pendingAdoptRef.current = true;
       return;
     }
-    setItems(initialItems);
-  }, [initialItems]);
+    setRows(initialRows);
+  }, [initialRows]);
   useEffect(() => {
     if (dirtyItemsRef.current.size > 0 || pendingSavesRef.current > 0) {
       pendingAdoptRef.current = true;
@@ -923,7 +962,29 @@ export function BalanceSheet({
           targetMonth: month,
         });
         setPeriodState((prev) => ({ ...prev, id: result.periodId }));
-        setItems(result.items);
+        // The copy replaces this month's observations wholesale: every
+        // account it carried takes the copied number, and every account it
+        // didn't is back to having nothing recorded. The account rows
+        // themselves don't move — only the month hanging off them. Notes
+        // describe the source month's figure, not the target's, so a copy
+        // never carries them over — the target starts with none.
+        const copiedByAccountId = new Map(
+          result.items.map((it) => [it.accountId, it]),
+        );
+        setRows((prev) =>
+          prev.map((row) => {
+            const copied = copiedByAccountId.get(row.accountId);
+            if (!copied) {
+              return { ...row, value: null, notes: null, carriedOver: false };
+            }
+            return {
+              ...row,
+              value: copied.value,
+              notes: null,
+              carriedOver: copied.carriedOver,
+            };
+          }),
+        );
         setFocusedCell(null);
         setLastSavedAt(new Date());
         setSaveError(null);
@@ -946,28 +1007,31 @@ export function BalanceSheet({
 
   // ─── Save plumbing ────────────────────────────────────────────────────────
 
-  const performUpdate = useCallback(
-    async (
-      itemId: string,
-      patch: { label?: string; value?: number; notes?: string | null },
-    ) => {
+  // Every save shares this bookkeeping: hand the dirty key over to
+  // pendingSavesRef, run the action, and report the outcome. The message is
+  // whatever the server said — a refused type change names the blocker, and
+  // that sentence is the whole point of the refusal.
+  const runSave = useCallback(
+    async (dirtyKey: string | null, save: () => Promise<void>) => {
       // Removed here, at the same instant pendingSavesRef starts covering
       // this edit — not in `finally` — so the two refs hand over with no gap
       // (a refresh landing right here still sees a save in flight via
       // pendingSavesRef) and no double-counting (a re-edit typed while this
-      // PATCH is still in flight adds itemId back to the set itself, below).
-      // Only this item's id comes out — a different item still mid-debounce
-      // keeps the set non-empty, which is what stops the "adopt on refresh"
-      // effects above from clobbering its still-unsaved value.
-      dirtyItemsRef.current.delete(itemId);
+      // write is still in flight adds the key back to the set itself, below).
+      // Only this key comes out — a different cell still mid-debounce keeps
+      // the set non-empty, which is what stops the "adopt on refresh" effects
+      // above from clobbering its still-unsaved value.
+      if (dirtyKey) dirtyItemsRef.current.delete(dirtyKey);
       pendingSavesRef.current += 1;
       setPendingCount(pendingSavesRef.current);
       try {
-        await updateBalanceItem({ itemId, ...patch });
+        await save();
         setLastSavedAt(new Date());
         setSaveError(null);
+        return true;
       } catch (e) {
         setSaveError(e instanceof Error ? e.message : "Save failed");
+        return false;
       } finally {
         pendingSavesRef.current = Math.max(0, pendingSavesRef.current - 1);
         setPendingCount(pendingSavesRef.current);
@@ -976,44 +1040,107 @@ export function BalanceSheet({
     [],
   );
 
-  const debouncedUpdate = useDebouncedCallback(
-    performUpdate,
+  // The label names the account, so it saves through renameAccount — the
+  // account is the thing being renamed, and the month's row only mirrors it.
+  const performRename = useCallback(
+    (accountId: string, name: string) =>
+      runSave(`${accountId}:name`, () => renameAccount({ accountId, name })),
+    [runSave],
+  );
+
+  // Value and notes share one debounce key, and the debounce keeps only the
+  // latest call's arguments — so a value typed and then a note added inside
+  // the same window would send the note alone and drop the value. Each edit
+  // merges into the account's pending patch here instead; the save reads the
+  // union and clears it, so nothing typed is ever left behind.
+  const pendingValuePatchRef = useRef(
+    new Map<string, { value?: number | null; notes?: string | null }>(),
+  );
+
+  // The value and the notes belong to (account, month), so they save through
+  // upsertBalanceValue — which creates this month's row the first time the
+  // user types in it. Emptying the cell removes the observation rather than
+  // recording a zero.
+  const performValueSave = useCallback(
+    (accountId: string) => {
+      const patch = pendingValuePatchRef.current.get(accountId) ?? {};
+      pendingValuePatchRef.current.delete(accountId);
+      return runSave(`${accountId}:value`, async () => {
+        const { value, notes } = patch;
+        if (value === null) {
+          await clearBalanceValue({ accountId, year, month });
+          return;
+        }
+        await upsertBalanceValue({
+          accountId,
+          year,
+          month,
+          ...(value !== undefined && { value }),
+          ...(notes !== undefined && { notes }),
+        });
+      });
+    },
+    [runSave, year, month],
+  );
+
+  const debouncedRename = useDebouncedCallback(
+    performRename,
     500,
-    (itemId) => itemId,
+    (accountId) => `${accountId}:name`,
+  );
+  const debouncedValueSave = useDebouncedCallback(
+    performValueSave,
+    500,
+    (accountId) => `${accountId}:value`,
   );
 
   const editField = useCallback(
     (
-      itemId: string,
-      patch: { label?: string; value?: number; notes?: string | null },
+      accountId: string,
+      patch: { name?: string; value?: number | null; notes?: string | null },
     ) => {
-      // Added synchronously, in the same tick as the optimistic setItems
+      // Added synchronously, in the same tick as the optimistic setRows
       // below — this is the instant the edit becomes "unsaved", well before
-      // debouncedUpdate's 500ms timer even starts performUpdate.
-      dirtyItemsRef.current.add(itemId);
-      setItems((prev) =>
-        prev.map((it) =>
-          it.id === itemId
+      // the 500ms timer even starts the save.
+      setRows((prev) =>
+        prev.map((row) =>
+          row.accountId === accountId
             ? {
-                ...it,
+                ...row,
                 ...patch,
                 // A value edit confirms a carried-over number as this month's;
-                // mirrors the server's updateBalanceItem.
+                // mirrors the server's upsertBalanceValue. Clearing it leaves
+                // nothing to be provisional about.
                 ...(patch.value !== undefined && { carriedOver: false }),
+                ...(patch.value === null && { notes: null }),
               }
-            : it,
+            : row,
         ),
       );
-      debouncedUpdate(itemId, patch);
+      if (patch.name !== undefined) {
+        dirtyItemsRef.current.add(`${accountId}:name`);
+        debouncedRename(accountId, patch.name);
+      }
+      if (patch.value !== undefined || patch.notes !== undefined) {
+        dirtyItemsRef.current.add(`${accountId}:value`);
+        // Merged, not replaced: the pending patch is the union of every
+        // value/notes edit made since the last save fired. Clearing the value
+        // drops a pending note with it, matching the optimistic row above.
+        const pending = pendingValuePatchRef.current.get(accountId) ?? {};
+        pendingValuePatchRef.current.set(accountId, {
+          ...(patch.value === null ? {} : pending),
+          ...(patch.value !== undefined && { value: patch.value }),
+          ...(patch.notes !== undefined && { notes: patch.notes }),
+        });
+        debouncedValueSave(accountId);
+      }
     },
-    [debouncedUpdate],
+    [debouncedRename, debouncedValueSave],
   );
 
-  // A row backed by a durable Account (Task 4+) opens the two-mode delete
-  // panel instead of an immediate delete — soft-delete-by-default, and the
-  // one hard delete in the app needs the size of what it removes stated up
-  // front. Legacy rows (accountId null/undefined, pre-backfill) keep
-  // today's direct delete so nothing breaks for a user who hasn't migrated.
+  // Every row is an account, so deleting one always opens the two-mode delete
+  // panel rather than removing a line — soft-delete-by-default, and the one
+  // hard delete in the app needs the size of what it removes stated up front.
   const [deletePanel, setDeletePanel] = useState<{
     accountId: string;
     name: string;
@@ -1024,51 +1151,30 @@ export function BalanceSheet({
 
   const onDelete = useCallback(() => {
     if (!focusedCell) return;
-    const target = focusedCell.itemId;
-    const row = items.find((it) => it.id === target);
+    const row = rows.find((r) => r.accountId === focusedCell.accountId);
+    if (!row) return;
 
-    if (row?.accountId) {
-      const { accountId, type, category, label } = row;
-      setDeleteCountsLoading(true);
-      startTransition(async () => {
-        try {
-          const counts = await accountDeletionCounts({ accountId });
-          setDeletePanel({
-            accountId,
-            name: label,
-            isProperty: isPropertyRow(type, category),
-            counts,
-          });
-        } catch (e) {
-          setSaveError(
-            e instanceof Error ? e.message : "Couldn't load delete details",
-          );
-        } finally {
-          setDeleteCountsLoading(false);
-        }
-      });
-      return;
-    }
-
+    setDeleteCountsLoading(true);
     startTransition(async () => {
-      pendingSavesRef.current += 1;
-      setPendingCount(pendingSavesRef.current);
-      const previous = items;
-      setItems((prev) => prev.filter((it) => it.id !== target));
-      setFocusedCell(null);
       try {
-        await deleteBalanceItem({ itemId: target });
-        setLastSavedAt(new Date());
-        setSaveError(null);
+        const counts = await accountDeletionCounts({
+          accountId: row.accountId,
+        });
+        setDeletePanel({
+          accountId: row.accountId,
+          name: row.name,
+          isProperty: isPropertyRow(row.kind, row.section),
+          counts,
+        });
       } catch (e) {
-        setItems(previous);
-        setSaveError(e instanceof Error ? e.message : "Delete failed");
+        setSaveError(
+          e instanceof Error ? e.message : "Couldn't load delete details",
+        );
       } finally {
-        pendingSavesRef.current = Math.max(0, pendingSavesRef.current - 1);
-        setPendingCount(pendingSavesRef.current);
+        setDeleteCountsLoading(false);
       }
     });
-  }, [focusedCell, items]);
+  }, [focusedCell, rows]);
 
   const closeDeletePanel = useCallback(() => setDeletePanel(null), []);
 
@@ -1129,235 +1235,242 @@ export function BalanceSheet({
     };
   }, [deletePanel]);
 
-  const focusedItem = useMemo(
+  const focusedRow = useMemo(
     () =>
       focusedCell
-        ? (items.find((i) => i.id === focusedCell.itemId) ?? null)
+        ? (rows.find((r) => r.accountId === focusedCell.accountId) ?? null)
         : null,
-    [focusedCell, items],
+    [focusedCell, rows],
   );
 
-  // Jump the focused row to another (type, category) section, appending it to
-  // the end of that bucket. Optimistic + immediate save (a discrete pick, not
-  // typing); revert on error like onDelete.
+  // Move the focused account into another section, appending it to the end of
+  // that bucket. The section is a fact about the account, not about the month,
+  // so it saves through setAccountSection. Optimistic + immediate save (a
+  // discrete pick, not typing); revert on error.
   const editSection = useCallback(
-    (itemId: string, type: BalanceType, category: BalanceCategory) => {
-      const target = items.find((it) => it.id === itemId);
-      if (!target) return;
-      if (target.type === type && target.category === category) return;
+    (accountId: string, section: BalanceCategory) => {
+      const target = rows.find((r) => r.accountId === accountId);
+      if (!target || target.section === section) return;
 
-      const previous = items;
-      const maxSort = items.reduce(
-        (max, it) =>
-          it.type === type && it.category === category && it.sortOrder > max
-            ? it.sortOrder
+      const previous = rows;
+      const maxSort = rows.reduce(
+        (max, r) =>
+          r.kind === target.kind && r.section === section && r.sortOrder > max
+            ? r.sortOrder
             : max,
         0,
       );
-      setItems((prev) =>
-        prev.map((it) =>
-          it.id === itemId
-            ? { ...it, type, category, sortOrder: maxSort + 1 }
-            : it,
+      setRows((prev) =>
+        prev.map((r) =>
+          r.accountId === accountId
+            ? { ...r, section, sortOrder: maxSort + 1 }
+            : r,
         ),
       );
       startTransition(async () => {
-        pendingSavesRef.current += 1;
-        setPendingCount(pendingSavesRef.current);
-        try {
-          const updated = await setBalanceItemSection({
-            itemId,
-            type,
-            category,
-          });
-          setItems((prev) =>
-            prev.map((it) =>
-              it.id === updated.id
-                ? {
-                    ...it,
-                    type: updated.type,
-                    category: updated.category,
-                    sortOrder: updated.sortOrder,
-                  }
-                : it,
-            ),
-          );
-          setLastSavedAt(new Date());
-          setSaveError(null);
-        } catch (e) {
-          setItems(previous);
-          setSaveError(e instanceof Error ? e.message : "Move failed");
-        } finally {
-          pendingSavesRef.current = Math.max(0, pendingSavesRef.current - 1);
-          setPendingCount(pendingSavesRef.current);
-        }
+        const saved = await runSave(null, () =>
+          setAccountSection({ accountId, section }),
+        );
+        if (!saved) setRows(previous);
       });
     },
-    [items],
+    [rows, runSave],
+  );
+
+  // Change what kind of account this is. Same kind only, and refused outright
+  // when something else depends on the account staying what it is — the
+  // server's message names that blocker, so it is shown as written rather
+  // than replaced with a generic failure.
+  const editType = useCallback(
+    (accountId: string, type: AccountTypeId) => {
+      const target = rows.find((r) => r.accountId === accountId);
+      if (!target || target.type === type) return;
+
+      const previous = rows;
+      setRows((prev) =>
+        prev.map((r) => (r.accountId === accountId ? { ...r, type } : r)),
+      );
+      startTransition(async () => {
+        const saved = await runSave(null, () =>
+          setAccountType({ accountId, type }),
+        );
+        if (!saved) setRows(previous);
+      });
+    },
+    [rows, runSave],
   );
 
   // ─── Derived totals ───────────────────────────────────────────────────────
 
   const groups = useMemo(() => {
-    // Bucket items by (type, category) for rendering. Each bucket also gets
-    // a precomputed subtotal so the subhead row can show it inline.
-    const result: Record<
-      BalanceType,
-      Record<
-        BalanceCategory,
-        {
-          rows: SerializedBalanceItem[];
-          subtotal: number;
-        }
-      >
-    > = {
-      ASSET: {
-        CURRENT: { rows: [], subtotal: 0 },
-        MEDIUM_TERM: { rows: [], subtotal: 0 },
-        LONG_TERM: { rows: [], subtotal: 0 },
-        PROPERTY: { rows: [], subtotal: 0 },
-        OTHER: { rows: [], subtotal: 0 },
-      },
-      LIABILITY: {
-        CURRENT: { rows: [], subtotal: 0 },
-        MEDIUM_TERM: { rows: [], subtotal: 0 },
-        LONG_TERM: { rows: [], subtotal: 0 },
-        PROPERTY: { rows: [], subtotal: 0 },
-        OTHER: { rows: [], subtotal: 0 },
-      },
-    };
-    for (const it of items) {
-      const bucket = result[it.type][it.category];
-      bucket.rows.push(it);
-      bucket.subtotal += it.value;
+    // Bucket the account rows by (kind, section) for rendering — BUCKET_ORDER
+    // is the one list of buckets the sheet has, so it seeds them all, empty
+    // ones included. Each bucket also gets a precomputed subtotal, over the
+    // months that have a value: an account with nothing recorded contributes
+    // nothing rather than a zero.
+    const result = new Map<
+      string,
+      { rows: SerializedAccountRow[]; subtotal: number }
+    >(
+      BUCKET_ORDER.map((b) => [
+        `${b.type}:${b.category}`,
+        { rows: [], subtotal: 0 },
+      ]),
+    );
+    for (const row of rows) {
+      const bucket = result.get(`${row.kind}:${row.section}`);
+      if (!bucket) continue;
+      bucket.rows.push(row);
+      if (row.value !== null) bucket.subtotal += row.value;
     }
-    for (const t of ["ASSET", "LIABILITY"] as const) {
-      for (const c of CATEGORIES) {
-        result[t][c.key].rows.sort((a, b) => a.sortOrder - b.sortOrder);
-      }
+    for (const bucket of result.values()) {
+      bucket.rows.sort((a, b) => a.sortOrder - b.sortOrder);
     }
     return result;
-  }, [items]);
+  }, [rows]);
 
-  const assetsTotal = useMemo(
-    () => CATEGORIES.reduce((sum, c) => sum + groups.ASSET[c.key].subtotal, 0),
-    [groups],
-  );
-  const liabilitiesTotal = useMemo(
-    () =>
-      CATEGORIES.reduce((sum, c) => sum + groups.LIABILITY[c.key].subtotal, 0),
-    [groups],
-  );
+  const EMPTY_BUCKET = { rows: [] as SerializedAccountRow[], subtotal: 0 };
+  const bucketOf = (kind: BalanceType, section: BalanceCategory) =>
+    groups.get(`${kind}:${section}`) ?? EMPTY_BUCKET;
+
+  const totalOf = (kind: BalanceType) =>
+    BUCKET_ORDER.filter((b) => b.type === kind).reduce(
+      (sum, b) => sum + bucketOf(b.type, b.category).subtotal,
+      0,
+    );
+  const assetsTotal = totalOf("ASSET");
+  const liabilitiesTotal = totalOf("LIABILITY");
   const netWorth = assetsTotal - liabilitiesTotal;
+
+  const withoutValue = rows.filter((r) => r.value === null).length;
 
   // ─── Render helpers ───────────────────────────────────────────────────────
 
-  const renderItemRow = (item: SerializedBalanceItem) => (
+  const renderItemRow = (row: SerializedAccountRow) => (
     <ItemRow
-      key={item.id}
+      key={row.accountId}
       role="row"
-      onMouseDown={() => setFocusedCell({ itemId: item.id, field: "label" })}
+      onMouseDown={() =>
+        setFocusedCell({ accountId: row.accountId, field: "label" })
+      }
     >
       <SheetCell
         role="rowheader"
         focused={
-          focusedCell?.itemId === item.id && focusedCell.field === "label"
+          focusedCell?.accountId === row.accountId &&
+          focusedCell.field === "label"
         }
       >
         <CellInput
-          value={item.label}
+          value={row.name}
           placeholder="Name this item"
-          onChange={(e) => editField(item.id, { label: e.target.value })}
-          onFocus={() => setFocusedCell({ itemId: item.id, field: "label" })}
+          onChange={(e) => editField(row.accountId, { name: e.target.value })}
+          onFocus={() =>
+            setFocusedCell({ accountId: row.accountId, field: "label" })
+          }
         />
       </SheetCell>
       <SheetCell
         align="right"
-        tone={item.value === 0 || item.carriedOver ? "dim" : "default"}
+        tone={row.value === null || row.carriedOver ? "dim" : "default"}
         title={
-          item.carriedOver
+          row.carriedOver
             ? "Carried over from the month you copied — edit to confirm it's still right"
             : undefined
         }
         focused={
-          focusedCell?.itemId === item.id && focusedCell.field === "value"
+          focusedCell?.accountId === row.accountId &&
+          focusedCell.field === "value"
         }
       >
         <AmountInput
           currency={currency}
-          value={item.value}
+          value={row.value}
           numberFormat={numberFormat}
-          onCommit={(v) => editField(item.id, { value: v })}
-          onFocus={() => setFocusedCell({ itemId: item.id, field: "value" })}
+          onCommit={(v) => editField(row.accountId, { value: v })}
+          onFocus={() =>
+            setFocusedCell({ accountId: row.accountId, field: "value" })
+          }
         />
       </SheetCell>
       <SheetCell
-        tone={!item.notes ? "dim" : "default"}
+        tone={!row.notes ? "dim" : "default"}
         focused={
-          focusedCell?.itemId === item.id && focusedCell.field === "notes"
+          focusedCell?.accountId === row.accountId &&
+          focusedCell.field === "notes"
         }
       >
+        {/* A note describes this month's figure, so it waits for one: with
+            nothing recorded there is no row to hang it on, and saving one
+            would have to invent a £0 the user never typed. The server
+            refuses that too — this stops the user reaching it. */}
         <CellInput
-          value={item.notes ?? ""}
-          placeholder="Notes (optional)"
-          onChange={(e) =>
-            editField(item.id, { notes: e.target.value || null })
+          value={row.notes ?? ""}
+          disabled={row.value === null}
+          title={
+            row.value === null
+              ? "Enter a value first — a note describes this month's figure"
+              : undefined
           }
-          onFocus={() => setFocusedCell({ itemId: item.id, field: "notes" })}
+          placeholder={
+            row.value === null ? "Enter a value first" : "Notes (optional)"
+          }
+          onChange={(e) =>
+            editField(row.accountId, { notes: e.target.value || null })
+          }
+          onFocus={() =>
+            setFocusedCell({ accountId: row.accountId, field: "notes" })
+          }
         />
       </SheetCell>
     </ItemRow>
   );
 
-  const renderSection = (type: BalanceType, label: string, total: number) => (
+  const renderSection = (kind: BalanceType, label: string, total: number) => (
     <>
       <SectionRow role="row">
         <SheetCell role="rowheader">{label}</SheetCell>
         <SheetCell align="right">{fmtAmount(total)}</SheetCell>
         <SheetCell />
       </SectionRow>
-      {CATEGORIES.filter((c) => isValidBalanceCategory(type, c.key)).map(
-        (c) => {
-          const bucket = groups[type][c.key];
-          const help = CATEGORY_HELP[type][c.key];
-          return (
-            <div key={`${type}-${c.key}`}>
-              <SubheadRow role="row">
-                <SheetCell role="rowheader">
-                  <SubheadLabel>
-                    {c.label}
-                    <InfoButton
-                      type="button"
-                      data-info-root
-                      aria-label={`What goes in ${help.title}?`}
-                      onClick={(e) => {
-                        const r = e.currentTarget.getBoundingClientRect();
-                        setOpenInfo((cur) =>
-                          cur?.title === help.title
-                            ? null
-                            : {
-                                title: help.title,
-                                body: help.body,
-                                top: r.bottom + 6,
-                                left: Math.min(r.left, window.innerWidth - 296),
-                              },
-                        );
-                      }}
-                    >
-                      i
-                    </InfoButton>
-                  </SubheadLabel>
-                </SheetCell>
-                <SheetCell align="right">
-                  {fmtAmount(bucket.subtotal)}
-                </SheetCell>
-                <SheetCell />
-              </SubheadRow>
-              {bucket.rows.map(renderItemRow)}
-            </div>
-          );
-        },
-      )}
+      {sectionOptionsFor(kind).map((c) => {
+        const bucket = bucketOf(kind, c.key);
+        const help = CATEGORY_HELP[kind][c.key];
+        return (
+          <div key={`${kind}-${c.key}`}>
+            <SubheadRow role="row">
+              <SheetCell role="rowheader">
+                <SubheadLabel>
+                  {c.label}
+                  <InfoButton
+                    type="button"
+                    data-info-root
+                    aria-label={`What goes in ${help.title}?`}
+                    onClick={(e) => {
+                      const r = e.currentTarget.getBoundingClientRect();
+                      setOpenInfo((cur) =>
+                        cur?.title === help.title
+                          ? null
+                          : {
+                              title: help.title,
+                              body: help.body,
+                              top: r.bottom + 6,
+                              left: Math.min(r.left, window.innerWidth - 296),
+                            },
+                      );
+                    }}
+                  >
+                    i
+                  </InfoButton>
+                </SubheadLabel>
+              </SheetCell>
+              <SheetCell align="right">{fmtAmount(bucket.subtotal)}</SheetCell>
+              <SheetCell />
+            </SubheadRow>
+            {bucket.rows.map(renderItemRow)}
+          </div>
+        );
+      })}
     </>
   );
 
@@ -1472,8 +1585,8 @@ export function BalanceSheet({
                 {copySelectedId && (
                   <CopyConfirm>
                     <CopyConfirmText>
-                      {items.length > 0
-                        ? `This replaces the rows in ${periodState.label}. `
+                      {rows.some((r) => r.value !== null)
+                        ? `This replaces the values in ${periodState.label}. `
                         : ""}
                       Every asset & liability line carries over, values included
                       — carried values show dimmed until you update each one.
@@ -1501,18 +1614,36 @@ export function BalanceSheet({
             )}
           </CopyWrapper>
         </ToolbarGroup>
-        {focusedItem && (
+        {focusedRow && (
           <ToolbarGroup $rowScoped $engaged>
+            {/* What the account is, and where it sits: two separate facts, so
+                two controls. The type list is the row's own kind only — an
+                account never crosses between assets and liabilities. */}
+            <ToolbarSelect
+              aria-label="Account type"
+              value={focusedRow.type}
+              onChange={(e) =>
+                editType(focusedRow.accountId, e.target.value as AccountTypeId)
+              }
+            >
+              {accountTypesOfKind(focusedRow.kind).map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.label}
+                </option>
+              ))}
+            </ToolbarSelect>
             <ToolbarSelect
               aria-label="Move to section"
-              value={`${focusedItem.type}:${focusedItem.category}`}
-              onChange={(e) => {
-                const next = SECTIONS.find((s) => s.value === e.target.value);
-                if (next) editSection(focusedItem.id, next.type, next.category);
-              }}
+              value={focusedRow.section}
+              onChange={(e) =>
+                editSection(
+                  focusedRow.accountId,
+                  e.target.value as BalanceCategory,
+                )
+              }
             >
-              {SECTIONS.map((s) => (
-                <option key={s.value} value={s.value}>
+              {sectionOptionsFor(focusedRow.kind).map((s) => (
+                <option key={s.key} value={s.key}>
                   {s.label}
                 </option>
               ))}
@@ -1530,12 +1661,16 @@ export function BalanceSheet({
         </ToolbarGroup>
         <ToolbarSpacer />
       </Toolbar>
-      {items.some((it) => it.carriedOver) && (
+      {rows.some((r) => r.carriedOver) && (
         <CarriedNote>
           Dimmed values were carried over by the copy — update each one to
           confirm it&apos;s still right this month.
         </CarriedNote>
       )}
+      {/* The server's own words: a refused type change names what is blocking
+          it, and that sentence is what tells the user which link or plan event
+          to deal with first. */}
+      {saveError && <SheetError role="alert">{saveError}</SheetError>}
       <Sheet data-sheet-scroller role="table" aria-label="Balance sheet">
         {renderSection("ASSET", "Assets", assetsTotal)}
         {renderSection("LIABILITY", "Liabilities", liabilitiesTotal)}
@@ -1556,6 +1691,13 @@ export function BalanceSheet({
           <SheetCell />
         </GrandRow>
       </Sheet>
+      {withoutValue > 0 && (
+        <MissingNote>
+          {withoutValue === 1
+            ? "1 account without a value"
+            : `${withoutValue} accounts without a value`}
+        </MissingNote>
+      )}
       {openInfo && (
         <InfoPopover
           data-info-root

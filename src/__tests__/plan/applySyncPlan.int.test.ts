@@ -5,6 +5,9 @@
 // ones. These tests hand applySyncPlan a SyncPlan that references another
 // user's row directly, exactly as a differently-wired future caller (Task 6)
 // might, to prove the write fences reject it on their own.
+
+import type { AccountType } from "@prisma/client";
+import { buildAccountData } from "@/lib/accounts/creation";
 import { applySyncPlan } from "@/lib/plan/applySyncPlan";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
@@ -139,7 +142,11 @@ describe("applySyncPlan (integration, direct)", () => {
     // A real account, so the addition below would otherwise succeed and the
     // rejection can only have come from the ownership check.
     const account = await prisma.account.create({
-      data: { userId: TEST_USER_ID, name: "Vanguard ISA", kind: "ASSET" },
+      data: {
+        userId: TEST_USER_ID,
+        name: "Vanguard ISA",
+        ...buildAccountData({ type: "STOCKS_ISA" }),
+      },
     });
     await prisma.plan.update({
       where: { id: plan.id },
@@ -186,12 +193,12 @@ describe("applySyncPlan (integration, direct)", () => {
     await prisma.planAsset.create({
       data: { planId: plan.id, label: "Existing", sortOrder: 4 },
     });
-    const account = (name: string) =>
+    const account = (name: string, type: AccountType) =>
       prisma.account.create({
-        data: { userId: TEST_USER_ID, name, kind: "ASSET" },
+        data: { userId: TEST_USER_ID, name, ...buildAccountData({ type }) },
       });
-    const first = await account("ISA");
-    const second = await account("SIPP");
+    const first = await account("ISA", "STOCKS_ISA");
+    const second = await account("SIPP", "SIPP");
 
     await applySyncPlan(
       prisma,

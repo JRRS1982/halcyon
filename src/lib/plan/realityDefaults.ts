@@ -35,13 +35,10 @@ const INCOME_KIND_BY_SECTION = {
   OTHER: "OTHER",
 } satisfies Record<IncomeSection, PlanIncomeKind>;
 
-// `Account.category` is nullable — unlike `BalanceItem.category`, which is the
-// column seed.ts read — so an account with no stated term bucket falls back to
-// the same priority OTHER carries.
-export function drawdownPriorityFor(
-  category: BalanceItemCategory | null,
-): number {
-  return DRAWDOWN_BY_CATEGORY[category ?? "OTHER"];
+// `Account.section` is required (unlike the free-typed line seed.ts used to
+// read), so there is no term bucket left to fall back from.
+export function drawdownPriorityFor(section: BalanceItemCategory): number {
+  return DRAWDOWN_BY_CATEGORY[section];
 }
 
 // `Category.section` is required, but its type is the whole enum — an

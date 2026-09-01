@@ -1,86 +1,12 @@
-import {
-  buildMortgageAccountData,
-  buildPrimaryAccountData,
-  nextSortOrder,
-} from "@/lib/accounts/creation";
-
-const isaInput = {
-  year: 2026,
-  month: 2,
-  name: "Vanguard ISA",
-  type: "ASSET" as const,
-  category: "LONG_TERM" as const,
-  wrapper: "ISA" as const,
-  value: 42300,
-  canImportTransactions: false,
-  mortgage: null,
-};
-
-describe("buildPrimaryAccountData", () => {
-  test("an asset keeps its wrapper", () => {
-    const data = buildPrimaryAccountData(isaInput);
-    expect(data).toEqual({
-      name: "Vanguard ISA",
-      kind: "ASSET",
-      category: "LONG_TERM",
-      wrapper: "ISA",
-      canImportTransactions: false,
-    });
-  });
-
-  test("a liability's wrapper is dropped, even if one was supplied", () => {
-    const data = buildPrimaryAccountData({
-      ...isaInput,
-      type: "LIABILITY",
-      category: "OTHER",
-      wrapper: "OTHER",
-    });
-    expect(data.wrapper).toBeNull();
-  });
-
-  test("normalises whitespace in the name", () => {
-    const data = buildPrimaryAccountData({
-      ...isaInput,
-      name: "  Vanguard   ISA  ",
-    });
-    expect(data.name).toBe("Vanguard ISA");
-  });
-});
-
-describe("buildMortgageAccountData", () => {
-  const mortgage = {
-    name: "Halifax mortgage",
-    value: 184200,
-    canImportTransactions: false,
-  };
-
-  test("always LONG_TERM LIABILITY with no wrapper, regardless of the property", () => {
-    const data = buildMortgageAccountData(mortgage);
-    expect(data).toEqual({
-      name: "Halifax mortgage",
-      kind: "LIABILITY",
-      category: "LONG_TERM",
-      wrapper: null,
-      canImportTransactions: false,
-    });
-  });
-
-  test("normalises whitespace in the mortgage name", () => {
-    const data = buildMortgageAccountData({
-      ...mortgage,
-      name: "  Halifax   mortgage  ",
-    });
-    expect(data.name).toBe("Halifax mortgage");
-  });
-
-  test("carries canImportTransactions through unchanged", () => {
-    const data = buildMortgageAccountData({
-      ...mortgage,
-      canImportTransactions: true,
-    });
-    expect(data.canImportTransactions).toBe(true);
-  });
-});
+// buildPrimaryAccountData was deleted in feat/balance-accounts (Task 2) —
+// replaced by buildAccountData, which takes an AccountType rather than the
+// old (kind, category, wrapper) triple. Its describe block, and the
+// buildMortgageAccountData tests asserting the old category-shaped output,
+// are gone with it. Current coverage for both builders lives in
+// src/__tests__/accounts/derivation.test.ts; this file's remaining
+// behaviour (nextSortOrder) is untouched by that rename. See Task 3's
+// report for the ruling — this file's fuller rewrite belongs to Task 5/9.
+import { nextSortOrder } from "@/lib/accounts/creation";
 
 describe("nextSortOrder", () => {
   test("first row in an empty bucket sorts at 1", () => {

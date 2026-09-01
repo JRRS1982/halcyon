@@ -4,38 +4,39 @@
 // account and per budget category, scoped to one user. I/O, not pure logic —
 // resolvePlanSync (src/lib/plan/sync.ts) stays free of this.
 //
-// Five queries, not one per row. Each concern is fetched with a single
-// `findMany` over every id at once, ordered exactly as the old per-row
-// `findFirst` was, and the winner per key is picked in memory by latestByKey.
-// A default-seeded user (6 accounts, 41 categories) cost 55 round trips that
-// way — and /plan re-runs all of them on every router.refresh().
+// Every live account is a row, observed or not — an account is a fact about
+// what the user owns from the moment it's created, independent of whether a
+// balance sheet has ever recorded a value for it. "Latest per key" (per
+// account, per (account, flow type), per category) is picked by Postgres
+// itself via `DISTINCT ON`, not fetched-then-reduced in memory: a
+// default-seeded user (6 accounts, 41 categories) cost 55 round trips the old
+// way, fetching every historical row just to keep the newest — and /plan
+// re-runs all of it on every router.refresh().
 
-import type { AccountKind, Prisma, TransferDirection } from "@prisma/client";
+import type { Prisma, TransferDirection } from "@prisma/client";
+import { kindOf, wrapperOf } from "@/lib/accounts/accountDraft";
 import { isExpenseSection } from "@/lib/categories/sections";
-import { latestByKey } from "@/lib/plan/latestByKey";
 import { drawdownPriorityFor, incomeKindFor } from "@/lib/plan/realityDefaults";
 import type { RealityRow } from "@/lib/plan/sync";
 import { prisma } from "@/lib/prisma";
 
-function accountKindToPlanRowKind(kind: AccountKind): "ASSET" | "LIABILITY" {
-  switch (kind) {
-    case "ASSET":
-      return "ASSET";
-    case "LIABILITY":
-      return "LIABILITY";
-    case "NONE":
-      // Excluded by the query below (kind: { not: "NONE" }); reaching this is
-      // a bug in that filter, not a value we should silently coerce.
-      throw new Error("kind: NONE accounts are not plan rows");
-  }
-}
+// The most recent (by period startDate, then createdAt) BalanceItem value per
+// account. Decimal, not number, because $queryRaw deserialises `numeric`
+// columns the same way the ORM does.
+type LatestValueRow = { accountId: string; value: Prisma.Decimal };
 
-// The budget row an account's flow is read from. Only the two columns the
-// arithmetic below needs — the rest of the row is never looked at.
-type FlowRow = {
+// The budget row an account's flow is read from. Keyed on (accountId, type)
+// in SQL, matching flowKey below: an asset holding a stray REPAYMENT
+// alongside its TRANSFER must still read its TRANSFER, exactly as the old
+// per-account query (which filtered on one type) did.
+type LatestFlowRow = {
+  accountId: string;
+  type: string;
   direction: TransferDirection | null;
   budget: Prisma.Decimal;
 };
+
+type LatestBudgetRow = { categoryId: string; budget: Prisma.Decimal };
 
 // What the budget says is flowing into an account, in the unit the plan column
 // for it is stored in.
@@ -55,7 +56,9 @@ type FlowRow = {
 // compare equal and every unbudgeted account would read as changed on every
 // Sync. See RealityRow.flow.
 function budgetedFlow(
-  latest: FlowRow | undefined,
+  latest:
+    | { direction: TransferDirection | null; budget: Prisma.Decimal }
+    | undefined,
   kind: "ASSET" | "LIABILITY",
 ): number {
   if (!latest) return 0;
@@ -76,97 +79,80 @@ function budgetedFlow(
   return Math.round(Number(latest.budget) * 1200) / 100;
 }
 
-// A flow is keyed on the pair, not the account alone: an asset holding a stray
-// REPAYMENT alongside its TRANSFER must still read its TRANSFER, exactly as
-// the old per-account query (which filtered on one type) did.
+// A flow is keyed on the pair, not the account alone: see LatestFlowRow.
 const flowKey = (accountId: string, itemType: string) =>
   `${accountId}:${itemType}`;
 
 async function latestAccountRows(userId: string): Promise<RealityRow[]> {
   const accounts = await prisma.account.findMany({
-    where: { userId, deletedAt: null, kind: { not: "NONE" } },
+    where: { userId, deletedAt: null },
     select: {
       id: true,
       name: true,
-      kind: true,
-      wrapper: true,
-      category: true,
+      type: true,
+      section: true,
     },
   });
   if (accounts.length === 0) return [];
 
   const accountIds = accounts.map((account) => account.id);
 
-  // Both fences the per-row queries carried, kept: `accountId in` can only
-  // hold ids from the userId-filtered query above, and `period: { userId }`
+  // Both fences the per-row queries carried, kept: `accountId = ANY(...)` can
+  // only hold ids from the userId-filtered query above, and `p."userId"`
   // stops a foreign period feeding one of this user's own accounts. Per
   // ADR-002 the server Prisma role bypasses RLS, so these are the only fence.
-  const [balances, flows] = await Promise.all([
-    prisma.balanceItem.findMany({
-      where: {
-        accountId: { in: accountIds },
-        deletedAt: null,
-        period: { userId, deletedAt: null },
-      },
-      // Secondary order on createdAt: two periods can share a startDate (a
-      // MONTH and a YEAR period collide on that value), and nothing stops two
-      // BalanceItem rows for the same account inside one period. Without a
-      // tiebreaker the winner is whatever order Postgres happens to return.
-      orderBy: [{ period: { startDate: "desc" } }, { createdAt: "desc" }],
-      select: { accountId: true, value: true },
-    }),
-    prisma.budgetItem.findMany({
-      where: {
-        accountId: { in: accountIds },
-        deletedAt: null,
-        type: { in: ["TRANSFER", "REPAYMENT"] },
-        // × 12 in budgetedFlow assumes a monthly figure, and a REPAYMENT is
-        // stored monthly too — a YEAR period would misread as both.
-        period: { userId, deletedAt: null, granularity: "MONTH" },
-      },
-      orderBy: [{ period: { startDate: "desc" } }, { createdAt: "desc" }],
-      select: {
-        accountId: true,
-        type: true,
-        direction: true,
-        budget: true,
-      },
-    }),
+  const [latestValues, latestFlows] = await Promise.all([
+    prisma.$queryRaw<LatestValueRow[]>`
+      SELECT DISTINCT ON (b."accountId") b."accountId", b."value"
+      FROM "BalanceItem" b
+      JOIN "FinancialPeriod" p ON p."id" = b."periodId"
+      WHERE b."accountId" = ANY(${accountIds}::uuid[])
+        AND b."deletedAt" IS NULL AND p."deletedAt" IS NULL AND p."userId" = ${userId}::uuid
+      ORDER BY b."accountId", p."startDate" DESC, b."createdAt" DESC
+    `,
+    // × 12 in budgetedFlow assumes a monthly figure, and a REPAYMENT is
+    // stored monthly too — a YEAR period would misread as both.
+    prisma.$queryRaw<LatestFlowRow[]>`
+      SELECT DISTINCT ON (b."accountId", b."type") b."accountId", b."type", b."direction", b."budget"
+      FROM "BudgetItem" b
+      JOIN "FinancialPeriod" p ON p."id" = b."periodId"
+      WHERE b."accountId" = ANY(${accountIds}::uuid[])
+        AND b."type" IN ('TRANSFER', 'REPAYMENT')
+        AND b."deletedAt" IS NULL AND p."deletedAt" IS NULL AND p."userId" = ${userId}::uuid
+        AND p."granularity" = 'MONTH'
+      ORDER BY b."accountId", b."type", p."startDate" DESC, b."createdAt" DESC
+    `,
   ]);
 
-  const latestBalance = latestByKey(balances, (row) => row.accountId);
-  const latestFlow = latestByKey(flows, (row) =>
-    row.accountId === null ? null : flowKey(row.accountId, row.type),
+  const valueByAccount = new Map(
+    latestValues.map((row) => [row.accountId, row.value]),
+  );
+  const flowByKey = new Map(
+    latestFlows.map((row) => [flowKey(row.accountId, row.type), row]),
   );
 
-  const rows: RealityRow[] = [];
-  for (const account of accounts) {
-    const latest = latestBalance.get(account.id);
-    // No observation at all: skipped, not added with zero.
-    if (!latest) continue;
+  return accounts.map((account) => {
+    // Both fields below key off the *derived* kind rather than trusting the
+    // stored mirror column: kindOf comes from the one stored fact (type), and
+    // a new AccountType that maps to ASSET would then break the option table
+    // loudly instead of falling through these ternaries quietly.
+    const kind = kindOf(account.type);
+    const value = valueByAccount.get(account.id);
 
-    // Both fields below key off the *mapped* kind rather than re-testing
-    // account.kind: a new AccountKind that maps to ASSET would then break
-    // the switch loudly instead of falling through these ternaries quietly.
-    const kind = accountKindToPlanRowKind(account.kind);
-
-    rows.push({
+    return {
       linkId: account.id,
       kind,
       label: account.name,
-      value: Number(latest.value),
-      // The wrapper enum is asset-only (no PlanLiability.wrapper exists),
-      // so a liability account's row carries null regardless of what its
-      // Account.wrapper column happens to hold. An ASSET account with no
-      // stated wrapper (not reachable through the Add drawer, which always
-      // sets one, but not DB-enforced) falls back to PlanAsset's own
-      // schema default here rather than surfacing null — otherwise a
-      // repeat Sync would see reality as "null" forever while the row it
-      // wrote last time reads back "OTHER", flagging a false update on
-      // every subsequent Sync.
-      wrapper: kind === "ASSET" ? (account.wrapper ?? "OTHER") : null,
+      // No observation at all reads as zero, not skipped: an account is a
+      // plan row from the moment it exists.
+      value: value === undefined ? 0 : Number(value),
+      // The wrapper enum is asset-only (no PlanLiability.wrapper exists), so a
+      // liability account's row carries null. wrapperOf is derived from the
+      // stored type and never null for an asset type, so there is no
+      // fallback left to apply.
+      wrapper: kind === "ASSET" ? wrapperOf(account.type) : null,
       flow: budgetedFlow(
-        latestFlow.get(
+        flowByKey.get(
           flowKey(account.id, kind === "ASSET" ? "TRANSFER" : "REPAYMENT"),
         ),
         kind,
@@ -174,14 +160,12 @@ async function latestAccountRows(userId: string): Promise<RealityRow[]> {
       defaults: {
         // Drawdown is an asset-only concept; PlanLiability has no such column.
         drawdownPriority:
-          kind === "ASSET" ? drawdownPriorityFor(account.category) : null,
+          kind === "ASSET" ? drawdownPriorityFor(account.section) : null,
         incomeKind: null,
         expenseSection: null,
       },
-    });
-  }
-
-  return rows;
+    };
+  });
 }
 
 async function latestCategoryRows(userId: string): Promise<RealityRow[]> {
@@ -199,34 +183,30 @@ async function latestCategoryRows(userId: string): Promise<RealityRow[]> {
   });
   if (categories.length === 0) return [];
 
-  const budgets = await prisma.budgetItem.findMany({
-    where: {
-      categoryId: { in: categories.map((category) => category.id) },
-      deletedAt: null,
-      // The double-count guarantee, enforced rather than inferred. It
-      // rests on "a row with a categoryId is never a TRANSFER or a
-      // REPAYMENT", which holds by construction across every write path
-      // today — but this query would otherwise take whatever type it
-      // found, and a future write path that broke the invariant would
-      // double-count silently: once on the account's flow, once here as
-      // an income or expense. budgetedFlow already keys off type; this is
-      // the matching half.
-      type: { in: ["INCOME", "EXPENSE"] },
-      // × 12 below assumes a monthly figure — a YEAR period would
-      // otherwise inflate the annualised value twelvefold.
-      period: { userId, deletedAt: null, granularity: "MONTH" },
-    },
-    orderBy: [{ period: { startDate: "desc" } }, { createdAt: "desc" }],
-    select: { categoryId: true, budget: true },
-  });
+  const categoryIds = categories.map((category) => category.id);
 
-  const latestBudget = latestByKey(budgets, (row) => row.categoryId);
+  const latestBudgets = await prisma.$queryRaw<LatestBudgetRow[]>`
+    SELECT DISTINCT ON (b."categoryId") b."categoryId", b."budget"
+    FROM "BudgetItem" b
+    JOIN "FinancialPeriod" p ON p."id" = b."periodId"
+    WHERE b."categoryId" = ANY(${categoryIds}::uuid[])
+      AND b."type" IN ('INCOME', 'EXPENSE')
+      AND b."deletedAt" IS NULL AND p."deletedAt" IS NULL AND p."userId" = ${userId}::uuid
+      AND p."granularity" = 'MONTH'
+    ORDER BY b."categoryId", p."startDate" DESC, b."createdAt" DESC
+  `;
+
+  const latestBudget = new Map(
+    latestBudgets.map((row) => [row.categoryId, row.budget]),
+  );
 
   const rows: RealityRow[] = [];
   for (const category of categories) {
     const latest = latestBudget.get(category.id);
-    // No budget row at all: skipped, not added with zero.
-    if (!latest) continue;
+    // No budget row at all: skipped, not added with zero. Unlike an account,
+    // a category is not a durable registry of ownership — it only becomes a
+    // plan row once the budget has actually said something about it.
+    if (latest === undefined) continue;
 
     // The query's `where` already excludes anything but INCOME/EXPENSE —
     // categories are never transfers or repayments — but ItemType is
@@ -244,7 +224,7 @@ async function latestCategoryRows(userId: string): Promise<RealityRow[]> {
       // and Postgres stores the rounded figure. £833.33 × 12 is
       // 9999.960000000001 in IEEE-754 and 9999.96 in the column — compared
       // unrounded in resolvePlanSync, that row reads as an update forever.
-      value: Math.round(Number(latest.budget) * 1200) / 100,
+      value: Math.round(Number(latest) * 1200) / 100,
       wrapper: null,
       // A category is not an account: there is no PlanIncome/PlanExpense
       // column for money to flow into, so this row never carries one.
@@ -269,7 +249,8 @@ async function latestCategoryRows(userId: string): Promise<RealityRow[]> {
 
 // One RealityRow per live account and per budget category, each carrying its
 // most recent observed value. "Latest" means the most recent non-deleted
-// period that has a row for it — not necessarily the current month.
+// period that has a row for it — not necessarily the current month. An
+// account with no observation at all still gets a row, at value 0.
 export async function latestReality(userId: string): Promise<RealityRow[]> {
   const [accountRows, categoryRows] = await Promise.all([
     latestAccountRows(userId),

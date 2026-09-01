@@ -1,4 +1,6 @@
+import type { AccountType } from "@prisma/client";
 import { createItemForMonth, deleteItem } from "@/app/(app)/budget/actions";
+import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
 
@@ -16,16 +18,19 @@ const OTHER_USER_ID = "00000000-0000-0000-0000-0000000000bb";
 
 const seedOtherUser = () => prisma.user.create({ data: { id: OTHER_USER_ID } });
 
-const createAccount = (
-  userId: string,
-  name: string,
-  kind: "ASSET" | "LIABILITY",
-) => prisma.account.create({ data: { userId, name, kind } });
+const createAccount = (userId: string, name: string, type: AccountType) =>
+  prisma.account.create({
+    data: { userId, name, ...buildAccountData({ type }) },
+  });
 
 describe("createItemForMonth anchor account fence (integration)", () => {
   test("rejects an account belonging to another user", async () => {
     const other = await seedOtherUser();
-    const theirAccount = await createAccount(other.id, "Their ISA", "ASSET");
+    const theirAccount = await createAccount(
+      other.id,
+      "Their ISA",
+      "STOCKS_ISA",
+    );
 
     // Anchored to the ownership failure specifically — the kind-mismatch
     // message must not be able to satisfy it. The account is a live,
@@ -53,7 +58,7 @@ describe("createItemForMonth anchor account fence (integration)", () => {
       data: {
         userId: TEST_USER_ID,
         name: "Closed ISA",
-        kind: "ASSET",
+        ...buildAccountData({ type: "STOCKS_ISA" }),
         deletedAt: new Date(),
       },
     });
@@ -71,7 +76,7 @@ describe("createItemForMonth anchor account fence (integration)", () => {
   });
 
   test("rejects a TRANSFER aimed at a liability", async () => {
-    const debt = await createAccount(TEST_USER_ID, "Mortgage", "LIABILITY");
+    const debt = await createAccount(TEST_USER_ID, "Mortgage", "MORTGAGE");
 
     await expect(
       createItemForMonth({
@@ -86,7 +91,7 @@ describe("createItemForMonth anchor account fence (integration)", () => {
   });
 
   test("rejects a REPAYMENT aimed at an asset", async () => {
-    const isa = await createAccount(TEST_USER_ID, "ISA", "ASSET");
+    const isa = await createAccount(TEST_USER_ID, "ISA", "STOCKS_ISA");
 
     await expect(
       createItemForMonth({
@@ -100,7 +105,7 @@ describe("createItemForMonth anchor account fence (integration)", () => {
   });
 
   test("creates a repayment against an owned liability", async () => {
-    const debt = await createAccount(TEST_USER_ID, "Mortgage", "LIABILITY");
+    const debt = await createAccount(TEST_USER_ID, "Mortgage", "MORTGAGE");
 
     const { item } = await createItemForMonth({
       year: 2026,
@@ -120,7 +125,7 @@ describe("createItemForMonth anchor account fence (integration)", () => {
   });
 
   test("creates a transfer against an owned asset, keeping its direction", async () => {
-    const isa = await createAccount(TEST_USER_ID, "Vanguard ISA", "ASSET");
+    const isa = await createAccount(TEST_USER_ID, "Vanguard ISA", "STOCKS_ISA");
 
     const { item } = await createItemForMonth({
       year: 2026,
@@ -155,7 +160,7 @@ describe("createItemForMonth one-row-per-account fence (integration)", () => {
     });
 
   test("rejects a second live row on the same account in the same month", async () => {
-    const isa = await createAccount(TEST_USER_ID, "Vanguard ISA", "ASSET");
+    const isa = await createAccount(TEST_USER_ID, "Vanguard ISA", "STOCKS_ISA");
     await addTransfer(isa.id, "Monthly ISA contribution");
 
     await expect(addTransfer(isa.id, "Bonus top-up")).rejects.toThrow(
@@ -170,7 +175,7 @@ describe("createItemForMonth one-row-per-account fence (integration)", () => {
   });
 
   test("rejects a repayment doubling up on a debt already budgeted", async () => {
-    const debt = await createAccount(TEST_USER_ID, "Mortgage", "LIABILITY");
+    const debt = await createAccount(TEST_USER_ID, "Mortgage", "MORTGAGE");
     const repay = (label: string) =>
       createItemForMonth({
         year: 2026,
@@ -188,7 +193,7 @@ describe("createItemForMonth one-row-per-account fence (integration)", () => {
   // which is why a unique index on (periodId, accountId) would be wrong — a
   // soft-deleted row keeps its accountId.
   test("lets the account be used again once its row is deleted", async () => {
-    const isa = await createAccount(TEST_USER_ID, "Vanguard ISA", "ASSET");
+    const isa = await createAccount(TEST_USER_ID, "Vanguard ISA", "STOCKS_ISA");
     const { item } = await addTransfer(isa.id, "Monthly ISA contribution");
     await deleteItem({ itemId: item.id });
 
@@ -197,7 +202,7 @@ describe("createItemForMonth one-row-per-account fence (integration)", () => {
   });
 
   test("fences per period, not globally — next month starts clean", async () => {
-    const isa = await createAccount(TEST_USER_ID, "Vanguard ISA", "ASSET");
+    const isa = await createAccount(TEST_USER_ID, "Vanguard ISA", "STOCKS_ISA");
     await addTransfer(isa.id, "March contribution", 2);
 
     const { item } = await addTransfer(isa.id, "April contribution", 3);

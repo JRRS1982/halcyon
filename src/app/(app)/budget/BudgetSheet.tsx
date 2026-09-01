@@ -1569,12 +1569,21 @@ export function BudgetSheet({
     const target = accountName
       ? anchorTargetLabel(item.type, item.direction, accountName)
       : null;
+    // An anchored row's name is the account's — editing it here would only
+    // recreate the rename divergence the account restructure closes. Plain
+    // budget rows (accountId === null) keep the editable field.
+    const anchored = item.accountId !== null;
     const labelInput = (
       <CellInput
         ref={registerCell(`${item.id}:label`)}
         value={item.label}
         placeholder="Name this row"
-        onChange={(e) => editField(item.id, { label: e.target.value })}
+        readOnly={anchored}
+        onChange={
+          anchored
+            ? undefined
+            : (e) => editField(item.id, { label: e.target.value })
+        }
         onKeyDown={onCellKeyDown(item.id, "label")}
         onFocus={() => setFocusedCell({ itemId: item.id, field: "label" })}
       />

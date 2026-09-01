@@ -1,7 +1,7 @@
+import type { AccountType, PlanAssetWrapper } from "@prisma/client";
 import type { BalanceCategory, BalanceType } from "@/lib/balance/reorder";
-import type { CreateAccountWithBalanceInput } from "./schemas";
 
-type Wrapper = CreateAccountWithBalanceInput["wrapper"];
+type Wrapper = PlanAssetWrapper;
 
 /**
  * What the drawer's single "What are you adding?" picker offers.
@@ -23,21 +23,7 @@ type Wrapper = CreateAccountWithBalanceInput["wrapper"];
  * versus "credit card". They exist to route the user, and to supply a name
  * placeholder — not as data.
  */
-export type AccountTypeId =
-  | "CURRENT_ACCOUNT"
-  | "SAVINGS"
-  | "CASH_ISA"
-  | "STOCKS_ISA"
-  | "SIPP"
-  | "FINAL_SALARY"
-  | "GIA"
-  | "PROPERTY"
-  | "OTHER_ASSET"
-  | "MORTGAGE"
-  | "CREDIT_CARD"
-  | "LOAN"
-  | "OVERDRAFT"
-  | "OTHER_DEBT";
+export type AccountTypeId = AccountType;
 
 export type AccountTypeOption = {
   id: AccountTypeId;
@@ -181,7 +167,7 @@ export function accountTypeById(
 }
 
 // The AddAccountDrawer's in-progress form state, before it's parsed into
-// createAccountWithBalanceSchema's shape. Amounts stay as raw input strings
+// createAccountSchema's shape. Amounts stay as raw input strings
 // here — that's what the fields hold while the user is typing.
 export type AccountDraft = {
   type: BalanceType | null;
@@ -208,7 +194,7 @@ export function defaultCanImportTransactions(
   return type === "ASSET" && wrapper !== "PROPERTY";
 }
 
-// Whether the draft has everything createAccountWithBalance needs. Section
+// Whether the draft has everything createAccount needs. Section
 // has no default (per the user's decision — see AddAccountDrawer), so its
 // absence alone blocks submission; a mortgage, once switched on, is held to
 // the same name+value bar as the primary account.
@@ -220,4 +206,28 @@ export function canSubmitAccountDraft(draft: AccountDraft): boolean {
   return (
     Boolean(draft.mortgageName.trim()) && isNumericInput(draft.mortgageValue)
   );
+}
+
+const BY_ID = new Map(ACCOUNT_TYPES.map((t) => [t.id, t]));
+
+function optionOf(type: AccountType): AccountTypeOption {
+  const option = BY_ID.get(type);
+  if (!option) throw new Error(`Unknown account type: ${type}`);
+  return option;
+}
+
+export function kindOf(type: AccountType): BalanceType {
+  return optionOf(type).kind;
+}
+
+export function wrapperOf(type: AccountType): PlanAssetWrapper | null {
+  return optionOf(type).wrapper;
+}
+
+export function defaultSectionOf(type: AccountType): BalanceCategory {
+  return optionOf(type).defaultSection;
+}
+
+export function accountTypesOfKind(kind: BalanceType) {
+  return ACCOUNT_TYPES.filter((t) => t.kind === kind);
 }

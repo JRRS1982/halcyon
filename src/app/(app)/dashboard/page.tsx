@@ -4,6 +4,7 @@ import { computeRollups } from "@/lib/budget/totals";
 import { isExpenseSection } from "@/lib/categories/sections";
 import { monthChecklist } from "@/lib/dashboard/checklist";
 import {
+  accountBalanceSums,
   type BalanceSums,
   balanceSeries,
   cashFlowSeries,
@@ -61,7 +62,14 @@ export default async function DashboardPage() {
     },
     orderBy: { startDate: "asc" },
     include: {
-      balanceItems: { where: { deletedAt: null } },
+      // The account's current type/section, not the item's own mirror
+      // columns — those are written at creation and never kept in step with
+      // a later setAccountType/setAccountSection, so the sums below must
+      // read the account rather than the row.
+      balanceItems: {
+        where: { deletedAt: null },
+        include: { account: { select: { type: true, section: true } } },
+      },
       items: { where: { deletedAt: null } },
     },
   });
@@ -149,34 +157,12 @@ export default async function DashboardPage() {
   const balanceSums: BalanceSums[] = [];
   for (const p of periods) {
     if (p.balanceItems.length === 0) continue;
-    const sums = {
-      assetCurrent: 0,
-      assetMediumTerm: 0,
-      assetLongTerm: 0,
-      assetProperty: 0,
-      assetOther: 0,
-      liabilityCurrent: 0,
-      liabilityMediumTerm: 0,
-      liabilityLongTerm: 0,
-      liabilityOther: 0,
-    };
-    for (const b of p.balanceItems) {
-      const v = Number(b.value);
-      if (b.type === "ASSET") {
-        if (b.category === "CURRENT") sums.assetCurrent += v;
-        else if (b.category === "MEDIUM_TERM") sums.assetMediumTerm += v;
-        else if (b.category === "LONG_TERM") sums.assetLongTerm += v;
-        else if (b.category === "PROPERTY") sums.assetProperty += v;
-        else sums.assetOther += v;
-      } else {
-        if (b.category === "CURRENT") sums.liabilityCurrent += v;
-        else if (b.category === "MEDIUM_TERM") sums.liabilityMediumTerm += v;
-        else if (b.category === "LONG_TERM") sums.liabilityLongTerm += v;
-        // PROPERTY is asset-only in the UI; if a stray LIABILITY:PROPERTY
-        // ever exists in data, fold it into Other rather than dropping it.
-        else sums.liabilityOther += v;
-      }
-    }
+    const sums = accountBalanceSums(
+      p.balanceItems.map((b) => ({
+        value: Number(b.value),
+        account: b.account,
+      })),
+    );
     balanceSums.push({ month: monthLabel(p.startDate), ...sums });
   }
   const balanceData = balanceSeries(balanceSums);
@@ -275,6 +261,9 @@ export default async function DashboardPage() {
   const checklist = monthChecklist({
     transactionsEnabled,
     hasBudgetItems: (currentPeriod?.items.length ?? 0) > 0,
+    // Any live value this month — the query above already scopes
+    // balanceItems to deletedAt: null, so a row surviving here is a real
+    // observation, not a stale or archived-account leftover.
     hasBalanceItems: (currentPeriod?.balanceItems.length ?? 0) > 0,
     uncategorizedCount: transactionsEnabled
       ? await countUncategorized(user.id)
