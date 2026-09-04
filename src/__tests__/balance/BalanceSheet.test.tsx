@@ -329,6 +329,60 @@ describe("BalanceSheet — the row's card owns type and section now", () => {
   });
 });
 
+describe("BalanceSheet — a background save error is not swallowed by the card", () => {
+  beforeEach(() => {
+    upsertBalanceValue.mockReset();
+    upsertBalanceValue.mockRejectedValue(
+      new Error("Could not save this value"),
+    );
+    renameAccount.mockReset();
+    renameAccount.mockResolvedValue(undefined);
+  });
+
+  // The regression this pins: a row's value/notes save can fail in the
+  // background while the card happens to be open for a different reason.
+  // AccountCard shows its own errors inline and never reports them to the
+  // sheet (that used to be the whole problem — see below), so a *successful*
+  // write inside the card must not touch the sheet's own `saveError` at all.
+  // Before the fix, opening the card suppressed this banner outright (to
+  // avoid literally duplicating AccountCard's own error text, which the
+  // card no longer reports upward), and onSaved's unconditional
+  // setSaveError(null) then erased the message the instant any card field
+  // saved successfully — so the specific server sentence was never seen,
+  // only a generic "Failed — retry" pip flash that a later "Saved" could
+  // overwrite before anyone noticed.
+  test("a value save that fails stays visible after a successful edit inside the open card", async () => {
+    renderSheet([baseRow]);
+
+    const amountInput = screen.getByPlaceholderText("0") as HTMLInputElement;
+    fireEvent.focus(amountInput);
+    fireEvent.change(amountInput, { target: { value: "200" } });
+    fireEvent.blur(amountInput);
+
+    // Real timers: outlasts the 500ms debounce for the failed background save.
+    expect(
+      await screen.findByText(
+        "Could not save this value",
+        {},
+        { timeout: 2_000 },
+      ),
+    ).toBeInTheDocument();
+
+    // Open the card (unrelated to the failed save above) and successfully
+    // commit a field inside it.
+    fireEvent.click(screen.getByRole("button", { name: baseRow.name }));
+    const nameField = screen.getByLabelText("Name");
+    fireEvent.change(nameField, { target: { value: "Renamed account" } });
+    fireEvent.blur(nameField);
+
+    await waitFor(() => expect(renameAccount).toHaveBeenCalled());
+
+    // The background error is still exactly where it was — a successful
+    // card write carries no information about it either way.
+    expect(screen.getByText("Could not save this value")).toBeInTheDocument();
+  });
+});
+
 describe("BalanceSheet — deleting a row", () => {
   beforeEach(() => {
     accountDeletionCounts.mockClear();

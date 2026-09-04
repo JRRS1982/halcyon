@@ -30,14 +30,7 @@ const mortgage = {
 
 describe("AccountCard", () => {
   it("shows the name, type, section and the type's terms", () => {
-    renderCard(
-      <AccountCard
-        open
-        account={mortgage}
-        onClose={() => {}}
-        onError={() => {}}
-      />,
-    );
+    renderCard(<AccountCard open account={mortgage} onClose={() => {}} />);
 
     expect(screen.getByDisplayValue("Barclays mortgage")).toBeInTheDocument();
     expect(screen.getByLabelText("Type")).toBeInTheDocument();
@@ -47,14 +40,7 @@ describe("AccountCard", () => {
 
   it("commits a rename on blur", async () => {
     const { renameAccount } = require("@/app/(app)/balance/accountActions");
-    renderCard(
-      <AccountCard
-        open
-        account={mortgage}
-        onClose={() => {}}
-        onError={() => {}}
-      />,
-    );
+    renderCard(<AccountCard open account={mortgage} onClose={() => {}} />);
 
     const name = screen.getByDisplayValue("Barclays mortgage");
     fireEvent.change(name, { target: { value: "Halifax mortgage" } });
@@ -69,14 +55,7 @@ describe("AccountCard", () => {
   });
 
   it("offers only the types of the row's own kind", () => {
-    renderCard(
-      <AccountCard
-        open
-        account={mortgage}
-        onClose={() => {}}
-        onError={() => {}}
-      />,
-    );
+    renderCard(<AccountCard open account={mortgage} onClose={() => {}} />);
 
     const select = screen.getByLabelText("Type");
     expect(select).toHaveDisplayValue("Mortgage");
@@ -92,14 +71,7 @@ describe("AccountCard", () => {
     actions.setAccountType.mockRejectedValueOnce(
       new Error("Change the mortgage on Home first"),
     );
-    renderCard(
-      <AccountCard
-        open
-        account={mortgage}
-        onClose={() => {}}
-        onError={() => {}}
-      />,
-    );
+    renderCard(<AccountCard open account={mortgage} onClose={() => {}} />);
 
     fireEvent.change(screen.getByLabelText("Type"), {
       target: { value: "LOAN" },

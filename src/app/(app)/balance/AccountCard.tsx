@@ -66,13 +66,11 @@ export function AccountCard({
   open,
   account,
   onClose,
-  onError,
   onSaved,
 }: {
   open: boolean;
   account: CardAccount;
   onClose: () => void;
-  onError: (message: string) => void;
   onSaved?: () => void;
 }) {
   const [error, setError] = useState<string | null>(null);
@@ -83,9 +81,12 @@ export function AccountCard({
       await write();
       onSaved?.();
     } catch (e) {
-      const message = e instanceof Error ? e.message : "Could not save";
-      setError(message);
-      onError(message);
+      // Shown right here, inline, beside the control that caused it — never
+      // pushed up to the sheet. Doing so used to duplicate the same sentence
+      // in BalanceSheet's own error banner, and the sheet's blanket clear on
+      // every successful card write could silently swallow an unrelated
+      // background save failure that had nothing to do with this write.
+      setError(e instanceof Error ? e.message : "Could not save");
       throw e;
     }
   };

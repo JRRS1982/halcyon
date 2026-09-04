@@ -1570,12 +1570,12 @@ export function BalanceSheet({
       )}
       {/* The server's own words: a refused type change names what is blocking
           it, and that sentence is what tells the user which link or plan event
-          to deal with first. Suppressed while the card is open — AccountCard
-          shows the same sentence inline, right by the control that caused it,
-          so this banner would otherwise repeat it a second time on screen. */}
-      {saveError && cardAccountId === null && (
-        <SheetError role="alert">{saveError}</SheetError>
-      )}
+          to deal with first. Shown regardless of whether the card is open —
+          a background value/notes save can fail while the user is inside the
+          card, and that failure has nowhere else to surface. AccountCard's
+          own errors never reach `saveError` (it renders its own inline), so
+          there is no duplicate to suppress here any more. */}
+      {saveError && <SheetError role="alert">{saveError}</SheetError>}
       <Sheet data-sheet-scroller role="table" aria-label="Balance sheet">
         {renderSection("ASSET", "Assets", assetsTotal)}
         {renderSection("LIABILITY", "Liabilities", liabilitiesTotal)}
@@ -1631,10 +1631,12 @@ export function BalanceSheet({
             terms: cardAccount.terms,
           }}
           onClose={() => setCardAccountId(null)}
-          onError={setSaveError}
           onSaved={() => {
+            // Not setSaveError(null): a card write succeeding says nothing
+            // about a row's value/notes save that may have already failed in
+            // the background, and that message must stay visible until the
+            // user (or a later successful save of that same row) clears it.
             setLastSavedAt(new Date());
-            setSaveError(null);
             router.refresh();
           }}
         />
