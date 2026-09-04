@@ -42,6 +42,8 @@ const validLiability = {
   endAge: 60,
   linkedAssetId: null,
   interestOnly: false,
+  revisionAge: null,
+  revisionRate: null,
 };
 
 describe("updatePlanAssumptionsSchema", () => {
@@ -168,6 +170,8 @@ describe("updatePlanLiabilitySchema startAge", () => {
     endAge: 65,
     linkedAssetId: null,
     interestOnly: false,
+    revisionAge: null,
+    revisionRate: null,
   };
 
   it("accepts a null startAge", () => {

@@ -112,6 +112,8 @@ export function PropertyFields({
         endAge: next.endAge,
         linkedAssetId: next.linkedAssetId,
         interestOnly: next.interestOnly,
+        revisionAge: next.revisionAge,
+        revisionRate: next.revisionRate,
       }),
     );
 

@@ -87,6 +87,8 @@ export function toPlanInput(
       endAge: l.endAge ?? undefined,
       linkedAssetId: l.linkedAssetId ?? undefined,
       interestOnly: l.interestOnly,
+      revisionAge: l.revisionAge ?? undefined,
+      revisionRate: optNum(l.revisionRate),
     })),
     incomes: plan.incomes.map((i) => ({
       id: i.id,

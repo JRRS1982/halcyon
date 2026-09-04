@@ -57,6 +57,8 @@ export function serializedToPlanInput(
       endAge: x.endAge ?? undefined,
       linkedAssetId: x.linkedAssetId ?? undefined,
       interestOnly: x.interestOnly,
+      revisionAge: x.revisionAge ?? undefined,
+      revisionRate: x.revisionRate ?? undefined,
     })),
     incomes: plan.incomes.map((x) => ({
       id: x.id,

@@ -41,6 +41,8 @@ const plan: SerializedPlan = {
       endAge: 60,
       linkedAssetId: "a1",
       interestOnly: true,
+      revisionAge: null,
+      revisionRate: null,
     },
   ],
   incomes: [
@@ -117,5 +119,21 @@ describe("serializedToPlanInput", () => {
       2026,
     );
     expect(input.statePension).toBeUndefined();
+  });
+
+  // This is the file that has twice dropped a field silently. The test
+  // exists to make that impossible for these two.
+  it("carries revisionAge and revisionRate through to the engine input", () => {
+    const liability = plan.liabilities[0];
+    if (!liability) throw new Error("expected a fixture liability");
+    const input = serializedToPlanInput(
+      {
+        ...plan,
+        liabilities: [{ ...liability, revisionAge: 45, revisionRate: 7 }],
+      },
+      2026,
+    );
+    expect(input.liabilities[0]?.revisionAge).toBe(45);
+    expect(input.liabilities[0]?.revisionRate).toBe(7);
   });
 });

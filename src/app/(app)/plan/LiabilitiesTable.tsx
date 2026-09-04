@@ -87,6 +87,8 @@ export function LiabilityFields({
         endAge: next.endAge,
         linkedAssetId: next.linkedAssetId,
         interestOnly: next.interestOnly,
+        revisionAge: next.revisionAge,
+        revisionRate: next.revisionRate,
       });
       router.refresh();
     } catch (e) {
@@ -190,6 +192,21 @@ export function LiabilityFields({
             </LinkedButton>
           </>
         )}
+        <Field label="Fixed until age (blank = never changes)">
+          <NumberCell
+            value={liability.revisionAge}
+            nullable
+            onCommit={(v) => save({ ...liability, revisionAge: v })}
+          />
+        </Field>
+        <Field label="Rate after that %">
+          <NumberCell
+            value={liability.revisionRate}
+            nullable
+            step="0.1"
+            onCommit={(v) => save({ ...liability, revisionRate: v })}
+          />
+        </Field>
         <Field label="Starts at age (blank = now)">
           <NumberCell
             value={liability.startAge}

@@ -62,6 +62,11 @@ export interface LiabilityInput {
   endAge?: number;
   linkedAssetId?: string;
   interestOnly?: boolean;
+  // A fixed-rate period: interestPct applies until revisionAge, revisionRate
+  // from then on. Both or neither — a half-answered pair falls back to
+  // interestPct rather than reverting to 0%.
+  revisionAge?: number;
+  revisionRate?: number;
 }
 
 export interface IncomeInput {

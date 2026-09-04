@@ -168,6 +168,39 @@ describe("toPlanInput", () => {
     expect(input.liabilities[0]?.startAge).toBe(45);
   });
 
+  // This is the file that has twice dropped a field silently. The test
+  // exists to make that impossible for these two.
+  it("carries revisionAge and revisionRate through to the engine input", () => {
+    const input = toPlanInput(
+      basePlan({
+        liabilities: [
+          {
+            id: "liab-1",
+            planId: "p1",
+            label: "Mortgage",
+            openingBalance: d(100000),
+            interestPct: d(4),
+            interestOnly: false,
+            monthlyRepayment: d(500),
+            startAge: null,
+            endAge: null,
+            linkedAssetId: null,
+            revisionRate: d(7),
+            revisionAge: 45,
+            accountId: null,
+            sortOrder: 0,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            deletedAt: null,
+          },
+        ],
+      }),
+      2026,
+    );
+    expect(input.liabilities[0]?.revisionAge).toBe(45);
+    expect(input.liabilities[0]?.revisionRate).toBe(7);
+  });
+
   it("maps an expense with liabilityId", () => {
     const input = toPlanInput(
       basePlan({

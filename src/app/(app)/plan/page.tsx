@@ -84,6 +84,8 @@ export default async function PlanPage() {
       endAge: l.endAge,
       linkedAssetId: l.linkedAssetId,
       interestOnly: l.interestOnly,
+      revisionAge: l.revisionAge,
+      revisionRate: l.revisionRate === null ? null : Number(l.revisionRate),
     })),
     incomes: plan.incomes.map((i) => ({
       id: i.id,

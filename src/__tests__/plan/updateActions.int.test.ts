@@ -102,6 +102,8 @@ describe("plan update actions (integration)", () => {
       endAge: 60,
       linkedAssetId: null,
       interestOnly: false,
+      revisionAge: null,
+      revisionRate: null,
     });
     const after = await prisma.planLiability.findUniqueOrThrow({
       where: { id: liabilityId },
