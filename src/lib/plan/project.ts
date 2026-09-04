@@ -83,6 +83,8 @@ const projectYears = (
       age,
       yearsElapsed,
       input.inflationPct,
+      input.assets,
+      input.retirementAge,
     );
     // One tax context for the whole year: the income below and any withdrawal
     // further down are two halves of a single calculation, so the personal
@@ -160,7 +162,7 @@ const projectYears = (
       .map((a) => {
         const endAge = a.contributionEndAge ?? input.retirementAge;
         const amount =
-          a.monthlyContribution && age < endAge
+          a.annualIncome === undefined && a.monthlyContribution && age < endAge
             ? amountThisYear(
                 annualFromMonthly(a.monthlyContribution),
                 input.inflationPct,
@@ -211,6 +213,12 @@ const projectYears = (
     const yearTax = incTax + withdrawalTax;
 
     for (const a of runAssets) {
+      // See AssetInput.annualIncome: an entitled row is an income, not a pot,
+      // so its balance never grows and never appears in net worth.
+      if (a.annualIncome !== undefined) {
+        assetBal[a.id] = 0;
+        continue;
+      }
       const saleAge = saleAgeByAsset.get(a.id);
       if (saleAge !== undefined && age >= saleAge) {
         assetBal[a.id] = 0;

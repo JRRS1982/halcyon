@@ -46,6 +46,8 @@ export function serializedToPlanInput(
       contributionEndAge: x.contributionEndAge ?? undefined,
       minAccessAge: x.minAccessAge ?? undefined,
       drawdownPriority: x.drawdownPriority,
+      annualIncome: x.annualIncome ?? undefined,
+      incomeFromAge: x.incomeFromAge ?? undefined,
     })),
     liabilities: plan.liabilities.map((x) => ({
       id: x.id,

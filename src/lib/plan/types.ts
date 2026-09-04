@@ -50,6 +50,13 @@ export interface AssetInput {
   contributionEndAge?: number; // default = PlanInput.retirementAge
   minAccessAge?: number; // earliest drawdown age; PENSION defaults to 57 when undefined
   drawdownPriority: number; // ascending = drawn first (CASH buffer first)
+  // A final-salary entitlement. When set, this row is an income from
+  // incomeFromAge (defaulting to PlanInput.retirementAge) and its balance is
+  // excluded from the projection entirely — people track a transfer value on
+  // their balance sheet, and projecting the pot as well as paying the income
+  // would count the same pension twice.
+  annualIncome?: number;
+  incomeFromAge?: number;
 }
 
 export interface LiabilityInput {

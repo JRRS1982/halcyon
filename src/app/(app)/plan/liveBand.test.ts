@@ -32,6 +32,8 @@ const plan: SerializedPlan = {
       contributionEndAge: null,
       minAccessAge: 57,
       drawdownPriority: 2,
+      annualIncome: null,
+      incomeFromAge: null,
     },
   ],
   liabilities: [],

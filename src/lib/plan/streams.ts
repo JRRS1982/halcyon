@@ -1,6 +1,12 @@
 // src/lib/plan/streams.ts
 import { amountThisYear, isActive } from "./helpers";
-import type { ExpenseInput, Growth, IncomeInput, IncomeKind } from "./types";
+import type {
+  AssetInput,
+  ExpenseInput,
+  Growth,
+  IncomeInput,
+  IncomeKind,
+} from "./types";
 
 const growthPctOf = (growth: Growth, inflationPct: number): number => {
   if (growth.kind === "INFLATION") return inflationPct;
@@ -20,6 +26,12 @@ export const activeIncome = (
   age: number,
   yearsElapsed: number,
   inflationPct: number,
+  // Assets carrying a final-salary entitlement (AssetInput.annualIncome) —
+  // defaults to none so every existing call site is unaffected.
+  entitledAssets: AssetInput[] = [],
+  // Fallback conversion age when an entitled asset omits incomeFromAge.
+  // Unused unless entitledAssets is non-empty.
+  retirementAge = 0,
 ): IncomeResult => {
   const result: IncomeResult = { gross: 0, byKind: {}, taxableTotal: 0 };
 
@@ -48,6 +60,18 @@ export const activeIncome = (
       amountThisYear(statePension.annualAmount, inflationPct, yearsElapsed),
       true,
     );
+  }
+
+  // A final-salary entitlement converts at incomeFromAge (see
+  // AssetInput.annualIncome) and pays, unindexed, to the end of the plan —
+  // there is no end age to check, unlike a plain IncomeInput. Tagged
+  // DB_PENSION so tax and chart code treat it exactly as an explicit DB
+  // pension income stream.
+  for (const asset of entitledAssets) {
+    if (asset.annualIncome === undefined) continue;
+    const fromAge = asset.incomeFromAge ?? retirementAge;
+    if (age < fromAge) continue;
+    add("DB_PENSION", asset.annualIncome, true);
   }
 
   return result;

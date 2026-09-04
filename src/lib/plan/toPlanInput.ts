@@ -76,6 +76,8 @@ export function toPlanInput(
       contributionEndAge: a.contributionEndAge ?? undefined,
       minAccessAge: a.minAccessAge ?? undefined,
       drawdownPriority: a.drawdownPriority,
+      annualIncome: optNum(a.annualIncome),
+      incomeFromAge: a.incomeFromAge ?? undefined,
     })),
     liabilities: plan.liabilities.map((l) => ({
       id: l.id,

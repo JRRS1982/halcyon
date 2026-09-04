@@ -131,6 +131,74 @@ describe("toPlanInput", () => {
     expect(input.assets[0]?.expectedReturnPct).toBeUndefined();
   });
 
+  // A field silently dropped on this boundary would leave the server-rendered
+  // chart ignorant of a DB pension conversion while the live in-browser
+  // projection honoured it — see serializedInput.test.ts for the matching
+  // assertion on the other mapper.
+  it("carries annualIncome and incomeFromAge through to the engine input", () => {
+    const input = toPlanInput(
+      basePlan({
+        assets: [
+          {
+            id: "a1",
+            planId: "p1",
+            label: "DB scheme",
+            wrapper: "DB_PENSION",
+            openingValue: d(250000),
+            expectedReturnPct: null,
+            feePct: d(0),
+            monthlyContribution: d(0),
+            contributionEndAge: null,
+            minAccessAge: null,
+            annualIncome: d(12000),
+            incomeFromAge: 65,
+            drawdownPriority: 0,
+            accountId: null,
+            sortOrder: 0,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            deletedAt: null,
+          },
+        ],
+      }),
+      2026,
+    );
+    expect(input.assets[0]?.annualIncome).toBe(12000);
+    expect(input.assets[0]?.incomeFromAge).toBe(65);
+  });
+
+  it("leaves annualIncome and incomeFromAge undefined when null", () => {
+    const input = toPlanInput(
+      basePlan({
+        assets: [
+          {
+            id: "a1",
+            planId: "p1",
+            label: "SIPP",
+            wrapper: "PENSION",
+            openingValue: d(100000),
+            expectedReturnPct: null,
+            feePct: d(0),
+            monthlyContribution: d(500),
+            contributionEndAge: null,
+            minAccessAge: null,
+            annualIncome: null,
+            incomeFromAge: null,
+            drawdownPriority: 2,
+            accountId: null,
+            sortOrder: 0,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            deletedAt: null,
+          },
+        ],
+      }),
+      2026,
+    );
+    expect(input.assets[0]?.annualIncome).toBeUndefined();
+    expect(input.assets[0]?.incomeFromAge).toBeUndefined();
+  });
+
   it("maps a liability with startAge", () => {
     const input = toPlanInput(
       basePlan({

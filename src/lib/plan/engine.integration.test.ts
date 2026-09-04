@@ -130,4 +130,62 @@ describe("plan engine — realistic integration", () => {
     expect(verdict.netWorthAtRetirement?.value).toBeGreaterThan(0);
     expect(typeof verdict.feasible).toBe("boolean");
   });
+
+  it("excludes an entitled DB pension's transfer value from net worth", () => {
+    const minimal: PlanInput = {
+      currentAge: 40,
+      startYear: 2026,
+      retirementAge: 65,
+      planToAge: 40,
+      inflationPct: 0,
+      defaultReturnPct: 5,
+      taxRegime: "RUK",
+      thresholdsInflationLinked: false,
+      assets: [],
+      liabilities: [],
+      incomes: [],
+      expenses: [],
+      events: [],
+    };
+    const withPension = project({
+      ...minimal,
+      assets: [
+        {
+          id: "isa",
+          label: "ISA",
+          wrapper: "ISA",
+          openingValue: 50000,
+          drawdownPriority: 0,
+        },
+        {
+          id: "db1",
+          label: "DB scheme",
+          wrapper: "DB_PENSION",
+          openingValue: 250000,
+          drawdownPriority: 1,
+          annualIncome: 12000,
+          incomeFromAge: 65,
+        },
+      ],
+    });
+    const withoutPension = project({
+      ...minimal,
+      assets: [
+        {
+          id: "isa",
+          label: "ISA",
+          wrapper: "ISA",
+          openingValue: 50000,
+          drawdownPriority: 0,
+        },
+      ],
+    });
+
+    // Net worth is identical: the entitlement is an income, and its £250,000
+    // transfer value is display-only on the balance sheet, never projected.
+    expect(atAge(withPension.years, 40).netWorth).toBeCloseTo(
+      atAge(withoutPension.years, 40).netWorth,
+      2,
+    );
+  });
 });

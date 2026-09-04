@@ -28,6 +28,8 @@ export type SerializedPlanAsset = {
   contributionEndAge: number | null;
   minAccessAge: number | null;
   drawdownPriority: number;
+  annualIncome: number | null;
+  incomeFromAge: number | null;
 };
 
 export type SerializedPlanLiability = {

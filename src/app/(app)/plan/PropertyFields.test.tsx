@@ -38,6 +38,8 @@ const property = {
   contributionEndAge: null,
   minAccessAge: null,
   drawdownPriority: 0,
+  annualIncome: null,
+  incomeFromAge: null,
 };
 
 const mortgage = {

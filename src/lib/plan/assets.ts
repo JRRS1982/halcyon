@@ -4,7 +4,10 @@ import type { Regime } from "@/lib/tax/types";
 import { isTaxableOnWithdrawal } from "./tax";
 import type { AssetInput } from "./types";
 
-export const drawable = (a: AssetInput): boolean => a.wrapper !== "PROPERTY";
+// An entitled asset (AssetInput.annualIncome set) is an income stream, not a
+// fund — it is never a contribution target and never drawn from.
+export const drawable = (a: AssetInput): boolean =>
+  a.wrapper !== "PROPERTY" && a.annualIncome === undefined;
 
 // Earliest age an asset may be drawn. PENSION defaults to 57 when unset; other
 // wrappers are unrestricted unless an explicit minAccessAge is given.

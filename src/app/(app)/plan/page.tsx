@@ -73,6 +73,8 @@ export default async function PlanPage() {
       contributionEndAge: a.contributionEndAge,
       minAccessAge: a.minAccessAge,
       drawdownPriority: a.drawdownPriority,
+      annualIncome: a.annualIncome === null ? null : Number(a.annualIncome),
+      incomeFromAge: a.incomeFromAge,
     })),
     liabilities: plan.liabilities.map((l) => ({
       id: l.id,
