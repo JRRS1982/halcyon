@@ -35,6 +35,15 @@ the `Account` model *is* in the schema but is unrelated to auth: it is a user's
 Every table below is owned by exactly one user, directly via `userId` or through
 a parent. Most carry `deletedAt` for soft deletion.
 
+> **This file is not current.** It still describes `Account` as
+> transactions-only ("where money sits") after the account-registry
+> restructure widened its role — see
+> [features/accounts.md](../features/accounts.md#known-gaps) for what actually
+> changed and why rewriting this file is its own task rather than a rider on
+> someone else's. `AccountTerms` below is added because it's new since that
+> gap was last written down, not because the rest of this section has been
+> brought current.
+
 ### Budget and balance
 
 | Table | What it's for |
@@ -52,6 +61,7 @@ a parent. Most carry `deletedAt` for soft deletion.
 |---|---|
 | `Category` | the stable taxonomy a transaction is filed under, and what a `BudgetItem` links to. See [features/onboarding.md](../features/onboarding.md) for what a new account starts with |
 | `Account` | where money sits — current, savings, ISA, SIPP. Named as a transfer counterparty too |
+| `AccountTerms` | 1:1 with `Account` (its `accountId` is the primary key) — the projection parameters that account feeds into the Plan: expected return, fees, interest rate, a mortgage's revision terms, a final-salary entitlement. Every column is nullable and blank means "take the default," never "unknown" |
 | `ImportBatch` | one CSV import, so it can be reversed as a unit |
 | `Transaction` | an imported or manual line: date, signed amount, description, optional category and counterparty account |
 
@@ -101,6 +111,7 @@ erDiagram
     ACCOUNT ||--o{ TRANSACTION : "holds"
     ACCOUNT ||--o{ TRANSACTION : "transfer counterparty"
     ACCOUNT ||--o{ IMPORT_BATCH : "imported into"
+    ACCOUNT ||--o| ACCOUNT_TERMS : "1:1"
     IMPORT_BATCH ||--o{ TRANSACTION : "imported as"
     PLAN ||--o{ PLAN_ASSET : has
     PLAN ||--o{ PLAN_LIABILITY : has

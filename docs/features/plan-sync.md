@@ -23,8 +23,8 @@ record.
 
 | | |
 |---|---|
-| **Replaced** | opening values, annual amounts, labels, an asset's wrapper, the budgeted flow into an account (an asset's annual contribution, a liability's monthly repayment), and *which rows exist* |
-| **Kept** | expected return, fees, drawdown priority, min access age, contribution end age, interest rate, interest-only flag, growth kind, taxable flag, start/end ages, retirement age, inflation, return spread, tax regime, inflation-linked thresholds, state pension, and every `PlanEvent` **except** a `PROPERTY_SALE` whose property is being removed |
+| **Replaced** | opening values, annual amounts, labels, an asset's wrapper, the budgeted flow into an account (an asset's monthly contribution, a liability's monthly repayment), every `AccountTerms` parameter the account has (expected return, fees, min access age, a final-salary entitlement and the age it starts paying, interest rate, interest-only, a mortgage's revision rate and age, an end age), and *which rows exist* |
+| **Kept** | drawdown priority, contribution end age, growth kind, taxable flag, start/end ages on income/expense rows, retirement age, inflation, return spread, tax regime, inflation-linked thresholds, state pension, and every `PlanEvent` **except** a `PROPERTY_SALE` whose property is being removed |
 | **Removed** | rows whose link is null (plan-only), rows whose account or category is gone — archived or hard-deleted alike — and everything that cannot outlive one of those: a property's mortgage, a mortgage's repayment expense, a property's sale events |
 
 One press, decided by `resolvePlanSync`
@@ -44,19 +44,124 @@ One press, decided by `resolvePlanSync`
 6. **Preserves** assumptions on every surviving row, matched by its link
    rather than its position.
 
-Point 6 is the one doing quiet work: a user who has tuned their ISA to a 4.2%
-expected return and a 0.22% fee gets the £42,300 updated and the tuning left
-alone.
+Point 6 is the one doing quiet work: a user who has picked a drawdown
+priority, or ended a synced salary at retirement, keeps it — Sync does not
+touch either, because neither is read off the account or the budget.
 
 Matching is by **kind *and* link id** (`keyOf` builds `ASSET::<uuid>`). An
 account id and a category id could collide, and an asset row must never
 resolve against an income — kind is part of the identity, not a filter.
 
+### The compare set: four fields, then fourteen
+
+`resolvePlanSync` used to compare four fields — `value`, `label`, `wrapper`,
+`flow` — against reality before deciding a row unchanged. Adding
+`AccountTerms` widened that to fourteen: the same four, plus the ten fields of
+`RowTerms` ([`rowTerms.ts`](../../src/lib/plan/rowTerms.ts)) compared field by
+field via `rowTermsEqual`. A changed interest rate or a newly-ticked
+interest-only flag now makes a mortgage row report `●` exactly as a changed
+opening balance does — a term is a projection input, and Sync's whole job is
+noticing when a projection input has moved.
+
+`RowTerms` holds more fields than `AccountTerms` has columns because
+`endDate` is one column with two destinations, chosen by kind — see
+"`endDate` means two different things," below — so it contributes both
+`incomeFromAge` (asset) and `endAge` (liability) to `RowTerms`, each null for
+the kind it doesn't belong to.
+
+Two things make the widening safe rather than a new source of "changed
+forever":
+
+1. **Dates convert to ages before comparison.** `RowTerms` deliberately holds
+   no date field. `AccountTerms.revisionDate` and `.endDate` are dates; the
+   plan stores `revisionAge` and `endAge`. Comparing a date against an age is
+   never equal, so a naive version would report every mortgage as changed on
+   every Sync, forever — immediately after the user just reconciled it.
+   `ageOnDate(dateOfBirth, date)` converts on the reality side, in
+   [`reality.ts`](../../src/lib/plan/reality.ts), before anything reaches
+   `RowTerms`.
+2. **`TERM_COMPARE_KEYS` is derived from an exhaustiveness pin, not typed out
+   by hand.** `rowTerms.ts` defines `ALL_TERM_KEYS` as `satisfies
+   Record<keyof RowTerms, true>` and derives the comparison array from its
+   keys (`Object.keys(ALL_TERM_KEYS)`). Adding a field to `RowTerms` without
+   adding it to `ALL_TERM_KEYS` is a compile error (`TS1360`), so a forgotten
+   parameter cannot silently stop being compared.
+
+   **This is easy to get wrong in a way that still compiles.** A hand-written
+   `["expectedReturnPct", "feePct", …] as const satisfies readonly (keyof
+   RowTerms)[]` looks like the same protection and is not: `satisfies readonly
+   (keyof T)[]` only checks that the elements *listed* are valid keys of `T` —
+   it does not require every key of `T` to appear. Forget one and the array
+   still compiles clean; `rowTermsEqual` then silently never compares that
+   field, forever. That mistake shipped once on this branch and was caught
+   only by review, not by the compiler — the `Record<keyof RowTerms, true>`
+   form above is what actually pins it.
+
+Two more failure modes, gated per field rather than assumed away:
+
+- **`PlanAsset.feePct` and `PlanLiability.interestPct` are `NOT NULL`,
+  defaulting to `0`.** An account with no `AccountTerms` row has no fee and
+  no rate, which is a true `0`, not an unknown `null` — reading `null` there
+  would never equal the plan column's `0` and report the row changed forever.
+  `reality.ts` reads `0` for these two, gated to the kind each column
+  belongs to.
+- **Every kind-specific parameter is gated by kind on both sides.** An
+  asset-only parameter (`expectedReturnPct`, `feePct`, `minAccessAge`,
+  `annualIncome`, `incomeFromAge`) reads `null` for a `LIABILITY` row, and a
+  liability-only one (`interestPct`, `interestOnly`, `revisionRate`,
+  `revisionAge`, `endAge`) reads `null`/`false`/`0` for an `ASSET` row —
+  matching `toLoadedPlan`'s own hard-coded opposite-kind values exactly.
+  Nothing in the schema stops `AccountTerms` from carrying an out-of-kind
+  value (there is no CHECK constraint, and `setAccountTerms` doesn't check
+  the account's type), so this gate is what keeps a stray value from
+  comparing against the wrong plan column and reporting changed forever. In
+  practice only `AccountCard` writes terms, and it only ever sends what
+  `termsFor(type)` allows, so the data stays clean — but the comparison does
+  not rely on that holding.
+
+### `endDate` means two different things, chosen by kind
+
+`AccountTerms.endDate` is one column serving two purposes:
+
+- On a **liability**, it's the date the balance is repaid — converted to
+  `PlanLiability.endAge`.
+- On `FINAL_SALARY`, it's the date the pot converts to an income instead —
+  converted to `PlanAsset.incomeFromAge`, a dedicated column, because
+  `endAge` exists only on `PlanLiability`.
+
+Once `annualIncome` is set on a final-salary asset, its balance stops
+contributing to the projection — `project.ts` zeroes it every year rather
+than growing or drawing it down — and an income of that amount runs from
+`incomeFromAge` to the end of the plan, tagged `DB_PENSION`
+([`streams.ts`](../../src/lib/plan/streams.ts)). The reason this matters:
+people track a defined-benefit pension's cash-equivalent transfer value on
+their balance sheet, so an account can honestly carry both a balance *and*
+an entitlement — and projecting the pot while also paying the income would
+count the same pension twice. The fence keys on `annualIncome` being set, not
+on the `DB_PENSION` wrapper, so an asset with no entitlement is unaffected
+even if it happens to carry that wrapper.
+
+### Contributions are stored monthly
+
+`PlanAsset.monthlyContribution` replaced `annualContribution` (existing
+values divided by 12 in the migration). The figure shown as an annual amount
+is derived for display and is never itself editable: an editable annual
+field would divide by 12 on the way in, and a user typing £10,000 would watch
+it become £9,999.96 the moment it round-tripped. The read-out deliberately
+shows £9,999.96 for a £833.33/mo contribution — twelve payments of £833.33
+genuinely come to that, and rounding the display would make the label
+disagree with what the projection actually does with the money. This also
+removed two rounding blocks from `reality.ts` that existed only to survive
+the old cross-unit (monthly budget vs annual plan column) comparison — see
+"Where the numbers come from," below.
+
 ### ⚠️ Contributions and repayments moved from Kept to Replaced
 
-`PlanAsset.annualContribution` and `PlanLiability.monthlyRepayment` used to be
-Kept assumptions. They are now **Replaced**, fed by the budget's `TRANSFER`
-and `REPAYMENT` rows — see [`budget-transfers.md`](budget-transfers.md).
+`PlanAsset.monthlyContribution` (`annualContribution` at the time this was
+written — see "Contributions are stored monthly," above) and
+`PlanLiability.monthlyRepayment` used to be Kept assumptions. They are now
+**Replaced**, fed by the budget's `TRANSFER` and `REPAYMENT` rows — see
+[`budget-transfers.md`](budget-transfers.md).
 
 They could not stay Kept and also be fed by the budget; those are contradictory
 rules. The alternative considered was "a null flow means leave it alone", and
@@ -139,8 +244,9 @@ the pair, which is what selling a house means, avoids it entirely.
 | `PlanLiability.openingBalance` | latest `BalanceItem.value` for the account |
 | `PlanIncome.annualAmount` | latest `BudgetItem.budget` **× 12** for the category |
 | `PlanExpense.annualAmount` | latest `BudgetItem.budget` **× 12** for the category |
-| `PlanAsset.annualContribution` | latest `TRANSFER` `INFLOW` `BudgetItem.budget` **× 12** for the account |
+| `PlanAsset.monthlyContribution` | latest `TRANSFER` `INFLOW` `BudgetItem.budget` for the account, **as stored** |
 | `PlanLiability.monthlyRepayment` | latest `REPAYMENT` `BudgetItem.budget` for the account, **as stored** |
+| `PlanAsset`/`PlanLiability` term fields (`expectedReturnPct`, `feePct`, `minAccessAge`, `annualIncome`, `incomeFromAge`, `interestPct`, `interestOnly`, `revisionRate`, `revisionAge`, `endAge`) | the account's `AccountTerms` row, converted to plan units by `reality.ts` — dates to ages, a missing row to `0`/`null`/`false` per column. See "The compare set," above |
 
 Read by `latestReality` ([`src/lib/plan/reality.ts`](../../src/lib/plan/reality.ts)),
 one row per live account and per live budget category:
@@ -155,13 +261,16 @@ one row per live account and per live budget category:
 - **Budget rows are read from `granularity: "MONTH"` periods only.** WEEK and
   QUARTER periods also exist in the enum, and reading one of those would
   misread its figure as the monthly one, so the filter stays.
-- **The × 12 is rounded to 2dp.** `budget` and `annualAmount` are both
-  `numeric(_,2)` and the multiplication happens in doubles: £833.33 × 12 is
-  `9999.960000000001` in IEEE-754 but `9999.96` in the column. Compared
+- **The income/expense × 12 is rounded to 2dp.** `budget` and `annualAmount`
+  are both `numeric(_,2)` and the multiplication happens in doubles: £833.33 ×
+  12 is `9999.960000000001` in IEEE-754 but `9999.96` in the column. Compared
   unrounded against the stored figure, such a row reads as an update on every
   press and the button never reaches "Up to date" — 31% of penny values are
   affected. The balance-sheet path needs no rounding: it reads a
-  `numeric(14,2)` into a `numeric(14,2)` with no arithmetic between.
+  `numeric(14,2)` into a `numeric(14,2)` with no arithmetic between. The
+  contribution/repayment flow needs no rounding either, for a different
+  reason: both sides are now monthly, so there is no cross-unit multiply to
+  round — see "Contributions are stored monthly," above.
 - **Every account is `ASSET` or `LIABILITY`, and both read into a plan row.**
   There is no longer a third kind to exclude.
 - **Nothing observed, nothing offered.** An account with no `BalanceItem` at
@@ -174,9 +283,10 @@ one row per live account and per live budget category:
 - **Labels come from `Account.name` and `Category.label`**, not from the
   period row's own label, so a rename propagates into the plan on the next
   Sync.
-- **The two flow columns are annual and monthly respectively, and that is
-  deliberate** — each is stored in the unit its own plan drawer displays, and
-  `liabilityStep` does its own × 12 inside the projection. The flow is keyed
+- **Both flow columns are monthly, matching the budget rows that feed
+  them** — `liabilityStep` does its own × 12 for the repayment inside the
+  projection, and the engine derives an asset's annual contribution from
+  `monthlyContribution` the same way. The flow is keyed
   off the *target account's* kind rather than the budget row's own type, so a
   mispaired row can never be found and misread. An account row's flow is
   always a number (`0` when nothing is budgeted, for an `OUTFLOW`, or when
@@ -400,7 +510,7 @@ tombstone never occupies the slot the next Sync needs.
 ## Out of scope, named so nobody builds them by accident
 
 - ~~**Contributions and repayments.**~~ **Built in P3** — a budget `TRANSFER`
-  now feeds `PlanAsset.annualContribution` and a budget `REPAYMENT` feeds
+  now feeds `PlanAsset.monthlyContribution` and a budget `REPAYMENT` feeds
   `PlanLiability.monthlyRepayment`. A synced pension no longer shows £0 going
   in, and a synced mortgage amortises. See
   [`budget-transfers.md`](budget-transfers.md); the rule change this forced is
@@ -415,6 +525,63 @@ tombstone never occupies the slot the next Sync needs.
   duplication. Noted, not addressed.
 - **Per-row sync** — all-or-nothing is a deliberate choice.
 - **Undo** — Sync overwrites; the confirmation covers the destructive case.
+
+## Adding a field to a plan row touches more hand-maintained lists than it looks
+
+This cost real time twice in this phase (once for `revisionRate`/`revisionAge`,
+again for `annualIncome`/`incomeFromAge`), and is worth a standing warning
+rather than a lesson learned twice. A field on `PlanAsset` or `PlanLiability`
+passes through six mappers that must all carry every field of the type, none
+of them enforced against the others by the compiler:
+
+1. the Prisma column itself,
+2. `SerializedPlanAsset`/`SerializedPlanLiability` in
+   [`serialized.ts`](<../../src/app/(app)/plan/serialized.ts>),
+3. the Prisma → serialized mapping in
+   [`page.tsx`](<../../src/app/(app)/plan/page.tsx>) (the server-rendered
+   page's own boundary),
+4. [`toPlanInput.ts`](../../src/lib/plan/toPlanInput.ts) (Prisma rows →
+   `PlanInput`, used server-side),
+5. [`serializedInput.ts`](../../src/lib/plan/serializedInput.ts) (serialized
+   rows → `PlanInput`, the in-browser live projection recomputed while a
+   slider is dragged),
+6. the engine's own `AssetInput`/`LiabilityInput` in
+   [`types.ts`](../../src/lib/plan/types.ts).
+
+**That is the floor, not necessarily the count — check every call site, not
+just these six.** Adding `revisionRate`/`revisionAge` (a `PlanLiability`
+field pair) needed two more places that read specific fields directly rather
+than building the whole type:
+[`usePlanProjection.ts`](<../../src/app/(app)/plan/usePlanProjection.ts>)
+(dragging a liability's timeline bar re-saves every one of its fields
+explicitly, this pair included) and
+[`PropertyFields.tsx`](<../../src/app/(app)/plan/PropertyFields.tsx>) (the
+mortgage editor embedded in the property card) — seven confirmed places for
+that field pair, not six. `PropertyFields.tsx` is where the two term-adding
+efforts diverged: it preserves `revisionRate`/`revisionAge` on save but was
+never given inputs for them, so that embedded editor can carry a mortgage's
+revision terms without ever showing them — reachable but incomplete, since
+`PlanView.tsx` routes every *existing* liability row to the standalone
+liability drawer regardless, and only a freshly created mortgage opens
+`PropertyFields.tsx` at all. Adding `annualIncome`/`incomeFromAge` (a
+`PlanAsset` pair, for `FINAL_SALARY`) did **not** need `usePlanProjection.ts`
+— dragging an asset's bar never touches those two fields — which is exactly
+why "check the six" is not a substitute for checking the actual field: the
+extra call sites depend on what the field is and who drags what, not on
+whether it lives on `PlanAsset` or `PlanLiability` in general.
+
+A field added to some of these and not others fails **silently** — one chart
+right, the other stale, with nothing raising an error anywhere. `tsc` will
+not catch it either: Prisma's `create`/`update` argument types are wide
+enough (`XOR<…UpdateManyMutationInput, …>`) that an object missing or
+carrying a stray field can still satisfy them, so typecheck stays green while
+the branch is genuinely broken — the same blindness the `annualContribution`
+→ `monthlyContribution` rename hit earlier in this same phase, in the
+opposite direction (a dropped column, not a missing one). Only running the
+integration suite (or reading each of the six by hand) proves a new field
+actually reached every consumer. `serializedInput.ts`'s own header comment
+already records an earlier instance of this exact defect; this is the second
+time it's been worth writing down.
 
 ## Known gaps
 
@@ -505,6 +672,9 @@ tombstone never occupies the slot the next Sync needs.
 | Row state from a `SyncPlan` | [`src/app/(app)/plan/syncIndicator.ts`](<../../src/app/(app)/plan/syncIndicator.ts>) |
 | Marker glyphs, accessible names, which figure a changed row shows | [`src/app/(app)/plan/SyncMarker.tsx`](<../../src/app/(app)/plan/SyncMarker.tsx>) |
 | Removal confirmation | [`src/app/(app)/plan/SyncRemovalDialog.tsx`](<../../src/app/(app)/plan/SyncRemovalDialog.tsx>) |
+| `RowTerms`, the exhaustiveness-pinned `TERM_COMPARE_KEYS`/`rowTermsEqual`, `ageOnDate` | [`src/lib/plan/rowTerms.ts`](../../src/lib/plan/rowTerms.ts) |
+| A mortgage's rate in force at a given age (`revisionAge`/`revisionRate`, falling back to the fixed rate) | [`src/lib/plan/liabilities.ts`](../../src/lib/plan/liabilities.ts) |
+| A final-salary asset's balance zeroed once entitled; its `DB_PENSION` income stream | [`src/lib/plan/project.ts`](../../src/lib/plan/project.ts), [`src/lib/plan/streams.ts`](../../src/lib/plan/streams.ts) |
 
 ### Testing
 
@@ -517,7 +687,9 @@ tombstone never occupies the slot the next Sync needs.
   `SyncMarker.test.tsx` (four distinct accessible names, asserted structurally
   as a set; and which figure a changed row shows — the value when it moved, the
   flow when only it moved, none when neither did), `SyncRemovalDialog.test.tsx` (names attached rows and what they go
-  with; does not name the `"gone"` rows themselves).
+  with; does not name the `"gone"` rows themselves), `rowTerms.test.ts` (the
+  exhaustiveness pin — a deliberate break/restore proof, not just the happy
+  path).
 - **Integration** (`*.int.test.ts`, real Postgres) — `planLinks.int.test.ts`
   (the four links, and `SetNull` proved by the row surviving), `reality.int.test.ts`,
   `syncAction.int.test.ts` (assumptions survive, plan-only removed, archived
@@ -525,7 +697,13 @@ tombstone never occupies the slot the next Sync needs.
   (a foreign row id under an owned plan id is rejected by the per-statement
   fence), `createPlan.int.test.ts`, `syncCascade.int.test.ts` (an archived
   property takes its mortgage, its repayment and its sale event; the resulting
-  `toPlanInput` holds no event or mortgage pointing at an asset that is gone).
+  `toPlanInput` holds no event or mortgage pointing at an asset that is gone),
+  `syncTerms.int.test.ts` (one mutation test per `RowTerms` field, through the
+  real `setAccountTerms` → Sync path; a second consecutive Sync with nothing
+  changed reporting zero updates — the regression a fake exhaustiveness pin
+  would not have caught; and the kind-gating cases — a liability-only or
+  asset-only term written to the wrong account type is ignored rather than
+  reported as a phantom change).
 - **E2E** — `e2e/plan-sync.spec.ts`: change a balance value, see the `●`
   marker and the source figure, press Sync, see the value update and the button
   read `Up to date`. `e2e/budget-transfers.spec.ts` covers the P3 half: budget
