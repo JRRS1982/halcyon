@@ -241,11 +241,22 @@ export function DrawerSection({
 
 export function Field({
   label,
+  htmlFor,
   children,
 }: {
   label: string;
+  /** Set for a checkbox: a label that also wraps other controls claims their clicks. */
+  htmlFor?: string;
   children: ReactNode;
 }) {
+  if (htmlFor) {
+    return (
+      <FieldWrap as="div">
+        <label htmlFor={htmlFor}>{label}</label>
+        {children}
+      </FieldWrap>
+    );
+  }
   return (
     <FieldWrap>
       {label}

@@ -37,6 +37,7 @@ export function NumberCell({
   step,
   min,
   max,
+  placeholder,
   onCommit,
 }: {
   value: number | null;
@@ -44,6 +45,7 @@ export function NumberCell({
   step?: string;
   min?: number;
   max?: number;
+  placeholder?: string;
   onCommit: (value: number | null) => Promise<void> | void;
 }) {
   const [buf, setBuf] = useState<string>(fmtNum(value));
@@ -91,6 +93,7 @@ export function NumberCell({
       step={step}
       min={min}
       max={max}
+      placeholder={placeholder}
       value={buf}
       onChange={(e) => setBuf(e.target.value)}
       onBlur={commit}
@@ -141,10 +144,12 @@ export function SelectCell<T extends string>({
 export function TextCell({
   value,
   type = "text",
+  placeholder,
   onCommit,
 }: {
   value: string;
   type?: "text" | "date";
+  placeholder?: string;
   onCommit: (value: string) => Promise<void> | void;
 }) {
   const [buf, setBuf] = useState<string>(value);
@@ -168,6 +173,7 @@ export function TextCell({
   return (
     <Input
       type={type}
+      placeholder={placeholder}
       value={buf}
       onChange={(e) => setBuf(e.target.value)}
       onBlur={commit}
