@@ -7,6 +7,18 @@ import type {
 
 type Wrapper = PlanAssetWrapper;
 
+/** The nine projection parameters stored on an account. */
+export type TermField =
+  | "expectedReturnPct"
+  | "feePct"
+  | "minAccessAge"
+  | "annualIncome"
+  | "interestPct"
+  | "interestOnly"
+  | "revisionDate"
+  | "revisionRate"
+  | "endDate";
+
 /**
  * What the drawer's single "What are you adding?" picker offers.
  *
@@ -46,6 +58,8 @@ export type AccountTypeOption = {
    */
   defaultSection: AccountSection;
   namePlaceholder: string;
+  /** The projection parameters this account type's card should prompt for. */
+  terms: readonly TermField[];
 };
 
 export const ACCOUNT_TYPES: readonly AccountTypeOption[] = [
@@ -56,6 +70,7 @@ export const ACCOUNT_TYPES: readonly AccountTypeOption[] = [
     wrapper: "CASH",
     defaultSection: "CURRENT",
     namePlaceholder: "e.g. Barclays current",
+    terms: ["expectedReturnPct"],
   },
   {
     id: "SAVINGS",
@@ -64,6 +79,7 @@ export const ACCOUNT_TYPES: readonly AccountTypeOption[] = [
     wrapper: "CASH",
     defaultSection: "MEDIUM_TERM",
     namePlaceholder: "e.g. Premium bonds",
+    terms: ["expectedReturnPct"],
   },
   {
     id: "CASH_ISA",
@@ -72,6 +88,7 @@ export const ACCOUNT_TYPES: readonly AccountTypeOption[] = [
     wrapper: "ISA",
     defaultSection: "MEDIUM_TERM",
     namePlaceholder: "e.g. Nationwide cash ISA",
+    terms: ["expectedReturnPct"],
   },
   {
     id: "STOCKS_ISA",
@@ -80,6 +97,7 @@ export const ACCOUNT_TYPES: readonly AccountTypeOption[] = [
     wrapper: "ISA",
     defaultSection: "LONG_TERM",
     namePlaceholder: "e.g. Vanguard ISA",
+    terms: ["expectedReturnPct", "feePct"],
   },
   {
     id: "SIPP",
@@ -88,6 +106,7 @@ export const ACCOUNT_TYPES: readonly AccountTypeOption[] = [
     wrapper: "PENSION",
     defaultSection: "LONG_TERM",
     namePlaceholder: "e.g. AJ Bell SIPP",
+    terms: ["expectedReturnPct", "feePct", "minAccessAge"],
   },
   {
     id: "FINAL_SALARY",
@@ -96,6 +115,7 @@ export const ACCOUNT_TYPES: readonly AccountTypeOption[] = [
     wrapper: "DB_PENSION",
     defaultSection: "LONG_TERM",
     namePlaceholder: "e.g. NHS pension",
+    terms: ["annualIncome", "endDate"],
   },
   {
     id: "GIA",
@@ -104,6 +124,7 @@ export const ACCOUNT_TYPES: readonly AccountTypeOption[] = [
     wrapper: "GIA",
     defaultSection: "MEDIUM_TERM",
     namePlaceholder: "e.g. Trading 212",
+    terms: ["expectedReturnPct", "feePct"],
   },
   {
     id: "PROPERTY",
@@ -112,6 +133,7 @@ export const ACCOUNT_TYPES: readonly AccountTypeOption[] = [
     wrapper: "PROPERTY",
     defaultSection: "PROPERTY",
     namePlaceholder: "e.g. Home",
+    terms: ["expectedReturnPct"],
   },
   {
     id: "OTHER_ASSET",
@@ -120,6 +142,7 @@ export const ACCOUNT_TYPES: readonly AccountTypeOption[] = [
     wrapper: "OTHER",
     defaultSection: "OTHER",
     namePlaceholder: "e.g. Car",
+    terms: ["expectedReturnPct", "feePct"],
   },
   {
     id: "MORTGAGE",
@@ -128,6 +151,13 @@ export const ACCOUNT_TYPES: readonly AccountTypeOption[] = [
     wrapper: null,
     defaultSection: "LONG_TERM",
     namePlaceholder: "e.g. Halifax mortgage",
+    terms: [
+      "interestPct",
+      "interestOnly",
+      "revisionDate",
+      "revisionRate",
+      "endDate",
+    ],
   },
   {
     id: "CREDIT_CARD",
@@ -136,6 +166,7 @@ export const ACCOUNT_TYPES: readonly AccountTypeOption[] = [
     wrapper: null,
     defaultSection: "CURRENT",
     namePlaceholder: "e.g. Amex",
+    terms: ["interestPct"],
   },
   {
     id: "LOAN",
@@ -144,6 +175,7 @@ export const ACCOUNT_TYPES: readonly AccountTypeOption[] = [
     wrapper: null,
     defaultSection: "MEDIUM_TERM",
     namePlaceholder: "e.g. Car finance",
+    terms: ["interestPct", "revisionDate", "revisionRate", "endDate"],
   },
   {
     id: "OVERDRAFT",
@@ -152,6 +184,7 @@ export const ACCOUNT_TYPES: readonly AccountTypeOption[] = [
     wrapper: null,
     defaultSection: "CURRENT",
     namePlaceholder: "e.g. Current account overdraft",
+    terms: ["interestPct"],
   },
   {
     id: "OTHER_DEBT",
@@ -160,6 +193,7 @@ export const ACCOUNT_TYPES: readonly AccountTypeOption[] = [
     wrapper: null,
     defaultSection: "OTHER",
     namePlaceholder: "e.g. Loan from family",
+    terms: ["interestPct", "revisionDate", "revisionRate", "endDate"],
   },
 ] as const;
 
@@ -234,4 +268,8 @@ export function defaultSectionOf(type: AccountType): AccountSection {
 
 export function accountTypesOfKind(kind: AccountKind) {
   return ACCOUNT_TYPES.filter((t) => t.kind === kind);
+}
+
+export function termsFor(type: AccountType): readonly TermField[] {
+  return optionOf(type).terms;
 }
