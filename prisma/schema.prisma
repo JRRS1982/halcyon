@@ -330,8 +330,51 @@ model Account {
   linkedBy        Account?        @relation("AccountLink")
   planAssets      PlanAsset[]
   planLiabilities PlanLiability[]
+  terms           AccountTerms?
 
   @@index([userId])
+}
+
+// The projection's parameters for one account. Separate from Account because
+// every other feature — the ledger, transactions, the budget's anchors, the
+// sheet's grouping — reads Account constantly and none of them care how a
+// balance evolves.
+//
+// Every column is nullable and blank means "take the default", never
+// "unknown": a property with no feePct has no platform charges, which is true.
+// Which parameters a given type PROMPTS for is declared in ACCOUNT_TYPES
+// (src/lib/accounts/accountDraft.ts), not fenced here — a CHECK passes on NULL.
+model AccountTerms {
+  // The account's own id, so 1:1 needs no separate unique index.
+  accountId String @id @db.Uuid
+
+  // Growth side.
+  expectedReturnPct Decimal? @db.Decimal(5, 2)
+  feePct            Decimal? @db.Decimal(5, 2)
+  // An age, not a date, unlike endDate below: a scheme's access age is 57
+  // whoever you are, so it needs no date of birth to mean anything.
+  minAccessAge      Int?
+  // A final-salary entitlement, e.g. 12000 for £12,000/yr. Setting it makes
+  // this account an income from `endDate` and its balance display-only — see
+  // the DB pension double-count in the spec.
+  annualIncome      Decimal? @db.Decimal(12, 2)
+
+  // Debt side. `interestOnly` deliberately carries no `is` prefix so the name
+  // matches PlanLiability.interestOnly and Sync stays a mechanical copy.
+  interestPct  Decimal?  @db.Decimal(5, 2)
+  interestOnly Boolean   @default(false)
+  revisionDate DateTime? @db.Date
+  revisionRate Decimal?  @db.Decimal(5, 2)
+
+  // When this stops being a balance: a mortgage repaid, a final-salary pension
+  // converted to an income. A date, not an age — "ends 2049" is the answer a
+  // person actually has, and the account does not know their date of birth.
+  endDate DateTime? @db.Date
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 }
 
 // One CSV import run. Groups the transactions it created so the whole import
@@ -477,27 +520,35 @@ model Plan {
 }
 
 model PlanAsset {
-  id                 String           @id @default(uuid()) @db.Uuid
-  planId             String           @db.Uuid
-  label              String
-  wrapper            PlanAssetWrapper @default(OTHER)
-  openingValue       Decimal          @default(0) @db.Decimal(14, 2)
-  expectedReturnPct  Decimal?         @db.Decimal(5, 2)
-  feePct             Decimal          @default(0) @db.Decimal(5, 2)
-  annualContribution Decimal          @default(0) @db.Decimal(12, 2)
-  contributionEndAge Int?
-  minAccessAge       Int?
-  drawdownPriority   Int              @default(0)
-  sortOrder          Int              @default(0)
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
-  deletedAt          DateTime?
+  id                  String           @id @default(uuid()) @db.Uuid
+  planId              String           @db.Uuid
+  label               String
+  wrapper             PlanAssetWrapper @default(OTHER)
+  openingValue        Decimal          @default(0) @db.Decimal(14, 2)
+  expectedReturnPct   Decimal?         @db.Decimal(5, 2)
+  feePct              Decimal          @default(0) @db.Decimal(5, 2)
+  // Monthly, not annual: the budget stores monthly and comparing across units
+  // means dividing by 12, which has no exact decimal form — £10,000/yr reads
+  // back as £9,999.96 and reports as changed forever. assets.ts does the × 12.
+  monthlyContribution Decimal          @default(0) @db.Decimal(12, 2)
+  contributionEndAge  Int?
+  minAccessAge        Int?
+  // A final-salary entitlement copied from AccountTerms.annualIncome, and the
+  // age its endDate converts to. `endAge` lives only on PlanLiability, so an
+  // ASSET conversion date needs its own column.
+  annualIncome        Decimal?         @db.Decimal(12, 2)
+  incomeFromAge       Int?
+  drawdownPriority    Int              @default(0)
+  sortOrder           Int              @default(0)
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+  deletedAt           DateTime?
   // The account this row mirrors. Null means a plan-only row — something the
   // user invented that is not on their balance sheet. Replaces
   // sourceBalanceItemId, which pointed at a single month's observation and so
   // could only ever seed once.
-  accountId          String?          @db.Uuid
-  account            Account?         @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  accountId           String?          @db.Uuid
+  account             Account?         @relation(fields: [accountId], references: [id], onDelete: SetNull)
 
   plan       Plan           @relation(fields: [planId], references: [id], onDelete: Cascade)
   mortgage   PlanLiability? @relation("MortgageProperty")
@@ -521,6 +572,8 @@ model PlanLiability {
   openingBalance   Decimal   @default(0) @db.Decimal(14, 2)
   interestPct      Decimal   @default(0) @db.Decimal(5, 2)
   interestOnly     Boolean   @default(false)
+  revisionRate     Decimal?  @db.Decimal(5, 2)
+  revisionAge      Int?
   monthlyRepayment Decimal   @default(0) @db.Decimal(12, 2)
   startAge         Int?
   endAge           Int?
