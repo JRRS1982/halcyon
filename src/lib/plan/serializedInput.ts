@@ -9,8 +9,14 @@
 // PROPERTY_SALE — the client live projection must see both to match the
 // server. Nothing remains intentionally omitted.
 import type { SerializedPlan } from "@/app/(app)/plan/serialized";
-import type { PlanInput } from "@/lib/plan";
-import { growthOf } from "./toPlanInput";
+import type { AssetInput, LiabilityInput, PlanInput } from "@/lib/plan";
+import { type Complete, growthOf } from "./toPlanInput";
+
+// Every member required to be present, so forgetting one here is a compile
+// error rather than a field that quietly stops travelling — the same pin
+// toPlanInput.ts carries, for the same reason.
+type FullAssetInput = Complete<AssetInput>;
+type FullLiabilityInput = Complete<LiabilityInput>;
 
 export function serializedToPlanInput(
   plan: SerializedPlan,
@@ -35,33 +41,37 @@ export function serializedToPlanInput(
     taxRegime: a.taxRegime,
     thresholdsInflationLinked: a.thresholdsInflationLinked,
     statePension,
-    assets: plan.assets.map((x) => ({
-      id: x.id,
-      label: x.label,
-      wrapper: x.wrapper,
-      openingValue: x.openingValue,
-      expectedReturnPct: x.expectedReturnPct ?? undefined,
-      feePct: x.feePct,
-      monthlyContribution: x.monthlyContribution,
-      contributionEndAge: x.contributionEndAge ?? undefined,
-      minAccessAge: x.minAccessAge ?? undefined,
-      drawdownPriority: x.drawdownPriority,
-      annualIncome: x.annualIncome ?? undefined,
-      incomeFromAge: x.incomeFromAge ?? undefined,
-    })),
-    liabilities: plan.liabilities.map((x) => ({
-      id: x.id,
-      label: x.label,
-      openingBalance: x.openingBalance,
-      interestPct: x.interestPct,
-      monthlyRepayment: x.monthlyRepayment,
-      startAge: x.startAge ?? undefined,
-      endAge: x.endAge ?? undefined,
-      linkedAssetId: x.linkedAssetId ?? undefined,
-      interestOnly: x.interestOnly,
-      revisionAge: x.revisionAge ?? undefined,
-      revisionRate: x.revisionRate ?? undefined,
-    })),
+    assets: plan.assets.map(
+      (x): FullAssetInput => ({
+        id: x.id,
+        label: x.label,
+        wrapper: x.wrapper,
+        openingValue: x.openingValue,
+        expectedReturnPct: x.expectedReturnPct ?? undefined,
+        feePct: x.feePct,
+        monthlyContribution: x.monthlyContribution,
+        contributionEndAge: x.contributionEndAge ?? undefined,
+        minAccessAge: x.minAccessAge ?? undefined,
+        drawdownPriority: x.drawdownPriority,
+        annualIncome: x.annualIncome ?? undefined,
+        incomeFromAge: x.incomeFromAge ?? undefined,
+      }),
+    ),
+    liabilities: plan.liabilities.map(
+      (x): FullLiabilityInput => ({
+        id: x.id,
+        label: x.label,
+        openingBalance: x.openingBalance,
+        interestPct: x.interestPct,
+        monthlyRepayment: x.monthlyRepayment,
+        startAge: x.startAge ?? undefined,
+        endAge: x.endAge ?? undefined,
+        linkedAssetId: x.linkedAssetId ?? undefined,
+        interestOnly: x.interestOnly,
+        revisionAge: x.revisionAge ?? undefined,
+        revisionRate: x.revisionRate ?? undefined,
+      }),
+    ),
     incomes: plan.incomes.map((x) => ({
       id: x.id,
       label: x.label,

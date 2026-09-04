@@ -619,12 +619,11 @@ explicitly, this pair included) and
 [`PropertyFields.tsx`](<../../src/app/(app)/plan/PropertyFields.tsx>) (the
 mortgage editor embedded in the property card) — seven confirmed places for
 that field pair, not six. `PropertyFields.tsx` is where the two term-adding
-efforts diverged: it preserves `revisionRate`/`revisionAge` on save but was
-never given inputs for them, so that embedded editor can carry a mortgage's
-revision terms without ever showing them — reachable but incomplete, since
-`PlanView.tsx` routes every *existing* liability row to the standalone
-liability drawer regardless, and only a freshly created mortgage opens
-`PropertyFields.tsx` at all. Adding `annualIncome`/`incomeFromAge` (a
+efforts diverged: it preserved `revisionRate`/`revisionAge` on save but was
+never given inputs for them, so that embedded editor carried a mortgage's
+revision terms without ever showing them, and the plan's two editors of one
+mortgage disagreed about which fields existed. It now renders both, with the
+liability drawer's own labels. Adding `annualIncome`/`incomeFromAge` (a
 `PlanAsset` pair, for `FINAL_SALARY`) did **not** need `usePlanProjection.ts`
 — dragging an asset's bar never touches those two fields — which is exactly
 why "check the six" is not a substitute for checking the actual field: the
@@ -643,6 +642,23 @@ integration suite (or reading each of the six by hand) proves a new field
 actually reached every consumer. `serializedInput.ts`'s own header comment
 already records an earlier instance of this exact defect; this is the second
 time it's been worth writing down.
+
+**Three of those boundaries are now pinned, which narrows the warning without
+retiring it.** Five were already enforced by annotation — `page.tsx`'s `const
+serialized: SerializedPlan`, the `serialized.ts` types themselves, and the
+three call sites typed through `UpdatePlanLiabilityInput`, whose `z.infer`
+fields are `nullable()` rather than `optional()`. The two mappers that were
+not (`toPlanInput.ts`, `serializedInput.ts`) now annotate each object literal
+with `Complete<AssetInput>` / `Complete<LiabilityInput>` — `{ [K in keyof
+Required<T>]: T[K] }`, which requires every key to be *present* while still
+allowing `undefined` as a value, so a forgotten field is a compile error
+naming it. `balance/page.tsx`'s nine-field `AccountTerms` object carries the
+same pin, for the same reason (`AccountTermsInput` is all-`nullish()` and so
+all-optional). Note `[K in keyof T]-?` does **not** work here: it is
+homomorphic and strips `undefined` from the value types too, which these
+mappers legitimately produce. What remains unpinned is everything Prisma
+writes and every call site that reads individual fields — so "check the actual
+field, not the list" still stands.
 
 ## Known gaps
 

@@ -340,8 +340,9 @@ describe("resolvePlanSync", () => {
     ]);
   });
 
-  // A monthly figure, carried across unchanged: liabilityStep does its own
-  // × 12, so the annualising that ASSET rows get must not happen twice.
+  // A monthly figure, carried across unchanged — exactly as an ASSET row's
+  // contribution is. Both plan columns are monthly, and liabilityStep does its
+  // own × 12 inside the projection, so nothing here converts a unit.
   it("carries a liability's monthly flow through an update", () => {
     const result = resolve(
       [planRow({ kind: "LIABILITY", wrapper: null, value: 250000, flow: 0 })],

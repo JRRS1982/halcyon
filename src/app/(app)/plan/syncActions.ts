@@ -89,8 +89,8 @@ function toLoadedPlan(plan: PlanRecord): LoadedPlan {
         value: Number(l.openingBalance),
         wrapper: null,
         // Monthly, and stored that way: liabilityStep does its own × 12 and
-        // LiabilitiesTable renders it as …/mo. Not annualised to match the
-        // asset above — see RealityRow.flow.
+        // LiabilitiesTable renders it as …/mo. Monthly on both sides, exactly
+        // like the asset's contribution above — see RealityRow.flow.
         flow: Number(l.monthlyRepayment),
         // A mortgage cannot outlive its property — the same invariant
         // deletePlanAsset enforces on the plan's own delete.

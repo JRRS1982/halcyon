@@ -644,7 +644,9 @@ describe("latestReality (integration)", () => {
     expect(rows[0]?.flow).toBe(500);
   });
 
-  // × 12 assumes a monthly figure, exactly as the category read does.
+  // The flow is copied across as a monthly figure, so a quarter's total read
+  // as one month's would be wrong — exactly as it would be for the category
+  // read, which does multiply by 12.
   it("ignores a QUARTER period's transfer when reading an account's flow", async () => {
     const period = await monthPeriod(TEST_USER_ID, "March 2026", "2026-03-01");
     const account = await accountWithBalance(

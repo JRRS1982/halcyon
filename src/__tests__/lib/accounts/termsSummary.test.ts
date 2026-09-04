@@ -23,7 +23,10 @@ describe("summariseTerms", () => {
     );
   });
 
-  it("returns an empty string for a type with no terms", () => {
+  // A credit card prompts for one parameter — its rate — so an untouched
+  // Advanced section states the 0% that not answering leaves it at, rather
+  // than saying nothing.
+  it("states the rate a debt falls back to when nothing is typed", () => {
     expect(summariseTerms("CREDIT_CARD", {})).toBe("0% interest");
   });
 });

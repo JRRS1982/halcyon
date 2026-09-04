@@ -87,8 +87,10 @@ export type RealityRow = {
   /** Account.wrapper for an ASSET row. Null for LIABILITY/INCOME/EXPENSE. */
   wrapper: Wrapper | null;
   /**
-   * What the budget says is flowing into this account — a TRANSFER INFLOW
-   * annualised for an ASSET row, a REPAYMENT left monthly for a LIABILITY one.
+   * What the budget says is flowing into this account — a TRANSFER INFLOW for
+   * an ASSET row, a REPAYMENT for a LIABILITY one, both left monthly exactly
+   * as the budget stores them and as PlanRow.flow above carries them. No unit
+   * crosses the comparison.
    * Zero, not null, when nothing is budgeted: an account row's flow is always
    * an observation, and null would never equal the plan row's own column,
    * which defaults to 0 — reporting every unbudgeted account as changed on

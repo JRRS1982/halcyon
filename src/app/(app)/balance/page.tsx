@@ -1,6 +1,7 @@
-import type { Prisma } from "@prisma/client";
+import type { AccountTerms, Prisma } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { kindOf } from "@/lib/accounts/accountDraft";
+import type { AccountTermsInput } from "@/lib/accounts/schemas";
 import {
   currentMonthRange,
   formatYm,
@@ -25,6 +26,32 @@ type PageProps = {
 // column is converted to a plain number (or left null) at this boundary.
 const numberOrNull = (d: Prisma.Decimal | null) =>
   d === null ? null : Number(d);
+
+// Every member of AccountTermsInput is `nullish()` and therefore optional, so
+// a terms object that forgets a column compiles clean — and the card then
+// shows that column's default forever, for every account, silently. Mapping
+// over `keyof Required<…>` requires every key to be present while still
+// allowing `undefined` as a value, so the compiler names the missing one. The
+// same pin guards the two engine mappers (Complete in
+// src/lib/plan/toPlanInput.ts).
+type FullAccountTerms = {
+  [K in keyof Required<AccountTermsInput>]: AccountTermsInput[K];
+};
+
+// One account's stored parameters, in the plain shape a client component can
+// receive. An account with no AccountTerms row has answered nothing, which is
+// an empty object, not a row of nulls — see accountTermsSchema.
+const serializeTerms = (terms: AccountTerms): FullAccountTerms => ({
+  expectedReturnPct: numberOrNull(terms.expectedReturnPct),
+  feePct: numberOrNull(terms.feePct),
+  minAccessAge: terms.minAccessAge,
+  annualIncome: numberOrNull(terms.annualIncome),
+  interestPct: numberOrNull(terms.interestPct),
+  interestOnly: terms.interestOnly,
+  revisionDate: terms.revisionDate,
+  revisionRate: numberOrNull(terms.revisionRate),
+  endDate: terms.endDate,
+});
 
 // /balance shares the FinancialPeriod row with /budget for a given month
 // (?ym=YYYY-MM). The period is "virtual" (id="") until either page creates
@@ -139,19 +166,7 @@ export default async function BalancePage(props: PageProps) {
       kind: kindOf(account.type),
       section: account.section,
       sortOrder: account.sortOrder,
-      terms: account.terms
-        ? {
-            expectedReturnPct: numberOrNull(account.terms.expectedReturnPct),
-            feePct: numberOrNull(account.terms.feePct),
-            minAccessAge: account.terms.minAccessAge,
-            annualIncome: numberOrNull(account.terms.annualIncome),
-            interestPct: numberOrNull(account.terms.interestPct),
-            interestOnly: account.terms.interestOnly,
-            revisionDate: account.terms.revisionDate,
-            revisionRate: numberOrNull(account.terms.revisionRate),
-            endDate: account.terms.endDate,
-          }
-        : {},
+      terms: account.terms ? serializeTerms(account.terms) : {},
       value: observed ? Number(observed.value) : null,
       notes: observed?.notes ?? null,
       carriedOver: observed?.carriedOver ?? false,

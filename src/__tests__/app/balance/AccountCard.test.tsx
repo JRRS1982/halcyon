@@ -4,11 +4,20 @@ import { ThemeProvider } from "styled-components";
 import { AccountCard } from "@/app/(app)/balance/AccountCard";
 import { theme } from "@/lib/theme";
 
+// Hoisted and referenced from the factory, the same shape every other suite
+// in this repo uses (BalanceSheet.test.tsx, DeleteAccountPanel.test.tsx,
+// SyncButton.test.tsx): the mocks stay typed, and a test reaches them by name
+// rather than by re-requiring the module.
+const renameAccount = jest.fn().mockResolvedValue(undefined);
+const setAccountType = jest.fn().mockResolvedValue(undefined);
+const setAccountSection = jest.fn().mockResolvedValue(undefined);
+const setAccountTerms = jest.fn().mockResolvedValue(undefined);
+
 jest.mock("@/app/(app)/balance/accountActions", () => ({
-  renameAccount: jest.fn().mockResolvedValue(undefined),
-  setAccountType: jest.fn().mockResolvedValue(undefined),
-  setAccountSection: jest.fn().mockResolvedValue(undefined),
-  setAccountTerms: jest.fn().mockResolvedValue(undefined),
+  renameAccount: (...args: unknown[]) => renameAccount(...args),
+  setAccountType: (...args: unknown[]) => setAccountType(...args),
+  setAccountSection: (...args: unknown[]) => setAccountSection(...args),
+  setAccountTerms: (...args: unknown[]) => setAccountTerms(...args),
 }));
 
 // Every styled component the card renders (via the shared Drawer) reads its
@@ -39,7 +48,6 @@ describe("AccountCard", () => {
   });
 
   it("commits a rename on blur", async () => {
-    const { renameAccount } = require("@/app/(app)/balance/accountActions");
     renderCard(<AccountCard open account={mortgage} onClose={() => {}} />);
 
     const name = screen.getByDisplayValue("Barclays mortgage");
@@ -67,8 +75,7 @@ describe("AccountCard", () => {
   });
 
   it("surfaces the server's own sentence when a type change is refused", async () => {
-    const actions = require("@/app/(app)/balance/accountActions");
-    actions.setAccountType.mockRejectedValueOnce(
+    setAccountType.mockRejectedValueOnce(
       new Error("Change the mortgage on Home first"),
     );
     renderCard(<AccountCard open account={mortgage} onClose={() => {}} />);

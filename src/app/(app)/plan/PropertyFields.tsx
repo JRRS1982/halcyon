@@ -208,6 +208,26 @@ export function PropertyFields({
               />
             </Field>
           ) : null}
+          {/* The fixed-rate pair, with the same labels the liability drawer
+              uses (LiabilitiesTable.tsx) — this drawer edits the same mortgage
+              and already carries both values through saveMortgage, so leaving
+              them out only meant the two editors of one row disagreed about
+              which fields exist. */}
+          <Field label="Fixed until age (blank = never changes)">
+            <NumberCell
+              value={mortgage.revisionAge}
+              nullable
+              onCommit={(v) => saveMortgage({ ...mortgage, revisionAge: v })}
+            />
+          </Field>
+          <Field label="Rate after that %">
+            <NumberCell
+              value={mortgage.revisionRate}
+              nullable
+              step="0.1"
+              onCommit={(v) => saveMortgage({ ...mortgage, revisionRate: v })}
+            />
+          </Field>
           {currentSplit ? (
             <Field label="This year">
               <ReadoutSpan>
