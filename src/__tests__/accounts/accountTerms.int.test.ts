@@ -1,6 +1,10 @@
 import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
-import { resetDb, seedUser, TEST_USER_ID } from "../../../test/integration/helpers";
+import {
+  resetDb,
+  seedUser,
+  TEST_USER_ID,
+} from "../../../test/integration/helpers";
 
 describe("AccountTerms", () => {
   beforeEach(async () => {
@@ -8,10 +12,13 @@ describe("AccountTerms", () => {
     await seedUser();
   });
 
-
   it("stores nine nullable parameters against one account", async () => {
     const account = await prisma.account.create({
-      data: { userId: TEST_USER_ID, name: "Barclays mortgage", ...buildAccountData({ type: "MORTGAGE" }) },
+      data: {
+        userId: TEST_USER_ID,
+        name: "Barclays mortgage",
+        ...buildAccountData({ type: "MORTGAGE" }),
+      },
     });
 
     await prisma.accountTerms.create({
@@ -42,7 +49,11 @@ describe("AccountTerms", () => {
 
   it("is deleted with its account", async () => {
     const account = await prisma.account.create({
-      data: { userId: TEST_USER_ID, name: "Vanguard ISA", ...buildAccountData({ type: "STOCKS_ISA" }) },
+      data: {
+        userId: TEST_USER_ID,
+        name: "Vanguard ISA",
+        ...buildAccountData({ type: "STOCKS_ISA" }),
+      },
     });
     await prisma.accountTerms.create({
       data: { accountId: account.id, expectedReturnPct: 5, feePct: 0.22 },
@@ -51,13 +62,19 @@ describe("AccountTerms", () => {
     await prisma.account.delete({ where: { id: account.id } });
 
     expect(
-      await prisma.accountTerms.findUnique({ where: { accountId: account.id } }),
+      await prisma.accountTerms.findUnique({
+        where: { accountId: account.id },
+      }),
     ).toBeNull();
   });
 
   it("allows only one terms row per account", async () => {
     const account = await prisma.account.create({
-      data: { userId: TEST_USER_ID, name: "SIPP", ...buildAccountData({ type: "SIPP" }) },
+      data: {
+        userId: TEST_USER_ID,
+        name: "SIPP",
+        ...buildAccountData({ type: "SIPP" }),
+      },
     });
     await prisma.accountTerms.create({
       data: { accountId: account.id, minAccessAge: 57 },
