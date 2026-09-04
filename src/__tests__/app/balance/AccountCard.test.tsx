@@ -1,5 +1,4 @@
-import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { ThemeProvider } from "styled-components";
 import { AccountCard } from "@/app/(app)/balance/AccountCard";
@@ -58,14 +57,15 @@ describe("AccountCard", () => {
     );
 
     const name = screen.getByDisplayValue("Barclays mortgage");
-    await userEvent.clear(name);
-    await userEvent.type(name, "Halifax mortgage");
-    await userEvent.tab();
+    fireEvent.change(name, { target: { value: "Halifax mortgage" } });
+    fireEvent.blur(name);
 
-    expect(renameAccount).toHaveBeenCalledWith({
-      accountId: "a3",
-      name: "Halifax mortgage",
-    });
+    await waitFor(() =>
+      expect(renameAccount).toHaveBeenCalledWith({
+        accountId: "a3",
+        name: "Halifax mortgage",
+      }),
+    );
   });
 
   it("offers only the types of the row's own kind", () => {
@@ -101,7 +101,9 @@ describe("AccountCard", () => {
       />,
     );
 
-    await userEvent.selectOptions(screen.getByLabelText("Type"), "LOAN");
+    fireEvent.change(screen.getByLabelText("Type"), {
+      target: { value: "LOAN" },
+    });
 
     expect(
       await screen.findByText("Change the mortgage on Home first"),
