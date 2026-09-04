@@ -1,8 +1,12 @@
 import type { AccountType } from "@prisma/client";
-import { setAccountType } from "@/app/(app)/balance/accountActions";
+import {
+  setAccountTerms,
+  setAccountType,
+} from "@/app/(app)/balance/accountActions";
 import { deletePlanAsset } from "@/app/(app)/plan/actions";
 import { getPlanSyncPreview, syncPlan } from "@/app/(app)/plan/syncActions";
 import { buildAccountData } from "@/lib/accounts/creation";
+import { emptyRowTerms } from "@/lib/plan/rowTerms";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
 
@@ -87,18 +91,23 @@ describe("syncPlan (integration)", () => {
     expect(Number(assets[0]?.openingValue)).toBe(42300);
   });
 
-  // The point of the whole feature: tuning survives.
-  it("updates the value and preserves assumptions", async () => {
+  // The point of the whole feature, Task 11's widened half: growth parameters
+  // now come from the account's own AccountTerms row, exactly like the
+  // value. drawdownPriority is the genuine Kept assumption — an addition-time
+  // default never re-applied — and stays untouched by the same Sync.
+  it("updates the value and carries the account's terms, but preserves drawdownPriority", async () => {
     const plan = await emptyPlan();
     const account = await accountWithValue("Vanguard ISA", 42300, "2026-03-01");
+    await setAccountTerms({
+      accountId: account.id,
+      terms: { expectedReturnPct: 4.2, feePct: 0.22 },
+    });
     const asset = await prisma.planAsset.create({
       data: {
         planId: plan.id,
         label: "Vanguard ISA",
         accountId: account.id,
         openingValue: 1,
-        expectedReturnPct: 4.2,
-        feePct: 0.22,
         drawdownPriority: 3,
       },
     });
@@ -504,6 +513,7 @@ describe("syncPlan (integration)", () => {
         label: "Vanguard ISA",
         wrapper: "ISA",
         flow: 0,
+        terms: { ...emptyRowTerms(), feePct: 0 },
       },
     ]);
     const after = await prisma.planAsset.findUniqueOrThrow({
@@ -674,6 +684,7 @@ describe("syncPlan (integration)", () => {
         label: "Childcare",
         wrapper: null,
         flow: null,
+        terms: emptyRowTerms(),
       },
     ]);
     const after = await prisma.planExpense.findUniqueOrThrow({
@@ -874,6 +885,10 @@ describe("syncPlan (integration)", () => {
         budget: 500,
       },
     });
+    await setAccountTerms({
+      accountId: account.id,
+      terms: { expectedReturnPct: 4.2 },
+    });
     const asset = await prisma.planAsset.create({
       data: {
         planId: plan.id,
@@ -882,7 +897,6 @@ describe("syncPlan (integration)", () => {
         openingValue: 42300,
         wrapper: "PENSION",
         monthlyContribution: 200,
-        expectedReturnPct: 4.2,
         contributionEndAge: 55,
       },
     });
@@ -896,6 +910,7 @@ describe("syncPlan (integration)", () => {
         label: "Vanguard SIPP",
         wrapper: "PENSION",
         flow: 500,
+        terms: { ...emptyRowTerms(), expectedReturnPct: 4.2, feePct: 0 },
       },
     ]);
     const after = await prisma.planAsset.findUniqueOrThrow({

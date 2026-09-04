@@ -51,6 +51,15 @@ async function updateRow(
           // The budgeted contribution, monthly on both sides now. Null only
           // on a non-ASSET row, so unreachable here; 0 is the schema default.
           monthlyContribution: update.flow ?? 0,
+          expectedReturnPct: update.terms.expectedReturnPct,
+          // feePct is non-nullable on PlanAsset (schema default 0), unlike
+          // expectedReturnPct beside it — an account with no AccountTerms row
+          // reads as null here and must fall back rather than violate the
+          // column.
+          feePct: update.terms.feePct ?? 0,
+          minAccessAge: update.terms.minAccessAge,
+          annualIncome: update.terms.annualIncome,
+          incomeFromAge: update.terms.incomeFromAge,
         },
       });
       if (res.count === 0) {
@@ -69,6 +78,12 @@ async function updateRow(
           label,
           openingBalance: value,
           monthlyRepayment: update.flow ?? 0,
+          // interestPct is non-nullable on PlanLiability (schema default 0).
+          interestPct: update.terms.interestPct ?? 0,
+          interestOnly: update.terms.interestOnly,
+          revisionRate: update.terms.revisionRate,
+          revisionAge: update.terms.revisionAge,
+          endAge: update.terms.endAge,
         },
       });
       if (res.count === 0) {
@@ -197,6 +212,11 @@ async function addRow(
           // default, and src/lib/plan/assets.ts sees a flat tie — drawdown
           // order becomes incidental rather than cash-first.
           drawdownPriority: defaults.drawdownPriority ?? 0,
+          expectedReturnPct: addition.terms.expectedReturnPct,
+          feePct: addition.terms.feePct ?? 0,
+          minAccessAge: addition.terms.minAccessAge,
+          annualIncome: addition.terms.annualIncome,
+          incomeFromAge: addition.terms.incomeFromAge,
         },
       });
       return;
@@ -209,6 +229,11 @@ async function addRow(
           openingBalance: addition.value,
           monthlyRepayment: addition.flow ?? 0,
           sortOrder,
+          interestPct: addition.terms.interestPct ?? 0,
+          interestOnly: addition.terms.interestOnly,
+          revisionRate: addition.terms.revisionRate,
+          revisionAge: addition.terms.revisionAge,
+          endAge: addition.terms.endAge,
         },
       });
       return;

@@ -5,6 +5,7 @@
 // the per-row indicators and the confirmation list are all this one object
 // rendered three ways — they cannot disagree with what the action writes.
 
+import { type RowTerms, rowTermsEqual } from "@/lib/plan/rowTerms";
 import type { ExpenseSection, IncomeKind, Wrapper } from "@/lib/plan/types";
 
 export type PlanRowKind = "ASSET" | "LIABILITY" | "INCOME" | "EXPENSE";
@@ -39,6 +40,11 @@ export type PlanRow = {
    * (PlanExpense.liabilityId). Null when the row stands on its own.
    */
   dependsOn: string | null;
+  /**
+   * The projection parameters this row currently holds, in plan units (ages,
+   * not dates). Empty for INCOME/EXPENSE — a category has no such parameters.
+   */
+  terms: RowTerms;
 };
 
 /**
@@ -91,6 +97,11 @@ export type RealityRow = {
   flow: number | null;
   /** Addition-time only — never compared. See RealityDefaults. */
   defaults: RealityDefaults;
+  /**
+   * The account's or category's own projection parameters, already converted
+   * to plan units (ages, not dates) — see reality.ts. Empty for INCOME/EXPENSE.
+   */
+  terms: RowTerms;
 };
 
 export type SyncRemoval = {
@@ -113,6 +124,7 @@ export type SyncPlan = {
     label: string;
     wrapper: Wrapper | null;
     flow: number | null;
+    terms: RowTerms;
   }[];
   additions: RealityRow[];
   removals: SyncRemoval[];
@@ -217,7 +229,8 @@ export function resolvePlanSync(
       row.value === truth.value &&
       row.label === truth.label &&
       row.wrapper === truth.wrapper &&
-      row.flow === truth.flow
+      row.flow === truth.flow &&
+      rowTermsEqual(row.terms, truth.terms)
     ) {
       unchanged.push(row.id);
       continue;
@@ -228,6 +241,7 @@ export function resolvePlanSync(
       label: truth.label,
       wrapper: truth.wrapper,
       flow: truth.flow,
+      terms: truth.terms,
     });
   }
 

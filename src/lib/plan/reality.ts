@@ -17,8 +17,15 @@ import type { Prisma, TransferDirection } from "@prisma/client";
 import { kindOf, wrapperOf } from "@/lib/accounts/accountDraft";
 import { isExpenseSection } from "@/lib/categories/sections";
 import { drawdownPriorityFor, incomeKindFor } from "@/lib/plan/realityDefaults";
+import { ageOnDate, emptyRowTerms, type RowTerms } from "@/lib/plan/rowTerms";
 import type { RealityRow } from "@/lib/plan/sync";
 import { prisma } from "@/lib/prisma";
+
+// A Prisma.Decimal can't cross into resolvePlanSync's comparison as anything
+// but a plain number — the account's own AccountTerms row may not exist at
+// all, in which case every parameter on it reads as null, not zero.
+const numberOrNull = (d: Prisma.Decimal | null): number | null =>
+  d === null ? null : Number(d);
 
 // The most recent (by period startDate, then createdAt) BalanceItem value per
 // account. Decimal, not number, because $queryRaw deserialises `numeric`
@@ -83,7 +90,10 @@ function budgetedFlow(
 const flowKey = (accountId: string, itemType: string) =>
   `${accountId}:${itemType}`;
 
-async function latestAccountRows(userId: string): Promise<RealityRow[]> {
+async function latestAccountRows(
+  userId: string,
+  dateOfBirth: Date,
+): Promise<RealityRow[]> {
   const accounts = await prisma.account.findMany({
     where: { userId, deletedAt: null },
     select: {
@@ -91,6 +101,7 @@ async function latestAccountRows(userId: string): Promise<RealityRow[]> {
       name: true,
       type: true,
       section: true,
+      terms: true,
     },
   });
   if (accounts.length === 0) return [];
@@ -139,6 +150,39 @@ async function latestAccountRows(userId: string): Promise<RealityRow[]> {
     // loudly instead of falling through these ternaries quietly.
     const kind = kindOf(account.type);
     const value = valueByAccount.get(account.id);
+    const t = account.terms;
+    const terms: RowTerms = {
+      expectedReturnPct: t ? numberOrNull(t.expectedReturnPct) : null,
+      // PlanAsset.feePct is NOT NULL (schema default 0) — unlike
+      // expectedReturnPct beside it — so an ASSET row with no fee configured
+      // must read 0 here, not null, or it would compare unequal to the 0 the
+      // column actually holds and report as changed on every Sync, forever.
+      // Irrelevant to a LIABILITY row (no such column on PlanLiability), so it
+      // stays null there to match the plan row's own hard-coded null.
+      feePct:
+        kind === "ASSET" ? (t?.feePct != null ? Number(t.feePct) : 0) : null,
+      minAccessAge: t?.minAccessAge ?? null,
+      annualIncome: t ? numberOrNull(t.annualIncome) : null,
+      // An ASSET's endDate is the age it starts paying; a LIABILITY's is the
+      // age it is repaid. Same column, different destination, chosen by kind.
+      incomeFromAge:
+        kind === "ASSET" ? ageOnDate(dateOfBirth, t?.endDate ?? null) : null,
+      // PlanLiability.interestPct is likewise NOT NULL (schema default 0) —
+      // the same reasoning as feePct above, mirrored for the debt side.
+      interestPct:
+        kind === "LIABILITY"
+          ? t?.interestPct != null
+            ? Number(t.interestPct)
+            : 0
+          : null,
+      interestOnly: t?.interestOnly ?? false,
+      revisionRate: t ? numberOrNull(t.revisionRate) : null,
+      revisionAge: ageOnDate(dateOfBirth, t?.revisionDate ?? null),
+      endAge:
+        kind === "LIABILITY"
+          ? ageOnDate(dateOfBirth, t?.endDate ?? null)
+          : null,
+    };
 
     return {
       linkId: account.id,
@@ -165,6 +209,7 @@ async function latestAccountRows(userId: string): Promise<RealityRow[]> {
         incomeKind: null,
         expenseSection: null,
       },
+      terms,
     };
   });
 }
@@ -232,6 +277,10 @@ async function latestCategoryRows(userId: string): Promise<RealityRow[]> {
             ? category.section
             : null,
       },
+      // A category has no projection parameters at all — an empty set here
+      // is what lets it compare equal to a plan row's own empty set, so an
+      // income or expense row never reports as changed for want of one.
+      terms: emptyRowTerms(),
     });
   }
 
@@ -242,9 +291,12 @@ async function latestCategoryRows(userId: string): Promise<RealityRow[]> {
 // most recent observed value. "Latest" means the most recent non-deleted
 // period that has a row for it — not necessarily the current month. An
 // account with no observation at all still gets a row, at value 0.
-export async function latestReality(userId: string): Promise<RealityRow[]> {
+export async function latestReality(
+  userId: string,
+  dateOfBirth: Date,
+): Promise<RealityRow[]> {
   const [accountRows, categoryRows] = await Promise.all([
-    latestAccountRows(userId),
+    latestAccountRows(userId, dateOfBirth),
     latestCategoryRows(userId),
   ]);
   return [...accountRows, ...categoryRows];

@@ -57,7 +57,7 @@ describe("every creation path produces a typed account", () => {
       select: { name: true },
     });
 
-    const rows = await latestReality(TEST_USER_ID);
+    const rows = await latestReality(TEST_USER_ID, new Date("1985-01-01"));
     for (const a of accounts) {
       expect(rows.map((r) => r.label)).toContain(a.name);
     }

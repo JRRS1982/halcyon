@@ -72,7 +72,7 @@ export async function createPlan(input: {
   // round trips would run against the 5s interactive-transaction timeout.
   // Nothing below depends on the read being inside — createPlan only adds rows
   // to a plan it has just created.
-  const reality = await latestReality(userId);
+  const reality = await latestReality(userId, new Date(dateOfBirth));
 
   // One primary plan per user (v1). Guard + create are atomic to prevent double-create races.
   await prisma.$transaction(async (tx) => {
