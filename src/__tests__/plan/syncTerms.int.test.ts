@@ -7,7 +7,11 @@
 // nothing would report a change forever.
 
 import type { AccountType } from "@prisma/client";
-import { setAccountTerms } from "@/app/(app)/balance/accountActions";
+import {
+  setAccountTerms,
+  setAccountType,
+} from "@/app/(app)/balance/accountActions";
+import { updatePlanLiability } from "@/app/(app)/plan/actions";
 import { syncPlan } from "@/app/(app)/plan/syncActions";
 import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
@@ -172,20 +176,46 @@ describe("Sync carries every parameter", () => {
     expect(second.updates).toHaveLength(0);
   });
 
-  // The unenforced-invariant guard. accountTermsSchema accepts any field for
-  // any account, and setAccountTerms never checks the account's type — so
-  // nothing stops a liability-only value from landing on an asset account's
-  // AccountTerms row (a UI bug, or any future direct caller). reality.ts must
-  // still read it as irrelevant to this kind, or the row would compare
+  // The door. accountTermsSchema accepts all nine fields for any account — it
+  // is one shape — so which of them an account may carry is enforced by the
+  // action, against the type on the row it is writing to.
+  it("refuses liability-only terms written to an asset account", async () => {
+    const { account } = await planWithAccount("STOCKS_ISA");
+
+    await expect(
+      setAccountTerms({
+        accountId: account.id,
+        terms: { interestPct: 4.29, interestOnly: true },
+      }),
+    ).rejects.toThrow(/interestPct/);
+  });
+
+  // The mirror image: asset-only terms aimed at a liability account.
+  it("refuses asset-only terms written to a liability account", async () => {
+    const { account } = await planWithAccount("MORTGAGE");
+
+    await expect(
+      setAccountTerms({
+        accountId: account.id,
+        terms: { annualIncome: 12_500 },
+      }),
+    ).rejects.toThrow(/annualIncome/);
+  });
+
+  // The safety net behind that door, and the reason it is needed: a type
+  // change leaves the AccountTerms row alone, so an out-of-kind value can
+  // exist without any action having written it. Written straight to the
+  // database here, exactly as a FINAL_SALARY → SIPP change would leave it.
+  // reality.ts must read it as not this account's, or the row would compare
   // against the plan row's hard-coded opposite (toLoadedPlan sets these to
   // null/false for the wrong kind) and report changed on every Sync, forever.
-  it("ignores liability-only terms written to an asset account", async () => {
+  it("ignores an out-of-kind term already stored against an asset", async () => {
     const { account } = await planWithAccount("STOCKS_ISA");
     await syncPlan();
 
-    await setAccountTerms({
-      accountId: account.id,
-      terms: {
+    await prisma.accountTerms.create({
+      data: {
+        accountId: account.id,
         interestPct: 4.29,
         interestOnly: true,
         revisionRate: 6.75,
@@ -197,14 +227,13 @@ describe("Sync carries every parameter", () => {
     expect(second.updates).toHaveLength(0);
   });
 
-  // The mirror image: asset-only terms stranded on a liability account.
-  it("ignores asset-only terms written to a liability account", async () => {
+  it("ignores an out-of-kind term already stored against a liability", async () => {
     const { account } = await planWithAccount("MORTGAGE");
     await syncPlan();
 
-    await setAccountTerms({
-      accountId: account.id,
-      terms: {
+    await prisma.accountTerms.create({
+      data: {
+        accountId: account.id,
         expectedReturnPct: 4.5,
         feePct: 0.35,
         minAccessAge: 58,
@@ -214,5 +243,116 @@ describe("Sync carries every parameter", () => {
     const second = await syncPlan();
 
     expect(second.updates).toHaveLength(0);
+  });
+});
+
+// The parameters an account carries are declared by its *type*, and the type
+// can change under them: setAccountType deliberately leaves AccountTerms
+// alone rather than silently deleting a user's data. Everything downstream
+// therefore has to treat a parameter the current type does not prompt for as
+// not this account's — otherwise a misfiling corrected in two clicks leaves a
+// value no card renders, no gesture can clear, and every Sync re-applies.
+describe("a type change strands the parameters of the old type", () => {
+  it("stops a corrected final-salary pension zeroing its SIPP balance", async () => {
+    const { account } = await planWithAccount("FINAL_SALARY");
+    await setAccountTerms({
+      accountId: account.id,
+      terms: { annualIncome: 12_000, endDate: new Date("2049-06-01") },
+    });
+    await syncPlan();
+
+    // Both ASSET, so the card offers this and the action allows it.
+    await setAccountType({ accountId: account.id, type: "SIPP" });
+    await syncPlan();
+
+    const asset = await prisma.planAsset.findFirstOrThrow({
+      where: { accountId: account.id },
+    });
+    // A SIPP is a pot. An entitlement left on it would exclude the balance
+    // from the projection entirely and pay a phantom £12,000/yr to the end of
+    // the plan.
+    expect(asset.annualIncome).toBeNull();
+    expect(asset.incomeFromAge).toBeNull();
+    expect(Number(asset.openingValue)).toBe(100_000);
+  });
+
+  it("stops a mortgage's interest-only flag reaching a loan", async () => {
+    const { account } = await planWithAccount("MORTGAGE");
+    await setAccountTerms({
+      accountId: account.id,
+      terms: { interestOnly: true, endDate: new Date("2049-06-01") },
+    });
+    await syncPlan();
+
+    await setAccountType({ accountId: account.id, type: "LOAN" });
+    await syncPlan();
+
+    const liability = await prisma.planLiability.findFirstOrThrow({
+      where: { accountId: account.id },
+    });
+    // A LOAN's card has no interest-only control, so a true here could never
+    // be turned off — and the principal would never amortise. endAge stays:
+    // a LOAN does prompt for a payoff date.
+    expect(liability.interestOnly).toBe(false);
+    expect(liability.endAge).toBe(65);
+  });
+
+  // The other half: the stranded value must not make the row read as changed
+  // on every Sync either.
+  it("reports up to date once the stranded parameter is ignored", async () => {
+    const { account } = await planWithAccount("FINAL_SALARY");
+    await setAccountTerms({
+      accountId: account.id,
+      terms: { annualIncome: 12_000, endDate: new Date("2049-06-01") },
+    });
+    await syncPlan();
+    await setAccountType({ accountId: account.id, type: "SIPP" });
+    await syncPlan();
+
+    const third = await syncPlan();
+
+    expect(third.updates).toHaveLength(0);
+  });
+});
+
+// Sync writes through Prisma, bypassing zod — so anything it can copy from an
+// account has to be inside the plan schemas' bounds, or the row it wrote can
+// never be edited again. A 39.9% overdraft is the natural case: the going UK
+// rate, and outside the old -20…30 "plausible" range.
+describe("a real-world rate does not lock the plan row", () => {
+  it("lets a synced 39.9% overdraft be edited afterwards", async () => {
+    const { account } = await planWithAccount("OVERDRAFT");
+    await setAccountTerms({
+      accountId: account.id,
+      terms: { interestPct: 39.9 },
+    });
+    await syncPlan();
+
+    const liability = await prisma.planLiability.findFirstOrThrow({
+      where: { accountId: account.id },
+    });
+    expect(Number(liability.interestPct)).toBe(39.9);
+
+    // A label change — the cheapest possible edit — re-sends every field
+    // through updatePlanLiabilitySchema. Before the bounds were widened this
+    // threw, and no edit of this row could ever be saved.
+    await expect(
+      updatePlanLiability({
+        liabilityId: liability.id,
+        label: "Overdraft (renamed)",
+        openingBalance: Number(liability.openingBalance),
+        interestPct: Number(liability.interestPct),
+        monthlyRepayment: Number(liability.monthlyRepayment),
+        startAge: liability.startAge,
+        endAge: liability.endAge,
+        linkedAssetId: liability.linkedAssetId,
+        interestOnly: liability.interestOnly,
+        revisionAge: liability.revisionAge,
+        revisionRate:
+          liability.revisionRate === null
+            ? null
+            : Number(liability.revisionRate),
+      }),
+    ).resolves.not.toThrow();
   });
 });

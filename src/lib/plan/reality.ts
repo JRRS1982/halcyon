@@ -14,7 +14,12 @@
 // re-runs all of it on every router.refresh().
 
 import type { Prisma, TransferDirection } from "@prisma/client";
-import { kindOf, wrapperOf } from "@/lib/accounts/accountDraft";
+import {
+  kindOf,
+  type TermField,
+  termsFor,
+  wrapperOf,
+} from "@/lib/accounts/accountDraft";
 import { isExpenseSection } from "@/lib/categories/sections";
 import { drawdownPriorityFor, incomeKindFor } from "@/lib/plan/realityDefaults";
 import { ageOnDate, emptyRowTerms, type RowTerms } from "@/lib/plan/rowTerms";
@@ -51,9 +56,10 @@ type LatestBudgetRow = { categoryId: string; budget: Prisma.Decimal };
 // The plan reads the *budgeted* figure, not the actual: it is a forecast of
 // what you intend to pay in, not a record of what you did.
 //
-// `latest` is looked up by the *target* kind rather than by trusting a row's
-// own type, so a REPAYMENT can never be annualised nor a TRANSFER left
-// monthly — a mispaired row is simply unfindable. The Add drawer's fence
+// Both sides are monthly, so nothing here converts a unit. `latest` is still
+// looked up by the *target* kind rather than by trusting a row's own type, so
+// a mispaired row — a REPAYMENT sitting on an asset account — is simply
+// unfindable rather than read as that account's contribution. The Add drawer's fence
 // (requireAnchorAccount) already pairs them that way, and one account carries
 // at most one row per period (requireAccountUnbudgeted), so there is exactly
 // one row to find rather than a sum.
@@ -121,9 +127,10 @@ async function latestAccountRows(
         AND b."deletedAt" IS NULL AND p."deletedAt" IS NULL AND p."userId" = ${userId}::uuid
       ORDER BY b."accountId", p."startDate" DESC, b."createdAt" DESC
     `,
-    // × 12 in budgetedFlow assumes a monthly figure, and a REPAYMENT is
-    // stored monthly too — WEEK and QUARTER periods also exist in the
-    // granularity enum and would misread as both, so the filter stays.
+    // budgetedFlow copies the figure across as a monthly one, and both plan
+    // columns are monthly too — WEEK and QUARTER periods also exist in the
+    // granularity enum, and a quarter's total read as one month's would be
+    // wrong on either side, so the filter stays.
     prisma.$queryRaw<LatestFlowRow[]>`
       SELECT DISTINCT ON (b."accountId", b."type") b."accountId", b."type", b."direction", b."budget"
       FROM "BudgetItem" b
@@ -151,61 +158,76 @@ async function latestAccountRows(
     const kind = kindOf(account.type);
     const value = valueByAccount.get(account.id);
     const t = account.terms;
-    // Every field below is gated by kind, not read straight off AccountTerms:
-    // each parameter exists on only one of PlanAsset/PlanLiability, and
+    // Each parameter is gated on whether this account's *type* prompts for it
+    // — termsFor, the same declaration the card renders from — rather than on
+    // its kind alone. Two things make the narrower gate necessary. Each
+    // parameter exists on only one of PlanAsset/PlanLiability, and
     // toLoadedPlan (syncActions.ts) hard-codes the opposite kind's row to
-    // null/false/0 for it. Nothing stops AccountTerms itself from carrying an
-    // out-of-kind value — accountTermsSchema accepts any field for any
-    // account, and setAccountTerms never checks the account's type — so
-    // without the gate a stray liability-only value on an asset account (or
-    // vice versa) would compare against the plan row's hard-coded opposite
-    // and report that row changed on every Sync, forever. Today only
-    // AccountCard writes terms, and it only ever sends what termsFor(type)
-    // allows, so the data stays clean in practice — but that is an unenforced
-    // invariant elsewhere, not a guarantee this comparison can lean on.
+    // null/false/0 for it. And AccountTerms genuinely can hold a parameter
+    // the type does not prompt for: setAccountType changes the type without
+    // touching the terms row, so a pension misfiled as FINAL_SALARY and then
+    // corrected to SIPP keeps its annualIncome and endDate, which no SIPP
+    // card renders and so no gesture can clear. Read by kind alone that
+    // orphan would be copied onto the SIPP's plan row — zeroing its balance
+    // every year and paying a phantom income to the end of the plan — and
+    // re-applied by every later Sync. Gated on termsFor it is simply not this
+    // account's value, so it never travels. setAccountTerms refuses the same
+    // set on the way in; this is the safety net behind that door.
+    const prompts = new Set<TermField>(termsFor(account.type));
+    const asked = (field: TermField): boolean => prompts.has(field);
     const terms: RowTerms = {
-      expectedReturnPct:
-        kind === "ASSET"
-          ? t
-            ? numberOrNull(t.expectedReturnPct)
-            : null
-          : null,
+      expectedReturnPct: asked("expectedReturnPct")
+        ? numberOrNull(t?.expectedReturnPct ?? null)
+        : null,
       // PlanAsset.feePct is NOT NULL (schema default 0) — unlike
       // expectedReturnPct beside it — so an ASSET row with no fee configured
       // must read 0 here, not null, or it would compare unequal to the 0 the
       // column actually holds and report as changed on every Sync, forever.
+      // An asset type that never prompts for a fee reads that same 0.
       // Irrelevant to a LIABILITY row (no such column on PlanLiability), so it
       // stays null there to match the plan row's own hard-coded null.
       feePct:
-        kind === "ASSET" ? (t?.feePct != null ? Number(t.feePct) : 0) : null,
-      minAccessAge: kind === "ASSET" ? (t?.minAccessAge ?? null) : null,
-      annualIncome:
-        kind === "ASSET" ? (t ? numberOrNull(t.annualIncome) : null) : null,
+        kind === "ASSET"
+          ? asked("feePct") && t?.feePct != null
+            ? Number(t.feePct)
+            : 0
+          : null,
+      minAccessAge: asked("minAccessAge") ? (t?.minAccessAge ?? null) : null,
+      annualIncome: asked("annualIncome")
+        ? numberOrNull(t?.annualIncome ?? null)
+        : null,
       // An ASSET's endDate is the age it starts paying; a LIABILITY's is the
-      // age it is repaid. Same column, different destination, chosen by kind.
+      // age it is repaid. One column and one term field, two destinations —
+      // so this pair keeps a kind check alongside the termsFor gate.
       incomeFromAge:
-        kind === "ASSET" ? ageOnDate(dateOfBirth, t?.endDate ?? null) : null,
+        kind === "ASSET" && asked("endDate")
+          ? ageOnDate(dateOfBirth, t?.endDate ?? null)
+          : null,
       // PlanLiability.interestPct is likewise NOT NULL (schema default 0) —
       // the same reasoning as feePct above, mirrored for the debt side.
       interestPct:
         kind === "LIABILITY"
-          ? t?.interestPct != null
+          ? asked("interestPct") && t?.interestPct != null
             ? Number(t.interestPct)
             : 0
           : null,
       // PlanLiability.interestOnly is NOT NULL (schema default false) — the
-      // ASSET side of the same reasoning as interestPct: false, not merely
-      // "whatever AccountTerms happens to hold", so a stray true on an asset
-      // account can't disagree with the plan row's hard-coded false.
-      interestOnly: kind === "LIABILITY" ? (t?.interestOnly ?? false) : false,
-      revisionRate:
-        kind === "LIABILITY" ? (t ? numberOrNull(t.revisionRate) : null) : null,
-      revisionAge:
-        kind === "LIABILITY"
-          ? ageOnDate(dateOfBirth, t?.revisionDate ?? null)
-          : null,
+      // same reasoning again: false, not merely "whatever AccountTerms
+      // happens to hold", so neither a stray true on an asset account nor a
+      // MORTGAGE's true surviving a change to LOAN (whose card has no such
+      // control, and whose principal must still amortise) can travel.
+      interestOnly:
+        kind === "LIABILITY" && asked("interestOnly")
+          ? (t?.interestOnly ?? false)
+          : false,
+      revisionRate: asked("revisionRate")
+        ? numberOrNull(t?.revisionRate ?? null)
+        : null,
+      revisionAge: asked("revisionDate")
+        ? ageOnDate(dateOfBirth, t?.revisionDate ?? null)
+        : null,
       endAge:
-        kind === "LIABILITY"
+        kind === "LIABILITY" && asked("endDate")
           ? ageOnDate(dateOfBirth, t?.endDate ?? null)
           : null,
     };

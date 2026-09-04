@@ -1,11 +1,11 @@
 "use client";
 
 import type { AccountKind, AccountSection } from "@prisma/client";
-import { type ReactNode, useRef, useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import styled from "styled-components";
 import { AccountTermsFields } from "@/components/accounts/AccountTermsFields";
 import { Button } from "@/components/ui/Button";
-import { Drawer, DrawerSection } from "@/components/ui/Drawer";
+import { Drawer, DrawerSection, Field } from "@/components/ui/Drawer";
 import {
   ACCOUNT_TYPES,
   type AccountDraft,
@@ -45,8 +45,9 @@ function sectionOptionsFor(type: AccountKind): AccountSection[] {
 // ─── Form fields ────────────────────────────────────────────────────────────
 //
 // The dialog/scrim/focus-trap chrome itself now lives in the shared
-// `Drawer` (src/components/ui/Drawer.tsx) rather than a copy kept local to
-// this feature. What's left here is this form's own field layout and inputs.
+// `Drawer` (src/components/ui/Drawer.tsx) — `Field` included, so this form and
+// AccountTermsFields inside it render the same label markup rather than two
+// byte-identical copies of it. What's left here is this form's own inputs.
 
 // Fills Drawer's scrollable body with this form's own padding/grid — Drawer's
 // Body only supplies flex sizing and overflow, not field layout.
@@ -56,12 +57,6 @@ const FormBody = styled.form`
   gap: ${({ theme }) => theme.spacing.lg};
 `;
 
-const FieldWrap = styled.label`
-  display: grid;
-  gap: ${({ theme }) => theme.spacing.xs};
-  font-size: 12px;
-  color: ${({ theme }) => theme.colors.body};
-`;
 const TextInput = styled.input`
   border: 1px solid ${({ theme }) => theme.colors.hairline};
   border-radius: ${({ theme }) => theme.rounded.sm};
@@ -98,15 +93,6 @@ const ErrorText = styled.p`
   font-size: 13px;
   color: ${({ theme }) => theme.colors.negative};
 `;
-
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <FieldWrap>
-      {label}
-      {children}
-    </FieldWrap>
-  );
-}
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
@@ -168,15 +154,25 @@ export function AddAccountDrawer({
     const nextCategory = keepsChoice ? category : option.defaultSection;
     setTypeId(next);
     setCategory(nextCategory);
+    // The terms belong to the type that asked for them, so changing the type
+    // clears them — unlike the section, which is the user's own choice about
+    // where the row sits. Kept, a value typed under one type would be
+    // submitted under another: tick "Interest only" as a MORTGAGE, switch to
+    // CREDIT_CARD, and the card that renders next has no such control to show
+    // it. The server refuses that payload (createAccount → requireTermsOfType)
+    // rather than trusting this, but a refusal the user cannot see the cause
+    // of is not the behaviour to ship.
+    if (next !== typeId) setTerms({});
     // The name is always the next thing typed, and until a type is picked the
     // field does not exist to be focused — so it is focused here rather than
     // left for the user to reach for.
     queueMicrotask(() => nameRef.current?.focus());
 
     // The mortgage question belongs to the Property type, not the section, so
-    // leaving Property clears it.
+    // leaving Property clears it — the answer and the terms typed under it.
     if (option.id !== "PROPERTY") {
       setHasMortgage(false);
+      setMortgageTerms({});
     }
   };
 

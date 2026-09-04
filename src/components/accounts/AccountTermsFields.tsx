@@ -5,7 +5,7 @@ import { useId } from "react";
 import { BoolCell, NumberCell, TextCell } from "@/app/(app)/plan/EditableCell";
 import { Field } from "@/components/ui/Drawer";
 import { type TermField, termsFor } from "@/lib/accounts/accountDraft";
-import type { AccountTermsInput } from "@/lib/accounts/schemas";
+import { type AccountTermsInput, promptedTerms } from "@/lib/accounts/schemas";
 
 // The user's words, not the column's. "Fixed until" is what a mortgage holder
 // calls revisionDate; "Paid off by" is what they call endDate — except on a
@@ -64,8 +64,14 @@ export function AccountTermsFields({
 
   // Never mutates `value` — the Add drawer holds it in state and React would
   // not see an in-place edit.
+  //
+  // Emits only the parameters this type prompts for, which are exactly the
+  // ones rendered below. `value` is the whole AccountTerms row and may carry a
+  // parameter stranded by an earlier type change (see reality.ts) — spread
+  // unfiltered, an edit of the growth rate would re-offer that stranded value
+  // too, and setAccountTerms refuses a payload that does.
   const set = <K extends TermField>(key: K, next: AccountTermsInput[K]) =>
-    onChange({ ...value, [key]: next });
+    onChange(promptedTerms(type, { ...value, [key]: next }));
 
   // A final salary pension's endDate is the day it starts paying, not the day
   // it is paid off. Same column, different question, chosen by type — exactly

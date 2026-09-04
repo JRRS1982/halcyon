@@ -1,5 +1,6 @@
 "use server";
 
+import type { AccountType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { accountTypesOfKind, kindOf } from "@/lib/accounts/accountDraft";
@@ -19,6 +20,7 @@ import {
   createAccountSchema,
   type DeleteAccountEverywhereInput,
   deleteAccountEverywhereSchema,
+  disallowedTerms,
   setAccountTermsSchema,
 } from "@/lib/accounts/schemas";
 import { isValidBalanceCategory } from "@/lib/balance/reorder";
@@ -42,6 +44,17 @@ import { createClient } from "@/lib/supabase/server";
 const hasAnyTerm = (terms: AccountTermsInput): boolean =>
   Object.values(terms).some((v) => v !== undefined && v !== null);
 
+// Refuses a parameter the account type does not prompt for. A stored value no
+// card renders is invisible, uncleanable and still read by Sync, so the door
+// is here rather than left to reality.ts's gate to ignore afterwards.
+function requireTermsOfType(type: AccountType, terms: AccountTermsInput): void {
+  const rejected = disallowedTerms(type, terms);
+  if (rejected.length === 0) return;
+  throw new Error(
+    `A ${type} account has no ${rejected.join(", ")} — that is not one of its parameters`,
+  );
+}
+
 async function requireUserId(): Promise<string> {
   const supabase = await createClient();
   const {
@@ -61,6 +74,13 @@ function revalidateAll() {
   // transaction — every action in this file shares one revalidateAll rather
   // than each remembering its own paths, so /budget belongs here too.
   revalidatePath("/budget");
+  // And /plan, because an account IS a plan row: Sync compares its label,
+  // its type (which decides the wrapper and which parameters travel), its
+  // parameters and whether it exists at all. Every action here mutates at
+  // least one of those, so leaving /plan out left the Sync indicator showing
+  // a stale count after a rename or a type change until something else
+  // happened to refresh it.
+  revalidatePath("/plan");
 }
 
 // Throws unless the account is the caller's. Every action starts here — the
@@ -128,6 +148,12 @@ export async function createAccount(
   const range = monthRangeFor(parsed.year, parsed.month);
 
   const name = cleanLabel(parsed.name);
+  // Both halves are checked against the type they will be stored under: the
+  // drawer's picker can change after the Advanced section has been filled in,
+  // and a mortgage's terms belong to a MORTGAGE however the property was
+  // filed.
+  requireTermsOfType(parsed.type, parsed.terms);
+  if (parsed.mortgage) requireTermsOfType("MORTGAGE", parsed.mortgage.terms);
   // The drawer sends the one type it asked for; everything else the row needs
   // — asset-or-liability included — is derived from it.
   const accountData = buildAccountData({
@@ -417,6 +443,10 @@ export async function archiveAccount(
 // Writes the projection parameters for one account — absent keys are left
 // alone, `null` clears them back to the account type's default. See
 // accountTermsSchema for why those two are not the same thing.
+//
+// Refuses anything the account's own type does not prompt for: the type comes
+// from the row, never from the payload, so no caller can widen what it may
+// write by claiming a different one.
 export async function setAccountTerms(input: unknown): Promise<void> {
   const { accountId, terms } = setAccountTermsSchema.parse(input);
   const userId = await requireUserId();
@@ -424,12 +454,15 @@ export async function setAccountTerms(input: unknown): Promise<void> {
   await prisma.$transaction(async (tx) => {
     // Ownership is the primary boundary (ADR-002: the server role bypasses
     // RLS), and it is checked inside the transaction so a concurrent delete
-    // cannot slip between the check and the write.
+    // cannot slip between the check and the write. The type rides along on
+    // the same read — it is the other thing this write has to be checked
+    // against.
     const owned = await tx.account.findFirst({
       where: { id: accountId, userId, deletedAt: null },
-      select: { id: true },
+      select: { id: true, type: true },
     });
     if (!owned) throw new Error("Account not found");
+    requireTermsOfType(owned.type, terms);
 
     // upsert, not update: the first write for an account has no row yet, and
     // an account is created without terms.
@@ -440,9 +473,9 @@ export async function setAccountTerms(input: unknown): Promise<void> {
     });
   });
 
-  revalidatePath("/balance");
-  // A term change makes the plan stale, so its Sync indicator must re-read.
-  revalidatePath("/plan");
+  // The same paths as every other action here — /plan among them, because a
+  // term change makes the plan stale.
+  revalidateAll();
 }
 
 export async function restoreAccount(input: AccountIdInput): Promise<void> {

@@ -1,4 +1,6 @@
+import type { AccountType } from "@prisma/client";
 import { z } from "zod";
+import { type TermField, termsFor } from "@/lib/accounts/accountDraft";
 import { accountSectionSchema, accountTypeSchema } from "@/lib/balance/schemas";
 
 // Every parameter is optional and nullable, and the two mean different things:
@@ -91,6 +93,56 @@ export const setAccountTermsSchema = accountIdSchema.extend({
 
 export type AccountTermsInput = z.infer<typeof accountTermsSchema>;
 export type SetAccountTermsInput = z.infer<typeof setAccountTermsSchema>;
+
+/**
+ * The parameters in `terms` that this account type does not prompt for.
+ *
+ * accountTermsSchema deliberately accepts all nine for any account — it is one
+ * shape, and *which* of the nine an account may carry is declared by
+ * `termsFor(type)`, not by the schema. This turns that declaration into
+ * something an action can refuse with: a value typed under one type and
+ * submitted under another (the Add drawer's picker changed after the Advanced
+ * section was filled in, or a hand-rolled payload) would otherwise be stored
+ * where no card renders it and no gesture can clear it.
+ *
+ * `undefined` is not a value: absent means "don't touch this", so a payload
+ * carrying an explicit `undefined` for a parameter it is not offering is not
+ * offering it. `null` is — clearing a parameter the type never prompts for is
+ * as meaningless as setting one.
+ */
+export function disallowedTerms(
+  type: AccountType,
+  terms: AccountTermsInput,
+): TermField[] {
+  const allowed = new Set<TermField>(termsFor(type));
+  return (Object.entries(terms) as [TermField, unknown][])
+    .filter(([field, value]) => value !== undefined && !allowed.has(field))
+    .map(([field]) => field);
+}
+
+/**
+ * `terms` narrowed to the parameters `type` prompts for, and nothing else.
+ *
+ * What the card and the Add drawer send. The value they hold is the whole
+ * AccountTerms row — nine keys, most of them null — and spreading that
+ * straight into a payload would offer parameters the type does not prompt
+ * for, including one stranded by an earlier type change. Narrowing here means
+ * the client sends exactly what it rendered, which is what `disallowedTerms`
+ * insists on server-side.
+ *
+ * Derived from `termsFor` rather than nine hand-written lines: a tenth column
+ * declared there is picked up here for free, rather than silently omitted.
+ */
+export function promptedTerms(
+  type: AccountType,
+  terms: AccountTermsInput,
+): AccountTermsInput {
+  const entries = termsFor(type).map((field) => [field, terms[field]]);
+  // Object.fromEntries erases the per-key value types; every entry above is
+  // one of AccountTermsInput's own keys paired with its own value, so the
+  // shape is right by construction.
+  return Object.fromEntries(entries) as AccountTermsInput;
+}
 
 export type AccountDeletionCounts = {
   months: number;

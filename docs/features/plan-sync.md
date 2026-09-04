@@ -105,19 +105,43 @@ Two more failure modes, gated per field rather than assumed away:
   would never equal the plan column's `0` and report the row changed forever.
   `reality.ts` reads `0` for these two, gated to the kind each column
   belongs to.
-- **Every kind-specific parameter is gated by kind on both sides.** An
-  asset-only parameter (`expectedReturnPct`, `feePct`, `minAccessAge`,
-  `annualIncome`, `incomeFromAge`) reads `null` for a `LIABILITY` row, and a
-  liability-only one (`interestPct`, `interestOnly`, `revisionRate`,
-  `revisionAge`, `endAge`) reads `null`/`false`/`0` for an `ASSET` row —
-  matching `toLoadedPlan`'s own hard-coded opposite-kind values exactly.
-  Nothing in the schema stops `AccountTerms` from carrying an out-of-kind
-  value (there is no CHECK constraint, and `setAccountTerms` doesn't check
-  the account's type), so this gate is what keeps a stray value from
-  comparing against the wrong plan column and reporting changed forever. In
-  practice only `AccountCard` writes terms, and it only ever sends what
-  `termsFor(type)` allows, so the data stays clean — but the comparison does
-  not rely on that holding.
+- **Every parameter is gated on what the account's own type prompts for.**
+  `reality.ts` reads a parameter only if `termsFor(account.type)` lists it,
+  and otherwise reads the neutral value the plan column holds —
+  `null`, or `0`/`false` for the three `NOT NULL` columns — matching
+  `toLoadedPlan`'s own hard-coded values exactly. So an asset-only parameter
+  (`expectedReturnPct`, `feePct`, `minAccessAge`, `annualIncome`,
+  `incomeFromAge`) never travels on a `LIABILITY` row, a liability-only one
+  (`interestPct`, `interestOnly`, `revisionRate`, `revisionAge`, `endAge`)
+  never travels on an `ASSET` one, **and neither does a parameter belonging to
+  a different type of the same kind.**
+
+  That last case is not hypothetical, and it is why the gate is `termsFor`
+  rather than `kindOf`. Nothing in the schema stops `AccountTerms` from
+  holding a parameter its account's type does not prompt for (there is no
+  CHECK constraint), and `setAccountType` deliberately does **not** delete
+  terms when the type changes — silently destroying a user's data on a
+  correction is worse than ignoring it. So a pension misfiled as
+  `FINAL_SALARY`, given an `annualIncome` and an `endDate`, then corrected to
+  `SIPP` keeps both: no SIPP card renders them, so no gesture can clear them.
+  Gated on kind alone, Sync would copy that entitlement onto the SIPP's plan
+  row — zeroing its balance every year and paying a phantom income to the end
+  of the plan — and re-apply it on every later Sync. Same shape for
+  `MORTGAGE → LOAN` (a stranded `interestOnly` a loan cannot amortise past)
+  and `MORTGAGE → CREDIT_CARD` (a stranded `endAge` that freezes the card's
+  balance).
+
+  Two layers, because neither is sufficient alone:
+
+  - **The door.** `setAccountTerms` and `createAccount` refuse any parameter
+    the account's type does not prompt for (`disallowedTerms` in
+    [`schemas.ts`](../../src/lib/accounts/schemas.ts)), reading the type from
+    the row rather than the payload. The Add drawer also clears its terms
+    draft when its type picker changes, so a value typed under one type is
+    never submitted under another.
+  - **The safety net.** The `termsFor` gate in `reality.ts` above, which makes
+    an already-stranded value — the type-change case, which no door can
+    prevent — inert rather than merely unwritable.
 
 ### `endDate` means two different things, chosen by kind
 
@@ -137,9 +161,18 @@ than growing or drawing it down — and an income of that amount runs from
 people track a defined-benefit pension's cash-equivalent transfer value on
 their balance sheet, so an account can honestly carry both a balance *and*
 an entitlement — and projecting the pot while also paying the income would
-count the same pension twice. The fence keys on `annualIncome` being set, not
-on the `DB_PENSION` wrapper, so an asset with no entitlement is unaffected
-even if it happens to carry that wrapper.
+count the same pension twice. The fence keys on `annualIncome`, not on the
+`DB_PENSION` wrapper, so an asset with no entitlement is unaffected even if it
+happens to carry that wrapper.
+
+It keys on a **positive** `annualIncome` (`isEntitled` in
+[`assets.ts`](../../src/lib/plan/assets.ts)), not merely a set one. The column
+is nullable and the field's placeholder reads `0`, so blank and `0` look
+identical in that input while meaning opposite things — somebody recording an
+NHS pension's £120,000 transfer value who types `0` into "Pension income /yr"
+is saying "I don't know yet". Read as an entitlement, that answer dropped the
+£120,000 out of the projection's net worth, made the row undrawable, and paid
+an income of nothing. An entitlement recorded as zero is not an entitlement.
 
 ### Contributions are stored monthly
 
@@ -154,6 +187,34 @@ disagree with what the projection actually does with the money. This also
 removed two rounding blocks from `reality.ts` that existed only to survive
 the old cross-unit (monthly budget vs annual plan column) comparison — see
 "Where the numbers come from," below.
+
+### The plan's own bounds are the column's, not a judgement about plausibility
+
+`applySyncPlan` writes through Prisma, bypassing zod. So every quantity a Sync
+copies from an account must be inside the bounds
+[`plan/schemas.ts`](../../src/lib/plan/schemas.ts) puts on a *manual* edit of
+that same row — otherwise Sync writes a figure the row's own editor rejects,
+and **every later edit of that row throws**, including a label change or a
+timeline drag. The row can never be saved again.
+
+The original bounds were judgements about what a person would type by hand:
+interest `-20…30`, fees `0…5`, earliest access `50…75`, paid-off age
+`40…120`. Reality is wider than that. A UK overdraft charges 39.9%. A mortgage
+can be cleared before 40. A protected pension age can be 45. A fund can charge
+6%. Each of those is real, recordable on the account side (whose bounds are
+`DECIMAL(5,2)`'s ±999.99 — see `accountTermsSchema`), and each locked its plan
+row permanently.
+
+So the plan-side bounds widened to the account side's. Sync does **not** clamp
+— that would silently alter a rate the user really pays — and the account side
+was **not** narrowed, which would refuse to record it. Two consequences worth
+naming: `PlanAsset.openingValue` and `PlanLiability.openingBalance` are
+unbounded like `BalanceItem.value`, because an overdrawn current account is an
+asset row with a negative balance; and the two Sync-written age fields
+(`endAge`, `revisionAge`) carry no range at all, because they are derived from
+a date input that accepts any year. `monthlyContribution`/`monthlyRepayment`
+keep `min(0)`: the budget rows they are fed from are `nonnegative()`
+themselves.
 
 ### ⚠️ Contributions and repayments moved from Kept to Replaced
 

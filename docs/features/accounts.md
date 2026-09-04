@@ -190,6 +190,27 @@ naming the blocker, inline in the card rather than as a toast. Value and
 notes stay editable in place on the sheet itself, debounced, same as before
 — only identity and assumptions moved into the card.
 
+**A type change does not delete terms, so nothing may read a stranded one.**
+`setAccountType` leaves the `AccountTerms` row alone — silently destroying a
+user's data because they corrected a misfiling is worse than ignoring the
+value. The consequence is that an account can hold a parameter its current
+type does not prompt for: a pension entered as `FINAL_SALARY` with an
+`annualIncome`, corrected to `SIPP`, keeps it, and no SIPP card renders it. So
+three things guard it, and none of them is a delete:
+
+- `setAccountTerms` and `createAccount` **refuse** a payload naming a
+  parameter the account's type does not prompt for (`disallowedTerms`), taking
+  the type from the row rather than the payload.
+- `AccountTermsFields` **emits only** the parameters it rendered
+  (`promptedTerms`), and the Add drawer clears its terms draft when its type
+  picker changes — so a value typed under one type is never submitted under
+  another.
+- Sync **ignores** a stranded value entirely: `reality.ts` gates every
+  parameter on `termsFor(account.type)`, not on `kindOf`. That is the layer
+  that matters, because it is the only one that can do anything about a value
+  that is already stored. See
+  [`plan-sync.md`](plan-sync.md#the-compare-set-four-fields-then-fourteen).
+
 ## Adding an account
 
 One `+ Add` button on the Balance page opens `AddAccountDrawer.tsx`, which
