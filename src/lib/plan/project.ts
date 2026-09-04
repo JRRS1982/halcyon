@@ -2,7 +2,12 @@
 
 import { taxContextFor } from "@/lib/tax/bands";
 import { taxOn } from "@/lib/tax/compute";
-import { contributionTargetId, drawable, fundDeficit } from "./assets";
+import {
+  contributionTargetId,
+  drawable,
+  fundDeficit,
+  isEntitled,
+} from "./assets";
 import { amountThisYear, annualFromMonthly, grow, round, sum } from "./helpers";
 import { liabilityStep } from "./liabilities";
 import { activeExpenses, activeIncome } from "./streams";
@@ -162,7 +167,7 @@ const projectYears = (
       .map((a) => {
         const endAge = a.contributionEndAge ?? input.retirementAge;
         const amount =
-          a.annualIncome === undefined && a.monthlyContribution && age < endAge
+          !isEntitled(a) && a.monthlyContribution && age < endAge
             ? amountThisYear(
                 annualFromMonthly(a.monthlyContribution),
                 input.inflationPct,
@@ -213,9 +218,11 @@ const projectYears = (
     const yearTax = incTax + withdrawalTax;
 
     for (const a of runAssets) {
-      // See AssetInput.annualIncome: an entitled row is an income, not a pot,
-      // so its balance never grows and never appears in net worth.
-      if (a.annualIncome !== undefined) {
+      // See AssetInput.annualIncome and isEntitled: an entitled row is an
+      // income, not a pot, so its balance never grows and never appears in
+      // net worth. A zero entitlement is not one — it would delete a real
+      // transfer value from the projection.
+      if (isEntitled(a)) {
         assetBal[a.id] = 0;
         continue;
       }

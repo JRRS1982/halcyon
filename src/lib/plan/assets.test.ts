@@ -37,6 +37,21 @@ describe("contributionTargetId", () => {
     ];
     expect(contributionTargetId(assets)).toBeNull();
   });
+  // A CASH account carrying an entitlement is reachable — a FINAL_SALARY
+  // account corrected to SAVINGS keeps its annualIncome — and an entitled
+  // row's balance is zeroed every year. Targeted, the year's surplus would be
+  // paid in and then vanish, with no shortfall reported anywhere.
+  it("skips a CASH account that carries an entitlement", () => {
+    const assets = [
+      asset({ id: "db", wrapper: "CASH", annualIncome: 9000 }),
+      asset({ id: "isa", wrapper: "ISA", drawdownPriority: 1 }),
+    ];
+    expect(contributionTargetId(assets)).toBe("isa");
+  });
+  it("returns null when the only asset is an entitlement", () => {
+    const assets = [asset({ id: "db", wrapper: "CASH", annualIncome: 9000 })];
+    expect(contributionTargetId(assets)).toBeNull();
+  });
 });
 
 describe("fundDeficit", () => {

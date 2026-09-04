@@ -67,6 +67,22 @@ describe("a DB pension with an entitlement", () => {
     expect(incomeAt(result, 80)).toBeCloseTo(12_000, 2);
   });
 
+  // The field is nullable and the card's placeholder for it reads "0", so
+  // blank and 0 are indistinguishable in that input while meaning opposite
+  // things: someone recording an NHS pension's transfer value who types 0
+  // into "Pension income /yr" means "I don't know yet". Read as an
+  // entitlement, that answer deleted £250,000 from the plan's net worth, made
+  // the row undrawable, and paid an income of nothing.
+  it("treats a zero entitlement as no entitlement", () => {
+    const result = project({
+      ...base,
+      assets: [{ ...dbPension, id: "db0", annualIncome: 0 }],
+    });
+
+    expect(assetValue(result, 41, "db0")).toBeGreaterThan(250_000);
+    expect(incomeAt(result, 80)).toBe(0);
+  });
+
   it("still grows a DB pension with no entitlement set", () => {
     // Without an annualIncome the row is just an asset, and excluding it
     // would silently zero a balance the user does track.
