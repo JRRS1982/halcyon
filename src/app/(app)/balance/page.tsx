@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { kindOf } from "@/lib/accounts/accountDraft";
 import {
@@ -18,6 +19,12 @@ import {
 type PageProps = {
   searchParams: Promise<{ ym?: string }>;
 };
+
+// A Prisma.Decimal can't cross into a client component — BalanceSheet (and
+// the AccountCard it renders) is "use client", so every AccountTerms decimal
+// column is converted to a plain number (or left null) at this boundary.
+const numberOrNull = (d: Prisma.Decimal | null) =>
+  d === null ? null : Number(d);
 
 // /balance shares the FinancialPeriod row with /budget for a given month
 // (?ym=YYYY-MM). The period is "virtual" (id="") until either page creates
@@ -88,6 +95,7 @@ export default async function BalancePage(props: PageProps) {
       type: true,
       section: true,
       sortOrder: true,
+      terms: true,
     },
   });
 
@@ -131,6 +139,19 @@ export default async function BalancePage(props: PageProps) {
       kind: kindOf(account.type),
       section: account.section,
       sortOrder: account.sortOrder,
+      terms: account.terms
+        ? {
+            expectedReturnPct: numberOrNull(account.terms.expectedReturnPct),
+            feePct: numberOrNull(account.terms.feePct),
+            minAccessAge: account.terms.minAccessAge,
+            annualIncome: numberOrNull(account.terms.annualIncome),
+            interestPct: numberOrNull(account.terms.interestPct),
+            interestOnly: account.terms.interestOnly,
+            revisionDate: account.terms.revisionDate,
+            revisionRate: numberOrNull(account.terms.revisionRate),
+            endDate: account.terms.endDate,
+          }
+        : {},
       value: observed ? Number(observed.value) : null,
       notes: observed?.notes ?? null,
       carriedOver: observed?.carriedOver ?? false,

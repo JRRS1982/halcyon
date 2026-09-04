@@ -17,18 +17,17 @@ import {
   Toolbar,
   ToolbarGroup,
   ToolbarPeriodLabel,
-  ToolbarSelect,
   ToolbarSpacer,
   ToolbarTool,
 } from "@/components/sheet/Toolbar";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusPip, type StatusPipState } from "@/components/ui/StatusPip";
-import {
-  type AccountTypeId,
-  accountTypesOfKind,
-} from "@/lib/accounts/accountDraft";
+import type { AccountTypeId } from "@/lib/accounts/accountDraft";
 import { isPropertyRow } from "@/lib/accounts/deletion";
-import type { AccountDeletionCounts } from "@/lib/accounts/schemas";
+import type {
+  AccountDeletionCounts,
+  AccountTermsInput,
+} from "@/lib/accounts/schemas";
 import { BUCKET_ORDER, isValidBalanceCategory } from "@/lib/balance/reorder";
 import {
   formatYm,
@@ -42,13 +41,9 @@ import {
   NUMBER_FORMAT_SPEC,
   type NumberFormat,
 } from "@/lib/settings/currency";
+import { AccountCard } from "./AccountCard";
 import { AddAccountDrawer } from "./AddAccountDrawer";
-import {
-  accountDeletionCounts,
-  renameAccount,
-  setAccountSection,
-  setAccountType,
-} from "./accountActions";
+import { accountDeletionCounts } from "./accountActions";
 import {
   clearBalanceValue,
   copyBalancePeriodFrom,
@@ -78,6 +73,10 @@ export type SerializedAccountRow = {
   kind: AccountKind;
   section: AccountSection;
   sortOrder: number;
+  // The account's projection parameters — empty when it has never had an
+  // AccountTerms row written. Carried on the row so the card can be opened
+  // straight from the sheet's own data, with no extra fetch.
+  terms: AccountTermsInput;
   // Null when this month holds no observation for the account: the cell is
   // blank, and the row is counted in the "without a value" note.
   value: number | null;
@@ -301,6 +300,29 @@ const CellInput = styled.input<{ $align?: "left" | "right" }>`
     cursor: not-allowed;
     color: ${({ theme }) => theme.colors.dim};
     -webkit-text-fill-color: ${({ theme }) => theme.colors.dim};
+  }
+`;
+
+// The name cell is no longer an input — it opens AccountCard, which owns the
+// account's identity. Styled to read as plain cell text (not a button) until
+// hovered, so the row still reads as a sheet rather than a list of links.
+const NameButton = styled.button`
+  border: none;
+  background: transparent;
+  outline: none;
+  padding: 0;
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  &:hover,
+  &:focus-visible {
+    text-decoration: underline;
   }
 `;
 
@@ -741,30 +763,34 @@ export function BalanceSheet({
   // Holds a key per edit that has been applied locally (editField, below) but
   // not yet started sending — a window pendingSavesRef does not cover, since
   // useDebouncedCallback delays 500ms per key before the save ever runs for
-  // it. Per-key because the debounce is: editing cell A then cell B within the
-  // same 500ms window must not let A's timer firing (and clearing A's own
-  // entry) look like "nothing is dirty" while B's edit is still only sitting
-  // in its own, separately-keyed timer. The name and the value are separate
-  // keys per account because they now go to two different actions
-  // (renameAccount, upsertBalanceValue) on two independent timers. Each key
-  // hands over from this set to pendingSavesRef at the save's first line,
-  // rather than overlapping or gapping.
+  // it. Per-key (one per account) because editing account A's value then
+  // account B's within the same 500ms window must not let A's timer firing
+  // (and clearing A's own entry) look like "nothing is dirty" while B's edit
+  // is still only sitting in its own, separately-keyed timer. Each key hands
+  // over from this set to pendingSavesRef at the save's first line, rather
+  // than overlapping or gapping. The name is no longer edited here — it
+  // opens AccountCard instead, which saves through its own action directly.
   const dirtyItemsRef = useRef<Set<string>>(new Set());
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const [now, setNow] = useState(() => new Date());
   const [addOpen, setAddOpen] = useState(false);
+  // The row clicked to open its card. Looked up against `rows` (rather than
+  // held as the row itself) so a card left open across a refresh always
+  // shows the latest server state, exactly like every other read here.
+  const [cardAccountId, setCardAccountId] = useState<string | null>(null);
   const router = useRouter();
 
   // Adopt fresh server data whenever the page re-renders with the same
-  // (year, month) — a router.refresh() after a mutation the drawer made,
-  // whose result carries only { periodId, accountId } and not the row(s) it
-  // created. Mirrors transactions/Ledger.tsx's identical "adopt on refresh"
-  // effect, but — unlike Ledger — a cell edit here can be unconfirmed when a
-  // refresh lands: optimistically applied to `rows` (editField) but not yet
-  // persisted, either still sitting in debouncedUpdate's 500ms timer
-  // (dirtyItemsRef) or already sent and awaiting the server (pendingSavesRef).
+  // (year, month) — a router.refresh() after a mutation the drawer or the
+  // card made, whose result carries only { periodId, accountId } (or nothing
+  // at all) and not the row(s) it changed. Mirrors transactions/Ledger.tsx's
+  // identical "adopt on refresh" effect, but — unlike Ledger — a value/notes
+  // edit here can be unconfirmed when a refresh lands: optimistically applied
+  // to `rows` (editField) but not yet persisted, either still sitting in its
+  // debounce's 500ms timer (dirtyItemsRef) or already sent and awaiting the
+  // server (pendingSavesRef).
   // Adoption is skipped while either is non-empty/non-zero: otherwise the server's
   // pre-write snapshot would silently overwrite the optimistic edit still
   // showing on screen (the write itself still lands in the DB — only the
@@ -1034,14 +1060,6 @@ export function BalanceSheet({
     [],
   );
 
-  // The label names the account, so it saves through renameAccount — the
-  // account is the thing being renamed, and the month's row only mirrors it.
-  const performRename = useCallback(
-    (accountId: string, name: string) =>
-      runSave(`${accountId}:name`, () => renameAccount({ accountId, name })),
-    [runSave],
-  );
-
   // Value and notes share one debounce key, and the debounce keeps only the
   // latest call's arguments — so a value typed and then a note added inside
   // the same window would send the note alone and drop the value. Each edit
@@ -1077,11 +1095,6 @@ export function BalanceSheet({
     [runSave, year, month],
   );
 
-  const debouncedRename = useDebouncedCallback(
-    performRename,
-    500,
-    (accountId) => `${accountId}:name`,
-  );
   const debouncedValueSave = useDebouncedCallback(
     performValueSave,
     500,
@@ -1091,7 +1104,7 @@ export function BalanceSheet({
   const editField = useCallback(
     (
       accountId: string,
-      patch: { name?: string; value?: number | null; notes?: string | null },
+      patch: { value?: number | null; notes?: string | null },
     ) => {
       // Added synchronously, in the same tick as the optimistic setRows
       // below — this is the instant the edit becomes "unsaved", well before
@@ -1111,10 +1124,6 @@ export function BalanceSheet({
             : row,
         ),
       );
-      if (patch.name !== undefined) {
-        dirtyItemsRef.current.add(`${accountId}:name`);
-        debouncedRename(accountId, patch.name);
-      }
       if (patch.value !== undefined || patch.notes !== undefined) {
         dirtyItemsRef.current.add(`${accountId}:value`);
         // Merged, not replaced: the pending patch is the union of every
@@ -1129,7 +1138,7 @@ export function BalanceSheet({
         debouncedValueSave(accountId);
       }
     },
-    [debouncedRename, debouncedValueSave],
+    [debouncedValueSave],
   );
 
   // Every row is an account, so deleting one always opens the two-mode delete
@@ -1229,71 +1238,6 @@ export function BalanceSheet({
     };
   }, [deletePanel]);
 
-  const focusedRow = useMemo(
-    () =>
-      focusedCell
-        ? (rows.find((r) => r.accountId === focusedCell.accountId) ?? null)
-        : null,
-    [focusedCell, rows],
-  );
-
-  // Move the focused account into another section, appending it to the end of
-  // that bucket. The section is a fact about the account, not about the month,
-  // so it saves through setAccountSection. Optimistic + immediate save (a
-  // discrete pick, not typing); revert on error.
-  const editSection = useCallback(
-    (accountId: string, section: AccountSection) => {
-      const target = rows.find((r) => r.accountId === accountId);
-      if (!target || target.section === section) return;
-
-      const previous = rows;
-      const maxSort = rows.reduce(
-        (max, r) =>
-          r.kind === target.kind && r.section === section && r.sortOrder > max
-            ? r.sortOrder
-            : max,
-        0,
-      );
-      setRows((prev) =>
-        prev.map((r) =>
-          r.accountId === accountId
-            ? { ...r, section, sortOrder: maxSort + 1 }
-            : r,
-        ),
-      );
-      startTransition(async () => {
-        const saved = await runSave(null, () =>
-          setAccountSection({ accountId, section }),
-        );
-        if (!saved) setRows(previous);
-      });
-    },
-    [rows, runSave],
-  );
-
-  // Change what kind of account this is. Same kind only, and refused outright
-  // when something else depends on the account staying what it is — the
-  // server's message names that blocker, so it is shown as written rather
-  // than replaced with a generic failure.
-  const editType = useCallback(
-    (accountId: string, type: AccountTypeId) => {
-      const target = rows.find((r) => r.accountId === accountId);
-      if (!target || target.type === type) return;
-
-      const previous = rows;
-      setRows((prev) =>
-        prev.map((r) => (r.accountId === accountId ? { ...r, type } : r)),
-      );
-      startTransition(async () => {
-        const saved = await runSave(null, () =>
-          setAccountType({ accountId, type }),
-        );
-        if (!saved) setRows(previous);
-      });
-    },
-    [rows, runSave],
-  );
-
   // ─── Derived totals ───────────────────────────────────────────────────────
 
   const groups = useMemo(() => {
@@ -1355,14 +1299,12 @@ export function BalanceSheet({
           focusedCell.field === "label"
         }
       >
-        <CellInput
-          value={row.name}
-          placeholder="Name this item"
-          onChange={(e) => editField(row.accountId, { name: e.target.value })}
-          onFocus={() =>
-            setFocusedCell({ accountId: row.accountId, field: "label" })
-          }
-        />
+        <NameButton
+          type="button"
+          onClick={() => setCardAccountId(row.accountId)}
+        >
+          {row.name}
+        </NameButton>
       </SheetCell>
       <SheetCell
         align="right"
@@ -1471,6 +1413,7 @@ export function BalanceSheet({
   // ─── Render ───────────────────────────────────────────────────────────────
 
   const pip = pipState(pendingCount, saveError, lastSavedAt, now);
+  const cardAccount = rows.find((r) => r.accountId === cardAccountId) ?? null;
 
   return (
     <PageShell>
@@ -1608,42 +1551,6 @@ export function BalanceSheet({
             )}
           </CopyWrapper>
         </ToolbarGroup>
-        {focusedRow && (
-          <ToolbarGroup $rowScoped $engaged>
-            {/* What the account is, and where it sits: two separate facts, so
-                two controls. The type list is the row's own kind only — an
-                account never crosses between assets and liabilities. */}
-            <ToolbarSelect
-              aria-label="Account type"
-              value={focusedRow.type}
-              onChange={(e) =>
-                editType(focusedRow.accountId, e.target.value as AccountTypeId)
-              }
-            >
-              {accountTypesOfKind(focusedRow.kind).map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.label}
-                </option>
-              ))}
-            </ToolbarSelect>
-            <ToolbarSelect
-              aria-label="Move to section"
-              value={focusedRow.section}
-              onChange={(e) =>
-                editSection(
-                  focusedRow.accountId,
-                  e.target.value as AccountSection,
-                )
-              }
-            >
-              {sectionOptionsFor(focusedRow.kind).map((s) => (
-                <option key={s.key} value={s.key}>
-                  {s.label}
-                </option>
-              ))}
-            </ToolbarSelect>
-          </ToolbarGroup>
-        )}
         <ToolbarGroup $rowScoped $engaged={!!focusedCell}>
           <ToolbarTool
             onClick={onDelete}
@@ -1663,8 +1570,12 @@ export function BalanceSheet({
       )}
       {/* The server's own words: a refused type change names what is blocking
           it, and that sentence is what tells the user which link or plan event
-          to deal with first. */}
-      {saveError && <SheetError role="alert">{saveError}</SheetError>}
+          to deal with first. Suppressed while the card is open — AccountCard
+          shows the same sentence inline, right by the control that caused it,
+          so this banner would otherwise repeat it a second time on screen. */}
+      {saveError && cardAccountId === null && (
+        <SheetError role="alert">{saveError}</SheetError>
+      )}
       <Sheet data-sheet-scroller role="table" aria-label="Balance sheet">
         {renderSection("ASSET", "Assets", assetsTotal)}
         {renderSection("LIABILITY", "Liabilities", liabilitiesTotal)}
@@ -1708,6 +1619,26 @@ export function BalanceSheet({
         onClose={() => setAddOpen(false)}
         onCreated={onAccountCreated}
       />
+      {cardAccount && (
+        <AccountCard
+          open={cardAccountId !== null}
+          account={{
+            id: cardAccount.accountId,
+            name: cardAccount.name,
+            type: cardAccount.type,
+            section: cardAccount.section,
+            kind: cardAccount.kind,
+            terms: cardAccount.terms,
+          }}
+          onClose={() => setCardAccountId(null)}
+          onError={setSaveError}
+          onSaved={() => {
+            setLastSavedAt(new Date());
+            setSaveError(null);
+            router.refresh();
+          }}
+        />
+      )}
       {deletePanel && (
         <DeleteScrim
           onClick={(e) => {

@@ -34,12 +34,18 @@ const accountDeletionCounts = jest.fn();
 const setAccountType = jest.fn();
 const setAccountSection = jest.fn();
 const renameAccount = jest.fn();
+const setAccountTerms = jest.fn();
 jest.mock("@/app/(app)/balance/accountActions", () => ({
   accountDeletionCounts: (...args: unknown[]) => accountDeletionCounts(...args),
   createAccount: jest.fn(),
+  // renameAccount/setAccountSection/setAccountType/setAccountTerms are called
+  // from AccountCard now, not BalanceSheet directly — it opens the card
+  // rather than editing these in place. Mocked here all the same, since
+  // AccountCard imports from this same module path.
   renameAccount: (...args: unknown[]) => renameAccount(...args),
   setAccountSection: (...args: unknown[]) => setAccountSection(...args),
   setAccountType: (...args: unknown[]) => setAccountType(...args),
+  setAccountTerms: (...args: unknown[]) => setAccountTerms(...args),
 }));
 
 const period: SerializedPeriod = {
@@ -56,6 +62,7 @@ const baseRow: SerializedAccountRow = {
   kind: "ASSET",
   section: "CURRENT",
   sortOrder: 1,
+  terms: {},
   value: 100,
   notes: null,
   carriedOver: false,
@@ -259,31 +266,36 @@ describe("BalanceSheet — an account with no value this month", () => {
   });
 });
 
-describe("BalanceSheet — the row's type control", () => {
+describe("BalanceSheet — the row's card owns type and section now", () => {
   beforeEach(() => {
     setAccountType.mockReset();
     setAccountType.mockResolvedValue(undefined);
   });
 
+  // The toolbar's row-scoped "Change type" select is gone — clicking the
+  // row's name is the only way to reach it, and it opens AccountCard.
+  const openCard = () =>
+    fireEvent.click(screen.getByRole("button", { name: baseRow.name }));
+
   // Same kind only: an account never crosses between assets and liabilities
   // (setAccountType refuses it), so the list is the nine asset types and
   // nothing else.
-  test("an asset row offers exactly the nine asset types", () => {
+  test("an asset row's card offers exactly the nine asset types", () => {
     renderSheet([baseRow]);
-    fireEvent.focus(screen.getByDisplayValue(baseRow.name));
+    openCard();
 
-    const select = screen.getByLabelText("Account type") as HTMLSelectElement;
+    const select = screen.getByLabelText("Type") as HTMLSelectElement;
     expect([...select.options].map((o) => o.textContent)).toEqual(
       accountTypesOfKind("ASSET").map((t) => t.label),
     );
     expect(select.options).toHaveLength(9);
   });
 
-  test("picking a type saves it against the account", async () => {
+  test("picking a type in the card saves it against the account", async () => {
     renderSheet([baseRow]);
-    fireEvent.focus(screen.getByDisplayValue(baseRow.name));
+    openCard();
 
-    fireEvent.change(screen.getByLabelText("Account type"), {
+    fireEvent.change(screen.getByLabelText("Type"), {
       target: { value: "SAVINGS" },
     });
 
@@ -297,15 +309,15 @@ describe("BalanceSheet — the row's type control", () => {
 
   // A refusal names the blocker — a linked mortgage, a plan sale event — and
   // that sentence is the only thing telling the user what to deal with
-  // first, so it is shown as written rather than as "Save failed".
-  test("a refusal is shown in the sheet's error slot, verbatim", async () => {
+  // first, so the card shows it as written rather than as "Save failed".
+  test("a refusal is shown in the card, verbatim", async () => {
     setAccountType.mockRejectedValue(
       new Error("Home is linked to its mortgage/property — unlink first"),
     );
     renderSheet([baseRow]);
-    fireEvent.focus(screen.getByDisplayValue(baseRow.name));
+    openCard();
 
-    fireEvent.change(screen.getByLabelText("Account type"), {
+    fireEvent.change(screen.getByLabelText("Type"), {
       target: { value: "SAVINGS" },
     });
 
@@ -335,7 +347,9 @@ describe("BalanceSheet — deleting a row", () => {
     });
     renderSheet([baseRow]);
 
-    fireEvent.focus(screen.getByDisplayValue(baseRow.name));
+    // Focusing any cell in the row engages the row-scoped delete control —
+    // the amount cell, here, so the row is focused without opening the card.
+    fireEvent.focus(screen.getByPlaceholderText("0"));
     fireEvent.click(screen.getByRole("button", { name: /delete row/i }));
 
     expect(await screen.findByRole("alertdialog")).toBeInTheDocument();
