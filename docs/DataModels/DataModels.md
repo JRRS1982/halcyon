@@ -61,7 +61,7 @@ a parent. Most carry `deletedAt` for soft deletion.
 |---|---|
 | `Category` | the stable taxonomy a transaction is filed under, and what a `BudgetItem` links to. See [features/onboarding.md](../features/onboarding.md) for what a new account starts with |
 | `Account` | where money sits — current, savings, ISA, SIPP. Named as a transfer counterparty too |
-| `AccountTerms` | 1:1 with `Account` (its `accountId` is the primary key) — the projection parameters that account feeds into the Plan: expected return, fees, interest rate, a mortgage's revision terms, a final-salary entitlement. Every column is nullable and blank means "take the default," never "unknown" |
+| `AccountTerms` | 1:1 with `Account` (its `accountId` is the primary key) — the projection parameters that account feeds into the Plan: expected return, fees, interest rate, a mortgage's revision terms, a final-salary entitlement. Blank means "take the default," never "unknown" — true of the eight nullable columns, and of the ninth (`interestOnly`, non-null with a `false` default) for the same reason a flag has no "unknown" |
 | `ImportBatch` | one CSV import, so it can be reversed as a unit |
 | `Transaction` | an imported or manual line: date, signed amount, description, optional category and counterparty account |
 

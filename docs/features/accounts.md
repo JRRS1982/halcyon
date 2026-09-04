@@ -134,20 +134,44 @@ Nine parameters, three shapes:
 | Final salary | `annualIncome`, `endDate` | `FINAL_SALARY` only |
 | Debt | `interestPct`, `interestOnly`, `revisionDate`, `revisionRate`, `endDate` | liability types, varying which |
 
-**Every column is nullable, and there is no CHECK constraint.** A blank means
-*take the default*, never *unknown* — a property with no `feePct` has no
-platform charges, which is true rather than an error. That is also why one
-table serves fourteen account types rather than fourteen tables: each type
-asks for a subset of the nine, never a type-specific column.
+**Eight of the nine columns are nullable, and there is no CHECK constraint.**
+A blank means *take the default*, never *unknown* — a property with no
+`feePct` has no platform charges, which is true rather than an error. The
+ninth, `interestOnly`, is `NOT NULL` with a `false` default rather than
+nullable, and that's the same rule wearing a boolean's clothes: a flag has no
+meaningful "unknown" the way a rate or a date does, so `false` — not
+repaying interest-only — already *is* the default, and there's nothing for a
+null to mean that `false` doesn't already say. That's also why one table
+serves fourteen account types rather than fourteen tables: each type asks
+for a subset of the nine, never a type-specific column.
 
 **Which parameters a type prompts for is code, not schema.** `ACCOUNT_TYPES`
 in
 [`src/lib/accounts/accountDraft.ts`](../../src/lib/accounts/accountDraft.ts)
 declares a `terms: TermField[]` per type — a mortgage asks for five, a
 current account for one (`expectedReturnPct`) — and `termsFor(type)` reads it
-back. The array is exhaustiveness-pinned (every entry of `AccountTypeOption`
-requires `terms`), so a new `AccountType` with no `terms` entry fails the
-build rather than silently prompting for nothing.
+back.
+
+**Don't conflate the guarantee this actually gives with a stronger one it
+doesn't** — this is exactly the mistake this feature's own
+[`plan-sync.md`](plan-sync.md#the-compare-set-four-fields-then-fourteen)
+warns against, one file over. `ACCOUNT_TYPES: readonly AccountTypeOption[]`
+is a plain array. Because `terms` is a *required* member of
+`AccountTypeOption`, an entry that omits it fails to compile — so a listed
+type can never be listed *incompletely*. But nothing about the array itself
+requires every `AccountType` enum value to *have* an entry: add a fifteenth
+type to the enum and `ACCOUNT_TYPES` compiles exactly as it did before,
+silently missing it. That is a real, if narrow, gap — nothing here would
+call it out.
+
+A genuine full-enum pin does exist in this codebase, just not for this
+list: `ALL_ACCOUNT_TYPES satisfies Record<AccountType, true>` in
+[`src/lib/balance/schemas.ts`](../../src/lib/balance/schemas.ts), which
+`accountTypeSchema` derives its keys from. Add a fifteenth `AccountType` and
+*that* fails to compile until `ALL_ACCOUNT_TYPES` learns it — but that pin
+protects the `type` field's own zod validation, not `ACCOUNT_TYPES`'s terms
+mapping; the two lists are independent, and nothing wires an update to one
+into a requirement on the other.
 
 **`endDate` means something different depending on kind.** On a liability
 it's the date the balance is repaid, and Sync lands it on
