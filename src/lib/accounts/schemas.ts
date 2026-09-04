@@ -60,6 +60,34 @@ export type DeleteAccountEverywhereInput = z.infer<
   typeof deleteAccountEverywhereSchema
 >;
 
+// Every parameter is optional and nullable, and the two mean different things:
+// absent = "don't touch this", null = "clear it, take the default". The card
+// sends only the fields its account type prompts for, so absent is the normal
+// case for the other eight.
+//
+// DECIMAL(5,2) tops out at 999.99, so the rate bounds are the column's, not a
+// judgement about plausible interest. annualIncome is DECIMAL(12,2).
+const pct = z.number().min(-999.99).max(999.99);
+
+export const accountTermsSchema = z.object({
+  expectedReturnPct: pct.nullish(),
+  feePct: pct.nullish(),
+  minAccessAge: z.number().int().min(0).max(120).nullish(),
+  annualIncome: z.number().min(0).max(9_999_999_999.99).nullish(),
+  interestPct: pct.nullish(),
+  interestOnly: z.boolean().optional(),
+  revisionDate: z.coerce.date().nullish(),
+  revisionRate: pct.nullish(),
+  endDate: z.coerce.date().nullish(),
+});
+
+export const setAccountTermsSchema = accountIdSchema.extend({
+  terms: accountTermsSchema,
+});
+
+export type AccountTermsInput = z.infer<typeof accountTermsSchema>;
+export type SetAccountTermsInput = z.infer<typeof setAccountTermsSchema>;
+
 export type AccountDeletionCounts = {
   months: number;
   budgetRows: number;

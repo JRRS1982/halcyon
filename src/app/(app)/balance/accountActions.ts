@@ -18,6 +18,7 @@ import {
   createAccountSchema,
   type DeleteAccountEverywhereInput,
   deleteAccountEverywhereSchema,
+  setAccountTermsSchema,
 } from "@/lib/accounts/schemas";
 import { isValidBalanceCategory } from "@/lib/balance/reorder";
 import {
@@ -392,6 +393,37 @@ export async function archiveAccount(
     });
   });
   revalidateAll();
+}
+
+// Writes the projection parameters for one account — absent keys are left
+// alone, `null` clears them back to the account type's default. See
+// accountTermsSchema for why those two are not the same thing.
+export async function setAccountTerms(input: unknown): Promise<void> {
+  const { accountId, terms } = setAccountTermsSchema.parse(input);
+  const userId = await requireUserId();
+
+  await prisma.$transaction(async (tx) => {
+    // Ownership is the primary boundary (ADR-002: the server role bypasses
+    // RLS), and it is checked inside the transaction so a concurrent delete
+    // cannot slip between the check and the write.
+    const owned = await tx.account.findFirst({
+      where: { id: accountId, userId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!owned) throw new Error("Account not found");
+
+    // upsert, not update: the first write for an account has no row yet, and
+    // an account is created without terms.
+    await tx.accountTerms.upsert({
+      where: { accountId },
+      create: { accountId, ...terms },
+      update: terms,
+    });
+  });
+
+  revalidatePath("/balance");
+  // A term change makes the plan stale, so its Sync indicator must re-read.
+  revalidatePath("/plan");
 }
 
 export async function restoreAccount(input: AccountIdInput): Promise<void> {
