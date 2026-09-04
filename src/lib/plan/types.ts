@@ -43,7 +43,10 @@ export interface AssetInput {
   openingValue: number;
   expectedReturnPct?: number; // undefined ⇒ PlanInput.defaultReturnPct
   feePct?: number; // annual charge subtracted from the effective return; default 0
-  annualContribution?: number; // regular paying-in, inflation-grown; default 0
+  // Monthly, matching both the column and the budget row it is copied from.
+  // project.ts does the × 12, so nothing stores an annual figure and no
+  // comparison ever crosses a unit.
+  monthlyContribution?: number;
   contributionEndAge?: number; // default = PlanInput.retirementAge
   minAccessAge?: number; // earliest drawdown age; PENSION defaults to 57 when undefined
   drawdownPriority: number; // ascending = drawn first (CASH buffer first)

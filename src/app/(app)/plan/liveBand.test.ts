@@ -28,7 +28,7 @@ const plan: SerializedPlan = {
       openingValue: 100000,
       expectedReturnPct: null,
       feePct: 0,
-      annualContribution: 6000,
+      monthlyContribution: 500,
       contributionEndAge: null,
       minAccessAge: 57,
       drawdownPriority: 2,

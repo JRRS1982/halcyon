@@ -24,7 +24,7 @@ export type SerializedPlanAsset = {
   openingValue: number;
   expectedReturnPct: number | null;
   feePct: number;
-  annualContribution: number;
+  monthlyContribution: number;
   contributionEndAge: number | null;
   minAccessAge: number | null;
   drawdownPriority: number;

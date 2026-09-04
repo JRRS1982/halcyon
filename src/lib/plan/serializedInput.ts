@@ -42,7 +42,7 @@ export function serializedToPlanInput(
       openingValue: x.openingValue,
       expectedReturnPct: x.expectedReturnPct ?? undefined,
       feePct: x.feePct,
-      annualContribution: x.annualContribution,
+      monthlyContribution: x.monthlyContribution,
       contributionEndAge: x.contributionEndAge ?? undefined,
       minAccessAge: x.minAccessAge ?? undefined,
       drawdownPriority: x.drawdownPriority,

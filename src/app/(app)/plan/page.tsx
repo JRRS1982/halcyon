@@ -69,7 +69,7 @@ export default async function PlanPage() {
       expectedReturnPct:
         a.expectedReturnPct === null ? null : Number(a.expectedReturnPct),
       feePct: Number(a.feePct),
-      annualContribution: Number(a.annualContribution),
+      monthlyContribution: Number(a.monthlyContribution),
       contributionEndAge: a.contributionEndAge,
       minAccessAge: a.minAccessAge,
       drawdownPriority: a.drawdownPriority,

@@ -72,7 +72,7 @@ export function toPlanInput(
       openingValue: num(a.openingValue),
       expectedReturnPct: optNum(a.expectedReturnPct),
       feePct: num(a.feePct),
-      annualContribution: num(a.annualContribution),
+      monthlyContribution: num(a.monthlyContribution),
       contributionEndAge: a.contributionEndAge ?? undefined,
       minAccessAge: a.minAccessAge ?? undefined,
       drawdownPriority: a.drawdownPriority,

@@ -27,12 +27,10 @@ export type PlanRow = {
   wrapper: Wrapper | null;
   /**
    * Money budgeted into or against the thing this row mirrors:
-   * PlanAsset.annualContribution (annual) for ASSET, PlanLiability.monthlyRepayment
-   * (monthly) for LIABILITY. Null for INCOME/EXPENSE, which mirror a category
-   * and have no such column — the same shape as `wrapper` above.
-   *
-   * The units are deliberately asymmetric: each column is stored in the unit
-   * its own drawer displays, and liabilityStep does its own × 12.
+   * PlanAsset.monthlyContribution for ASSET, PlanLiability.monthlyRepayment
+   * for LIABILITY — both monthly, matching the budget row they are copied
+   * from. Null for INCOME/EXPENSE, which mirror a category and have no such
+   * column — the same shape as `wrapper` above.
    */
   flow: number | null;
   /**

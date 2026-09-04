@@ -32,7 +32,7 @@ const plan: PlanInput = {
       label: "SIPP",
       wrapper: "PENSION",
       openingValue: 200000,
-      annualContribution: 8000,
+      monthlyContribution: 666.67,
       drawdownPriority: 2,
     },
     {

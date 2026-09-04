@@ -46,7 +46,7 @@ const SourceFigure = styled.span`
 `;
 
 // A flow difference is a different claim from a value one, and it comes from a
-// different sheet: annualContribution and monthlyRepayment are fed by the
+// different sheet: monthlyContribution and monthlyRepayment are fed by the
 // budget's TRANSFER and REPAYMENT rows, so naming the balance sheet beside a
 // flow figure would be a false statement about where it came from.
 const FLOW_CHANGED_LABEL =

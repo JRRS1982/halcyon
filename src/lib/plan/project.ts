@@ -3,7 +3,7 @@
 import { taxContextFor } from "@/lib/tax/bands";
 import { taxOn } from "@/lib/tax/compute";
 import { contributionTargetId, drawable, fundDeficit } from "./assets";
-import { amountThisYear, grow, round, sum } from "./helpers";
+import { amountThisYear, annualFromMonthly, grow, round, sum } from "./helpers";
 import { liabilityStep } from "./liabilities";
 import { activeExpenses, activeIncome } from "./streams";
 import type {
@@ -160,9 +160,9 @@ const projectYears = (
       .map((a) => {
         const endAge = a.contributionEndAge ?? input.retirementAge;
         const amount =
-          a.annualContribution && age < endAge
+          a.monthlyContribution && age < endAge
             ? amountThisYear(
-                a.annualContribution,
+                annualFromMonthly(a.monthlyContribution),
                 input.inflationPct,
                 yearsElapsed,
               )

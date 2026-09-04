@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import styled from "styled-components";
 import { WRAPPERS } from "@/lib/plan";
+import { annualFromMonthly } from "@/lib/plan/helpers";
 import type { SyncPlan } from "@/lib/plan/sync";
 import { formatAmount, type NumberFormat } from "@/lib/settings/currency";
 import { AddAssetDrawer } from "./AddAssetDrawer";
+import { Muted } from "./AddRowDrawer.styled";
 import { updatePlanAsset } from "./actions";
 import { NumberCell, SelectCell, TextCell } from "./EditableCell";
 import { MortgageBadge } from "./MortgageBadge";
@@ -56,7 +58,7 @@ export function AssetFields({ asset }: { asset: SerializedPlanAsset }) {
         openingValue: next.openingValue,
         expectedReturnPct: next.expectedReturnPct,
         feePct: next.feePct,
-        annualContribution: next.annualContribution,
+        monthlyContribution: next.monthlyContribution,
         contributionEndAge: next.contributionEndAge,
         minAccessAge: next.minAccessAge,
         drawdownPriority: next.drawdownPriority,
@@ -121,22 +123,27 @@ export function AssetFields({ asset }: { asset: SerializedPlanAsset }) {
       <DrawerSection
         title="Contributions"
         summary={
-          asset.annualContribution > 0
-            ? `${asset.annualContribution.toLocaleString()}/yr`
+          asset.monthlyContribution > 0
+            ? `${asset.monthlyContribution.toLocaleString()}/mo`
             : "none"
         }
       >
-        <Field label="Amount /yr">
+        <Field label="Amount /mo">
           <NumberCell
-            value={asset.annualContribution}
+            value={asset.monthlyContribution}
             onCommit={(v) =>
               save({
                 ...asset,
-                annualContribution: v ?? asset.annualContribution,
+                monthlyContribution: v ?? asset.monthlyContribution,
               })
             }
           />
         </Field>
+        {/* Derived, never editable: an editable annual field would divide by 12
+            on the way in and the user would watch 10,000 become 9,999.96. */}
+        <Muted>
+          {annualFromMonthly(asset.monthlyContribution).toLocaleString()} /yr
+        </Muted>
         <Field label="Contribute until age (blank = retirement)">
           <NumberCell
             value={asset.contributionEndAge}
@@ -226,7 +233,7 @@ export function AssetsTable({
                     numberFormat,
                     {
                       value: a.openingValue,
-                      flow: a.annualContribution,
+                      flow: a.monthlyContribution,
                     },
                   )}
                 />

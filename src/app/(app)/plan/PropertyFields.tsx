@@ -93,7 +93,7 @@ export function PropertyFields({
         openingValue: next.openingValue,
         expectedReturnPct: next.expectedReturnPct,
         feePct: next.feePct,
-        annualContribution: next.annualContribution,
+        monthlyContribution: next.monthlyContribution,
         contributionEndAge: next.contributionEndAge,
         minAccessAge: next.minAccessAge,
         drawdownPriority: next.drawdownPriority,

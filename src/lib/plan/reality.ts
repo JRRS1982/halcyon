@@ -51,7 +51,7 @@ type LatestBudgetRow = { categoryId: string; budget: Prisma.Decimal };
 // at most one row per period (requireAccountUnbudgeted), so there is exactly
 // one row to find rather than a sum.
 //
-// Zero, never null, when nothing is budgeted: PlanAsset.annualContribution and
+// Zero, never null, when nothing is budgeted: PlanAsset.monthlyContribution and
 // PlanLiability.monthlyRepayment both default to 0, so a null here would never
 // compare equal and every unbudgeted account would read as changed on every
 // Sync. See RealityRow.flow.
@@ -73,10 +73,10 @@ function budgetedFlow(
   // rather than paying money into the asset it came out of.
   if (latest.direction !== "INFLOW") return 0;
 
-  // Rounded to 2dp for the same reason latestCategoryRows rounds: £833.33 × 12
-  // is 9999.960000000001 in IEEE-754 and 9999.96 in the numeric(12,2) column,
-  // so an unrounded read would report this row as an update forever.
-  return Math.round(Number(latest.budget) * 1200) / 100;
+  // Monthly, exactly as the budget stores it and exactly as
+  // PlanAsset.monthlyContribution stores it. No × 12 and no rounding: the two
+  // sides are the same unit, so the comparison is exact.
+  return Number(latest.budget);
 }
 
 // A flow is keyed on the pair, not the account alone: see LatestFlowRow.

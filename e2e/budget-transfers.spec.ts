@@ -291,9 +291,8 @@ test.describe("budget transfers and repayments", () => {
       page.getByRole("button", { name: /up to date/i }),
     ).toBeDisabled();
 
-    // …and the budgeted figure is on the liability, in the unit its own
-    // drawer displays: monthlyRepayment is monthly, where an asset's
-    // annualContribution is annual.
+    // …and the budgeted figure is on the liability: monthlyRepayment is
+    // monthly, exactly like an asset's monthlyContribution.
     await page
       .locator("section", { hasText: "Liabilities" })
       .getByRole("button", { name: new RegExp(MORTGAGE) })

@@ -435,10 +435,10 @@ describe("latestReality (integration)", () => {
   });
 
   // A budgeted contribution is what the plan forecasts on — the intention,
-  // not the actual. £833.33/mo is the float trap: 833.33 * 12 is
-  // 9999.960000000001 in IEEE-754 and 9999.96 in the numeric(12,2) column, so
-  // an unrounded read would flag this row as changed on every Sync forever.
-  it("annualises a TRANSFER INFLOW into an asset account's flow, rounded to the stored figure", async () => {
+  // not the actual. It reads back exactly: PlanAsset.monthlyContribution is
+  // the same unit as the budget row, so there is no × 12 and no rounding to
+  // survive.
+  it("reads a TRANSFER INFLOW into an asset account's flow unchanged", async () => {
     const period = await monthPeriod(TEST_USER_ID, "March 2026", "2026-03-01");
     const account = await accountWithBalance(
       "Vanguard SIPP",
@@ -460,7 +460,7 @@ describe("latestReality (integration)", () => {
     const rows = await latestReality(TEST_USER_ID);
 
     expect(rows).toHaveLength(1);
-    expect(rows[0]?.flow).toBe(9999.96);
+    expect(rows[0]?.flow).toBe(833.33);
   });
 
   // Withdrawals have no plan wiring — the projection derives them from
@@ -545,7 +545,7 @@ describe("latestReality (integration)", () => {
 
     expect(rows).toHaveLength(1);
     expect(rows[0]?.value).toBe(0);
-    expect(rows[0]?.flow).toBe(6000);
+    expect(rows[0]?.flow).toBe(500);
   });
 
   // The double-count guard. A transfer or repayment carries an accountId and
@@ -587,7 +587,7 @@ describe("latestReality (integration)", () => {
     expect(rows.filter((r) => r.kind === "EXPENSE")).toEqual([]);
     expect(rows.filter((r) => r.kind === "INCOME")).toEqual([]);
     expect(rows.map((r) => r.kind).sort()).toEqual(["ASSET", "LIABILITY"]);
-    expect(rows.find((r) => r.linkId === sipp.id)?.flow).toBe(6000);
+    expect(rows.find((r) => r.linkId === sipp.id)?.flow).toBe(500);
     expect(rows.find((r) => r.linkId === mortgage.id)?.flow).toBe(1250);
   });
 
@@ -626,7 +626,7 @@ describe("latestReality (integration)", () => {
 
     const rows = await latestReality(TEST_USER_ID);
 
-    expect(rows[0]?.flow).toBe(6000);
+    expect(rows[0]?.flow).toBe(500);
   });
 
   // × 12 assumes a monthly figure, exactly as the category read does.
@@ -695,7 +695,7 @@ describe("latestReality (integration)", () => {
 
     const rows = await latestReality(TEST_USER_ID);
 
-    expect(rows[0]?.flow).toBe(6000);
+    expect(rows[0]?.flow).toBe(500);
   });
 
   it("ignores a soft-deleted budget row when reading an account's flow", async () => {

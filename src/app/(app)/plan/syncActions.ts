@@ -54,8 +54,8 @@ function toLoadedPlan(plan: PlanRecord): LoadedPlan {
         linkId: a.accountId,
         value: Number(a.openingValue),
         wrapper: a.wrapper,
-        // Annual, and stored that way: AssetsTable renders it as …/yr.
-        flow: Number(a.annualContribution),
+        // Monthly, and stored that way: AssetsTable renders it as …/mo.
+        flow: Number(a.monthlyContribution),
         dependsOn: null,
       }),
     ),
