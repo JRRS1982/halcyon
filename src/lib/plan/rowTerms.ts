@@ -19,25 +19,13 @@ export type RowTerms = {
   endAge: number | null;
 };
 
-/**
- * Every key of RowTerms, pinned exhaustive. rowTermsEqual iterates this rather
- * than reading fields by hand, so a parameter added to RowTerms is compared
- * automatically and the `satisfies` below fails the build if it is not listed.
- * This is the structural defence against a value that quietly stops travelling.
- */
-export const TERM_COMPARE_KEYS = [
-  "expectedReturnPct",
-  "feePct",
-  "minAccessAge",
-  "annualIncome",
-  "incomeFromAge",
-  "interestPct",
-  "interestOnly",
-  "revisionRate",
-  "revisionAge",
-  "endAge",
-] as const satisfies readonly (keyof RowTerms)[];
-
+// The exhaustiveness pin. `satisfies Record<keyof RowTerms, true>` genuinely
+// forces every key of RowTerms to appear here — unlike `satisfies readonly
+// (keyof RowTerms)[]` on an array, which only checks that the keys *listed*
+// are valid and happily compiles with keys missing. A field added to RowTerms
+// and not added here fails the build (TS1360, "Property '<field>' is
+// missing"); the same repo idiom as accountTypeSchema deriving from
+// ALL_ACCOUNT_TYPES in src/lib/balance/schemas.ts.
 const ALL_TERM_KEYS = {
   expectedReturnPct: true,
   feePct: true,
@@ -50,6 +38,19 @@ const ALL_TERM_KEYS = {
   revisionAge: true,
   endAge: true,
 } satisfies Record<keyof RowTerms, true>;
+
+/**
+ * Every key of RowTerms, derived from the pin above rather than listed a
+ * second time — a second list is exactly how a real defect got shipped
+ * during this task's own review: a hand-written array only checks that what
+ * it lists is valid, not that nothing is missing, so a forgotten key would
+ * compile clean and rowTermsEqual would silently stop comparing it forever.
+ * Deriving here means there is one place to add a field, and the compiler
+ * enforces it.
+ */
+export const TERM_COMPARE_KEYS = Object.keys(
+  ALL_TERM_KEYS,
+) as (keyof RowTerms)[];
 
 export const emptyRowTerms = (): RowTerms => ({
   expectedReturnPct: null,
@@ -80,6 +81,3 @@ export const ageOnDate = (
   date === null
     ? null
     : new Date(date).getUTCFullYear() - new Date(dateOfBirth).getUTCFullYear();
-
-// Referenced so the exhaustiveness pin is not dead code.
-void ALL_TERM_KEYS;

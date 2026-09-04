@@ -151,8 +151,25 @@ async function latestAccountRows(
     const kind = kindOf(account.type);
     const value = valueByAccount.get(account.id);
     const t = account.terms;
+    // Every field below is gated by kind, not read straight off AccountTerms:
+    // each parameter exists on only one of PlanAsset/PlanLiability, and
+    // toLoadedPlan (syncActions.ts) hard-codes the opposite kind's row to
+    // null/false/0 for it. Nothing stops AccountTerms itself from carrying an
+    // out-of-kind value — accountTermsSchema accepts any field for any
+    // account, and setAccountTerms never checks the account's type — so
+    // without the gate a stray liability-only value on an asset account (or
+    // vice versa) would compare against the plan row's hard-coded opposite
+    // and report that row changed on every Sync, forever. Today only
+    // AccountCard writes terms, and it only ever sends what termsFor(type)
+    // allows, so the data stays clean in practice — but that is an unenforced
+    // invariant elsewhere, not a guarantee this comparison can lean on.
     const terms: RowTerms = {
-      expectedReturnPct: t ? numberOrNull(t.expectedReturnPct) : null,
+      expectedReturnPct:
+        kind === "ASSET"
+          ? t
+            ? numberOrNull(t.expectedReturnPct)
+            : null
+          : null,
       // PlanAsset.feePct is NOT NULL (schema default 0) — unlike
       // expectedReturnPct beside it — so an ASSET row with no fee configured
       // must read 0 here, not null, or it would compare unequal to the 0 the
@@ -161,8 +178,9 @@ async function latestAccountRows(
       // stays null there to match the plan row's own hard-coded null.
       feePct:
         kind === "ASSET" ? (t?.feePct != null ? Number(t.feePct) : 0) : null,
-      minAccessAge: t?.minAccessAge ?? null,
-      annualIncome: t ? numberOrNull(t.annualIncome) : null,
+      minAccessAge: kind === "ASSET" ? (t?.minAccessAge ?? null) : null,
+      annualIncome:
+        kind === "ASSET" ? (t ? numberOrNull(t.annualIncome) : null) : null,
       // An ASSET's endDate is the age it starts paying; a LIABILITY's is the
       // age it is repaid. Same column, different destination, chosen by kind.
       incomeFromAge:
@@ -175,9 +193,17 @@ async function latestAccountRows(
             ? Number(t.interestPct)
             : 0
           : null,
-      interestOnly: t?.interestOnly ?? false,
-      revisionRate: t ? numberOrNull(t.revisionRate) : null,
-      revisionAge: ageOnDate(dateOfBirth, t?.revisionDate ?? null),
+      // PlanLiability.interestOnly is NOT NULL (schema default false) — the
+      // ASSET side of the same reasoning as interestPct: false, not merely
+      // "whatever AccountTerms happens to hold", so a stray true on an asset
+      // account can't disagree with the plan row's hard-coded false.
+      interestOnly: kind === "LIABILITY" ? (t?.interestOnly ?? false) : false,
+      revisionRate:
+        kind === "LIABILITY" ? (t ? numberOrNull(t.revisionRate) : null) : null,
+      revisionAge:
+        kind === "LIABILITY"
+          ? ageOnDate(dateOfBirth, t?.revisionDate ?? null)
+          : null,
       endAge:
         kind === "LIABILITY"
           ? ageOnDate(dateOfBirth, t?.endDate ?? null)

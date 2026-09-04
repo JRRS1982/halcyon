@@ -171,4 +171,48 @@ describe("Sync carries every parameter", () => {
 
     expect(second.updates).toHaveLength(0);
   });
+
+  // The unenforced-invariant guard. accountTermsSchema accepts any field for
+  // any account, and setAccountTerms never checks the account's type — so
+  // nothing stops a liability-only value from landing on an asset account's
+  // AccountTerms row (a UI bug, or any future direct caller). reality.ts must
+  // still read it as irrelevant to this kind, or the row would compare
+  // against the plan row's hard-coded opposite (toLoadedPlan sets these to
+  // null/false for the wrong kind) and report changed on every Sync, forever.
+  it("ignores liability-only terms written to an asset account", async () => {
+    const { account } = await planWithAccount("STOCKS_ISA");
+    await syncPlan();
+
+    await setAccountTerms({
+      accountId: account.id,
+      terms: {
+        interestPct: 4.29,
+        interestOnly: true,
+        revisionRate: 6.75,
+        revisionDate: new Date("2029-06-01"),
+      },
+    });
+    const second = await syncPlan();
+
+    expect(second.updates).toHaveLength(0);
+  });
+
+  // The mirror image: asset-only terms stranded on a liability account.
+  it("ignores asset-only terms written to a liability account", async () => {
+    const { account } = await planWithAccount("MORTGAGE");
+    await syncPlan();
+
+    await setAccountTerms({
+      accountId: account.id,
+      terms: {
+        expectedReturnPct: 4.5,
+        feePct: 0.35,
+        minAccessAge: 58,
+        annualIncome: 12_500,
+      },
+    });
+    const second = await syncPlan();
+
+    expect(second.updates).toHaveLength(0);
+  });
 });
