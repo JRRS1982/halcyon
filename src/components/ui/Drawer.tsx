@@ -8,7 +8,7 @@
 
 import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 import styled from "styled-components";
-import { RemoveCell } from "@/app/(app)/plan/RowControls";
+import { RemoveCell } from "@/components/ui/RemoveCell";
 
 const Scrim = styled.div<{ $open: boolean }>`
   position: fixed;
