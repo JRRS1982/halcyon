@@ -11,6 +11,7 @@ import {
 import {
   type AccountDeletionCounts,
   type AccountIdInput,
+  type AccountTermsInput,
   type ArchiveAccountInput,
   accountIdSchema,
   archiveAccountSchema,
@@ -34,6 +35,12 @@ import { monthRangeFor } from "@/lib/budget/period";
 import { cleanLabel } from "@/lib/categories/normalize";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
+
+// An empty terms payload means the user answered nothing, so there is no row
+// to write. A row of all-nulls would be indistinguishable in behaviour but
+// would make "has this account been configured?" unanswerable.
+const hasAnyTerm = (terms: AccountTermsInput): boolean =>
+  Object.values(terms).some((v) => v !== undefined && v !== null);
 
 async function requireUserId(): Promise<string> {
   const supabase = await createClient();
@@ -164,6 +171,12 @@ export async function createAccount(
       },
     });
 
+    if (hasAnyTerm(parsed.terms)) {
+      await tx.accountTerms.create({
+        data: { accountId: account.id, ...parsed.terms },
+      });
+    }
+
     if (parsed.mortgage) {
       // buildMortgageAccountData always classifies this as a LONG_TERM
       // liability, a different bucket from the property's own row, so its
@@ -196,6 +209,12 @@ export async function createAccount(
           value: parsed.mortgage.value,
         },
       });
+
+      if (hasAnyTerm(parsed.mortgage.terms)) {
+        await tx.accountTerms.create({
+          data: { accountId: mortgage.id, ...parsed.mortgage.terms },
+        });
+      }
     }
 
     return { periodId: period.id, accountId: account.id };

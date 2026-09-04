@@ -19,6 +19,7 @@ const seedFebruary = async () => {
     section: "CURRENT",
     value: 5000,
     canImportTransactions: false,
+    terms: {},
     mortgage: null,
   });
   return { accountId, periodId };

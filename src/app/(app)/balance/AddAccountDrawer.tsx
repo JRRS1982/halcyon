@@ -3,8 +3,9 @@
 import type { AccountKind, AccountSection } from "@prisma/client";
 import { type ReactNode, useRef, useState, useTransition } from "react";
 import styled from "styled-components";
+import { AccountTermsFields } from "@/components/accounts/AccountTermsFields";
 import { Button } from "@/components/ui/Button";
-import { Drawer } from "@/components/ui/Drawer";
+import { Drawer, DrawerSection } from "@/components/ui/Drawer";
 import {
   ACCOUNT_TYPES,
   type AccountDraft,
@@ -12,7 +13,10 @@ import {
   accountTypeById,
   canSubmitAccountDraft,
   defaultCanImportTransactions,
+  termsFor,
 } from "@/lib/accounts/accountDraft";
+import type { AccountTermsInput } from "@/lib/accounts/schemas";
+import { summariseTerms } from "@/lib/accounts/termsSummary";
 import { isValidBalanceCategory } from "@/lib/balance/reorder";
 import { accountSectionSchema } from "@/lib/balance/schemas";
 import { createAccount } from "./accountActions";
@@ -136,6 +140,8 @@ export function AddAccountDrawer({
   const [hasMortgage, setHasMortgage] = useState(false);
   const [mortgageName, setMortgageName] = useState("");
   const [mortgageValue, setMortgageValue] = useState("");
+  const [terms, setTerms] = useState<AccountTermsInput>({});
+  const [mortgageTerms, setMortgageTerms] = useState<AccountTermsInput>({});
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -203,6 +209,8 @@ export function AddAccountDrawer({
     setHasMortgage(false);
     setMortgageName("");
     setMortgageValue("");
+    setTerms({});
+    setMortgageTerms({});
     setError(null);
   };
 
@@ -230,6 +238,7 @@ export function AddAccountDrawer({
           section: category,
           value: Number(value),
           canImportTransactions,
+          terms,
           mortgage: hasMortgage
             ? {
                 name: mortgageName,
@@ -239,6 +248,7 @@ export function AddAccountDrawer({
                 // returns true for a LIABILITY) rather than exposing a second
                 // checkbox the brief doesn't ask for.
                 canImportTransactions: false,
+                terms: mortgageTerms,
               }
             : null,
         });
@@ -298,7 +308,7 @@ export function AddAccountDrawer({
           </Select>
         </Field>
 
-        {type ? (
+        {type && typeId ? (
           <>
             <Field label="Name">
               <TextInput
@@ -333,6 +343,19 @@ export function AddAccountDrawer({
               />
             </Field>
 
+            {termsFor(typeId).length > 0 ? (
+              <DrawerSection
+                title="Advanced"
+                summary={summariseTerms(typeId, terms)}
+              >
+                <AccountTermsFields
+                  type={typeId}
+                  value={terms}
+                  onChange={setTerms}
+                />
+              </DrawerSection>
+            ) : null}
+
             {isProperty ? (
               <>
                 <CheckboxLabel>
@@ -360,6 +383,16 @@ export function AddAccountDrawer({
                         placeholder="0.00"
                       />
                     </Field>
+                    <DrawerSection
+                      title="Advanced"
+                      summary={summariseTerms("MORTGAGE", mortgageTerms)}
+                    >
+                      <AccountTermsFields
+                        type="MORTGAGE"
+                        value={mortgageTerms}
+                        onChange={setMortgageTerms}
+                      />
+                    </DrawerSection>
                   </MortgageFields>
                 ) : null}
               </>

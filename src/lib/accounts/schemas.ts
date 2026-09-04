@@ -1,6 +1,27 @@
 import { z } from "zod";
 import { accountSectionSchema, accountTypeSchema } from "@/lib/balance/schemas";
 
+// Every parameter is optional and nullable, and the two mean different things:
+// absent = "don't touch this", null = "clear it, take the default". The card
+// sends only the fields its account type prompts for, so absent is the normal
+// case for the other eight.
+//
+// DECIMAL(5,2) tops out at 999.99, so the rate bounds are the column's, not a
+// judgement about plausible interest. annualIncome is DECIMAL(12,2).
+const pct = z.number().min(-999.99).max(999.99);
+
+export const accountTermsSchema = z.object({
+  expectedReturnPct: pct.nullish(),
+  feePct: pct.nullish(),
+  minAccessAge: z.number().int().min(0).max(120).nullish(),
+  annualIncome: z.number().min(0).max(9_999_999_999.99).nullish(),
+  interestPct: pct.nullish(),
+  interestOnly: z.boolean().optional(),
+  revisionDate: z.coerce.date().nullish(),
+  revisionRate: pct.nullish(),
+  endDate: z.coerce.date().nullish(),
+});
+
 // One gesture creates the account and its first observation, so the drawer's
 // payload carries both. The account is described by the one `type` the drawer
 // already asks for plus the `section` it files under — kind and wrapper are
@@ -16,11 +37,15 @@ export const createAccountSchema = z
     section: accountSectionSchema,
     value: z.number(),
     canImportTransactions: z.boolean(),
+    // Empty when the drawer's advanced section was left alone, which is the
+    // common case — the action then writes no terms row at all.
+    terms: accountTermsSchema.default({}),
     mortgage: z
       .object({
         name: z.string().trim().min(1).max(120),
         value: z.number(),
         canImportTransactions: z.boolean(),
+        terms: accountTermsSchema.default({}),
       })
       .nullable()
       .default(null),
@@ -59,27 +84,6 @@ export type ArchiveAccountInput = z.infer<typeof archiveAccountSchema>;
 export type DeleteAccountEverywhereInput = z.infer<
   typeof deleteAccountEverywhereSchema
 >;
-
-// Every parameter is optional and nullable, and the two mean different things:
-// absent = "don't touch this", null = "clear it, take the default". The card
-// sends only the fields its account type prompts for, so absent is the normal
-// case for the other eight.
-//
-// DECIMAL(5,2) tops out at 999.99, so the rate bounds are the column's, not a
-// judgement about plausible interest. annualIncome is DECIMAL(12,2).
-const pct = z.number().min(-999.99).max(999.99);
-
-export const accountTermsSchema = z.object({
-  expectedReturnPct: pct.nullish(),
-  feePct: pct.nullish(),
-  minAccessAge: z.number().int().min(0).max(120).nullish(),
-  annualIncome: z.number().min(0).max(9_999_999_999.99).nullish(),
-  interestPct: pct.nullish(),
-  interestOnly: z.boolean().optional(),
-  revisionDate: z.coerce.date().nullish(),
-  revisionRate: pct.nullish(),
-  endDate: z.coerce.date().nullish(),
-});
 
 export const setAccountTermsSchema = accountIdSchema.extend({
   terms: accountTermsSchema,
