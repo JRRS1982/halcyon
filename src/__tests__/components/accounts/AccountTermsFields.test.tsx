@@ -79,4 +79,21 @@ describe("AccountTermsFields", () => {
       "0",
     );
   });
+
+  it("clears a mortgage's Paid off by date to null rather than reverting it (blank means take the default)", () => {
+    const onChange = jest.fn();
+    renderWithTheme(
+      <AccountTermsFields
+        type="MORTGAGE"
+        value={{ endDate: new Date("2050-01-01") }}
+        onChange={onChange}
+      />,
+    );
+
+    const input = screen.getByLabelText("Paid off by");
+    fireEvent.change(input, { target: { value: "" } });
+    fireEvent.blur(input);
+
+    expect(onChange).toHaveBeenCalledWith({ endDate: null });
+  });
 });

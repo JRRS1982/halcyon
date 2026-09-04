@@ -98,10 +98,11 @@ export function AccountTermsFields({
             <Field key={field} label={label}>
               <TextCell
                 type="date"
+                nullable
                 value={toDateValue(value[field])}
                 placeholder={placeholder}
                 onCommit={(next) =>
-                  set(field, next === "" ? null : new Date(next))
+                  set(field, next === null ? null : new Date(next))
                 }
               />
             </Field>

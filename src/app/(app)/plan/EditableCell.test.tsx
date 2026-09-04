@@ -57,7 +57,7 @@ describe("NumberCell", () => {
 });
 
 describe("TextCell", () => {
-  it("reverts a cleared required text field", async () => {
+  it("reverts a cleared required text field instead of silently saving blank (data-loss guard, regression: every existing caller relies on this default)", async () => {
     const onCommit = jest.fn();
     renderWithTheme(<TextCell value="SIPP" onCommit={onCommit} />);
     const input = screen.getByRole("textbox");
@@ -65,5 +65,16 @@ describe("TextCell", () => {
     fireEvent.blur(input);
     await waitFor(() => expect(input).toHaveValue("SIPP"));
     expect(onCommit).not.toHaveBeenCalled();
+  });
+
+  it("commits null when a NULLABLE field is cleared", async () => {
+    const onCommit = jest.fn().mockResolvedValue(undefined);
+    renderWithTheme(
+      <TextCell type="date" value="2026-01-01" nullable onCommit={onCommit} />,
+    );
+    const input = screen.getByDisplayValue("2026-01-01");
+    fireEvent.change(input, { target: { value: "" } });
+    fireEvent.blur(input);
+    await waitFor(() => expect(onCommit).toHaveBeenCalledWith(null));
   });
 });
