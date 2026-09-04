@@ -4,6 +4,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import styled from "styled-components";
+import { Drawer } from "@/components/ui/Drawer";
 import type { BandedProjection } from "@/lib/plan";
 import type { SyncPlan } from "@/lib/plan/sync";
 import type { NumberFormat } from "@/lib/settings/currency";
@@ -21,7 +22,6 @@ import { EventFields, EventsTable } from "./EventsTable";
 import { ExpenseFields, ExpensesTable } from "./ExpensesTable";
 import { IncomeFields, IncomesTable } from "./IncomesTable";
 import { LiabilitiesTable, LiabilityFields } from "./LiabilitiesTable";
-import { PlanDrawer } from "./PlanDrawer";
 import { PropertyFields } from "./PropertyFields";
 import { SyncButton } from "./SyncButton";
 import type { SerializedPlan } from "./serialized";
@@ -304,7 +304,7 @@ export function PlanView({
         />
       </Cards>
 
-      <PlanDrawer
+      <Drawer
         open={target !== undefined}
         eyebrow={eyebrow}
         title={title}
@@ -363,7 +363,7 @@ export function PlanView({
             ) : null}
           </>
         )}
-      </PlanDrawer>
+      </Drawer>
     </Shell>
   );
 }

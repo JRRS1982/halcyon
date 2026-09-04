@@ -4,6 +4,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import styled from "styled-components";
+import { DrawerSection, Field } from "@/components/ui/Drawer";
 import {
   createMortgageForProperty,
   deletePlanLiability,
@@ -12,7 +13,6 @@ import {
   updatePlanLiability,
 } from "./actions";
 import { BoolCell, NumberCell, TextCell } from "./EditableCell";
-import { DrawerSection, Field } from "./PlanDrawer";
 import type {
   SerializedPlanAsset,
   SerializedPlanExpense,

@@ -1,9 +1,14 @@
-// src/app/plan/PlanDrawer.tsx
+// src/components/ui/Drawer.tsx
+//
+// Shared modal-drawer chrome: scrim, sheet, focus trap, and the collapsible
+// DrawerSection/Field building blocks. Originally plan-only (PlanDrawer), it
+// moved here once the balance sheet's Add-account drawer needed the same
+// dialog/scrim/focus-trap pattern rather than carrying its own copy.
 "use client";
 
 import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 import styled from "styled-components";
-import { RemoveCell } from "./RowControls";
+import { RemoveCell } from "@/app/(app)/plan/RowControls";
 
 const Scrim = styled.div<{ $open: boolean }>`
   position: fixed;
@@ -249,13 +254,14 @@ export function Field({
   );
 }
 
-export function PlanDrawer({
+export function Drawer({
   open,
   eyebrow,
   title,
   onClose,
   onRemove,
   removeConfirmLabel,
+  footer,
   children,
 }: {
   open: boolean;
@@ -264,6 +270,12 @@ export function PlanDrawer({
   onClose: () => void;
   onRemove?: () => Promise<void> | void;
   removeConfirmLabel?: string;
+  /**
+   * Replaces the footer's default contents. The plan's rows leave this unset
+   * and get the remove control; the balance sheet's Add drawer supplies
+   * Cancel/Add, because a draft has nothing to remove yet.
+   */
+  footer?: ReactNode;
   children: ReactNode;
 }) {
   const sheetRef = useRef<HTMLDialogElement>(null);
@@ -340,6 +352,15 @@ export function PlanDrawer({
     if (dy > 90) onCloseRef.current();
   };
 
+  const defaultFooter = (
+    <>
+      <Live>Changes update your plan instantly</Live>
+      {onRemove ? (
+        <RemoveCell onConfirm={onRemove} confirmLabel={removeConfirmLabel} />
+      ) : null}
+    </>
+  );
+
   return (
     <>
       <Scrim
@@ -386,15 +407,7 @@ export function PlanDrawer({
               </CloseBtn>
             </Head>
             <Body>{children}</Body>
-            <Foot>
-              <Live>Changes update your plan instantly</Live>
-              {onRemove ? (
-                <RemoveCell
-                  onConfirm={onRemove}
-                  confirmLabel={removeConfirmLabel}
-                />
-              ) : null}
-            </Foot>
+            <Foot>{footer ?? defaultFooter}</Foot>
           </>
         ) : null}
       </Sheet>

@@ -4,6 +4,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import styled from "styled-components";
+import { DrawerSection, Field } from "@/components/ui/Drawer";
 import { WRAPPERS } from "@/lib/plan";
 import { annualFromMonthly } from "@/lib/plan/helpers";
 import type { SyncPlan } from "@/lib/plan/sync";
@@ -13,7 +14,6 @@ import { Muted } from "./AddRowDrawer.styled";
 import { updatePlanAsset } from "./actions";
 import { NumberCell, SelectCell, TextCell } from "./EditableCell";
 import { MortgageBadge } from "./MortgageBadge";
-import { DrawerSection, Field } from "./PlanDrawer";
 import { AddRowButton } from "./RowControls";
 import { SummaryList, SummaryRow } from "./SummaryRow";
 import { rowMarkerProps, SyncMarker } from "./SyncMarker";

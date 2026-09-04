@@ -1179,10 +1179,10 @@ export function BalanceSheet({
   }, [router]);
 
   // The delete panel is an alertdialog over the sheet, so it gets the same
-  // focus management as AddAccountDrawer.tsx's Sheet (itself adapted from
-  // plan/PlanDrawer.tsx): Esc closes; Tab is trapped inside the modal; body
-  // scroll is locked; focus moves into the modal on open and back to
-  // whatever triggered it on close.
+  // focus management as the shared Drawer (src/components/ui/Drawer.tsx),
+  // which AddAccountDrawer.tsx now wraps rather than copying: Esc closes; Tab
+  // is trapped inside the modal; body scroll is locked; focus moves into the
+  // modal on open and back to whatever triggered it on close.
   const deleteModalRef = useRef<HTMLDivElement>(null);
   const closeDeletePanelRef = useRef(closeDeletePanel);
   closeDeletePanelRef.current = closeDeletePanel;
