@@ -24,10 +24,12 @@ export type SerializedPlanAsset = {
   openingValue: number;
   expectedReturnPct: number | null;
   feePct: number;
-  annualContribution: number;
+  monthlyContribution: number;
   contributionEndAge: number | null;
   minAccessAge: number | null;
   drawdownPriority: number;
+  annualIncome: number | null;
+  incomeFromAge: number | null;
 };
 
 export type SerializedPlanLiability = {
@@ -40,6 +42,8 @@ export type SerializedPlanLiability = {
   endAge: number | null;
   linkedAssetId: string | null;
   interestOnly: boolean;
+  revisionAge: number | null;
+  revisionRate: number | null;
 };
 
 export type GrowthKind = "INFLATION" | "FIXED" | "NONE";

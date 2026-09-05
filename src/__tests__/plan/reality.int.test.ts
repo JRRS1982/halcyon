@@ -2,10 +2,14 @@ import type { AccountType } from "@prisma/client";
 import { buildAccountData } from "@/lib/accounts/creation";
 import { monthRangeFor } from "@/lib/budget/period";
 import { latestReality } from "@/lib/plan/reality";
+import { emptyRowTerms } from "@/lib/plan/rowTerms";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
 
 const OTHER_USER_ID = "00000000-0000-0000-0000-0000000000bb";
+// No test in this file creates an AccountTerms row, so every terms field
+// below is empty regardless of whose date of birth this is.
+const DOB = new Date("1985-01-01");
 
 async function monthPeriod(userId: string, label: string, start: string) {
   return prisma.financialPeriod.create({
@@ -112,7 +116,7 @@ describe("latestReality (integration)", () => {
       },
     });
 
-    const rows = await latestReality(TEST_USER_ID);
+    const rows = await latestReality(TEST_USER_ID, DOB);
 
     expect(rows).toContainEqual({
       linkId: category.id,
@@ -127,6 +131,7 @@ describe("latestReality (integration)", () => {
         incomeKind: "SALARY",
         expenseSection: null,
       },
+      terms: emptyRowTerms(),
     });
   });
 
@@ -140,7 +145,7 @@ describe("latestReality (integration)", () => {
       },
     });
 
-    const rows = await latestReality(TEST_USER_ID);
+    const rows = await latestReality(TEST_USER_ID, DOB);
 
     expect(rows).toEqual([]);
   });
@@ -174,7 +179,7 @@ describe("latestReality (integration)", () => {
       },
     });
 
-    const rows = await latestReality(TEST_USER_ID);
+    const rows = await latestReality(TEST_USER_ID, DOB);
 
     // No MONTH period exists for this category, so the QUARTER-period row
     // must be skipped entirely rather than misread as a monthly budget.
@@ -230,7 +235,7 @@ describe("latestReality (integration)", () => {
       },
     });
 
-    const rows = await latestReality(TEST_USER_ID);
+    const rows = await latestReality(TEST_USER_ID, DOB);
 
     // OTHER_ASSET is the one account type with no natural wrapper or term
     // bucket of its own — wrapperOf and drawdownPriorityFor both read
@@ -247,6 +252,10 @@ describe("latestReality (integration)", () => {
         incomeKind: null,
         expenseSection: null,
       },
+      // feePct reads 0, not null, on an ASSET row with no AccountTerms:
+      // PlanAsset.feePct is NOT NULL (schema default 0), and null here would
+      // compare unequal to that 0 forever.
+      terms: { ...emptyRowTerms(), feePct: 0 },
     });
   });
 
@@ -256,7 +265,7 @@ describe("latestReality (integration)", () => {
   // the same rule proven from provisioning's own defaults.
   it("lists an account that has never had a balance row, at value 0", async () => {
     const a = await typedAccount("Fresh", "SAVINGS");
-    const rows = await latestReality(TEST_USER_ID);
+    const rows = await latestReality(TEST_USER_ID, DOB);
     const row = rows.find((r) => r.linkId === a.id);
     expect(row?.value).toBe(0);
     expect(row?.wrapper).toBe("CASH");
@@ -269,7 +278,7 @@ describe("latestReality (integration)", () => {
     await valueInMonth(a.id, 2026, 0, 100);
     await valueInMonth(a.id, 2026, 2, 300);
     await valueInMonth(a.id, 2026, 1, 200);
-    const rows = await latestReality(TEST_USER_ID);
+    const rows = await latestReality(TEST_USER_ID, DOB);
     expect(rows.find((r) => r.linkId === a.id)?.value).toBe(300);
   });
 
@@ -301,7 +310,7 @@ describe("latestReality (integration)", () => {
       },
     });
 
-    const rows = await latestReality(TEST_USER_ID);
+    const rows = await latestReality(TEST_USER_ID, DOB);
 
     expect(rows).toEqual([]);
   });
@@ -331,7 +340,7 @@ describe("latestReality (integration)", () => {
       },
     });
 
-    const rows = await latestReality(TEST_USER_ID);
+    const rows = await latestReality(TEST_USER_ID, DOB);
 
     expect(rows).toHaveLength(1);
     expect(rows[0]?.value).toBe(0);
@@ -347,7 +356,7 @@ describe("latestReality (integration)", () => {
       },
     });
 
-    const rows = await latestReality(TEST_USER_ID);
+    const rows = await latestReality(TEST_USER_ID, DOB);
 
     expect(rows).toContainEqual({
       linkId: account.id,
@@ -361,6 +370,7 @@ describe("latestReality (integration)", () => {
         incomeKind: null,
         expenseSection: null,
       },
+      terms: { ...emptyRowTerms(), feePct: 0 },
     });
   });
 
@@ -379,7 +389,7 @@ describe("latestReality (integration)", () => {
       },
     });
 
-    const rows = await latestReality(TEST_USER_ID);
+    const rows = await latestReality(TEST_USER_ID, DOB);
 
     expect(rows).toContainEqual({
       linkId: account.id,
@@ -393,6 +403,10 @@ describe("latestReality (integration)", () => {
         incomeKind: null,
         expenseSection: null,
       },
+      // interestPct reads 0, not null, on a LIABILITY row with no
+      // AccountTerms: PlanLiability.interestPct is NOT NULL (schema default
+      // 0), the same reasoning as feePct's ASSET-side counterpart above.
+      terms: { ...emptyRowTerms(), interestPct: 0 },
     });
   });
 
@@ -417,7 +431,7 @@ describe("latestReality (integration)", () => {
       },
     });
 
-    const rows = await latestReality(TEST_USER_ID);
+    const rows = await latestReality(TEST_USER_ID, DOB);
 
     expect(rows).toContainEqual({
       linkId: category.id,
@@ -431,14 +445,15 @@ describe("latestReality (integration)", () => {
         incomeKind: null,
         expenseSection: "DISCRETIONARY",
       },
+      terms: emptyRowTerms(),
     });
   });
 
   // A budgeted contribution is what the plan forecasts on — the intention,
-  // not the actual. £833.33/mo is the float trap: 833.33 * 12 is
-  // 9999.960000000001 in IEEE-754 and 9999.96 in the numeric(12,2) column, so
-  // an unrounded read would flag this row as changed on every Sync forever.
-  it("annualises a TRANSFER INFLOW into an asset account's flow, rounded to the stored figure", async () => {
+  // not the actual. It reads back exactly: PlanAsset.monthlyContribution is
+  // the same unit as the budget row, so there is no × 12 and no rounding to
+  // survive.
+  it("reads a TRANSFER INFLOW into an asset account's flow unchanged", async () => {
     const period = await monthPeriod(TEST_USER_ID, "March 2026", "2026-03-01");
     const account = await accountWithBalance(
       "Vanguard SIPP",
@@ -457,10 +472,10 @@ describe("latestReality (integration)", () => {
       },
     });
 
-    const rows = await latestReality(TEST_USER_ID);
+    const rows = await latestReality(TEST_USER_ID, DOB);
 
     expect(rows).toHaveLength(1);
-    expect(rows[0]?.flow).toBe(9999.96);
+    expect(rows[0]?.flow).toBe(833.33);
   });
 
   // Withdrawals have no plan wiring — the projection derives them from
@@ -484,7 +499,7 @@ describe("latestReality (integration)", () => {
       },
     });
 
-    const rows = await latestReality(TEST_USER_ID);
+    const rows = await latestReality(TEST_USER_ID, DOB);
 
     expect(rows[0]?.flow).toBe(0);
   });
@@ -509,7 +524,7 @@ describe("latestReality (integration)", () => {
       },
     });
 
-    const rows = await latestReality(TEST_USER_ID);
+    const rows = await latestReality(TEST_USER_ID, DOB);
 
     expect(rows[0]?.flow).toBe(1250);
   });
@@ -518,7 +533,7 @@ describe("latestReality (integration)", () => {
     const period = await monthPeriod(TEST_USER_ID, "March 2026", "2026-03-01");
     await accountWithBalance("Vanguard ISA", "ASSET", 42300, period.id);
 
-    const rows = await latestReality(TEST_USER_ID);
+    const rows = await latestReality(TEST_USER_ID, DOB);
 
     expect(rows[0]?.flow).toBe(0);
   });
@@ -541,11 +556,11 @@ describe("latestReality (integration)", () => {
       },
     });
 
-    const rows = await latestReality(TEST_USER_ID);
+    const rows = await latestReality(TEST_USER_ID, DOB);
 
     expect(rows).toHaveLength(1);
     expect(rows[0]?.value).toBe(0);
-    expect(rows[0]?.flow).toBe(6000);
+    expect(rows[0]?.flow).toBe(500);
   });
 
   // The double-count guard. A transfer or repayment carries an accountId and
@@ -582,12 +597,12 @@ describe("latestReality (integration)", () => {
       },
     });
 
-    const rows = await latestReality(TEST_USER_ID);
+    const rows = await latestReality(TEST_USER_ID, DOB);
 
     expect(rows.filter((r) => r.kind === "EXPENSE")).toEqual([]);
     expect(rows.filter((r) => r.kind === "INCOME")).toEqual([]);
     expect(rows.map((r) => r.kind).sort()).toEqual(["ASSET", "LIABILITY"]);
-    expect(rows.find((r) => r.linkId === sipp.id)?.flow).toBe(6000);
+    expect(rows.find((r) => r.linkId === sipp.id)?.flow).toBe(500);
     expect(rows.find((r) => r.linkId === mortgage.id)?.flow).toBe(1250);
   });
 
@@ -624,12 +639,14 @@ describe("latestReality (integration)", () => {
       },
     });
 
-    const rows = await latestReality(TEST_USER_ID);
+    const rows = await latestReality(TEST_USER_ID, DOB);
 
-    expect(rows[0]?.flow).toBe(6000);
+    expect(rows[0]?.flow).toBe(500);
   });
 
-  // × 12 assumes a monthly figure, exactly as the category read does.
+  // The flow is copied across as a monthly figure, so a quarter's total read
+  // as one month's would be wrong — exactly as it would be for the category
+  // read, which does multiply by 12.
   it("ignores a QUARTER period's transfer when reading an account's flow", async () => {
     const period = await monthPeriod(TEST_USER_ID, "March 2026", "2026-03-01");
     const account = await accountWithBalance(
@@ -658,7 +675,7 @@ describe("latestReality (integration)", () => {
       },
     });
 
-    const rows = await latestReality(TEST_USER_ID);
+    const rows = await latestReality(TEST_USER_ID, DOB);
 
     expect(rows[0]?.flow).toBe(0);
   });
@@ -693,9 +710,9 @@ describe("latestReality (integration)", () => {
       },
     });
 
-    const rows = await latestReality(TEST_USER_ID);
+    const rows = await latestReality(TEST_USER_ID, DOB);
 
-    expect(rows[0]?.flow).toBe(6000);
+    expect(rows[0]?.flow).toBe(500);
   });
 
   it("ignores a soft-deleted budget row when reading an account's flow", async () => {
@@ -718,7 +735,7 @@ describe("latestReality (integration)", () => {
       },
     });
 
-    const rows = await latestReality(TEST_USER_ID);
+    const rows = await latestReality(TEST_USER_ID, DOB);
 
     expect(rows[0]?.flow).toBe(0);
   });
@@ -749,7 +766,7 @@ describe("latestReality (integration)", () => {
       },
     });
 
-    const rows = await latestReality(TEST_USER_ID);
+    const rows = await latestReality(TEST_USER_ID, DOB);
 
     expect(rows).toEqual([]);
   });
@@ -786,7 +803,7 @@ describe("latestReality (integration)", () => {
       },
     });
 
-    const rows = await latestReality(TEST_USER_ID);
+    const rows = await latestReality(TEST_USER_ID, DOB);
 
     expect(rows[0]?.flow).toBe(0);
   });

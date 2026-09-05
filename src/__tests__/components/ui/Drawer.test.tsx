@@ -3,19 +3,19 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { ThemeProvider } from "styled-components";
+import { Drawer, DrawerSection } from "@/components/ui/Drawer";
 import { theme } from "@/lib/theme";
-import { DrawerSection, PlanDrawer } from "./PlanDrawer";
 
 const renderWithTheme = (ui: ReactElement) =>
   render(<ThemeProvider theme={theme}>{ui}</ThemeProvider>);
 
 const noop = () => {};
 
-describe("PlanDrawer", () => {
+describe("Drawer", () => {
   it("closes via the close button, scrim, and Escape", () => {
     const onClose = jest.fn();
     renderWithTheme(
-      <PlanDrawer
+      <Drawer
         open
         eyebrow="Account"
         title="ISA"
@@ -23,7 +23,7 @@ describe("PlanDrawer", () => {
         onRemove={noop}
       >
         <p>body</p>
-      </PlanDrawer>,
+      </Drawer>,
     );
     fireEvent.click(screen.getByRole("button", { name: /close/i }));
     fireEvent.click(screen.getByTestId("plan-drawer-scrim"));
@@ -33,16 +33,16 @@ describe("PlanDrawer", () => {
 
   it("renders title + children only when open", () => {
     const { rerender } = renderWithTheme(
-      <PlanDrawer open={false} title="ISA" onClose={noop} onRemove={noop}>
+      <Drawer open={false} title="ISA" onClose={noop} onRemove={noop}>
         <p>body</p>
-      </PlanDrawer>,
+      </Drawer>,
     );
     expect(screen.queryByText("body")).not.toBeInTheDocument();
     rerender(
       <ThemeProvider theme={theme}>
-        <PlanDrawer open title="ISA" onClose={noop} onRemove={noop}>
+        <Drawer open title="ISA" onClose={noop} onRemove={noop}>
           <p>body</p>
-        </PlanDrawer>
+        </Drawer>
       </ThemeProvider>,
     );
     expect(screen.getByText("body")).toBeInTheDocument();
@@ -51,9 +51,9 @@ describe("PlanDrawer", () => {
 
   it("is a modal dialog and moves focus into the sheet when open", () => {
     renderWithTheme(
-      <PlanDrawer open title="ISA" onClose={noop} onRemove={noop}>
+      <Drawer open title="ISA" onClose={noop} onRemove={noop}>
         <p>body</p>
-      </PlanDrawer>,
+      </Drawer>,
     );
     const dialog = screen.getByRole("dialog", { name: "ISA" });
     expect(dialog).toHaveAttribute("aria-modal", "true");

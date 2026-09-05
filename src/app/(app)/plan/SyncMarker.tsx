@@ -23,10 +23,17 @@ const GLYPH: Record<SyncIndicator, string> = {
   attached: "◇",
 };
 
+// Task 11 widened what a Sync compares beyond balances alone — an account's
+// own projection parameters (growth rate, fees, interest terms, …) now
+// travel too — so "changed" and "synced" can no longer promise only a
+// balance-sheet figure without becoming false about the case that motivated
+// this feature.
 const LABEL: Record<SyncIndicator, string> = {
-  synced: "Synced — matches your balance sheet",
-  changed: "Changed — differs from your balance sheet, Sync will replace it",
-  "plan-only": "Plan only — not on your balance sheet, Sync will remove it",
+  synced: "Synced — matches your accounts and budget",
+  changed:
+    "Changed — differs from your accounts and budget, Sync will replace it",
+  "plan-only":
+    "Plan only — not on your accounts or budget, Sync will remove it",
   attached: "Attached — Sync will remove it with the row it cannot outlive",
 };
 
@@ -46,7 +53,7 @@ const SourceFigure = styled.span`
 `;
 
 // A flow difference is a different claim from a value one, and it comes from a
-// different sheet: annualContribution and monthlyRepayment are fed by the
+// different sheet: monthlyContribution and monthlyRepayment are fed by the
 // budget's TRANSFER and REPAYMENT rows, so naming the balance sheet beside a
 // flow figure would be a false statement about where it came from.
 const FLOW_CHANGED_LABEL =

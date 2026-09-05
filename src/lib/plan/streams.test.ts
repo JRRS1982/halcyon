@@ -1,6 +1,6 @@
 // src/lib/plan/streams.test.ts
 import { activeExpenses, activeIncome } from "./streams";
-import type { ExpenseInput, IncomeInput } from "./types";
+import type { AssetInput, ExpenseInput, IncomeInput } from "./types";
 
 const salary: IncomeInput = {
   id: "s",
@@ -82,6 +82,63 @@ describe("activeIncome", () => {
     const r = activeIncome([tf], undefined, 40, 0, 2.5);
     expect(r.byKind.OTHER).toBe(5000);
     expect(r.taxableTotal).toBe(0);
+  });
+
+  describe("entitled assets (final-salary conversion)", () => {
+    const dbPension: AssetInput = {
+      id: "db1",
+      label: "Old scheme",
+      wrapper: "DB_PENSION",
+      openingValue: 250000,
+      drawdownPriority: 0,
+      annualIncome: 12000,
+      incomeFromAge: 65,
+    };
+
+    it("ignores an asset with no annualIncome set", () => {
+      const plain: AssetInput = { ...dbPension, annualIncome: undefined };
+      const r = activeIncome([], undefined, 70, 30, 0, [plain], 65);
+      expect(r.gross).toBe(0);
+      expect(r.byKind.DB_PENSION).toBeUndefined();
+    });
+
+    it("pays nothing before incomeFromAge", () => {
+      const r = activeIncome([], undefined, 64, 24, 0, [dbPension], 65);
+      expect(r.gross).toBe(0);
+    });
+
+    it("pays the entitlement, tagged DB_PENSION and taxable, from incomeFromAge", () => {
+      const r = activeIncome([], undefined, 65, 25, 0, [dbPension], 65);
+      expect(r.byKind.DB_PENSION).toBe(12000);
+      expect(r.taxableTotal).toBe(12000);
+    });
+
+    it("defaults the conversion age to retirementAge when incomeFromAge is unset", () => {
+      const noConversionAge: AssetInput = {
+        ...dbPension,
+        incomeFromAge: undefined,
+      };
+      const before = activeIncome(
+        [],
+        undefined,
+        66,
+        26,
+        0,
+        [noConversionAge],
+        67,
+      );
+      const after = activeIncome(
+        [],
+        undefined,
+        67,
+        27,
+        0,
+        [noConversionAge],
+        67,
+      );
+      expect(before.byKind.DB_PENSION).toBeUndefined();
+      expect(after.byKind.DB_PENSION).toBe(12000);
+    });
   });
 });
 

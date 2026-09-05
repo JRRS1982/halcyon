@@ -24,10 +24,12 @@ const plan: SerializedPlan = {
       openingValue: 100000,
       expectedReturnPct: null,
       feePct: 0.5,
-      annualContribution: 6000,
+      monthlyContribution: 500,
       contributionEndAge: null,
       minAccessAge: 57,
       drawdownPriority: 2,
+      annualIncome: null,
+      incomeFromAge: null,
     },
   ],
   liabilities: [
@@ -41,6 +43,8 @@ const plan: SerializedPlan = {
       endAge: 60,
       linkedAssetId: "a1",
       interestOnly: true,
+      revisionAge: null,
+      revisionRate: null,
     },
   ],
   incomes: [
@@ -117,5 +121,45 @@ describe("serializedToPlanInput", () => {
       2026,
     );
     expect(input.statePension).toBeUndefined();
+  });
+
+  // This is the file that has twice dropped a field silently. The test
+  // exists to make that impossible for these two.
+  it("carries revisionAge and revisionRate through to the engine input", () => {
+    const liability = plan.liabilities[0];
+    if (!liability) throw new Error("expected a fixture liability");
+    const input = serializedToPlanInput(
+      {
+        ...plan,
+        liabilities: [{ ...liability, revisionAge: 45, revisionRate: 7 }],
+      },
+      2026,
+    );
+    expect(input.liabilities[0]?.revisionAge).toBe(45);
+    expect(input.liabilities[0]?.revisionRate).toBe(7);
+  });
+
+  // A field silently dropped on this boundary would leave the live
+  // in-browser projection ignorant of a DB pension conversion while the
+  // server-rendered chart honoured it — see toPlanInput.test.ts for the
+  // matching assertion on the other mapper.
+  it("carries annualIncome and incomeFromAge through to the engine input", () => {
+    const asset = plan.assets[0];
+    if (!asset) throw new Error("expected a fixture asset");
+    const input = serializedToPlanInput(
+      {
+        ...plan,
+        assets: [{ ...asset, annualIncome: 12000, incomeFromAge: 65 }],
+      },
+      2026,
+    );
+    expect(input.assets[0]?.annualIncome).toBe(12000);
+    expect(input.assets[0]?.incomeFromAge).toBe(65);
+  });
+
+  it("leaves annualIncome and incomeFromAge undefined when null", () => {
+    const input = serializedToPlanInput(plan, 2026);
+    expect(input.assets[0]?.annualIncome).toBeUndefined();
+    expect(input.assets[0]?.incomeFromAge).toBeUndefined();
   });
 });

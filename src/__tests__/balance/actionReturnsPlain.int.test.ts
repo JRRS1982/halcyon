@@ -16,6 +16,7 @@ const seedAccount = () =>
     section: "CURRENT",
     value: 0,
     canImportTransactions: false,
+    terms: {},
     mortgage: null,
   });
 

@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { ThemeProvider } from "styled-components";
 import { rowMarkerProps, SyncMarker } from "@/app/(app)/plan/SyncMarker";
+import { emptyRowTerms } from "@/lib/plan/rowTerms";
 import type { SyncPlan } from "@/lib/plan/sync";
 import { theme } from "@/lib/theme";
 
@@ -72,6 +73,8 @@ describe("SyncMarker", () => {
           label: "AJ Bell SIPP",
           wrapper: null,
           flow: 0,
+
+          terms: emptyRowTerms(),
         },
       ],
       additions: [],
@@ -153,6 +156,8 @@ describe("SyncMarker", () => {
           label: "Halifax mortgage",
           wrapper: null,
           flow: 0,
+
+          terms: emptyRowTerms(),
         },
       ],
       additions: [],
@@ -189,6 +194,8 @@ describe("SyncMarker", () => {
           label: "Halifax mortgage",
           wrapper: null,
           flow: 0,
+
+          terms: emptyRowTerms(),
         },
       ],
       additions: [],
@@ -221,6 +228,8 @@ describe("SyncMarker", () => {
           label: "AJ Bell SIPP",
           wrapper: null,
           flow: 0,
+
+          terms: emptyRowTerms(),
         },
       ],
       additions: [],

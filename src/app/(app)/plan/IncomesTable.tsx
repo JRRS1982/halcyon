@@ -4,12 +4,12 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import styled from "styled-components";
+import { DrawerSection, Field } from "@/components/ui/Drawer";
 import type { IncomeKind } from "@/lib/plan";
 import type { SyncPlan } from "@/lib/plan/sync";
 import { formatAmount, type NumberFormat } from "@/lib/settings/currency";
 import { createPlanIncome, updatePlanIncome } from "./actions";
 import { BoolCell, NumberCell, SelectCell, TextCell } from "./EditableCell";
-import { DrawerSection, Field } from "./PlanDrawer";
 import { AddRowButton } from "./RowControls";
 import { SummaryList, SummaryRow } from "./SummaryRow";
 import { rowMarkerProps, SyncMarker } from "./SyncMarker";

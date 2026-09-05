@@ -43,6 +43,8 @@ const liability = (
   endAge: null,
   linkedAssetId: null,
   interestOnly: false,
+  revisionAge: null,
+  revisionRate: null,
   ...over,
 });
 const event = (over: Partial<SerializedPlanEvent>): SerializedPlanEvent => ({

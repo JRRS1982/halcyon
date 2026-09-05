@@ -72,7 +72,7 @@ describe("plan update actions (integration)", () => {
       openingValue: 2000,
       expectedReturnPct: 5,
       feePct: 0.5,
-      annualContribution: 100,
+      monthlyContribution: 100,
       contributionEndAge: null,
       minAccessAge: 57,
       drawdownPriority: 3,
@@ -102,6 +102,8 @@ describe("plan update actions (integration)", () => {
       endAge: 60,
       linkedAssetId: null,
       interestOnly: false,
+      revisionAge: null,
+      revisionRate: null,
     });
     const after = await prisma.planLiability.findUniqueOrThrow({
       where: { id: liabilityId },
@@ -124,7 +126,7 @@ describe("plan update actions (integration)", () => {
         openingValue: 1,
         expectedReturnPct: null,
         feePct: 0,
-        annualContribution: 0,
+        monthlyContribution: 0,
         contributionEndAge: null,
         minAccessAge: null,
         drawdownPriority: 0,

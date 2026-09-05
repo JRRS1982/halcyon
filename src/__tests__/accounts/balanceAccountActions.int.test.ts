@@ -20,6 +20,7 @@ const isaInput = {
   section: "LONG_TERM" as const,
   value: 42300,
   canImportTransactions: false,
+  terms: {},
   mortgage: null,
 };
 
@@ -33,6 +34,7 @@ const homeWithMortgageInput = {
     name: "Halifax mortgage",
     value: 184200,
     canImportTransactions: false,
+    terms: {},
   },
 };
 
@@ -440,7 +442,12 @@ describe("account actions (integration)", () => {
     await expect(
       createAccount({
         ...isaInput,
-        mortgage: { name: "Nope", value: 100, canImportTransactions: false },
+        mortgage: {
+          name: "Nope",
+          value: 100,
+          canImportTransactions: false,
+          terms: {},
+        },
       }),
     ).rejects.toThrow();
   });

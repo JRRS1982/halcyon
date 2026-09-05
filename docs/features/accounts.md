@@ -117,6 +117,100 @@ path. No task in this phase touched `transactions/`, so this isn't a
 regression, but it also isn't the "gates the picker" behaviour the doc
 describes elsewhere; wiring it up is unstarted work, not a design decision.
 
+## Account terms
+
+Assumption used to live only on the plan — a mortgage's rate, a SIPP's fee,
+were things you typed once into `PlanLiability`/`PlanAsset` and Sync left
+alone forever. `AccountTerms` moves them onto the account itself, 1:1 (its
+`accountId` is the primary key, not a separate `id`), so they are a fact about
+the account rather than a plan-only guess, and Sync can keep them current
+like everything else it mirrors — see [`plan-sync.md`](plan-sync.md).
+
+Nine parameters, three shapes:
+
+| Shape | Parameters | Used by |
+|---|---|---|
+| Growth | `expectedReturnPct`, `feePct`, `minAccessAge` | asset types, varying which of the three |
+| Final salary | `annualIncome`, `endDate` | `FINAL_SALARY` only |
+| Debt | `interestPct`, `interestOnly`, `revisionDate`, `revisionRate`, `endDate` | liability types, varying which |
+
+**Eight of the nine columns are nullable, and there is no CHECK constraint.**
+A blank means *take the default*, never *unknown* — a property with no
+`feePct` has no platform charges, which is true rather than an error. The
+ninth, `interestOnly`, is `NOT NULL` with a `false` default rather than
+nullable, and that's the same rule wearing a boolean's clothes: a flag has no
+meaningful "unknown" the way a rate or a date does, so `false` — not
+repaying interest-only — already *is* the default, and there's nothing for a
+null to mean that `false` doesn't already say. That's also why one table
+serves fourteen account types rather than fourteen tables: each type asks
+for a subset of the nine, never a type-specific column.
+
+**Which parameters a type prompts for is code, not schema.** `ACCOUNT_TYPES`
+in
+[`src/lib/accounts/accountDraft.ts`](../../src/lib/accounts/accountDraft.ts)
+declares a `terms: TermField[]` per type — a mortgage asks for five, a
+current account for one (`expectedReturnPct`) — and `termsFor(type)` reads it
+back.
+
+**Don't conflate the guarantee this actually gives with a stronger one it
+doesn't** — this is exactly the mistake this feature's own
+[`plan-sync.md`](plan-sync.md#the-compare-set-four-fields-then-fourteen)
+warns against, one file over. `ACCOUNT_TYPES: readonly AccountTypeOption[]`
+is a plain array. Because `terms` is a *required* member of
+`AccountTypeOption`, an entry that omits it fails to compile — so a listed
+type can never be listed *incompletely*. But nothing about the array itself
+requires every `AccountType` enum value to *have* an entry: add a fifteenth
+type to the enum and `ACCOUNT_TYPES` compiles exactly as it did before,
+silently missing it. That is a real, if narrow, gap — nothing here would
+call it out.
+
+A genuine full-enum pin does exist in this codebase, just not for this
+list: `ALL_ACCOUNT_TYPES satisfies Record<AccountType, true>` in
+[`src/lib/balance/schemas.ts`](../../src/lib/balance/schemas.ts), which
+`accountTypeSchema` derives its keys from. Add a fifteenth `AccountType` and
+*that* fails to compile until `ALL_ACCOUNT_TYPES` learns it — but that pin
+protects the `type` field's own zod validation, not `ACCOUNT_TYPES`'s terms
+mapping; the two lists are independent, and nothing wires an update to one
+into a requirement on the other.
+
+**`endDate` means something different depending on kind.** On a liability
+it's the date the balance is repaid, and Sync lands it on
+`PlanLiability.endAge`. On `FINAL_SALARY` it's the date the pot converts to
+an income instead, landing on `PlanAsset.incomeFromAge` — a dedicated column,
+because `endAge` exists only on `PlanLiability`. Same column, opposite
+destination, chosen by the account's `kind`.
+
+**The card, not the row.** Clicking a row's name on the balance sheet opens
+`AccountCard`, which owns name, type, section and terms in one place —
+everything the row's toolbar and the Add drawer's advanced section used to
+split between them. The row-scoped toolbar's *Change type* and *Move to
+section* selects are gone; a refused type change (a linked mortgage or
+`PROPERTY_SALE` event blocking it) now shows the server's own sentence
+naming the blocker, inline in the card rather than as a toast. Value and
+notes stay editable in place on the sheet itself, debounced, same as before
+— only identity and assumptions moved into the card.
+
+**A type change does not delete terms, so nothing may read a stranded one.**
+`setAccountType` leaves the `AccountTerms` row alone — silently destroying a
+user's data because they corrected a misfiling is worse than ignoring the
+value. The consequence is that an account can hold a parameter its current
+type does not prompt for: a pension entered as `FINAL_SALARY` with an
+`annualIncome`, corrected to `SIPP`, keeps it, and no SIPP card renders it. So
+three things guard it, and none of them is a delete:
+
+- `setAccountTerms` and `createAccount` **refuse** a payload naming a
+  parameter the account's type does not prompt for (`disallowedTerms`), taking
+  the type from the row rather than the payload.
+- `AccountTermsFields` **emits only** the parameters it rendered
+  (`promptedTerms`), and the Add drawer clears its terms draft when its type
+  picker changes — so a value typed under one type is never submitted under
+  another.
+- Sync **ignores** a stranded value entirely: `reality.ts` gates every
+  parameter on `termsFor(account.type)`, not on `kindOf`. That is the layer
+  that matters, because it is the only one that can do anything about a value
+  that is already stored. See
+  [`plan-sync.md`](plan-sync.md#the-compare-set-four-fields-then-fourteen).
+
 ## Adding an account
 
 One `+ Add` button on the Balance page opens `AddAccountDrawer.tsx`, which
@@ -256,21 +350,34 @@ scoping:
 | Settings → Accounts: archive list, rename, plain-account create, import toggle | [`src/app/(app)/settings/AccountManager.tsx`](<../../src/app/(app)/settings/AccountManager.tsx>) |
 | Settings-side account server actions (`setAccountImports`, rename, plain delete) | [`src/app/(app)/settings/accountActions.ts`](<../../src/app/(app)/settings/accountActions.ts>) |
 | Copy-forward row shaping shared by month-to-month and template copy | [`src/lib/balance/copyRows.ts`](../../src/lib/balance/copyRows.ts) |
+| `AccountTerms` model, `termsFor(type)`, the `ACCOUNT_TYPES[].terms` exhaustiveness pin | [`prisma/schema.prisma`](../../prisma/schema.prisma), [`src/lib/accounts/accountDraft.ts`](../../src/lib/accounts/accountDraft.ts) |
+| `accountTermsSchema`, `setAccountTerms`/`setAccountType`/`setAccountSection`/`renameAccount` server actions | [`src/lib/accounts/schemas.ts`](../../src/lib/accounts/schemas.ts), [`src/app/(app)/balance/accountActions.ts`](<../../src/app/(app)/balance/accountActions.ts>) |
+| The row's card: name/type/section/terms in one place, opened from the sheet's name cell | [`src/app/(app)/balance/AccountCard.tsx`](<../../src/app/(app)/balance/AccountCard.tsx>) |
+| Per-type term fields rendered inside the card | [`src/components/accounts/AccountTermsFields.tsx`](../../src/components/accounts/AccountTermsFields.tsx) |
+| One-line summary shown on the card's collapsed "Advanced" section | [`src/lib/accounts/termsSummary.ts`](../../src/lib/accounts/termsSummary.ts) |
 
 ### Testing
 
 - **Unit** — `accountDraft.test.ts` (import-checkbox default/stickiness,
   submit gating), `creation.test.ts` (pure data shaping),
   `deletion.test.ts` (property-row and confirm-text rules),
+  `accountTerms.test.ts` (`termsFor` maps every one of the fourteen types to
+  its declared fields), `termsSummary.test.ts` (the collapsed-section
+  one-liner per type).
 - **Integration** (`*.int.test.ts`, real Postgres) —
   `schema.int.test.ts` (columns and defaults),
   data produces the same result), `balanceAccountActions.int.test.ts`
   (create-with-mortgage transaction, archive/restore, both delete modes),
   `copyForward.int.test.ts` (accountId survives copy-forward and template
   copy), `accountActions.int.test.ts` (Settings-side rename/import-toggle/
-  delete-when-unreferenced).
+  delete-when-unreferenced), `accountTerms.int.test.ts` (the 1:1 relation and
+  its cascade), `createAccountTerms.int.test.ts` (a new account's terms row),
+  `setAccountTerms.int.test.ts` (ownership fence, cross-user rejection).
 - **Component** — `AddAccountDrawer.test.tsx`, `DeleteAccountPanel.test.tsx`,
-  `AccountManager.test.tsx`.
+  `AccountManager.test.tsx`, `AccountCard.test.tsx` (name/type/section/terms
+  saving through their own actions, the type-change refusal sentence shown
+  inline), `AccountTermsFields.test.tsx` (per-type field rendering, blank
+  clears to null).
 - **E2E** — [`e2e/balance-accounts.spec.ts`](../../e2e/balance-accounts.spec.ts):
   six journeys — adding an asset, a mortgaged property (both sides created),
   stop-tracking into the Settings archive, delete-everywhere, an account with

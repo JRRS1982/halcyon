@@ -9,11 +9,12 @@
 import type { Page } from "@playwright/test";
 import {
   addPlanAsset,
+  balanceRow,
+  balanceRowButton,
   clearStarterPeriods,
   createPlanWithDob,
   expect,
   openAddDrawer,
-  rowInput,
   signedInUser,
   signIn,
   test,
@@ -41,7 +42,7 @@ async function addIsa(page: Page): Promise<void> {
     page.getByRole("button", { name: /^add$/i }).click(),
   );
 
-  await expect(rowInput(page, ACCOUNT)).toBeVisible();
+  await expect(balanceRowButton(page, ACCOUNT)).toBeVisible();
 }
 
 /**
@@ -93,12 +94,10 @@ test.describe("plan sync", () => {
 
     // Move the balance sheet underneath the plan.
     await page.goto("/balance");
-    const sheetRow = page
-      .locator('[role="row"]')
-      .filter({ has: rowInput(page, ACCOUNT) });
-    // Second cell of the row: name, value, notes. The cells carry no labels —
-    // see rowInput's note on why the row is found by its name cell's value.
-    const valueCell = sheetRow.locator("input").nth(1);
+    const sheetRow = balanceRow(page, ACCOUNT);
+    // First input in the row: value, then notes — the name cell is a button
+    // now (it opens AccountCard), not an input, since account-terms (Task 7).
+    const valueCell = sheetRow.locator("input").nth(0);
     // The formatted value is what an idle, hydrated cell shows; typing before
     // that is typing into an input React is about to reconcile.
     await expect(valueCell).toHaveValue("£42,300");

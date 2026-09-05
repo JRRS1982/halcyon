@@ -1,8 +1,12 @@
 import type { AccountType } from "@prisma/client";
-import { setAccountType } from "@/app/(app)/balance/accountActions";
+import {
+  setAccountTerms,
+  setAccountType,
+} from "@/app/(app)/balance/accountActions";
 import { deletePlanAsset } from "@/app/(app)/plan/actions";
 import { getPlanSyncPreview, syncPlan } from "@/app/(app)/plan/syncActions";
 import { buildAccountData } from "@/lib/accounts/creation";
+import { emptyRowTerms } from "@/lib/plan/rowTerms";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
 
@@ -87,18 +91,23 @@ describe("syncPlan (integration)", () => {
     expect(Number(assets[0]?.openingValue)).toBe(42300);
   });
 
-  // The point of the whole feature: tuning survives.
-  it("updates the value and preserves assumptions", async () => {
+  // The point of the whole feature, Task 11's widened half: growth parameters
+  // now come from the account's own AccountTerms row, exactly like the
+  // value. drawdownPriority is the genuine Kept assumption — an addition-time
+  // default never re-applied — and stays untouched by the same Sync.
+  it("updates the value and carries the account's terms, but preserves drawdownPriority", async () => {
     const plan = await emptyPlan();
     const account = await accountWithValue("Vanguard ISA", 42300, "2026-03-01");
+    await setAccountTerms({
+      accountId: account.id,
+      terms: { expectedReturnPct: 4.2, feePct: 0.22 },
+    });
     const asset = await prisma.planAsset.create({
       data: {
         planId: plan.id,
         label: "Vanguard ISA",
         accountId: account.id,
         openingValue: 1,
-        expectedReturnPct: 4.2,
-        feePct: 0.22,
         drawdownPriority: 3,
       },
     });
@@ -504,6 +513,7 @@ describe("syncPlan (integration)", () => {
         label: "Vanguard ISA",
         wrapper: "ISA",
         flow: 0,
+        terms: { ...emptyRowTerms(), feePct: 0 },
       },
     ]);
     const after = await prisma.planAsset.findUniqueOrThrow({
@@ -674,6 +684,7 @@ describe("syncPlan (integration)", () => {
         label: "Childcare",
         wrapper: null,
         flow: null,
+        terms: emptyRowTerms(),
       },
     ]);
     const after = await prisma.planExpense.findUniqueOrThrow({
@@ -754,7 +765,7 @@ describe("syncPlan (integration)", () => {
   // the money left the projection and never arrived in the pension, so the
   // user was £6,000/yr poorer *and* the pension never grew. It now rides on
   // the asset row that already mirrors the account.
-  it("writes a TRANSFER INFLOW into the mirrored asset's annualContribution", async () => {
+  it("writes a TRANSFER INFLOW into the mirrored asset's monthlyContribution", async () => {
     await emptyPlan();
     const account = await prisma.account.create({
       data: {
@@ -771,9 +782,8 @@ describe("syncPlan (integration)", () => {
         value: 42300,
       },
     });
-    // Pence, not whole pounds: 833.33 * 12 is 9999.960000000001 in IEEE-754
-    // and 9999.96 in the numeric(12,2) column. An unrounded read would report
-    // this row as an update on every press, forever.
+    // The budget and PlanAsset.monthlyContribution are the same unit now, so
+    // this reads back exactly — no × 12 and no rounding to survive it.
     await prisma.budgetItem.create({
       data: {
         periodId: p.id,
@@ -790,7 +800,7 @@ describe("syncPlan (integration)", () => {
     const asset = await prisma.planAsset.findFirstOrThrow({
       where: { accountId: account.id },
     });
-    expect(Number(asset.annualContribution)).toBe(9999.96);
+    expect(Number(asset.monthlyContribution)).toBe(833.33);
     // And the money did not also leave as an expense.
     expect(await prisma.planExpense.count()).toBe(0);
 
@@ -875,6 +885,10 @@ describe("syncPlan (integration)", () => {
         budget: 500,
       },
     });
+    await setAccountTerms({
+      accountId: account.id,
+      terms: { expectedReturnPct: 4.2 },
+    });
     const asset = await prisma.planAsset.create({
       data: {
         planId: plan.id,
@@ -882,8 +896,7 @@ describe("syncPlan (integration)", () => {
         accountId: account.id,
         openingValue: 42300,
         wrapper: "PENSION",
-        annualContribution: 2400,
-        expectedReturnPct: 4.2,
+        monthlyContribution: 200,
         contributionEndAge: 55,
       },
     });
@@ -896,13 +909,14 @@ describe("syncPlan (integration)", () => {
         value: 42300,
         label: "Vanguard SIPP",
         wrapper: "PENSION",
-        flow: 6000,
+        flow: 500,
+        terms: { ...emptyRowTerms(), expectedReturnPct: 4.2, feePct: 0 },
       },
     ]);
     const after = await prisma.planAsset.findUniqueOrThrow({
       where: { id: asset.id },
     });
-    expect(Number(after.annualContribution)).toBe(6000);
+    expect(Number(after.monthlyContribution)).toBe(500);
     expect(Number(after.expectedReturnPct)).toBe(4.2);
     expect(after.contributionEndAge).toBe(55);
   });
@@ -934,7 +948,7 @@ describe("syncPlan (integration)", () => {
         accountId: account.id,
         openingValue: 42300,
         wrapper: "PENSION",
-        annualContribution: 6000,
+        monthlyContribution: 500,
       },
     });
 
@@ -943,13 +957,13 @@ describe("syncPlan (integration)", () => {
     const after = await prisma.planAsset.findUniqueOrThrow({
       where: { id: asset.id },
     });
-    expect(Number(after.annualContribution)).toBe(0);
+    expect(Number(after.monthlyContribution)).toBe(0);
   });
 
   // An account opened at £0 and funded monthly is the case the feature exists
   // for. The additions guard drops zero-valued rows so a new user's plan does
   // not open on ~17 empty starter categories — but a row with a flow is not an
-  // empty row. Dropped, this Sync would report "Up to date" while £6,000/yr
+  // empty row. Dropped, this Sync would report "Up to date" while £500/mo
   // never reached the projection, self-healing only once the balance went
   // positive.
   it("adds a row for an account worth nothing that is being paid into", async () => {
@@ -987,7 +1001,7 @@ describe("syncPlan (integration)", () => {
       where: { accountId: account.id },
     });
     expect(Number(asset.openingValue)).toBe(0);
-    expect(Number(asset.annualContribution)).toBe(6000);
+    expect(Number(asset.monthlyContribution)).toBe(500);
 
     const second = await syncPlan();
 
@@ -1027,7 +1041,7 @@ describe("syncPlan (integration)", () => {
   });
 
   // A withdrawal is not a contribution: TRANSFER OUTFLOW has no plan wiring,
-  // and it must not reach annualContribution by the back door.
+  // and it must not reach monthlyContribution by the back door.
   it("does not turn a TRANSFER OUTFLOW into a contribution", async () => {
     await emptyPlan();
     const account = await prisma.account.create({
@@ -1061,7 +1075,7 @@ describe("syncPlan (integration)", () => {
     const asset = await prisma.planAsset.findFirstOrThrow({
       where: { accountId: account.id },
     });
-    expect(Number(asset.annualContribution)).toBe(0);
+    expect(Number(asset.monthlyContribution)).toBe(0);
     expect(await prisma.planExpense.count()).toBe(0);
   });
 

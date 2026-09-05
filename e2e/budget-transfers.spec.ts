@@ -17,6 +17,7 @@
 
 import type { Page } from "@playwright/test";
 import {
+  balanceRowButton,
   clearStarterPeriods,
   createPlanWithDob,
   ensureTransactionsEnabled,
@@ -159,7 +160,7 @@ test.describe("budget transfers and repayments", () => {
     await withServerAction(page, () =>
       page.getByRole("button", { name: /^add$/i }).click(),
     );
-    await expect(rowInput(page, ISA)).toBeVisible();
+    await expect(balanceRowButton(page, ISA)).toBeVisible();
 
     // Budget £500/mo into it. The direction is stated from the user's side:
     // "To Vanguard ISA", never the stored INFLOW.
@@ -240,7 +241,7 @@ test.describe("budget transfers and repayments", () => {
     await withServerAction(page, () =>
       page.getByRole("button", { name: /^add$/i }).click(),
     );
-    await expect(rowInput(page, MORTGAGE)).toBeVisible();
+    await expect(balanceRowButton(page, MORTGAGE)).toBeVisible();
 
     // A plan first, so the Sync below has something to move. Creating a plan
     // is a Sync against an empty one, so the mortgage arrives as a liability
@@ -291,9 +292,8 @@ test.describe("budget transfers and repayments", () => {
       page.getByRole("button", { name: /up to date/i }),
     ).toBeDisabled();
 
-    // …and the budgeted figure is on the liability, in the unit its own
-    // drawer displays: monthlyRepayment is monthly, where an asset's
-    // annualContribution is annual.
+    // …and the budgeted figure is on the liability: monthlyRepayment is
+    // monthly, exactly like an asset's monthlyContribution.
     await page
       .locator("section", { hasText: "Liabilities" })
       .getByRole("button", { name: new RegExp(MORTGAGE) })

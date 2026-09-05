@@ -72,7 +72,7 @@ export async function createPlan(input: {
   // round trips would run against the 5s interactive-transaction timeout.
   // Nothing below depends on the read being inside — createPlan only adds rows
   // to a plan it has just created.
-  const reality = await latestReality(userId);
+  const reality = await latestReality(userId, new Date(dateOfBirth));
 
   // One primary plan per user (v1). Guard + create are atomic to prevent double-create races.
   await prisma.$transaction(async (tx) => {
@@ -168,7 +168,7 @@ export async function updatePlanAsset(
       openingValue: p.openingValue,
       expectedReturnPct: p.expectedReturnPct,
       feePct: p.feePct,
-      annualContribution: p.annualContribution,
+      monthlyContribution: p.monthlyContribution,
       contributionEndAge: p.contributionEndAge,
       minAccessAge: p.minAccessAge,
       drawdownPriority: p.drawdownPriority,
@@ -212,6 +212,8 @@ export async function updatePlanLiability(
       endAge: p.endAge,
       linkedAssetId: p.linkedAssetId,
       interestOnly: p.interestOnly,
+      revisionAge: p.revisionAge,
+      revisionRate: p.revisionRate,
     },
   });
   if (res.count === 0) throw new Error("Liability not found");
@@ -294,7 +296,7 @@ export async function createPlanAsset(
         label: parsed.label,
         wrapper: parsed.wrapper,
         openingValue: parsed.openingValue,
-        annualContribution: 0,
+        monthlyContribution: 0,
         drawdownPriority: 0,
         sortOrder: (max._max.sortOrder ?? -1) + 1,
       },
@@ -381,7 +383,7 @@ export async function createPlanLiability(
           label: choice.label,
           wrapper: "PROPERTY",
           openingValue: 0,
-          annualContribution: 0,
+          monthlyContribution: 0,
           drawdownPriority: 0,
           sortOrder: (maxA._max.sortOrder ?? -1) + 1,
         },

@@ -3,13 +3,18 @@
 // Server-action journeys for the unified-accounts work: adding an account
 // (plain and property+mortgage), archiving one ("stop tracking"), the app's
 // one hard-delete path ("delete it everywhere"), a value-less account still
-// listing itself, and a rename following its account onto the budget's
-// anchored row. Chromium-only — see the beforeEach skip below.
+// listing itself, a rename following its account onto the budget's anchored
+// row, and — since account-terms (Task 7) moved the row's identity and
+// projection terms into a re-openable card — setting and later changing a
+// term through that card. Chromium-only — see the beforeEach skip below.
 
 import type { Page } from "@playwright/test";
 import {
+  balanceRow,
+  balanceRowButton,
   clearStarterPeriods,
   expect,
+  openAccountCard,
   openAddDrawer,
   rowInput,
   signedInUser,
@@ -19,16 +24,18 @@ import {
 } from "./_helpers/fixtures";
 
 /**
- * Focuses a row by clicking the cell holding its name, so the toolbar's
- * row-scoped "Delete row" button becomes enabled.
+ * Focuses a row by clicking its value cell, so the toolbar's row-scoped
+ * "Delete row" button becomes enabled.
  *
  * The sheet is a spreadsheet, not a list with a per-row delete control: a
  * cell must be focused first (BalanceSheet.tsx's onDelete reads
  * focusedCell), and focus is only wired once React has hydrated that row's
- * input — hence the same retry-until-enabled shape as openAddDrawer.
+ * input — hence the same retry-until-enabled shape as openAddDrawer. The
+ * value cell, not the name — the name is a button now (it opens AccountCard,
+ * which this helper has no need of).
  */
 async function focusRowByName(page: Page, name: string): Promise<void> {
-  const cell = rowInput(page, name);
+  const cell = balanceRow(page, name).locator("input").first();
   const deleteRowButton = page.getByRole("button", { name: /delete row/i });
   await expect(async () => {
     await cell.click();
@@ -63,7 +70,7 @@ test.describe("balance accounts", () => {
       page.getByRole("button", { name: /^add$/i }).click(),
     );
 
-    await expect(rowInput(page, "Vanguard ISA")).toBeVisible();
+    await expect(balanceRowButton(page, "Vanguard ISA")).toBeVisible();
   });
 
   test("a property with a mortgage creates both sides", async ({
@@ -91,8 +98,8 @@ test.describe("balance accounts", () => {
       page.getByRole("button", { name: /^add$/i }).click(),
     );
 
-    await expect(rowInput(page, "Home")).toBeVisible();
-    await expect(rowInput(page, "Halifax mortgage")).toBeVisible();
+    await expect(balanceRowButton(page, "Home")).toBeVisible();
+    await expect(balanceRowButton(page, "Halifax mortgage")).toBeVisible();
   });
 
   // The brief called this "removes it from the sheet", but the built
@@ -184,7 +191,7 @@ test.describe("balance accounts", () => {
       dialog.getByRole("button", { name: /^delete$/i }).click(),
     );
 
-    await expect(rowInput(page, "Crypto wallet")).toHaveCount(0);
+    await expect(balanceRowButton(page, "Crypto wallet")).toHaveCount(0);
   });
 
   // page.tsx lists every live account on every month, left-joining this
@@ -210,7 +217,7 @@ test.describe("balance accounts", () => {
     await withServerAction(page, () =>
       page.getByRole("button", { name: /^add$/i }).click(),
     );
-    await expect(rowInput(page, "Vanguard ISA")).toBeVisible();
+    await expect(balanceRowButton(page, "Vanguard ISA")).toBeVisible();
 
     // A month nothing has recorded yet: the account still gets a row, blank
     // rather than absent. copy-forward is an explicit action (copyRows.ts),
@@ -222,10 +229,8 @@ test.describe("balance accounts", () => {
     const ym = `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, "0")}`;
     await page.goto(`/balance?ym=${ym}`);
 
-    await expect(rowInput(page, "Vanguard ISA")).toBeVisible();
-    const row = page
-      .getByRole("row")
-      .filter({ has: rowInput(page, "Vanguard ISA") });
+    await expect(balanceRowButton(page, "Vanguard ISA")).toBeVisible();
+    const row = balanceRow(page, "Vanguard ISA");
     await expect(row.locator('input[inputmode="decimal"]')).toHaveValue("");
     await expect(
       page.getByText("1 account without a value", { exact: true }),
@@ -235,9 +240,9 @@ test.describe("balance accounts", () => {
   // BudgetSheet.tsx makes an anchored row's label cell read-only — the name
   // comes from the account, not a value the row can diverge on — so the only
   // way it changes is renameAccount's own propagation to BudgetItem.label
-  // (accountActions.ts). This drives that rename through the real sheet UI
-  // rather than the server action directly.
-  test("renaming on the sheet renames the budget's anchored row", async ({
+  // (accountActions.ts). This drives that rename through AccountCard, which
+  // now owns the name field, rather than calling the server action directly.
+  test("renaming through the card renames the budget's anchored row", async ({
     page,
     db,
   }) => {
@@ -254,7 +259,7 @@ test.describe("balance accounts", () => {
     await withServerAction(page, () =>
       page.getByRole("button", { name: /^add$/i }).click(),
     );
-    await expect(rowInput(page, "Vanguard ISA")).toBeVisible();
+    await expect(balanceRowButton(page, "Vanguard ISA")).toBeVisible();
 
     const account = await db.account.findFirstOrThrow({
       where: { userId: user.id, name: "Vanguard ISA" },
@@ -273,20 +278,58 @@ test.describe("balance accounts", () => {
       },
     });
 
-    // rowInput matches on the input's *live* value, not just the one it was
-    // created with (Playwright's `[value]` selector tracks the DOM property),
-    // so re-resolving it mid-rename would stop matching the instant the first
-    // keystroke lands. Click it once by its old name, then drive the rest
-    // from the keyboard rather than re-querying a locator built on a name
-    // that's about to change.
-    await rowInput(page, "Vanguard ISA").click();
+    await openAccountCard(page, "Vanguard ISA");
+    const nameField = page.getByLabel("Name");
     await withServerAction(page, async () => {
-      await page.keyboard.press("ControlOrMeta+A");
-      await page.keyboard.type("Vanguard S&S ISA");
-      await page.keyboard.press("Tab");
+      await nameField.fill("Vanguard S&S ISA");
+      await nameField.blur();
     });
 
     await page.goto("/budget");
     await expect(rowInput(page, "Vanguard S&S ISA")).toBeVisible();
+  });
+
+  // New surface this task adds: the card owns projection terms too, not just
+  // identity. Set at creation through the Add drawer's own Advanced section,
+  // then changed later through the re-opened card, and durable across a
+  // reload — proving the write actually reached the server rather than only
+  // ever having been the client's optimistic value.
+  test("a term set when adding an account persists, and a rate changed through the card survives a reload", async ({
+    page,
+    db,
+  }) => {
+    await signIn(page);
+    const user = await signedInUser(db);
+    await clearStarterPeriods(db, user.id);
+    await page.goto("/balance");
+
+    await openAddDrawer(page);
+    await page.getByLabel(/what are you adding/i).selectOption("SAVINGS");
+    await page.getByLabel(/name/i).fill("Marcus savings");
+    await page.getByLabel(/section/i).selectOption("MEDIUM_TERM");
+    await page.getByLabel(/value now/i).fill("10000");
+    await page.getByRole("button", { name: /advanced/i }).click();
+    await page.getByLabel(/expected growth/i).fill("2.5");
+
+    await withServerAction(page, () =>
+      page.getByRole("button", { name: /^add$/i }).click(),
+    );
+    await expect(balanceRowButton(page, "Marcus savings")).toBeVisible();
+
+    // The card's own Advanced section is open by default (unlike the Add
+    // drawer's) — the rate the account was created with should already be on
+    // screen, with nothing to expand first.
+    await openAccountCard(page, "Marcus savings");
+    const rateField = page.getByLabel(/expected growth/i);
+    await expect(rateField).toHaveValue("2.5");
+
+    await withServerAction(page, async () => {
+      await rateField.fill("3.1");
+      await rateField.blur();
+    });
+
+    await page.reload();
+    await openAccountCard(page, "Marcus savings");
+    await expect(page.getByLabel(/expected growth/i)).toHaveValue("3.1");
   });
 });

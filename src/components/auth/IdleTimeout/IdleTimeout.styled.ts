@@ -1,6 +1,6 @@
 import styled from "styled-components";
 
-// Unlike `src/app/plan/PlanDrawer.tsx` — a side sheet that deliberately avoids
+// Unlike `src/components/ui/Drawer.tsx` — a side sheet that deliberately avoids
 // showModal() so the page stays usable behind it — this one is opened with
 // showModal(). A session about to end is exactly the case where the page
 // should stop being usable, and the UA gives us the backdrop, the top layer

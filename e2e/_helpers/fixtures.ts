@@ -505,17 +505,62 @@ export async function ensureTransactionsEnabled(page: Page): Promise<void> {
 }
 
 /**
- * The balance sheet row whose name cell reads `name`.
+ * The budget/plan sheet row whose name cell reads `name`.
  *
- * The sheet's editable cells (BalanceSheet.tsx's CellInput) are bare
- * `<input>`s with no associated label — their value is the row's name, not an
- * accessible name Playwright can query by role. React sets a freshly mounted
- * controlled input's value via the DOM `defaultValue` IDL property, which does
- * reflect the `value` content attribute, so a plain attribute selector finds a
- * row by the name it was created with.
+ * Those sheets' editable cells are bare `<input>`s with no associated label
+ * (an anchored budget row's is `readOnly` rather than removed, so it still
+ * carries the account's name as its value) — not an accessible name
+ * Playwright can query by role. React sets a freshly mounted controlled
+ * input's value via the DOM `defaultValue` IDL property, which does reflect
+ * the `value` content attribute, so a plain attribute selector finds a row by
+ * the name it was created with.
+ *
+ * NOT for the balance sheet: account-terms (Task 7) turned its name cell from
+ * an editable input into a button that opens AccountCard, so it carries no
+ * `value` attribute to match on — see balanceRowButton/balanceRow below.
  */
 export function rowInput(page: Page, name: string) {
   return page.locator(`input[value="${name}"]`);
+}
+
+/**
+ * The balance sheet row's name button — clicking it opens AccountCard.
+ *
+ * Account-terms (Task 7) turned the name cell from an editable `<input>`
+ * into a button: the row's identity now lives in the card, not in place on
+ * the sheet. The button's own accessible name is the account's name, so this
+ * finds it by role rather than by an input's `value` attribute (the input
+ * approach this used to use, back when the name was editable in the row).
+ */
+export function balanceRowButton(page: Page, name: string) {
+  return page.getByRole("button", { name, exact: true });
+}
+
+/**
+ * The `[role="row"]` element containing the named account's row button —
+ * for reaching its other cells (the value/notes inputs) once the row itself
+ * is needed rather than just the name button.
+ */
+export function balanceRow(page: Page, name: string) {
+  return page
+    .locator('[role="row"]')
+    .filter({ has: balanceRowButton(page, name) });
+}
+
+/**
+ * Opens a balance sheet row's card by clicking its name button, retrying as
+ * with openAddDrawer below — the row is server-rendered, so the button is
+ * clickable before React attaches its onClick handler and the first click
+ * can be swallowed. Waits for the card's "Type" field, present for every
+ * account regardless of its terms, as proof the card actually opened.
+ */
+export async function openAccountCard(page: Page, name: string): Promise<void> {
+  const nameButton = balanceRowButton(page, name);
+  const typeField = page.getByLabel("Type");
+  await expect(async () => {
+    await nameButton.click();
+    await expect(typeField).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 15_000 });
 }
 
 /**

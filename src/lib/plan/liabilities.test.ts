@@ -1,5 +1,5 @@
 // src/lib/plan/liabilities.test.ts
-import { liabilityStep } from "./liabilities";
+import { liabilityStep, rateAt } from "./liabilities";
 import type { LiabilityInput } from "./types";
 
 const mortgage: LiabilityInput = {
@@ -89,6 +89,59 @@ describe("liabilityStep interest/principal split", () => {
     ); // 1200 paid < 5000 interest
     expect(r.byLiability.m?.interest).toBeCloseTo(1200);
     expect(r.byLiability.m?.principal).toBe(0);
+  });
+});
+
+describe("rateAt", () => {
+  const fixed: LiabilityInput = {
+    id: "m1",
+    label: "Mortgage",
+    openingBalance: 200000,
+    interestPct: 4,
+    monthlyRepayment: 1000,
+    revisionAge: 45,
+    revisionRate: 7,
+  };
+
+  it("uses the fixed rate before the revision age", () => {
+    expect(rateAt(fixed, 44)).toBe(4);
+  });
+
+  it("uses the revision rate from the revision age itself", () => {
+    expect(rateAt(fixed, 45)).toBe(7);
+  });
+
+  it("keeps the revision rate afterwards", () => {
+    expect(rateAt(fixed, 60)).toBe(7);
+  });
+
+  it("falls back to the fixed rate when no revision is set", () => {
+    expect(rateAt({ ...mortgage, id: "m2" }, 80)).toBe(5);
+  });
+
+  it("falls back to the fixed rate when a revision age has no rate", () => {
+    // Half-answered is not a reason to charge 0%: the fence is the pair.
+    expect(rateAt({ ...fixed, revisionRate: undefined }, 60)).toBe(4);
+  });
+});
+
+describe("liabilityStep with a revision", () => {
+  it("accrues more interest after the revision than before", () => {
+    const fixed: LiabilityInput = {
+      id: "m1",
+      label: "Mortgage",
+      openingBalance: 200000,
+      interestPct: 4,
+      monthlyRepayment: 1000,
+      revisionAge: 45,
+      revisionRate: 7,
+    };
+    const before = liabilityStep([fixed], { m1: 200_000 }, 44);
+    const after = liabilityStep([fixed], { m1: 200_000 }, 46);
+
+    expect(after.byLiability.m1?.interest).toBeGreaterThan(
+      before.byLiability.m1?.interest ?? 0,
+    );
   });
 });
 

@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { ThemeProvider } from "styled-components";
 import { SyncButton } from "@/app/(app)/plan/SyncButton";
+import { emptyRowTerms } from "@/lib/plan/rowTerms";
 import type { SyncPlan } from "@/lib/plan/sync";
 import { theme } from "@/lib/theme";
 
@@ -34,8 +35,22 @@ describe("SyncButton", () => {
   test("counts every change, and breaks them down", () => {
     renderButton({
       updates: [
-        { id: "p1", value: 1, label: "ISA", wrapper: null, flow: 0 },
-        { id: "p2", value: 2, label: "SIPP", wrapper: null, flow: 0 },
+        {
+          id: "p1",
+          value: 1,
+          label: "ISA",
+          wrapper: null,
+          flow: 0,
+          terms: emptyRowTerms(),
+        },
+        {
+          id: "p2",
+          value: 2,
+          label: "SIPP",
+          wrapper: null,
+          flow: 0,
+          terms: emptyRowTerms(),
+        },
       ],
       additions: [
         {
@@ -50,6 +65,7 @@ describe("SyncButton", () => {
             incomeKind: null,
             expenseSection: null,
           },
+          terms: emptyRowTerms(),
         },
       ],
       removals: [
@@ -68,7 +84,14 @@ describe("SyncButton", () => {
   test("syncs straight away when nothing would be removed", async () => {
     renderButton({
       updates: [
-        { id: "p1", value: 42300, label: "ISA", wrapper: null, flow: 0 },
+        {
+          id: "p1",
+          value: 42300,
+          label: "ISA",
+          wrapper: null,
+          flow: 0,
+          terms: emptyRowTerms(),
+        },
       ],
       additions: [],
       removals: [],
@@ -87,7 +110,14 @@ describe("SyncButton", () => {
   test("never renders the removal dialog when nothing would be removed", async () => {
     renderButton({
       updates: [
-        { id: "p1", value: 42300, label: "ISA", wrapper: null, flow: 0 },
+        {
+          id: "p1",
+          value: 42300,
+          label: "ISA",
+          wrapper: null,
+          flow: 0,
+          terms: emptyRowTerms(),
+        },
       ],
       additions: [],
       removals: [],

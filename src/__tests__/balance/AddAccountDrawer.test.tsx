@@ -199,6 +199,55 @@ describe("AddAccountDrawer", () => {
     );
   });
 
+  // The terms belong to the type that asked for them. Left in place, a value
+  // typed under one type is submitted under another — tick "Interest only" as
+  // a MORTGAGE, switch to CREDIT_CARD (whose card has no such control), press
+  // Add, and the flag is stored where nothing renders it and nothing can
+  // clear it.
+  describe("the terms draft follows the chosen type", () => {
+    const openAdvanced = () =>
+      fireEvent.click(screen.getByRole("button", { name: /advanced/i }));
+
+    test("clears a value typed under the previous type", () => {
+      renderDrawer();
+
+      pickType("MORTGAGE");
+      openAdvanced();
+      const onlyBefore = screen.getByLabelText("Interest only");
+      fireEvent.click(onlyBefore);
+      expect(onlyBefore).toBeChecked();
+
+      pickType("CREDIT_CARD");
+      // A credit card prompts for its rate and nothing else, so the flag has
+      // no field left to show it — and the rate it does show starts blank.
+      expect(screen.queryByLabelText("Interest only")).not.toBeInTheDocument();
+      expect(screen.getByLabelText("Interest rate %")).toHaveValue(null);
+    });
+
+    test("submits no terms after the type changed", async () => {
+      renderDrawer();
+
+      pickType("MORTGAGE");
+      openAdvanced();
+      fireEvent.click(screen.getByLabelText("Interest only"));
+
+      pickType("CREDIT_CARD");
+      fireEvent.change(screen.getByLabelText(/^name$/i), {
+        target: { value: "Amex" },
+      });
+      fireEvent.change(screen.getByLabelText(/value now/i), {
+        target: { value: "-450" },
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: /^add$/i }));
+      });
+
+      expect(created).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "CREDIT_CARD", terms: {} }),
+      );
+    });
+  });
+
   // Regression test for a fix reviewed in round 1: closing without
   // submitting must clear the draft, not just hide it.
   test("clears the draft on cancel, without submitting", () => {

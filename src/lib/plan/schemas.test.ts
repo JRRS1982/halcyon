@@ -26,7 +26,7 @@ const validAsset = {
   openingValue: 100000,
   expectedReturnPct: 5,
   feePct: 0,
-  annualContribution: 6000,
+  monthlyContribution: 500,
   contributionEndAge: null,
   minAccessAge: null,
   drawdownPriority: 2,
@@ -42,6 +42,8 @@ const validLiability = {
   endAge: 60,
   linkedAssetId: null,
   interestOnly: false,
+  revisionAge: null,
+  revisionRate: null,
 };
 
 describe("updatePlanAssumptionsSchema", () => {
@@ -116,25 +118,41 @@ describe("updatePlanAssetSchema", () => {
       updatePlanAssetSchema.parse({ ...validAsset, wrapper: "CRYPTO" }),
     ).toThrow();
   });
-  it("rejects a negative openingValue", () => {
-    expect(() =>
-      updatePlanAssetSchema.parse({ ...validAsset, openingValue: -1 }),
-    ).toThrow();
+  // Sync copies BalanceItem.value straight into openingValue, and an
+  // overdrawn current account is an asset row with a negative balance. Refused
+  // here, that row could never be edited again.
+  it("accepts a negative openingValue", () => {
+    expect(
+      updatePlanAssetSchema.parse({ ...validAsset, openingValue: -250 })
+        .openingValue,
+    ).toBe(-250);
   });
-  it("rejects out-of-range feePct and minAccessAge", () => {
-    expect(() =>
-      updatePlanAssetSchema.parse({ ...validAsset, feePct: 6 }),
-    ).toThrow();
-    expect(() =>
-      updatePlanAssetSchema.parse({ ...validAsset, feePct: -1 }),
-    ).toThrow();
-    expect(() =>
-      updatePlanAssetSchema.parse({ ...validAsset, minAccessAge: 40 }),
-    ).toThrow();
+
+  // These two used to be bounded by plausibility (fees 0…5, access age
+  // 50…75) and Sync writes both from the account. A 6% charge and a protected
+  // pension age of 45 are real, so they parse; the column's own limits are
+  // what remain.
+  it("accepts a fee and an access age outside the old plausibility bounds", () => {
+    expect(
+      updatePlanAssetSchema.parse({ ...validAsset, feePct: 6 }).feePct,
+    ).toBe(6);
+    expect(
+      updatePlanAssetSchema.parse({ ...validAsset, minAccessAge: 45 })
+        .minAccessAge,
+    ).toBe(45);
     expect(
       updatePlanAssetSchema.parse({ ...validAsset, minAccessAge: null })
         .minAccessAge,
     ).toBeNull();
+  });
+
+  it("still rejects a fee and an access age beyond the column", () => {
+    expect(() =>
+      updatePlanAssetSchema.parse({ ...validAsset, feePct: 1000 }),
+    ).toThrow();
+    expect(() =>
+      updatePlanAssetSchema.parse({ ...validAsset, minAccessAge: 121 }),
+    ).toThrow();
   });
 });
 
@@ -156,6 +174,30 @@ describe("updatePlanLiabilitySchema", () => {
       }),
     ).toThrow();
   });
+
+  // The rate a UK overdraft actually charges, and a mortgage cleared before
+  // 40. Sync writes both; the old -20…30 and 40…120 bounds locked those rows
+  // out of every later edit.
+  it("accepts a real overdraft rate and an early paid-off age", () => {
+    expect(
+      updatePlanLiabilitySchema.parse({ ...validLiability, interestPct: 39.9 })
+        .interestPct,
+    ).toBe(39.9);
+    expect(
+      updatePlanLiabilitySchema.parse({
+        ...validLiability,
+        endAge: 38,
+        revisionAge: 35,
+        revisionRate: 39.9,
+      }).endAge,
+    ).toBe(38);
+  });
+
+  it("still rejects a rate beyond the column", () => {
+    expect(() =>
+      updatePlanLiabilitySchema.parse({ ...validLiability, interestPct: 1000 }),
+    ).toThrow();
+  });
 });
 
 describe("updatePlanLiabilitySchema startAge", () => {
@@ -168,6 +210,8 @@ describe("updatePlanLiabilitySchema startAge", () => {
     endAge: 65,
     linkedAssetId: null,
     interestOnly: false,
+    revisionAge: null,
+    revisionRate: null,
   };
 
   it("accepts a null startAge", () => {

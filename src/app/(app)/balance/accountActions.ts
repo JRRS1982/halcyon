@@ -1,5 +1,6 @@
 "use server";
 
+import type { AccountType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { accountTypesOfKind, kindOf } from "@/lib/accounts/accountDraft";
@@ -11,6 +12,7 @@ import {
 import {
   type AccountDeletionCounts,
   type AccountIdInput,
+  type AccountTermsInput,
   type ArchiveAccountInput,
   accountIdSchema,
   archiveAccountSchema,
@@ -18,6 +20,8 @@ import {
   createAccountSchema,
   type DeleteAccountEverywhereInput,
   deleteAccountEverywhereSchema,
+  disallowedTerms,
+  setAccountTermsSchema,
 } from "@/lib/accounts/schemas";
 import { isValidBalanceCategory } from "@/lib/balance/reorder";
 import {
@@ -33,6 +37,23 @@ import { monthRangeFor } from "@/lib/budget/period";
 import { cleanLabel } from "@/lib/categories/normalize";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
+
+// An empty terms payload means the user answered nothing, so there is no row
+// to write. A row of all-nulls would be indistinguishable in behaviour but
+// would make "has this account been configured?" unanswerable.
+const hasAnyTerm = (terms: AccountTermsInput): boolean =>
+  Object.values(terms).some((v) => v !== undefined && v !== null);
+
+// Refuses a parameter the account type does not prompt for. A stored value no
+// card renders is invisible, uncleanable and still read by Sync, so the door
+// is here rather than left to reality.ts's gate to ignore afterwards.
+function requireTermsOfType(type: AccountType, terms: AccountTermsInput): void {
+  const rejected = disallowedTerms(type, terms);
+  if (rejected.length === 0) return;
+  throw new Error(
+    `A ${type} account has no ${rejected.join(", ")} — that is not one of its parameters`,
+  );
+}
 
 async function requireUserId(): Promise<string> {
   const supabase = await createClient();
@@ -53,6 +74,13 @@ function revalidateAll() {
   // transaction — every action in this file shares one revalidateAll rather
   // than each remembering its own paths, so /budget belongs here too.
   revalidatePath("/budget");
+  // And /plan, because an account IS a plan row: Sync compares its label,
+  // its type (which decides the wrapper and which parameters travel), its
+  // parameters and whether it exists at all. Every action here mutates at
+  // least one of those, so leaving /plan out left the Sync indicator showing
+  // a stale count after a rename or a type change until something else
+  // happened to refresh it.
+  revalidatePath("/plan");
 }
 
 // Throws unless the account is the caller's. Every action starts here — the
@@ -120,6 +148,12 @@ export async function createAccount(
   const range = monthRangeFor(parsed.year, parsed.month);
 
   const name = cleanLabel(parsed.name);
+  // Both halves are checked against the type they will be stored under: the
+  // drawer's picker can change after the Advanced section has been filled in,
+  // and a mortgage's terms belong to a MORTGAGE however the property was
+  // filed.
+  requireTermsOfType(parsed.type, parsed.terms);
+  if (parsed.mortgage) requireTermsOfType("MORTGAGE", parsed.mortgage.terms);
   // The drawer sends the one type it asked for; everything else the row needs
   // — asset-or-liability included — is derived from it.
   const accountData = buildAccountData({
@@ -163,6 +197,12 @@ export async function createAccount(
       },
     });
 
+    if (hasAnyTerm(parsed.terms)) {
+      await tx.accountTerms.create({
+        data: { accountId: account.id, ...parsed.terms },
+      });
+    }
+
     if (parsed.mortgage) {
       // buildMortgageAccountData always classifies this as a LONG_TERM
       // liability, a different bucket from the property's own row, so its
@@ -195,6 +235,12 @@ export async function createAccount(
           value: parsed.mortgage.value,
         },
       });
+
+      if (hasAnyTerm(parsed.mortgage.terms)) {
+        await tx.accountTerms.create({
+          data: { accountId: mortgage.id, ...parsed.mortgage.terms },
+        });
+      }
     }
 
     return { periodId: period.id, accountId: account.id };
@@ -391,6 +437,44 @@ export async function archiveAccount(
       data: { deletedAt: new Date() },
     });
   });
+  revalidateAll();
+}
+
+// Writes the projection parameters for one account — absent keys are left
+// alone, `null` clears them back to the account type's default. See
+// accountTermsSchema for why those two are not the same thing.
+//
+// Refuses anything the account's own type does not prompt for: the type comes
+// from the row, never from the payload, so no caller can widen what it may
+// write by claiming a different one.
+export async function setAccountTerms(input: unknown): Promise<void> {
+  const { accountId, terms } = setAccountTermsSchema.parse(input);
+  const userId = await requireUserId();
+
+  await prisma.$transaction(async (tx) => {
+    // Ownership is the primary boundary (ADR-002: the server role bypasses
+    // RLS), and it is checked inside the transaction so a concurrent delete
+    // cannot slip between the check and the write. The type rides along on
+    // the same read — it is the other thing this write has to be checked
+    // against.
+    const owned = await tx.account.findFirst({
+      where: { id: accountId, userId, deletedAt: null },
+      select: { id: true, type: true },
+    });
+    if (!owned) throw new Error("Account not found");
+    requireTermsOfType(owned.type, terms);
+
+    // upsert, not update: the first write for an account has no row yet, and
+    // an account is created without terms.
+    await tx.accountTerms.upsert({
+      where: { accountId },
+      create: { accountId, ...terms },
+      update: terms,
+    });
+  });
+
+  // The same paths as every other action here — /plan among them, because a
+  // term change makes the plan stale.
   revalidateAll();
 }
 

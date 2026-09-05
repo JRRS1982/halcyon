@@ -4,6 +4,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import styled from "styled-components";
+import { DrawerSection, Field } from "@/components/ui/Drawer";
 import {
   createMortgageForProperty,
   deletePlanLiability,
@@ -12,7 +13,6 @@ import {
   updatePlanLiability,
 } from "./actions";
 import { BoolCell, NumberCell, TextCell } from "./EditableCell";
-import { DrawerSection, Field } from "./PlanDrawer";
 import type {
   SerializedPlanAsset,
   SerializedPlanExpense,
@@ -93,7 +93,7 @@ export function PropertyFields({
         openingValue: next.openingValue,
         expectedReturnPct: next.expectedReturnPct,
         feePct: next.feePct,
-        annualContribution: next.annualContribution,
+        monthlyContribution: next.monthlyContribution,
         contributionEndAge: next.contributionEndAge,
         minAccessAge: next.minAccessAge,
         drawdownPriority: next.drawdownPriority,
@@ -112,6 +112,8 @@ export function PropertyFields({
         endAge: next.endAge,
         linkedAssetId: next.linkedAssetId,
         interestOnly: next.interestOnly,
+        revisionAge: next.revisionAge,
+        revisionRate: next.revisionRate,
       }),
     );
 
@@ -206,6 +208,26 @@ export function PropertyFields({
               />
             </Field>
           ) : null}
+          {/* The fixed-rate pair, with the same labels the liability drawer
+              uses (LiabilitiesTable.tsx) — this drawer edits the same mortgage
+              and already carries both values through saveMortgage, so leaving
+              them out only meant the two editors of one row disagreed about
+              which fields exist. */}
+          <Field label="Fixed until age (blank = never changes)">
+            <NumberCell
+              value={mortgage.revisionAge}
+              nullable
+              onCommit={(v) => saveMortgage({ ...mortgage, revisionAge: v })}
+            />
+          </Field>
+          <Field label="Rate after that %">
+            <NumberCell
+              value={mortgage.revisionRate}
+              nullable
+              step="0.1"
+              onCommit={(v) => saveMortgage({ ...mortgage, revisionRate: v })}
+            />
+          </Field>
           {currentSplit ? (
             <Field label="This year">
               <ReadoutSpan>

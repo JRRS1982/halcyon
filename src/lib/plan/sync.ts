@@ -5,6 +5,7 @@
 // the per-row indicators and the confirmation list are all this one object
 // rendered three ways — they cannot disagree with what the action writes.
 
+import { type RowTerms, rowTermsEqual } from "@/lib/plan/rowTerms";
 import type { ExpenseSection, IncomeKind, Wrapper } from "@/lib/plan/types";
 
 export type PlanRowKind = "ASSET" | "LIABILITY" | "INCOME" | "EXPENSE";
@@ -27,12 +28,10 @@ export type PlanRow = {
   wrapper: Wrapper | null;
   /**
    * Money budgeted into or against the thing this row mirrors:
-   * PlanAsset.annualContribution (annual) for ASSET, PlanLiability.monthlyRepayment
-   * (monthly) for LIABILITY. Null for INCOME/EXPENSE, which mirror a category
-   * and have no such column — the same shape as `wrapper` above.
-   *
-   * The units are deliberately asymmetric: each column is stored in the unit
-   * its own drawer displays, and liabilityStep does its own × 12.
+   * PlanAsset.monthlyContribution for ASSET, PlanLiability.monthlyRepayment
+   * for LIABILITY — both monthly, matching the budget row they are copied
+   * from. Null for INCOME/EXPENSE, which mirror a category and have no such
+   * column — the same shape as `wrapper` above.
    */
   flow: number | null;
   /**
@@ -41,6 +40,11 @@ export type PlanRow = {
    * (PlanExpense.liabilityId). Null when the row stands on its own.
    */
   dependsOn: string | null;
+  /**
+   * The projection parameters this row currently holds, in plan units (ages,
+   * not dates). Empty for INCOME/EXPENSE — a category has no such parameters.
+   */
+  terms: RowTerms;
 };
 
 /**
@@ -83,8 +87,10 @@ export type RealityRow = {
   /** Account.wrapper for an ASSET row. Null for LIABILITY/INCOME/EXPENSE. */
   wrapper: Wrapper | null;
   /**
-   * What the budget says is flowing into this account — a TRANSFER INFLOW
-   * annualised for an ASSET row, a REPAYMENT left monthly for a LIABILITY one.
+   * What the budget says is flowing into this account — a TRANSFER INFLOW for
+   * an ASSET row, a REPAYMENT for a LIABILITY one, both left monthly exactly
+   * as the budget stores them and as PlanRow.flow above carries them. No unit
+   * crosses the comparison.
    * Zero, not null, when nothing is budgeted: an account row's flow is always
    * an observation, and null would never equal the plan row's own column,
    * which defaults to 0 — reporting every unbudgeted account as changed on
@@ -93,6 +99,11 @@ export type RealityRow = {
   flow: number | null;
   /** Addition-time only — never compared. See RealityDefaults. */
   defaults: RealityDefaults;
+  /**
+   * The account's or category's own projection parameters, already converted
+   * to plan units (ages, not dates) — see reality.ts. Empty for INCOME/EXPENSE.
+   */
+  terms: RowTerms;
 };
 
 export type SyncRemoval = {
@@ -115,6 +126,7 @@ export type SyncPlan = {
     label: string;
     wrapper: Wrapper | null;
     flow: number | null;
+    terms: RowTerms;
   }[];
   additions: RealityRow[];
   removals: SyncRemoval[];
@@ -219,7 +231,8 @@ export function resolvePlanSync(
       row.value === truth.value &&
       row.label === truth.label &&
       row.wrapper === truth.wrapper &&
-      row.flow === truth.flow
+      row.flow === truth.flow &&
+      rowTermsEqual(row.terms, truth.terms)
     ) {
       unchanged.push(row.id);
       continue;
@@ -230,6 +243,7 @@ export function resolvePlanSync(
       label: truth.label,
       wrapper: truth.wrapper,
       flow: truth.flow,
+      terms: truth.terms,
     });
   }
 

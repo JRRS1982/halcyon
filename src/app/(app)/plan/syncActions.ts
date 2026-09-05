@@ -1,9 +1,11 @@
 "use server";
 
+import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { applySyncPlan } from "@/lib/plan/applySyncPlan";
 import { latestReality } from "@/lib/plan/reality";
+import { emptyRowTerms } from "@/lib/plan/rowTerms";
 import {
   type DependentRow,
   type PlanRow,
@@ -34,6 +36,13 @@ async function requireUserId(): Promise<string> {
   return user.id;
 }
 
+// A Prisma.Decimal can't cross the comparison in resolvePlanSync as anything
+// but a plain number, and a plan row's own growth/debt columns are nullable —
+// see balance/page.tsx's numberOrNull for the same conversion at a sibling
+// serialisation boundary.
+const numberOrNull = (d: Prisma.Decimal | null): number | null =>
+  d === null ? null : Number(d);
+
 type LoadedPlan = {
   planId: string;
   rows: PlanRow[];
@@ -54,9 +63,21 @@ function toLoadedPlan(plan: PlanRecord): LoadedPlan {
         linkId: a.accountId,
         value: Number(a.openingValue),
         wrapper: a.wrapper,
-        // Annual, and stored that way: AssetsTable renders it as …/yr.
-        flow: Number(a.annualContribution),
+        // Monthly, and stored that way: AssetsTable renders it as …/mo.
+        flow: Number(a.monthlyContribution),
         dependsOn: null,
+        terms: {
+          expectedReturnPct: numberOrNull(a.expectedReturnPct),
+          feePct: Number(a.feePct),
+          minAccessAge: a.minAccessAge,
+          annualIncome: numberOrNull(a.annualIncome),
+          incomeFromAge: a.incomeFromAge,
+          interestPct: null,
+          interestOnly: false,
+          revisionRate: null,
+          revisionAge: null,
+          endAge: null,
+        },
       }),
     ),
     ...plan.liabilities.map(
@@ -68,12 +89,24 @@ function toLoadedPlan(plan: PlanRecord): LoadedPlan {
         value: Number(l.openingBalance),
         wrapper: null,
         // Monthly, and stored that way: liabilityStep does its own × 12 and
-        // LiabilitiesTable renders it as …/mo. Not annualised to match the
-        // asset above — see RealityRow.flow.
+        // LiabilitiesTable renders it as …/mo. Monthly on both sides, exactly
+        // like the asset's contribution above — see RealityRow.flow.
         flow: Number(l.monthlyRepayment),
         // A mortgage cannot outlive its property — the same invariant
         // deletePlanAsset enforces on the plan's own delete.
         dependsOn: l.linkedAssetId,
+        terms: {
+          expectedReturnPct: null,
+          feePct: null,
+          minAccessAge: null,
+          annualIncome: null,
+          incomeFromAge: null,
+          interestPct: Number(l.interestPct),
+          interestOnly: l.interestOnly,
+          revisionRate: numberOrNull(l.revisionRate),
+          revisionAge: l.revisionAge,
+          endAge: l.endAge,
+        },
       }),
     ),
     ...plan.incomes.map(
@@ -87,6 +120,8 @@ function toLoadedPlan(plan: PlanRecord): LoadedPlan {
         // A category row has no flow column for money to land in.
         flow: null,
         dependsOn: null,
+        // A category has no projection parameters at all.
+        terms: emptyRowTerms(),
       }),
     ),
     ...plan.expenses.map(
@@ -101,6 +136,7 @@ function toLoadedPlan(plan: PlanRecord): LoadedPlan {
         // A repayment cannot outlive its debt — deletePlanLiability's
         // invariant, and deletePlanExpense refuses to delete one on its own.
         dependsOn: e.liabilityId,
+        terms: emptyRowTerms(),
       }),
     ),
   ];
@@ -150,7 +186,7 @@ export async function getPlanSyncPreview(): Promise<SyncPlan | null> {
   if (!plan) return null;
   const loaded = toLoadedPlan(plan);
 
-  const reality = await latestReality(userId);
+  const reality = await latestReality(userId, plan.dateOfBirth);
   return resolvePlanSync(loaded.rows, reality, loaded.dependents);
 }
 
@@ -167,7 +203,7 @@ export async function syncPlan(): Promise<SyncPlan> {
   if (!record) throw new Error("Plan not found");
   const loaded = toLoadedPlan(record);
 
-  const reality = await latestReality(userId);
+  const reality = await latestReality(userId, record.dateOfBirth);
   const plan = resolvePlanSync(loaded.rows, reality, loaded.dependents);
   const rowKinds = rowKindsOf(loaded.rows, loaded.dependents);
 

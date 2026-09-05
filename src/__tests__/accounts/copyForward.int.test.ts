@@ -16,6 +16,7 @@ describe("balance copy-forward (integration)", () => {
       section: "LONG_TERM",
       value: 42300,
       canImportTransactions: false,
+      terms: {},
       mortgage: null,
     });
 
@@ -49,6 +50,7 @@ describe("balance copy-forward (integration)", () => {
       section: "OTHER",
       value: 5000,
       canImportTransactions: false,
+      terms: {},
       mortgage: null,
     });
 

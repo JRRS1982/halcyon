@@ -6,7 +6,13 @@
 // phone, and below the row's floor the sheet pans with the label column pinned
 // left. Only a real viewport can tell us either of those worked.
 import type { Page } from "@playwright/test";
-import { expect, signIn, test, withServerAction } from "./_helpers/fixtures";
+import {
+  expect,
+  openAccountCard,
+  signIn,
+  test,
+  withServerAction,
+} from "./_helpers/fixtures";
 
 const PHONE = { width: 390, height: 844 };
 // Narrower than the row's 320px floor plus the page's gutters, so the sheet
@@ -85,22 +91,22 @@ test.describe("Sheets on a phone", () => {
     await expect(deleteRow).toBeVisible();
   });
 
-  // The balance sheet's row-scoped toolbar (BalanceSheet.tsx) grew two new
-  // selects once accounts carry a type — "Account type" and "Move to
-  // section" — which only render once a row is focused, so the page-load-only
-  // check below never exercises them. Together they are wider than the
-  // budget sheet's lone delete-row button, and are exactly the kind of
-  // toolbar growth that reintroduced horizontal overflow before.
-  test("the balance sheet's row toolbar fits the viewport with a row focused", async ({
+  // The balance sheet's row-scoped toolbar (BalanceSheet.tsx) used to grow two
+  // selects once a row was focused — "Account type" and "Move to section" —
+  // wide enough to be exactly the kind of toolbar growth that reintroduced
+  // horizontal overflow before. Account-terms (Task 7) moved both into
+  // AccountCard, reached by clicking the row's name, so the toolbar itself no
+  // longer grows; what needs the same check now is the card's own bottom
+  // sheet, which carries those same fields full-width on a phone.
+  test("opening a balance sheet row's card on a phone doesn't overflow the viewport", async ({
     page,
   }) => {
     await signIn(page);
     await page.goto("/balance");
 
-    // Provisioning seeds default accounts, so the sheet always has a row to
-    // focus without needing to add one first.
-    await page.locator("[data-sheet-scroller] input[value]").first().click();
-    await expect(page.getByLabel("Account type")).toBeVisible();
+    // Provisioning seeds default accounts (onboarding/defaults.ts), so the
+    // sheet always has a named row to open without needing to add one first.
+    await openAccountCard(page, "Current Account");
 
     const overflows = await page.evaluate(
       () => document.documentElement.scrollWidth > window.innerWidth,
