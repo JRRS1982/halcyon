@@ -18,7 +18,7 @@ describe("a budget row reaches the plan", () => {
       label: "Salary",
     });
 
-    const rows = await latestReality(TEST_USER_ID);
+    const rows = await latestReality(TEST_USER_ID, new Date("1985-01-01"));
     expect(rows.map((r) => r.label)).toContain("Salary");
   });
 
@@ -35,7 +35,7 @@ describe("a budget row reaches the plan", () => {
 
     await updateItem({ itemId: item.id, label: "Rent", budget: 1200 });
 
-    const rows = await latestReality(TEST_USER_ID);
+    const rows = await latestReality(TEST_USER_ID, new Date("1985-01-01"));
     expect(rows.map((r) => r.label)).toContain("Rent");
   });
 

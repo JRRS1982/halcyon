@@ -9,6 +9,7 @@
 import type { AccountType } from "@prisma/client";
 import { buildAccountData } from "@/lib/accounts/creation";
 import { applySyncPlan } from "@/lib/plan/applySyncPlan";
+import { emptyRowTerms } from "@/lib/plan/rowTerms";
 import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "../../../test/integration/helpers";
 
@@ -60,6 +61,7 @@ describe("applySyncPlan (integration, direct)", () => {
               label: "hijacked",
               wrapper: null,
               flow: 0,
+              terms: emptyRowTerms(),
             },
           ],
           removals: [],
@@ -174,6 +176,7 @@ describe("applySyncPlan (integration, direct)", () => {
                 incomeKind: null,
                 expenseSection: null,
               },
+              terms: emptyRowTerms(),
             },
           ],
           unchanged: [],
@@ -219,6 +222,7 @@ describe("applySyncPlan (integration, direct)", () => {
             incomeKind: null,
             expenseSection: null,
           },
+          terms: emptyRowTerms(),
         })),
         unchanged: [],
       },

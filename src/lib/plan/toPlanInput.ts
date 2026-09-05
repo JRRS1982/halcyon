@@ -10,14 +10,40 @@ import type {
 } from "@prisma/client";
 import { isExpenseSection } from "@/lib/categories/sections";
 import type {
+  AssetInput,
   BandedProjection,
   BandedVerdict,
   Growth,
+  LiabilityInput,
   Milestone,
   PlanInput,
   PlanProjection,
   Verdict,
 } from "@/lib/plan";
+
+/**
+ * `T` with every member required to be *present*, while still allowing
+ * `undefined` as a value — and still assignable to `T` itself.
+ *
+ * The pin behind the two serialisation mappers that have no other
+ * compile-time enforcement: this file and serializedInput.ts. Every optional
+ * field of AssetInput/LiabilityInput is declared `field?: T`, so a mapper that
+ * simply forgets one compiles clean and the field then stops travelling,
+ * silently — one chart right, the other stale, which is a defect this pair of
+ * files has shipped before. Annotating the mapper's object literal makes the
+ * omission a compile error naming the field.
+ *
+ * `keyof Required<T>` rather than `[K in keyof T]-?`: the `-?` form is
+ * homomorphic and so also strips `undefined` from each value type, which these
+ * mappers legitimately produce for an absent column — and adding it back
+ * breaks assignability for the genuinely required members. It is the key that
+ * must be present, not a value. Engine test fixtures build partial inputs
+ * against the plain types and are unaffected.
+ */
+export type Complete<T> = { [K in keyof Required<T>]: T[K] };
+
+type FullAssetInput = Complete<AssetInput>;
+type FullLiabilityInput = Complete<LiabilityInput>;
 
 export type PlanWithChildren = Plan & {
   assets: PlanAsset[];
@@ -65,29 +91,37 @@ export function toPlanInput(
     taxRegime: plan.taxRegime,
     thresholdsInflationLinked: plan.thresholdsInflationLinked,
     statePension,
-    assets: plan.assets.map((a) => ({
-      id: a.id,
-      label: a.label,
-      wrapper: a.wrapper,
-      openingValue: num(a.openingValue),
-      expectedReturnPct: optNum(a.expectedReturnPct),
-      feePct: num(a.feePct),
-      annualContribution: num(a.annualContribution),
-      contributionEndAge: a.contributionEndAge ?? undefined,
-      minAccessAge: a.minAccessAge ?? undefined,
-      drawdownPriority: a.drawdownPriority,
-    })),
-    liabilities: plan.liabilities.map((l) => ({
-      id: l.id,
-      label: l.label,
-      openingBalance: num(l.openingBalance),
-      interestPct: num(l.interestPct),
-      monthlyRepayment: num(l.monthlyRepayment),
-      startAge: l.startAge ?? undefined,
-      endAge: l.endAge ?? undefined,
-      linkedAssetId: l.linkedAssetId ?? undefined,
-      interestOnly: l.interestOnly,
-    })),
+    assets: plan.assets.map(
+      (a): FullAssetInput => ({
+        id: a.id,
+        label: a.label,
+        wrapper: a.wrapper,
+        openingValue: num(a.openingValue),
+        expectedReturnPct: optNum(a.expectedReturnPct),
+        feePct: num(a.feePct),
+        monthlyContribution: num(a.monthlyContribution),
+        contributionEndAge: a.contributionEndAge ?? undefined,
+        minAccessAge: a.minAccessAge ?? undefined,
+        drawdownPriority: a.drawdownPriority,
+        annualIncome: optNum(a.annualIncome),
+        incomeFromAge: a.incomeFromAge ?? undefined,
+      }),
+    ),
+    liabilities: plan.liabilities.map(
+      (l): FullLiabilityInput => ({
+        id: l.id,
+        label: l.label,
+        openingBalance: num(l.openingBalance),
+        interestPct: num(l.interestPct),
+        monthlyRepayment: num(l.monthlyRepayment),
+        startAge: l.startAge ?? undefined,
+        endAge: l.endAge ?? undefined,
+        linkedAssetId: l.linkedAssetId ?? undefined,
+        interestOnly: l.interestOnly,
+        revisionAge: l.revisionAge ?? undefined,
+        revisionRate: optNum(l.revisionRate),
+      }),
+    ),
     incomes: plan.incomes.map((i) => ({
       id: i.id,
       label: i.label,

@@ -34,12 +34,18 @@ const accountDeletionCounts = jest.fn();
 const setAccountType = jest.fn();
 const setAccountSection = jest.fn();
 const renameAccount = jest.fn();
+const setAccountTerms = jest.fn();
 jest.mock("@/app/(app)/balance/accountActions", () => ({
   accountDeletionCounts: (...args: unknown[]) => accountDeletionCounts(...args),
   createAccount: jest.fn(),
+  // renameAccount/setAccountSection/setAccountType/setAccountTerms are called
+  // from AccountCard now, not BalanceSheet directly — it opens the card
+  // rather than editing these in place. Mocked here all the same, since
+  // AccountCard imports from this same module path.
   renameAccount: (...args: unknown[]) => renameAccount(...args),
   setAccountSection: (...args: unknown[]) => setAccountSection(...args),
   setAccountType: (...args: unknown[]) => setAccountType(...args),
+  setAccountTerms: (...args: unknown[]) => setAccountTerms(...args),
 }));
 
 const period: SerializedPeriod = {
@@ -56,6 +62,7 @@ const baseRow: SerializedAccountRow = {
   kind: "ASSET",
   section: "CURRENT",
   sortOrder: 1,
+  terms: {},
   value: 100,
   notes: null,
   carriedOver: false,
@@ -259,31 +266,36 @@ describe("BalanceSheet — an account with no value this month", () => {
   });
 });
 
-describe("BalanceSheet — the row's type control", () => {
+describe("BalanceSheet — the row's card owns type and section now", () => {
   beforeEach(() => {
     setAccountType.mockReset();
     setAccountType.mockResolvedValue(undefined);
   });
 
+  // The toolbar's row-scoped "Change type" select is gone — clicking the
+  // row's name is the only way to reach it, and it opens AccountCard.
+  const openCard = () =>
+    fireEvent.click(screen.getByRole("button", { name: baseRow.name }));
+
   // Same kind only: an account never crosses between assets and liabilities
   // (setAccountType refuses it), so the list is the nine asset types and
   // nothing else.
-  test("an asset row offers exactly the nine asset types", () => {
+  test("an asset row's card offers exactly the nine asset types", () => {
     renderSheet([baseRow]);
-    fireEvent.focus(screen.getByDisplayValue(baseRow.name));
+    openCard();
 
-    const select = screen.getByLabelText("Account type") as HTMLSelectElement;
+    const select = screen.getByLabelText("Type") as HTMLSelectElement;
     expect([...select.options].map((o) => o.textContent)).toEqual(
       accountTypesOfKind("ASSET").map((t) => t.label),
     );
     expect(select.options).toHaveLength(9);
   });
 
-  test("picking a type saves it against the account", async () => {
+  test("picking a type in the card saves it against the account", async () => {
     renderSheet([baseRow]);
-    fireEvent.focus(screen.getByDisplayValue(baseRow.name));
+    openCard();
 
-    fireEvent.change(screen.getByLabelText("Account type"), {
+    fireEvent.change(screen.getByLabelText("Type"), {
       target: { value: "SAVINGS" },
     });
 
@@ -297,15 +309,15 @@ describe("BalanceSheet — the row's type control", () => {
 
   // A refusal names the blocker — a linked mortgage, a plan sale event — and
   // that sentence is the only thing telling the user what to deal with
-  // first, so it is shown as written rather than as "Save failed".
-  test("a refusal is shown in the sheet's error slot, verbatim", async () => {
+  // first, so the card shows it as written rather than as "Save failed".
+  test("a refusal is shown in the card, verbatim", async () => {
     setAccountType.mockRejectedValue(
       new Error("Home is linked to its mortgage/property — unlink first"),
     );
     renderSheet([baseRow]);
-    fireEvent.focus(screen.getByDisplayValue(baseRow.name));
+    openCard();
 
-    fireEvent.change(screen.getByLabelText("Account type"), {
+    fireEvent.change(screen.getByLabelText("Type"), {
       target: { value: "SAVINGS" },
     });
 
@@ -314,6 +326,60 @@ describe("BalanceSheet — the row's type control", () => {
         "Home is linked to its mortgage/property — unlink first",
       ),
     ).toBeInTheDocument();
+  });
+});
+
+describe("BalanceSheet — a background save error is not swallowed by the card", () => {
+  beforeEach(() => {
+    upsertBalanceValue.mockReset();
+    upsertBalanceValue.mockRejectedValue(
+      new Error("Could not save this value"),
+    );
+    renameAccount.mockReset();
+    renameAccount.mockResolvedValue(undefined);
+  });
+
+  // The regression this pins: a row's value/notes save can fail in the
+  // background while the card happens to be open for a different reason.
+  // AccountCard shows its own errors inline and never reports them to the
+  // sheet (that used to be the whole problem — see below), so a *successful*
+  // write inside the card must not touch the sheet's own `saveError` at all.
+  // Before the fix, opening the card suppressed this banner outright (to
+  // avoid literally duplicating AccountCard's own error text, which the
+  // card no longer reports upward), and onSaved's unconditional
+  // setSaveError(null) then erased the message the instant any card field
+  // saved successfully — so the specific server sentence was never seen,
+  // only a generic "Failed — retry" pip flash that a later "Saved" could
+  // overwrite before anyone noticed.
+  test("a value save that fails stays visible after a successful edit inside the open card", async () => {
+    renderSheet([baseRow]);
+
+    const amountInput = screen.getByPlaceholderText("0") as HTMLInputElement;
+    fireEvent.focus(amountInput);
+    fireEvent.change(amountInput, { target: { value: "200" } });
+    fireEvent.blur(amountInput);
+
+    // Real timers: outlasts the 500ms debounce for the failed background save.
+    expect(
+      await screen.findByText(
+        "Could not save this value",
+        {},
+        { timeout: 2_000 },
+      ),
+    ).toBeInTheDocument();
+
+    // Open the card (unrelated to the failed save above) and successfully
+    // commit a field inside it.
+    fireEvent.click(screen.getByRole("button", { name: baseRow.name }));
+    const nameField = screen.getByLabelText("Name");
+    fireEvent.change(nameField, { target: { value: "Renamed account" } });
+    fireEvent.blur(nameField);
+
+    await waitFor(() => expect(renameAccount).toHaveBeenCalled());
+
+    // The background error is still exactly where it was — a successful
+    // card write carries no information about it either way.
+    expect(screen.getByText("Could not save this value")).toBeInTheDocument();
   });
 });
 
@@ -335,7 +401,9 @@ describe("BalanceSheet — deleting a row", () => {
     });
     renderSheet([baseRow]);
 
-    fireEvent.focus(screen.getByDisplayValue(baseRow.name));
+    // Focusing any cell in the row engages the row-scoped delete control —
+    // the amount cell, here, so the row is focused without opening the card.
+    fireEvent.focus(screen.getByPlaceholderText("0"));
     fireEvent.click(screen.getByRole("button", { name: /delete row/i }));
 
     expect(await screen.findByRole("alertdialog")).toBeInTheDocument();

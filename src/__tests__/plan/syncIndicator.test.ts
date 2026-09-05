@@ -1,9 +1,17 @@
 import { indicatorFor } from "@/app/(app)/plan/syncIndicator";
+import { emptyRowTerms } from "@/lib/plan/rowTerms";
 import type { SyncPlan } from "@/lib/plan/sync";
 
 const plan: SyncPlan = {
   updates: [
-    { id: "p1", value: 42300, label: "Vanguard ISA", wrapper: null, flow: 0 },
+    {
+      id: "p1",
+      value: 42300,
+      label: "Vanguard ISA",
+      wrapper: null,
+      flow: 0,
+      terms: emptyRowTerms(),
+    },
   ],
   additions: [],
   removals: [

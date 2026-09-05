@@ -104,9 +104,11 @@ describe("toPlanInput", () => {
             openingValue: d(100000),
             expectedReturnPct: null,
             feePct: d(0),
-            annualContribution: d(6000),
+            monthlyContribution: d(500),
             contributionEndAge: null,
             minAccessAge: null,
+            annualIncome: null,
+            incomeFromAge: null,
             drawdownPriority: 2,
             accountId: null,
             sortOrder: 0,
@@ -123,10 +125,78 @@ describe("toPlanInput", () => {
       label: "SIPP",
       wrapper: "PENSION",
       openingValue: 100000,
-      annualContribution: 6000,
+      monthlyContribution: 500,
       drawdownPriority: 2,
     });
     expect(input.assets[0]?.expectedReturnPct).toBeUndefined();
+  });
+
+  // A field silently dropped on this boundary would leave the server-rendered
+  // chart ignorant of a DB pension conversion while the live in-browser
+  // projection honoured it — see serializedInput.test.ts for the matching
+  // assertion on the other mapper.
+  it("carries annualIncome and incomeFromAge through to the engine input", () => {
+    const input = toPlanInput(
+      basePlan({
+        assets: [
+          {
+            id: "a1",
+            planId: "p1",
+            label: "DB scheme",
+            wrapper: "DB_PENSION",
+            openingValue: d(250000),
+            expectedReturnPct: null,
+            feePct: d(0),
+            monthlyContribution: d(0),
+            contributionEndAge: null,
+            minAccessAge: null,
+            annualIncome: d(12000),
+            incomeFromAge: 65,
+            drawdownPriority: 0,
+            accountId: null,
+            sortOrder: 0,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            deletedAt: null,
+          },
+        ],
+      }),
+      2026,
+    );
+    expect(input.assets[0]?.annualIncome).toBe(12000);
+    expect(input.assets[0]?.incomeFromAge).toBe(65);
+  });
+
+  it("leaves annualIncome and incomeFromAge undefined when null", () => {
+    const input = toPlanInput(
+      basePlan({
+        assets: [
+          {
+            id: "a1",
+            planId: "p1",
+            label: "SIPP",
+            wrapper: "PENSION",
+            openingValue: d(100000),
+            expectedReturnPct: null,
+            feePct: d(0),
+            monthlyContribution: d(500),
+            contributionEndAge: null,
+            minAccessAge: null,
+            annualIncome: null,
+            incomeFromAge: null,
+            drawdownPriority: 2,
+            accountId: null,
+            sortOrder: 0,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            deletedAt: null,
+          },
+        ],
+      }),
+      2026,
+    );
+    expect(input.assets[0]?.annualIncome).toBeUndefined();
+    expect(input.assets[0]?.incomeFromAge).toBeUndefined();
   });
 
   it("maps a liability with startAge", () => {
@@ -144,6 +214,8 @@ describe("toPlanInput", () => {
             startAge: 45,
             endAge: 65,
             linkedAssetId: null,
+            revisionRate: null,
+            revisionAge: null,
             accountId: null,
             sortOrder: 0,
             createdAt: new Date(),
@@ -162,6 +234,39 @@ describe("toPlanInput", () => {
       monthlyRepayment: 500,
     });
     expect(input.liabilities[0]?.startAge).toBe(45);
+  });
+
+  // This is the file that has twice dropped a field silently. The test
+  // exists to make that impossible for these two.
+  it("carries revisionAge and revisionRate through to the engine input", () => {
+    const input = toPlanInput(
+      basePlan({
+        liabilities: [
+          {
+            id: "liab-1",
+            planId: "p1",
+            label: "Mortgage",
+            openingBalance: d(100000),
+            interestPct: d(4),
+            interestOnly: false,
+            monthlyRepayment: d(500),
+            startAge: null,
+            endAge: null,
+            linkedAssetId: null,
+            revisionRate: d(7),
+            revisionAge: 45,
+            accountId: null,
+            sortOrder: 0,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            deletedAt: null,
+          },
+        ],
+      }),
+      2026,
+    );
+    expect(input.liabilities[0]?.revisionAge).toBe(45);
+    expect(input.liabilities[0]?.revisionRate).toBe(7);
   });
 
   it("maps an expense with liabilityId", () => {

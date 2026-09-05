@@ -37,6 +37,7 @@ export function NumberCell({
   step,
   min,
   max,
+  placeholder,
   onCommit,
 }: {
   value: number | null;
@@ -44,6 +45,7 @@ export function NumberCell({
   step?: string;
   min?: number;
   max?: number;
+  placeholder?: string;
   onCommit: (value: number | null) => Promise<void> | void;
 }) {
   const [buf, setBuf] = useState<string>(fmtNum(value));
@@ -91,6 +93,7 @@ export function NumberCell({
       step={step}
       min={min}
       max={max}
+      placeholder={placeholder}
       value={buf}
       onChange={(e) => setBuf(e.target.value)}
       onBlur={commit}
@@ -138,14 +141,23 @@ export function SelectCell<T extends string>({
   );
 }
 
-export function TextCell({
+export function TextCell<N extends boolean = false>({
   value,
   type = "text",
+  placeholder,
+  nullable,
   onCommit,
 }: {
   value: string;
   type?: "text" | "date";
-  onCommit: (value: string) => Promise<void> | void;
+  placeholder?: string;
+  // Mirrors NumberCell: opt-in, defaults false so every existing (required)
+  // caller keeps reverting on blank untouched. A date field is the only
+  // caller that sets this — an account's name, e.g., must never go blank.
+  nullable?: N;
+  onCommit: (
+    value: N extends true ? string | null : string,
+  ) => Promise<void> | void;
 }) {
   const [buf, setBuf] = useState<string>(value);
   useEffect(() => {
@@ -154,12 +166,19 @@ export function TextCell({
 
   const commit = async () => {
     if (buf.trim() === "") {
-      setBuf(value); // required → revert
+      if (nullable) {
+        if (value === "") return; // already blank — nothing to commit
+        await (onCommit as (value: string | null) => Promise<void> | void)(
+          null,
+        );
+        return;
+      }
+      setBuf(value); // required → revert, never save blank
       return;
     }
     if (buf === value) return;
     try {
-      await onCommit(buf);
+      await (onCommit as (value: string) => Promise<void> | void)(buf);
     } catch {
       setBuf(value);
     }
@@ -168,6 +187,7 @@ export function TextCell({
   return (
     <Input
       type={type}
+      placeholder={placeholder}
       value={buf}
       onChange={(e) => setBuf(e.target.value)}
       onBlur={commit}

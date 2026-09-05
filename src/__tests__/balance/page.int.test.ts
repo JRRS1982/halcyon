@@ -27,6 +27,7 @@ const addIsa = () =>
     section: "LONG_TERM",
     value: 42300,
     canImportTransactions: false,
+    terms: {},
     mortgage: null,
   });
 

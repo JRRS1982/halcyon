@@ -43,10 +43,21 @@ export interface AssetInput {
   openingValue: number;
   expectedReturnPct?: number; // undefined ⇒ PlanInput.defaultReturnPct
   feePct?: number; // annual charge subtracted from the effective return; default 0
-  annualContribution?: number; // regular paying-in, inflation-grown; default 0
+  // Monthly, matching both the column and the budget row it is copied from.
+  // project.ts does the × 12, so nothing stores an annual figure and no
+  // comparison ever crosses a unit.
+  monthlyContribution?: number;
   contributionEndAge?: number; // default = PlanInput.retirementAge
   minAccessAge?: number; // earliest drawdown age; PENSION defaults to 57 when undefined
   drawdownPriority: number; // ascending = drawn first (CASH buffer first)
+  // A final-salary entitlement. When *positive* (see assets.ts's isEntitled —
+  // zero means "not answered", not "an income of nothing"), this row is an
+  // income from incomeFromAge (defaulting to PlanInput.retirementAge) and its
+  // balance is excluded from the projection entirely — people track a transfer
+  // value on their balance sheet, and projecting the pot as well as paying the
+  // income would count the same pension twice.
+  annualIncome?: number;
+  incomeFromAge?: number;
 }
 
 export interface LiabilityInput {
@@ -59,6 +70,11 @@ export interface LiabilityInput {
   endAge?: number;
   linkedAssetId?: string;
   interestOnly?: boolean;
+  // A fixed-rate period: interestPct applies until revisionAge, revisionRate
+  // from then on. Both or neither — a half-answered pair falls back to
+  // interestPct rather than reverting to 0%.
+  revisionAge?: number;
+  revisionRate?: number;
 }
 
 export interface IncomeInput {

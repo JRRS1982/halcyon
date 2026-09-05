@@ -1,3 +1,4 @@
+import { emptyRowTerms } from "@/lib/plan/rowTerms";
 import {
   type DependentRow,
   type PlanRow,
@@ -24,6 +25,7 @@ const planRow = (over: Partial<PlanRow> = {}): PlanRow => ({
   // INCOME/EXPENSE rows, which have no flow column to mirror at all.
   flow: 0,
   dependsOn: null,
+  terms: emptyRowTerms(),
   ...over,
 });
 
@@ -35,6 +37,7 @@ const realityRow = (over: Partial<RealityRow> = {}): RealityRow => ({
   wrapper: "ISA",
   flow: 0,
   defaults: { ...NO_DEFAULTS, drawdownPriority: 2 },
+  terms: emptyRowTerms(),
   ...over,
 });
 
@@ -66,6 +69,7 @@ describe("resolvePlanSync", () => {
         label: "Vanguard ISA",
         wrapper: "ISA",
         flow: 0,
+        terms: emptyRowTerms(),
       },
     ]);
     expect(result.unchanged).toEqual([]);
@@ -90,6 +94,7 @@ describe("resolvePlanSync", () => {
         label: "Vanguard S&S ISA",
         wrapper: "ISA",
         flow: 0,
+        terms: emptyRowTerms(),
       },
     ]);
   });
@@ -107,6 +112,7 @@ describe("resolvePlanSync", () => {
         label: "Vanguard ISA",
         wrapper: "GIA",
         flow: 0,
+        terms: emptyRowTerms(),
       },
     ]);
     expect(result.unchanged).toEqual([]);
@@ -264,7 +270,14 @@ describe("resolvePlanSync", () => {
     );
     expect(result.removals).toEqual([]);
     expect(result.updates).toEqual([
-      { id: "p1", value: 0, label: "Vanguard ISA", wrapper: null, flow: 0 },
+      {
+        id: "p1",
+        value: 0,
+        label: "Vanguard ISA",
+        wrapper: null,
+        flow: 0,
+        terms: emptyRowTerms(),
+      },
     ]);
   });
 
@@ -293,6 +306,7 @@ describe("resolvePlanSync", () => {
         label: "Vanguard ISA",
         wrapper: "ISA",
         flow: 3000,
+        terms: emptyRowTerms(),
       },
     ]);
     expect(result.unchanged).toEqual([]);
@@ -321,12 +335,14 @@ describe("resolvePlanSync", () => {
         label: "Vanguard ISA",
         wrapper: "ISA",
         flow: 0,
+        terms: emptyRowTerms(),
       },
     ]);
   });
 
-  // A monthly figure, carried across unchanged: liabilityStep does its own
-  // × 12, so the annualising that ASSET rows get must not happen twice.
+  // A monthly figure, carried across unchanged — exactly as an ASSET row's
+  // contribution is. Both plan columns are monthly, and liabilityStep does its
+  // own × 12 inside the projection, so nothing here converts a unit.
   it("carries a liability's monthly flow through an update", () => {
     const result = resolve(
       [planRow({ kind: "LIABILITY", wrapper: null, value: 250000, flow: 0 })],
@@ -346,6 +362,7 @@ describe("resolvePlanSync", () => {
         label: "Vanguard ISA",
         wrapper: null,
         flow: 1250,
+        terms: emptyRowTerms(),
       },
     ]);
   });

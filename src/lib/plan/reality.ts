@@ -14,11 +14,23 @@
 // re-runs all of it on every router.refresh().
 
 import type { Prisma, TransferDirection } from "@prisma/client";
-import { kindOf, wrapperOf } from "@/lib/accounts/accountDraft";
+import {
+  kindOf,
+  type TermField,
+  termsFor,
+  wrapperOf,
+} from "@/lib/accounts/accountDraft";
 import { isExpenseSection } from "@/lib/categories/sections";
 import { drawdownPriorityFor, incomeKindFor } from "@/lib/plan/realityDefaults";
+import { ageOnDate, emptyRowTerms, type RowTerms } from "@/lib/plan/rowTerms";
 import type { RealityRow } from "@/lib/plan/sync";
 import { prisma } from "@/lib/prisma";
+
+// A Prisma.Decimal can't cross into resolvePlanSync's comparison as anything
+// but a plain number — the account's own AccountTerms row may not exist at
+// all, in which case every parameter on it reads as null, not zero.
+const numberOrNull = (d: Prisma.Decimal | null): number | null =>
+  d === null ? null : Number(d);
 
 // The most recent (by period startDate, then createdAt) BalanceItem value per
 // account. Decimal, not number, because $queryRaw deserialises `numeric`
@@ -44,14 +56,15 @@ type LatestBudgetRow = { categoryId: string; budget: Prisma.Decimal };
 // The plan reads the *budgeted* figure, not the actual: it is a forecast of
 // what you intend to pay in, not a record of what you did.
 //
-// `latest` is looked up by the *target* kind rather than by trusting a row's
-// own type, so a REPAYMENT can never be annualised nor a TRANSFER left
-// monthly — a mispaired row is simply unfindable. The Add drawer's fence
+// Both sides are monthly, so nothing here converts a unit. `latest` is still
+// looked up by the *target* kind rather than by trusting a row's own type, so
+// a mispaired row — a REPAYMENT sitting on an asset account — is simply
+// unfindable rather than read as that account's contribution. The Add drawer's fence
 // (requireAnchorAccount) already pairs them that way, and one account carries
 // at most one row per period (requireAccountUnbudgeted), so there is exactly
 // one row to find rather than a sum.
 //
-// Zero, never null, when nothing is budgeted: PlanAsset.annualContribution and
+// Zero, never null, when nothing is budgeted: PlanAsset.monthlyContribution and
 // PlanLiability.monthlyRepayment both default to 0, so a null here would never
 // compare equal and every unbudgeted account would read as changed on every
 // Sync. See RealityRow.flow.
@@ -73,17 +86,20 @@ function budgetedFlow(
   // rather than paying money into the asset it came out of.
   if (latest.direction !== "INFLOW") return 0;
 
-  // Rounded to 2dp for the same reason latestCategoryRows rounds: £833.33 × 12
-  // is 9999.960000000001 in IEEE-754 and 9999.96 in the numeric(12,2) column,
-  // so an unrounded read would report this row as an update forever.
-  return Math.round(Number(latest.budget) * 1200) / 100;
+  // Monthly, exactly as the budget stores it and exactly as
+  // PlanAsset.monthlyContribution stores it. No × 12 and no rounding: the two
+  // sides are the same unit, so the comparison is exact.
+  return Number(latest.budget);
 }
 
 // A flow is keyed on the pair, not the account alone: see LatestFlowRow.
 const flowKey = (accountId: string, itemType: string) =>
   `${accountId}:${itemType}`;
 
-async function latestAccountRows(userId: string): Promise<RealityRow[]> {
+async function latestAccountRows(
+  userId: string,
+  dateOfBirth: Date,
+): Promise<RealityRow[]> {
   const accounts = await prisma.account.findMany({
     where: { userId, deletedAt: null },
     select: {
@@ -91,6 +107,7 @@ async function latestAccountRows(userId: string): Promise<RealityRow[]> {
       name: true,
       type: true,
       section: true,
+      terms: true,
     },
   });
   if (accounts.length === 0) return [];
@@ -110,9 +127,10 @@ async function latestAccountRows(userId: string): Promise<RealityRow[]> {
         AND b."deletedAt" IS NULL AND p."deletedAt" IS NULL AND p."userId" = ${userId}::uuid
       ORDER BY b."accountId", p."startDate" DESC, b."createdAt" DESC
     `,
-    // × 12 in budgetedFlow assumes a monthly figure, and a REPAYMENT is
-    // stored monthly too — WEEK and QUARTER periods also exist in the
-    // granularity enum and would misread as both, so the filter stays.
+    // budgetedFlow copies the figure across as a monthly one, and both plan
+    // columns are monthly too — WEEK and QUARTER periods also exist in the
+    // granularity enum, and a quarter's total read as one month's would be
+    // wrong on either side, so the filter stays.
     prisma.$queryRaw<LatestFlowRow[]>`
       SELECT DISTINCT ON (b."accountId", b."type") b."accountId", b."type", b."direction", b."budget"
       FROM "BudgetItem" b
@@ -139,6 +157,80 @@ async function latestAccountRows(userId: string): Promise<RealityRow[]> {
     // loudly instead of falling through these ternaries quietly.
     const kind = kindOf(account.type);
     const value = valueByAccount.get(account.id);
+    const t = account.terms;
+    // Each parameter is gated on whether this account's *type* prompts for it
+    // — termsFor, the same declaration the card renders from — rather than on
+    // its kind alone. Two things make the narrower gate necessary. Each
+    // parameter exists on only one of PlanAsset/PlanLiability, and
+    // toLoadedPlan (syncActions.ts) hard-codes the opposite kind's row to
+    // null/false/0 for it. And AccountTerms genuinely can hold a parameter
+    // the type does not prompt for: setAccountType changes the type without
+    // touching the terms row, so a pension misfiled as FINAL_SALARY and then
+    // corrected to SIPP keeps its annualIncome and endDate, which no SIPP
+    // card renders and so no gesture can clear. Read by kind alone that
+    // orphan would be copied onto the SIPP's plan row — zeroing its balance
+    // every year and paying a phantom income to the end of the plan — and
+    // re-applied by every later Sync. Gated on termsFor it is simply not this
+    // account's value, so it never travels. setAccountTerms refuses the same
+    // set on the way in; this is the safety net behind that door.
+    const prompts = new Set<TermField>(termsFor(account.type));
+    const asked = (field: TermField): boolean => prompts.has(field);
+    const terms: RowTerms = {
+      expectedReturnPct: asked("expectedReturnPct")
+        ? numberOrNull(t?.expectedReturnPct ?? null)
+        : null,
+      // PlanAsset.feePct is NOT NULL (schema default 0) — unlike
+      // expectedReturnPct beside it — so an ASSET row with no fee configured
+      // must read 0 here, not null, or it would compare unequal to the 0 the
+      // column actually holds and report as changed on every Sync, forever.
+      // An asset type that never prompts for a fee reads that same 0.
+      // Irrelevant to a LIABILITY row (no such column on PlanLiability), so it
+      // stays null there to match the plan row's own hard-coded null.
+      feePct:
+        kind === "ASSET"
+          ? asked("feePct") && t?.feePct != null
+            ? Number(t.feePct)
+            : 0
+          : null,
+      minAccessAge: asked("minAccessAge") ? (t?.minAccessAge ?? null) : null,
+      annualIncome: asked("annualIncome")
+        ? numberOrNull(t?.annualIncome ?? null)
+        : null,
+      // An ASSET's endDate is the age it starts paying; a LIABILITY's is the
+      // age it is repaid. One column and one term field, two destinations —
+      // so this pair keeps a kind check alongside the termsFor gate.
+      incomeFromAge:
+        kind === "ASSET" && asked("endDate")
+          ? ageOnDate(dateOfBirth, t?.endDate ?? null)
+          : null,
+      // PlanLiability.interestPct is likewise NOT NULL (schema default 0) —
+      // the same reasoning as feePct above, mirrored for the debt side.
+      interestPct:
+        kind === "LIABILITY"
+          ? asked("interestPct") && t?.interestPct != null
+            ? Number(t.interestPct)
+            : 0
+          : null,
+      // PlanLiability.interestOnly is NOT NULL (schema default false) — the
+      // same reasoning again: false, not merely "whatever AccountTerms
+      // happens to hold", so neither a stray true on an asset account nor a
+      // MORTGAGE's true surviving a change to LOAN (whose card has no such
+      // control, and whose principal must still amortise) can travel.
+      interestOnly:
+        kind === "LIABILITY" && asked("interestOnly")
+          ? (t?.interestOnly ?? false)
+          : false,
+      revisionRate: asked("revisionRate")
+        ? numberOrNull(t?.revisionRate ?? null)
+        : null,
+      revisionAge: asked("revisionDate")
+        ? ageOnDate(dateOfBirth, t?.revisionDate ?? null)
+        : null,
+      endAge:
+        kind === "LIABILITY" && asked("endDate")
+          ? ageOnDate(dateOfBirth, t?.endDate ?? null)
+          : null,
+    };
 
     return {
       linkId: account.id,
@@ -165,6 +257,7 @@ async function latestAccountRows(userId: string): Promise<RealityRow[]> {
         incomeKind: null,
         expenseSection: null,
       },
+      terms,
     };
   });
 }
@@ -232,6 +325,10 @@ async function latestCategoryRows(userId: string): Promise<RealityRow[]> {
             ? category.section
             : null,
       },
+      // A category has no projection parameters at all — an empty set here
+      // is what lets it compare equal to a plan row's own empty set, so an
+      // income or expense row never reports as changed for want of one.
+      terms: emptyRowTerms(),
     });
   }
 
@@ -242,9 +339,12 @@ async function latestCategoryRows(userId: string): Promise<RealityRow[]> {
 // most recent observed value. "Latest" means the most recent non-deleted
 // period that has a row for it — not necessarily the current month. An
 // account with no observation at all still gets a row, at value 0.
-export async function latestReality(userId: string): Promise<RealityRow[]> {
+export async function latestReality(
+  userId: string,
+  dateOfBirth: Date,
+): Promise<RealityRow[]> {
   const [accountRows, categoryRows] = await Promise.all([
-    latestAccountRows(userId),
+    latestAccountRows(userId, dateOfBirth),
     latestCategoryRows(userId),
   ]);
   return [...accountRows, ...categoryRows];

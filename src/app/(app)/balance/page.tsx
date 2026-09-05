@@ -1,5 +1,7 @@
+import type { AccountTerms, Prisma } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { kindOf } from "@/lib/accounts/accountDraft";
+import type { AccountTermsInput } from "@/lib/accounts/schemas";
 import {
   currentMonthRange,
   formatYm,
@@ -18,6 +20,38 @@ import {
 type PageProps = {
   searchParams: Promise<{ ym?: string }>;
 };
+
+// A Prisma.Decimal can't cross into a client component — BalanceSheet (and
+// the AccountCard it renders) is "use client", so every AccountTerms decimal
+// column is converted to a plain number (or left null) at this boundary.
+const numberOrNull = (d: Prisma.Decimal | null) =>
+  d === null ? null : Number(d);
+
+// Every member of AccountTermsInput is `nullish()` and therefore optional, so
+// a terms object that forgets a column compiles clean — and the card then
+// shows that column's default forever, for every account, silently. Mapping
+// over `keyof Required<…>` requires every key to be present while still
+// allowing `undefined` as a value, so the compiler names the missing one. The
+// same pin guards the two engine mappers (Complete in
+// src/lib/plan/toPlanInput.ts).
+type FullAccountTerms = {
+  [K in keyof Required<AccountTermsInput>]: AccountTermsInput[K];
+};
+
+// One account's stored parameters, in the plain shape a client component can
+// receive. An account with no AccountTerms row has answered nothing, which is
+// an empty object, not a row of nulls — see accountTermsSchema.
+const serializeTerms = (terms: AccountTerms): FullAccountTerms => ({
+  expectedReturnPct: numberOrNull(terms.expectedReturnPct),
+  feePct: numberOrNull(terms.feePct),
+  minAccessAge: terms.minAccessAge,
+  annualIncome: numberOrNull(terms.annualIncome),
+  interestPct: numberOrNull(terms.interestPct),
+  interestOnly: terms.interestOnly,
+  revisionDate: terms.revisionDate,
+  revisionRate: numberOrNull(terms.revisionRate),
+  endDate: terms.endDate,
+});
 
 // /balance shares the FinancialPeriod row with /budget for a given month
 // (?ym=YYYY-MM). The period is "virtual" (id="") until either page creates
@@ -88,6 +122,7 @@ export default async function BalancePage(props: PageProps) {
       type: true,
       section: true,
       sortOrder: true,
+      terms: true,
     },
   });
 
@@ -131,6 +166,7 @@ export default async function BalancePage(props: PageProps) {
       kind: kindOf(account.type),
       section: account.section,
       sortOrder: account.sortOrder,
+      terms: account.terms ? serializeTerms(account.terms) : {},
       value: observed ? Number(observed.value) : null,
       notes: observed?.notes ?? null,
       carriedOver: observed?.carriedOver ?? false,

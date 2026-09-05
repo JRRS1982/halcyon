@@ -4,6 +4,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import styled from "styled-components";
+import { DrawerSection, Field } from "@/components/ui/Drawer";
 import type { SyncPlan } from "@/lib/plan/sync";
 import { formatAmount, type NumberFormat } from "@/lib/settings/currency";
 import { AddLiabilityDrawer } from "./AddLiabilityDrawer";
@@ -14,7 +15,6 @@ import {
 } from "./actions";
 import { NumberCell, TextCell } from "./EditableCell";
 import { MortgageBadge } from "./MortgageBadge";
-import { DrawerSection, Field } from "./PlanDrawer";
 import { AddRowButton } from "./RowControls";
 import { SummaryList, SummaryRow } from "./SummaryRow";
 import { rowMarkerProps, SyncMarker } from "./SyncMarker";
@@ -87,6 +87,8 @@ export function LiabilityFields({
         endAge: next.endAge,
         linkedAssetId: next.linkedAssetId,
         interestOnly: next.interestOnly,
+        revisionAge: next.revisionAge,
+        revisionRate: next.revisionRate,
       });
       router.refresh();
     } catch (e) {
@@ -190,6 +192,21 @@ export function LiabilityFields({
             </LinkedButton>
           </>
         )}
+        <Field label="Fixed until age (blank = never changes)">
+          <NumberCell
+            value={liability.revisionAge}
+            nullable
+            onCommit={(v) => save({ ...liability, revisionAge: v })}
+          />
+        </Field>
+        <Field label="Rate after that %">
+          <NumberCell
+            value={liability.revisionRate}
+            nullable
+            step="0.1"
+            onCommit={(v) => save({ ...liability, revisionRate: v })}
+          />
+        </Field>
         <Field label="Starts at age (blank = now)">
           <NumberCell
             value={liability.startAge}

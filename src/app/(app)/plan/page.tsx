@@ -69,10 +69,12 @@ export default async function PlanPage() {
       expectedReturnPct:
         a.expectedReturnPct === null ? null : Number(a.expectedReturnPct),
       feePct: Number(a.feePct),
-      annualContribution: Number(a.annualContribution),
+      monthlyContribution: Number(a.monthlyContribution),
       contributionEndAge: a.contributionEndAge,
       minAccessAge: a.minAccessAge,
       drawdownPriority: a.drawdownPriority,
+      annualIncome: a.annualIncome === null ? null : Number(a.annualIncome),
+      incomeFromAge: a.incomeFromAge,
     })),
     liabilities: plan.liabilities.map((l) => ({
       id: l.id,
@@ -84,6 +86,8 @@ export default async function PlanPage() {
       endAge: l.endAge,
       linkedAssetId: l.linkedAssetId,
       interestOnly: l.interestOnly,
+      revisionAge: l.revisionAge,
+      revisionRate: l.revisionRate === null ? null : Number(l.revisionRate),
     })),
     incomes: plan.incomes.map((i) => ({
       id: i.id,

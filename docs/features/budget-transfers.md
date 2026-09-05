@@ -214,20 +214,28 @@ now reads a `flow` alongside each account row's value:
 
 | Budget row | Plan column | Unit |
 |---|---|---|
-| `TRANSFER INFLOW` on an asset | `PlanAsset.annualContribution` | **annual** (`budget × 12`) |
+| `TRANSFER INFLOW` on an asset | `PlanAsset.monthlyContribution` | **monthly** (`budget`, as stored) |
 | `TRANSFER OUTFLOW` on an asset | — reads as `0` | |
 | `REPAYMENT` on a liability | `PlanLiability.monthlyRepayment` | **monthly** (`budget`, as stored) |
 
-The units are asymmetric on purpose. Each column is stored in the unit its own
-drawer displays: the plan's asset drawer asks for an annual contribution, its
-liability drawer asks for a repayment per month, and `liabilityStep` does its
-own `× 12` inside the projection. Renaming `monthlyRepayment` for symmetry
-would touch 54 references across 26 files to make the code look tidier and the
-UI wrong.
-
-The annualised figure is rounded to 2dp, because `£833.33 × 12` is
-`9999.960000000001` in IEEE-754 and `9999.96` in a `numeric(12,2)` column —
-compared unrounded, that row would report as an update on every Sync forever.
+**The units are symmetric now, and weren't when this feature shipped.** Both
+columns are monthly, matching the budget rows that feed them, so the value
+passes through unrounded with no arithmetic at the write. That wasn't true at
+first: the plan's asset drawer asked for an *annual* contribution
+(`PlanAsset.annualContribution`), which needed the reality side to annualise
+the monthly budget figure and round it to 2dp before comparing — `£833.33 ×
+12` is `9999.960000000001` in IEEE-754 but `9999.96` in a `numeric(12,2)`
+column, and compared unrounded that row would report as an update on every
+Sync forever. A later phase renamed the column to `monthlyContribution` and
+made the drawer's editable field monthly too, for a different reason than
+symmetry: an editable annual field divides by 12 on the way in, so a user
+typing £10,000 would watch it become £9,999.96 the moment it round-tripped.
+The rounding described above went with it — there's no cross-unit multiply
+left to round. See
+[`plan-sync.md`](plan-sync.md#contributions-are-stored-monthly). The
+liability side needed no such change — `monthlyRepayment` was already
+monthly — and `liabilityStep` still does its own `× 12` for interest math
+inside the projection; only the write-time unit changed.
 
 Three things worth stating plainly:
 
@@ -262,10 +270,11 @@ category can never take the new branch, because its flow is `null`.
 
 ## ⚠️ Sync now replaces contributions and repayments
 
-`PlanAsset.annualContribution` and `PlanLiability.monthlyRepayment` have moved
-from Sync's **Kept** list to its **Replaced** list. This is a deliberate
-change to the rule in [`plan-sync.md`](plan-sync.md), and it has a
-user-visible consequence:
+`PlanAsset.monthlyContribution` (`annualContribution` at the time this
+feature shipped — see "Reaching the plan," above) and
+`PlanLiability.monthlyRepayment` have moved from Sync's **Kept** list to its
+**Replaced** list. This is a deliberate change to the rule in
+[`plan-sync.md`](plan-sync.md), and it has a user-visible consequence:
 
 > **An existing user's hand-typed mortgage repayment, with no matching
 > `REPAYMENT` budget row, resets to 0 on their next Sync.**
@@ -366,8 +375,14 @@ picker and in `createItemForMonth`, not in the database.
   product decision about what an unobserved account is worth. Deferred to P4.
 - **Retiring `PlanLiability.linkedAssetId`** in favour of
   `Account.linkedAccountId`.
-- **Renaming `monthlyRepayment`** for symmetry with `annualContribution` — the
-  units are deliberate, see above.
+- ~~**Renaming `monthlyRepayment`** for symmetry with `annualContribution` —
+  the units are deliberate, see above.~~ **Overtaken.** `annualContribution`
+  was itself renamed to `monthlyContribution` in a later phase — not for
+  symmetry, but because an editable annual field divides by 12 on the way in
+  and a typed £10,000 would drift to £9,999.96 (see
+  [`plan-sync.md`](plan-sync.md#contributions-are-stored-monthly)). The two
+  columns are both monthly now, so the asymmetry this bullet was rejecting no
+  longer exists; nothing here needed renaming after all.
 - **Splitting `BudgetSheet.tsx`** (now ~1,860 lines). Real, and not this
   branch's job.
 - **Holdings within a wrapper** — designed for, not built; see
@@ -396,7 +411,7 @@ picker and in `createItemForMonth`, not in the database.
 | The picker's four groups | [`src/app/(app)/transactions/CategoryCombobox.tsx`](<../../src/app/(app)/transactions/CategoryCombobox.tsx>) |
 | `RealityRow.flow`, `budgetedFlow` | [`src/lib/plan/reality.ts`](../../src/lib/plan/reality.ts) |
 | `flow` in the update comparison and the zero-value guard | [`src/lib/plan/sync.ts`](../../src/lib/plan/sync.ts) |
-| Writing `annualContribution` / `monthlyRepayment` on add and update | [`src/lib/plan/applySyncPlan.ts`](../../src/lib/plan/applySyncPlan.ts) |
+| Writing `monthlyContribution` / `monthlyRepayment` on add and update | [`src/lib/plan/applySyncPlan.ts`](../../src/lib/plan/applySyncPlan.ts) |
 | Cash-flow classification: a repayment is spending, a transfer is neither | [`src/lib/dashboard/series.ts`](../../src/lib/dashboard/series.ts) |
 | The dashboard's two-source actual overlay across the 12-month window | [`src/app/(app)/dashboard/page.tsx`](<../../src/app/(app)/dashboard/page.tsx>) |
 

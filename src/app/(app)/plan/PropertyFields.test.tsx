@@ -34,10 +34,12 @@ const property = {
   openingValue: 300000,
   expectedReturnPct: 3,
   feePct: 0,
-  annualContribution: 0,
+  monthlyContribution: 0,
   contributionEndAge: null,
   minAccessAge: null,
   drawdownPriority: 0,
+  annualIncome: null,
+  incomeFromAge: null,
 };
 
 const mortgage = {
@@ -50,6 +52,8 @@ const mortgage = {
   endAge: null,
   linkedAssetId: "asset-1",
   interestOnly: false,
+  revisionAge: null,
+  revisionRate: null,
 };
 const repayment = {
   id: "exp-1",

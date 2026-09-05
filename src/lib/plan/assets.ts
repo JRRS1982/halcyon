@@ -4,7 +4,27 @@ import type { Regime } from "@/lib/tax/types";
 import { isTaxableOnWithdrawal } from "./tax";
 import type { AssetInput } from "./types";
 
-export const drawable = (a: AssetInput): boolean => a.wrapper !== "PROPERTY";
+/**
+ * Whether this asset is an entitlement — a promise of income — rather than a
+ * pot. See AssetInput.annualIncome.
+ *
+ * A *positive* figure, not merely a set one. The field is nullable, the card's
+ * placeholder for it reads "0", and blank and 0 are indistinguishable in that
+ * input while meaning opposite things: someone entering an NHS pension's
+ * £120,000 transfer value who types 0 into "Pension income /yr" is saying "I
+ * don't know yet", not "this pot is an income of nothing". Read as an
+ * entitlement, that answer deleted the £120,000 from the projection's net
+ * worth, made the row undrawable, and paid an income of zero. An entitlement
+ * recorded as zero is not an entitlement.
+ */
+export const isEntitled = (
+  a: AssetInput,
+): a is AssetInput & { annualIncome: number } => (a.annualIncome ?? 0) > 0;
+
+// An entitled asset is an income stream, not a fund — it is never a
+// contribution target and never drawn from.
+export const drawable = (a: AssetInput): boolean =>
+  a.wrapper !== "PROPERTY" && !isEntitled(a);
 
 // Earliest age an asset may be drawn. PENSION defaults to 57 when unset; other
 // wrappers are unrestricted unless an explicit minAccessAge is given.
@@ -13,12 +33,16 @@ const accessLimit = (a: AssetInput): number | null =>
 
 // Where leftover surplus sits: the CASH buffer. Falls back to the most-liquid
 // non-PROPERTY asset (lowest drawdownPriority); null when there are no assets,
-// or when none are drawable (all PROPERTY) — a PROPERTY must never be a
-// contribution target, since a later sale zeroes it and would silently erase
-// the surplus deposited there.
+// or when none are drawable — a PROPERTY must never be a contribution target,
+// since a later sale zeroes it and would silently erase the surplus deposited
+// there, and neither must an entitlement, whose balance is zeroed every single
+// year. The CASH shortcut is held to the same `drawable` test as the fallback
+// rather than trusting the wrapper alone: a CASH account carrying an
+// annualIncome is reachable (a FINAL_SALARY corrected to SAVINGS keeps it),
+// and money paid into it would disappear with no shortfall reported.
 export const contributionTargetId = (assets: AssetInput[]): string | null => {
   if (assets.length === 0) return null;
-  const cash = assets.find((a) => a.wrapper === "CASH");
+  const cash = assets.find((a) => a.wrapper === "CASH" && drawable(a));
   if (cash) return cash.id;
   const liquid = assets.filter(drawable);
   if (liquid.length === 0) return null;

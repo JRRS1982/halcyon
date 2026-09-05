@@ -216,6 +216,7 @@ describe("createAccount", () => {
     year: 2026,
     month: 2,
     canImportTransactions: true,
+    terms: {},
     mortgage: null,
   } as const;
 

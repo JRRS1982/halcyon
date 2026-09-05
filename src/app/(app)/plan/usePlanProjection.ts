@@ -191,6 +191,8 @@ export function usePlanProjection(
           endAge: next.endAge,
           linkedAssetId: l.linkedAssetId,
           interestOnly: l.interestOnly,
+          revisionAge: l.revisionAge,
+          revisionRate: l.revisionRate,
         });
       }
       router.refresh();

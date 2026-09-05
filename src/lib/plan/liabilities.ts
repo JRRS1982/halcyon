@@ -8,6 +8,19 @@ export interface LiabilityStepResult {
   byLiability: Record<string, { interest: number; principal: number }>;
 }
 
+/**
+ * The rate in force at this age. Exported because it is the whole of the
+ * two-rate mortgage behaviour and deserves its own tests: liabilityStep
+ * already receives `age`, so the engine change is this function and nothing
+ * else.
+ */
+export const rateAt = (l: LiabilityInput, age: number): number =>
+  l.revisionAge !== undefined &&
+  l.revisionRate !== undefined &&
+  age >= l.revisionAge
+    ? l.revisionRate
+    : l.interestPct;
+
 export const liabilityStep = (
   liabilities: LiabilityInput[],
   balances: Record<string, number>,
@@ -23,7 +36,7 @@ export const liabilityStep = (
     const notStarted = l.startAge !== undefined && age < l.startAge;
     const pastEnd = l.endAge !== undefined && age > l.endAge;
     if (balance <= 0 || notStarted || pastEnd) continue;
-    const afterInterest = grow(balance, l.interestPct);
+    const afterInterest = grow(balance, rateAt(l, age));
     const interestAccrued = afterInterest - balance;
     if (l.interestOnly) {
       // Pay only the interest; the balance stays flat. The stored repayment

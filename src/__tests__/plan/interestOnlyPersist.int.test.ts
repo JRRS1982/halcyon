@@ -33,6 +33,8 @@ const base = (id: string) => ({
   endAge: null,
   linkedAssetId: null,
   interestOnly: false,
+  revisionAge: null,
+  revisionRate: null,
 });
 
 describe("updatePlanLiability interestOnly", () => {
