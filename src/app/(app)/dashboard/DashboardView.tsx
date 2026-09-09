@@ -186,6 +186,22 @@ const PanelLead = styled.p`
   color: ${({ theme }) => theme.colors.body};
 `;
 
+// Unified card for the "this month" section: checklist status + KPI tiles
+// together so the period context (the card header) covers both.
+const CurrentMonthCard = styled.section`
+  border: 1px solid ${({ theme }) => theme.colors.hairline};
+  border-radius: ${({ theme }) => theme.rounded.sm};
+  background: ${({ theme }) => theme.colors.canvas};
+  padding: ${({ theme }) => theme.spacing.lg};
+  margin-top: ${({ theme }) => theme.spacing["2xl"]};
+`;
+
+const KpiDivider = styled.hr`
+  border: none;
+  border-top: 1px solid ${({ theme }) => theme.colors.hairline};
+  margin: ${({ theme }) => theme.spacing.lg} 0 0;
+`;
+
 // Shown only when the whole dashboard has nothing in it — see `nothingToChart`.
 const FirstRun = styled.section`
   border: 1px solid ${({ theme }) => theme.colors.hairline};
@@ -370,15 +386,15 @@ export function DashboardView({
       {/* Suppressed on a first run: four dashes over an empty-state card would
           be noise, and the card already says what to do. */}
       {!nothingToChart && (
-        <>
+        <CurrentMonthCard aria-label={`This month · ${checklistMonth}`}>
           <MonthChecklist checklist={checklist} monthLabel={checklistMonth} />
+          <KpiDivider />
           <SummaryRow
             stats={summary}
             currency={currency}
             numberFormat={numberFormat}
-            monthLabel={checklistMonth}
           />
-        </>
+        </CurrentMonthCard>
       )}
       {nothingToChart && (
         <FirstRun>

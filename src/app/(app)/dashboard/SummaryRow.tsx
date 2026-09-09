@@ -4,16 +4,6 @@ import styled, { css } from "styled-components";
 import type { SummaryStat } from "@/lib/dashboard/summary";
 import { formatAmount, type NumberFormat } from "@/lib/settings/currency";
 
-const Eyebrow = styled.p`
-  margin: ${({ theme }) => theme.spacing["2xl"]} 0 ${({ theme }) => theme.spacing.sm};
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
-  text-transform: uppercase;
-  color: ${({ theme }) => theme.colors.body};
-`;
-
 // Four tiles across on a wide screen, folding to two and then two-by-two.
 // Hairline boxes on canvas — the same chrome as the chart panels below, so the
 // row reads as part of the page rather than a banner stuck on top.
@@ -21,6 +11,7 @@ const Row = styled.section`
   display: grid;
   gap: ${({ theme }) => theme.spacing.lg};
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  margin-top: ${({ theme }) => theme.spacing.lg};
 
   /* The 180px floor only fits one column on a phone, and four stacked tiles
      each holding a single number push the charts a whole screen down. Two-up
@@ -131,36 +122,31 @@ export function SummaryRow({
   stats,
   currency,
   numberFormat,
-  monthLabel,
 }: {
   stats: SummaryStat[];
   currency: string;
   numberFormat: NumberFormat;
-  monthLabel?: string;
 }) {
+  // Named so the four figures are addressable as a unit — by a screen reader
+  // moving through the page, and by a test that needs "Savings rate" the
+  // headline rather than "Savings rate" the cash-flow series in a chart
+  // legend further down, which is the same string.
   return (
-    <>
-      {monthLabel && <Eyebrow>This month · {monthLabel}</Eyebrow>}
-      {/* Named so the four figures are addressable as a unit — by a screen reader
-        moving through the page, and by a test that needs "Savings rate" the
-        headline rather than "Savings rate" the cash-flow series in a chart
-        legend further down, which is the same string. */}
-      <Row aria-label="Key figures">
-        {stats.map((stat) => {
-          const delta = formatDelta(stat, currency, numberFormat);
-          return (
-            <Tile key={stat.key}>
-              <Label>{stat.label}</Label>
-              <Value>{formatValue(stat, currency, numberFormat)}</Value>
-              {delta ? (
-                <Delta $tone={toneFor(stat)}>
-                  {delta} <Muted>{stat.deltaLabel}</Muted>
-                </Delta>
-              ) : null}
-            </Tile>
-          );
-        })}
-      </Row>
-    </>
+    <Row aria-label="Key figures">
+      {stats.map((stat) => {
+        const delta = formatDelta(stat, currency, numberFormat);
+        return (
+          <Tile key={stat.key}>
+            <Label>{stat.label}</Label>
+            <Value>{formatValue(stat, currency, numberFormat)}</Value>
+            {delta ? (
+              <Delta $tone={toneFor(stat)}>
+                {delta} <Muted>{stat.deltaLabel}</Muted>
+              </Delta>
+            ) : null}
+          </Tile>
+        );
+      })}
+    </Row>
   );
 }

@@ -4,18 +4,6 @@ import Link from "next/link";
 import styled, { css } from "styled-components";
 import type { Checklist } from "@/lib/dashboard/checklist";
 
-// The monthly loop, as state: which stages of this month are done and where
-// to go for the ones that aren't. Same hairline chrome as the summary tiles
-// so it reads as part of the page, not a banner.
-const Card = styled.section`
-  ${({ theme }) => css`
-    border: 1px solid ${theme.colors.hairline};
-    border-radius: ${theme.rounded.sm};
-    padding: ${theme.spacing.lg};
-    margin-top: ${theme.spacing["2xl"]};
-  `}
-`;
-
 const Header = styled.p`
   ${({ theme }) => css`
     font-family: ${theme.typography.monoCaps.family};
@@ -87,7 +75,7 @@ type MonthChecklistProps = {
 
 export function MonthChecklist({ checklist, monthLabel }: MonthChecklistProps) {
   return (
-    <Card aria-label={`This month · ${monthLabel}`}>
+    <>
       <Header>
         This month · {monthLabel}
         {checklist.complete ? " · All caught up" : ""}
@@ -104,6 +92,6 @@ export function MonthChecklist({ checklist, monthLabel }: MonthChecklistProps) {
           </Item>
         ))}
       </Items>
-    </Card>
+    </>
   );
 }
