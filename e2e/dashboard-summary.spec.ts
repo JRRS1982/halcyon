@@ -137,9 +137,8 @@ test.describe("Dashboard summary", () => {
     }
   });
 
-  // Four charts each opened with a three-line paragraph, which pushed the data
-  // itself below the fold.
-  test("folds each chart's explanation away by default", async ({
+  // Chart explanations are always-visible paragraph text — no toggle needed.
+  test("shows each chart's explanation as visible text", async ({
     page,
     db,
   }) => {
@@ -229,13 +228,6 @@ test.describe("Dashboard summary", () => {
     }
     await page.goto("/dashboard");
 
-    const explainer = page.getByText("What this shows").first();
-    await expect(explainer).toBeVisible();
-    await expect(
-      page.getByText(/Money in versus money out each month/),
-    ).toBeHidden();
-
-    await explainer.click();
     await expect(
       page.getByText(/Money in versus money out each month/),
     ).toBeVisible();
