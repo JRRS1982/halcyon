@@ -196,12 +196,6 @@ const CurrentMonthCard = styled.section`
   margin-top: ${({ theme }) => theme.spacing["2xl"]};
 `;
 
-const KpiDivider = styled.hr`
-  border: none;
-  border-top: 1px solid ${({ theme }) => theme.colors.hairline};
-  margin: ${({ theme }) => theme.spacing.lg} 0 0;
-`;
-
 // Shown only when the whole dashboard has nothing in it — see `nothingToChart`.
 const FirstRun = styled.section`
   border: 1px solid ${({ theme }) => theme.colors.hairline};
@@ -388,7 +382,6 @@ export function DashboardView({
       {!nothingToChart && (
         <CurrentMonthCard aria-label={`This month · ${checklistMonth}`}>
           <MonthChecklist checklist={checklist} monthLabel={checklistMonth} />
-          <KpiDivider />
           <SummaryRow
             stats={summary}
             currency={currency}
