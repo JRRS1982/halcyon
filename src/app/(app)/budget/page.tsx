@@ -7,6 +7,7 @@ import {
   parseYm,
 } from "@/lib/budget/period";
 import type { AnchorAccount } from "@/lib/budget/sections";
+import { monthFlow } from "@/lib/dashboard/series";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserSettings } from "@/lib/settings/server";
 import { getCurrentUser } from "@/lib/supabase/user";
@@ -20,6 +21,7 @@ import {
   getTransferFlowByAccount,
 } from "@/lib/transactions/server";
 import {
+  type BudgetMonthSummary,
   BudgetSheet,
   type SerializedItem,
   type SerializedPeriod,
@@ -226,6 +228,38 @@ export default async function BudgetPage(props: PageProps) {
     archived: a.deletedAt !== null,
   }));
 
+  // Load the last 12 months for the cross-month summary strip.
+  const recentPeriods = await prisma.financialPeriod.findMany({
+    where: { userId: user.id, granularity: "MONTH" },
+    orderBy: { startDate: "desc" },
+    take: 12,
+    select: {
+      startDate: true,
+      label: true,
+      items: {
+        where: { deletedAt: null },
+        select: { type: true, actual: true },
+      },
+    },
+  });
+
+  const monthSummaries: BudgetMonthSummary[] = recentPeriods.map((p) => {
+    const { income, expense } = monthFlow(
+      p.items.map((i) => ({
+        type: i.type,
+        actual: Number(i.actual),
+      })),
+    );
+    return {
+      label: p.label,
+      ym: formatYm(p.startDate.getUTCFullYear(), p.startDate.getUTCMonth()),
+      income,
+      expense,
+      net: income - expense,
+      isCurrent: p.startDate.getTime() === range.startDate.getTime(),
+    };
+  });
+
   // key on ym forces a fresh component instance per month, so the
   // client's local state (items, periodState, picker) doesn't leak from
   // the previous month.
@@ -240,6 +274,7 @@ export default async function BudgetPage(props: PageProps) {
       currency={currency}
       numberFormat={numberFormat}
       actualsReadOnly={transactionsEnabled}
+      monthSummaries={monthSummaries}
     />
   );
 }

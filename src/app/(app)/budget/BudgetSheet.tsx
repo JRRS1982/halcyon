@@ -12,7 +12,7 @@ import {
   useState,
   useTransition,
 } from "react";
-import styled from "styled-components";
+import styled, { css } from "styled-components";
 import { AddAccountDrawer } from "@/app/(app)/balance/AddAccountDrawer";
 import { Sheet } from "@/components/sheet/Sheet";
 import {
@@ -88,6 +88,15 @@ export type SerializedPeriod = {
 };
 
 export type { ExpenseSection, IncomeSection };
+
+export type BudgetMonthSummary = {
+  label: string;
+  ym: string;
+  income: number;
+  expense: number;
+  net: number;
+  isCurrent: boolean;
+};
 
 export type SerializedItem = {
   id: string;
@@ -727,6 +736,62 @@ const LinkBtn = styled.button`
   cursor: pointer;
 `;
 
+const SummaryStrip = styled.div`
+  overflow-x: auto;
+  margin-top: ${({ theme }) => theme.spacing["2xl"]};
+
+  @media (max-width: 767px) {
+    display: none;
+  }
+`;
+
+const SummaryTable = styled.table`
+  width: 100%;
+  border-collapse: collapse;
+`;
+
+const SummaryTh = styled.th<{ $right?: boolean }>`
+  ${({ theme }) => css`
+    padding: ${theme.spacing.xs} ${theme.spacing.md};
+    font-family: ${theme.typography.monoCaps.family};
+    font-size: ${theme.typography.monoCaps.size};
+    font-weight: ${theme.typography.monoCaps.weight};
+    letter-spacing: ${theme.typography.monoCaps.letterSpacing};
+    text-transform: uppercase;
+    color: ${theme.colors.body};
+    border-bottom: 1px solid ${theme.colors.hairline};
+  `}
+  text-align: ${({ $right }) => ($right ? "right" : "left")};
+  font-weight: normal;
+`;
+
+const SummaryTr = styled.tr<{ $current?: boolean }>`
+  background: ${({ theme, $current }) =>
+    $current ? theme.colors.canvasSoft : "transparent"};
+  font-weight: ${({ $current }) => ($current ? 600 : 400)};
+`;
+
+const SummaryTd = styled.td<{
+  $right?: boolean;
+  $tone?: "positive" | "negative" | "dim";
+}>`
+  ${({ theme, $tone }) => css`
+    padding: ${theme.spacing.xs} ${theme.spacing.md};
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    color: ${
+      $tone === "positive"
+        ? theme.colors.positive
+        : $tone === "negative"
+          ? theme.colors.negative
+          : $tone === "dim"
+            ? theme.colors.dim
+            : theme.colors.ink
+    };
+  `}
+  text-align: ${({ $right }) => ($right ? "right" : "left")};
+`;
+
 const REPAYMENTS_HELP =
   "Money paid at a debt you owe — a mortgage, a loan, a credit card. It counts as spending here because it left your account; the plan works out how much of it cleared the debt.";
 
@@ -752,6 +817,7 @@ export function BudgetSheet({
   currency,
   numberFormat,
   actualsReadOnly = false,
+  monthSummaries = [],
 }: {
   period: SerializedPeriod;
   initialItems: SerializedItem[];
@@ -764,6 +830,7 @@ export function BudgetSheet({
   currency: string;
   numberFormat: NumberFormat;
   actualsReadOnly?: boolean;
+  monthSummaries?: BudgetMonthSummary[];
 }) {
   // Bind currency + number format once so the many call sites stay terse.
   const fmtAmount = (n: number) => formatAmount(currency, n, numberFormat);
@@ -1930,10 +1997,10 @@ export function BudgetSheet({
               onClick={() => (copyOpen ? setCopyOpen(false) : openCopy())}
               aria-expanded={copyOpen}
             >
-              Fill this month from…
+              Fill from
             </ToolbarTool>
             {copyOpen && (
-              <CopyPopover aria-label="Fill this month from another month">
+              <CopyPopover aria-label="Fill from another month">
                 <CopyTitle>Fill {periodState.label} from</CopyTitle>
                 {copyList === null ? (
                   <CopyMuted>Loading…</CopyMuted>
@@ -2069,6 +2136,39 @@ export function BudgetSheet({
           }}
         />
       </Sheet>
+
+      {monthSummaries.length > 1 && (
+        <SummaryStrip>
+          <SummaryTable>
+            <thead>
+              <tr>
+                <SummaryTh>Month</SummaryTh>
+                <SummaryTh $right>Income</SummaryTh>
+                <SummaryTh $right>Expenses</SummaryTh>
+                <SummaryTh $right>Net</SummaryTh>
+              </tr>
+            </thead>
+            <tbody>
+              {monthSummaries.map((m) => (
+                <SummaryTr key={m.ym} $current={m.isCurrent}>
+                  <SummaryTd>{m.label}</SummaryTd>
+                  <SummaryTd $right>{fmtAmount(m.income)}</SummaryTd>
+                  <SummaryTd $right>{fmtAmount(m.expense)}</SummaryTd>
+                  <SummaryTd
+                    $right
+                    $tone={
+                      m.net > 0 ? "positive" : m.net < 0 ? "negative" : "dim"
+                    }
+                  >
+                    {fmtSigned(m.net)}
+                  </SummaryTd>
+                </SummaryTr>
+              ))}
+            </tbody>
+          </SummaryTable>
+        </SummaryStrip>
+      )}
+
       {openInfo && (
         <InfoPopover
           data-info-root

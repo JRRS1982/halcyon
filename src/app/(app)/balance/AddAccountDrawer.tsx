@@ -33,12 +33,16 @@ const SECTION_LABELS: Record<AccountSection, string> = {
   OTHER: "Other",
 };
 
-// PROPERTY is asset-only, so a liability's Section field never offers it —
-// shares isValidBalanceCategory with BalanceSheet.tsx's own section picker
-// and its rendered subheads rather than re-stating the same rule here too.
-function sectionOptionsFor(type: AccountKind): AccountSection[] {
-  return accountSectionSchema.options.filter((c) =>
-    isValidBalanceCategory(type, c),
+// PROPERTY section is asset-only (no liability) and reserved for PROPERTY
+// type accounts — an ISA or savings account cannot be filed there.
+function sectionOptionsFor(
+  kind: AccountKind,
+  typeId: AccountTypeId | null,
+): AccountSection[] {
+  return accountSectionSchema.options.filter(
+    (c) =>
+      isValidBalanceCategory(kind, c) &&
+      (c !== "PROPERTY" || typeId === "PROPERTY"),
   );
 }
 
@@ -150,7 +154,8 @@ export function AddAccountDrawer({
     const keepsChoice =
       sectionTouched &&
       category !== null &&
-      isValidBalanceCategory(option.kind, category);
+      isValidBalanceCategory(option.kind, category) &&
+      (category !== "PROPERTY" || next === "PROPERTY");
     const nextCategory = keepsChoice ? category : option.defaultSection;
     setTypeId(next);
     setCategory(nextCategory);
@@ -322,7 +327,7 @@ export function AddAccountDrawer({
                   selectCategory(e.target.value as AccountSection)
                 }
               >
-                {sectionOptionsFor(type).map((c) => (
+                {sectionOptionsFor(type, typeId).map((c) => (
                   <option key={c} value={c}>
                     {SECTION_LABELS[c]}
                   </option>

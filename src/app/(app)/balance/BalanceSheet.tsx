@@ -61,6 +61,15 @@ export type SerializedPeriod = {
   endDate: string;
 };
 
+export type BalanceMonthSummary = {
+  label: string;
+  ym: string;
+  assets: number;
+  liabilities: number;
+  netWorth: number;
+  isCurrent: boolean;
+};
+
 // One row per account the user owns or owes, with this month's observation
 // left-joined on (see page.tsx). The account is the durable thing; `value`,
 // `notes` and `carriedOver` describe the month, and are null/false for an
@@ -713,6 +722,62 @@ const CopyButton = styled.button<{ $primary?: boolean }>`
   `}
 `;
 
+const SummaryStrip = styled.div`
+  overflow-x: auto;
+  margin-top: ${({ theme }) => theme.spacing["2xl"]};
+
+  @media (max-width: 767px) {
+    display: none;
+  }
+`;
+
+const SummaryTable = styled.table`
+  width: 100%;
+  border-collapse: collapse;
+`;
+
+const SummaryTh = styled.th<{ $right?: boolean }>`
+  ${({ theme }) => css`
+    padding: ${theme.spacing.xs} ${theme.spacing.md};
+    font-family: ${theme.typography.monoCaps.family};
+    font-size: ${theme.typography.monoCaps.size};
+    font-weight: ${theme.typography.monoCaps.weight};
+    letter-spacing: ${theme.typography.monoCaps.letterSpacing};
+    text-transform: uppercase;
+    color: ${theme.colors.body};
+    border-bottom: 1px solid ${theme.colors.hairline};
+  `}
+  text-align: ${({ $right }) => ($right ? "right" : "left")};
+  font-weight: normal;
+`;
+
+const SummaryTr = styled.tr<{ $current?: boolean }>`
+  background: ${({ theme, $current }) =>
+    $current ? theme.colors.canvasSoft : "transparent"};
+  font-weight: ${({ $current }) => ($current ? 600 : 400)};
+`;
+
+const SummaryTd = styled.td<{
+  $right?: boolean;
+  $tone?: "positive" | "negative" | "dim";
+}>`
+  ${({ theme, $tone }) => css`
+    padding: ${theme.spacing.xs} ${theme.spacing.md};
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    color: ${
+      $tone === "positive"
+        ? theme.colors.positive
+        : $tone === "negative"
+          ? theme.colors.negative
+          : $tone === "dim"
+            ? theme.colors.dim
+            : theme.colors.ink
+    };
+  `}
+  text-align: ${({ $right }) => ($right ? "right" : "left")};
+`;
+
 // ─── Save pip text helper ───────────────────────────────────────────────────
 
 const pipState = (
@@ -743,6 +808,7 @@ export function BalanceSheet({
   month,
   currency,
   numberFormat,
+  monthSummaries = [],
 }: {
   period: SerializedPeriod;
   initialRows: SerializedAccountRow[];
@@ -750,6 +816,7 @@ export function BalanceSheet({
   month: number;
   currency: string;
   numberFormat: NumberFormat;
+  monthSummaries?: BalanceMonthSummary[];
 }) {
   const periodYear = year;
   const periodMonth = month;
@@ -1424,7 +1491,6 @@ export function BalanceSheet({
           </>
         }
         lead="Assets and liabilities snapshot for this period."
-        actions={<StatusPip state={pip.state}>{pip.text}</StatusPip>}
       />
       <Toolbar>
         <ToolbarGroup>
@@ -1561,6 +1627,7 @@ export function BalanceSheet({
           </ToolbarTool>
         </ToolbarGroup>
         <ToolbarSpacer />
+        <StatusPip state={pip.state}>{pip.text}</StatusPip>
       </Toolbar>
       {rows.some((r) => r.carriedOver) && (
         <CarriedNote>
@@ -1603,6 +1670,42 @@ export function BalanceSheet({
             : `${withoutValue} accounts without a value`}
         </MissingNote>
       )}
+      {monthSummaries.length > 1 && (
+        <SummaryStrip>
+          <SummaryTable>
+            <thead>
+              <tr>
+                <SummaryTh>Month</SummaryTh>
+                <SummaryTh $right>Assets</SummaryTh>
+                <SummaryTh $right>Liabilities</SummaryTh>
+                <SummaryTh $right>Net Worth</SummaryTh>
+              </tr>
+            </thead>
+            <tbody>
+              {monthSummaries.map((m) => (
+                <SummaryTr key={m.ym} $current={m.isCurrent}>
+                  <SummaryTd>{m.label}</SummaryTd>
+                  <SummaryTd $right>{fmtAmount(m.assets)}</SummaryTd>
+                  <SummaryTd $right>{fmtAmount(m.liabilities)}</SummaryTd>
+                  <SummaryTd
+                    $right
+                    $tone={
+                      m.netWorth > 0
+                        ? "positive"
+                        : m.netWorth < 0
+                          ? "negative"
+                          : "dim"
+                    }
+                  >
+                    {fmtAmount(m.netWorth)}
+                  </SummaryTd>
+                </SummaryTr>
+              ))}
+            </tbody>
+          </SummaryTable>
+        </SummaryStrip>
+      )}
+
       {openInfo && (
         <InfoPopover
           data-info-root
