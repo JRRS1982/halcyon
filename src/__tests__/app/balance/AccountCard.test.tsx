@@ -43,7 +43,9 @@ describe("AccountCard", () => {
 
     expect(screen.getByDisplayValue("Barclays mortgage")).toBeInTheDocument();
     expect(screen.getByLabelText("Type")).toBeInTheDocument();
-    expect(screen.getByLabelText("Section")).toBeInTheDocument();
+    // MORTGAGE is a fixed-section type — Section is always LONG_TERM so the
+    // field is hidden to avoid confusing the user with a choice they can't make.
+    expect(screen.queryByLabelText("Section")).not.toBeInTheDocument();
     expect(screen.getByDisplayValue("4.29")).toBeInTheDocument();
   });
 
