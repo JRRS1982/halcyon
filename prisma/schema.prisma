@@ -196,6 +196,7 @@ model BudgetItem {
   deletedAt  DateTime?
   accountId  String?            @db.Uuid
   direction  TransferDirection?
+  notes      String?
 
   period         FinancialPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
   linkedCategory Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)

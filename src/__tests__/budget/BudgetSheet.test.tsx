@@ -70,6 +70,7 @@ const row = (
   budget: 0,
   actual: 0,
   sortOrder: 1,
+  notes: null,
   ...over,
 });
 
@@ -371,7 +372,7 @@ describe("BudgetSheet — a copy that left rows behind", () => {
     renderSheet();
 
     await act(async () => {
-      screen.getByRole("button", { name: "Fill this month from…" }).click();
+      screen.getByRole("button", { name: "Fill from" }).click();
     });
     await act(async () => {
       screen.getByRole("button", { name: "February 2026" }).click();
@@ -399,7 +400,7 @@ describe("BudgetSheet — a copy that left rows behind", () => {
     renderSheet();
 
     await act(async () => {
-      screen.getByRole("button", { name: "Fill this month from…" }).click();
+      screen.getByRole("button", { name: "Fill from" }).click();
     });
     await act(async () => {
       screen.getByRole("button", { name: "February 2026" }).click();

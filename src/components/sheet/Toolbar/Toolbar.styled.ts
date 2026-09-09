@@ -25,11 +25,6 @@ export const ToolbarGroup = styled.div<{
     flex-wrap: wrap;
     gap: ${theme.spacing.xs};
     padding-right: ${theme.spacing.md};
-    border-right: 1px solid ${theme.colors.hairline};
-
-    &:last-of-type {
-      border-right: none;
-    }
 
     /* On a phone each resting group becomes one full-width row of evenly
        stretched controls — ragged flex-wrap (and the group dividers) read as
@@ -62,7 +57,7 @@ export const ToolbarGroup = styled.div<{
   `}
 `;
 
-export const ToolbarSpacer = styled.div`
+export const ToolbarSpacer = styled.span`
   flex: 1;
 `;
 

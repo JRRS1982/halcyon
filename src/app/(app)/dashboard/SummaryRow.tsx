@@ -11,7 +11,7 @@ const Row = styled.section`
   display: grid;
   gap: ${({ theme }) => theme.spacing.lg};
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  margin-top: ${({ theme }) => theme.spacing["2xl"]};
+  margin-top: ${({ theme }) => theme.spacing.lg};
 
   /* The 180px floor only fits one column on a phone, and four stacked tiles
      each holding a single number push the charts a whole screen down. Two-up
@@ -127,11 +127,11 @@ export function SummaryRow({
   currency: string;
   numberFormat: NumberFormat;
 }) {
+  // Named so the four figures are addressable as a unit — by a screen reader
+  // moving through the page, and by a test that needs "Savings rate" the
+  // headline rather than "Savings rate" the cash-flow series in a chart
+  // legend further down, which is the same string.
   return (
-    // Named so the four figures are addressable as a unit — by a screen reader
-    // moving through the page, and by a test that needs "Savings rate" the
-    // headline rather than "Savings rate" the cash-flow series in a chart
-    // legend further down, which is the same string.
     <Row aria-label="Key figures">
       {stats.map((stat) => {
         const delta = formatDelta(stat, currency, numberFormat);

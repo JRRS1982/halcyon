@@ -18,6 +18,16 @@ import {
   setAccountType,
 } from "./accountActions";
 
+// Types whose section is determined by the type itself and never needs
+// user input (MORTGAGE and FINAL_SALARY → Long-term; PROPERTY → Property;
+// SIPP → Long-term). Hide the Section field for these.
+const FIXED_SECTION_TYPES = new Set<AccountType>([
+  "MORTGAGE",
+  "PROPERTY",
+  "SIPP",
+  "FINAL_SALARY",
+]);
+
 // Same wording BalanceSheet.tsx's own subheads use — the card's "Section"
 // field should read as the destination the user already sees on the sheet.
 const SECTION_LABELS: Record<AccountSection, string> = {
@@ -100,8 +110,10 @@ export function AccountCard({
     {},
   );
 
-  const sections = accountSectionSchema.options.filter((section) =>
-    isValidBalanceCategory(account.kind, section),
+  const sections = accountSectionSchema.options.filter(
+    (section) =>
+      isValidBalanceCategory(account.kind, section) &&
+      (section !== "PROPERTY" || account.type === "PROPERTY"),
   );
 
   return (
@@ -131,16 +143,18 @@ export function AccountCard({
             }
           />
         </Field>
-        <Field label="Section">
-          <SelectCell
-            value={account.section}
-            options={sections}
-            labels={SECTION_LABELS}
-            onCommit={(section) =>
-              run(() => setAccountSection({ accountId: account.id, section }))
-            }
-          />
-        </Field>
+        {!FIXED_SECTION_TYPES.has(account.type) && (
+          <Field label="Section">
+            <SelectCell
+              value={account.section}
+              options={sections}
+              labels={SECTION_LABELS}
+              onCommit={(section) =>
+                run(() => setAccountSection({ accountId: account.id, section }))
+              }
+            />
+          </Field>
+        )}
       </DrawerSection>
 
       {termsFor(account.type).length > 0 ? (

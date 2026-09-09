@@ -8,10 +8,12 @@ import {
   monthRangeFor,
   parseYm,
 } from "@/lib/budget/period";
+import { accountBalanceSums } from "@/lib/dashboard/series";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserSettings } from "@/lib/settings/server";
 import { getCurrentUser } from "@/lib/supabase/user";
 import {
+  type BalanceMonthSummary,
   BalanceSheet,
   type SerializedAccountRow,
   type SerializedPeriod,
@@ -173,6 +175,53 @@ export default async function BalancePage(props: PageProps) {
     };
   });
 
+  const recentPeriods = await prisma.financialPeriod.findMany({
+    where: { userId: user.id, granularity: "MONTH" },
+    orderBy: { startDate: "desc" },
+    take: 12,
+    select: {
+      startDate: true,
+      label: true,
+      balanceItems: {
+        where: { deletedAt: null },
+        select: {
+          value: true,
+          account: { select: { type: true, section: true } },
+        },
+      },
+    },
+  });
+
+  const monthSummaries: BalanceMonthSummary[] = recentPeriods
+    .filter((p) => p.balanceItems.length > 0)
+    .map((p) => {
+      const sums = accountBalanceSums(
+        p.balanceItems.map((i) => ({
+          value: Number(i.value),
+          account: i.account,
+        })),
+      );
+      const assets =
+        sums.assetCurrent +
+        sums.assetMediumTerm +
+        sums.assetLongTerm +
+        sums.assetProperty +
+        sums.assetOther;
+      const liabilities =
+        sums.liabilityCurrent +
+        sums.liabilityMediumTerm +
+        sums.liabilityLongTerm +
+        sums.liabilityOther;
+      return {
+        label: p.label,
+        ym: formatYm(p.startDate.getUTCFullYear(), p.startDate.getUTCMonth()),
+        assets,
+        liabilities,
+        netWorth: assets - liabilities,
+        isCurrent: p.startDate.getTime() === range.startDate.getTime(),
+      };
+    });
+
   return (
     <BalanceSheet
       key={formatYm(year, month)}
@@ -182,6 +231,7 @@ export default async function BalancePage(props: PageProps) {
       month={month}
       currency={currency}
       numberFormat={numberFormat}
+      monthSummaries={monthSummaries}
     />
   );
 }
