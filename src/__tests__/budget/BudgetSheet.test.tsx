@@ -70,6 +70,7 @@ const row = (
   budget: 0,
   actual: 0,
   sortOrder: 1,
+  notes: null,
   ...over,
 });
 

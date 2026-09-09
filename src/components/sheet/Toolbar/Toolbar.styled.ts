@@ -62,7 +62,7 @@ export const ToolbarGroup = styled.div<{
   `}
 `;
 
-export const ToolbarSpacer = styled.div`
+export const ToolbarSpacer = styled.span`
   flex: 1;
 `;
 

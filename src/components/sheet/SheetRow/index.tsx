@@ -9,7 +9,7 @@ import {
   TotalsRow,
 } from "./SheetRow.styled";
 
-// Column header row — Category · Budget · Actual.
+// Column header row — Category · Budget · Actual · Notes.
 export function SheetHeadRow() {
   return (
     <HeadRow role="row">
@@ -20,6 +20,7 @@ export function SheetHeadRow() {
       <SheetCell role="columnheader" align="right">
         Actual
       </SheetCell>
+      <SheetCell role="columnheader">Notes</SheetCell>
     </HeadRow>
   );
 }
@@ -42,6 +43,7 @@ export function SheetSectionRow({
       <SheetCell role="rowheader">{label}</SheetCell>
       <SheetCell align="right">{amounts.budget}</SheetCell>
       <SheetCell align="right">{amounts.actual}</SheetCell>
+      <SheetCell />
     </SectionRow>
   );
 }
@@ -61,6 +63,7 @@ export function SheetSubheadRow({
       <SheetCell role="rowheader">{label}</SheetCell>
       <SheetCell align="right">{amounts.budget}</SheetCell>
       <SheetCell align="right">{amounts.actual}</SheetCell>
+      <SheetCell />
     </SubheadRow>
   );
 }
@@ -74,6 +77,7 @@ export function SheetItemRow({
   depth,
   label,
   amounts,
+  notes,
   focusedCell,
   onSelect,
   variant = "default",
@@ -90,7 +94,8 @@ export function SheetItemRow({
       tone?: "default" | "dim" | "positive" | "negative";
     };
   };
-  focusedCell?: "label" | "budget" | "actual";
+  notes?: { value: ReactNode; tone?: "default" | "dim" };
+  focusedCell?: "label" | "budget" | "actual" | "notes";
   // Fires on mousedown on any part of the row. Inputs' onFocus will fire
   // afterwards and override the focused cell to the specific field — so this
   // only "selects" the row when the user clicked outside any input.
@@ -98,7 +103,12 @@ export function SheetItemRow({
   variant?: "default" | "group";
 }) {
   return (
-    <ItemRow role="row" onMouseDown={onSelect} $group={variant === "group"}>
+    <ItemRow
+      role="row"
+      onMouseDown={onSelect}
+      $group={variant === "group"}
+      data-budget-item-row
+    >
       <SheetCell
         role="rowheader"
         indent={depth}
@@ -120,6 +130,16 @@ export function SheetItemRow({
       >
         {amounts.actual.value}
       </SheetCell>
+      {notes !== undefined ? (
+        <SheetCell
+          tone={notes.tone ?? "default"}
+          focused={focusedCell === "notes"}
+        >
+          {notes.value}
+        </SheetCell>
+      ) : (
+        <SheetCell />
+      )}
     </ItemRow>
   );
 }
@@ -137,6 +157,7 @@ export function SheetTotalsRow({
       <SheetCell role="rowheader">{label}</SheetCell>
       <SheetCell align="right">{amounts.budget}</SheetCell>
       <SheetCell align="right">{amounts.actual}</SheetCell>
+      <SheetCell />
     </TotalsRow>
   );
 }
@@ -155,6 +176,7 @@ export function SheetGrandRow({
       <SheetCell role="rowheader">{label}</SheetCell>
       <SheetCell align="right">{amounts.budget}</SheetCell>
       <SheetCell align="right">{amounts.actual}</SheetCell>
+      <SheetCell />
     </GrandRow>
   );
 }

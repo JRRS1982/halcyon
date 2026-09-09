@@ -26,7 +26,6 @@ import {
   Toolbar,
   ToolbarGroup,
   ToolbarPeriodLabel,
-  ToolbarSelect,
   ToolbarSpacer,
   ToolbarTool,
 } from "@/components/sheet/Toolbar";
@@ -105,11 +104,12 @@ export type SerializedItem = {
   budget: number;
   actual: number;
   sortOrder: number;
+  notes: string | null;
 };
 
 type FocusedCell = {
   itemId: string;
-  field: "label" | "budget" | "actual";
+  field: "label" | "budget" | "actual" | "notes";
 } | null;
 
 // What the Add drawer knows about a new anchored row. The label defaults to
@@ -794,17 +794,12 @@ export function BudgetSheet({
   useEffect(() => {
     if (!openInfo) return;
     const close = () => setOpenInfo(null);
-    const onDocMouseDown = (e: MouseEvent) => {
-      if (!(e.target as Element).closest("[data-info-root]")) close();
-    };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") close();
     };
-    document.addEventListener("mousedown", onDocMouseDown);
     document.addEventListener("keydown", onKey);
     window.addEventListener("scroll", close, true);
     return () => {
-      document.removeEventListener("mousedown", onDocMouseDown);
       document.removeEventListener("keydown", onKey);
       window.removeEventListener("scroll", close, true);
     };
@@ -935,7 +930,7 @@ export function BudgetSheet({
           targetMonth: month,
         });
         setPeriodState((prev) => ({ ...prev, id: result.periodId }));
-        setItems(result.items);
+        setItems(result.items.map((it) => ({ ...it, notes: null })));
         setFocusedCell(null);
         setLastSavedAt(new Date());
         setSaveError(null);
@@ -991,7 +986,12 @@ export function BudgetSheet({
   const performUpdate = useCallback(
     async (
       itemId: string,
-      patch: { label?: string; budget?: number; actual?: number },
+      patch: {
+        label?: string;
+        budget?: number;
+        actual?: number;
+        notes?: string | null;
+      },
     ) => {
       pendingSavesRef.current += 1;
       setPendingCount(pendingSavesRef.current);
@@ -1019,7 +1019,12 @@ export function BudgetSheet({
   const editField = useCallback(
     (
       itemId: string,
-      patch: { label?: string; budget?: number; actual?: number },
+      patch: {
+        label?: string;
+        budget?: number;
+        actual?: number;
+        notes?: string | null;
+      },
     ) => {
       setItems((prev) =>
         prev.map((it) => (it.id === itemId ? { ...it, ...patch } : it)),
@@ -1027,31 +1032,6 @@ export function BudgetSheet({
       debouncedUpdate(itemId, patch);
     },
     [debouncedUpdate],
-  );
-
-  // Re-section a top-level income/expense row. Optimistic + immediate save
-  // (not debounced — it's a discrete click, not typing).
-  const editSection = useCallback(
-    (itemId: string, section: CategorySection) => {
-      setItems((prev) =>
-        prev.map((it) => (it.id === itemId ? { ...it, section } : it)),
-      );
-      startTransition(async () => {
-        pendingSavesRef.current += 1;
-        setPendingCount(pendingSavesRef.current);
-        try {
-          await updateItem({ itemId, section });
-          setLastSavedAt(new Date());
-          setSaveError(null);
-        } catch (e) {
-          setSaveError(e instanceof Error ? e.message : "Save failed");
-        } finally {
-          pendingSavesRef.current = Math.max(0, pendingSavesRef.current - 1);
-          setPendingCount(pendingSavesRef.current);
-        }
-      });
-    },
-    [],
   );
 
   const onAddRow = useCallback(
@@ -1101,6 +1081,7 @@ export function BudgetSheet({
               budget: Number(created.budget),
               actual: Number(created.actual),
               sortOrder: created.sortOrder,
+              notes: null,
             },
           ]);
           // Focus the new row's label input so the user can rename it
@@ -1373,7 +1354,7 @@ export function BudgetSheet({
   const onCellKeyDown = useCallback(
     (
       itemId: string,
-      field: "label" | "budget" | "actual",
+      field: "label" | "budget" | "actual" | "notes",
     ): KeyboardEventHandler<HTMLInputElement> =>
       (e) => {
         // Up and down step rows in the same column. Safe to take outright:
@@ -1401,7 +1382,7 @@ export function BudgetSheet({
           const back = e.key === "ArrowLeft";
           if (back ? !atStart : !atEnd) return;
 
-          const columns = ["label", "budget", "actual"] as const;
+          const columns = ["label", "budget", "actual", "notes"] as const;
           const to = columns[columns.indexOf(field) + (back ? -1 : 1)];
           // Missing when the column is not editable in this row — an actual
           // is read-only once transactions compute it — so the arrow simply
@@ -1504,6 +1485,21 @@ export function BudgetSheet({
     if (previous && previous !== current) removeIfUntouched(previous);
   }, [focusedCell, removeIfUntouched]);
 
+  // Clicking anywhere outside a budget item row or the toolbar clears focus.
+  // React 18 synthetic events fire before document listeners in bubble phase,
+  // so ItemRow's onMouseDown sets the new focus first, then this listener runs
+  // and sees [data-budget-item-row] → skips clearing.
+  useEffect(() => {
+    const onMouseDown = (e: MouseEvent) => {
+      const target = e.target as Element;
+      if (target.closest("[data-budget-item-row]")) return;
+      if (target.closest("[data-toolbar]")) return;
+      setFocusedCell(null);
+    };
+    document.addEventListener("mousedown", onMouseDown);
+    return () => document.removeEventListener("mousedown", onMouseDown);
+  }, []);
+
   // ─── Status pip state ─────────────────────────────────────────────────────
 
   const pipState: StatusPipState = saveError
@@ -1536,19 +1532,16 @@ export function BudgetSheet({
             type="button"
             data-info-root
             aria-label={`What goes in ${label}?`}
-            onClick={(e) => {
+            onMouseEnter={(e) => {
               const r = e.currentTarget.getBoundingClientRect();
-              setOpenInfo((prevInfo) =>
-                prevInfo?.title === label
-                  ? null
-                  : {
-                      title: label,
-                      body: help,
-                      top: r.bottom + 6,
-                      left: Math.min(r.left, window.innerWidth - 296),
-                    },
-              );
+              setOpenInfo({
+                title: label,
+                body: help,
+                top: r.bottom + 6,
+                left: Math.min(r.left, window.innerWidth - 296),
+              });
             }}
+            onMouseLeave={() => setOpenInfo(null)}
           >
             i
           </InfoButton>
@@ -1645,6 +1638,23 @@ export function BudgetSheet({
             tone: item.actual === 0 ? "dim" : "default",
           },
         }}
+        notes={{
+          value: (
+            <CellInput
+              ref={registerCell(`${item.id}:notes`)}
+              value={item.notes ?? ""}
+              placeholder="Notes (optional)"
+              onChange={(e) =>
+                editField(item.id, { notes: e.target.value || null })
+              }
+              onKeyDown={onCellKeyDown(item.id, "notes")}
+              onFocus={() =>
+                setFocusedCell({ itemId: item.id, field: "notes" })
+              }
+            />
+          ),
+          tone: !item.notes ? "dim" : "default",
+        }}
         focusedCell={
           focusedCell?.itemId === item.id ? focusedCell.field : undefined
         }
@@ -1663,7 +1673,7 @@ export function BudgetSheet({
         lead="Click any cell to edit. Arrows and Tab move around, Enter drops down and adds a row at the end of a section. Totals recalc as you type."
       />
 
-      <Toolbar>
+      <Toolbar data-toolbar>
         <ToolbarGroup>
           <PeriodNavWrapper ref={pickerWrapperRef}>
             <ToolbarTool onClick={onPrevMonth} aria-label="Previous month">
@@ -1992,40 +2002,6 @@ export function BudgetSheet({
             router.refresh();
           }}
         />
-        {focusedItem?.type === "EXPENSE" && (
-          <ToolbarGroup $rowScoped $engaged>
-            <ToolbarSelect
-              aria-label="Expense section"
-              value={focusedItem.section ?? "FIXED"}
-              onChange={(e) =>
-                editSection(focusedItem.id, e.target.value as ExpenseSection)
-              }
-            >
-              {EXPENSE_SECTION_META.map((c) => (
-                <option key={c.key} value={c.key}>
-                  {c.label}
-                </option>
-              ))}
-            </ToolbarSelect>
-          </ToolbarGroup>
-        )}
-        {focusedItem?.type === "INCOME" && (
-          <ToolbarGroup $rowScoped $engaged>
-            <ToolbarSelect
-              aria-label="Income section"
-              value={focusedItem.section ?? "OTHER"}
-              onChange={(e) =>
-                editSection(focusedItem.id, e.target.value as IncomeSection)
-              }
-            >
-              {INCOME_SECTION_META.map((c) => (
-                <option key={c.key} value={c.key}>
-                  {c.label}
-                </option>
-              ))}
-            </ToolbarSelect>
-          </ToolbarGroup>
-        )}
         <ToolbarGroup $rowScoped $engaged={!!focusedItem}>
           <ToolbarTool onClick={onDelete} disabled={!focusedItem} $danger>
             × Delete row

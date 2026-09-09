@@ -44,7 +44,12 @@ import {
 // `{}`); the budget sheet consumes budget/actual as numbers (`SerializedItem`),
 // so coerce them before returning a mutated item to the client.
 function toClientItem(item: BudgetItem) {
-  return { ...item, budget: Number(item.budget), actual: Number(item.actual) };
+  return {
+    ...item,
+    budget: Number(item.budget),
+    actual: Number(item.actual),
+    notes: item.notes,
+  };
 }
 
 // Gates every server action on a valid signed-in user. The middleware also
@@ -365,6 +370,7 @@ export async function updateItem(input: UpdateItemInput) {
           ...(parsed.budget !== undefined && { budget: parsed.budget }),
           ...(parsed.actual !== undefined && { actual: parsed.actual }),
           ...(parsed.section !== undefined && { section: parsed.section }),
+          ...(parsed.notes !== undefined && { notes: parsed.notes }),
           ...relink,
         },
       });

@@ -114,13 +114,15 @@ export const updateItemSchema = z
     budget: z.number().nonnegative().optional(),
     actual: z.number().nonnegative().optional(),
     section: categorySectionSchema.optional(),
+    notes: z.string().max(500).nullable().optional(),
   })
   .refine(
     (patch) =>
       patch.label !== undefined ||
       patch.budget !== undefined ||
       patch.actual !== undefined ||
-      patch.section !== undefined,
+      patch.section !== undefined ||
+      patch.notes !== undefined,
     { message: "At least one field must be updated" },
   );
 

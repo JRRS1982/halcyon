@@ -207,6 +207,7 @@ export default async function BudgetPage(props: PageProps) {
         : netActual(amountsByCategory.get(i.categoryId ?? "") ?? [], i.type)
       : Number(i.actual),
     sortOrder: i.sortOrder,
+    notes: i.notes,
   }));
 
   // Every account the user has, archived ones included: the Add drawer filters
