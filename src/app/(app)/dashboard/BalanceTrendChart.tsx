@@ -2,7 +2,6 @@
 
 import {
   CartesianGrid,
-  Legend,
   Line,
   LineChart,
   ReferenceLine,
@@ -12,7 +11,6 @@ import {
   YAxis,
 } from "recharts";
 import { useTheme } from "styled-components";
-import { ChartLegend } from "@/app/(app)/dashboard/ChartLegend";
 import { makeAmountTick } from "@/lib/charts/format";
 import type { BalancePoint } from "@/lib/dashboard/series";
 import { formatAmount, type NumberFormat } from "@/lib/settings/currency";
@@ -95,6 +93,13 @@ const SERIES: {
     dash: OTHER_DASH,
   },
 ];
+
+// Used by itemSorter to display tooltip rows in the declared series sequence
+// (assets → liabilities → net) rather than Recharts' default alphabetical sort.
+const SERIES_SORT_ORDER = new Map<string, number>([
+  ...SERIES.map((s, i) => [s.name, i] as const),
+  ["Net", SERIES.length],
+]);
 
 export function BalanceTrendChart({
   data,
@@ -184,6 +189,9 @@ export function BalanceTrendChart({
         {/* Zero baseline separates assets (above) from debts (below). */}
         <ReferenceLine y={0} stroke={theme.colors.body} strokeWidth={1} />
         <Tooltip
+          itemSorter={(item) =>
+            SERIES_SORT_ORDER.get(item.name as string) ?? SERIES.length + 1
+          }
           formatter={(value, name) => [
             formatAmount(currency, Number(value), numberFormat),
             name,
@@ -193,14 +201,6 @@ export function BalanceTrendChart({
             borderRadius: theme.rounded.sm,
             fontSize: 12,
           }}
-        />
-        {/* Ordered assets → liabilities → net, read top to bottom. */}
-        <Legend
-          layout="vertical"
-          align="right"
-          verticalAlign="middle"
-          wrapperStyle={{ fontSize: 12 }}
-          content={<ChartLegend />}
         />
         {SERIES.map((s) => (
           <Line
@@ -218,7 +218,7 @@ export function BalanceTrendChart({
         <Line
           type="monotone"
           dataKey="net"
-          name="Net balance"
+          name="Net"
           stroke={theme.colors.body}
           strokeWidth={2.5}
           dot={{ r: 2.5, fill: theme.colors.body }}

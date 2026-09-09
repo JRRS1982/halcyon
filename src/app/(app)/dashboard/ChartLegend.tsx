@@ -25,6 +25,12 @@ const Item = styled.li`
   gap: 6px;
 `;
 
+const SeparatorItem = styled.li`
+  border-top: 1px solid ${({ theme }) => theme.colors.hairline};
+  margin: 4px 0;
+  list-style: none;
+`;
+
 const dashOf = (entry: LegendPayload): string | undefined => {
   const payload = entry.payload as
     | { strokeDasharray?: string | number }
@@ -36,35 +42,45 @@ const dashOf = (entry: LegendPayload): string | undefined => {
 export function ChartLegend({
   payload,
   layout,
+  separatorAfter,
 }: {
   payload?: ReadonlyArray<LegendPayload>;
   layout?: "horizontal" | "vertical";
+  separatorAfter?: ReadonlyArray<number>;
 }) {
   if (!payload?.length) return null;
-  return (
-    <List $vertical={layout === "vertical"}>
-      {payload.map((entry) => (
-        <Item key={entry.value} style={{ color: entry.color }}>
-          {entry.type === "rect" ? (
-            <svg width={14} height={14} aria-hidden="true">
-              <rect x={1} y={2} width={12} height={10} fill={entry.color} />
-            </svg>
-          ) : (
-            <svg width={28} height={14} aria-hidden="true">
-              <line
-                x1={1}
-                y1={7}
-                x2={27}
-                y2={7}
-                stroke={entry.color}
-                strokeWidth={2}
-                strokeDasharray={dashOf(entry)}
-              />
-            </svg>
-          )}
-          {entry.value}
-        </Item>
-      ))}
-    </List>
-  );
+  const sep = new Set(separatorAfter ?? []);
+  const items: React.ReactNode[] = [];
+  for (let i = 0; i < payload.length; i++) {
+    const entry = payload[i];
+    if (!entry) continue;
+    items.push(
+      <Item key={i} style={{ color: entry.color }}>
+        {entry.type === "rect" ? (
+          <svg width={14} height={14} aria-hidden="true">
+            <rect x={1} y={2} width={12} height={10} fill={entry.color} />
+          </svg>
+        ) : (
+          <svg width={28} height={14} aria-hidden="true">
+            <line
+              x1={1}
+              y1={7}
+              x2={27}
+              y2={7}
+              stroke={entry.color}
+              strokeWidth={2}
+              strokeDasharray={dashOf(entry)}
+            />
+          </svg>
+        )}
+        {entry.value}
+      </Item>,
+    );
+    if (sep.has(i)) {
+      items.push(
+        <SeparatorItem key={`sep-${i}`} role="separator" aria-hidden="true" />,
+      );
+    }
+  }
+  return <List $vertical={layout === "vertical"}>{items}</List>;
 }
