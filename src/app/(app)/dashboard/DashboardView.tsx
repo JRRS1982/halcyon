@@ -376,6 +376,7 @@ export function DashboardView({
             stats={summary}
             currency={currency}
             numberFormat={numberFormat}
+            monthLabel={checklistMonth}
           />
         </>
       )}
