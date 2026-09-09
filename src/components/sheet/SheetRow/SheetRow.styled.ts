@@ -21,11 +21,15 @@ const baseRow = css`
 
   /* A 360px phone leaves 328px inside the page's 16px mobile gutters, so the
      row floor sits at 320px — all three columns land on screen with nothing
-     to pan to. Amounts keep tabular-nums room at 95px; see SheetCell for the
-     matching drop in horizontal cell padding. */
+     to pan to. Notes is hidden to keep the sheet at three columns and within
+     the viewport. Amounts keep tabular-nums room at 95px; see SheetCell for
+     the matching drop in horizontal cell padding. */
   @media (max-width: 767px) {
-    grid-template-columns: minmax(130px, 1fr) 95px 95px minmax(100px, 1fr);
-    min-width: 440px;
+    grid-template-columns: minmax(130px, 1fr) 95px 95px;
+    min-width: 320px;
+    > div:nth-child(4) {
+      display: none;
+    }
   }
 
   /* Each row variant already paints an opaque background on its cells, so the
