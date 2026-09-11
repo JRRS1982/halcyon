@@ -36,6 +36,29 @@ export const LegalHeading = styled.h2`
   color: ${({ theme }) => theme.colors.ink};
 `;
 
+// /design renders DESIGN.md, which nests three heading levels under its
+// sections. The legal pages only ever needed h2, so these arrived with it —
+// they belong beside LegalHeading rather than in one page's own styles.
+export const LegalSubHeading = styled.h3`
+  margin: ${({ theme }) => theme.spacing.xl} 0
+    ${({ theme }) => theme.spacing.sm};
+  font-family: ${({ theme }) => theme.typography.bodyMdStrong.family};
+  font-size: ${({ theme }) => theme.typography.bodyMdStrong.size};
+  font-weight: ${({ theme }) => theme.typography.bodyMdStrong.weight};
+  color: ${({ theme }) => theme.colors.ink};
+`;
+
+export const LegalMinorHeading = styled.h4`
+  margin: ${({ theme }) => theme.spacing.lg} 0
+    ${({ theme }) => theme.spacing.sm};
+  font-family: ${({ theme }) => theme.typography.monoCaps.family};
+  font-size: ${({ theme }) => theme.typography.monoCaps.size};
+  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
+  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
+  text-transform: uppercase;
+  color: ${({ theme }) => theme.colors.dim};
+`;
+
 export const LegalBody = styled.p`
   margin: 0 0 ${({ theme }) => theme.spacing.md};
   font-family: ${({ theme }) => theme.typography.bodyMd.family};

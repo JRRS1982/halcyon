@@ -19,6 +19,14 @@ const nextConfig = {
   async redirects() {
     return [{ source: "/about", destination: "/guide", permanent: true }];
   },
+  // /design and /design.md both read DESIGN.md from the repository root at
+  // request time. Nothing imports it, so Next's dependency trace cannot see it
+  // and would leave it out of the server bundle — the read then works locally,
+  // where the whole repo is on disk, and throws ENOENT on Vercel.
+  outputFileTracingIncludes: {
+    "/design": ["./DESIGN.md"],
+    "/design.md": ["./DESIGN.md"],
+  },
   experimental: {
     serverActions: {
       // CSV import posts parsed rows as JSON, which outgrows the 1MB default

@@ -18,6 +18,10 @@ describe("Footer", () => {
       "href",
       "/guide",
     );
+    expect(screen.getByRole("link", { name: /^design$/i })).toHaveAttribute(
+      "href",
+      "/design",
+    );
     expect(screen.getByRole("link", { name: /engineering/i })).toHaveAttribute(
       "href",
       "/how-its-built",
