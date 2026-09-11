@@ -131,3 +131,169 @@ describe("ledger queries (integration)", () => {
     expect(page.items.map((t) => t.amount)).toEqual([-9, -5, -3]);
   });
 });
+
+describe("ledger filters (integration)", () => {
+  // Two accounts, two categories, a transfer, and both signs of amount — the
+  // combinations the drawer's filters have to tell apart against real SQL.
+  const seedMixed = async () => {
+    const [current, savings] = await Promise.all([
+      prisma.account.create({
+        data: {
+          userId: TEST_USER_ID,
+          name: "Current",
+          ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+        },
+      }),
+      prisma.account.create({
+        data: {
+          userId: TEST_USER_ID,
+          name: "Savings",
+          ...buildAccountData({ type: "SAVINGS" }),
+        },
+      }),
+    ]);
+    const [food, salary] = await Promise.all([
+      prisma.category.create({
+        data: {
+          userId: TEST_USER_ID,
+          type: "EXPENSE",
+          section: "VARIABLE",
+          label: "Food",
+        },
+      }),
+      prisma.category.create({
+        data: {
+          userId: TEST_USER_ID,
+          type: "INCOME",
+          section: "SALARY",
+          label: "Salary",
+        },
+      }),
+    ]);
+
+    await prisma.transaction.createMany({
+      data: [
+        {
+          userId: TEST_USER_ID,
+          accountId: current.id,
+          categoryId: food.id,
+          date: new Date("2026-01-01"),
+          amount: -40,
+          description: "Jan food",
+        },
+        {
+          userId: TEST_USER_ID,
+          accountId: current.id,
+          categoryId: salary.id,
+          date: new Date("2026-02-15"),
+          amount: 40,
+          description: "Feb pay",
+        },
+        {
+          userId: TEST_USER_ID,
+          accountId: current.id,
+          categoryId: food.id,
+          date: new Date("2026-03-31"),
+          amount: -400,
+          description: "Mar food",
+        },
+        {
+          userId: TEST_USER_ID,
+          accountId: savings.id,
+          transferAccountId: current.id,
+          date: new Date("2026-02-01"),
+          amount: 200,
+          description: "Feb sweep",
+        },
+      ],
+    });
+    return { current, savings, food };
+  };
+
+  test("a date range includes rows sitting exactly on both bounds", async () => {
+    await seedMixed();
+    const page = await getTransactionsPage(TEST_USER_ID, {
+      from: "2026-01-01",
+      to: "2026-03-31",
+    });
+    expect(page.total).toBe(4);
+
+    const narrowed = await getTransactionsPage(TEST_USER_ID, {
+      from: "2026-02-01",
+      to: "2026-02-15",
+    });
+    expect(narrowed.items.map((t) => t.description).sort()).toEqual([
+      "Feb pay",
+      "Feb sweep",
+    ]);
+  });
+
+  test("an account filter returns only that account's rows", async () => {
+    const { savings } = await seedMixed();
+    const page = await getTransactionsPage(TEST_USER_ID, {
+      accountId: savings.id,
+    });
+    expect(page.items.map((t) => t.description)).toEqual(["Feb sweep"]);
+  });
+
+  test("a category filter returns only that category's rows", async () => {
+    const { food } = await seedMixed();
+    const page = await getTransactionsPage(TEST_USER_ID, {
+      category: { kind: "category", categoryId: food.id },
+    });
+    expect(page.items.map((t) => t.description).sort()).toEqual([
+      "Jan food",
+      "Mar food",
+    ]);
+  });
+
+  test("the transfers filter returns only rows with a counterparty", async () => {
+    await seedMixed();
+    const page = await getTransactionsPage(TEST_USER_ID, {
+      category: { kind: "transfers" },
+    });
+    expect(page.items.map((t) => t.description)).toEqual(["Feb sweep"]);
+  });
+
+  test("an amount range matches magnitude, so it catches both signs", async () => {
+    await seedMixed();
+    // -40 and +40 are both "£40"; -400 and +200 are outside the range.
+    const page = await getTransactionsPage(TEST_USER_ID, {
+      amountMin: 30,
+      amountMax: 50,
+    });
+    expect(page.items.map((t) => t.description).sort()).toEqual([
+      "Feb pay",
+      "Jan food",
+    ]);
+  });
+
+  test("a lower bound alone keeps the large rows of either sign", async () => {
+    await seedMixed();
+    const page = await getTransactionsPage(TEST_USER_ID, { amountMin: 100 });
+    expect(page.items.map((t) => t.description).sort()).toEqual([
+      "Feb sweep",
+      "Mar food",
+    ]);
+  });
+
+  test("an upper bound alone keeps the small rows of either sign", async () => {
+    await seedMixed();
+    const page = await getTransactionsPage(TEST_USER_ID, { amountMax: 100 });
+    expect(page.items.map((t) => t.description).sort()).toEqual([
+      "Feb pay",
+      "Jan food",
+    ]);
+  });
+
+  test("the total counts filtered rows, not the whole ledger", async () => {
+    const { current, food } = await seedMixed();
+    const page = await getTransactionsPage(TEST_USER_ID, {
+      accountId: current.id,
+      category: { kind: "category", categoryId: food.id },
+      from: "2026-03-01",
+    });
+    expect(page.total).toBe(1);
+    expect(page.items.map((t) => t.description)).toEqual(["Mar food"]);
+  });
+});

@@ -5,6 +5,7 @@ import { kindOf } from "@/lib/accounts/accountDraft";
 import { categoryKey, cleanLabel } from "@/lib/categories/normalize";
 import { sectionLabel } from "@/lib/categories/sections";
 import { prisma } from "@/lib/prisma";
+import { type LedgerFilters, ledgerWhere } from "./filters";
 import { PAGE_SIZE } from "./pagination";
 import {
   type DatedTransferLeg,
@@ -42,10 +43,8 @@ export type SortColumn =
   | "category";
 export type SortDir = "asc" | "desc";
 
-export type LedgerQuery = {
+export type LedgerQuery = LedgerFilters & {
   offset?: number;
-  search?: string;
-  onlyUncategorized?: boolean;
   sortColumn?: SortColumn;
   sortDir?: SortDir;
 };
@@ -223,25 +222,17 @@ function orderByFor(column: SortColumn, dir: SortDir) {
 }
 
 // One page of the ledger plus the total row count for the same filters, so
-// the UI can render numbered pages. Supports a description phrase search, an
-// optional "uncategorized only" filter, and sorting by any column.
+// the UI can render numbered pages. The predicate itself lives in ledgerWhere
+// — a description search, the "uncategorized only" toggle, and the drawer's
+// date / account / category / amount filters — leaving this function to paging
+// and sorting. Both queries below share the one `where`, so the total can
+// never describe a different set of rows than the page.
 export async function getTransactionsPage(
   userId: string,
   query: LedgerQuery = {},
 ): Promise<LedgerPage> {
   const offset = query.offset ?? 0;
-  const search = query.search?.trim();
-
-  const where = {
-    userId,
-    deletedAt: null,
-    ...(query.onlyUncategorized
-      ? { categoryId: null, transferAccountId: null }
-      : {}),
-    ...(search
-      ? { description: { contains: search, mode: "insensitive" as const } }
-      : {}),
-  };
+  const where = ledgerWhere(userId, query);
 
   const [rows, total] = await Promise.all([
     prisma.transaction.findMany({
