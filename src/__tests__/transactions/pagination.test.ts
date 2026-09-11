@@ -13,6 +13,12 @@ describe("parseLedgerSearchParams", () => {
       onlyUncategorized: false,
       sortColumn: "date",
       sortDir: "desc",
+      from: null,
+      to: null,
+      accountId: null,
+      category: { kind: "any" },
+      amountMin: null,
+      amountMax: null,
     });
   });
 
@@ -24,6 +30,12 @@ describe("parseLedgerSearchParams", () => {
         uncat: "1",
         sort: "amount",
         dir: "asc",
+        from: "2026-01-01",
+        to: "2026-03-31",
+        acct: "11111111-1111-1111-1111-111111111111",
+        cat: "22222222-2222-2222-2222-222222222222",
+        min: "10",
+        max: "50.5",
       }),
     ).toEqual({
       page: 3,
@@ -31,6 +43,15 @@ describe("parseLedgerSearchParams", () => {
       onlyUncategorized: true,
       sortColumn: "amount",
       sortDir: "asc",
+      from: "2026-01-01",
+      to: "2026-03-31",
+      accountId: "11111111-1111-1111-1111-111111111111",
+      category: {
+        kind: "category",
+        categoryId: "22222222-2222-2222-2222-222222222222",
+      },
+      amountMin: 10,
+      amountMax: 50.5,
     });
   });
 
@@ -56,6 +77,68 @@ describe("parseLedgerSearchParams", () => {
   test("over-long search input is truncated", () => {
     const parsed = parseLedgerSearchParams({ q: "x".repeat(500) });
     expect(parsed.search).toHaveLength(200);
+  });
+
+  test("only real calendar dates survive", () => {
+    expect(parseLedgerSearchParams({ from: "2026-02-28" }).from).toBe(
+      "2026-02-28",
+    );
+    expect(parseLedgerSearchParams({ from: "2026-02-30" }).from).toBeNull();
+    expect(parseLedgerSearchParams({ from: "2026-13-01" }).from).toBeNull();
+    expect(parseLedgerSearchParams({ to: "28/02/2026" }).to).toBeNull();
+    expect(parseLedgerSearchParams({ to: "yesterday" }).to).toBeNull();
+  });
+
+  test("an out-of-order date range is kept as typed, not silently swapped", () => {
+    const parsed = parseLedgerSearchParams({
+      from: "2026-06-01",
+      to: "2026-01-01",
+    });
+    expect(parsed.from).toBe("2026-06-01");
+    expect(parsed.to).toBe("2026-01-01");
+  });
+
+  test("the transfers sentinel is distinct from a category id", () => {
+    expect(parseLedgerSearchParams({ cat: "transfers" }).category).toEqual({
+      kind: "transfers",
+    });
+    expect(
+      parseLedgerSearchParams({ cat: "22222222-2222-2222-2222-222222222222" })
+        .category,
+    ).toEqual({
+      kind: "category",
+      categoryId: "22222222-2222-2222-2222-222222222222",
+    });
+    expect(parseLedgerSearchParams({ cat: "" }).category).toEqual({
+      kind: "any",
+    });
+  });
+
+  test("amount bounds reject non-numeric and negative input", () => {
+    expect(parseLedgerSearchParams({ min: "0" }).amountMin).toBe(0);
+    expect(parseLedgerSearchParams({ min: "12.34" }).amountMin).toBe(12.34);
+    expect(parseLedgerSearchParams({ min: "banana" }).amountMin).toBeNull();
+    // Amounts are matched on magnitude, so a negative bound is meaningless.
+    expect(parseLedgerSearchParams({ max: "-5" }).amountMax).toBeNull();
+    expect(parseLedgerSearchParams({ max: "Infinity" }).amountMax).toBeNull();
+  });
+
+  test("only uuid-shaped ids survive, since that is the column type", () => {
+    // A non-uuid reaching Prisma is a 500, not an empty ledger, so the id is
+    // shape-checked here rather than trusted downstream.
+    expect(
+      parseLedgerSearchParams({ acct: "11111111-1111-1111-1111-111111111111" })
+        .accountId,
+    ).toBe("11111111-1111-1111-1111-111111111111");
+    expect(
+      parseLedgerSearchParams({ acct: "no-such-account" }).accountId,
+    ).toBeNull();
+    expect(
+      parseLedgerSearchParams({ acct: "x".repeat(200) }).accountId,
+    ).toBeNull();
+    expect(parseLedgerSearchParams({ cat: "'; drop table" }).category).toEqual({
+      kind: "any",
+    });
   });
 });
 

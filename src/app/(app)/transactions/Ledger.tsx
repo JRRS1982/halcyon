@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Fragment, useEffect, useRef, useState, useTransition } from "react";
 import styled, { css } from "styled-components";
 import { useDebouncedCallback } from "@/lib/hooks/useDebouncedCallback";
+import { activeFilters } from "@/lib/transactions/activeFilters";
 import {
   type LedgerUrlQuery,
   pageCount,
@@ -17,6 +18,7 @@ import type {
   SortColumn,
   SortDir,
 } from "@/lib/transactions/server";
+import { ledgerFooter } from "@/lib/transactions/totals";
 import {
   bulkDeleteTransactions,
   bulkSetTransactionCategory,
@@ -28,6 +30,8 @@ import {
   setTransactionTransfer,
 } from "./actions";
 import { CategoryCombobox, type NewCategoryInput } from "./CategoryCombobox";
+import { FilterDrawer } from "./FilterDrawer";
+import { LedgerControls } from "./LedgerControls";
 
 type LedgerAccount = {
   id: string;
@@ -64,73 +68,32 @@ const Nudge = styled.span`
   color: ${({ theme }) => theme.colors.body};
 `;
 
-const Controls = styled.div`
-  display: flex;
-  align-items: center;
-  gap: ${({ theme }) => theme.spacing.md};
-  flex-wrap: wrap;
+// DESIGN.md → sheet-row-grand: the black band that ends the table. The spec
+// sets its amount in amount-xl (18px), but the ledger's amount column is 96px
+// and a five-figure total would overflow it, so this uses amount-strong — the
+// band still carries the emphasis, which is the point the spec makes.
+const TotalCell = styled.td`
+  padding: ${({ theme }) => theme.spacing.md};
+  background: ${({ theme }) => theme.colors.band};
+  color: ${({ theme }) => theme.colors.onBand};
+  font-family: ${({ theme }) => theme.typography.monoCaps.family};
+  font-size: ${({ theme }) => theme.typography.monoCaps.size};
+  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
+  text-transform: uppercase;
+  white-space: nowrap;
 `;
 
-const Toggle = styled.label`
-  display: inline-flex;
-  align-items: center;
-  gap: ${({ theme }) => theme.spacing.sm};
-  font-family: ${({ theme }) => theme.typography.bodyMd.family};
-  font-size: 13px;
-  color: ${({ theme }) => theme.colors.body};
-  cursor: pointer;
-`;
-
-const SwitchInput = styled.input`
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-`;
-
-const SwitchTrack = styled.span`
-  position: relative;
-  display: inline-block;
-  width: 36px;
-  height: 20px;
-  border-radius: 999px;
-  background: ${({ theme }) => theme.colors.hairlineStrong};
-  transition: background 0.15s ease;
-
-  &::after {
-    content: "";
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    background: ${({ theme }) => theme.colors.canvas};
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
-    transition: transform 0.15s ease;
-  }
-
-  ${SwitchInput}:checked + & {
-    background: ${({ theme }) => theme.colors.accent};
-  }
-  ${SwitchInput}:checked + &::after {
-    transform: translateX(16px);
-  }
-  ${SwitchInput}:focus-visible + & {
-    outline: 2px solid ${({ theme }) => theme.colors.accent};
-    outline-offset: 2px;
-  }
-`;
-
-const Search = styled.input`
-  flex: 1;
-  min-width: 160px;
-  padding: ${({ theme }) => theme.spacing.sm}
-    ${({ theme }) => theme.spacing.md};
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  font-family: ${({ theme }) => theme.typography.bodyMd.family};
-  font-size: 13px;
+// Always monochrome — DESIGN.md is explicit that a grand-total row takes no
+// positive/negative colouring, because the band is already the heaviest
+// treatment on the page and colour fights it.
+const TotalAmount = styled(TotalCell)`
+  text-align: right;
+  font-family: ${({ theme }) => theme.typography.amountStrong.family};
+  font-size: ${({ theme }) => theme.typography.amountStrong.size};
+  font-weight: ${({ theme }) => theme.typography.amountStrong.weight};
+  letter-spacing: ${({ theme }) => theme.typography.amountStrong.letterSpacing};
+  text-transform: none;
+  font-variant-numeric: tabular-nums;
 `;
 
 // Seven columns (select, date, description, account, amount, category, note)
@@ -176,12 +139,21 @@ const COLUMN_WIDTHS: [column: string, width: string][] = [
   ["note", "76px"],
 ];
 
+// DESIGN.md → sheet-row-head: canvas-soft ground, mono-caps labels, and a
+// hairline-strong rule below. The ledger's header used to be plain bold body
+// text on canvas over an ordinary hairline, which is why it read as a row of
+// slightly heavier data rather than as the head of the table.
 const Th = styled.th<{ $align?: "right" }>`
   text-align: ${({ $align }) => ($align === "right" ? "right" : "left")};
   padding: ${({ theme }) => theme.spacing.sm};
-  border-bottom: 1px solid ${({ theme }) => theme.colors.hairline};
-  color: ${({ theme }) => theme.colors.dim};
-  font-weight: 600;
+  background: ${({ theme }) => theme.colors.canvasSoft};
+  border-bottom: 1px solid ${({ theme }) => theme.colors.hairlineStrong};
+  color: ${({ theme }) => theme.colors.body};
+  font-family: ${({ theme }) => theme.typography.monoCaps.family};
+  font-size: ${({ theme }) => theme.typography.monoCaps.size};
+  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
+  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
+  text-transform: uppercase;
   cursor: pointer;
   user-select: none;
   white-space: nowrap;
@@ -261,7 +233,8 @@ const stickySelect = css`
 const ThCheck = styled.th`
   width: 28px;
   padding: ${({ theme }) => theme.spacing.sm};
-  border-bottom: 1px solid ${({ theme }) => theme.colors.hairline};
+  background: ${({ theme }) => theme.colors.canvasSoft};
+  border-bottom: 1px solid ${({ theme }) => theme.colors.hairlineStrong};
 `;
 
 // Select-all header cell; pins with its column, see stickySelect.
@@ -399,35 +372,6 @@ const NoteArea = styled.textarea`
   }
 `;
 
-// Sits between the controls and the table whenever there are rows. It used to
-// mount only while something was selected, which pushed the whole table down on
-// the first tick and yanked it back on the last — the jump was the length of
-// this bar. Permanently in flow, idle-but-inert when nothing is selected, it
-// reads as the ledger's toolbar (DESIGN.md → Toolbar) and never moves anything.
-const BulkBar = styled.section`
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: ${({ theme }) => theme.spacing.md};
-  padding: ${({ theme }) => theme.spacing.sm}
-    ${({ theme }) => theme.spacing.md};
-  border: 1px solid ${({ theme }) => theme.colors.hairlineStrong};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  background: ${({ theme }) => theme.colors.canvasSoft};
-`;
-
-// Doubles as the bar's label: the selection count when there is one, the
-// prompt that explains the bar when there isn't — dimmed, since nothing here
-// is actionable yet.
-const BulkCount = styled.span<{ $idle: boolean }>`
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
-  text-transform: uppercase;
-  color: ${({ $idle, theme }) => ($idle ? theme.colors.dim : theme.colors.body)};
-`;
-
 // Destructive per DESIGN.md: outline with red text, never one-click.
 const DangerButton = styled.button`
   padding: ${({ theme }) => theme.spacing.sm}
@@ -549,15 +493,13 @@ export function Ledger({
   // optimistically; re-adopted whenever the server re-renders the page.
   const [items, setItems] = useState<LedgerTransaction[]>(page.items);
   const [search, setSearch] = useState(query.search);
-  // Optimistic mirror of the URL filter so the switch flips instantly while
-  // the navigation round-trips.
-  const [uncatChecked, setUncatChecked] = useState(query.onlyUncategorized);
   const [categories, setCategories] = useState(initialCategories);
   const [transferAccounts, setTransferAccounts] = useState(
     initialTransferAccounts,
   );
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   // The search value we last asked the URL for — see the sync effect below.
   const sentSearchRef = useRef(query.search);
@@ -566,6 +508,19 @@ export function Ledger({
   const [noteDraft, setNoteDraft] = useState("");
 
   const { onlyUncategorized, sortColumn, sortDir } = query;
+
+  // One source for both the badge count and the chips, so the number can never
+  // claim more or fewer filters than the row beneath it shows. The account
+  // names come from the full active-account list rather than the importable
+  // subset, so a filter can never point at an account the chip cannot name.
+  const chips = activeFilters(query, {
+    accounts: transferAccounts,
+    categories,
+  });
+
+  // Nets the rows on screen, not every matching row — and says which it is,
+  // so a partial sum can never read as a grand total.
+  const footer = ledgerFooter(items, page.total);
 
   // Adopt fresh server data whenever the rendered page changes — a URL
   // navigation, or a revalidation after a mutation. Stale row selections are
@@ -580,8 +535,8 @@ export function Ledger({
     setTransferAccounts(initialTransferAccounts);
   }, [initialCategories, initialTransferAccounts]);
 
-  // Keep the search box and filter switch in step with the URL (e.g.
-  // back/forward navigation) — but never adopt the echo of our own typing.
+  // Keep the search box in step with the URL (e.g. back/forward navigation)
+  // — but never adopt the echo of our own typing.
   //
   // `q` is debounced 300ms and then round-trips through the server, so the
   // `query.search` that comes back is always older than what is in the box by
@@ -594,10 +549,6 @@ export function Ledger({
     sentSearchRef.current = query.search;
     setSearch(query.search);
   }, [query.search]);
-
-  useEffect(() => {
-    setUncatChecked(query.onlyUncategorized);
-  }, [query.onlyUncategorized]);
 
   // The whole ledger query lives in the URL, so the server renders exactly the
   // requested page and back/forward + shareable links work. Filter and sort
@@ -631,11 +582,6 @@ export function Ledger({
   const onSearch = (value: string) => {
     setSearch(value);
     runSearch(value);
-  };
-
-  const onToggleUncategorized = (checked: boolean) => {
-    setUncatChecked(checked);
-    updateParams({ uncat: checked ? "1" : null, page: null }, "replace");
   };
 
   const onSort = (key: SortColumn) => {
@@ -899,33 +845,19 @@ export function Ledger({
         )}
       </Head>
 
-      <Controls>
-        <Toggle>
-          <SwitchInput
-            type="checkbox"
-            checked={uncatChecked}
-            onChange={(e) => onToggleUncategorized(e.target.checked)}
-          />
-          <SwitchTrack />
-          Uncategorized only
-        </Toggle>
-        <Search
-          ref={searchRef}
-          value={search}
-          onChange={(e) => onSearch(e.target.value)}
-          placeholder="Search description…"
-        />
-      </Controls>
-
-      {/* Only alongside rows — a toolbar for selecting from an empty table
-          would be its own kind of noise. */}
-      {items.length > 0 && (
-        <BulkBar aria-label="Bulk actions">
-          <BulkCount $idle={!hasSelection}>
-            {hasSelection
-              ? `${selected.size} selected`
-              : "Select rows to categorize or delete"}
-          </BulkCount>
+      <LedgerControls
+        search={search}
+        searchRef={searchRef}
+        onSearch={onSearch}
+        chips={chips}
+        onClearFilter={(chip) =>
+          updateParams({ ...chip.clear, page: null }, "replace")
+        }
+        onOpenFilters={() => setFiltersOpen(true)}
+        selectedCount={selected.size}
+        onClearSelection={() => setSelected(new Set())}
+        onDelete={() => setConfirmDelete(true)}
+        categorizer={
           <CategoryCombobox
             categories={categories}
             transferAccounts={transferAccounts}
@@ -945,26 +877,29 @@ export function Ledger({
             onTransfer={onBulkTransfer}
             onCreateAccount={onBulkCreateAccountAndTransfer}
           />
-          <DangerButton
-            type="button"
-            disabled={!hasSelection}
-            onClick={() => setConfirmDelete(true)}
-          >
-            Delete…
-          </DangerButton>
-          <GhostButton
-            type="button"
-            disabled={!hasSelection}
-            onClick={() => setSelected(new Set())}
-          >
-            Clear selection
-          </GhostButton>
-        </BulkBar>
-      )}
+        }
+      />
+
+      <FilterDrawer
+        open={filtersOpen}
+        query={query}
+        accounts={transferAccounts}
+        categories={categories}
+        transfersEnabled={transfersEnabled}
+        onClose={() => setFiltersOpen(false)}
+        onApply={(params) => {
+          setFiltersOpen(false);
+          updateParams({ ...params, page: null }, "replace");
+        }}
+      />
 
       {items.length === 0 ? (
         <Empty>
-          {onlyUncategorized || search ? (
+          {/* Any narrowing at all — the toggle, the search box, or a drawer
+              filter — means the ledger is not necessarily empty, just this
+              view of it. The first-run copy below would read as "your
+              transactions are gone". */}
+          {onlyUncategorized || search || chips.length > 0 ? (
             "No transactions match."
           ) : (
             <>
@@ -1109,6 +1044,20 @@ export function Ledger({
                 </Fragment>
               ))}
             </tbody>
+            <tfoot>
+              <tr>
+                {/* Spans select + date so the label starts under Description,
+                    leaving the figure aligned beneath the Amount column. */}
+                <TotalCell colSpan={3}>{footer.label}</TotalCell>
+                <TotalCell />
+                {/* toFixed, matching the rows above it exactly: they render a raw
+                    ASCII-hyphen amount, and the app's typographic minus here
+                    would sit at a different width in the same column. */}
+                <TotalAmount>{footer.net.toFixed(2)}</TotalAmount>
+                <TotalCell />
+                <TotalCell />
+              </tr>
+            </tfoot>
           </Table>
         </TableScroll>
       )}

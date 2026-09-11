@@ -11,6 +11,12 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { ThemeProvider } from "styled-components";
 import { Ledger } from "@/app/(app)/transactions/Ledger";
 import { theme } from "@/lib/theme";
+import { parseLedgerSearchParams } from "@/lib/transactions/pagination";
+
+// Derived from the parser rather than written out, so a new filter added to
+// LedgerUrlQuery cannot leave these fixtures silently behind.
+const queryWith = (params: Record<string, string> = {}) =>
+  parseLedgerSearchParams(params);
 
 const replace = jest.fn();
 jest.mock("next/navigation", () => ({
@@ -55,13 +61,7 @@ const renderLedger = () =>
           ],
           total: 1,
         }}
-        query={{
-          page: 1,
-          search: "",
-          onlyUncategorized: false,
-          sortColumn: "date",
-          sortDir: "desc",
-        }}
+        query={queryWith()}
         categories={[]}
         transferAccounts={[
           {
@@ -99,13 +99,7 @@ describe("Ledger search box", () => {
       <ThemeProvider theme={theme}>
         <Ledger
           page={{ items: [], total: 0 }}
-          query={{
-            page: 1,
-            search,
-            onlyUncategorized: false,
-            sortColumn: "date",
-            sortDir: "desc",
-          }}
+          query={queryWith({ q: search })}
           categories={[]}
           transferAccounts={[]}
           uncategorizedCount={0}
@@ -135,13 +129,7 @@ describe("Ledger search box", () => {
         <ThemeProvider theme={theme}>
           <Ledger
             page={{ items: [], total: 0 }}
-            query={{
-              page: 1,
-              search: "coffee",
-              onlyUncategorized: false,
-              sortColumn: "date",
-              sortDir: "desc",
-            }}
+            query={queryWith({ q: "coffee" })}
             categories={[]}
             transferAccounts={[]}
             uncategorizedCount={0}
@@ -165,13 +153,7 @@ describe("Ledger search box", () => {
       <ThemeProvider theme={theme}>
         <Ledger
           page={{ items: [], total: 0 }}
-          query={{
-            page: 1,
-            search: "rent",
-            onlyUncategorized: false,
-            sortColumn: "date",
-            sortDir: "desc",
-          }}
+          query={queryWith({ q: "rent" })}
           categories={[]}
           transferAccounts={[]}
           uncategorizedCount={0}
