@@ -29,5 +29,8 @@ describe("MarketingFooter", () => {
       "href",
       "/how-its-built",
     );
+    expect(
+      screen.getByRole("link", { name: /design system/i }),
+    ).toHaveAttribute("href", "/design");
   });
 });

@@ -32,6 +32,9 @@ export function MarketingFooter() {
                 it's built" one line under "How it works" reads as the same
                 link twice. */}
             <FootLink href="/how-its-built">Engineering</FootLink>
+            {/* The design system, rendered from DESIGN.md. Sits under Product
+                rather than Legal: it is the thing itself, not a policy. */}
+            <FootLink href="/design">Design system</FootLink>
           </div>
           <div>
             <ColTitle>Legal</ColTitle>
