@@ -1,5 +1,5 @@
-import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
+import { isAuthorizedBearer } from "@/lib/auth/bearer";
 import { buildReminder, isReminderDue } from "@/lib/email/reminder";
 import { isEmailConfigured, sendEmail } from "@/lib/email/send";
 import {
@@ -24,29 +24,12 @@ export const runtime = "nodejs";
 // Never cached, never prerendered — it has side effects and reads the clock.
 export const dynamic = "force-dynamic";
 
-/**
- * Constant-time bearer check against CRON_SECRET.
- *
- * Vercel attaches `Authorization: Bearer $CRON_SECRET` to scheduled
- * invocations. If the secret isn't set we refuse rather than run: an
- * unauthenticated endpoint that sends mail to every subscriber is a way to get
- * a domain blocklisted, and "no secret configured" must not read as "no
- * authentication required".
- */
-function isAuthorized(request: Request): boolean {
-  const secret = emailEnv.CRON_SECRET;
-  if (!secret) return false;
-
-  const header = request.headers.get("authorization") ?? "";
-  const expected = Buffer.from(`Bearer ${secret}`);
-  const actual = Buffer.from(header);
-  // timingSafeEqual throws on a length mismatch, which is itself a (safe)
-  // leak of length only.
-  return actual.length === expected.length && timingSafeEqual(actual, expected);
-}
-
 export async function GET(request: Request) {
-  if (!isAuthorized(request)) {
+  // Vercel attaches `Authorization: Bearer $CRON_SECRET` to scheduled
+  // invocations. Refusing when the secret is unset is deliberate: an
+  // unauthenticated endpoint that mails every subscriber is a way to get a
+  // domain blocklisted.
+  if (!isAuthorizedBearer(request, emailEnv.CRON_SECRET)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
