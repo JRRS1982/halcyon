@@ -51,6 +51,48 @@ jobs:
           echo "## Test Coverage" >> $GITHUB_STEP_SUMMARY
           tail -n 10 coverage-output.txt >> $GITHUB_STEP_SUMMARY
 
+  # A migration must never ship with the code that uses it. Separation is what
+  # makes the deploy order stop mattering: a migration PR changes no
+  # application code, so whichever of migrate-prod and the Vercel promotion
+  # lands first, schema and code still agree. See src/lib/ci/mixedSchema.ts.
+  #
+  # PR-only: on a push to master the merge has already happened and there is
+  # nothing left to reject.
+  mixed-schema-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout code
+        # Full history: the check diffs against the merge base, which a shallow
+        # clone does not contain.
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: ".nvmrc"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check migration/code separation
+        env:
+          ALLOW_MIXED_SCHEMA: ${{ contains(github.event.pull_request.labels.*.name, 'mixed-schema-ok') }}
+        run: pnpm check:mixed-schema "origin/${{ github.base_ref }}"
+
+  # Deliberately excluded from BOTH gates: the `master` ruleset's required
+  # checks, and Vercel's Deployment Checks. A red audit means a new advisory
+  # landed against the lockfile, not that this PR is wrong, so it must never
+  # block a merge or a release. Keep it green when you can — scoped overrides
+  # in pnpm-workspace.yaml — but treat it as a signal, not a gate.
   security-audit:
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -233,11 +275,20 @@ jobs:
           retention-days: 7
 
   # Applies pending Prisma migrations to the production Supabase database.
-  # Runs only on push to master (never on PRs) and only after lint/test and
-  # e2e pass, so prod schema changes are gated on a green build. Vercel is
-  # configured to wait for this workflow before deploying, so the new code
-  # never goes live against an un-migrated schema. Host-agnostic: the deploy
-  # platform runs no migrations itself.
+  # Runs only on push to master (never on PRs) and only after lint/test,
+  # integration and e2e pass, so prod schema changes are gated on a green build.
+  #
+  # Ordering against the deploy is enforced in Vercel, not here. Vercel
+  # promotes a production deployment only once its Deployment Checks pass, and
+  # this job is on that list (with lint-and-test, integration-tests and
+  # e2e-tests) — so a failed migration leaves prod on old code AND old schema,
+  # which is the consistent state. That list lives in the Vercel dashboard;
+  # changing it changes the release guarantee.
+  #
+  # Belt and braces: the mixed-schema-check job above keeps migrations out of code
+  # PRs entirely, so the two halves rarely move together in the first place.
+  #
+  # Host-agnostic: the deploy platform runs no migrations itself.
   migrate-prod:
     runs-on: ubuntu-latest
     timeout-minutes: 10

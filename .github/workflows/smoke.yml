@@ -1,0 +1,65 @@
+# Smoke tests against a production deployment, after Vercel has promoted it.
+#
+# Triggered by deployment_status rather than by the end of ci.yml, because the
+# end of CI is not the end of the release: Vercel deploys independently and
+# promotes on its own Deployment Checks. This event is the only signal that the
+# thing users hit has actually changed. See docs/features/release-flow.md.
+name: Smoke
+
+on: deployment_status
+
+jobs:
+  smoke:
+    # Three conditions, all load-bearing. `success` skips the pending and
+    # failed transitions. The environment filter is not optional: this event
+    # also fires for every preview deployment, so without it each PR would
+    # smoke-test itself against a preview URL. And a missing target_url would
+    # silently fall back to the config default, testing production when we
+    # meant to test something else.
+    if: >-
+      github.event.deployment_status.state == 'success' &&
+      github.event.deployment_status.environment == 'Production' &&
+      github.event.deployment_status.target_url != ''
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    # Same pinned image as the e2e job, for the same reason: the browsers are
+    # baked in, so there is no apt call left to be slow or to hang.
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.0-noble
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: ".nvmrc"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # No database, no Supabase, no app server. Everything under test is
+      # already running at SMOKE_BASE_URL, and every assertion is
+      # unauthenticated and read-only — nothing here may write to production.
+      - name: Run smoke tests
+        env:
+          SMOKE_BASE_URL: ${{ github.event.deployment_status.target_url }}
+          # Firefox aside, the same HOME fix the e2e job needs: the step runs as
+          # root in a container whose $HOME belongs to the image's pwuser.
+          HOME: /root
+        run: pnpm test:smoke
+
+      - name: Upload report
+        uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: smoke-report
+          path: playwright-report/
+          retention-days: 7
