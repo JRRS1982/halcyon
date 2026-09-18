@@ -63,19 +63,46 @@ The first direction is **not** closed. If a migration succeeds but promotion
 does not follow, the fix is a **new deployment** — Vercel's Redeploy button, or
 merging another PR. Never a workflow re-run.
 
-## The rule that makes ordering stop mattering
-
-Gates help. Not needing them helps more.
+## Separating migrations from code, and what that is actually worth
 
 `mixed-schema-check` fails any PR that changes `prisma/migrations/**` *and*
-application code (`src/**`, `e2e/**`) together. With that separation:
+application code (`src/**`, `e2e/**`) together. With that separation, neither
+merge can land both halves at once:
 
-- A **migration PR** merges → `migrate-prod` runs → Vercel deploys byte-identical
-  application code. Order is irrelevant.
-- A **code PR** merges → `migrate-prod` is a no-op → Vercel deploys. Order is
-  irrelevant.
+- A **migration PR** merges → `migrate-prod` runs → Vercel promotes
+  byte-identical application code.
+- A **code PR** merges → `migrate-prod` has nothing pending → Vercel promotes.
 
-The race only ever mattered because both halves changed at once.
+**Be precise about which guard does what.** This check does *not* prevent the
+September failure — `migrate-prod` on Vercel's Deployment Checks does. With the
+check in place and that list still wrong, September still happens: the migration
+PR merges and fails harmlessly, then the code PR merges and promotes against a
+column that never arrived.
+
+What separation changes is *when* you find out. Mixed, the migration fails at the
+same instant the code that needs it goes live: production breaks immediately and
+silently. Separated, the migration fails while production is still consistent —
+old code, old schema, nothing broken — and the red check is visible before
+anything depends on it. The outage then requires merging a second PR past a
+known-red first one.
+
+So the value is:
+
+- **Clean reverts.** Revert a mixed PR and the migration file goes with it while
+  the migration stays applied in production; `prisma/migrations/` then disagrees
+  with the live database, and local `migrate dev`/`migrate status` see drift. A
+  code-only PR reverts without touching schema history.
+- **A warning while production is still healthy**, per above.
+- **Defence in depth** — the Deployment Checks list regressed silently once and
+  went unnoticed for days.
+- **The precondition for expand → use → contract**, impossible if expand and use
+  share a PR.
+
+What it does **not** buy is safety. For a `DROP COLUMN` or `RENAME`, separation
+*lengthens* the window in which old code meets new schema: from the couple of
+minutes between migrate and promote, to however long until the follow-up code PR
+ships. Only expand/contract fixes that, and no check here can verify you have
+followed it.
 
 Run it locally with `pnpm check:mixed-schema`. Override with the `mixed-schema-ok`
 label when something genuinely has to ship together — deliberately, and visibly.
