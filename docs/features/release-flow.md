@@ -80,6 +80,30 @@ The race only ever mattered because both halves changed at once.
 Run it locally with `pnpm check:mixed-schema`. Override with the `mixed-schema-ok`
 label when something genuinely has to ship together — deliberately, and visibly.
 
+### Where the check belongs, and two places it does not
+
+`mixed-schema-check` runs on pull requests only. It is enforced by being on the
+**ruleset's required checks**, because a PR is the last moment at which there is
+still something to reject.
+
+Two tempting wirings both break it, and neither fails loudly:
+
+- **`needs: [mixed-schema-check]` on `migrate-prod`.** The two jobs are mutually
+  exclusive by construction — one is PR-only, the other push-to-master-only — so
+  on master the check is skipped, and a job whose dependency is skipped is
+  skipped too. `migrate-prod` would silently stop running, a skipped check
+  satisfies both gates, and the deploy would go out with no migration applied.
+  That is the September 2026 outage, rebuilt out of the guard meant to prevent
+  it.
+- **Adding it to Vercel's Deployment Checks.** Same cause: it never runs on a
+  master push, so it either never arrives or counts as satisfied. Either way it
+  gates nothing.
+
+There is also nothing useful for it to do at release time. By the time
+`migrate-prod` runs the merge has already happened; refusing to migrate then
+does not prevent a mixed change, it *creates* the broken state — merged code,
+un-migrated schema. Once code is on master, migrating is the only safe move.
+
 ### Separation is not safety
 
 A PR containing *only* a `RENAME` or `DROP COLUMN` still breaks production the
