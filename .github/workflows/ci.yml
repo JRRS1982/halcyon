@@ -57,7 +57,14 @@ jobs:
   # lands first, schema and code still agree. See src/lib/ci/mixedSchema.ts.
   #
   # PR-only: on a push to master the merge has already happened and there is
-  # nothing left to reject.
+  # nothing left to reject. Enforced by being on the ruleset's required checks.
+  #
+  # Do NOT wire this into migrate-prod with `needs:`, and do not add it to
+  # Vercel's Deployment Checks. The two jobs are mutually exclusive by
+  # construction, so on master this one is skipped — and a job whose dependency
+  # is skipped is skipped as well. migrate-prod would quietly stop running while
+  # a skipped check satisfied both gates, which is the September 2026 outage
+  # rebuilt out of the guard meant to prevent it.
   mixed-schema-check:
     runs-on: ubuntu-latest
     timeout-minutes: 5
