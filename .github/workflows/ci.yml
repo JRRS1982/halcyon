@@ -57,7 +57,13 @@ jobs:
   # lands first, schema and code still agree. See src/lib/ci/mixedSchema.ts.
   #
   # PR-only: on a push to master the merge has already happened and there is
-  # nothing left to reject. Enforced by being on the ruleset's required checks.
+  # nothing left to reject.
+  #
+  # This MUST be on the ruleset's required checks, and since e2e-tests was
+  # chained behind it that is load-bearing rather than tidy. A failing check
+  # skips e2e-tests, and GitHub counts a skipped required check as satisfied —
+  # so without this one required too, a violating PR would be mergeable *and*
+  # would never have run the browser suite.
   #
   # Do NOT wire this into migrate-prod with `needs:`, and do not add it to
   # Vercel's Deployment Checks. The two jobs are mutually exclusive by
@@ -169,6 +175,17 @@ jobs:
 
   e2e-tests:
     runs-on: ubuntu-latest
+
+    # Chained behind mixed-schema-check so a PR that mixes a migration with code
+    # does not burn ~13 minutes of browser tests before being rejected.
+    #
+    # The explicit condition is NOT optional. By default a job whose dependency
+    # was *skipped* is skipped too, and mixed-schema-check is skipped on every
+    # push to master (it is PR-only) — which would take e2e-tests with it, and
+    # then migrate-prod, which needs e2e-tests. Releases would silently stop
+    # migrating. So: run unless the check actually failed.
+    needs: [mixed-schema-check]
+    if: ${{ !cancelled() && needs.mixed-schema-check.result != 'failure' }}
     # The official Playwright image, pinned to the version in pnpm-lock.yaml —
     # the two must move together, since the browsers are baked in and Playwright
     # refuses to drive a build it wasn't shipped with.

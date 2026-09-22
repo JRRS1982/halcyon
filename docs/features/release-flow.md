@@ -107,6 +107,33 @@ followed it.
 Run it locally with `pnpm check:mixed-schema`. Override with the `mixed-schema-ok`
 label when something genuinely has to ship together — deliberately, and visibly.
 
+### e2e-tests is chained behind it, which makes the ruleset entry mandatory
+
+`e2e-tests` declares `needs: [mixed-schema-check]`, so a PR that mixes a
+migration with code is rejected in ~30 seconds instead of after ~13 minutes of
+browser tests.
+
+That chain has a consequence worth stating plainly. When the check fails,
+`e2e-tests` is **skipped** — and GitHub treats a skipped required check as
+satisfied (the same rule that lets `migrate-prod` report "skipping" on a PR
+without blocking it). So if `mixed-schema-check` is not itself a required check,
+a violating PR becomes mergeable *and* arrives having never run the browser
+suite: strictly worse than not chaining at all.
+
+**`mixed-schema-check` must be on the ruleset's required checks.** With it
+there, its own red blocks the merge and the skipped `e2e-tests` never gets the
+chance to matter.
+
+The job also carries an explicit condition:
+
+```yaml
+if: ${{ !cancelled() && needs.mixed-schema-check.result != 'failure' }}
+```
+
+Without it, the default "a skipped dependency skips its dependents" rule would
+skip `e2e-tests` on every push to master — where `mixed-schema-check` never runs
+— and `migrate-prod` needs `e2e-tests`. Releases would quietly stop migrating.
+
 ### Where the check belongs, and two places it does not
 
 `mixed-schema-check` runs on pull requests only. It is enforced by being on the
