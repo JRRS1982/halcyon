@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { withinRateLimit } from "@/lib/rateLimit";
 
 /**
- * Production liveness, for .github/workflows/monitor.yml.
+ * Production liveness, for .github/workflows/health.yml.
  *
  * Answering at all proves Vercel is serving the app; the query proves the app
  * can reach Postgres with the credentials it has. Both failed in September

@@ -51,6 +51,61 @@ jobs:
           echo "## Test Coverage" >> $GITHUB_STEP_SUMMARY
           tail -n 10 coverage-output.txt >> $GITHUB_STEP_SUMMARY
 
+  # A migration must never ship with the code that uses it. Separation is what
+  # makes the deploy order stop mattering: a migration PR changes no
+  # application code, so whichever of migrate-prod and the Vercel promotion
+  # lands first, schema and code still agree. See src/lib/ci/mixedSchema.ts.
+  #
+  # PR-only: on a push to master the merge has already happened and there is
+  # nothing left to reject.
+  #
+  # This MUST be on the ruleset's required checks, and since e2e-tests was
+  # chained behind it that is load-bearing rather than tidy. A failing check
+  # skips e2e-tests, and GitHub counts a skipped required check as satisfied —
+  # so without this one required too, a violating PR would be mergeable *and*
+  # would never have run the browser suite.
+  #
+  # Do NOT wire this into migrate-prod with `needs:`, and do not add it to
+  # Vercel's Deployment Checks. The two jobs are mutually exclusive by
+  # construction, so on master this one is skipped — and a job whose dependency
+  # is skipped is skipped as well. migrate-prod would quietly stop running while
+  # a skipped check satisfied both gates, which is the September 2026 outage
+  # rebuilt out of the guard meant to prevent it.
+  mixed-schema-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout code
+        # Full history: the check diffs against the merge base, which a shallow
+        # clone does not contain.
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: ".nvmrc"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check migration/code separation
+        env:
+          ALLOW_MIXED_SCHEMA: ${{ contains(github.event.pull_request.labels.*.name, 'mixed-schema-ok') }}
+        run: pnpm check:mixed-schema "origin/${{ github.base_ref }}"
+
+  # Deliberately excluded from BOTH gates: the `master` ruleset's required
+  # checks, and Vercel's Deployment Checks. A red audit means a new advisory
+  # landed against the lockfile, not that this PR is wrong, so it must never
+  # block a merge or a release. Keep it green when you can — scoped overrides
+  # in pnpm-workspace.yaml — but treat it as a signal, not a gate.
   security-audit:
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -80,6 +135,17 @@ jobs:
   integration-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+
+    # Behind the cheap gate, for the same reason as e2e-tests, and with the same
+    # mandatory guard — a skipped dependency skips its dependents by default,
+    # and mixed-schema-check is skipped on every push to master.
+    #
+    # Free in wall-clock terms: e2e-tests is the critical path at ~14 minutes, so
+    # delaying a ~5 minute job by the gate's ~30 seconds changes nothing for a
+    # PR that passes. lint-and-test deliberately stays unchained — it is the
+    # fastest job and the likeliest to fail, so it should always report.
+    needs: [mixed-schema-check]
+    if: ${{ !cancelled() && needs.mixed-schema-check.result != 'failure' }}
 
     # Server-action integration tests run against a real Postgres (halcyon_test).
     # The postgres/postgres credentials + db name match the test:int script's
@@ -120,6 +186,17 @@ jobs:
 
   e2e-tests:
     runs-on: ubuntu-latest
+
+    # Chained behind mixed-schema-check so a PR that mixes a migration with code
+    # does not burn ~13 minutes of browser tests before being rejected.
+    #
+    # The explicit condition is NOT optional. By default a job whose dependency
+    # was *skipped* is skipped too, and mixed-schema-check is skipped on every
+    # push to master (it is PR-only) — which would take e2e-tests with it, and
+    # then migrate-prod, which needs e2e-tests. Releases would silently stop
+    # migrating. So: run unless the check actually failed.
+    needs: [mixed-schema-check]
+    if: ${{ !cancelled() && needs.mixed-schema-check.result != 'failure' }}
     # The official Playwright image, pinned to the version in pnpm-lock.yaml —
     # the two must move together, since the browsers are baked in and Playwright
     # refuses to drive a build it wasn't shipped with.
@@ -233,11 +310,20 @@ jobs:
           retention-days: 7
 
   # Applies pending Prisma migrations to the production Supabase database.
-  # Runs only on push to master (never on PRs) and only after lint/test and
-  # e2e pass, so prod schema changes are gated on a green build. Vercel is
-  # configured to wait for this workflow before deploying, so the new code
-  # never goes live against an un-migrated schema. Host-agnostic: the deploy
-  # platform runs no migrations itself.
+  # Runs only on push to master (never on PRs) and only after lint/test,
+  # integration and e2e pass, so prod schema changes are gated on a green build.
+  #
+  # Ordering against the deploy is enforced in Vercel, not here. Vercel
+  # promotes a production deployment only once its Deployment Checks pass, and
+  # this job is on that list (with lint-and-test, integration-tests and
+  # e2e-tests) — so a failed migration leaves prod on old code AND old schema,
+  # which is the consistent state. That list lives in the Vercel dashboard;
+  # changing it changes the release guarantee.
+  #
+  # Belt and braces: the mixed-schema-check job above keeps migrations out of code
+  # PRs entirely, so the two halves rarely move together in the first place.
+  #
+  # Host-agnostic: the deploy platform runs no migrations itself.
   migrate-prod:
     runs-on: ubuntu-latest
     timeout-minutes: 10
