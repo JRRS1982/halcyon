@@ -73,7 +73,9 @@ test.describe("a promoted deployment", () => {
       // A 200 alone is not proof: Vercel's Deployment Protection interstitial
       // is also a 200. The first real run passed these while testing a login
       // wall. Require the app's own title so a stranger's page cannot pass.
-      expect(await response.text()).toContain("<title>Balanced Money");
+      // Anywhere in the title, not a prefix: legal pages lead with their own
+      // name ("Privacy · Balanced Money").
+      expect(await response.text()).toMatch(/<title>[^<]*Balanced Money/);
     });
   }
 });
