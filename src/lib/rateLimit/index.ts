@@ -11,7 +11,7 @@ import { incrementWindow } from "@/lib/rateLimit/redis";
 // Deep module: callers only ask "is this request within the limit?" — the
 // store, the hashing and the window all live behind this one function.
 
-export type RateLimitedAction = "sign-in" | "sign-up";
+export type RateLimitedAction = "sign-in" | "sign-up" | "health";
 
 const WINDOW_SECONDS = 60;
 const MAX_ATTEMPTS = 10;

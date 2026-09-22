@@ -1,0 +1,39 @@
+name: monitor
+
+# Production liveness, once a day. A failed run emails the repo owner — GitHub
+# does that by default — which is the whole alerting story: no extra service,
+# and no credential beyond the one the endpoint already checks.
+#
+# Daily rather than every few minutes because this is a personal project with
+# a handful of deploys a month; a day's detection latency is the trade for a
+# quiet inbox. `workflow_dispatch` is there to fire it by hand right after a
+# deploy, which is when a failure is most likely.
+#
+# Two things broke in September 2026 without anyone being told — see the
+# comment on src/app/api/health/route.ts. This is the run that would have.
+on:
+  schedule:
+    - cron: "0 8 * * *" # 08:00 UTC — 9am UK, so a failure is in the inbox by breakfast
+  workflow_dispatch:
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: GET /api/health
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -u
+          code=$(curl -sS -o body.json -w '%{http_code}' --max-time 20 \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            https://www.balanced.money/api/health)
+          echo "HTTP ${code} — $(cat body.json)"
+          # 401 here means the CRON_SECRET repo secret is missing or stale,
+          # not that the site is down — the message says which.
+          if [ "${code}" = "401" ]; then
+            echo "::error::401 from /api/health — the CRON_SECRET repo secret does not match Vercel's."
+            exit 1
+          fi
+          [ "${code}" = "200" ]
