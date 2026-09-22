@@ -15,16 +15,13 @@ on: deployment_status
 
 jobs:
   smoke:
-    # Three conditions, all load-bearing. `success` skips the pending and
-    # failed transitions. The environment filter is not optional: this event
-    # also fires for every preview deployment, so without it each PR would
-    # smoke-test itself against a preview URL. And a missing target_url would
-    # silently fall back to the config default, testing production when we
-    # meant to test something else.
+    # Both conditions are load-bearing. `success` skips the pending and failed
+    # transitions. The environment filter is not optional: this event also
+    # fires for every preview deployment, so without it each PR would
+    # smoke-test itself against a preview URL.
     if: >-
       github.event.deployment_status.state == 'success' &&
-      github.event.deployment_status.environment == 'Production' &&
-      github.event.deployment_status.target_url != ''
+      github.event.deployment_status.environment == 'Production'
 
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -73,7 +70,13 @@ jobs:
       # unauthenticated and read-only — nothing here may write to production.
       - name: Run smoke tests
         env:
-          SMOKE_BASE_URL: ${{ github.event.deployment_status.target_url }}
+          # The production ALIAS, not deployment_status.target_url. That URL is
+          # the raw *.vercel.app deployment address, which sits behind Vercel
+          # Deployment Protection: every request gets a 302 to Vercel's SSO and
+          # an HTML interstitial, so the first real run (619c7df) tested the
+          # login wall and never reached the app. The alias is public, and by
+          # the time state == success it points at exactly this deployment.
+          SMOKE_BASE_URL: https://www.balanced.money
           # /api/health is bearer-gated. Must match Vercel's CRON_SECRET env
           # var; health.yml reads the same secret. If it is unset the probe
           # gets a 401, and the spec says so rather than reporting an outage.

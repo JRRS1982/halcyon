@@ -124,6 +124,15 @@ Both probe `GET /api/health` (bearer-gated, `SELECT 1`) expecting
 promotes, so nothing in it can run *after* a deploy. `deployment_status` is the
 only signal that the deployed thing changed.
 
+It probes the **production alias** (`www.balanced.money`), not
+`deployment_status.target_url`. That URL is the raw `*.vercel.app` deployment
+address, which sits behind Vercel Deployment Protection — every request gets a
+302 to Vercel SSO and an HTML interstitial. The first real run (619c7df) tested
+that login wall, not the app: redirect assertions saw 302 instead of 307, the
+health probe got HTML instead of JSON, and `serves /` passed *because the
+interstitial is also a 200*. The alias is public, and at `state == success` it
+points at exactly the deployment that was promoted.
+
 It fires on **every** production promotion — a merge, a dashboard Redeploy, or a
 rollback — and checks out `github.event.deployment.sha` rather than the branch
 tip, so a rollback is judged by the spec that shipped with the commit it
