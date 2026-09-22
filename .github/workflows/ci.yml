@@ -136,6 +136,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
+    # Behind the cheap gate, for the same reason as e2e-tests, and with the same
+    # mandatory guard — a skipped dependency skips its dependents by default,
+    # and mixed-schema-check is skipped on every push to master.
+    #
+    # Free in wall-clock terms: e2e-tests is the critical path at ~14 minutes, so
+    # delaying a ~5 minute job by the gate's ~30 seconds changes nothing for a
+    # PR that passes. lint-and-test deliberately stays unchained — it is the
+    # fastest job and the likeliest to fail, so it should always report.
+    needs: [mixed-schema-check]
+    if: ${{ !cancelled() && needs.mixed-schema-check.result != 'failure' }}
+
     # Server-action integration tests run against a real Postgres (halcyon_test).
     # The postgres/postgres credentials + db name match the test:int script's
     # hard-pinned DATABASE_URL; globalSetup applies migrations.

@@ -107,18 +107,25 @@ followed it.
 Run it locally with `pnpm check:mixed-schema`. Override with the `mixed-schema-ok`
 label when something genuinely has to ship together — deliberately, and visibly.
 
-### e2e-tests is chained behind it, which makes the ruleset entry mandatory
+### The expensive jobs are chained behind it, which makes the ruleset entry mandatory
 
-`e2e-tests` declares `needs: [mixed-schema-check]`, so a PR that mixes a
-migration with code is rejected in ~30 seconds instead of after ~13 minutes of
-browser tests.
+`integration-tests` and `e2e-tests` both declare `needs: [mixed-schema-check]`,
+so a PR that mixes a migration with code is rejected in ~30 seconds rather than
+after ~5 and ~14 minutes of tests.
 
-That chain has a consequence worth stating plainly. When the check fails,
-`e2e-tests` is **skipped** — and GitHub treats a skipped required check as
+`lint-and-test` deliberately stays unchained: it is the fastest job and the
+likeliest to fail, so it should always report. The line is *cheap and
+high-signal runs unconditionally; expensive runs behind the gate*.
+
+Chaining costs nothing in wall-clock on a passing PR, because `e2e-tests` is the
+critical path either way.
+
+That chain has a consequence worth stating plainly. When the check fails, both
+chained jobs are **skipped** — and GitHub treats a skipped required check as
 satisfied (the same rule that lets `migrate-prod` report "skipping" on a PR
 without blocking it). So if `mixed-schema-check` is not itself a required check,
-a violating PR becomes mergeable *and* arrives having never run the browser
-suite: strictly worse than not chaining at all.
+a violating PR becomes mergeable having run *only* lint: strictly worse than not
+chaining at all.
 
 **`mixed-schema-check` must be on the ruleset's required checks.** With it
 there, its own red blocks the merge and the skipped `e2e-tests` never gets the
