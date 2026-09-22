@@ -1,4 +1,4 @@
-name: monitor
+name: health
 
 # Production liveness, once a day. A failed run emails the repo owner — GitHub
 # does that by default — which is the whole alerting story: no extra service,

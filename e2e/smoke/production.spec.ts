@@ -10,7 +10,7 @@ import { expect, test } from "@playwright/test";
 
 test.describe("a promoted deployment", () => {
   // Bearer-gated (see src/app/api/health/route.ts), so the probe carries the
-  // same CRON_SECRET monitor.yml uses. Sent as a header rather than stored in
+  // same CRON_SECRET health.yml uses. Sent as a header rather than stored in
   // the config so it never reaches a trace or a report artifact.
   const authed = { Authorization: `Bearer ${process.env.CRON_SECRET ?? ""}` };
 

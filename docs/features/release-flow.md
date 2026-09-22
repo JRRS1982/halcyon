@@ -101,7 +101,7 @@ Then the running app. Two workflows do this automatically:
 
 | | Question | Trigger |
 |---|---|---|
-| `monitor.yml` | is production alive? | daily, 08:00 UTC |
+| `health.yml` | is production alive? | daily, 08:00 UTC |
 | `smoke.yml` | did *this deployment* work? | `deployment_status` |
 
 Both probe `GET /api/health` (bearer-gated, `SELECT 1`) expecting
