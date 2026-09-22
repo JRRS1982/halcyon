@@ -6,13 +6,19 @@ jest.mock("@/lib/env", () => ({
 
 jest.mock("@/lib/prisma", () => ({ prisma: { $queryRaw: jest.fn() } }));
 jest.mock("@/lib/log", () => ({ log: { error: jest.fn() } }));
+jest.mock("@/lib/rateLimit", () => ({ withinRateLimit: jest.fn() }));
+jest.mock("@/lib/http/clientIp", () => ({ clientIp: jest.fn() }));
 
 import { GET } from "@/app/api/health/route";
+import { clientIp } from "@/lib/http/clientIp";
 import { log } from "@/lib/log";
 import { prisma } from "@/lib/prisma";
+import { withinRateLimit } from "@/lib/rateLimit";
 
 const queryRaw = prisma.$queryRaw as jest.Mock;
 const logError = log.error as jest.Mock;
+const mockWithinRateLimit = withinRateLimit as jest.Mock;
+const mockClientIp = clientIp as jest.Mock;
 
 const call = (authorization?: string) =>
   GET(
@@ -24,9 +30,20 @@ const call = (authorization?: string) =>
 beforeEach(() => {
   queryRaw.mockReset();
   logError.mockReset();
+  mockClientIp.mockResolvedValue("1.2.3.4");
+  mockWithinRateLimit.mockResolvedValue(true);
 });
 
 describe("GET /api/health", () => {
+  test("429 when rate limit exceeded, and never touches the database", async () => {
+    mockWithinRateLimit.mockResolvedValueOnce(false);
+
+    const response = await call("Bearer cron-test-secret");
+
+    expect(response.status).toBe(429);
+    expect(queryRaw).not.toHaveBeenCalled();
+  });
+
   test("401 without the bearer, and never touches the database", async () => {
     const response = await call();
 

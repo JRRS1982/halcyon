@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { isAuthorizedBearer } from "@/lib/auth/bearer";
 import { emailEnv } from "@/lib/env";
+import { clientIp } from "@/lib/http/clientIp";
 import { log } from "@/lib/log";
 import { prisma } from "@/lib/prisma";
+import { withinRateLimit } from "@/lib/rateLimit";
 
 /**
  * Production liveness, for .github/workflows/monitor.yml.
@@ -24,6 +26,10 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
+  if (!await withinRateLimit("health", await clientIp())) {
+    return NextResponse.json({ error: "Too Many Requests" }, { status: 429 });
+  }
+
   if (!isAuthorizedBearer(request, emailEnv.CRON_SECRET)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
