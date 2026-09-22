@@ -9,22 +9,35 @@ import { expect, test } from "@playwright/test";
 // and can reach its database", which a deployment record cannot tell you.
 
 test.describe("a promoted deployment", () => {
+  // Bearer-gated (see src/app/api/health/route.ts), so the probe carries the
+  // same CRON_SECRET monitor.yml uses. Sent as a header rather than stored in
+  // the config so it never reaches a trace or a report artifact.
+  const authed = { Authorization: `Bearer ${process.env.CRON_SECRET ?? ""}` };
+
   test("is serving, and can reach the database", async ({ request }) => {
     // The load-bearing check. Middleware redirects unauthenticated page
     // requests before any query runs, so a page 307 proves routing and nothing
-    // about the database; this is the one unauthenticated path that touches it.
-    const response = await request.get("/api/health");
+    // about the database; this is the one path that actually touches it.
+    const response = await request.get("/api/health", { headers: authed });
 
-    expect(response.status()).toBe(200);
-    await expect(response.json()).resolves.toEqual({
-      status: "ok",
-      db: "ok",
-    });
+    // A 401 is a drifted secret, not an outage — September's misdiagnosis in
+    // miniature, so the message says which it is rather than leaving someone
+    // to read "production is down".
+    expect(
+      response.status(),
+      response.status() === 401
+        ? "401 from /api/health — the CRON_SECRET repo secret does not match Vercel's"
+        : "health probe did not return 200",
+    ).toBe(200);
+    await expect(response.json()).resolves.toEqual({ ok: true });
   });
 
   test("keeps its health detail to itself", async ({ request }) => {
-    // Public endpoint: the body must stay a verdict, never diagnostics.
-    const body = await (await request.get("/api/health")).text();
+    // The body must stay a verdict, never diagnostics — this is what stops a
+    // later "helpful" error message naming the host, port or role.
+    const body = await (
+      await request.get("/api/health", { headers: authed })
+    ).text();
     expect(body).not.toMatch(/postgres|supabase|password|5432|6543/i);
   });
 

@@ -51,6 +51,10 @@ jobs:
       - name: Run smoke tests
         env:
           SMOKE_BASE_URL: ${{ github.event.deployment_status.target_url }}
+          # /api/health is bearer-gated. Must match Vercel's CRON_SECRET env
+          # var; monitor.yml reads the same secret. If it is unset the probe
+          # gets a 401, and the spec says so rather than reporting an outage.
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
           # Firefox aside, the same HOME fix the e2e job needs: the step runs as
           # root in a container whose $HOME belongs to the image's pwuser.
           HOME: /root
