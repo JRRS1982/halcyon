@@ -26,7 +26,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  if (!await withinRateLimit("health", await clientIp())) {
+  if (!(await withinRateLimit("health", await clientIp()))) {
     return NextResponse.json({ error: "Too Many Requests" }, { status: 429 });
   }
 
