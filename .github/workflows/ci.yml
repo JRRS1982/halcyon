@@ -328,7 +328,22 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: [lint-and-test, integration-tests, e2e-tests]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    # The explicit result checks are load-bearing, not belt-and-braces. Without
+    # a status function here the implicit success() applies, and success()
+    # inspects the WHOLE upstream graph: integration-tests and e2e-tests both
+    # need mixed-schema-check, which is skipped on every push to master, so
+    # this job inherited that skip on 22 Sep 2026 (run 35783204285) even
+    # though all three direct dependencies had succeeded. A skipped check
+    # satisfies Vercel's Deployment Checks, so the deploy promoted with no
+    # migration step at all — harmless that day only because nothing was
+    # pending. `!cancelled()` replaces success(); the three result checks
+    # restore the actual requirement, which is that the tests passed.
+    if: >-
+      ${{ !cancelled()
+          && github.event_name == 'push' && github.ref == 'refs/heads/master'
+          && needs.lint-and-test.result == 'success'
+          && needs.integration-tests.result == 'success'
+          && needs.e2e-tests.result == 'success' }}
 
     env:
       # Unpooled Supabase connection (port 5432). migrate deploy must use the

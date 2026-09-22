@@ -72,8 +72,21 @@ if: ${{ !cancelled() && needs.mixed-schema-check.result != 'failure' }}
 ```
 
 Without it, the default "a skipped dependency skips its dependents" rule would
-skip them on every push to master — where `mixed-schema-check` never runs — and
-`migrate-prod` needs `e2e-tests`. Releases would quietly stop migrating.
+skip them on every push to master — where `mixed-schema-check` never runs.
+
+**That guard alone was not enough.** `migrate-prod` needs those two jobs, and a
+job with no status function gets the implicit `success()`, which inspects the
+*entire* upstream graph, not just direct dependencies. On 22 Sep 2026 (run
+35783204285) all three of `migrate-prod`'s direct needs succeeded and it was
+skipped anyway, because `mixed-schema-check` two hops up was skipped. Vercel
+promoted — a skipped check satisfies Deployment Checks — with no migration step
+having run. Nothing was pending, so nothing broke; the next PR carrying a
+migration would have shipped unmigrated.
+
+`migrate-prod` therefore carries its own condition: `!cancelled()` to replace
+the implicit `success()`, plus an explicit `result == 'success'` for each direct
+dependency. **Any job downstream of `mixed-schema-check` on the master path
+needs this**, or the skip reaches it.
 
 ### Two wirings that look tighter and are not
 
