@@ -10,13 +10,21 @@ overrides:
   # replaces have no backport. Dev-only tree (`pnpm why brace-expansion --prod`
   # is empty); 5.x still ships a CJS build, so jest/glob/minimatch are fine.
   brace-expansion: ^5.0.9
-  # GHSA-5p4m-2wfm-xmqj / CVE-2026-59870 (quadratic CPU in !!omap resolution,
-  # published 2026-08-06) is patched in 3.15.1 and 4.3.1 with no backport below
-  # either — so the floor moves by one patch rather than the line changing.
-  # Dev-only tree: it arrives through jest → babel-plugin-istanbul →
-  # @istanbuljs/load-nyc-config, and nothing parses untrusted YAML.
-  js-yaml: ">=3.15.1 <4.0.0"
-  fast-uri: ">=3.1.5 <4.0.0"
+  # GHSA-5p4m-2wfm-xmqj / CVE-2026-59870 (quadratic CPU in !!omap resolution)
+  # and GHSA-2883-xcg3-v3hh (maxTotalMergeKeys does not bound CPU for empty
+  # merge keys) are patched in 3.15.2 and 4.3.2 with no backport below either —
+  # so the floor moves by one patch rather than the line changing; 3.15.2 is
+  # the published `v3-legacy` tag. Dev-only tree: it arrives through jest →
+  # babel-plugin-istanbul → @istanbuljs/load-nyc-config, and nothing parses
+  # untrusted YAML.
+  js-yaml: ">=3.15.2 <4.0.0"
+  # Four host-confusion / SSRF advisories (GHSA-5jgf-p345-68v8,
+  # GHSA-f65p-4m7j-42xc, GHSA-fph4-wmhf-6fwf, GHSA-jqff-g426-hqxp) are all
+  # patched in 3.1.6; the 3.x line is still maintained as `three` (3.1.8), so
+  # the floor moves and the line stays put rather than jumping to 4.x. Tree:
+  # prisma → @prisma/dev → @prisma/streams-local → ajv, where ajv parses our
+  # own JSON schemas at CLI time and never resolves a user-supplied URI.
+  fast-uri: ">=3.1.6 <4.0.0"
   # GHSA-ggr8-5vv4-36mx / CVE-2026-40345 (stack exhaustion merging recursive
   # object graphs, published 2026-08-16) is patched only in 8.0.0 — a major
   # bump with no 7.x backport; the breaking changes are type renames and Map
@@ -30,6 +38,30 @@ overrides:
   # above this one is in the production tree — next → postcss → nanoid — though
   # postcss only mints source-map ids with it and never sees user input.
   nanoid: ">=3.3.17 <4.0.0"
+  # GHSA-c83g-rgw3-j3cx (unbounded query cache → OOM) and GHSA-73wf-gq98-2v4g
+  # (prototype write via untrusted browserslist-stats.json) are patched in
+  # 4.28.7; 4.x is current, so this is a floor not a line change. Tree: next →
+  # styled-jsx → @babel/core and jest → @jest/transform → @babel/core, both of
+  # which query a static browserslist config at build time — no untrusted
+  # stats file and no long-lived process to grow a cache in.
+  browserslist: ">=4.28.7 <5.0.0"
+  # GHSA-3f6p-5ww8-9rcr (server can downgrade auth to mysql_clear_password and
+  # harvest the plaintext password) is patched in 3.22.0, within the current
+  # 3.x line. Prisma 7 makes the CLI a dependency of @prisma/client, so this
+  # lands in the production tree — but Halcyon is Postgres-only via
+  # @prisma/adapter-pg, and the MySQL driver is never loaded or handed
+  # credentials. Pinned anyway: the fix is a floor bump, not a rewrite.
+  mysql2: ">=3.22.0 <4.0.0"
+  # GHSA-rgj7-g3m4-5g8c (libheif GHSA-g89c-p67h-r497 / GHSA-vh26-cvjv-hgcr,
+  # reachable when decoding malformed HEIF/AVIF) is patched in 0.35.4 by
+  # bundling the fixed libheif. Production tree — next pulls sharp for the
+  # Image Optimization API — so this one is load-bearing, not hygiene.
+  sharp: ">=0.35.4 <0.36.0"
+  # GHSA-w5vr-8v7q-w6rv (calls process.exit on invalid input rather than
+  # throwing) is patched in 2.11.0. Only moderate, so it does not gate CI, but
+  # next and browserslist otherwise resolve two separate copies — the floor
+  # clears the advisory and dedupes them to one.
+  baseline-browser-mapping: ">=2.11.0 <3.0.0"
 
 # Don't re-verify node_modules against the lockfile before `pnpm <script>`.
 # pnpm 11 added this pre-run check (pnpm 10 had none); in the dev container the
