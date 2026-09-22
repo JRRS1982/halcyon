@@ -6,6 +6,11 @@
 # thing users hit has actually changed. See docs/features/release-flow.md.
 name: Smoke
 
+# Names the run after the commit it is actually probing, so the Actions list
+# reads "Smoke a2fcc38 → Production" rather than a column of identical rows.
+# A red entry then names the deploy that broke without opening anything.
+run-name: "Smoke ${{ github.event.deployment.sha }} → ${{ github.event.deployment_status.environment }}"
+
 on: deployment_status
 
 jobs:
@@ -30,8 +35,26 @@ jobs:
       image: mcr.microsoft.com/playwright:v1.62.0-noble
 
     steps:
-      - name: Checkout code
+      # Pinned to the deployed commit, not the branch tip. A rollback or a
+      # redeploy promotes an older commit, and the spec that shipped with it is
+      # the one that should judge it.
+      - name: Checkout the deployed commit
         uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.deployment.sha }}
+
+      - name: Say which deployment is under test
+        run: |
+          {
+            echo "### Smoke test"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Commit | \`${{ github.event.deployment.sha }}\` |"
+            echo "| Subject | $(git log -1 --pretty=%s) |"
+            echo "| URL | ${{ github.event.deployment_status.target_url }} |"
+            echo "| Deployment | ${{ github.event.deployment.id }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6

@@ -105,7 +105,26 @@ Then the running app. Two workflows do this automatically:
 | `smoke.yml` | did *this deployment* work? | `deployment_status` |
 
 Both probe `GET /api/health` (bearer-gated, `SELECT 1`) expecting
-`200 {"ok":true}`. **A 401 means `CRON_SECRET` in GitHub does not match
+`200 {"ok":true}`.
+
+`smoke.yml` cannot be a step in `ci.yml`: that workflow finishes before Vercel
+promotes, so nothing in it can run *after* a deploy. `deployment_status` is the
+only signal that the deployed thing changed.
+
+It fires on **every** production promotion — a merge, a dashboard Redeploy, or a
+rollback — and checks out `github.event.deployment.sha` rather than the branch
+tip, so a rollback is judged by the spec that shipped with the commit it
+promoted. The run is named after that commit (`Smoke <sha> → Production`) and
+its summary carries the sha, subject, URL and deployment id, so a red row in the
+Actions list names the deploy that broke it without opening anything.
+
+**Two Playwright configs, and they must not overlap.** `playwright.config.ts`
+runs `e2e/` against a local dev server and mock Supabase;
+`playwright.smoke.config.ts` runs `e2e/smoke/` against a deployed URL with no
+`webServer`. The main config carries `testIgnore: "**/smoke/**"` — without it
+`testDir: "./e2e"` sweeps the smoke suite into the local run, where the
+bearer-gated health probe has no `CRON_SECRET` and fails on all three engines
+against a deployment that was never under test. **A 401 means `CRON_SECRET` in GitHub does not match
 Vercel's — a drifted secret, not an outage.** `smoke.yml` additionally checks
 that signed-out authed routes return **307 → /sign-in**; a **500** there is the
 schema/code split.
