@@ -54,7 +54,7 @@ separation *lengthens* the window where old code meets new schema, from minutes
 to however long until the follow-up code PR ships. Only expand → use → contract
 fixes that, and nothing here can verify you followed it.
 
-### It must be a required check
+### It must be a required check (and has been since 23 Sep 2026)
 
 `integration-tests` and `e2e-tests` declare `needs: [mixed-schema-check]`, so a
 violating PR is rejected in ~30s rather than after ~5 and ~14 minutes.
