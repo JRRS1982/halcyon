@@ -1,4 +1,4 @@
-# The release flow
+# CI/CD: how a change reaches production
 
 Two systems react to a push to `master`, independently:
 
@@ -8,6 +8,44 @@ Two systems react to a push to `master`, independently:
    started by the workflow.
 
 Nothing in this repository sequences them.
+
+## The flow, at a glance
+
+Three gates, passed in order. Gates 1 and 2 *block*: nothing bad gets through.
+Gate 3 *detects*: by then the code is live, so it can only tell you. At every
+gate, "no" leaves production exactly as it was.
+
+```mermaid
+flowchart TD
+  PR["Pull request opened or pushed"] --> CI
+  CI["CI runs · ci.yml (event: pull_request)<br/>lint-and-test starts at once · mixed-schema-check answers in ~30s<br/>integration-tests and e2e-tests run only if it did not fail · migrate-prod does not run on a PR"]
+  CI --> G1
+  G1{{"GATE 1 · GitHub ruleset master<br/>Required checks: lint-and-test · integration-tests · e2e-tests · migrate-prod · mixed-schema-check<br/>Branch must be up to date with master · no bypass actors, owner included<br/>Also blocks deleting master and force-pushing to it"}}
+  G1 -- "a required check is red" --> X1["PR cannot merge<br/>mixed-schema-check fails in ~30s → both test suites skip, PR blocked"]
+  G1 --> M["Merged to master (event: push)"]
+  M -- "two systems react to the same push, independently" --> GH
+  M --> V
+  GH["GitHub · ci.yml again, now with migrate-prod<br/>runs only if lint, integration and e2e all succeeded"]
+  V["Vercel · builds, then HOLDS<br/>its own GitHub App saw the push · not live yet"]
+  GH --> G2
+  V --> G2
+  G2{{"GATE 2 · Vercel Deployment Checks<br/>Must be green: lint-and-test · integration-tests · e2e-tests · migrate-prod<br/>migrate-prod on this list is what stops new code going live against an old schema<br/>Lives in the Vercel dashboard, not in the repo — changing it changes the guarantee"}}
+  G2 -- "any red" --> X2["Not promoted<br/>deployment marked failed · production stays as it was"]
+  G2 --> P["Promoted → www.balanced.money<br/>the moment users get the new code · Vercel tells GitHub: deployment_status = success"]
+  P --> G3
+  G3{{"GATE 3 · Post-deploy smoke test · smoke.yml<br/>Triggered only by that deployment_status event — nothing else starts it<br/>Runs against the newly deployed app at www.balanced.money · read-only, no sign-in, no writes"}}
+  G3 -- "any red" --> X3["You get an email<br/>the deploy is already live — this gate detects, it cannot block"]
+  H["health.yml · every day at 08:00 UTC · NOT part of a release<br/>same /api/health probe as gate 3, different trigger — catches what breaks between releases"]
+
+  classDef gate fill:#0F1116,stroke:#0F1116,color:#FFFFFF
+  classDef bad fill:#FBEDED,stroke:#B33B3B,color:#7A1F1F
+  classDef ok fill:#E6F3EB,stroke:#1A7A43,color:#0F4D2A
+  classDef ghost fill:#F7F7F7,stroke:#D4D4D4,color:#525252,stroke-dasharray:4 3
+  class G1,G2,G3 gate
+  class X1,X2,X3 bad
+  class P ok
+  class H ghost
+```
 
 ## What sequences them: Vercel's Deployment Checks
 
