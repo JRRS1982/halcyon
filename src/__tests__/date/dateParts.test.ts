@@ -9,14 +9,12 @@ describe("partsFromIso", () => {
     });
   });
 
-  test.each([
-    "",
-    "1986-6-1",
-    "01/06/1986",
-    "not a date",
-  ])("gives blanks for %p", (input) => {
-    expect(partsFromIso(input)).toEqual(EMPTY_PARTS);
-  });
+  test.each(["", "1986-6-1", "01/06/1986", "not a date"])(
+    "gives blanks for %p",
+    (input) => {
+      expect(partsFromIso(input)).toEqual(EMPTY_PARTS);
+    },
+  );
 });
 
 describe("isoFromParts", () => {

@@ -76,17 +76,16 @@ describe("NavBar", () => {
 
   // ...but not on the guide itself, where it would point at the current page,
   // nor on the auth pages, where every link is a way to abandon the form.
-  test.each([
-    "/guide",
-    "/sign-in",
-    "/sign-up",
-  ])("Guide is not in the bar on %s", (at) => {
-    mockPathname = at;
-    renderit({ signedIn: false, transactionsEnabled: false });
-    expect(
-      screen.queryByRole("link", { name: /^guide$/i }),
-    ).not.toBeInTheDocument();
-  });
+  test.each(["/guide", "/sign-in", "/sign-up"])(
+    "Guide is not in the bar on %s",
+    (at) => {
+      mockPathname = at;
+      renderit({ signedIn: false, transactionsEnabled: false });
+      expect(
+        screen.queryByRole("link", { name: /^guide$/i }),
+      ).not.toBeInTheDocument();
+    },
+  );
 
   test("signed-in with transactions enabled shows a Transactions link", () => {
     mockPathname = "/dashboard";

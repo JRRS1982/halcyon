@@ -45,7 +45,7 @@ jobs:
     # Same pinned image as the e2e job, for the same reason: the browsers are
     # baked in, so there is no apt call left to be slow or to hang.
     container:
-      image: mcr.microsoft.com/playwright:v1.62.0-noble
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
 
     steps:
       # Pinned to the deployed commit, not the branch tip. A rollback or a
