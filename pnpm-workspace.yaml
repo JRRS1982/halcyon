@@ -76,6 +76,11 @@ verifyDepsBeforeRun: false
 # binary or set up tooling (sharp/esbuild/unrs-resolver native builds, the
 # prisma/biome engine binaries, git hooks).
 allowBuilds:
+  # Arrived transitively with the Sep 2026 minor-and-patch bumps; ships a native
+  # postinstall. false = never run it (a warning locally, a hard failure under
+  # CI=true otherwise). The package falls back to its bundled implementation;
+  # flip to true only if the native watcher is actually wanted.
+  '@parcel/watcher': false
   "@biomejs/biome": true
   "@prisma/engines": true
   esbuild: true
