@@ -1,15 +1,31 @@
-# Smoke tests against a production deployment, after Vercel has promoted it.
+# Post-deployment smoke test: runs against production after Vercel has
+# promoted a build, and proves the thing users hit is serving and can reach
+# its database. See docs/features/release-flow.md.
 #
 # Triggered by deployment_status rather than by the end of ci.yml, because the
 # end of CI is not the end of the release: Vercel deploys independently and
-# promotes on its own Deployment Checks. This event is the only signal that the
-# thing users hit has actually changed. See docs/features/release-flow.md.
-name: Smoke
+# promotes on its own Deployment Checks. This event is the only signal that
+# the deployed thing has actually changed.
+#
+# That event fires for EVERY deployment status change — each preview build,
+# each pending/success transition — and GitHub offers no trigger-level filter
+# on environment. So a run record is created for all of them and the job's
+# `if:` skips the ones that are not a Production success. Nothing executes for
+# a skipped row (no runner is assigned), but the row exists; run-name below
+# makes it say why, since a skipped job cannot write a summary.
+name: Post-deploy smoke test
 
-# Names the run after the commit it is actually probing, so the Actions list
-# reads "Smoke a2fcc38 → Production" rather than a column of identical rows.
-# A red entry then names the deploy that broke without opening anything.
-run-name: "Smoke ${{ github.event.deployment.sha }} → ${{ github.event.deployment_status.environment }}"
+# The title in the Actions list. Meaning first, sha last, so a real run reads
+# "Post-deploy smoke → Production · <sha>" and a skipped one explains itself
+# without being opened. (Expressions cannot shorten the sha; the job summary
+# prints the 7-char form.)
+run-name: >-
+  ${{ (github.event.deployment_status.environment == 'Production'
+       && github.event.deployment_status.state == 'success')
+      && format('Post-deploy smoke → Production · {0}', github.event.deployment.sha)
+      || format('Skipped — {0} deploy {1} (smoke runs only when a Production deploy succeeds)',
+                github.event.deployment_status.environment,
+                github.event.deployment_status.state) }}
 
 on: deployment_status
 
@@ -41,16 +57,19 @@ jobs:
           ref: ${{ github.event.deployment.sha }}
 
       - name: Say which deployment is under test
+        env:
+          SHA: ${{ github.event.deployment.sha }}
         run: |
           {
-            echo "### Smoke test"
+            echo "### Post-deploy smoke test"
+            echo
+            echo "Runs after Vercel promotes a build to **Production**, against the public alias, to prove the deployed app is serving and can reach its database."
             echo
             echo "| | |"
             echo "|---|---|"
-            echo "| Commit | \`${{ github.event.deployment.sha }}\` |"
-            echo "| Subject | $(git log -1 --pretty=%s) |"
-            echo "| URL | ${{ github.event.deployment_status.target_url }} |"
-            echo "| Deployment | ${{ github.event.deployment.id }} |"
+            echo "| Commit | \`${SHA:0:7}\` — $(git log -1 --pretty=%s) |"
+            echo "| Probing | https://www.balanced.money |"
+            echo "| Vercel deployment | ${{ github.event.deployment.id }} (${{ github.event.deployment_status.target_url }}) |"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Setup pnpm

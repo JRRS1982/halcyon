@@ -54,7 +54,7 @@ separation *lengthens* the window where old code meets new schema, from minutes
 to however long until the follow-up code PR ships. Only expand → use → contract
 fixes that, and nothing here can verify you followed it.
 
-### It must be a required check
+### It must be a required check (and has been since 23 Sep 2026)
 
 `integration-tests` and `e2e-tests` declare `needs: [mixed-schema-check]`, so a
 violating PR is rejected in ~30s rather than after ~5 and ~14 minutes.
@@ -136,9 +136,13 @@ points at exactly the deployment that was promoted.
 It fires on **every** production promotion — a merge, a dashboard Redeploy, or a
 rollback — and checks out `github.event.deployment.sha` rather than the branch
 tip, so a rollback is judged by the spec that shipped with the commit it
-promoted. The run is named after that commit (`Smoke <sha> → Production`) and
-its summary carries the sha, subject, URL and deployment id, so a red row in the
-Actions list names the deploy that broke it without opening anything.
+promoted. A real run is titled `Post-deploy smoke → Production · <sha>` and its summary
+carries the short sha, subject, probed URL and deployment id, so a red row in
+the Actions list names the deploy that broke it without opening anything. The
+trigger also fires for every preview event, which GitHub cannot filter at the
+trigger level; those rows are skipped before a runner is assigned and are
+titled `Skipped — Preview deploy success (smoke runs only when a Production
+deploy succeeds)` so they explain themselves.
 
 **Two Playwright configs, and they must not overlap.** `playwright.config.ts`
 runs `e2e/` against a local dev server and mock Supabase;
