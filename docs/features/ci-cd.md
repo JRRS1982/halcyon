@@ -1,4 +1,4 @@
-# The release flow
+# CI/CD: how a change reaches production
 
 Two systems react to a push to `master`, independently:
 

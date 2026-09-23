@@ -1,6 +1,6 @@
 # Post-deployment smoke test: runs against production after Vercel has
 # promoted a build, and proves the thing users hit is serving and can reach
-# its database. See docs/features/release-flow.md.
+# its database. See docs/features/ci-cd.md.
 #
 # Triggered by deployment_status rather than by the end of ci.yml, because the
 # end of CI is not the end of the release: Vercel deploys independently and
