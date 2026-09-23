@@ -68,7 +68,14 @@ test.describe("a promoted deployment", () => {
 
   for (const page of PUBLIC_PAGES) {
     test(`serves ${page}`, async ({ request }) => {
-      expect((await request.get(page)).status()).toBe(200);
+      const response = await request.get(page);
+      expect(response.status()).toBe(200);
+      // A 200 alone is not proof: Vercel's Deployment Protection interstitial
+      // is also a 200. The first real run passed these while testing a login
+      // wall. Require the app's own title so a stranger's page cannot pass.
+      // Anywhere in the title, not a prefix: legal pages lead with their own
+      // name ("Privacy · Balanced Money").
+      expect(await response.text()).toMatch(/<title>[^<]*Balanced Money/);
     });
   }
 });
