@@ -56,9 +56,13 @@ jobs:
         with:
           ref: ${{ github.event.deployment.sha }}
 
+      # Decoration only, so it must never be able to fail the run: on 23 Sep
+      # 2026 a bash-only substring (${SHA:0:7}) hit "Bad substitution" because
+      # the container's default shell is sh, and the smoke test never ran.
+      # POSIX tools only, and continue-on-error so a summary bug can never mask
+      # a test result again.
       - name: Say which deployment is under test
-        env:
-          SHA: ${{ github.event.deployment.sha }}
+        continue-on-error: true
         run: |
           {
             echo "### Post-deploy smoke test"
@@ -67,7 +71,7 @@ jobs:
             echo
             echo "| | |"
             echo "|---|---|"
-            echo "| Commit | \`${SHA:0:7}\` — $(git log -1 --pretty=%s) |"
+            echo "| Commit | \`$(git rev-parse --short HEAD)\` — $(git log -1 --pretty=%s) |"
             echo "| Probing | https://www.balanced.money |"
             echo "| Vercel deployment | ${{ github.event.deployment.id }} (${{ github.event.deployment_status.target_url }}) |"
           } >> "$GITHUB_STEP_SUMMARY"
