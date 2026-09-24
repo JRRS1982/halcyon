@@ -3,8 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { serializeExport } from "@/lib/data/serialize";
+import { clientIp } from "@/lib/http/clientIp";
 import { log } from "@/lib/log";
 import { prisma } from "@/lib/prisma";
+import { checkRateLimit } from "@/lib/rateLimit";
 import { seedStarterData } from "@/lib/settings/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -24,6 +26,15 @@ async function verifyPassword(password: string): Promise<void> {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user?.email) redirect("/sign-in?next=/settings");
+  // Two buckets mirror the sign-in pattern: per-IP bounds one attacker,
+  // per-account bounds a pool of IPs guessing at the same user.
+  const [ipVerdict, accountVerdict] = await Promise.all([
+    checkRateLimit("verify-password", await clientIp()),
+    checkRateLimit("verify-password-account", user.email),
+  ]);
+  if (ipVerdict !== "allowed" || accountVerdict !== "allowed") {
+    throw new Error("Too many attempts. Please try again later.");
+  }
   const { error } = await supabase.auth.signInWithPassword({
     email: user.email,
     password,

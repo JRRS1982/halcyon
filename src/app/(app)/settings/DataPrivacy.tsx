@@ -115,6 +115,17 @@ const Alert = styled.p`
 
 type Mode = "reset" | "clear" | "delete" | null;
 
+const SERVER_ERRORS: Record<string, string> = {
+  "Incorrect password": "Incorrect password.",
+  "Too many attempts. Please try again later.":
+    "Too many attempts. Please try again later.",
+};
+
+function actionError(err: unknown, fallback: string): string {
+  const msg = err instanceof Error ? err.message : "";
+  return SERVER_ERRORS[msg] ?? fallback;
+}
+
 export function DataPrivacy() {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -162,9 +173,7 @@ export function DataPrivacy() {
         router.refresh();
       } catch (err) {
         setError(
-          err instanceof Error && err.message === "Incorrect password"
-            ? "Incorrect password."
-            : "Couldn't reset your data. Please try again.",
+          actionError(err, "Couldn't reset your data. Please try again."),
         );
       }
     });
@@ -178,9 +187,7 @@ export function DataPrivacy() {
         router.refresh();
       } catch (err) {
         setError(
-          err instanceof Error && err.message === "Incorrect password"
-            ? "Incorrect password."
-            : "Couldn't clear your data. Please try again.",
+          actionError(err, "Couldn't clear your data. Please try again."),
         );
       }
     });
@@ -193,9 +200,7 @@ export function DataPrivacy() {
         // On success deleteMyAccount redirects; nothing more to do here.
       } catch (err) {
         setError(
-          err instanceof Error && err.message === "Incorrect password"
-            ? "Incorrect password."
-            : "Couldn't delete your account. Please try again.",
+          actionError(err, "Couldn't delete your account. Please try again."),
         );
       }
     });

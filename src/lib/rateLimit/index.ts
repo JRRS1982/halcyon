@@ -2,7 +2,8 @@ import { createHash } from "node:crypto";
 import { log } from "@/lib/log";
 import { incrementWindow } from "@/lib/rateLimit/redis";
 
-// App-side rate limiter for the unauthenticated auth endpoints.
+// App-side rate limiter for the unauthenticated auth endpoints and sensitive
+// authenticated actions.
 //
 // Supabase throttles auth by IP, but every call reaches it from Vercel's egress
 // IPs (see src/lib/supabase/server.ts), so this layer keys on the real client
@@ -18,6 +19,8 @@ export type RateLimitedAction =
   | "sign-in-account" // per submitted email: distributed guessing at one account
   | "sign-up" // per client IP
   | "sign-up-address" // per submitted email: confirmation-mail bombing of one inbox
+  | "verify-password" // per client IP: re-auth before destructive actions
+  | "verify-password-account" // per account email: cross-IP guessing at one account
   | "health";
 
 export type RateLimitVerdict = "allowed" | "limited" | "unavailable";
@@ -56,6 +59,18 @@ const POLICIES: Record<RateLimitedAction, Policy> = {
     windowSeconds: HOUR,
     maxAttempts: 3,
     whenStoreFails: "block",
+  },
+  // Tighter than sign-in: gating irreversible operations, so a brief Redis
+  // outage is still acceptable (fail open), but the window is shorter.
+  "verify-password": {
+    windowSeconds: MINUTE,
+    maxAttempts: 5,
+    whenStoreFails: "allow",
+  },
+  "verify-password-account": {
+    windowSeconds: HOUR,
+    maxAttempts: 10,
+    whenStoreFails: "allow",
   },
   health: { windowSeconds: MINUTE, maxAttempts: 10, whenStoreFails: "allow" },
 };
