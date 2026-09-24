@@ -1,90 +1,71 @@
-# User Updates a Budget
+# User Journey: Update a Budget
 
-This flowchart is an example of a user journey of the user updating a budget.
+The budget is an inline spreadsheet grid — there are no pop-up forms. Changes save automatically on blur or via a debounced update as you type. See [features/budget.md](../features/budget.md) for the data model.
+
+## Flow
 
 ```mermaid
 flowchart TD
-    %% Budget Row Update Flow
-    A[Start: Budget View] --> B{Action}
+    A[Navigate to /budget] --> B[Sheet loads for current month]
+    B --> C{What does the user want?}
 
-    %% Add New Row Path
-    B -->|Add New Row| C[Click 'Add Row' Button]
-    C --> D[New Row Form Appears]
-    D --> G[Enter Row Details]
-    G --> H[Save Row]
-    H --> I[Row Added to Budget]
+    C -->|Edit a figure| D[Click a Budgeted cell]
+    D --> E[Type new value]
+    E --> F[Difference column updates instantly]
+    F --> G[Blur or press Enter — value saved]
 
-    %% Update Existing Row Path
-    B -->|Edit Row| J[Click on Existing Row]
-    J --> K[Row Becomes Editable]
-    K --> L{Action}
-    L -->|Update| M[Update Row Details]
-    M --> N[Save Changes]
-    L -->|Delete| P[Click Delete Button]
-    P --> Q[Confirm Deletion]
-    Q -->|Confirm| R[Row Deleted from Budget]
-    Q -->|Cancel| K
-    N --> O[Row Updated in Budget]
+    C -->|Add a row| H[Open 'Add a row' popover]
+    H --> I[Choose kind: Income / Expense / Transfer / Repayment]
+    I --> J[Pick category or account anchor]
+    J --> K[Row appears in sheet — edit Budgeted inline]
 
-    %% Navigation
-    I --> S[Continue Budgeting]
-    O --> S
-    R --> S
-    S --> B
+    C -->|Delete a row| L[Click delete icon on row]
+    L --> M[Row removed immediately — no confirmation dialog]
 
-    %% Styling
-    classDef userAction fill:#d4f1f9,stroke:#333,stroke-width:2px
-    classDef systemAction fill:#d5e8d4,stroke:#333,stroke-width:2px
-    classDef warningAction fill:#ffebee,stroke:#f44336,stroke-width:2px
+    C -->|Copy last month| N[Open 'Add a row' popover → Copy from period]
+    N --> O[Choose source period]
+    O --> P[Rows copied; archived/deleted accounts skipped]
 
-    %% Apply styles
-    class A,B,C,D,G,H,I,J,K,L,M,N,O,P,Q,R,S userAction
-    class P,Q warningAction
+    C -->|Change month| Q[Use period navigator in toolbar]
+    Q --> B
 ```
 
-## Budget Row Management Flow
+## Step-by-step
 
-### Adding a New Budget Row
+### Editing a value
 
-1. From the budget view, user clicks an 'Add Row' button
-2. A new row form appears with fields for:
-   - Description/Name of the expense/income
-   - Amount
-   - Category selection
-   - Subcategory selection
-   - (Optional) Notes or tags
-3. User enters the details and clicks 'Save'
-4. The new row is added to the budget
-5. Budget totals are automatically updated
+1. User opens `/budget` — the current month's sheet loads (created automatically if it doesn't exist).
+2. Each row shows: **Label** | **Budgeted** | **Spent / Received** | **Difference**.
+3. User clicks a **Budgeted** cell. It becomes an editable input.
+4. Typing updates the **Difference** column optimistically; the value is debounced-saved per keystroke and committed on blur.
+5. Pressing **Enter** moves focus to the same field on the row below. On the last row of an income or expense section, Enter adds a new blank row.
 
-### Managing Existing Budget Rows
+### Adding a row
 
-#### Updating a Row
+1. User opens the **"Add a row"** popover (toolbar, top of sheet).
+2. Chooses the row kind: Income, Expense, Transfer, or Repayment.
+3. Selects the category (Income/Expense) or account anchor (Transfer/Repayment). Accounts already on the sheet are excluded — one row per account per period.
+4. The row is inserted into the correct section with a £0 budget. User edits the Budgeted cell inline.
 
-1. User clicks on an existing budget row to edit it
-2. The row becomes editable with form controls
-3. User can modify:
-   - Amount
-   - Category / Subcategory
-   - Description
-   - Any other relevant fields
-4. User clicks 'Save' to confirm changes
-5. The budget updates to reflect the changes
+### Deleting a row
 
-#### Deleting a Row
+1. User clicks the delete icon on any row.
+2. The row is removed immediately — there is no confirmation dialog.
 
-1. User clicks on an existing budget row to edit it
-2. Clicks the 'Delete' button (trash can icon)
-3. A confirmation dialog appears asking to confirm deletion
-4. User can either:
-   - Confirm: The row is permanently removed
-   - Cancel: Returns to edit mode without deleting
-5. Budget totals are automatically updated after deletion
+### Copying from a previous period
 
-### Key Features
+1. User opens the **"Add a row"** popover → "Copy from period".
+2. Selects a past period.
+3. All rows from that period are copied into the current month. Rows anchored to accounts that have since been archived, deleted, or re-typed are skipped; the sheet reports the count.
 
-- Inline editing for quick updates
-- One-click row deletion with confirmation
-- Real-time budget calculations
-- Category selection with visual indicators
-- Responsive design for all devices
+### Navigating periods
+
+The toolbar's period navigator moves forward or backward one month. Each month is an independent `FinancialPeriod`; the sheet for a month is created on first visit.
+
+## What the Actuals column shows
+
+The **Spent / Received** column is read-only:
+- **INCOME / EXPENSE** rows: sum of transactions categorised to that category in the period.
+- **TRANSFER / REPAYMENT** rows: actuals from the transfer/repayment data for that account.
+
+Users cannot edit actuals from the budget page — they come from the Transactions ledger.
