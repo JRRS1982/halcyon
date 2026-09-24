@@ -1,5 +1,8 @@
 # User Sign-up and Login
 
+**Journey:** A new visitor creates an account, verifies their email, and lands in the app for the first time.  
+**Outcome:** Authenticated session with default categories, accounts, and a £0 budget sheet already created.
+
 This flowchart is an example of a user journey of the user signing up to the application and completing their first onboarding steps.
 
 ```mermaid

@@ -1,5 +1,12 @@
 # Step-up Re-authentication
 
+**What:** `verifyPassword()` calls Supabase `signInWithPassword` before any destructive data action; a live session alone is not sufficient.  
+**Key points:**
+- Protects: `resetToDefaults`, `clearMyData`, `deleteMyAccount` — all in `src/app/(app)/settings/dataActions.ts`
+- Two rate-limit buckets: per-IP (5/min) + per-account (10/hr); both checked before the Supabase call
+- UI: confirm button is disabled until the password field has content (never enabled by default)
+- OAuth-only users (no password set) cannot currently use these actions — known gap, not a bug
+
 Destructive data actions require the user to re-enter their password before the operation executes. A valid session alone is not sufficient.
 
 ## Protected actions

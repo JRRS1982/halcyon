@@ -1,5 +1,12 @@
 # CI/CD: how a change reaches production
 
+**What:** GitHub Actions runs lint/tests/migration; Vercel deploys independently; production only promotes when both agree.  
+**Key points:**
+- Six CI jobs: `lint-and-test`, `integration-tests`, `e2e-tests`, `mixed-schema-check`, `security-audit`, `migrate-prod`
+- `migrate-prod` runs `prisma migrate deploy` against production Supabase before Vercel promotes — this is what prevents code reaching a un-migrated schema
+- `mixed-schema-check` rejects PRs that bundle migration files with application code changes
+- Required checks live in the Vercel dashboard (not this repo) — changing that list changes the release guarantee
+
 Two systems react to a push to `master`, independently:
 
 1. **GitHub Actions** runs `ci.yml` — lint, tests, then `migrate-prod`, which

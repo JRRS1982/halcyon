@@ -1,5 +1,12 @@
 # Accounts: the durable registry
 
+**What:** The central registry of everything a user owns or owes; each month's balance entry is an *observation* of an account, not a free-typed label.  
+**Key points:**
+- `Account.type` (`CURRENT_ACCOUNT`, `SAVINGS`, `MORTGAGE`, …) is the durable fact; `kind` (ASSET/LIABILITY) and `wrapper` (ISA, PENSION, …) are derived, never stored
+- One `BalanceItem` per account per month — the balance sheet observes accounts, not the other way round
+- `AccountTerms` carries up to 9 projection parameters (return rate, fees, mortgage revision date, …) fed to Plan Sync
+- Archiving hides from sheets but preserves history; deleting cascades and is blocked if transactions reference the account
+
 Before this feature, a "Vanguard ISA" was typed onto the balance sheet every
 month as a free-text `label`, related to last month's row only by the label
 matching, and typed a second time into the plan. Nothing stable existed for

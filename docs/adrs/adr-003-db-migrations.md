@@ -6,6 +6,8 @@
 - Last revised: 2026-05-22 — added the Supabase-specific connection-string split (pooled `DATABASE_URL` for runtime, direct `DIRECT_URL` for migrations).
 - Decision maker: @jrrs1982
 
+**Decision:** Forward-only Prisma migrations; `prisma migrate deploy` runs in CI before Vercel promotes each build, with separate pooled and direct connection strings for Supabase.
+
 ## Context
 
 I am setting up the database migration scripts and would like to document my preference for not having a rollback script, as Prisma does not support it. Manual SQL would be required for each rollback, and forward-only migrations are safer as they are less error-prone.

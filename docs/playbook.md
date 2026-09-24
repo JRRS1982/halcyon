@@ -1,5 +1,11 @@
 # New Project Playbook
 
+**What:** Structured checklist for launching a web app — from problem definition through post-launch iteration.  
+**Key points:**
+- Items marked `*` are considered non-negotiable; the rest are context-dependent
+- Covers: define → architect → build → test → ship → iterate
+- Written as a personal process guide, not a team workflow — adapt as needed for team contexts
+
 This document outlines a structured process for building a web application, covering all phases from strategic planning to post-launch iteration.
 
 I consider the items marked with a "*" to be important to my process and should not be skipped.

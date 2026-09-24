@@ -1,5 +1,12 @@
 # Ledger filters: a drawer, a badge, and the chips that undo it
 
+**What:** Four additional filters (date range, account, category, amount) surfaced in a drawer alongside the existing search; every active filter shows as a removable chip.  
+**Key points:**
+- All filter state lives in the URL — shareable, bookmarkable, back-button aware
+- Amount filter matches magnitude (absolute value), not sign — £50 matches both debit and credit
+- The drawer badge shows the count of active non-search filters
+- `ledgerWhere()` in `src/lib/transactions/` is the single pure predicate composing all filters
+
 The transactions ledger could answer "where did I spend the word *tesco*?" and
 "what have I not categorised?" — and nothing else. A year of imports had no way
 to look at one month, one account, one category, or one size of charge.

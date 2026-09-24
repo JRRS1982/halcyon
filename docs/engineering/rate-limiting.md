@@ -1,5 +1,12 @@
 # Rate Limiting
 
+**What:** Per-action sliding-window limits via Upstash Ratelimit; fails open on Redis unavailability (except sign-up, which fails closed).  
+**Key points:**
+- Two buckets per sensitive action: per-IP (brute-force) + per-account/email (credential stuffing)
+- `checkRateLimit(action, key)` in `src/lib/rateLimit/index.ts` — returns `"allowed"` or throws/returns 429
+- `whenStoreFails: "allow"` on all actions except sign-up; Redis outage does not block real users
+- IPs stored as SHA-256 hashes in Upstash — not plaintext; compliant with GDPR's data minimisation principle
+
 Application-level rate limiting via Upstash Ratelimit. Implemented in `src/lib/rateLimit/index.ts`.
 
 ## Policy registry

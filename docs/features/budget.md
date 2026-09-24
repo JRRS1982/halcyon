@@ -1,6 +1,12 @@
 # Budget Table
 
-Per-period spreadsheet of planned vs actual income, spending, transfers, and debt repayments. One `FinancialPeriod` per month; the default is the current month.
+**What:** Per-period spreadsheet of planned vs actual income, spending, transfers, and debt repayments across four row kinds.  
+**Route:** `/budget`  
+**Key points:**
+- Four row kinds: `INCOME`, `EXPENSE`, `TRANSFER`, `REPAYMENT` — each keys on a different anchor (Category or Account)
+- Difference column = budgeted − actual (expenses) or actual − budgeted (income); positive means on track
+- Actuals pulled from categorised transactions (INCOME/EXPENSE) or transfer data (TRANSFER/REPAYMENT)
+- REPAYMENT rows render inside Expenses and count toward that total — a mortgage payment is spending
 
 ## Four row kinds
 

@@ -6,6 +6,8 @@
 - Last revised: 2026-05-22 — replaced NextAuth + bcrypt with Supabase Auth; production now runs on Vercel + Supabase managed Postgres. See [ADR-001](ADR-001-TechStackSelection.md).
 - Decision maker: @jrrs1982
 
+**Decision:** Supabase Auth owns identity (passwords, OAuth, session cookies); every Prisma query filters by `userId` as the primary fence; RLS policies are defence-in-depth.
+
 ## Context
 
 This is a personal finance application handling sensitive user data (income, expenses, budgets). Users authenticate via email/password or OAuth providers. The app stores financial documents and personal information, making it a target for account takeover, data breaches, and unauthorized access. We need a security architecture that protects user data while maintaining usability.

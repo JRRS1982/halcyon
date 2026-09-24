@@ -1,6 +1,12 @@
 # Ledger and Transactions
 
-The ledger shows all transactions for the user, paginated. Feature-gated: hidden entirely when `UserSettings.transactionsEnabled = false`.
+**What:** Paginated transaction ledger with CSV import, batch reversal, and bulk categorisation; hidden when `transactionsEnabled = false`.  
+**Route:** `/transactions`  
+**Key points:**
+- CSV import: parse → dedup by fingerprint → preview → `ImportBatch` + `Transaction` rows written atomically
+- Dedup key: `accountId | date | amountCents | normalizedDescription` — never silently merges, flags for user review
+- Selecting rows switches controls card to categorise mode (search box becomes category picker)
+- Batch reversal deletes all rows from an import in one operation; see [ledger-filters.md](ledger-filters.md) for filter detail
 
 See [ledger-filters.md](ledger-filters.md) for filter/search details.
 

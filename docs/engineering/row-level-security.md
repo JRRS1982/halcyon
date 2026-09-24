@@ -1,5 +1,12 @@
 # Row Level Security
 
+**What:** Postgres RLS policies as defence-in-depth; the primary fence is `userId` filtering in every Prisma query.  
+**Key points:**
+- App Prisma role bypasses RLS — app-level `userId` filters are the real boundary (per ADR-002)
+- RLS policies fire only if a future feature queries Supabase directly from the browser client
+- When adding a user-owned model: write both the Prisma `userId` filter AND the `CREATE POLICY` statement
+- `ENABLE ROW LEVEL SECURITY` on the table alone is not enough — also needs a policy, or all rows are blocked
+
 How user data is fenced at the database level, why the app doesn't notice, and
 what you must do by hand when adding a table.
 

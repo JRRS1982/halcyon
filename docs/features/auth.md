@@ -1,5 +1,12 @@
 # Authentication Flow
 
+**What:** Supabase Auth (email/password + Google OAuth) integrated into Next.js via `@supabase/ssr`; cookies managed server-side in middleware.  
+**Key points:**
+- Session lives in `sb-*-auth-token` cookies set by Supabase; `src/proxy.ts` refreshes them on every request
+- Route protection: `src/lib/supabase/middleware.ts` checks session and redirects unauthenticated requests to `/sign-in`
+- Server actions re-call `requireUserId()` — middleware is not the only fence
+- Google OAuth is live; GitHub is configured in code but disabled in the Supabase dashboard
+
 This document explains *what kind* of authentication Halcyon uses, where each piece of state lives, and what happens on the wire during sign-up, sign-in, and sign-out.
 
 See also: [ADR-001 (Tech Stack)](../adrs/adr-001-tech-stack-selection.md), [ADR-002 (Security)](../adrs/adr-002-security-architecture.md), [Data Models](../data-models/data-models.md).

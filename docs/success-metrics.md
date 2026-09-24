@@ -1,5 +1,11 @@
 # Success Metrics
 
+**What:** Living document of metrics for measuring app success — written as good practice even for a personal project.  
+**Key points:**
+- Covers user value (problem solved, habit formed), technical health (uptime, performance), and personal learning goals
+- Intended to be reviewed and updated if the app gains external users
+- Currently qualitative — no analytics pipeline is wired
+
 This is going to be a living document of the metrics that I will use to measure the success of the app.
 
 This is only a personal app / project, but I think it is probably good practice to write it out. If the app gets any traction, this document could be reviewed and updated on a regular basis to ensure that the app is meeting the current needs of the users.

@@ -1,5 +1,8 @@
 # User Journey: Update a Budget
 
+**Journey:** A user opens the budget sheet and enters their planned figures for the month.  
+**Outcome:** Budgeted amounts saved, Difference column updated, actuals visible alongside plan.
+
 The budget is an inline spreadsheet grid — there are no pop-up forms. Changes save automatically on blur or via a debounced update as you type. See [features/budget.md](../features/budget.md) for the data model.
 
 ## Flow

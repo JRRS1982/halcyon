@@ -1,6 +1,12 @@
 # Dashboard Charts
 
-The dashboard is a read-only summary view. No data can be edited from here.
+**What:** Read-only summary of financial health — four KPI tiles and four togglable charts drawn from balance and budget data.  
+**Route:** `/dashboard`  
+**Key points:**
+- KPI strip: net worth, surplus, savings rate, spend vs budget — each with delta vs previous month
+- Four charts: balance trend, income vs expenses, spending by category, balance by account type
+- Each chart individually togglable via Settings → Dashboard charts (`UserSettings.hiddenCharts`)
+- No editing from this page; all data flows from `/balance` and `/budget`
 
 ## Summary strip
 

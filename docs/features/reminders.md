@@ -1,5 +1,12 @@
 # Monthly reminder email
 
+**What:** Optional monthly email nudge on a user-chosen day, sent via Resend; off by default, opt-in from Settings.  
+**Key points:**
+- Cron job at `src/app/api/cron/monthly-reminder/` fires daily, sends only to users whose reminder day matches today
+- Email carries no financial data — just a prompt to open the app
+- Opt-out link (`/unsubscribe?token=…`) works without a session; token is a signed JWT
+- Resend setup is an owner to-do; the cron endpoint is wired but silent until Resend keys are set in Vercel
+
 The return loop. Balanced Money depends on a monthly habit, and until this
 existed nothing brought anyone back — the app waited to be remembered.
 

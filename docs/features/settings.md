@@ -1,5 +1,13 @@
 # Settings
 
+**What:** User-configurable preferences, feature toggles, category and account management, and irreversible data actions.  
+**Route:** `/settings`  
+**Key points:**
+- Preferences: currency, number format, theme — saved to `UserSettings`
+- Feature toggles: Transactions, Budget transfers, Plan — each hides its nav item and page entirely
+- Category management: create, rename, soft-delete, merge (merge reassigns transactions before deleting source)
+- DataPrivacy actions (export, clear, reset, delete account) all require password re-entry since PR #208
+
 ## Preferences
 
 Saved to `UserSettings`:

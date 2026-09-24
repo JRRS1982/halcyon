@@ -1,6 +1,12 @@
 # Balance Sheet
 
-Per-period grid showing all user accounts grouped by section. One row per account per period; the stored fact is `BalanceItem.value`.
+**What:** Per-period grid of all accounts grouped by section; the stored fact per account per month is `BalanceItem.value`.  
+**Route:** `/balance`  
+**Key points:**
+- Net worth = asset totals − liability totals, computed client-side from the displayed rows
+- Account type (`CURRENT_ACCOUNT`, `SAVINGS`, `MORTGAGE`, …) drives kind/wrapper via `kindOf()`/`wrapperOf()` — never stored as columns
+- Value and notes editable in-place; name/type/section/terms in the account card drawer
+- Add/archive/delete accounts from the sheet's Add drawer and delete panel
 
 ## Sheet structure
 
