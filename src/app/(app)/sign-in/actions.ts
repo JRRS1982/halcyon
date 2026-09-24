@@ -13,8 +13,23 @@ import {
   serializeActivity,
 } from "@/lib/auth/sessionTimeout";
 import { clientIp } from "@/lib/http/clientIp";
-import { withinRateLimit } from "@/lib/rateLimit";
+import { log } from "@/lib/log";
+import { checkRateLimit } from "@/lib/rateLimit";
 import { createClient } from "@/lib/supabase/server";
+
+// One message for every way a sign-in can fail at the provider. Supabase's own
+// messages differ — "Invalid login credentials" for an unknown address, "Email
+// not confirmed" for a registered one — so echoing them would let anyone with
+// a list of addresses learn which ones have an account here. The provider's
+// message goes to the server log instead, where it is still useful.
+const SIGN_IN_FAILED_MESSAGE = "Email or password is incorrect.";
+
+const TOO_MANY_ATTEMPTS_MESSAGE =
+  "Too many attempts. Please wait a minute and try again.";
+
+function failSignIn(message: string): never {
+  redirect(`/sign-in?error=${encodeURIComponent(message)}`);
+}
 
 // Starts the session-timeout clock at the moment the session is created.
 //
@@ -41,22 +56,31 @@ export const signIn = async (formData: FormData) => {
   const next = safeNext(formData.get("next"), POST_AUTH_LANDING);
 
   if (!parsed.success) {
-    const message =
-      parsed.error.issues[0]?.message ?? "Invalid form submission";
-    redirect(`/sign-in?error=${encodeURIComponent(message)}`);
+    failSignIn(parsed.error.issues[0]?.message ?? "Invalid form submission");
   }
 
-  if (!(await withinRateLimit("sign-in", await clientIp()))) {
-    redirect(
-      `/sign-in?error=${encodeURIComponent("Too many attempts. Please wait a minute and try again.")}`,
-    );
+  // Two buckets: the client's IP bounds one attacker, the account bounds a
+  // pool of IPs all guessing at the same address.
+  const ipVerdict = await checkRateLimit("sign-in", await clientIp());
+  const accountVerdict = await checkRateLimit(
+    "sign-in-account",
+    parsed.data.email,
+  );
+  if (ipVerdict !== "allowed" || accountVerdict !== "allowed") {
+    failSignIn(TOO_MANY_ATTEMPTS_MESSAGE);
   }
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword(parsed.data);
 
+  // Message and status only: a wrong password is routine, not an exception,
+  // so it does not earn a stack trace in the log.
   if (error) {
-    redirect(`/sign-in?error=${encodeURIComponent(error.message)}`);
+    log.warn("Sign-in rejected by provider", {
+      status: error.status,
+      message: error.message,
+    });
+    failSignIn(SIGN_IN_FAILED_MESSAGE);
   }
 
   await startActivityClock();
@@ -65,7 +89,8 @@ export const signIn = async (formData: FormData) => {
 
 // Dev-only convenience: one-click sign-in as the seeded demo user. Refuses in
 // production (defence-in-depth — the button is also stripped from the prod
-// bundle via `demoLoginEnabled`).
+// bundle via `demoLoginEnabled`). Never reaches production, so the provider's
+// message is shown as-is: it is the developer's own debugging aid.
 export const signInAsDemo = async (formData: FormData) => {
   if (process.env.NODE_ENV === "production") {
     redirect("/sign-in");
@@ -79,7 +104,7 @@ export const signInAsDemo = async (formData: FormData) => {
   });
 
   if (error) {
-    redirect(`/sign-in?error=${encodeURIComponent(error.message)}`);
+    failSignIn(error.message);
   }
 
   await startActivityClock();

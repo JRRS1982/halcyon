@@ -2,46 +2,99 @@ import { createHash } from "node:crypto";
 import { log } from "@/lib/log";
 import { incrementWindow } from "@/lib/rateLimit/redis";
 
-// App-side per-IP rate limiter for the unauthenticated auth endpoints.
+// App-side rate limiter for the unauthenticated auth endpoints.
 //
 // Supabase throttles auth by IP, but every call reaches it from Vercel's egress
 // IPs (see src/lib/supabase/server.ts), so this layer keys on the real client
-// IP to bound brute-force (sign-in) and confirmation-email spam (sign-up).
+// IP to bound brute-force (sign-in) and confirmation-email spam (sign-up), and
+// on the submitted email so that a pool of IPs cannot multiply the per-IP
+// allowance against one account or one inbox.
 //
-// Deep module: callers only ask "is this request within the limit?" — the
-// store, the hashing and the window all live behind this one function.
+// Deep module: callers only ask "may this request proceed?" — the store, the
+// hashing, the windows and the outage behaviour all live behind one function.
 
-export type RateLimitedAction = "sign-in" | "sign-up" | "health";
+export type RateLimitedAction =
+  | "sign-in" // per client IP
+  | "sign-in-account" // per submitted email: distributed guessing at one account
+  | "sign-up" // per client IP
+  | "sign-up-address" // per submitted email: confirmation-mail bombing of one inbox
+  | "health";
 
-const WINDOW_SECONDS = 60;
-const MAX_ATTEMPTS = 10;
+export type RateLimitVerdict = "allowed" | "limited" | "unavailable";
 
-// The IP is personal data, so it is never stored: the key holds only its
-// SHA-256 digest, which is enough to count requests from the same client.
-const hashIp = (ip: string): string =>
-  createHash("sha256").update(ip).digest("hex");
+type Policy = {
+  windowSeconds: number;
+  maxAttempts: number;
+  // What to do when the store is configured but unreachable. Sign-in fails open
+  // so a cache outage is never a sign-in outage — Supabase's own throttle still
+  // stands behind it. Sign-up fails closed: every call sends an email, so an
+  // unbounded window there costs sender reputation and the project's mail
+  // quota, and a brief pause on new sign-ups is the cheaper failure.
+  whenStoreFails: "allow" | "block";
+};
 
-// True when the request may proceed, false when it should be blocked.
+const MINUTE = 60;
+const HOUR = 60 * MINUTE;
+
+const POLICIES: Record<RateLimitedAction, Policy> = {
+  "sign-in": {
+    windowSeconds: MINUTE,
+    maxAttempts: 10,
+    whenStoreFails: "allow",
+  },
+  "sign-in-account": {
+    windowSeconds: HOUR,
+    maxAttempts: 20,
+    whenStoreFails: "allow",
+  },
+  "sign-up": {
+    windowSeconds: MINUTE,
+    maxAttempts: 10,
+    whenStoreFails: "block",
+  },
+  "sign-up-address": {
+    windowSeconds: HOUR,
+    maxAttempts: 3,
+    whenStoreFails: "block",
+  },
+  health: { windowSeconds: MINUTE, maxAttempts: 10, whenStoreFails: "allow" },
+};
+
+// The subject (an IP or an email) is personal data, so it is never stored: the
+// key holds only its SHA-256 digest, which is enough to count requests from the
+// same client. Case-folded first so that A@x.com and a@x.com share a bucket.
+const hashSubject = (subject: string): string =>
+  createHash("sha256").update(subject.trim().toLowerCase()).digest("hex");
+
+// "allowed" when the request may proceed; "limited" when this subject has used
+// its window; "unavailable" when the store failed and the action's policy says
+// to block rather than allow.
 //
-// Fails OPEN by design: a missing store (Redis not configured — local, CI,
-// preview) or a Redis error allows the request and logs, so a cache outage
-// degrades protection rather than becoming a sign-in/sign-up outage for
-// everyone. A request with no client IP can't be keyed, so it is allowed.
-export const withinRateLimit = async (
+// No store configured at all (local, CI, preview — see src/lib/env.ts) means
+// the limiter is switched off by deployment choice and every request is
+// allowed. A store that is configured but throws is an outage, logged at error
+// level so it is noticed rather than silently degrading, and the policy
+// decides. A request with no subject cannot be keyed, so it is allowed.
+export const checkRateLimit = async (
   action: RateLimitedAction,
-  ip: string | null,
-): Promise<boolean> => {
-  if (!ip) return true;
+  subject: string | null,
+): Promise<RateLimitVerdict> => {
+  if (!subject) return "allowed";
+  const policy = POLICIES[action];
 
   try {
     const count = await incrementWindow(
-      `rl:${action}:${hashIp(ip)}`,
-      WINDOW_SECONDS,
+      `rl:${action}:${hashSubject(subject)}`,
+      policy.windowSeconds,
     );
-    if (count === null) return true;
-    return count <= MAX_ATTEMPTS;
+    if (count === null) return "allowed";
+    return count <= policy.maxAttempts ? "allowed" : "limited";
   } catch (err) {
-    log.warn("Rate limiter unavailable; allowing request", { action, err });
-    return true;
+    log.error("Rate limiter store unavailable", {
+      action,
+      outcome: policy.whenStoreFails,
+      err,
+    });
+    return policy.whenStoreFails === "allow" ? "allowed" : "unavailable";
   }
 };

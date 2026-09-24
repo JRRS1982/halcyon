@@ -5,8 +5,25 @@ import { redirect } from "next/navigation";
 import { signUpSchema } from "@/lib/auth/schemas";
 import { clientIp } from "@/lib/http/clientIp";
 import { log } from "@/lib/log";
-import { withinRateLimit } from "@/lib/rateLimit";
+import { checkRateLimit, type RateLimitVerdict } from "@/lib/rateLimit";
 import { createClient } from "@/lib/supabase/server";
+
+function failSignUp(message: string): never {
+  redirect(`/sign-up?error=${encodeURIComponent(message)}`);
+}
+
+// Every sign-up sends a confirmation email, so this is the one place the
+// limiter fails closed (see src/lib/rateLimit): with the store down, pausing
+// new sign-ups is cheaper than an unbounded stream of outbound mail.
+const rejectionFor = (verdict: RateLimitVerdict): string | null => {
+  if (verdict === "limited") {
+    return "Too many attempts. Please wait a minute and try again.";
+  }
+  if (verdict === "unavailable") {
+    return "Sign-up is temporarily unavailable. Please try again shortly.";
+  }
+  return null;
+};
 
 export const signUp = async (formData: FormData) => {
   const parsed = signUpSchema.safeParse({
@@ -15,15 +32,20 @@ export const signUp = async (formData: FormData) => {
   });
 
   if (!parsed.success) {
-    const message =
-      parsed.error.issues[0]?.message ?? "Invalid form submission";
-    redirect(`/sign-up?error=${encodeURIComponent(message)}`);
+    failSignUp(parsed.error.issues[0]?.message ?? "Invalid form submission");
   }
 
-  if (!(await withinRateLimit("sign-up", await clientIp()))) {
-    redirect(
-      `/sign-up?error=${encodeURIComponent("Too many attempts. Please wait a minute and try again.")}`,
-    );
+  // Two buckets: the client's IP bounds one attacker, the address bounds how
+  // many confirmation emails any inbox can be sent, whatever the IPs.
+  const ipRejection = rejectionFor(
+    await checkRateLimit("sign-up", await clientIp()),
+  );
+  const addressRejection = rejectionFor(
+    await checkRateLimit("sign-up-address", parsed.data.email),
+  );
+  const rejection = ipRejection ?? addressRejection;
+  if (rejection) {
+    failSignUp(rejection);
   }
 
   const origin = (await headers()).get("origin");

@@ -4,7 +4,7 @@ import { emailEnv } from "@/lib/env";
 import { clientIp } from "@/lib/http/clientIp";
 import { log } from "@/lib/log";
 import { prisma } from "@/lib/prisma";
-import { withinRateLimit } from "@/lib/rateLimit";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 /**
  * Production liveness, for .github/workflows/health.yml.
@@ -26,7 +26,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  if (!(await withinRateLimit("health", await clientIp()))) {
+  if ((await checkRateLimit("health", await clientIp())) !== "allowed") {
     return NextResponse.json({ error: "Too Many Requests" }, { status: 429 });
   }
 

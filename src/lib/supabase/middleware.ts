@@ -11,6 +11,7 @@ import {
   serializeActivity,
 } from "@/lib/auth/sessionTimeout";
 import { env } from "@/lib/env";
+import { sessionCookieOptions } from "@/lib/supabase/cookieOptions";
 
 // Called from `src/proxy.ts` on every request. Refreshes the Supabase
 // session cookies so that server components see a current user, enforces the
@@ -23,6 +24,7 @@ export const updateSession = async (request: NextRequest) => {
     env.NEXT_PUBLIC_SUPABASE_URL,
     env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
     {
+      cookieOptions: sessionCookieOptions,
       cookies: {
         getAll: () => request.cookies.getAll(),
         setAll: (
