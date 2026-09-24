@@ -120,16 +120,19 @@ export function DataPrivacy() {
   const [pending, startTransition] = useTransition();
   const [mode, setMode] = useState<Mode>(null);
   const [confirmText, setConfirmText] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const start = (next: Mode) => {
     setError(null);
     setConfirmText("");
+    setPassword("");
     setMode(next);
   };
 
   const cancel = () => {
     setConfirmText("");
+    setPassword("");
     setMode(null);
   };
 
@@ -154,11 +157,15 @@ export function DataPrivacy() {
     startTransition(async () => {
       setError(null);
       try {
-        await resetToDefaults();
+        await resetToDefaults(password);
         setMode(null);
         router.refresh();
-      } catch {
-        setError("Couldn't reset your data. Please try again.");
+      } catch (err) {
+        setError(
+          err instanceof Error && err.message === "Incorrect password"
+            ? "Incorrect password."
+            : "Couldn't reset your data. Please try again.",
+        );
       }
     });
 
@@ -166,11 +173,15 @@ export function DataPrivacy() {
     startTransition(async () => {
       setError(null);
       try {
-        await clearMyData();
+        await clearMyData(password);
         setMode(null);
         router.refresh();
-      } catch {
-        setError("Couldn't clear your data. Please try again.");
+      } catch (err) {
+        setError(
+          err instanceof Error && err.message === "Incorrect password"
+            ? "Incorrect password."
+            : "Couldn't clear your data. Please try again.",
+        );
       }
     });
 
@@ -178,10 +189,14 @@ export function DataPrivacy() {
     startTransition(async () => {
       setError(null);
       try {
-        await deleteMyAccount();
+        await deleteMyAccount(password);
         // On success deleteMyAccount redirects; nothing more to do here.
-      } catch {
-        setError("Couldn't delete your account. Please try again.");
+      } catch (err) {
+        setError(
+          err instanceof Error && err.message === "Incorrect password"
+            ? "Incorrect password."
+            : "Couldn't delete your account. Please try again.",
+        );
       }
     });
 
@@ -219,12 +234,25 @@ export function DataPrivacy() {
               are put back, exactly as they were on your first day. Your login
               and settings stay. This can&rsquo;t be undone.
             </WarningText>
+            <ConfirmField>
+              <ConfirmLabel htmlFor="reset-password">
+                Enter your password to confirm
+              </ConfirmLabel>
+              <ConfirmInput
+                id="reset-password"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Your password"
+              />
+            </ConfirmField>
             <Actions>
               <Button
                 type="button"
                 variant="destructive"
                 onClick={onReset}
-                disabled={pending}
+                disabled={pending || !password}
               >
                 Reset to defaults
               </Button>
@@ -263,12 +291,25 @@ export function DataPrivacy() {
               will be permanently removed. Your login, settings, and categories
               stay. This can&rsquo;t be undone.
             </WarningText>
+            <ConfirmField>
+              <ConfirmLabel htmlFor="clear-password">
+                Enter your password to confirm
+              </ConfirmLabel>
+              <ConfirmInput
+                id="clear-password"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Your password"
+              />
+            </ConfirmField>
             <Actions>
               <Button
                 type="button"
                 variant="destructive"
                 onClick={onClear}
-                disabled={pending}
+                disabled={pending || !password}
               >
                 Clear my data
               </Button>
@@ -318,12 +359,25 @@ export function DataPrivacy() {
                 aria-label="Type DELETE to confirm account deletion"
               />
             </ConfirmField>
+            <ConfirmField>
+              <ConfirmLabel htmlFor="delete-password">
+                Enter your password to confirm
+              </ConfirmLabel>
+              <ConfirmInput
+                id="delete-password"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Your password"
+              />
+            </ConfirmField>
             <Actions>
               <Button
                 type="button"
                 variant="destructive"
                 onClick={onDelete}
-                disabled={pending || confirmText !== "DELETE"}
+                disabled={pending || confirmText !== "DELETE" || !password}
               >
                 Delete my account
               </Button>

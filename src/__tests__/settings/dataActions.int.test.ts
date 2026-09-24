@@ -10,8 +10,14 @@ jest.mock("@/lib/supabase/server", () => ({
   createClient: () => ({
     auth: {
       getUser: async () => ({
-        data: { user: { id: "00000000-0000-0000-0000-0000000000aa" } },
+        data: {
+          user: {
+            id: "00000000-0000-0000-0000-0000000000aa",
+            email: "test@example.com",
+          },
+        },
       }),
+      signInWithPassword: async () => ({ error: null }),
       signOut: async () => ({ error: null }),
     },
   }),
@@ -129,7 +135,7 @@ describe("clearMyData (integration)", () => {
     await seedFinancialData(TEST_USER_ID);
     // seedUser() (global beforeEach) already created UserSettings for TEST_USER_ID.
 
-    await clearMyData();
+    await clearMyData("test-password");
 
     expect(
       await prisma.transaction.count({ where: { userId: TEST_USER_ID } }),
@@ -178,7 +184,7 @@ describe("clearMyData (integration)", () => {
     await prisma.user.create({ data: { id: OTHER_USER_ID } });
     await seedFinancialData(OTHER_USER_ID);
 
-    await clearMyData();
+    await clearMyData("test-password");
 
     expect(
       await prisma.transaction.count({ where: { userId: OTHER_USER_ID } }),
@@ -199,7 +205,9 @@ describe("deleteMyAccount (integration)", () => {
     await seedFinancialData(TEST_USER_ID);
 
     // redirect("/") is mocked to throw `redirect:/`.
-    await expect(deleteMyAccount()).rejects.toThrow("redirect:/");
+    await expect(deleteMyAccount("test-password")).rejects.toThrow(
+      "redirect:/",
+    );
 
     expect(mockDeleteUser).toHaveBeenCalledTimes(1);
     expect(mockDeleteUser).toHaveBeenCalledWith(TEST_USER_ID);
@@ -231,7 +239,9 @@ describe("deleteMyAccount (integration)", () => {
     await prisma.user.create({ data: { id: OTHER_USER_ID } });
     await seedFinancialData(OTHER_USER_ID);
 
-    await expect(deleteMyAccount()).rejects.toThrow("redirect:/");
+    await expect(deleteMyAccount("test-password")).rejects.toThrow(
+      "redirect:/",
+    );
 
     expect(
       await prisma.user.findUnique({ where: { id: OTHER_USER_ID } }),

@@ -18,6 +18,19 @@ async function requireUserId(): Promise<string> {
   return user.id;
 }
 
+async function verifyPassword(password: string): Promise<void> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user?.email) redirect("/sign-in?next=/settings");
+  const { error } = await supabase.auth.signInWithPassword({
+    email: user.email,
+    password,
+  });
+  if (error) throw new Error("Incorrect password");
+}
+
 // Deletes every FINANCIAL row for a user, in FK-safe order. Transactions go
 // first because Transaction.transferAccount is onDelete: Restrict — an account
 // can't be removed while a transfer still points at it. Plans cascade to their
@@ -97,8 +110,9 @@ export async function exportMyData(): Promise<string> {
 // that comment describes is the same, and Category goes too, which the other
 // paths deliberately keep. Seeding after a partial delete would duplicate the
 // starter categories, so the two halves cannot be separate transactions.
-export async function resetToDefaults(): Promise<void> {
+export async function resetToDefaults(password: string): Promise<void> {
   const userId = await requireUserId();
+  await verifyPassword(password);
 
   await prisma.$transaction(async (tx) => {
     // Transactions first: Transaction.transferAccount is onDelete: Restrict,
@@ -124,8 +138,9 @@ export async function resetToDefaults(): Promise<void> {
   revalidatePath("/settings");
 }
 
-export async function clearMyData(): Promise<void> {
+export async function clearMyData(password: string): Promise<void> {
   const userId = await requireUserId();
+  await verifyPassword(password);
   await prisma.$transaction(financialDeletes(userId));
   revalidatePath("/dashboard");
   revalidatePath("/budget");
@@ -135,8 +150,9 @@ export async function clearMyData(): Promise<void> {
   revalidatePath("/settings");
 }
 
-export async function deleteMyAccount(): Promise<void> {
+export async function deleteMyAccount(password: string): Promise<void> {
   const userId = await requireUserId();
+  await verifyPassword(password);
 
   // App data first, identity second: if the admin call below failed, we'd have
   // erased the financial PII rather than orphaning it behind an undeletable
