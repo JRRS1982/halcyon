@@ -11,16 +11,13 @@ flowchart TD
 
     %% Sign Up Path
     C --> E[Enter Email/Password or use OAuth provider]
-    E --> F[Accept Terms & Privacy]
-    F --> G[Submit]
-    G --> H{Email Verification Required?}
-    H -->|Yes| I[Send Verification Email]
-    H -->|No| K[Create Account]
-    I --> J[User Verifies Email]
-    J --> K
+    E --> G[Submit]
+    G --> I[Send Verification Email]
+    I --> J[User Verifies Email / OAuth callback]
+    J --> K[Account ready — redirect to sign-in]
 
     %% Post-Authentication
-    K --> M[User Dashboard]
+    K --> M[/transactions]
 
     %% Login Path
     D --> N[Enter Credentials or use OAuth provider]
@@ -35,9 +32,8 @@ flowchart TD
     classDef decision fill:#fff2cc,stroke:#333,stroke-width:2px
 
     %% Apply styles
-    class A,B,C,D,E,F,G,N,O,P userAction
-    class H,I,J,K,M systemAction
-    class H decision
+    class A,B,C,D,E,G,N,O,P userAction
+    class I,J,K,M systemAction
 ```
 
 ## Authentication Flow Details
@@ -45,12 +41,10 @@ flowchart TD
 ### Sign Up Process
 
 1. User clicks "Sign Up" on the homepage
-2. User enters their email and creates a password, or chooses to sign up using an OAuth provider (Google, etc.)
-3. User accepts terms and privacy policy
-4. System checks if email verification is required (based on authentication method)
-   - If using email/password: Verification email is sent
-   - If using OAuth (Google, etc.): Verification handled by provider
-5. After successful verification/authentication, user is directed to `/transactions` (the default post-auth landing)
+2. User enters their email and creates a password, or chooses to sign up using Google OAuth
+3. System sends a verification email (email/password) or completes the OAuth callback (Google)
+4. User verifies email / OAuth completes — account is ready, user is redirected to sign-in
+5. After signing in, user is directed to `/transactions` (the default post-auth landing)
 
 ### Login Process
 
@@ -62,9 +56,10 @@ flowchart TD
 
 ### Email Verification
 
-- **Required for**: Email/Password signup
-- **Skipped for**: OAuth providers (Google, etc.)
-- **Process**:
-  1. Verification link sent to user's email
-  2. User clicks link to verify
-  3. Account is activated and user can log in or is logged in if they are still on the page
+Verification is controlled entirely by the Supabase dashboard "Confirm email" toggle — the app code does not branch on this. With the toggle on (default), email/password sign-ups receive a confirmation link before their account activates. OAuth sign-ups bypass email verification via the provider's own flow.
+
+## Notes
+
+- **Onboarding provisioning**: on first authenticated page load, `provisionUserSettings` (`src/lib/settings/server.ts`) silently seeds default categories, accounts, and a £0 budget sheet for the current month. The user lands on `/transactions` with data already present — they never see an empty app.
+- **Session timeout**: an idle timeout is active for all authenticated users. After inactivity the session is signed out automatically (`src/components/auth/IdleTimeout/`).
+- **Password reset**: no reset route exists in the app UI. Password reset goes through Supabase's own email flow; it is not surfaced on the sign-in page yet.
