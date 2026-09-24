@@ -58,7 +58,7 @@ describe("DataPrivacy", () => {
     ).not.toBeInTheDocument();
   });
 
-  test("delete requires a confirmation step, then typing DELETE", () => {
+  test("delete requires a confirmation step, then typing DELETE and a password", () => {
     renderit();
     // The confirm field is hidden until the user opens the confirmation step.
     expect(
@@ -70,11 +70,16 @@ describe("DataPrivacy", () => {
     const input = screen.getByPlaceholderText(/type DELETE/i);
     expect(input).toBeInTheDocument();
 
-    // With the step open, the confirm button is the only "Delete my account"
-    // button, and it's disabled until DELETE is typed exactly.
+    // With the step open, the confirm button is disabled until both DELETE is
+    // typed exactly and a password is entered.
     const confirm = screen.getByRole("button", { name: /delete my account/i });
     expect(confirm).toBeDisabled();
     fireEvent.change(input, { target: { value: "DELETE" } });
+    // Still disabled — password field also required.
+    expect(confirm).toBeDisabled();
+    fireEvent.change(screen.getByPlaceholderText(/your password/i), {
+      target: { value: "secret" },
+    });
     expect(confirm).toBeEnabled();
   });
 });
@@ -94,15 +99,21 @@ describe("DataPrivacy — reset to defaults", () => {
     expect(resetToDefaults).not.toHaveBeenCalled();
   });
 
-  test("runs the reset once confirmed", () => {
+  test("runs the reset once confirmed with a password", () => {
     renderit();
     fireEvent.click(screen.getByRole("button", { name: /reset to defaults/i }));
     const dialog = screen.getByRole("alertdialog", {
       name: /confirm reset to defaults/i,
     });
-    fireEvent.click(
-      within(dialog).getByRole("button", { name: /reset to defaults/i }),
-    );
+    // Confirm button stays disabled until the password field is filled.
+    const confirmBtn = within(dialog).getByRole("button", {
+      name: /reset to defaults/i,
+    });
+    expect(confirmBtn).toBeDisabled();
+    fireEvent.change(within(dialog).getByPlaceholderText(/your password/i), {
+      target: { value: "secret" },
+    });
+    fireEvent.click(confirmBtn);
 
     expect(resetToDefaults).toHaveBeenCalledTimes(1);
   });

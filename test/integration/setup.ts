@@ -25,6 +25,11 @@ jest.mock("@/lib/supabase/server", () => ({
   }),
 }));
 
+jest.mock("@/lib/http/clientIp", () => ({ clientIp: async () => null }));
+jest.mock("@/lib/rateLimit", () => ({
+  checkRateLimit: async () => "allowed",
+}));
+
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
 
 jest.mock("next/navigation", () => ({
