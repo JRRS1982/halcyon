@@ -3,7 +3,7 @@
 How user data is fenced at the database level, why the app doesn't notice, and
 what you must do by hand when adding a table.
 
-Companion to [ADR-002 (Security Architecture)](../ADRs/ADR-002-SecurityArchitecture.md),
+Companion to [ADR-002 (Security Architecture)](../adrs/adr-002-security-architecture.md),
 which sets the policy; this document is the working detail.
 
 ## Two doors into the same tables
@@ -137,6 +137,6 @@ owner sees 1 of 2 rows, cross-user `DELETE` affects nothing, and a forged
 
 ## Related
 
-- [ADR-002 — Security Architecture](../ADRs/ADR-002-SecurityArchitecture.md)
+- [ADR-002 — Security Architecture](../adrs/adr-002-security-architecture.md)
 - [Auth flow and sequence diagrams](auth.md)
-- [Data models](../DataModels/DataModels.md)
+- [Data models](../data-models/data-models.md)

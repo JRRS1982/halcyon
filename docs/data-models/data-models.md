@@ -14,7 +14,7 @@ This document covers what the schema can't say for itself: what each table is
 Supabase Auth owns identity, in the Postgres `auth` schema (managed by Supabase,
 not by our migrations). The end-to-end sequences are in
 [features/auth.md](../features/auth.md); the decision is
-[ADR-002](../ADRs/ADR-002-SecurityArchitecture.md).
+[ADR-002](../adrs/adr-002-security-architecture.md).
 
 - `auth.users` is authoritative for email, password, verification state, MFA and
   OAuth identities. **The app never writes to it** — everything goes through
@@ -131,7 +131,7 @@ plan-scoped tables resolve ownership through their parent) — they become the
 real fence only if a future feature queries Supabase from the client. When you
 add a user-owned model, write both. See
 [features/row-level-security.md](../features/row-level-security.md) and
-[ADR-002](../ADRs/ADR-002-SecurityArchitecture.md).
+[ADR-002](../adrs/adr-002-security-architecture.md).
 
 > **Why the schema looks like this.** An earlier draft had a hierarchical
 > `FinancialDocument`/`FinancialItem` tree with `parentId`, plus an audit-log
@@ -140,4 +140,4 @@ add a user-owned model, write both. See
 > August 2026, when it became `BudgetItem` — so a `FinancialItem` in an old
 > commit is that flat row, not the abandoned tree above. An
 > earlier version also assumed NextAuth + bcrypt, which
-> [ADR-002](../ADRs/ADR-002-SecurityArchitecture.md) replaced with Supabase Auth.
+> [ADR-002](../adrs/adr-002-security-architecture.md) replaced with Supabase Auth.

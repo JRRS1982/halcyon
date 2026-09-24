@@ -402,7 +402,7 @@ surfaced while building and testing this feature:
 
 ## Known gaps
 
-- **`docs/DataModels/DataModels.md` still describes `Account` as
+- **`docs/data-models/data-models.md` still describes `Account` as
   transactions-only** ("where money sits — current, savings, ISA, SIPP"). P2
   widened the gap rather than closing it: the plan's `accountId`/`categoryId`
   links aren't described there either. P3 has now widened it again —

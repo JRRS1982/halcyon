@@ -2,7 +2,7 @@
 
 This document explains *what kind* of authentication Halcyon uses, where each piece of state lives, and what happens on the wire during sign-up, sign-in, and sign-out.
 
-See also: [ADR-001 (Tech Stack)](../ADRs/ADR-001-TechStackSelection.md), [ADR-002 (Security)](../ADRs/ADR-002-SecurityArchitecture.md), [Data Models](../DataModels/DataModels.md).
+See also: [ADR-001 (Tech Stack)](../adrs/adr-001-tech-stack-selection.md), [ADR-002 (Security)](../adrs/adr-002-security-architecture.md), [Data Models](../data-models/data-models.md).
 
 ## What kind of auth is this?
 
