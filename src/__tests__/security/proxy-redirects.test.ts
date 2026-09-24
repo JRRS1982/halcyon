@@ -73,13 +73,13 @@ describe("proxy redirects", () => {
 
   // The redirect is scoped to exactly "/" — it must not catch other public
   // pages a signed-in user may legitimately want to read.
-  test.each([
-    "/privacy",
-    "/terms",
-  ])("does not bounce a signed-in visitor away from %s", async (path) => {
-    signedIn();
-    const res = await updateSession(requestFor(path));
+  test.each(["/privacy", "/terms"])(
+    "does not bounce a signed-in visitor away from %s",
+    async (path) => {
+      signedIn();
+      const res = await updateSession(requestFor(path));
 
-    expect(res.headers.get("location")).toBeNull();
-  });
+      expect(res.headers.get("location")).toBeNull();
+    },
+  );
 });

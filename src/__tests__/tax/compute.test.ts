@@ -168,41 +168,41 @@ test("works for Scotland's seven bands unchanged", () => {
 // place in the (scaled) bands as the unscaled income did in the unscaled
 // ones. Checked at an income high enough to sit in the taper, for both
 // regimes.
-test.each([
-  "RUK",
-  "SCOTLAND",
-] as const)("an income and the thresholds inflated together preserve the effective rate (%s)", (regime) => {
-  const income = 110_000; // in the taper for both regimes
-  const inflationPct = 2.5;
-  const years = 10;
-  const scale = (1 + inflationPct / 100) ** years;
+test.each(["RUK", "SCOTLAND"] as const)(
+  "an income and the thresholds inflated together preserve the effective rate (%s)",
+  (regime) => {
+    const income = 110_000; // in the taper for both regimes
+    const inflationPct = 2.5;
+    const years = 10;
+    const scale = (1 + inflationPct / 100) ** years;
 
-  const baseline = taxOn({
-    income,
-    year: "2025/26",
-    regime,
-    thresholdScale: 1,
-  });
-  const { thresholdScale } = taxContextFor({
-    projectionYear: 2026 + years,
-    regime,
-    inflationPct,
-    inflationLinked: true,
-  });
-  expect(thresholdScale).toBe(scale);
+    const baseline = taxOn({
+      income,
+      year: "2025/26",
+      regime,
+      thresholdScale: 1,
+    });
+    const { thresholdScale } = taxContextFor({
+      projectionYear: 2026 + years,
+      regime,
+      inflationPct,
+      inflationLinked: true,
+    });
+    expect(thresholdScale).toBe(scale);
 
-  const inflated = taxOn({
-    income: income * scale,
-    year: "2025/26",
-    regime,
-    thresholdScale,
-  });
+    const inflated = taxOn({
+      income: income * scale,
+      year: "2025/26",
+      regime,
+      thresholdScale,
+    });
 
-  const baselineRate = baseline.tax / income;
-  const inflatedRate = inflated.tax / (income * scale);
-  // Within a rounding pound or two of income, translated to a rate.
-  expect(Math.abs(inflatedRate - baselineRate)).toBeLessThan(2 / income);
-});
+    const baselineRate = baseline.tax / income;
+    const inflatedRate = inflated.tax / (income * scale);
+    // Within a rounding pound or two of income, translated to a rate.
+    expect(Math.abs(inflatedRate - baselineRate)).toBeLessThan(2 / income);
+  },
+);
 
 // The Critical this module already had once was a rounding divergence between
 // grossFor and taxOn that a scale-1-only grid missed. Re-run the same wide
