@@ -25,7 +25,6 @@ I want unit tests, end-to-end tests, and integration tests. I want a database th
 - **zod-env**: environment variable validation
 - **Biome**: alternative to eslint + prettier, for lint + format
 - **simple-git-hooks**: pre-push hook that runs `pnpm check` (`biome ci .`) for fast local guardrails
-- **Swagger**: automatically generated API documentation (planned)
 
 ### Frontend
 

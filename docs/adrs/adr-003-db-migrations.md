@@ -25,8 +25,6 @@ datasource db {
 }
 ```
 
-(The current schema only declares `url`; adding `directUrl` is a pending follow-up to be done alongside the Supabase migration.)
-
 ## Decision
 
 - **No rollback scripts.** Forward-only migrations only.

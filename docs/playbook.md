@@ -35,7 +35,7 @@ Translate the product intent into validated designs and system models.
 Lay the technical groundwork for a reliable, scalable, and testable platform. When writing epics, tie everything to value delivery, i.e. "We can deploy and test code in an isolated environment within 10 minutes".
 
 - [x] *Repository setup and branching strategy
-- [x] *Project setup in JIRA / task management system
+- [x] *Project setup in GitHub Issues
 - [x] *Dockerized development environment with parity
 - [x] *Dockerized testing environment with parity
 - [x] Staging / Pre-production environment with parity — Vercel Preview Deployments give every PR its own URL with the same build pipeline as production

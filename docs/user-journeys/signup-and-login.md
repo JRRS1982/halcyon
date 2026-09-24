@@ -50,14 +50,14 @@ flowchart TD
 4. System checks if email verification is required (based on authentication method)
    - If using email/password: Verification email is sent
    - If using OAuth (Google, etc.): Verification handled by provider
-5. After successful verification/authentication, user is directed to their dashboard
+5. After successful verification/authentication, user is directed to `/transactions` (the default post-auth landing)
 
 ### Login Process
 
 1. User clicks "Log In" on the homepage
 2. User enters their credentials, or chooses to log in using an OAuth provider (Google, etc.)
 3. System authenticates the user
-4. On success: User is directed to their dashboard
+4. On success: User is directed to `/transactions` (the default post-auth landing)
 5. On failure: Error message is shown and user can try again
 
 ### Email Verification

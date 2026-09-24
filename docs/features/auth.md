@@ -30,7 +30,7 @@ The pattern is the **"identity-in-`auth`, profile-in-`public`"** pattern — the
 | Component | Lives in | Role |
 |---|---|---|
 | **Browser** | User's machine | Submits forms; holds the session cookie. |
-| **Next.js middleware** (`src/middleware.ts`) | Vercel edge / local Node | Runs on every request. Calls `supabase.auth.getUser()` to refresh the session cookie. |
+| **Next.js middleware** (`src/proxy.ts`) | Vercel edge / local Node | Runs on every request. Calls `supabase.auth.getUser()` to refresh the session cookie. |
 | **Server components / route handlers** (`src/app/**`) | Vercel functions / local Node | Render pages and handle form POSTs. Use the server-side Supabase client (`src/lib/supabase/server.ts`). |
 | **Supabase Auth** | `<project>.supabase.co` | Hashes passwords, issues JWTs, sends emails, validates OAuth, owns `auth.users`. |
 | **Postgres** | Inside Supabase, same project | Stores `auth.users` (Supabase-managed) and `public."User"` (ours). Hosts the `on_auth_user_created` trigger that bridges the two. |

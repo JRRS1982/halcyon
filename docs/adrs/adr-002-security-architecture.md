@@ -65,7 +65,7 @@ The original (Nov 2025) design used NextAuth.js + bcrypt against a self-hosted P
 
 - **Rate limiting**:
   - Supabase Auth rate-limits its own endpoints (login, signup, password reset).
-  - Application API routes are **not yet rate-limited**. Planned: [Upstash Ratelimit](https://upstash.com/docs/redis/sdks/ratelimit-ts/overview) called from Next.js middleware. Tracked as a follow-up.
+  - Application-level rate limiting is implemented via Upstash Ratelimit (`src/lib/rateLimit/index.ts`). Covered endpoints: sign-in (per-IP + per-account), sign-up, OAuth initiation, password re-verification, data export, and the RFC 8058 unsubscribe endpoint. Each limit uses a fail-open policy (`whenStoreFails: "allow"`) so a Redis outage never blocks legitimate users.
 - **CSRF protection**: Next.js Server Actions include CSRF tokens by default. Route handlers that mutate state must be POST-only.
 - **Input validation**: Zod schemas for all API inputs (prevents injection and shape errors).
 - **CORS**: Restrict to same-origin only.
@@ -92,12 +92,6 @@ The original (Nov 2025) design used NextAuth.js + bcrypt against a self-hosted P
 - **Audit logging**: Supabase Auth logs login attempts, signups, password resets, and admin actions. Vercel logs application-level events.
 - **Suspicious activity alerts**: Supabase has built-in alerting on unusual auth patterns; tune in the dashboard.
 - **Security updates**: Dependabot for automated dependency vulnerability scanning (GitHub Actions).
-
-## Schema implications
-
-The `User` model in `prisma/schema.prisma` predates this revision and currently mirrors NextAuth-style fields (`password`, `failedLoginAttempts`, `accountLockedAt`, `passwordChangedAt`, etc.). Under Supabase Auth these belong on `auth.users` (managed by Supabase), not in the app's schema.
-
-**Follow-up work**: refactor `prisma/schema.prisma` so the application's `User` table becomes a profile table keyed to `auth.users(id)` and drops the auth-managed columns. This is a separate change, tracked outside this ADR.
 
 ## Considered Alternatives
 

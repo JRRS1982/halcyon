@@ -1,3 +1,5 @@
+<!-- This template has not been updated for Balanced Money. See signup-and-login.md for the real sign-up/auth flow. -->
+
 # User Journeys
 
 This document should include various user journeys in this application, written in mermaid syntax.
