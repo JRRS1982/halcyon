@@ -22,7 +22,7 @@ flowchart TD
     C -->|Delete a row| L[Click delete icon on row]
     L --> M[Row removed immediately — no confirmation dialog]
 
-    C -->|Copy last month| N[Open 'Add a row' popover → Copy from period]
+    C -->|Copy last month| N[Click 'Fill from' toolbar button]
     N --> O[Choose source period]
     O --> P[Rows copied; archived/deleted accounts skipped]
 
@@ -54,7 +54,7 @@ flowchart TD
 
 ### Copying from a previous period
 
-1. User opens the **"Add a row"** popover → "Copy from period".
+1. User clicks **"Fill from"** in the toolbar (separate from the Add a row button).
 2. Selects a past period.
 3. All rows from that period are copied into the current month. Rows anchored to accounts that have since been archived, deleted, or re-typed are skipped; the sheet reports the count.
 
