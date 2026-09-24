@@ -42,7 +42,7 @@ a parent. Most carry `deletedAt` for soft deletion.
 | `User` | profile row; the owner every other table hangs off |
 | `UserSettings` | per-user preferences and feature flags, created lazily on first read |
 | `FinancialPeriod` | one month (or week/quarter/year), the shared spine for `/budget` and `/balance` — both hang off the same period row. Unique per `(userId, granularity, startDate)` |
-| `BudgetItem` | a budget row in a period: income or expense, budgeted vs actual |
+| `BudgetItem` | a budget row in a period: income, expense, transfer, or repayment — budgeted vs actual |
 | `BalanceItem` | a balance-sheet row in a period: asset or liability |
 
 ### Transactions
@@ -91,12 +91,10 @@ erDiagram
     USER ||--o{ ACCOUNT : owns
     USER ||--o{ IMPORT_BATCH : owns
     USER ||--o{ TRANSACTION : owns
-    USER ||--o{ BUDGET_TEMPLATE_ITEM : owns
-    USER ||--o{ BALANCE_TEMPLATE_ITEM : owns
     USER ||--o{ PLAN : owns
-    FINANCIAL_PERIOD ||--o{ FINANCIAL_ITEM : "budget rows"
+    FINANCIAL_PERIOD ||--o{ BUDGET_ITEM : "budget rows"
     FINANCIAL_PERIOD ||--o{ BALANCE_ITEM : "balance rows"
-    CATEGORY ||--o{ FINANCIAL_ITEM : "linked (nullable)"
+    CATEGORY ||--o{ BUDGET_ITEM : "linked (nullable)"
     CATEGORY ||--o{ TRANSACTION : "categorises"
     ACCOUNT ||--o{ TRANSACTION : "holds"
     ACCOUNT ||--o{ TRANSACTION : "transfer counterparty"
