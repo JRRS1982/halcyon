@@ -21,6 +21,9 @@ export type RateLimitedAction =
   | "sign-up-address" // per submitted email: confirmation-mail bombing of one inbox
   | "verify-password" // per client IP: re-auth before destructive actions
   | "verify-password-account" // per account email: cross-IP guessing at one account
+  | "unsubscribe" // per client IP: unauthenticated RFC 8058 endpoint
+  | "data-export" // per userId: heavy 10-table fan-out
+  | "oauth-initiate" // per client IP: OAuth flow initiation
   | "health";
 
 export type RateLimitVerdict = "allowed" | "limited" | "unavailable";
@@ -69,6 +72,26 @@ const POLICIES: Record<RateLimitedAction, Policy> = {
   },
   "verify-password-account": {
     windowSeconds: HOUR,
+    maxAttempts: 10,
+    whenStoreFails: "allow",
+  },
+  // Unauthenticated — fail open so a Redis outage never blocks RFC 8058
+  // one-click unsubscribes from mail clients, which must not be broken.
+  unsubscribe: {
+    windowSeconds: MINUTE,
+    maxAttempts: 20,
+    whenStoreFails: "allow",
+  },
+  // Authenticated export: heavy 10-table fan-out; keyed on userId via subject.
+  "data-export": {
+    windowSeconds: MINUTE,
+    maxAttempts: 2,
+    whenStoreFails: "allow",
+  },
+  // OAuth initiation: Supabase's own throttle sees Vercel egress IPs, not the
+  // real client, so we add an app-side per-IP gate here.
+  "oauth-initiate": {
+    windowSeconds: MINUTE,
     maxAttempts: 10,
     whenStoreFails: "allow",
   },

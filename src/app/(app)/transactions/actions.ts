@@ -42,7 +42,7 @@ const mappingSchema = z.object({
 const importSchema = z.object({
   accountId: z.string().uuid().nullable(),
   newAccountName: z.string().trim().max(120).nullable(),
-  rows: z.array(z.array(z.string())).max(MAX_IMPORT_ROWS),
+  rows: z.array(z.array(z.string().max(300))).max(MAX_IMPORT_ROWS),
   mapping: mappingSchema,
 });
 

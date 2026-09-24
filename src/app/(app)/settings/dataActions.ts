@@ -62,6 +62,9 @@ function financialDeletes(userId: string) {
 
 export async function exportMyData(): Promise<string> {
   const userId = await requireUserId();
+  if ((await checkRateLimit("data-export", userId)) !== "allowed") {
+    throw new Error("Too many export requests. Please try again later.");
+  }
   const [
     user,
     settings,
