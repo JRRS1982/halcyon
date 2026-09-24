@@ -266,6 +266,7 @@ describe("deleteMyAccount (integration)", () => {
 
 describe("verifyPassword — wrong password rejection (integration)", () => {
   beforeEach(() => {
+    mockDeleteUser.mockClear();
     mockSignInWithPassword.mockResolvedValue({
       error: { message: "Invalid login credentials" },
     });
