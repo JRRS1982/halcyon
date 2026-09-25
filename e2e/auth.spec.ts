@@ -99,7 +99,9 @@ test.describe("sign-in", () => {
     ).toBeVisible();
   });
 
-  test("wrong password shows an error", async ({ page }) => {
+  // The message is deliberately generic and identical for an unknown address,
+  // so the sign-in form cannot be used to learn which emails have an account.
+  test("wrong password shows a generic error", async ({ page }) => {
     await page.goto("/sign-in");
     await page.fill("input[name='email']", KNOWN_USER.email);
     await page.fill("input[name='password']", "wrong-password");
@@ -108,7 +110,20 @@ test.describe("sign-in", () => {
     await expect(
       page
         .locator('p[role="alert"]')
-        .filter({ hasText: /Invalid login credentials/ }),
+        .filter({ hasText: /Email or password is incorrect/ }),
+    ).toBeVisible();
+  });
+
+  test("unknown email shows the same generic error", async ({ page }) => {
+    await page.goto("/sign-in");
+    await page.fill("input[name='email']", `nobody+${Date.now()}@example.com`);
+    await page.fill("input[name='password']", "wrong-password");
+    await page.getByRole("button", { name: "Sign in" }).click();
+    await expect(page).toHaveURL(/\/sign-in\?error=/);
+    await expect(
+      page
+        .locator('p[role="alert"]')
+        .filter({ hasText: /Email or password is incorrect/ }),
     ).toBeVisible();
   });
 

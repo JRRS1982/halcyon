@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Halcyon is a personal finance web app built as a learning project. The build process, stack choices, and roadmap follow `docs/Playbook.md`; technical decisions are recorded as ADRs in `docs/ADRs/`. Treat those documents as the source of truth when behavior or architecture is unclear — do not invent patterns that contradict them.
+Halcyon is a personal finance web app built as a learning project. The build process, stack choices, and roadmap follow `docs/playbook.md`; technical decisions are recorded as ADRs in `docs/adrs/`. Treat those documents as the source of truth when behavior or architecture is unclear — do not invent patterns that contradict them.
 
 Companion AI context lives in `.ai/`:
 
@@ -14,7 +14,7 @@ Companion AI context lives in `.ai/`:
 
 ## Stack
 
-Full-stack Next.js 16 (App Router, React 19) on TypeScript, hosted on **Vercel**. Postgres via **Supabase** (managed) with Prisma as the ORM. **Supabase Auth** (via `@supabase/ssr`) for authentication. styled-components for styling, zod for runtime validation. Redux Toolkit is installed but not yet wired — client state is currently server-driven plus local React state. Biome handles both lint and format (no ESLint/Prettier). Jest + React Testing Library for unit; Playwright for E2E. pnpm is the package manager. See `docs/ADRs/ADR-001-TechStackSelection.md` for rationale.
+Full-stack Next.js 16 (App Router, React 19) on TypeScript, hosted on **Vercel**. Postgres via **Supabase** (managed) with Prisma as the ORM. **Supabase Auth** (via `@supabase/ssr`) for authentication. styled-components for styling, zod for runtime validation. Redux Toolkit is installed but not yet wired — client state is currently server-driven plus local React state. Biome handles both lint and format (no ESLint/Prettier). Jest + React Testing Library for unit; Playwright for E2E. pnpm is the package manager. See `docs/adrs/adr-001-tech-stack-selection.md` for rationale.
 
 The app is well past scaffold stage — the core features are built, shipped to production, and tested. **Feature map** — each feature lives under `src/app/<feature>/` (route + `page.tsx` + colocated `actions.ts` server actions), with pure logic in `src/lib/<feature>/`:
 
@@ -28,7 +28,7 @@ The app is well past scaffold stage — the core features are built, shipped to 
 - `sign-in/`, `sign-up/`, `auth/callback/` — Supabase Auth pages + OAuth callback; shared UI in `src/components/auth/`
 - marketing landing page (`page.tsx` → `src/components/marketing/`), plus `privacy/` and `terms/` public pages
 
-Shared UI primitives are in `src/components/ui/` (Button, Card, NavBar, …) and the spreadsheet-style grid in `src/components/sheet/`. The Prisma schema has 16 models — ten core (User, UserSettings, FinancialPeriod, BudgetItem, BalanceItem, Category, Account, AccountTerms, ImportBatch, Transaction) plus the six the Plan feature owns (Plan, PlanAsset, PlanLiability, PlanIncome, PlanExpense, PlanEvent). `Account` is now the durable registry for everything a user owns or owes — `type`/`section`/`canImportTransactions`/`linkedAccountId`, with `BalanceItem` observing it via a required `accountId` (one live value per account per month) — rather than a transactions-only record; see [`docs/features/accounts.md`](docs/features/accounts.md). `docs/DataModels/DataModels.md` covers what each is for and how ownership flows (not yet updated for this — see that feature doc's "Known gaps"); the schema itself is the reference for columns.
+Shared UI primitives are in `src/components/ui/` (Button, Card, NavBar, …) and the spreadsheet-style grid in `src/components/sheet/`. The Prisma schema has 16 models — ten core (User, UserSettings, FinancialPeriod, BudgetItem, BalanceItem, Category, Account, AccountTerms, ImportBatch, Transaction) plus the six the Plan feature owns (Plan, PlanAsset, PlanLiability, PlanIncome, PlanExpense, PlanEvent). `Account` is now the durable registry for everything a user owns or owes — `type`/`section`/`canImportTransactions`/`linkedAccountId`, with `BalanceItem` observing it via a required `accountId` (one live value per account per month) — rather than a transactions-only record; see [`docs/features/accounts.md`](docs/features/accounts.md). `docs/data-models/data-models.md` covers what each is for and how ownership flows (not yet updated for this — see that feature doc's "Known gaps"); the schema itself is the reference for columns.
 
 **New accounts are seeded with default categories, accounts and a £0 budget sheet** for the current month (`src/lib/onboarding/defaults.ts`, written by `provisionUserSettings`). The starter period is the *current* month, so anything reading "the latest period" — dashboard KPIs, `createPlan` — sees it; e2e specs that seed their own month must call `clearStarterPeriods` first. See [`docs/features/onboarding.md`](docs/features/onboarding.md). ADR-001/002 describe the intended architecture; the feature map above is what's actually built.
 

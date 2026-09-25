@@ -52,7 +52,7 @@ const columnPct = z.number().min(-999.99).max(999.99);
 
 export const updatePlanAssetSchema = z.object({
   assetId: z.string().uuid(),
-  label: z.string().min(1),
+  label: z.string().min(1).max(200),
   wrapper: WRAPPER,
   // Unbounded like BalanceItem.value, the observation Sync copies here: an
   // overdrawn current account is an asset row with a negative balance.
@@ -69,7 +69,7 @@ export const updatePlanAssetSchema = z.object({
 export const updatePlanLiabilitySchema = z
   .object({
     liabilityId: z.string().uuid(),
-    label: z.string().min(1),
+    label: z.string().min(1).max(200),
     openingBalance: z.number(),
     interestPct: columnPct,
     monthlyRepayment: z.number().min(0),
@@ -114,7 +114,7 @@ const EVENT_KIND = z.enum(["MANUAL", "PROPERTY_SALE"]);
 
 export const updatePlanIncomeSchema = z.object({
   incomeId: z.string().uuid(),
-  label: z.string().min(1),
+  label: z.string().min(1).max(200),
   kind: INCOME_KIND,
   annualAmount: z.number().min(0),
   startAge: z.number().int().min(0).max(120).nullable(),
@@ -126,7 +126,7 @@ export const updatePlanIncomeSchema = z.object({
 
 export const updatePlanExpenseSchema = z.object({
   expenseId: z.string().uuid(),
-  label: z.string().min(1),
+  label: z.string().min(1).max(200),
   section: EXPENSE_SECTION,
   annualAmount: z.number().min(0),
   startAge: z.number().int().min(0).max(120).nullable(),
@@ -137,7 +137,7 @@ export const updatePlanExpenseSchema = z.object({
 export const updatePlanEventSchema = z
   .object({
     eventId: z.string().uuid(),
-    label: z.string().min(1),
+    label: z.string().min(1).max(200),
     age: z.number().int().min(0).max(120),
     direction: EVENT_DIRECTION,
     amount: z.number().min(0),
@@ -169,19 +169,19 @@ export type UpdatePlanEventInput = z.infer<typeof updatePlanEventSchema>;
 // the placeholder value this whole flow exists to get rid of.
 const mortgageChoice = z.discriminatedUnion("mode", [
   z.object({ mode: z.literal("NONE") }),
-  z.object({ mode: z.literal("NEW"), label: z.string().min(1) }),
+  z.object({ mode: z.literal("NEW"), label: z.string().min(1).max(200) }),
   z.object({ mode: z.literal("EXISTING"), liabilityId: z.string().uuid() }),
 ]);
 
 const propertyChoice = z.discriminatedUnion("mode", [
   z.object({ mode: z.literal("NONE") }),
-  z.object({ mode: z.literal("NEW"), label: z.string().min(1) }),
+  z.object({ mode: z.literal("NEW"), label: z.string().min(1).max(200) }),
   z.object({ mode: z.literal("EXISTING"), assetId: z.string().uuid() }),
 ]);
 
 export const createPlanAssetSchema = z
   .object({
-    label: z.string().min(1),
+    label: z.string().min(1).max(200),
     wrapper: WRAPPER,
     openingValue: z.number().min(0),
     mortgage: mortgageChoice.optional(),
@@ -192,7 +192,7 @@ export const createPlanAssetSchema = z
   });
 
 export const createPlanLiabilitySchema = z.object({
-  label: z.string().min(1),
+  label: z.string().min(1).max(200),
   openingBalance: z.number().min(0),
   property: propertyChoice.optional(),
 });

@@ -14,7 +14,7 @@ This document covers what the schema can't say for itself: what each table is
 Supabase Auth owns identity, in the Postgres `auth` schema (managed by Supabase,
 not by our migrations). The end-to-end sequences are in
 [features/auth.md](../features/auth.md); the decision is
-[ADR-002](../ADRs/ADR-002-SecurityArchitecture.md).
+[ADR-002](../adrs/adr-002-security-architecture.md).
 
 - `auth.users` is authoritative for email, password, verification state, MFA and
   OAuth identities. **The app never writes to it** — everything goes through
@@ -35,15 +35,6 @@ the `Account` model *is* in the schema but is unrelated to auth: it is a user's
 Every table below is owned by exactly one user, directly via `userId` or through
 a parent. Most carry `deletedAt` for soft deletion.
 
-> **This file is not current.** It still describes `Account` as
-> transactions-only ("where money sits") after the account-registry
-> restructure widened its role — see
-> [features/accounts.md](../features/accounts.md#known-gaps) for what actually
-> changed and why rewriting this file is its own task rather than a rider on
-> someone else's. `AccountTerms` below is added because it's new since that
-> gap was last written down, not because the rest of this section has been
-> brought current.
-
 ### Budget and balance
 
 | Table | What it's for |
@@ -51,16 +42,15 @@ a parent. Most carry `deletedAt` for soft deletion.
 | `User` | profile row; the owner every other table hangs off |
 | `UserSettings` | per-user preferences and feature flags, created lazily on first read |
 | `FinancialPeriod` | one month (or week/quarter/year), the shared spine for `/budget` and `/balance` — both hang off the same period row. Unique per `(userId, granularity, startDate)` |
-| `BudgetItem` | a budget row in a period: income or expense, budgeted vs actual |
+| `BudgetItem` | a budget row in a period: income, expense, transfer, or repayment — budgeted vs actual |
 | `BalanceItem` | a balance-sheet row in a period: asset or liability |
-| `BudgetTemplateItem`, `BalanceTemplateItem` | a saved "★ Template" set to copy into any month |
 
 ### Transactions
 
 | Table | What it's for |
 |---|---|
 | `Category` | the stable taxonomy a transaction is filed under, and what a `BudgetItem` links to. See [features/onboarding.md](../features/onboarding.md) for what a new account starts with |
-| `Account` | where money sits — current, savings, ISA, SIPP. Named as a transfer counterparty too |
+| `Account` | the durable registry for every account a user owns or owes — `type` (e.g. `CURRENT_ACCOUNT`, `SAVINGS`, `MORTGAGE`) determines the account; `kind` (asset/liability) and `wrapper` (ISA, pension, GIA, etc.) are derived from type at runtime and never stored. Also the counterparty for budget transfers and repayments. See [features/accounts.md](../features/accounts.md) |
 | `AccountTerms` | 1:1 with `Account` (its `accountId` is the primary key) — the projection parameters that account feeds into the Plan: expected return, fees, interest rate, a mortgage's revision terms, a final-salary entitlement. Blank means "take the default," never "unknown" — true of the eight nullable columns, and of the ninth (`interestOnly`, non-null with a `false` default) for the same reason a flag has no "unknown" |
 | `ImportBatch` | one CSV import, so it can be reversed as a unit |
 | `Transaction` | an imported or manual line: date, signed amount, description, optional category and counterparty account |
@@ -87,7 +77,7 @@ are `SetNull` on delete, so removing a property leaves its debt rather than
 silently deleting it.
 
 A new plan is seeded from the user's most recent period — see
-`src/lib/plan/seed.ts`, and the warning about the starter month in
+`src/lib/plan/sync.ts` (`createPlan`), and the warning about the starter month in
 [features/onboarding.md](../features/onboarding.md).
 
 ## Ownership and access
@@ -101,12 +91,10 @@ erDiagram
     USER ||--o{ ACCOUNT : owns
     USER ||--o{ IMPORT_BATCH : owns
     USER ||--o{ TRANSACTION : owns
-    USER ||--o{ BUDGET_TEMPLATE_ITEM : owns
-    USER ||--o{ BALANCE_TEMPLATE_ITEM : owns
     USER ||--o{ PLAN : owns
-    FINANCIAL_PERIOD ||--o{ FINANCIAL_ITEM : "budget rows"
+    FINANCIAL_PERIOD ||--o{ BUDGET_ITEM : "budget rows"
     FINANCIAL_PERIOD ||--o{ BALANCE_ITEM : "balance rows"
-    CATEGORY ||--o{ FINANCIAL_ITEM : "linked (nullable)"
+    CATEGORY ||--o{ BUDGET_ITEM : "linked (nullable)"
     CATEGORY ||--o{ TRANSACTION : "categorises"
     ACCOUNT ||--o{ TRANSACTION : "holds"
     ACCOUNT ||--o{ TRANSACTION : "transfer counterparty"
@@ -131,7 +119,7 @@ plan-scoped tables resolve ownership through their parent) — they become the
 real fence only if a future feature queries Supabase from the client. When you
 add a user-owned model, write both. See
 [features/row-level-security.md](../features/row-level-security.md) and
-[ADR-002](../ADRs/ADR-002-SecurityArchitecture.md).
+[ADR-002](../adrs/adr-002-security-architecture.md).
 
 > **Why the schema looks like this.** An earlier draft had a hierarchical
 > `FinancialDocument`/`FinancialItem` tree with `parentId`, plus an audit-log
@@ -140,4 +128,4 @@ add a user-owned model, write both. See
 > August 2026, when it became `BudgetItem` — so a `FinancialItem` in an old
 > commit is that flat row, not the abandoned tree above. An
 > earlier version also assumed NextAuth + bcrypt, which
-> [ADR-002](../ADRs/ADR-002-SecurityArchitecture.md) replaced with Supabase Auth.
+> [ADR-002](../adrs/adr-002-security-architecture.md) replaced with Supabase Auth.

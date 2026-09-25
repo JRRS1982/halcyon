@@ -6,6 +6,8 @@
 - Last revised: 2026-05-22 — migrated production hosting from self-hosted Docker to Vercel, replaced NextAuth/bcrypt with Supabase Auth, replaced self-hosted Postgres with Supabase managed Postgres.
 - Decision maker: @jrrs1982
 
+**Decision:** Full-stack Next.js (App Router) + TypeScript + Prisma/Postgres, hosted on Vercel with Supabase for managed Postgres and Auth.
+
 ## Context
 
 I am building this webapp as a personal project to learn and improve my software development skills/process. I want to follow the steps set out in the [Playbook](../Playbook.md), which I hope will help me select the best tech stack for this project.
@@ -25,7 +27,6 @@ I want unit tests, end-to-end tests, and integration tests. I want a database th
 - **zod-env**: environment variable validation
 - **Biome**: alternative to eslint + prettier, for lint + format
 - **simple-git-hooks**: pre-push hook that runs `pnpm check` (`biome ci .`) for fast local guardrails
-- **Swagger**: automatically generated API documentation (planned)
 
 ### Frontend
 

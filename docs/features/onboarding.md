@@ -1,5 +1,12 @@
 # Onboarding defaults
 
+**What:** New accounts are seeded with 41 categories, 6 accounts, and a £0 budget sheet for the current month — so every page renders meaningfully on first login.  
+**Key points:**
+- Seeding runs inside `provisionUserSettings` on the first sign-in, not at sign-up
+- The starter period is the *current* month — "latest period" queries satisfy without any user input
+- E2E specs that seed their own month must call `clearStarterPeriods()` first, or fixture and starter periods collide
+- Source of truth for the list is `src/lib/onboarding/defaults.ts` — not this document
+
 A new account starts with data rather than empty state: a category taxonomy, a
 set of accounts, and the current month's budget sheet already laid out at £0.
 

@@ -1,8 +1,15 @@
 # Authentication Flow
 
+**What:** Supabase Auth (email/password + Google OAuth) integrated into Next.js via `@supabase/ssr`; cookies managed server-side in middleware.  
+**Key points:**
+- Session lives in `sb-*-auth-token` cookies set by Supabase; `src/proxy.ts` refreshes them on every request
+- Route protection: `src/lib/supabase/middleware.ts` checks session and redirects unauthenticated requests to `/sign-in`
+- Server actions re-call `requireUserId()` — middleware is not the only fence
+- Google OAuth is live; GitHub is configured in code but disabled in the Supabase dashboard
+
 This document explains *what kind* of authentication Halcyon uses, where each piece of state lives, and what happens on the wire during sign-up, sign-in, and sign-out.
 
-See also: [ADR-001 (Tech Stack)](../ADRs/ADR-001-TechStackSelection.md), [ADR-002 (Security)](../ADRs/ADR-002-SecurityArchitecture.md), [Data Models](../DataModels/DataModels.md).
+See also: [ADR-001 (Tech Stack)](../adrs/adr-001-tech-stack-selection.md), [ADR-002 (Security)](../adrs/adr-002-security-architecture.md), [Data Models](../data-models/data-models.md).
 
 ## What kind of auth is this?
 
@@ -19,9 +26,9 @@ The pattern is the **"identity-in-`auth`, profile-in-`public`"** pattern — the
 | Concern | How this pattern handles it |
 |---|---|
 | Password storage | Supabase Auth uses bcrypt (or Argon2 depending on config) with a unique per-user salt, stored only in `auth.users.encrypted_password`. The application never sees the plaintext or the hash. |
-| Session management | Supabase issues a signed JWT after sign-in. `@supabase/ssr` stores it as an `HttpOnly`, `Secure`, `SameSite=Lax` cookie, so client-side JavaScript cannot read it (mitigates XSS-based session theft). |
+| Session management | Supabase issues a signed JWT after sign-in. `@supabase/ssr` stores it in `sb-*-auth-token` cookies. The library's default is `httpOnly: false` (so a browser-side client can read the session); this app has **no** browser-side Supabase client, so both server constructors pass [`sessionCookieOptions`](../../src/lib/supabase/cookieOptions.ts) — `HttpOnly`, `SameSite=Lax`, `Secure` in production — and client-side JavaScript cannot read the tokens (mitigates XSS-based session theft). Pinned by a unit test in `middleware.test.ts`. |
 | Email verification, password reset, OAuth callbacks | All handled by Supabase Auth endpoints. The app only implements a single `/auth/callback` route handler that exchanges a one-time code for a session. |
-| Brute force / credential stuffing | Supabase rate-limits its own auth endpoints. Tunable in the Supabase dashboard. The application has no own lockout counters to maintain. |
+| Brute force / credential stuffing | Two layers. Supabase rate-limits its own auth endpoints (tunable in the dashboard), and because every call reaches it from Vercel's shared egress IPs, the app forwards the real client IP so those limits bind per attacker. On top, an app-side limiter ([`src/lib/rateLimit/`](../../src/lib/rateLimit/), Upstash Redis) keys sign-in on both the client IP (10/min) and the submitted email (20/hour), and sign-up on the IP (10/min) and the address (3 confirmation emails/hour). Sign-in fails open when the store is down; sign-up fails **closed**, because every call sends an email. No lockout counters in the app. |
 | Authorisation | Two layers: app-level `userId` filtering on every Prisma query (primary boundary, because server-side Prisma bypasses RLS), **plus** Postgres Row Level Security with `auth.uid() = id` policies (defence-in-depth; the real fence if/when a feature ever queries Supabase directly from the browser). |
 | Loss of secrets | The DB password and `SUPABASE_SECRET_KEY` are the only secrets that bypass RLS. They live in Vercel project env vars in production and the gitignored `.env` in dev — never in source. |
 
@@ -30,7 +37,7 @@ The pattern is the **"identity-in-`auth`, profile-in-`public`"** pattern — the
 | Component | Lives in | Role |
 |---|---|---|
 | **Browser** | User's machine | Submits forms; holds the session cookie. |
-| **Next.js middleware** (`src/middleware.ts`) | Vercel edge / local Node | Runs on every request. Calls `supabase.auth.getUser()` to refresh the session cookie. |
+| **Next.js middleware** (`src/proxy.ts`) | Vercel edge / local Node | Runs on every request. Calls `supabase.auth.getUser()` to refresh the session cookie. |
 | **Server components / route handlers** (`src/app/**`) | Vercel functions / local Node | Render pages and handle form POSTs. Use the server-side Supabase client (`src/lib/supabase/server.ts`). |
 | **Supabase Auth** | `<project>.supabase.co` | Hashes passwords, issues JWTs, sends emails, validates OAuth, owns `auth.users`. |
 | **Postgres** | Inside Supabase, same project | Stores `auth.users` (Supabase-managed) and `public."User"` (ours). Hosts the `on_auth_user_created` trigger that bridges the two. |
@@ -173,7 +180,8 @@ Two decisions worth knowing before changing any of it:
 | Idle + absolute session limits (pure) | [`src/lib/auth/sessionTimeout.ts`](../../src/lib/auth/sessionTimeout.ts) |
 | Client-side idle timer | [`src/lib/hooks/useIdleTimer.ts`](../../src/lib/hooks/useIdleTimer.ts) |
 | Idle warning dialog | [`src/components/auth/IdleTimeout/`](../../src/components/auth/IdleTimeout/) |
-| Browser-side Supabase client | [`src/lib/supabase/client.ts`](../../src/lib/supabase/client.ts) |
+| Session cookie attributes (HttpOnly etc.), shared by both clients | [`src/lib/supabase/cookieOptions.ts`](../../src/lib/supabase/cookieOptions.ts) |
+| App-side rate limiter (sign-in, sign-up, health) | [`src/lib/rateLimit/`](../../src/lib/rateLimit/) |
 | Server-side Supabase client (cookies via `next/headers`) | [`src/lib/supabase/server.ts`](../../src/lib/supabase/server.ts) |
 | Middleware Supabase client + session refresh helper | [`src/lib/supabase/middleware.ts`](../../src/lib/supabase/middleware.ts) |
 | Next.js middleware entry point (`proxy` export) | [`src/proxy.ts`](../../src/proxy.ts) |

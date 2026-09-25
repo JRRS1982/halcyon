@@ -1,5 +1,12 @@
 # Budget transfers and repayments: four kinds on one sheet
 
+**What:** Extends the budget from two row kinds (income/expense) to four, adding TRANSFER (savings/investments) and REPAYMENT (debt) rows.  
+**Key points:**
+- TRANSFER keys on an ASSET account + direction; renders in its own Transfers section; does not count as spending
+- REPAYMENT keys on a LIABILITY account; renders inside Expenses; counts toward the expenses total
+- One TRANSFER or REPAYMENT row per account per period — two would double-count actuals
+- Actuals for both come from transfer data, not from categorised transactions
+
 The budget used to record two things: money coming in, and money being spent.
 Neither describes a pension contribution or a mortgage payment. A contribution
 is not spending — you still own the money — and a mortgage payment is spending

@@ -1,4 +1,9 @@
 const mockDeleteUser = jest.fn(async () => ({ data: {}, error: null }));
+const mockSignInWithPassword = jest.fn(
+  async (_args: unknown): Promise<{ error: { message: string } | null }> => ({
+    error: null,
+  }),
+);
 
 jest.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
@@ -10,8 +15,14 @@ jest.mock("@/lib/supabase/server", () => ({
   createClient: () => ({
     auth: {
       getUser: async () => ({
-        data: { user: { id: "00000000-0000-0000-0000-0000000000aa" } },
+        data: {
+          user: {
+            id: "00000000-0000-0000-0000-0000000000aa",
+            email: "test@example.com",
+          },
+        },
       }),
+      signInWithPassword: (args: unknown) => mockSignInWithPassword(args),
       signOut: async () => ({ error: null }),
     },
   }),
@@ -21,6 +32,7 @@ import {
   clearMyData,
   deleteMyAccount,
   exportMyData,
+  resetToDefaults,
 } from "@/app/(app)/settings/dataActions";
 import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
@@ -129,7 +141,7 @@ describe("clearMyData (integration)", () => {
     await seedFinancialData(TEST_USER_ID);
     // seedUser() (global beforeEach) already created UserSettings for TEST_USER_ID.
 
-    await clearMyData();
+    await clearMyData("test-password");
 
     expect(
       await prisma.transaction.count({ where: { userId: TEST_USER_ID } }),
@@ -178,7 +190,7 @@ describe("clearMyData (integration)", () => {
     await prisma.user.create({ data: { id: OTHER_USER_ID } });
     await seedFinancialData(OTHER_USER_ID);
 
-    await clearMyData();
+    await clearMyData("test-password");
 
     expect(
       await prisma.transaction.count({ where: { userId: OTHER_USER_ID } }),
@@ -199,7 +211,9 @@ describe("deleteMyAccount (integration)", () => {
     await seedFinancialData(TEST_USER_ID);
 
     // redirect("/") is mocked to throw `redirect:/`.
-    await expect(deleteMyAccount()).rejects.toThrow("redirect:/");
+    await expect(deleteMyAccount("test-password")).rejects.toThrow(
+      "redirect:/",
+    );
 
     expect(mockDeleteUser).toHaveBeenCalledTimes(1);
     expect(mockDeleteUser).toHaveBeenCalledWith(TEST_USER_ID);
@@ -231,7 +245,9 @@ describe("deleteMyAccount (integration)", () => {
     await prisma.user.create({ data: { id: OTHER_USER_ID } });
     await seedFinancialData(OTHER_USER_ID);
 
-    await expect(deleteMyAccount()).rejects.toThrow("redirect:/");
+    await expect(deleteMyAccount("test-password")).rejects.toThrow(
+      "redirect:/",
+    );
 
     expect(
       await prisma.user.findUnique({ where: { id: OTHER_USER_ID } }),
@@ -244,6 +260,68 @@ describe("deleteMyAccount (integration)", () => {
     ).toBe(1);
     expect(
       await prisma.account.count({ where: { userId: OTHER_USER_ID } }),
+    ).toBe(1);
+  });
+});
+
+describe("verifyPassword — wrong password rejection (integration)", () => {
+  beforeEach(() => {
+    mockDeleteUser.mockClear();
+    mockSignInWithPassword.mockResolvedValue({
+      error: { message: "Invalid login credentials" },
+    });
+  });
+
+  afterEach(() => {
+    mockSignInWithPassword.mockResolvedValue({ error: null });
+  });
+
+  test("clearMyData throws and leaves all rows intact", async () => {
+    await seedFinancialData(TEST_USER_ID);
+    const countBefore = await prisma.transaction.count({
+      where: { userId: TEST_USER_ID },
+    });
+
+    await expect(clearMyData("wrong-password")).rejects.toThrow(
+      "Incorrect password",
+    );
+
+    expect(
+      await prisma.transaction.count({ where: { userId: TEST_USER_ID } }),
+    ).toBe(countBefore);
+    expect(
+      await prisma.account.count({ where: { userId: TEST_USER_ID } }),
+    ).toBe(1);
+  });
+
+  test("deleteMyAccount throws and leaves user rows intact", async () => {
+    await seedFinancialData(TEST_USER_ID);
+
+    await expect(deleteMyAccount("wrong-password")).rejects.toThrow(
+      "Incorrect password",
+    );
+
+    expect(
+      await prisma.user.findUnique({ where: { id: TEST_USER_ID } }),
+    ).not.toBeNull();
+    expect(
+      await prisma.transaction.count({ where: { userId: TEST_USER_ID } }),
+    ).toBe(1);
+    expect(mockDeleteUser).not.toHaveBeenCalled();
+  });
+
+  test("resetToDefaults throws and leaves data unchanged", async () => {
+    await seedFinancialData(TEST_USER_ID);
+
+    await expect(resetToDefaults("wrong-password")).rejects.toThrow(
+      "Incorrect password",
+    );
+
+    expect(
+      await prisma.transaction.count({ where: { userId: TEST_USER_ID } }),
+    ).toBe(1);
+    expect(
+      await prisma.account.count({ where: { userId: TEST_USER_ID } }),
     ).toBe(1);
   });
 });

@@ -2,6 +2,8 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { clientIp } from "@/lib/http/clientIp";
+import { checkRateLimit } from "@/lib/rateLimit";
 import { createClient } from "@/lib/supabase/server";
 
 // Initiates the Google OAuth flow. Supabase returns a URL pointing at Google's
@@ -10,6 +12,13 @@ import { createClient } from "@/lib/supabase/server";
 // that the existing callback route exchanges for a session.
 export const signInWithGoogle = async () => {
   const origin = (await headers()).get("origin");
+  if (
+    (await checkRateLimit("oauth-initiate", await clientIp())) !== "allowed"
+  ) {
+    redirect(
+      `/sign-in?error=${encodeURIComponent("Too many requests. Please try again later.")}`,
+    );
+  }
   const supabase = await createClient();
 
   const { data, error } = await supabase.auth.signInWithOAuth({

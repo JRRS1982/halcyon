@@ -1,5 +1,12 @@
 # Income tax: bands the user never types
 
+**What:** Real UK income-tax bands applied to plan projections; replaces the user-typed blended rate and fixes double-use of the personal allowance.  
+**Key points:**
+- Bands defined in `src/lib/tax/` for RUK and Scottish regimes; user picks regime + whether thresholds inflate
+- All income sources in a year are aggregated before applying bands — personal allowance is used once
+- Pension withdrawals are added to earned income before tax, not taxed independently
+- `TAX_REGIME` enum: `REST_OF_UK` and `SCOTLAND` — do not rename `REST_OF_UK` without migration
+
 Before this feature, the projection taxed a single blended rate the user
 typed into the Assumptions panel — a v1 simplification recorded in the
 original life-planning design as a deliberate trade against annual

@@ -1,5 +1,12 @@
 # Contact email (hello@balanced.money)
 
+**What:** `hello@balanced.money` is a DNS-forwarded alias; nothing in the codebase implements it.  
+**Key points:**
+- Required by UK GDPR (data controller reachability) and E-Commerce Regulations
+- Implemented via ImprovMX: MX records point at ImprovMX, which forwards to the owner's personal Gmail
+- No SMTP sending from the app — Resend handles outbound (reminders only); this address is inbound only
+- If the domain moves, update ImprovMX MX records; no code changes needed
+
 The legal pages (`/privacy`, `/cookies`, `/terms`) name `hello@balanced.money`
 as the contact address — UK GDPR requires the data controller to be
 contactable, and the E-Commerce Regulations require an email address on the

@@ -43,7 +43,7 @@ describe("resetToDefaults (integration)", () => {
       },
     });
 
-    await resetToDefaults();
+    await resetToDefaults("test-password");
 
     // Past months go too: "from all history" is the point, and a stale 2020
     // sheet would otherwise outlive the reset.
@@ -81,12 +81,12 @@ describe("resetToDefaults (integration)", () => {
   // Seeding on top of the old categories would leave two of each — the reason
   // this path deletes Category where clearMyData deliberately keeps it.
   it("does not leave duplicate starter categories", async () => {
-    await resetToDefaults();
+    await resetToDefaults("test-password");
     const before = await prisma.category.count({
       where: { userId: TEST_USER_ID },
     });
 
-    await resetToDefaults();
+    await resetToDefaults("test-password");
 
     expect(
       await prisma.category.count({ where: { userId: TEST_USER_ID } }),

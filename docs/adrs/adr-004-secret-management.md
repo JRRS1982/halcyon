@@ -6,6 +6,8 @@
 - Last revised: 2026-07-24 — dropped the planned `.env.local`; the gitignored `.env` is the single local secrets file (it is the only file Docker Compose can interpolate `${...}` from). Startup env validation implemented in `src/lib/env.ts`.
 - Decision maker: @jrrs1982
 
+**Decision:** Gitignored `.env` for local secrets (Docker Compose constraint); Vercel env vars for production; startup validation via `src/lib/env.ts` catches missing values at boot.
+
 ## Context
 
 The application requires secure management of sensitive configuration values (database credentials, Supabase keys, OAuth client secrets) across development, test, and production environments.

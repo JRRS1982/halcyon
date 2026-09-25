@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { env } from "@/lib/env";
 import { clientIp } from "@/lib/http/clientIp";
+import { sessionCookieOptions } from "@/lib/supabase/cookieOptions";
 
 // The app runs on Vercel, so every call to Supabase Auth leaves from one of a
 // small pool of egress IPs. Left alone, Supabase's per-IP rate limits (sign-up
@@ -22,6 +23,7 @@ export const createClient = async () => {
     env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
     {
       global: ip ? { headers: { "X-Forwarded-For": ip } } : undefined,
+      cookieOptions: sessionCookieOptions,
       cookies: {
         getAll: () => cookieStore.getAll(),
         setAll: (

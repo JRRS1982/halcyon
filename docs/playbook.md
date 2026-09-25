@@ -1,5 +1,11 @@
 # New Project Playbook
 
+**What:** Structured checklist for launching a web app — from problem definition through post-launch iteration.  
+**Key points:**
+- Items marked `*` are considered non-negotiable; the rest are context-dependent
+- Covers: define → architect → build → test → ship → iterate
+- Written as a personal process guide, not a team workflow — adapt as needed for team contexts
+
 This document outlines a structured process for building a web application, covering all phases from strategic planning to post-launch iteration.
 
 I consider the items marked with a "*" to be important to my process and should not be skipped.
@@ -10,7 +16,7 @@ Establish why the product exists, who it serves and what success looks like.
 
 - [x] *Problem definition and [SuccessMetrics.md](SuccessMetrics.md)
 - [x] *User personas and research [UserPersonas.md](UserPersonas.md)
-- [x] *Core user journey's and flows [UserJourney.md](UserJourneys/UserJourney.md)
+- [x] *Core user journey's and flows [UserJourney.md](user-journeys/user-journey.md)
 - [x] *Stakeholder mapping and constraints (ownership, budget, timeline, compliance, etc.) [StakeholderMapping.md](StakeholderMapping.md)
 - [x] *Data privacy and legal requirements (GDPR etc.) [DataPrivacyStatement.md](DataPrivacyStatement.md)
 - [x] *Checkpoint: Before moving onto design, ensure the problem definition is clear and at least one real user has validated it is a real problem.
@@ -23,9 +29,9 @@ Translate the product intent into validated designs and system models.
 - [x] *UX wireframes (low to high fidelity)
 - [x] [Design system (DESIGN.md)](../DESIGN.md)
 - [x] [Accessibility standards](AccessibilityStandards.md)
-- [x] *Technical architecture and [stack selection](ADRs/ADR-001-TechStackSelection.md)
-- [x] Data model and API contracts ([Entity Relationship diagrams and schema](DataModels/DataModels.md))
-- [x] [Security architecture](ADRs/ADR-002-SecurityArchitecture.md) and threat modelling
+- [x] *Technical architecture and [stack selection](adrs/adr-001-tech-stack-selection.md)
+- [x] Data model and API contracts ([Entity Relationship diagrams and schema](data-models/data-models.md))
+- [x] [Security architecture](adrs/adr-002-security-architecture.md) and threat modelling
 - [ ] Non-functional requirements (performance, reliability, scalability)
 - [ ] Basic prototypes / mock-ups
 - [x] *Checkpoint: Before moving onto build, ensure the design is clear and there are no unknowns with the tech stack, design or data model.
@@ -35,13 +41,13 @@ Translate the product intent into validated designs and system models.
 Lay the technical groundwork for a reliable, scalable, and testable platform. When writing epics, tie everything to value delivery, i.e. "We can deploy and test code in an isolated environment within 10 minutes".
 
 - [x] *Repository setup and branching strategy
-- [x] *Project setup in JIRA / task management system
+- [x] *Project setup in GitHub Issues
 - [x] *Dockerized development environment with parity
 - [x] *Dockerized testing environment with parity
 - [x] Staging / Pre-production environment with parity — Vercel Preview Deployments give every PR its own URL with the same build pipeline as production
 - [x] *Database migrations and seed data management
 - [x] Infrastructure as Code (Terraform/CloudFormation) — N/A: hosting (Vercel) and database (Supabase) are fully managed; no infrastructure to declare
-- [x] *[Secrets and configuration management](ADRs/ADR-004-SecretManagement.md)
+- [x] *[Secrets and configuration management](adrs/adr-004-secret-management.md)
 - [x] *CI pipeline (lint, format, type check and unit tests guards)
 - [x] CI pipeline (E2E and integration tests)
 - [x] CI pipeline (Code test coverage logging, for PR and main branch)

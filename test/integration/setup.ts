@@ -13,10 +13,21 @@ jest.mock("@/lib/supabase/server", () => ({
   createClient: () => ({
     auth: {
       getUser: async () => ({
-        data: { user: { id: "00000000-0000-0000-0000-0000000000aa" } },
+        data: {
+          user: {
+            id: "00000000-0000-0000-0000-0000000000aa",
+            email: "test@example.com",
+          },
+        },
       }),
+      signInWithPassword: async () => ({ error: null }),
     },
   }),
+}));
+
+jest.mock("@/lib/http/clientIp", () => ({ clientIp: async () => null }));
+jest.mock("@/lib/rateLimit", () => ({
+  checkRateLimit: async () => "allowed",
 }));
 
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));

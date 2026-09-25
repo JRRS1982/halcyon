@@ -1,5 +1,12 @@
 # Plan sync: one button makes the plan match reality
 
+**What:** Sync replaces plan row labels, values, and which rows exist to match current accounts and budget categories — preserving all user-set assumptions.  
+**Key points:**
+- Each plan row carries `accountId` or `categoryId`; Sync adds rows for new accounts/categories and removes rows for deleted ones
+- `monthlyContribution` and `monthlyRepayment` (both monthly £) are written by Sync from budget transfers/repayments
+- Values and labels are replaced; expected return, fees, and other assumptions are kept unchanged
+- Creating a plan for the first time is a Sync against an empty plan
+
 Before this feature the plan was seeded from the balance sheet and the budget
 **once, at creation**, and never looked again. A plan made in January still
 projected January's balances in December, and adding, editing or deleting an

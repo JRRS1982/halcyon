@@ -1,5 +1,12 @@
 # Data Privacy
 
+**What:** Links to the three user-facing legal documents (Privacy Policy, Cookie Policy, Terms) that are the authoritative privacy record.  
+**Key points:**
+- Privacy Policy, Cookie Policy, Terms are JSX files in `src/app/(app)/` — the code IS the policy
+- UK GDPR applies: data subject rights include export (JSON) and hard deletion via Settings
+- No cookie consent banner: only essential session cookies are set, so no consent required
+- Open owner to-dos: ICO registration fee, Supabase/Vercel DPAs, breach runbook
+
 The authoritative privacy documents are the ones users actually see, versioned
 with the code that must honour them:
 

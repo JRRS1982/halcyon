@@ -31,28 +31,38 @@ type CookieAdapter = {
 
 const signOut = jest.fn().mockResolvedValue({ error: null });
 let currentUser: { id: string } | null = { id: "user-1" };
+let clientOptions: {
+  cookies: CookieAdapter;
+  cookieOptions?: Record<string, unknown>;
+} | null = null;
 
 jest.mock("@supabase/ssr", () => ({
   createServerClient: (
     _url: string,
     _key: string,
-    options: { cookies: CookieAdapter },
-  ) => ({
-    auth: {
-      getUser: async () => ({ data: { user: currentUser } }),
-      // The real client clears the auth cookies by writing back through the
-      // adapter, which edits the incoming request as a side effect. Modelling
-      // that here keeps the "clears the auth cookies" assertions honest.
-      signOut: async () => {
-        const cleared = options.cookies
-          .getAll()
-          .filter(({ name }) => name.startsWith("sb-"))
-          .map(({ name }) => ({ name, value: "", options: { maxAge: 0 } }));
-        options.cookies.setAll(cleared);
-        return signOut();
-      },
+    options: {
+      cookies: CookieAdapter;
+      cookieOptions?: Record<string, unknown>;
     },
-  }),
+  ) => {
+    clientOptions = options;
+    return {
+      auth: {
+        getUser: async () => ({ data: { user: currentUser } }),
+        // The real client clears the auth cookies by writing back through the
+        // adapter, which edits the incoming request as a side effect. Modelling
+        // that here keeps the "clears the auth cookies" assertions honest.
+        signOut: async () => {
+          const cleared = options.cookies
+            .getAll()
+            .filter(({ name }) => name.startsWith("sb-"))
+            .map(({ name }) => ({ name, value: "", options: { maxAge: 0 } }));
+          options.cookies.setAll(cleared);
+          return signOut();
+        },
+      },
+    };
+  },
 }));
 
 const MINUTE = 60 * 1000;
@@ -91,6 +101,19 @@ const absoluteExpired = () =>
 beforeEach(() => {
   currentUser = { id: "user-1" };
   signOut.mockClear();
+});
+
+describe("updateSession — session cookies", () => {
+  // @supabase/ssr defaults to httpOnly: false for the benefit of a browser
+  // client this app does not have. Pinned here so the default cannot creep
+  // back in through a refactor of either client constructor.
+  it("marks the Supabase session cookies HttpOnly and lax", async () => {
+    await updateSession(buildRequest("/dashboard"));
+
+    expect(clientOptions?.cookieOptions).toEqual(
+      expect.objectContaining({ httpOnly: true, sameSite: "lax", path: "/" }),
+    );
+  });
 });
 
 describe("updateSession — activity tracking", () => {

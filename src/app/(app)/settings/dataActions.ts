@@ -3,8 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { serializeExport } from "@/lib/data/serialize";
+import { clientIp } from "@/lib/http/clientIp";
 import { log } from "@/lib/log";
 import { prisma } from "@/lib/prisma";
+import { checkRateLimit } from "@/lib/rateLimit";
 import { seedStarterData } from "@/lib/settings/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -16,6 +18,28 @@ async function requireUserId(): Promise<string> {
   } = await supabase.auth.getUser();
   if (!user) redirect("/sign-in?next=/settings");
   return user.id;
+}
+
+async function verifyPassword(password: string): Promise<void> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user?.email) redirect("/sign-in?next=/settings");
+  // Two buckets mirror the sign-in pattern: per-IP bounds one attacker,
+  // per-account bounds a pool of IPs guessing at the same user.
+  const [ipVerdict, accountVerdict] = await Promise.all([
+    checkRateLimit("verify-password", await clientIp()),
+    checkRateLimit("verify-password-account", user.email),
+  ]);
+  if (ipVerdict !== "allowed" || accountVerdict !== "allowed") {
+    throw new Error("Too many attempts. Please try again later.");
+  }
+  const { error } = await supabase.auth.signInWithPassword({
+    email: user.email,
+    password,
+  });
+  if (error) throw new Error("Incorrect password");
 }
 
 // Deletes every FINANCIAL row for a user, in FK-safe order. Transactions go
@@ -38,6 +62,9 @@ function financialDeletes(userId: string) {
 
 export async function exportMyData(): Promise<string> {
   const userId = await requireUserId();
+  if ((await checkRateLimit("data-export", userId)) !== "allowed") {
+    throw new Error("Too many export requests. Please try again later.");
+  }
   const [
     user,
     settings,
@@ -97,8 +124,9 @@ export async function exportMyData(): Promise<string> {
 // that comment describes is the same, and Category goes too, which the other
 // paths deliberately keep. Seeding after a partial delete would duplicate the
 // starter categories, so the two halves cannot be separate transactions.
-export async function resetToDefaults(): Promise<void> {
+export async function resetToDefaults(password: string): Promise<void> {
   const userId = await requireUserId();
+  await verifyPassword(password);
 
   await prisma.$transaction(async (tx) => {
     // Transactions first: Transaction.transferAccount is onDelete: Restrict,
@@ -124,8 +152,9 @@ export async function resetToDefaults(): Promise<void> {
   revalidatePath("/settings");
 }
 
-export async function clearMyData(): Promise<void> {
+export async function clearMyData(password: string): Promise<void> {
   const userId = await requireUserId();
+  await verifyPassword(password);
   await prisma.$transaction(financialDeletes(userId));
   revalidatePath("/dashboard");
   revalidatePath("/budget");
@@ -135,8 +164,9 @@ export async function clearMyData(): Promise<void> {
   revalidatePath("/settings");
 }
 
-export async function deleteMyAccount(): Promise<void> {
+export async function deleteMyAccount(password: string): Promise<void> {
   const userId = await requireUserId();
+  await verifyPassword(password);
 
   // App data first, identity second: if the admin call below failed, we'd have
   // erased the financial PII rather than orphaning it behind an undeletable

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { unsubscribeByToken } from "@/lib/email/subscriptions";
+import { clientIp } from "@/lib/http/clientIp";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 /**
  * RFC 8058 one-click unsubscribe.
@@ -17,6 +19,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
+  if ((await checkRateLimit("unsubscribe", await clientIp())) !== "allowed") {
+    return NextResponse.json({ outcome: "rate-limited" }, { status: 429 });
+  }
   const url = new URL(request.url);
   const token = url.searchParams.get("token") ?? "";
 
