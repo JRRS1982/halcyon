@@ -148,7 +148,7 @@ jobs:
     if: ${{ !cancelled() && needs.mixed-schema-check.result != 'failure' }}
 
     # Server-action integration tests run against a real Postgres (halcyon_test).
-    # The postgres/postgres credentials + db name match the test:int script's
+    # The postgres/postgres credentials + db name match the test:integration script's
     # hard-pinned DATABASE_URL; globalSetup applies migrations.
     services:
       postgres:
@@ -182,7 +182,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run integration tests
-        run: pnpm test:int
+        run: pnpm test:integration
 
   e2e-tests:
     runs-on: ubuntu-latest

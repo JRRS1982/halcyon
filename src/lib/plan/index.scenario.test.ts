@@ -1,4 +1,4 @@
-// src/lib/plan/engine.integration.test.ts
+// src/lib/plan/index.scenario.test.ts
 import { type PlanInput, project, type YearProjection } from "./index";
 
 const plan: PlanInput = {
@@ -97,7 +97,7 @@ const assetOf = (y: YearProjection, id: string) => {
   return a;
 };
 
-describe("plan engine — realistic integration", () => {
+describe("plan engine — realistic scenario", () => {
   it("projects every year from 50 to 95", () => {
     const { years } = project(plan);
     expect(years).toHaveLength(46);

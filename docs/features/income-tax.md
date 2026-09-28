@@ -300,7 +300,7 @@ Named so nobody builds these by accident:
   later years' tax; `project.test.ts` also has the regime case — SCOTLAND and
   RUK taxing the same income differently, and the SCOTLAND figure matching
   `taxOn` by hand).
-- **Integration** — [`src/__tests__/plan/taxRegime.int.test.ts`](../../src/__tests__/plan/taxRegime.int.test.ts)
+- **Integration** — [`src/__tests__/plan/taxRegime.integration.test.ts`](../../src/__tests__/plan/taxRegime.integration.test.ts)
   (a plan round-trips `taxRegime`/`thresholdsInflationLinked`; both tests are
   Prisma round-trips and don't run the projection — that's covered by the
   `project.test.ts` regime case above).

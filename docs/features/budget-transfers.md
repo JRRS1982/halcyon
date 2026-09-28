@@ -441,18 +441,18 @@ picker and in `createItemForMonth`, not in the database.
   rule holds inside a bucket), `dashboard/series.test.ts` (`monthFlow` counts a
   repayment and excludes a transfer, and converting a mortgage between the two
   leaves the savings rate where it was).
-- **Integration** (`*.int.test.ts`, real Postgres) —
-  `budget/transferSchema.int.test.ts`, `budget/transferActions.int.test.ts`
+- **Integration** (`*.integration.test.ts`, real Postgres) —
+  `budget/transferSchema.integration.test.ts`, `budget/transferActions.integration.test.ts`
   (cross-tenant, both kind mismatches, the one-row-per-account fence, the
-  happy path), `budget/copyAnchors.int.test.ts` (anchors carried and re-fenced
+  happy path), `budget/copyAnchors.integration.test.ts` (anchors carried and re-fenced
   across copy-forward; template rows dropped),
-  `budget/copyComputedActuals.int.test.ts` (a copied anchored row adopts the
+  `budget/copyComputedActuals.integration.test.ts` (a copied anchored row adopts the
   target month's flow rather than returning 0),
-  `dashboard/cashFlow.int.test.ts` (a repayment is charted as expenditure in
+  `dashboard/cashFlow.integration.test.ts` (a repayment is charted as expenditure in
   both modes — the transactions-mode case needs the account-keyed source, not
   just `monthFlow`),
-  `transactions/transferSource.int.test.ts`, `plan/reality.int.test.ts` (the
-  flow read, both units, the `OUTFLOW` zero), `plan/syncAction.int.test.ts`
+  `transactions/transferSource.integration.test.ts`, `plan/reality.integration.test.ts` (the
+  flow read, both units, the `OUTFLOW` zero), `plan/syncAction.integration.test.ts`
   (the flow reaching both plan columns, and the widened zero-value guard).
 - **E2E** — [`tests/e2e/budget-transfers.spec.ts`](../../tests/e2e/budget-transfers.spec.ts):
   budget a transfer to an ISA, see it in Transfers and out of Expenses with

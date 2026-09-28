@@ -261,7 +261,7 @@ describe("latestReality (integration)", () => {
 
   // Pinned by Task 7's brief: an account with no BalanceItem must still
   // reach the plan, at value 0 — the stranded-account bug this restructure
-  // exists to kill. See typedCreation.int.test.ts's deferred assertion for
+  // exists to kill. See typedCreation.integration.test.ts's deferred assertion for
   // the same rule proven from provisioning's own defaults.
   it("lists an account that has never had a balance row, at value 0", async () => {
     const a = await typedAccount("Fresh", "SAVINGS");

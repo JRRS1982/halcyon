@@ -1,6 +1,6 @@
 // Direct tests of applySyncPlan, bypassing syncPlan()'s own resolution step.
 // syncPlan() only ever builds a SyncPlan from the calling user's own rows, so
-// none of syncAction.int.test.ts's eight tests can reach a cross-tenant write
+// none of syncAction.integration.test.ts's eight tests can reach a cross-tenant write
 // — they prove reality.ts's read-side fences, not applySyncPlan's write-side
 // ones. These tests hand applySyncPlan a SyncPlan that references another
 // user's row directly, exactly as a differently-wired future caller (Task 6)

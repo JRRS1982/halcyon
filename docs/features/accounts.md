@@ -371,15 +371,15 @@ scoping:
   `accountTerms.test.ts` (`termsFor` maps every one of the fourteen types to
   its declared fields), `termsSummary.test.ts` (the collapsed-section
   one-liner per type).
-- **Integration** (`*.int.test.ts`, real Postgres) —
-  `schema.int.test.ts` (columns and defaults),
-  data produces the same result), `balanceAccountActions.int.test.ts`
+- **Integration** (`*.integration.test.ts`, real Postgres) —
+  `schema.integration.test.ts` (columns and defaults),
+  data produces the same result), `balanceAccountActions.integration.test.ts`
   (create-with-mortgage transaction, archive/restore, both delete modes),
-  `copyForward.int.test.ts` (accountId survives copy-forward and template
-  copy), `accountActions.int.test.ts` (Settings-side rename/import-toggle/
-  delete-when-unreferenced), `accountTerms.int.test.ts` (the 1:1 relation and
-  its cascade), `createAccountTerms.int.test.ts` (a new account's terms row),
-  `setAccountTerms.int.test.ts` (ownership fence, cross-user rejection).
+  `copyForward.integration.test.ts` (accountId survives copy-forward and template
+  copy), `accountActions.integration.test.ts` (Settings-side rename/import-toggle/
+  delete-when-unreferenced), `accountTerms.integration.test.ts` (the 1:1 relation and
+  its cascade), `createAccountTerms.integration.test.ts` (a new account's terms row),
+  `setAccountTerms.integration.test.ts` (ownership fence, cross-user rejection).
 - **Component** — `AddAccountDrawer.test.tsx`, `DeleteAccountPanel.test.tsx`,
   `AccountManager.test.tsx`, `AccountCard.test.tsx` (name/type/section/terms
   saving through their own actions, the type-change refusal sentence shown

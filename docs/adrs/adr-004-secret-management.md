@@ -19,7 +19,7 @@ Next.js loads environment files in the form `.env.{NODE_ENV}` for the matching e
 A tiered approach by environment:
 
 1. **Local development** — `.env.development` checked into the repo for non-secret defaults (the local Docker Postgres URL). Secrets (the Supabase URL/keys) go in the gitignored `.env` — never DB URLs, so no local file can point tooling at production. Docker Compose `environment` blocks in `compose.yaml` provide DB connection strings for the dev container and forward the Supabase values from `.env`.
-2. **Test** — no env file. `playwright.config.ts` injects a mock Supabase and dummy keys; the `test:int` script and CI job `env` blocks pin the disposable `halcyon_test` database, so no credential there is sensitive.
+2. **Test** — no env file. `playwright.config.ts` injects a mock Supabase and dummy keys; the `test:integration` script and CI job `env` blocks pin the disposable `halcyon_test` database, so no credential there is sensitive.
 3. **Production** — **Vercel project environment variables**, configured via the Vercel dashboard. They are injected at build time and runtime; never read from a file in production.
 
 ### Where each variable is set

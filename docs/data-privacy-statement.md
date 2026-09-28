@@ -36,7 +36,7 @@ repo, that contradiction is itself a risk. It was replaced with this pointer.
 - Self-service rights: export (JSON), clear, and hard-delete live in
   Settings → Your data (`src/app/(app)/settings/dataActions.ts`). When adding a
   user-owned model, add it to the export AND to the clear/delete paths, and
-  extend `src/__tests__/settings/dataActions.int.test.ts` — the privacy policy
+  extend `src/__tests__/settings/dataActions.integration.test.ts` — the privacy policy
   promises "everything", so an omitted table makes the policy false.
 
 Owner to-dos tracked elsewhere: ICO registration and Supabase/Vercel DPA

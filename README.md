@@ -125,11 +125,11 @@ To run the unit tests, use the following command: `pnpm test`, or one of the hel
 
 Server actions and DB queries (imports, categorisation, merge, provisioning,
 ledger queries) are tested against a **real `halcyon_test` database**, with only
-the Supabase auth boundary mocked. Files use the `*.int.test.ts` suffix and run
+the Supabase auth boundary mocked. Files use the `*.integration.test.ts` suffix and run
 in a node-env Jest project, separate from the unit run.
 
 ```bash
-pnpm test:int
+pnpm test:integration
 ```
 
 It needs a Postgres reachable at `localhost:5432` (the `db` container from

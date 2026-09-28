@@ -17,7 +17,7 @@ const config: Config = {
     // src/ and tests/; without this, a test run here crawls into them.
     "<rootDir>/.claude/worktrees/",
     // Integration tests (real Postgres, node env) run via jest.integration.config.
-    "\\.int\\.test\\.",
+    "\\.integration\\.test\\.",
   ],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
