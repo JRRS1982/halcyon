@@ -1,4 +1,4 @@
-// e2e/mobile-ledger.spec.ts
+// tests/e2e/mobile-ledger.spec.ts
 //
 // The ledger table pans horizontally on a phone with the selection column
 // pinned left — the bulk workflow needs the checkboxes in view while the

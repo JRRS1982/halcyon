@@ -15,7 +15,7 @@ import { updatePlanLiability } from "@/app/(app)/plan/actions";
 import { syncPlan } from "@/app/(app)/plan/syncActions";
 import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
-import { TEST_USER_ID } from "../../../test/integration/helpers";
+import { TEST_USER_ID } from "../../../tests/integration/helpers";
 
 async function period(label: string, start: string) {
   return prisma.financialPeriod.create({

@@ -1,4 +1,4 @@
-// e2e/ledger-rows.spec.ts
+// tests/e2e/ledger-rows.spec.ts
 //
 // Two things about a ledger row that only the rendered table can answer: that
 // clicking the row selects it, and that opening a row's details leaves every

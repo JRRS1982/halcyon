@@ -1,10 +1,10 @@
 import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
-import { TEST_USER_ID } from "../../../test/integration/helpers";
+import { TEST_USER_ID } from "../../../tests/integration/helpers";
 
-// beforeEach in test/integration/setup.ts already resets the DB and seeds
+// beforeEach in tests/integration/setup.ts already resets the DB and seeds
 // TEST_USER_ID; no local seedUser/seedPeriod helpers exist here (checked
-// test/integration/helpers.ts), so periods are created directly, matching
+// tests/integration/helpers.ts), so periods are created directly, matching
 // src/__tests__/accounts/schema.int.test.ts and budget/createItemForMonth.int.test.ts.
 
 const createPeriod = () =>

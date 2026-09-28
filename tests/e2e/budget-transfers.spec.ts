@@ -1,8 +1,8 @@
-// e2e/budget-transfers.spec.ts
+// tests/e2e/budget-transfers.spec.ts
 //
 // The budget's two account-keyed kinds, end to end.
 //
-// This replaces e2e/transfers.spec.ts, whose journey no longer exists:
+// This replaces tests/e2e/transfers.spec.ts, whose journey no longer exists:
 // tagging a transaction as a transfer used to conjure a row in a Transfers
 // *panel*, and that panel is gone. A transfer is now a row the user
 // deliberately adds against an ASSET account; a tagged transaction fills that

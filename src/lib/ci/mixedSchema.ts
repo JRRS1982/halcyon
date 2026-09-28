@@ -17,7 +17,7 @@ const MIGRATION_PREFIX = "prisma/migrations/";
 
 // Everything the application actually runs, plus the tests that describe it.
 // A migration has no business touching any of it.
-const CODE_PREFIXES = ["src/", "e2e/"];
+const CODE_PREFIXES = ["src/", "tests/"];
 
 export type ChangedFiles = {
   migrations: string[];

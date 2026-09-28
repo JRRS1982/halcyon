@@ -1,7 +1,7 @@
 import { deletePlanAsset } from "@/app/(app)/plan/actions";
 import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
-import { TEST_USER_ID } from "../../../test/integration/helpers";
+import { TEST_USER_ID } from "../../../tests/integration/helpers";
 
 async function seedPlan() {
   return prisma.plan.create({

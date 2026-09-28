@@ -84,7 +84,7 @@ still open:** if a migration succeeds but promotion does not follow, the fix is 
 ## `mixed-schema-check`
 
 Fails a PR that changes `prisma/migrations/**` *and* application code
-(`src/**`, `e2e/**`). Run locally with `pnpm check:mixed-schema`; the
+(`src/**`, `tests/**`). Run locally with `pnpm check:mixed-schema`; the
 `mixed-schema-ok` label overrides it.
 
 **What it buys:** clean reverts (revert a mixed PR and the migration file goes
@@ -190,8 +190,8 @@ titled `Skipped — Preview deploy success (smoke runs only when a Production
 deploy succeeds)` so they explain themselves.
 
 **Two Playwright configs, and they must not overlap.** `playwright.config.ts`
-runs `e2e/` against a local dev server and mock Supabase;
-`playwright.smoke.config.ts` runs `e2e/smoke/` against a deployed URL with no
+runs `tests/e2e/` against a local dev server and mock Supabase;
+`playwright.smoke.config.ts` runs `tests/e2e/smoke/` against a deployed URL with no
 `webServer`. The main config carries `testIgnore: "**/smoke/**"` — without it
 `testDir: "./e2e"` sweeps the smoke suite into the local run, where the
 bearer-gated health probe has no `CRON_SECRET` and fails on all three engines

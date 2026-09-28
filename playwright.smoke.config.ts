@@ -11,7 +11,7 @@ import { defineConfig, devices } from "@playwright/test";
 const baseURL = process.env.SMOKE_BASE_URL ?? "https://www.balanced.money";
 
 export default defineConfig({
-  testDir: "./e2e/smoke",
+  testDir: "./tests/e2e/smoke",
   // One engine. These assert on status codes and redirects, not rendering, so
   // a second browser would re-test the same server three times — the same
   // reasoning that gates the server-action journeys to chromium.

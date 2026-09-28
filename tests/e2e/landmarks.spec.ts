@@ -1,4 +1,4 @@
-// e2e/landmarks.spec.ts
+// tests/e2e/landmarks.spec.ts
 //
 // Structure a keyboard or screen-reader user depends on, and which unit tests
 // can't judge: the skip link only exists once focus reaches it, and "exactly

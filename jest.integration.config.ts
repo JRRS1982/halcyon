@@ -11,8 +11,8 @@ const createJestConfig = nextJest({ dir: "./" });
 
 const config: Config = {
   testEnvironment: "node",
-  globalSetup: "<rootDir>/test/integration/globalSetup.ts",
-  setupFilesAfterEnv: ["<rootDir>/test/integration/setup.ts"],
+  globalSetup: "<rootDir>/tests/integration/globalSetup.ts",
+  setupFilesAfterEnv: ["<rootDir>/tests/integration/setup.ts"],
   testMatch: ["**/*.int.test.ts"],
   testPathIgnorePatterns: ["<rootDir>/node_modules/", "<rootDir>/.next/"],
   moduleNameMapper: {

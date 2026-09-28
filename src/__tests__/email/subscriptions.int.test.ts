@@ -5,7 +5,7 @@ import {
   unsubscribeByToken,
 } from "@/lib/email/subscriptions";
 import { prisma } from "@/lib/prisma";
-import { TEST_USER_ID } from "../../../test/integration/helpers";
+import { TEST_USER_ID } from "../../../tests/integration/helpers";
 
 const settings = () =>
   prisma.userSettings.findUniqueOrThrow({ where: { userId: TEST_USER_ID } });

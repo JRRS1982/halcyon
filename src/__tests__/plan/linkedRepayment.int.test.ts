@@ -5,7 +5,7 @@ import {
   unlinkRepaymentExpense,
 } from "@/app/(app)/plan/actions";
 import { prisma } from "@/lib/prisma";
-import { TEST_USER_ID } from "../../../test/integration/helpers";
+import { TEST_USER_ID } from "../../../tests/integration/helpers";
 
 async function makePlanWithMortgage() {
   const plan = await prisma.plan.create({

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { TEST_USER_ID } from "../../../test/integration/helpers";
+import { TEST_USER_ID } from "../../../tests/integration/helpers";
 
 // zod refuses an income section on an expense at every action; this pins
 // that the database refuses it too, so a future write path that skips zod

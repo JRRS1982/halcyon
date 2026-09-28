@@ -2,7 +2,7 @@ import type { AccountType } from "@prisma/client";
 import { createItemForMonth, deleteItem } from "@/app/(app)/budget/actions";
 import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
-import { TEST_USER_ID } from "../../../test/integration/helpers";
+import { TEST_USER_ID } from "../../../tests/integration/helpers";
 
 // `accountId` arrives from the client, and per ADR-002 the server-side Prisma
 // role bypasses RLS — the action's own `userId` filter is the only fence there
@@ -10,7 +10,7 @@ import { TEST_USER_ID } from "../../../test/integration/helpers";
 // and its kind must match the row's type.
 //
 // The signed-in user is fixed by the mocked Supabase client in
-// test/integration/setup.ts (there is no `asUser` helper), so the cross-tenant
+// tests/integration/setup.ts (there is no `asUser` helper), so the cross-tenant
 // case seeds a *second, real* user and gives them a real, correctly-kinded
 // account — a test that passed because the id didn't exist would prove nothing.
 

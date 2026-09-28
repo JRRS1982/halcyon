@@ -1,4 +1,4 @@
-// e2e/mobile-plan.spec.ts
+// tests/e2e/mobile-plan.spec.ts
 //
 // The plan page on a phone: the verdict banner's pulled-out figures used to
 // sit in one nowrap flex row, and a "needs attention" plan carries three of

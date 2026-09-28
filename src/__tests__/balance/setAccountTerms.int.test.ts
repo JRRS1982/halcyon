@@ -5,7 +5,7 @@ import {
   resetDb,
   seedUser,
   TEST_USER_ID,
-} from "../../../test/integration/helpers";
+} from "../../../tests/integration/helpers";
 
 const OTHER_USER_ID = "00000000-0000-0000-0000-0000000000bb";
 
@@ -74,7 +74,7 @@ describe("setAccountTerms", () => {
   });
 
   it("refuses an account belonging to another user", async () => {
-    // The session is always TEST_USER_ID (mocked in test/integration/setup.ts),
+    // The session is always TEST_USER_ID (mocked in tests/integration/setup.ts),
     // so the other user is the row's owner rather than the caller. Per ADR-002
     // the server Prisma role bypasses RLS, making this filter the only fence.
     await prisma.user.create({ data: { id: OTHER_USER_ID } });

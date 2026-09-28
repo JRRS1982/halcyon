@@ -1,4 +1,4 @@
-// e2e/not-found.spec.ts
+// tests/e2e/not-found.spec.ts
 import { expect, test } from "@playwright/test";
 
 test.describe("Unknown routes", () => {

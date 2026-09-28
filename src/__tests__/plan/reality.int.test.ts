@@ -4,7 +4,7 @@ import { monthRangeFor } from "@/lib/budget/period";
 import { latestReality } from "@/lib/plan/reality";
 import { emptyRowTerms } from "@/lib/plan/rowTerms";
 import { prisma } from "@/lib/prisma";
-import { TEST_USER_ID } from "../../../test/integration/helpers";
+import { TEST_USER_ID } from "../../../tests/integration/helpers";
 
 const OTHER_USER_ID = "00000000-0000-0000-0000-0000000000bb";
 // No test in this file creates an AccountTerms row, so every terms field

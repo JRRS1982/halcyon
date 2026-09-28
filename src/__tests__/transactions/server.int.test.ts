@@ -5,7 +5,7 @@ import {
   getOrProvisionCategories,
   getTransactionsPage,
 } from "@/lib/transactions/server";
-import { TEST_USER_ID } from "../../../test/integration/helpers";
+import { TEST_USER_ID } from "../../../tests/integration/helpers";
 
 const makePeriod = () =>
   prisma.financialPeriod.create({

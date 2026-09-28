@@ -1,4 +1,4 @@
-// e2e/reminder.spec.ts
+// tests/e2e/reminder.spec.ts
 //
 // The consent journey for the monthly reminder, in a real browser: switching it
 // on in Settings, and switching it off from the link an email would carry.

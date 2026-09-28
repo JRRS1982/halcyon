@@ -1,4 +1,4 @@
-// e2e/mobile-nav.spec.ts
+// tests/e2e/mobile-nav.spec.ts
 //
 // Viewport-dependent behaviour that jsdom can't judge: below 768px the inline
 // link row collapses and the hamburger drawer becomes the only way to navigate.

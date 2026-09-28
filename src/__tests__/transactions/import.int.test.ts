@@ -1,7 +1,7 @@
 import { commitImport, previewImport } from "@/app/(app)/transactions/actions";
 import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
-import { TEST_USER_ID } from "../../../test/integration/helpers";
+import { TEST_USER_ID } from "../../../tests/integration/helpers";
 
 const rows = [
   ["date", "desc", "amount"],

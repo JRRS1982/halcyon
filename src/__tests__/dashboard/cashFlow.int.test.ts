@@ -3,7 +3,7 @@ import DashboardPage from "@/app/(app)/dashboard/page";
 import { buildAccountData } from "@/lib/accounts/creation";
 import type { CashFlowPoint } from "@/lib/dashboard/series";
 import { prisma } from "@/lib/prisma";
-import { TEST_USER_ID } from "../../../test/integration/helpers";
+import { TEST_USER_ID } from "../../../tests/integration/helpers";
 
 // A REPAYMENT row is spending: the budget sheet files it under Expenses and
 // `surplus` subtracts it. The dashboard used to drop it from the cash-flow

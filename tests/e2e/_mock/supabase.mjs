@@ -4,7 +4,7 @@
 // without hitting real Supabase. In-memory state — reset on every server
 // start, fully isolated from any real project.
 //
-// Run standalone:  node e2e/_mock/supabase.mjs
+// Run standalone:  node tests/e2e/_mock/supabase.mjs
 // Playwright starts it automatically via webServer config.
 
 import { randomUUID } from "node:crypto";

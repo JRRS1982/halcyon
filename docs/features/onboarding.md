@@ -44,7 +44,7 @@ set and the user would open Settings to everything twice.
 seeds for itself.** Code that reads "the latest period" gets the starter sheet:
 the dashboard KPIs take the last point of each series, and `createPlan` seeds
 from the most recent period. E2E specs that seed a past month and assert on a
-derived figure must call `clearStarterPeriods` (`e2e/_helpers/fixtures.ts`)
+derived figure must call `clearStarterPeriods` (`tests/e2e/_helpers/fixtures.ts`)
 first, or their fixture is inert. Integration tests are unaffected — their
 `seedUser` helper writes `UserSettings` directly, so provisioning never runs.
 

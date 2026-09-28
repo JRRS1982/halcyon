@@ -36,7 +36,7 @@ import {
 } from "@/app/(app)/settings/dataActions";
 import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
-import { TEST_USER_ID } from "../../../test/integration/helpers";
+import { TEST_USER_ID } from "../../../tests/integration/helpers";
 
 // A second user, to prove every action is scoped by userId.
 const OTHER_USER_ID = "00000000-0000-0000-0000-0000000000bb";

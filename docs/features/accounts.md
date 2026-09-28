@@ -385,7 +385,7 @@ scoping:
   saving through their own actions, the type-change refusal sentence shown
   inline), `AccountTermsFields.test.tsx` (per-type field rendering, blank
   clears to null).
-- **E2E** — [`e2e/balance-accounts.spec.ts`](../../e2e/balance-accounts.spec.ts):
+- **E2E** — [`tests/e2e/balance-accounts.spec.ts`](../../tests/e2e/balance-accounts.spec.ts):
   six journeys — adding an asset, a mortgaged property (both sides created),
   stop-tracking into the Settings archive, delete-everywhere, an account with
   no value being listed and counted, and renaming on the sheet reaching the

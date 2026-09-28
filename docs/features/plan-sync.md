@@ -788,9 +788,9 @@ field, not the list" still stands.
   would not have caught; and the kind-gating cases — a liability-only or
   asset-only term written to the wrong account type is ignored rather than
   reported as a phantom change).
-- **E2E** — `e2e/plan-sync.spec.ts`: change a balance value, see the `●`
+- **E2E** — `tests/e2e/plan-sync.spec.ts`: change a balance value, see the `●`
   marker and the source figure, press Sync, see the value update and the button
-  read `Up to date`. `e2e/budget-transfers.spec.ts` covers the P3 half: budget
+  read `Up to date`. `tests/e2e/budget-transfers.spec.ts` covers the P3 half: budget
   a repayment at a mortgage, press Sync, find it on the liability's
   `monthlyRepayment`. Both are server-action journeys, so both are
   chromium-gated per the repo's browser-coverage rule.

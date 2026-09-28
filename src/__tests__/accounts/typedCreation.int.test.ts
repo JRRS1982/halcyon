@@ -6,7 +6,7 @@ import {
   resetDb,
   seedUser,
   TEST_USER_ID,
-} from "../../../test/integration/helpers";
+} from "../../../tests/integration/helpers";
 
 // The bug this restructure exists to kill: an account with no BalanceItem
 // used to be invisible everywhere downstream, because nothing on the row

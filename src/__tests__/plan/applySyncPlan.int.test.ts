@@ -11,7 +11,7 @@ import { buildAccountData } from "@/lib/accounts/creation";
 import { applySyncPlan } from "@/lib/plan/applySyncPlan";
 import { emptyRowTerms } from "@/lib/plan/rowTerms";
 import { prisma } from "@/lib/prisma";
-import { TEST_USER_ID } from "../../../test/integration/helpers";
+import { TEST_USER_ID } from "../../../tests/integration/helpers";
 
 const OTHER_USER_ID = "00000000-0000-0000-0000-0000000000bb";
 

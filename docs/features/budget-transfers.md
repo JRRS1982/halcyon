@@ -454,7 +454,7 @@ picker and in `createItemForMonth`, not in the database.
   `transactions/transferSource.int.test.ts`, `plan/reality.int.test.ts` (the
   flow read, both units, the `OUTFLOW` zero), `plan/syncAction.int.test.ts`
   (the flow reaching both plan columns, and the widened zero-value guard).
-- **E2E** — [`e2e/budget-transfers.spec.ts`](../../e2e/budget-transfers.spec.ts):
+- **E2E** — [`tests/e2e/budget-transfers.spec.ts`](../../tests/e2e/budget-transfers.spec.ts):
   budget a transfer to an ISA, see it in Transfers and out of Expenses with
   the surplus falling by it, then tag a real movement and watch it fill that
   row's actual; and budget a repayment at a mortgage, see it counted in

@@ -35,7 +35,7 @@
     "node_modules",
     ".next",
     "playwright.config.ts",
-    "e2e",
+    "tests/e2e",
     "jest.config.ts",
     "jest.setup.ts"
   ]

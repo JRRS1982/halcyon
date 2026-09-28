@@ -1,4 +1,4 @@
-// e2e/mobile-import.spec.ts
+// tests/e2e/mobile-import.spec.ts
 //
 // The CSV import dialog on a phone. The dialog is a CSS grid, and without
 // minmax(0, …) clamps its children's intrinsic widths (the preview table's

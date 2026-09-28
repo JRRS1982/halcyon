@@ -4,7 +4,7 @@ import {
 } from "@/app/(app)/balance/accountActions";
 import { copyBalancePeriodFrom } from "@/app/(app)/balance/actions";
 import { prisma } from "@/lib/prisma";
-import { TEST_USER_ID } from "../../../test/integration/helpers";
+import { TEST_USER_ID } from "../../../tests/integration/helpers";
 
 describe("balance copy-forward (integration)", () => {
   it("carries the account link into the next month", async () => {

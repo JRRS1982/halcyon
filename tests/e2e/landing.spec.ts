@@ -1,4 +1,4 @@
-// e2e/landing.spec.ts
+// tests/e2e/landing.spec.ts
 import { expect, test } from "@playwright/test";
 
 test.describe("Landing page", () => {

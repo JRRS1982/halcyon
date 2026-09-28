@@ -4,7 +4,7 @@ import {
   resetDb,
   seedUser,
   TEST_USER_ID,
-} from "../../../test/integration/helpers";
+} from "../../../tests/integration/helpers";
 
 describe("createAccount with terms", () => {
   beforeEach(async () => {

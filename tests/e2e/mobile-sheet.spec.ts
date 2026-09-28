@@ -1,4 +1,4 @@
-// e2e/mobile-sheet.spec.ts
+// tests/e2e/mobile-sheet.spec.ts
 //
 // The budget and balance sheets are fixed-column grids that used to be clipped
 // by `overflow: hidden` on a phone — the amount columns were simply

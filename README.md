@@ -58,7 +58,7 @@ Built as a learning project, and documented like one. Start with the
 - **Pipeline**: pushes to `master` trigger GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) which runs `biome ci`, `tsc --noEmit`, Jest, and Playwright on Node 22 + pnpm 11. Vercel watches `master` independently and ships the build to production once its own build passes.
 - **Database migrations**: applied by GitHub Actions, not by the host. The `migrate-prod` job in [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs `prisma migrate deploy` against the production `DIRECT_URL` (unpooled Supabase connection, port 5432, supplied via the `PROD_DIRECT_URL` repo secret) — but only on push to `master` and only after lint/test + e2e pass. Vercel is configured to wait for this workflow before deploying, so the new code never goes live against an un-migrated schema. Migrations are forward-only; to undo, write a corrective migration. Manual fallback: `pnpm exec prisma migrate deploy` with `DIRECT_URL` set.
 - **Rollback**: one click in the Vercel dashboard (it keeps every previous build immutable). Pair with a corrective DB migration if a release introduced a schema change.
-- **Secrets**: managed in the Vercel project settings, not committed. The repo's `.env.example` lists every variable the app reads. See [ADR-004](docs/ADRs/ADR-004-SecretManagement.md).
+- **Secrets**: managed in the Vercel project settings, not committed. [`.env.example`](.env.example) lists every variable and where it is set in each environment (Vercel, GitHub secrets, Supabase dashboard, local files). See also [ADR-004](docs/adrs/adr-004-secret-management.md).
 
 ## Setup
 
@@ -160,7 +160,7 @@ Run the tests locally:
 
 Playwright spins up two webservers automatically:
 
-- a **mock Supabase Auth server** on `localhost:54321` (see [`e2e/_mock/supabase.mjs`](e2e/_mock/supabase.mjs))
+- a **mock Supabase Auth server** on `localhost:54321` (see [`tests/e2e/_mock/supabase.mjs`](tests/e2e/_mock/supabase.mjs))
 - a **Next.js dev server** on `localhost:3100` (the deliberately-different port lets the test server coexist with a developer's own `pnpm dev` on `:3210`)
 
 Auth is always mocked (no real Supabase project is touched). **DB-touching
@@ -190,7 +190,7 @@ It expects the signed-in demo user to be the *only* user in `halcyon_test`; left
 
 ```bash
 make e2e-db                                   # local Postgres, migrated
-node e2e/_mock/supabase.mjs &                 # mock auth on :54321
+node tests/e2e/_mock/supabase.mjs &                 # mock auth on :54321
 
 NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321 \
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_test_anon_key_for_e2e \

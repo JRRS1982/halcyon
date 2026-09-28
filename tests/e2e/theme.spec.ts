@@ -1,4 +1,4 @@
-// e2e/theme.spec.ts
+// tests/e2e/theme.spec.ts
 //
 // The scheme is decided by CSS (a media query plus a data-theme attribute the
 // server writes), so the only way to test it is to ask a real browser what it

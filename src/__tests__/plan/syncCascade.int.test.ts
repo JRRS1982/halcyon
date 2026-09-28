@@ -13,7 +13,7 @@ import { getPlanSyncPreview, syncPlan } from "@/app/(app)/plan/syncActions";
 import { buildAccountData } from "@/lib/accounts/creation";
 import { toPlanInput } from "@/lib/plan/toPlanInput";
 import { prisma } from "@/lib/prisma";
-import { TEST_USER_ID } from "../../../test/integration/helpers";
+import { TEST_USER_ID } from "../../../tests/integration/helpers";
 
 async function accountWithValue(
   periodId: string,

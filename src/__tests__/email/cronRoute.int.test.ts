@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { TEST_USER_ID } from "../../../test/integration/helpers";
+import { TEST_USER_ID } from "../../../tests/integration/helpers";
 
 /**
  * The cron job's orchestration, against a real database.

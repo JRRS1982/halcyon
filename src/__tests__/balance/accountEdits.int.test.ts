@@ -20,7 +20,7 @@ import {
   resetDb,
   seedUser,
   TEST_USER_ID,
-} from "../../../test/integration/helpers";
+} from "../../../tests/integration/helpers";
 
 // A typed account fixture — full data from buildAccountData, exactly the
 // shape every real creation path writes (type/section).

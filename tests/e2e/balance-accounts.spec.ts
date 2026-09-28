@@ -1,4 +1,4 @@
-// e2e/balance-accounts.spec.ts
+// tests/e2e/balance-accounts.spec.ts
 //
 // Server-action journeys for the unified-accounts work: adding an account
 // (plain and property+mortgage), archiving one ("stop tracking"), the app's

@@ -1,4 +1,4 @@
-// e2e/sticky-footer.spec.ts
+// tests/e2e/sticky-footer.spec.ts
 //
 // The footer belongs at the bottom of the viewport on a page too short to fill
 // it, and at the bottom of the document on one that is taller — the sticky-

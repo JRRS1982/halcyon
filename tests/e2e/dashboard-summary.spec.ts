@@ -1,4 +1,4 @@
-// e2e/dashboard-summary.spec.ts
+// tests/e2e/dashboard-summary.spec.ts
 //
 // The dashboard leads with four figures rather than opening on a chart. These
 // need real data in a real browser: the values come from two months of seeded

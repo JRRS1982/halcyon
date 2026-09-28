@@ -6,7 +6,7 @@ import {
 } from "@/lib/onboarding/defaults";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserSettings } from "@/lib/settings/server";
-import { TEST_USER_ID } from "../../../test/integration/helpers";
+import { TEST_USER_ID } from "../../../tests/integration/helpers";
 
 // beforeEach seeds the user; deleting it puts us back to a brand-new account,
 // so the next read hits the lazy-create path (delete cascades to UserSettings).

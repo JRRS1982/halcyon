@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { TEST_USER_ID } from "../../../test/integration/helpers";
+import { TEST_USER_ID } from "../../../tests/integration/helpers";
 
 describe("Plan.taxRegime / Plan.thresholdsInflationLinked", () => {
   it("a plan stores its regime and threshold assumption", async () => {

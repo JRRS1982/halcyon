@@ -244,7 +244,7 @@ Once those are in place, the button works without any further code changes.
 
 ## E2E test coverage
 
-[`e2e/auth.spec.ts`](../../e2e/auth.spec.ts) covers:
+[`tests/e2e/auth.spec.ts`](../../tests/e2e/auth.spec.ts) covers:
 
 - Unauth state: home shows sign-in link; `/dashboard` redirects to `/sign-in?next=/dashboard`.
 - Sign-up: zod rejects invalid email + short password (both server-side errors via redirect); happy path shows the "check your email" message.
@@ -252,7 +252,7 @@ Once those are in place, the button works without any further code changes.
 - Sign-out: cookie clears; `/dashboard` becomes inaccessible again.
 - Google button: present on both sign-in and sign-up pages (the real OAuth round-trip is not E2E-tested — would require a fake Google).
 
-Tests run against a **mock Supabase Auth server** at [`e2e/_mock/supabase.mjs`](../../e2e/_mock/supabase.mjs) — a small Node HTTP server implementing just enough of `/auth/v1/*` to drive the flow end-to-end without touching the real Supabase project. It's in-memory, pre-seeded with one user (`test@example.com` / `password123`), and reset on every Playwright run.
+Tests run against a **mock Supabase Auth server** at [`tests/e2e/_mock/supabase.mjs`](../../tests/e2e/_mock/supabase.mjs) — a small Node HTTP server implementing just enough of `/auth/v1/*` to drive the flow end-to-end without touching the real Supabase project. It's in-memory, pre-seeded with one user (`test@example.com` / `password123`), and reset on every Playwright run.
 
 `playwright.config.ts` starts the mock + a dedicated Next.js dev server on port `3100` (so it can run alongside the developer's own `pnpm dev` on `3210`) with env vars pointing at the mock.
 

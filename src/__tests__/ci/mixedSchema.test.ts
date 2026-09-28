@@ -24,9 +24,9 @@ describe("splitChangedFiles", () => {
   test("e2e specs count as code — a migration has no business changing them", () => {
     const split = splitChangedFiles([
       "prisma/migrations/20260101000000_add_thing/migration.sql",
-      "e2e/budget.spec.ts",
+      "tests/e2e/budget.spec.ts",
     ]);
-    expect(split.code).toEqual(["e2e/budget.spec.ts"]);
+    expect(split.code).toEqual(["tests/e2e/budget.spec.ts"]);
   });
 
   test("docs, workflows and lockfiles may travel with a migration", () => {

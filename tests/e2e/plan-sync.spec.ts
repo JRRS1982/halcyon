@@ -1,4 +1,4 @@
-// e2e/plan-sync.spec.ts
+// tests/e2e/plan-sync.spec.ts
 //
 // The Sync journey: a plan built from the balance sheet, the sheet moving
 // underneath it, and one button putting the two back in step — plus the one

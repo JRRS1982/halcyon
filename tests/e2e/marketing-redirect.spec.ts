@@ -1,4 +1,4 @@
-// e2e/marketing-redirect.spec.ts
+// tests/e2e/marketing-redirect.spec.ts
 //
 // The "signed-in visitors skip the marketing page" rule moved from the "/"
 // server component into the proxy. This covers the case the proxy is
