@@ -27,7 +27,7 @@ and a mis-send becomes a notifiable breach.
 
 Keeping figures out means Resend processes an email address and nothing else,
 which keeps the processor relationship and the privacy notice narrow. The rule
-is enforced by a test (`src/__tests__/email/reminder.test.ts`) that strips the
+is enforced by a test (`src/lib/email/reminder.test.ts`) that strips the
 HTML to its visible text and asserts no currency amounts and no
 separated/decimal numbers appear — so "just a small summary" can't be added
 without the test objecting.

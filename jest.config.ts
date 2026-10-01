@@ -28,6 +28,16 @@ const config: Config = {
     "<rootDir>/.next/",
     "<rootDir>/.claude/worktrees/",
   ],
+  // Report every source file, not only the ones some test happens to import —
+  // otherwise a file with no test at all is simply absent from the report
+  // rather than showing as 0%. Pages, server actions and route handlers will
+  // read low here: they are covered by the integration and e2e suites, which
+  // this unit run does not include.
+  collectCoverageFrom: [
+    "src/**/*.{ts,tsx}",
+    "!src/**/*.test.{ts,tsx}",
+    "!src/**/*.d.ts",
+  ],
   coveragePathIgnorePatterns: [
     "<rootDir>/node_modules/",
     "<rootDir>/tests/e2e/",

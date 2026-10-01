@@ -368,18 +368,18 @@ scoping:
 - **Unit** — `accountDraft.test.ts` (import-checkbox default/stickiness,
   submit gating), `creation.test.ts` (pure data shaping),
   `deletion.test.ts` (property-row and confirm-text rules),
-  `accountTerms.test.ts` (`termsFor` maps every one of the fourteen types to
+  `accountDraft.terms.test.ts` (`termsFor` maps every one of the fourteen types to
   its declared fields), `termsSummary.test.ts` (the collapsed-section
   one-liner per type).
 - **Integration** (`*.integration.test.ts`, real Postgres) —
-  `schema.integration.test.ts` (columns and defaults),
-  data produces the same result), `balanceAccountActions.integration.test.ts`
+  `schema.accounts.integration.test.ts` (columns and defaults),
+  data produces the same result), `balance/accountActions.integration.test.ts`
   (create-with-mortgage transaction, archive/restore, both delete modes),
-  `copyForward.integration.test.ts` (accountId survives copy-forward and template
-  copy), `accountActions.integration.test.ts` (Settings-side rename/import-toggle/
-  delete-when-unreferenced), `accountTerms.integration.test.ts` (the 1:1 relation and
-  its cascade), `createAccountTerms.integration.test.ts` (a new account's terms row),
-  `setAccountTerms.integration.test.ts` (ownership fence, cross-user rejection).
+  `actions.copyForward.integration.test.ts` (accountId survives copy-forward and template
+  copy), `settings/accountActions.integration.test.ts` (Settings-side rename/import-toggle/
+  delete-when-unreferenced), `schema.accountTerms.integration.test.ts` (the 1:1 relation and
+  its cascade), `accountActions.createTerms.integration.test.ts` (a new account's terms row),
+  `accountActions.setTerms.integration.test.ts` (ownership fence, cross-user rejection).
 - **Component** — `AddAccountDrawer.test.tsx`, `DeleteAccountPanel.test.tsx`,
   `AccountManager.test.tsx`, `AccountCard.test.tsx` (name/type/section/terms
   saving through their own actions, the type-change refusal sentence shown

@@ -113,6 +113,11 @@ I have done my best, with the support of AI to put a comprehensive set of docume
 
 The unit tests run against the code in the `src/` directory, rather than the container code, which improved the speed and reliability of the tests. In other projects i have worked on, running tests against the container code was a common source of frustration.
 
+Tests sit beside the file they test: `period.test.ts` next to `period.ts`,
+`actions.createPlan.integration.test.ts` next to `actions.ts`. Only the e2e
+suite and the integration harness live in `tests/`. A unit test
+(`src/lib/ci/testSiblings.test.ts`) fails if any test's subject file is missing.
+
 ### Unit tests
 
 To run the unit tests, use the following command: `pnpm test`, or one of the helpers listed below:

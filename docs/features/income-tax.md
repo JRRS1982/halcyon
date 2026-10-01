@@ -286,10 +286,10 @@ Named so nobody builds these by accident:
 
 ### Testing
 
-- **Unit** — [`src/__tests__/tax/compute.test.ts`](../../src/__tests__/tax/compute.test.ts)
+- **Unit** — [`src/lib/tax/compute.test.ts`](../../src/lib/tax/compute.test.ts)
   (the walk both directions: allowance boundary, basic/higher/additional
   bands, the taper's 60% equivalence, Scottish boundaries, the
-  `grossFor`/`taxOn` inverse property), [`src/__tests__/tax/bands.test.ts`](../../src/__tests__/tax/bands.test.ts)
+  `grossFor`/`taxOn` inverse property), [`src/lib/tax/bands.test.ts`](../../src/lib/tax/bands.test.ts)
   (the inflation anchor: scale 1 through the anchor year, compounding after,
   toggle off pins scale at 1 indefinitely), [`src/lib/plan/tax.test.ts`](../../src/lib/plan/tax.test.ts)
   (`isTaxableOnWithdrawal`), [`src/lib/plan/project.test.ts`](../../src/lib/plan/project.test.ts)
@@ -300,7 +300,7 @@ Named so nobody builds these by accident:
   later years' tax; `project.test.ts` also has the regime case — SCOTLAND and
   RUK taxing the same income differently, and the SCOTLAND figure matching
   `taxOn` by hand).
-- **Integration** — [`src/__tests__/plan/taxRegime.integration.test.ts`](../../src/__tests__/plan/taxRegime.integration.test.ts)
+- **Integration** — [`prisma/schema.taxRegime.integration.test.ts`](../../prisma/schema.taxRegime.integration.test.ts)
   (a plan round-trips `taxRegime`/`thresholdsInflationLinked`; both tests are
   Prisma round-trips and don't run the projection — that's covered by the
   `project.test.ts` regime case above).

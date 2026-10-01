@@ -774,15 +774,15 @@ field, not the list" still stands.
   with; does not name the `"gone"` rows themselves), `rowTerms.test.ts` (the
   exhaustiveness pin — a deliberate break/restore proof, not just the happy
   path).
-- **Integration** (`*.integration.test.ts`, real Postgres) — `planLinks.integration.test.ts`
+- **Integration** (`*.integration.test.ts`, real Postgres) — `schema.planLinks.integration.test.ts`
   (the four links, and `SetNull` proved by the row surviving), `reality.integration.test.ts`,
-  `syncAction.integration.test.ts` (assumptions survive, plan-only removed, archived
+  `syncActions.integration.test.ts` (assumptions survive, plan-only removed, archived
   account removed, second sync is a no-op, cross-tenant), `applySyncPlan.integration.test.ts`
   (a foreign row id under an owned plan id is rejected by the per-statement
-  fence), `createPlan.integration.test.ts`, `syncCascade.integration.test.ts` (an archived
+  fence), `actions.createPlan.integration.test.ts`, `syncActions.cascade.integration.test.ts` (an archived
   property takes its mortgage, its repayment and its sale event; the resulting
   `toPlanInput` holds no event or mortgage pointing at an asset that is gone),
-  `syncTerms.integration.test.ts` (one mutation test per `RowTerms` field, through the
+  `syncActions.terms.integration.test.ts` (one mutation test per `RowTerms` field, through the
   real `setAccountTerms` → Sync path; a second consecutive Sync with nothing
   changed reporting zero updates — the regression a fake exhaustiveness pin
   would not have caught; and the kind-gating cases — a liability-only or

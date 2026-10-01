@@ -432,27 +432,27 @@ picker and in `createItemForMonth`, not in the database.
   `eligibleAnchorAccounts`, `anchorPickerEmptyReason`, `skippedRowsNotice`),
   `budget/totals.test.ts` (`sumAmounts` across kinds, `surplus` in both
   directions, `favourableVariance`'s `INFLOW`/`OUTFLOW` asymmetry),
-  `transactions/transferSource.test.ts` (the per-pair source rule, including
+  `transfers.transferSource.test.ts` (the per-pair source rule, including
   the self-transfer edge and all three double-count scenarios),
   `transactions/actual.test.ts` (`accountActual`'s sign, `netActual`'s
   exclusion), `transactions/CategoryCombobox.test.tsx` (the four groups and
-  the keyboard index across them), `transactions/transferSource.test.ts` again
+  the keyboard index across them), `transfers.transferSource.test.ts` again
   for `netTransfersByMonthAndAccount` (each month nets on its own; the per-pair
   rule holds inside a bucket), `dashboard/series.test.ts` (`monthFlow` counts a
   repayment and excludes a transfer, and converting a mortgage between the two
   leaves the savings rate where it was).
 - **Integration** (`*.integration.test.ts`, real Postgres) —
-  `budget/transferSchema.integration.test.ts`, `budget/transferActions.integration.test.ts`
+  `schema.budgetTransfers.integration.test.ts`, `actions.transfers.integration.test.ts`
   (cross-tenant, both kind mismatches, the one-row-per-account fence, the
-  happy path), `budget/copyAnchors.integration.test.ts` (anchors carried and re-fenced
+  happy path), `actions.copyAnchors.integration.test.ts` (anchors carried and re-fenced
   across copy-forward; template rows dropped),
-  `budget/copyComputedActuals.integration.test.ts` (a copied anchored row adopts the
+  `actions.copyComputedActuals.integration.test.ts` (a copied anchored row adopts the
   target month's flow rather than returning 0),
-  `dashboard/cashFlow.integration.test.ts` (a repayment is charted as expenditure in
+  `page.cashFlow.integration.test.ts` (a repayment is charted as expenditure in
   both modes — the transactions-mode case needs the account-keyed source, not
   just `monthFlow`),
-  `transactions/transferSource.integration.test.ts`, `plan/reality.integration.test.ts` (the
-  flow read, both units, the `OUTFLOW` zero), `plan/syncAction.integration.test.ts`
+  `server.transferSource.integration.test.ts`, `plan/reality.integration.test.ts` (the
+  flow read, both units, the `OUTFLOW` zero), `syncActions.integration.test.ts`
   (the flow reaching both plan columns, and the widened zero-value guard).
 - **E2E** — [`tests/e2e/budget-transfers.spec.ts`](../../tests/e2e/budget-transfers.spec.ts):
   budget a transfer to an ISA, see it in Transfers and out of Expenses with
