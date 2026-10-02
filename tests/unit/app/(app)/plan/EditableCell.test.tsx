@@ -3,8 +3,8 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { ThemeProvider } from "styled-components";
-import { theme } from "@/lib/theme";
 import { NumberCell, TextCell } from "@/app/(app)/plan/EditableCell";
+import { theme } from "@/lib/theme";
 
 const renderWithTheme = (ui: ReactElement) =>
   render(<ThemeProvider theme={theme}>{ui}</ThemeProvider>);

@@ -1,8 +1,8 @@
+import { TEST_USER_ID } from "@test/support/helpers";
 import type { ReactElement } from "react";
 import TransactionsPage from "@/app/(app)/transactions/page";
 import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
-import { TEST_USER_ID } from "@test/support/helpers";
 
 // The moment the accounts backfill runs, every historical balance line
 // becomes an Account — the user's mortgage, house and pension included.

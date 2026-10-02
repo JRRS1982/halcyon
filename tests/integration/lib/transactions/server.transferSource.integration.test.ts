@@ -1,7 +1,7 @@
+import { TEST_USER_ID } from "@test/support/helpers";
 import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
 import { getTransferFlowByAccount } from "@/lib/transactions/server";
-import { TEST_USER_ID } from "@test/support/helpers";
 
 const makeAccount = (name: string) =>
   prisma.account.create({

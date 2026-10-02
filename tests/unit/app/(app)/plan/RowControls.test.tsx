@@ -3,8 +3,8 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { ThemeProvider } from "styled-components";
-import { theme } from "@/lib/theme";
 import { AddRowButton } from "@/app/(app)/plan/RowControls";
+import { theme } from "@/lib/theme";
 
 const renderWithTheme = (ui: ReactElement) =>
   render(<ThemeProvider theme={theme}>{ui}</ThemeProvider>);

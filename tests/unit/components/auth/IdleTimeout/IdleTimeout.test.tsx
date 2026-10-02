@@ -1,8 +1,8 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { ThemeProvider } from "styled-components";
+import { IdleTimeout } from "@/components/auth/IdleTimeout";
 import type { SessionTimeoutConfig } from "@/lib/auth/sessionTimeout";
 import { theme } from "@/lib/theme";
-import { IdleTimeout } from "@/components/auth/IdleTimeout";
 
 const refresh = jest.fn();
 jest.mock("next/navigation", () => ({

@@ -1,10 +1,10 @@
+import { TEST_USER_ID } from "@test/support/helpers";
 import {
   createAccountAndTransfer,
   createAndAssignCategory,
 } from "@/app/(app)/transactions/actions";
 import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
-import { TEST_USER_ID } from "@test/support/helpers";
 
 // Creating a category (or account) and applying it to a transaction used to be
 // two sequential actions with an optimistic UI update between them, so a user

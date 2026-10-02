@@ -4,7 +4,11 @@ import type {
   SerializedPlanIncome,
   SerializedPlanLiability,
 } from "@/app/(app)/plan/serialized";
-import { ageFromOffset, clampHandle, toTimelineModel } from "@/lib/plan/timelineData";
+import {
+  ageFromOffset,
+  clampHandle,
+  toTimelineModel,
+} from "@/lib/plan/timelineData";
 
 const income = (over: Partial<SerializedPlanIncome>): SerializedPlanIncome => ({
   id: "i1",

@@ -1,4 +1,5 @@
 import type { AccountType } from "@prisma/client";
+import { TEST_USER_ID } from "@test/support/helpers";
 import {
   setAccountTerms,
   setAccountType,
@@ -8,7 +9,6 @@ import { getPlanSyncPreview, syncPlan } from "@/app/(app)/plan/syncActions";
 import { buildAccountData } from "@/lib/accounts/creation";
 import { emptyRowTerms } from "@/lib/plan/rowTerms";
 import { prisma } from "@/lib/prisma";
-import { TEST_USER_ID } from "@test/support/helpers";
 
 const OTHER_USER_ID = "00000000-0000-0000-0000-0000000000bb";
 

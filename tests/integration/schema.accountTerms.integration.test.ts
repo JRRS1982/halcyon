@@ -1,6 +1,6 @@
+import { resetDb, seedUser, TEST_USER_ID } from "@test/support/helpers";
 import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
-import { resetDb, seedUser, TEST_USER_ID } from "@test/support/helpers";
 
 describe("AccountTerms", () => {
   beforeEach(async () => {

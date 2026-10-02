@@ -2,8 +2,8 @@
 
 import { render, screen } from "@testing-library/react";
 import { ThemeProvider } from "styled-components";
-import { theme } from "@/lib/theme";
 import { MortgageBadge } from "@/app/(app)/plan/MortgageBadge";
+import { theme } from "@/lib/theme";
 
 describe("MortgageBadge", () => {
   it("renders its label", () => {

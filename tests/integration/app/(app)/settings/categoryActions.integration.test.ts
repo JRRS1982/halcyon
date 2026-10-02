@@ -1,7 +1,7 @@
+import { TEST_USER_ID } from "@test/support/helpers";
 import { mergeCategories } from "@/app/(app)/settings/categoryActions";
 import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
-import { TEST_USER_ID } from "@test/support/helpers";
 
 const makeCategory = (label: string) =>
   prisma.category.create({

@@ -1,7 +1,7 @@
+import { TEST_USER_ID } from "@test/support/helpers";
 import { resetToDefaults } from "@/app/(app)/settings/dataActions";
 import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
-import { TEST_USER_ID } from "@test/support/helpers";
 
 // "Reset to defaults" is the only destructive action that puts something back.
 // The half that matters is the seed: clearing is easy to get right, and a

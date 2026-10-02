@@ -1,6 +1,6 @@
+import { TEST_USER_ID } from "@test/support/helpers";
 import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
-import { TEST_USER_ID } from "@test/support/helpers";
 
 // beforeEach in tests/integration/setup.ts already resets the DB and seeds
 // TEST_USER_ID; no local seedUser/seedPeriod helpers exist here (checked

@@ -7,11 +7,11 @@
 // might, to prove the write fences reject it on their own.
 
 import type { AccountType } from "@prisma/client";
+import { TEST_USER_ID } from "@test/support/helpers";
 import { buildAccountData } from "@/lib/accounts/creation";
 import { applySyncPlan } from "@/lib/plan/applySyncPlan";
 import { emptyRowTerms } from "@/lib/plan/rowTerms";
 import { prisma } from "@/lib/prisma";
-import { TEST_USER_ID } from "@test/support/helpers";
 
 const OTHER_USER_ID = "00000000-0000-0000-0000-0000000000bb";
 

@@ -8,8 +8,8 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { ThemeProvider } from "styled-components";
-import { theme } from "@/lib/theme";
 import { PropertyFields } from "@/app/(app)/plan/PropertyFields";
+import { theme } from "@/lib/theme";
 
 const createMortgageForProperty = jest.fn().mockResolvedValue("liab-1");
 const updatePlanLiability = jest.fn().mockResolvedValue(undefined);

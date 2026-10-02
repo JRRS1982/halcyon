@@ -8,12 +8,12 @@
 // explaining why.
 
 import type { AccountType } from "@prisma/client";
+import { TEST_USER_ID } from "@test/support/helpers";
 import { linkRepaymentExpense } from "@/app/(app)/plan/actions";
 import { getPlanSyncPreview, syncPlan } from "@/app/(app)/plan/syncActions";
 import { buildAccountData } from "@/lib/accounts/creation";
 import { toPlanInput } from "@/lib/plan/toPlanInput";
 import { prisma } from "@/lib/prisma";
-import { TEST_USER_ID } from "@test/support/helpers";
 
 async function accountWithValue(
   periodId: string,

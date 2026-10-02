@@ -1,8 +1,8 @@
+import { TEST_USER_ID } from "@test/support/helpers";
 import { createItemForMonth, updateItem } from "@/app/(app)/budget/actions";
 import { buildAccountData } from "@/lib/accounts/creation";
 import { latestReality } from "@/lib/plan/reality";
 import { prisma } from "@/lib/prisma";
-import { TEST_USER_ID } from "@test/support/helpers";
 
 // The plan reads the budget through categories — reality.ts joins on
 // categoryId — and createItemForMonth never wrote one. Only the starter rows

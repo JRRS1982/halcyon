@@ -1,10 +1,10 @@
+import { TEST_USER_ID } from "@test/support/helpers";
 import {
   createMortgageForProperty,
   createPlanAsset,
   deletePlanLiability,
 } from "@/app/(app)/plan/actions";
 import { prisma } from "@/lib/prisma";
-import { TEST_USER_ID } from "@test/support/helpers";
 
 async function makePrimaryPlan() {
   return prisma.plan.create({

@@ -2,9 +2,9 @@
 
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ThemeProvider } from "styled-components";
-import { theme } from "@/lib/theme";
 import { AssumptionsPanel } from "@/app/(app)/plan/AssumptionsPanel";
 import type { SerializedPlanAssumptions } from "@/app/(app)/plan/serialized";
+import { theme } from "@/lib/theme";
 
 const updatePlanAssumptions = jest.fn().mockResolvedValue(undefined);
 jest.mock("next/navigation", () => ({

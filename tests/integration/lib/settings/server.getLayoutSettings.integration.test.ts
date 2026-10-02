@@ -1,6 +1,6 @@
+import { TEST_USER_ID } from "@test/support/helpers";
 import { prisma } from "@/lib/prisma";
 import { getLayoutSettings } from "@/lib/settings/server";
-import { TEST_USER_ID } from "@test/support/helpers";
 
 // The nav is rendered from getLayoutSettings, and the pages beside it read
 // through getCurrentUserSettings, which provisions the settings row. When the

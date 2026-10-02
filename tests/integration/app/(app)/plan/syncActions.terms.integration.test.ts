@@ -7,6 +7,7 @@
 // nothing would report a change forever.
 
 import type { AccountType } from "@prisma/client";
+import { TEST_USER_ID } from "@test/support/helpers";
 import {
   setAccountTerms,
   setAccountType,
@@ -15,7 +16,6 @@ import { updatePlanLiability } from "@/app/(app)/plan/actions";
 import { syncPlan } from "@/app/(app)/plan/syncActions";
 import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
-import { TEST_USER_ID } from "@test/support/helpers";
 
 async function period(label: string, start: string) {
   return prisma.financialPeriod.create({

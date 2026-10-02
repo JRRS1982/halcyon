@@ -1,8 +1,8 @@
+import { computeLiveBand, withStreamAges } from "@/app/(app)/plan/liveBand";
+import type { SerializedPlan } from "@/app/(app)/plan/serialized";
 import { projectWithBand } from "@/lib/plan";
 import { serializedToPlanInput } from "@/lib/plan/serializedInput";
 import { toTodaysMoneyBand } from "@/lib/plan/toPlanInput";
-import { computeLiveBand, withStreamAges } from "@/app/(app)/plan/liveBand";
-import type { SerializedPlan } from "@/app/(app)/plan/serialized";
 
 // minimal serialized plan (reuse the shape from serializedInput.test.ts)
 const plan: SerializedPlan = {

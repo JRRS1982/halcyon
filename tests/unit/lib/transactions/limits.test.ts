@@ -1,5 +1,9 @@
+import {
+  importLimitHint,
+  MAX_IMPORT_FILE_MB,
+  MAX_IMPORT_ROWS,
+} from "@/lib/transactions/limits";
 import nextConfig from "../../../../next.config.mjs";
-import { importLimitHint, MAX_IMPORT_FILE_MB, MAX_IMPORT_ROWS } from "@/lib/transactions/limits";
 
 describe("import limits", () => {
   // The client rejects files over MAX_IMPORT_FILE_BYTES, but the server action

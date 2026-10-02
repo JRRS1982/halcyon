@@ -1,7 +1,7 @@
+import { TEST_USER_ID } from "@test/support/helpers";
 import { createPlan, getPrimaryPlan } from "@/app/(app)/plan/actions";
 import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
-import { TEST_USER_ID } from "@test/support/helpers";
 
 describe("createPlan (integration)", () => {
   it("seeds a primary plan from the user's latest balance + budget period", async () => {

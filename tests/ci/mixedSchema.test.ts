@@ -1,7 +1,4 @@
-import {
-  findDestructiveStatements,
-  splitChangedFiles,
-} from "./mixedSchema";
+import { findDestructiveStatements, splitChangedFiles } from "./mixedSchema";
 
 describe("splitChangedFiles", () => {
   test("a code-only change carries no migration", () => {

@@ -1,11 +1,7 @@
+import { resetDb, seedUser, TEST_USER_ID } from "@test/support/helpers";
 import { setAccountTerms } from "@/app/(app)/balance/accountActions";
 import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
-import {
-  resetDb,
-  seedUser,
-  TEST_USER_ID,
-} from "@test/support/helpers";
 
 const OTHER_USER_ID = "00000000-0000-0000-0000-0000000000bb";
 

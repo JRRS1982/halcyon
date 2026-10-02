@@ -1,12 +1,8 @@
+import { resetDb, seedUser, TEST_USER_ID } from "@test/support/helpers";
 import { kindOf } from "@/lib/accounts/accountDraft";
 import { latestReality } from "@/lib/plan/reality";
 import { prisma } from "@/lib/prisma";
 import { seedStarterData } from "@/lib/settings/server";
-import {
-  resetDb,
-  seedUser,
-  TEST_USER_ID,
-} from "@test/support/helpers";
 
 // The bug this restructure exists to kill: an account with no BalanceItem
 // used to be invisible everywhere downstream, because nothing on the row

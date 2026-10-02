@@ -1,7 +1,12 @@
 // src/lib/plan/project.test.ts
-import { taxOn } from "@/lib/tax/compute";
+
 import { project, projectWithBand } from "@/lib/plan/project";
-import type { PlanInput, PlanProjection, YearProjection } from "@/lib/plan/types";
+import type {
+  PlanInput,
+  PlanProjection,
+  YearProjection,
+} from "@/lib/plan/types";
+import { taxOn } from "@/lib/tax/compute";
 
 const at = (p: PlanProjection, i: number): YearProjection => {
   const y = p.years[i];

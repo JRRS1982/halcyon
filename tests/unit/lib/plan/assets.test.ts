@@ -1,7 +1,8 @@
 // src/lib/plan/assets.test.ts
-import { taxOn } from "@/lib/tax/compute";
+
 import { contributionTargetId, fundDeficit } from "@/lib/plan/assets";
 import type { AssetInput } from "@/lib/plan/types";
+import { taxOn } from "@/lib/tax/compute";
 
 const asset = (over: Partial<AssetInput> & { id: string }): AssetInput => ({
   label: over.id,

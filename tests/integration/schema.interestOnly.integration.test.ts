@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/prisma";
 import { TEST_USER_ID } from "@test/support/helpers";
+import { prisma } from "@/lib/prisma";
 
 async function makePrimaryPlan() {
   return prisma.plan.create({

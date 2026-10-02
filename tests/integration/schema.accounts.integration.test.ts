@@ -1,6 +1,6 @@
+import { TEST_USER_ID } from "@test/support/helpers";
 import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
-import { TEST_USER_ID } from "@test/support/helpers";
 
 describe("Account registry columns (integration)", () => {
   it("defaults a new account to importable, with no link", async () => {

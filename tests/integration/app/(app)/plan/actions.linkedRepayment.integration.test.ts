@@ -1,3 +1,4 @@
+import { TEST_USER_ID } from "@test/support/helpers";
 import {
   deletePlanExpense,
   deletePlanLiability,
@@ -5,7 +6,6 @@ import {
   unlinkRepaymentExpense,
 } from "@/app/(app)/plan/actions";
 import { prisma } from "@/lib/prisma";
-import { TEST_USER_ID } from "@test/support/helpers";
 
 async function makePlanWithMortgage() {
   const plan = await prisma.plan.create({

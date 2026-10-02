@@ -1,6 +1,6 @@
+import { TEST_USER_ID } from "@test/support/helpers";
 import { updatePlanLiability } from "@/app/(app)/plan/actions";
 import { prisma } from "@/lib/prisma";
-import { TEST_USER_ID } from "@test/support/helpers";
 
 async function fixture() {
   const plan = await prisma.plan.create({

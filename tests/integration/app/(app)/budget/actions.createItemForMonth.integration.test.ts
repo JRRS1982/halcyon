@@ -1,6 +1,6 @@
+import { TEST_USER_ID } from "@test/support/helpers";
 import { createItemForMonth } from "@/app/(app)/budget/actions";
 import { prisma } from "@/lib/prisma";
-import { TEST_USER_ID } from "@test/support/helpers";
 
 // Adding the first row of a month used to be two actions: ensurePeriodForMonth,
 // then createItem. Navigating between them left a FinancialPeriod with nothing
