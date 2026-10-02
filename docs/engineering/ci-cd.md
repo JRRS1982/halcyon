@@ -191,11 +191,10 @@ deploy succeeds)` so they explain themselves.
 
 **Two Playwright configs, and they must not overlap.** `playwright.config.ts`
 runs `tests/e2e/` against a local dev server and mock Supabase;
-`playwright.smoke.config.ts` runs `tests/e2e/smoke/` against a deployed URL with no
-`webServer`. The main config carries `testIgnore: "**/smoke/**"` — without it
-`testDir: "./e2e"` sweeps the smoke suite into the local run, where the
-bearer-gated health probe has no `CRON_SECRET` and fails on all three engines
-against a deployment that was never under test. **A 401 means `CRON_SECRET` in GitHub does not match
+`playwright.smoke.config.ts` runs `tests/smoke/` against a deployed URL with no
+`webServer`. The configs are separated at the folder level — smoke lives under
+`tests/smoke/`, not under `tests/e2e/` — so there is no overlap and no
+`testIgnore` needed. **A 401 means `CRON_SECRET` in GitHub does not match
 Vercel's — a drifted secret, not an outage.** `smoke.yml` additionally checks
 that signed-out authed routes return **307 → /sign-in**; a **500** there is the
 schema/code split.
