@@ -13,6 +13,8 @@ const config: Config = {
   testPathIgnorePatterns: [
     "<rootDir>/node_modules/",
     "<rootDir>/tests/e2e/",
+    "<rootDir>/tests/smoke/",
+    "<rootDir>/tests/support/",
     // Nested git worktrees (e.g. .claude/worktrees/*) carry their own copies of
     // src/ and tests/; without this, a test run here crawls into them.
     "<rootDir>/.claude/worktrees/",
@@ -21,6 +23,7 @@ const config: Config = {
   ],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
+    "^@test/(.*)$": "<rootDir>/tests/$1",
   },
   // Jest 30's haste map scans build output; .next/standalone carries a copy of
   // package.json which collides with the root one.

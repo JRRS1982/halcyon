@@ -11,12 +11,13 @@ const createJestConfig = nextJest({ dir: "./" });
 
 const config: Config = {
   testEnvironment: "node",
-  globalSetup: "<rootDir>/tests/integration/globalSetup.ts",
-  setupFilesAfterEnv: ["<rootDir>/tests/integration/setup.ts"],
+  globalSetup: "<rootDir>/tests/support/globalSetup.ts",
+  setupFilesAfterEnv: ["<rootDir>/tests/support/setup.ts"],
   testMatch: ["**/*.integration.test.ts"],
   testPathIgnorePatterns: ["<rootDir>/node_modules/", "<rootDir>/.next/"],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
+    "^@test/(.*)$": "<rootDir>/tests/$1",
   },
   maxWorkers: 1,
 };
