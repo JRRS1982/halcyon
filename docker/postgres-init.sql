@@ -2,7 +2,7 @@
 -- the db container's /docker-entrypoint-initdb.d/). Provisions everything the
 -- test suites need alongside the dev `halcyon` database:
 --
---   * halcyon_test — the database integration tests (pnpm test:int) and the
+--   * halcyon_test — the database integration tests (pnpm test:integration) and the
 --     Playwright e2e dev server both point at.
 --   * role `test` (password `test`, superuser) — the credentials the e2e dev
 --     server uses (see playwright.config.ts), matching the CI Postgres service.

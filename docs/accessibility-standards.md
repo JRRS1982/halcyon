@@ -3,7 +3,7 @@
 **What:** WCAG 2.1 AA target; keyboard navigability, ARIA landmarks, and sufficient colour contrast across all pages.  
 **Key points:**
 - All interactive elements reachable by keyboard; focus order follows visual order
-- ARIA landmarks on every page (verified by `e2e/landmarks.spec.ts`)
+- ARIA landmarks on every page (verified by `tests/e2e/landmarks.spec.ts`)
 - Colour contrast ratio ≥ 4.5:1 for normal text, ≥ 3:1 for large text (check when modifying palette)
 - E2E `theme.spec.ts` and `mobile-sheet.spec.ts` run on all three engines — layout/CSS regressions catch accessibility breakage
 

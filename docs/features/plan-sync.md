@@ -774,23 +774,23 @@ field, not the list" still stands.
   with; does not name the `"gone"` rows themselves), `rowTerms.test.ts` (the
   exhaustiveness pin — a deliberate break/restore proof, not just the happy
   path).
-- **Integration** (`*.int.test.ts`, real Postgres) — `planLinks.int.test.ts`
-  (the four links, and `SetNull` proved by the row surviving), `reality.int.test.ts`,
-  `syncAction.int.test.ts` (assumptions survive, plan-only removed, archived
-  account removed, second sync is a no-op, cross-tenant), `applySyncPlan.int.test.ts`
+- **Integration** (`*.integration.test.ts`, real Postgres) — `schema.planLinks.integration.test.ts`
+  (the four links, and `SetNull` proved by the row surviving), `reality.integration.test.ts`,
+  `syncActions.integration.test.ts` (assumptions survive, plan-only removed, archived
+  account removed, second sync is a no-op, cross-tenant), `applySyncPlan.integration.test.ts`
   (a foreign row id under an owned plan id is rejected by the per-statement
-  fence), `createPlan.int.test.ts`, `syncCascade.int.test.ts` (an archived
+  fence), `actions.createPlan.integration.test.ts`, `syncActions.cascade.integration.test.ts` (an archived
   property takes its mortgage, its repayment and its sale event; the resulting
   `toPlanInput` holds no event or mortgage pointing at an asset that is gone),
-  `syncTerms.int.test.ts` (one mutation test per `RowTerms` field, through the
+  `syncActions.terms.integration.test.ts` (one mutation test per `RowTerms` field, through the
   real `setAccountTerms` → Sync path; a second consecutive Sync with nothing
   changed reporting zero updates — the regression a fake exhaustiveness pin
   would not have caught; and the kind-gating cases — a liability-only or
   asset-only term written to the wrong account type is ignored rather than
   reported as a phantom change).
-- **E2E** — `e2e/plan-sync.spec.ts`: change a balance value, see the `●`
+- **E2E** — `tests/e2e/plan-sync.spec.ts`: change a balance value, see the `●`
   marker and the source figure, press Sync, see the value update and the button
-  read `Up to date`. `e2e/budget-transfers.spec.ts` covers the P3 half: budget
+  read `Up to date`. `tests/e2e/budget-transfers.spec.ts` covers the P3 half: budget
   a repayment at a mortgage, press Sync, find it on the liability's
   `monthlyRepayment`. Both are server-action journeys, so both are
   chromium-gated per the repo's browser-coverage rule.

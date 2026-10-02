@@ -14,7 +14,7 @@ import { readFileSync } from "node:fs";
 import {
   findDestructiveStatements,
   splitChangedFiles,
-} from "../src/lib/ci/mixedSchema";
+} from "../tests/ci/mixedSchema";
 
 const baseRef = process.argv[2] ?? "origin/master";
 

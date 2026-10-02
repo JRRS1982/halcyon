@@ -76,7 +76,7 @@ advisor warning and backfilled in
 
 ## The regression guard
 
-`src/__tests__/security/rls.test.ts` fails the build if any model in
+`prisma/schema.rls.test.ts` fails the build if any model in
 `schema.prisma` has no `ENABLE ROW LEVEL SECURITY` **and** no `CREATE POLICY`
 anywhere in `prisma/migrations/`.
 

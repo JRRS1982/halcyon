@@ -12,15 +12,18 @@ const config: Config = {
   setupFilesAfterEnv: ["<rootDir>/jest.setup.ts"],
   testPathIgnorePatterns: [
     "<rootDir>/node_modules/",
-    "<rootDir>/e2e/",
+    "<rootDir>/tests/e2e/",
+    "<rootDir>/tests/smoke/",
+    "<rootDir>/tests/support/",
     // Nested git worktrees (e.g. .claude/worktrees/*) carry their own copies of
-    // src/ and e2e/; without this, a test run here crawls into them.
+    // src/ and tests/; without this, a test run here crawls into them.
     "<rootDir>/.claude/worktrees/",
     // Integration tests (real Postgres, node env) run via jest.integration.config.
-    "\\.int\\.test\\.",
+    "\\.integration\\.test\\.",
   ],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
+    "^@test/(.*)$": "<rootDir>/tests/$1",
   },
   // Jest 30's haste map scans build output; .next/standalone carries a copy of
   // package.json which collides with the root one.
@@ -28,9 +31,19 @@ const config: Config = {
     "<rootDir>/.next/",
     "<rootDir>/.claude/worktrees/",
   ],
+  // Report every source file, not only the ones some test happens to import —
+  // otherwise a file with no test at all is simply absent from the report
+  // rather than showing as 0%. Pages, server actions and route handlers will
+  // read low here: they are covered by the integration and e2e suites, which
+  // this unit run does not include.
+  collectCoverageFrom: [
+    "src/**/*.{ts,tsx}",
+    "!src/**/*.test.{ts,tsx}",
+    "!src/**/*.d.ts",
+  ],
   coveragePathIgnorePatterns: [
     "<rootDir>/node_modules/",
-    "<rootDir>/e2e/",
+    "<rootDir>/tests/e2e/",
     "<rootDir>/.next/",
     "<rootDir>/.claude/worktrees/",
   ],

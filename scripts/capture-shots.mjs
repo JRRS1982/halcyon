@@ -13,7 +13,7 @@ import { chromium } from "@playwright/test";
 // real account, nothing that can touch production data:
 //
 //   make db-up                       # or: docker start halcyon-db-1
-//   node e2e/_mock/supabase.mjs &    # mock auth on :54321
+//   node tests/e2e/_mock/supabase.mjs &    # mock auth on :54321
 //   pnpm next dev -p 3100 &          # with the env below
 //   node scripts/capture-shots.mjs
 //
@@ -389,7 +389,7 @@ const createPlan = async (page) => {
   // The form is served before React wires it up, and the button unlocks only
   // once the date reaches component state — so a fill landing pre-hydration is
   // silently swallowed and the button never enables. Re-filling converges the
-  // moment handlers exist (the race e2e/_helpers/fixtures.ts documents for
+  // moment handlers exist (the race tests/e2e/_helpers/fixtures.ts documents for
   // createPlanWithDob).
   const deadline = Date.now() + 30_000;
   while (!(await submit.isEnabled())) {

@@ -148,7 +148,7 @@ jobs:
     if: ${{ !cancelled() && needs.mixed-schema-check.result != 'failure' }}
 
     # Server-action integration tests run against a real Postgres (halcyon_test).
-    # The postgres/postgres credentials + db name match the test:int script's
+    # The postgres/postgres credentials + db name match the test:integration script's
     # hard-pinned DATABASE_URL; globalSetup applies migrations.
     services:
       postgres:
@@ -182,7 +182,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run integration tests
-        run: pnpm test:int
+        run: pnpm test:integration
 
   e2e-tests:
     runs-on: ubuntu-latest
@@ -230,7 +230,7 @@ jobs:
     #   DIRECT_URL        prisma.config.ts, for `migrate deploy`. Direct (5432)
     #                     in prod, because migrations cannot use the pooler.
     #   E2E_DATABASE_URL  the specs' own Prisma client. Quarantined on purpose:
-    #                     e2e/_helpers/fixtures.ts refuses to read DATABASE_URL
+    #                     tests/e2e/_helpers/fixtures.ts refuses to read DATABASE_URL
     #                     so a production value can never reach its TRUNCATE.
     #
     # Here they all address the one disposable CI database, so the URL is
@@ -283,7 +283,7 @@ jobs:
           DIRECT_URL: ${{ env.DATABASE_URL }}
         run: pnpm prisma migrate deploy
 
-      # E2E tests run against a mock Supabase server (e2e/_mock/supabase.mjs)
+      # E2E tests run against a mock Supabase server (tests/e2e/_mock/supabase.mjs)
       # and a Next.js dev server on port 3100, both started by Playwright's
       # webServer config. The Postgres service above backs the app's Prisma
       # queries (e.g. the dashboard's user-settings lookup); no real Supabase

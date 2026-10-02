@@ -9,12 +9,7 @@ const mockSupabasePort = 54321;
 const mockSupabaseURL = `http://localhost:${mockSupabasePort}`;
 
 export default defineConfig({
-  testDir: "./e2e",
-  // e2e/smoke/ belongs to playwright.smoke.config.ts, which points at a
-  // *deployed* environment. Without this, testDir sweeps it into the local run,
-  // where the bearer-gated /api/health has no CRON_SECRET and returns 401 —
-  // three engines failing on a deployment that was never under test.
-  testIgnore: "**/smoke/**",
+  testDir: "./tests/e2e",
   // Auth tests share an in-memory user store in the mock; run serially.
   fullyParallel: false,
   // `.only` is a legitimate local tool and a disaster in CI, where it would
@@ -57,7 +52,7 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: "node e2e/_mock/supabase.mjs",
+      command: "node tests/e2e/_mock/supabase.mjs",
       url: `${mockSupabaseURL}/health`,
       // Never reuse: a second local run used to silently attach to the first
       // one's servers and then truncate halcyon_test underneath it, which reads

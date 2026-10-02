@@ -36,7 +36,7 @@ The original (Nov 2025) design used NextAuth.js + bcrypt against a self-hosted P
 ### Defence in depth: Row Level Security
 
 - **RLS policies** are enabled on all user-data tables in Postgres. Enforced by
-  `src/__tests__/security/rls.test.ts`, which fails the build if a model has no
+  `prisma/schema.rls.test.ts`, which fails the build if a model has no
   policy. See [Row Level Security](../features/row-level-security.md) for the
   working detail and the template for new tables.
 - RLS is **not** the primary enforcement mechanism *for the application path*,
@@ -87,7 +87,7 @@ The original (Nov 2025) design used NextAuth.js + bcrypt against a self-hosted P
 | **OAuth token theft** | OAuth flow managed by Supabase Auth; tokens never round-trip through our app |
 | **Forgotten `userId` filter** | RLS policies block the query at the DB layer if client-side; code review + tests if server-side |
 | **Public-key exposure** | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` is safe to expose by design; `SUPABASE_SECRET_KEY` is server-only and never sent to the browser |
-| **Direct Data API access** | The publishable key reaches PostgREST without touching the app, so RLS policies are the only control — enforced on every model by `src/__tests__/security/rls.test.ts` |
+| **Direct Data API access** | The publishable key reaches PostgREST without touching the app, so RLS policies are the only control — enforced on every model by `prisma/schema.rls.test.ts` |
 
 ### Monitoring & Incident Response
 

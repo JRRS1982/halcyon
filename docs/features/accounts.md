@@ -368,24 +368,24 @@ scoping:
 - **Unit** — `accountDraft.test.ts` (import-checkbox default/stickiness,
   submit gating), `creation.test.ts` (pure data shaping),
   `deletion.test.ts` (property-row and confirm-text rules),
-  `accountTerms.test.ts` (`termsFor` maps every one of the fourteen types to
+  `accountDraft.terms.test.ts` (`termsFor` maps every one of the fourteen types to
   its declared fields), `termsSummary.test.ts` (the collapsed-section
   one-liner per type).
-- **Integration** (`*.int.test.ts`, real Postgres) —
-  `schema.int.test.ts` (columns and defaults),
-  data produces the same result), `balanceAccountActions.int.test.ts`
+- **Integration** (`*.integration.test.ts`, real Postgres) —
+  `schema.accounts.integration.test.ts` (columns and defaults),
+  data produces the same result), `balance/accountActions.integration.test.ts`
   (create-with-mortgage transaction, archive/restore, both delete modes),
-  `copyForward.int.test.ts` (accountId survives copy-forward and template
-  copy), `accountActions.int.test.ts` (Settings-side rename/import-toggle/
-  delete-when-unreferenced), `accountTerms.int.test.ts` (the 1:1 relation and
-  its cascade), `createAccountTerms.int.test.ts` (a new account's terms row),
-  `setAccountTerms.int.test.ts` (ownership fence, cross-user rejection).
+  `actions.copyForward.integration.test.ts` (accountId survives copy-forward and template
+  copy), `settings/accountActions.integration.test.ts` (Settings-side rename/import-toggle/
+  delete-when-unreferenced), `schema.accountTerms.integration.test.ts` (the 1:1 relation and
+  its cascade), `accountActions.createTerms.integration.test.ts` (a new account's terms row),
+  `accountActions.setTerms.integration.test.ts` (ownership fence, cross-user rejection).
 - **Component** — `AddAccountDrawer.test.tsx`, `DeleteAccountPanel.test.tsx`,
   `AccountManager.test.tsx`, `AccountCard.test.tsx` (name/type/section/terms
   saving through their own actions, the type-change refusal sentence shown
   inline), `AccountTermsFields.test.tsx` (per-type field rendering, blank
   clears to null).
-- **E2E** — [`e2e/balance-accounts.spec.ts`](../../e2e/balance-accounts.spec.ts):
+- **E2E** — [`tests/e2e/balance-accounts.spec.ts`](../../tests/e2e/balance-accounts.spec.ts):
   six journeys — adding an asset, a mortgaged property (both sides created),
   stop-tracking into the Settings archive, delete-everywhere, an account with
   no value being listed and counted, and renaming on the sheet reaching the

@@ -573,7 +573,7 @@ onto `<html>` from the user's stored preference:
 Resolving this on the server is what avoids the flash: a client-side decision
 would paint light, hydrate, then repaint. Every token in both schemes is
 asserted against the 4.5:1 text floor (3:1 for non-text) in
-`src/__tests__/ui/contrast.test.ts`.
+`src/lib/palette.contrast.test.ts`.
 
 ## Elevation & Depth
 
