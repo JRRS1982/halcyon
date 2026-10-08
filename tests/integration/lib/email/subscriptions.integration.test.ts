@@ -2,6 +2,7 @@ import { TEST_USER_ID } from "@test/support/helpers";
 import {
   enabledSubscriptions,
   ensureUnsubscribeToken,
+  logSentMessage,
   markReminderSent,
   unsubscribeByToken,
 } from "@/lib/email/subscriptions";
@@ -117,6 +118,61 @@ describe("reminder subscriptions (integration)", () => {
       await markReminderSent(TEST_USER_ID, sentAt);
 
       expect((await settings()).monthlyReminderSentAt).toEqual(sentAt);
+    });
+  });
+
+  describe("logSentMessage", () => {
+    const sentAt = new Date("2026-09-08T09:00:00.000Z");
+
+    it("writes a SENT row with all fields populated", async () => {
+      await logSentMessage({
+        userId: TEST_USER_ID,
+        sentAt,
+        subject: "August 2026 is ready to log",
+        result: "SENT",
+      });
+
+      const row = await prisma.sentMessage.findFirst({
+        where: { userId: TEST_USER_ID },
+      });
+      expect(row).toMatchObject({
+        userId: TEST_USER_ID,
+        type: "MONTHLY_REMINDER",
+        channel: "EMAIL",
+        subject: "August 2026 is ready to log",
+        result: "SENT",
+        error: null,
+      });
+      expect(row?.sentAt).toEqual(sentAt);
+    });
+
+    it("writes a FAILED row with the error string", async () => {
+      await logSentMessage({
+        userId: TEST_USER_ID,
+        sentAt,
+        subject: "August 2026 is ready to log",
+        result: "FAILED",
+        error: "422 bad address",
+      });
+
+      const row = await prisma.sentMessage.findFirst({
+        where: { userId: TEST_USER_ID },
+      });
+      expect(row).toMatchObject({ result: "FAILED", error: "422 bad address" });
+    });
+
+    // A failed send must not stamp monthlyReminderSentAt — the two writes are
+    // independent so a provider failure doesn't silence the retry window.
+    it("is independent of markReminderSent — calling one does not call the other", async () => {
+      await logSentMessage({
+        userId: TEST_USER_ID,
+        sentAt,
+        subject: "August 2026 is ready to log",
+        result: "FAILED",
+        error: "503",
+      });
+
+      expect((await settings()).monthlyReminderSentAt).toBeNull();
     });
   });
 

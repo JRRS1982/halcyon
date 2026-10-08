@@ -104,6 +104,16 @@ async function seedFinancialData(userId: string) {
       },
     },
   });
+  await prisma.sentMessage.create({
+    data: {
+      userId,
+      sentAt: new Date("2026-09-08T09:00:00.000Z"),
+      type: "MONTHLY_REMINDER",
+      channel: "EMAIL",
+      subject: "August 2026 is ready to log",
+      result: "SENT",
+    },
+  });
 }
 
 describe("exportMyData (integration)", () => {
@@ -130,6 +140,14 @@ describe("exportMyData (integration)", () => {
     expect(dump.plans[0].incomes).toHaveLength(1);
     expect(dump.plans[0].expenses).toHaveLength(1);
     expect(dump.plans[0].events).toHaveLength(1);
+    expect(dump.sentMessages).toHaveLength(1);
+    expect(dump.sentMessages[0]).toMatchObject({
+      userId: TEST_USER_ID,
+      type: "MONTHLY_REMINDER",
+      channel: "EMAIL",
+      subject: "August 2026 is ready to log",
+      result: "SENT",
+    });
     expect(
       dump.accounts.every((a: { userId: string }) => a.userId === TEST_USER_ID),
     ).toBe(true);
@@ -183,6 +201,11 @@ describe("clearMyData (integration)", () => {
     ).not.toBeNull();
     expect(
       await prisma.category.count({ where: { userId: TEST_USER_ID } }),
+    ).toBe(1);
+    // SentMessage is communications history, not financial data — clearMyData
+    // deliberately leaves it in place. Only deleteMyAccount removes it.
+    expect(
+      await prisma.sentMessage.count({ where: { userId: TEST_USER_ID } }),
     ).toBe(1);
   });
 
@@ -239,6 +262,9 @@ describe("deleteMyAccount (integration)", () => {
     expect(await prisma.plan.count({ where: { userId: TEST_USER_ID } })).toBe(
       0,
     );
+    expect(
+      await prisma.sentMessage.count({ where: { userId: TEST_USER_ID } }),
+    ).toBe(0);
   });
 
   test("does not touch another user's rows", async () => {

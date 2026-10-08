@@ -182,6 +182,22 @@ describe("monthly reminder cron (integration)", () => {
       );
     });
 
+    it("writes a SENT audit row on success", async () => {
+      await call();
+
+      const row = await prisma.sentMessage.findFirst({
+        where: { userId: TEST_USER_ID },
+      });
+      expect(row).toMatchObject({
+        userId: TEST_USER_ID,
+        type: "MONTHLY_REMINDER",
+        channel: "EMAIL",
+        subject: "August 2026 is ready to log",
+        result: "SENT",
+        error: null,
+      });
+    });
+
     it("leaves the send unstamped when the provider rejects it", async () => {
       sendEmail.mockResolvedValue({ ok: false, error: "422 bad address" });
 
@@ -189,6 +205,20 @@ describe("monthly reminder cron (integration)", () => {
 
       expect((await response.json()).sent).toBe(0);
       expect((await settings()).monthlyReminderSentAt).toBeNull();
+    });
+
+    it("writes a FAILED audit row when the provider rejects it", async () => {
+      sendEmail.mockResolvedValue({ ok: false, error: "422 bad address" });
+
+      await call();
+
+      const row = await prisma.sentMessage.findFirst({
+        where: { userId: TEST_USER_ID },
+      });
+      expect(row).toMatchObject({
+        result: "FAILED",
+        error: "422 bad address",
+      });
     });
 
     // Unstamped means the next daily run picks them back up, rather than the
@@ -230,6 +260,10 @@ describe("monthly reminder cron (integration)", () => {
       expect((await response.json()).failures).toEqual([
         `${TEST_USER_ID}: no unsubscribe token`,
       ]);
+      // No audit row: the send was never attempted, so there is nothing to log.
+      expect(
+        await prisma.sentMessage.count({ where: { userId: TEST_USER_ID } }),
+      ).toBe(0);
     });
 
     it("skips a user Supabase Auth has no address for", async () => {
