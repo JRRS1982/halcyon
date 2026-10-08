@@ -4,6 +4,7 @@ import { buildReminder, isReminderDue } from "@/lib/email/reminder";
 import { isEmailConfigured, sendEmail } from "@/lib/email/send";
 import {
   enabledSubscriptions,
+  logSentMessage,
   markReminderSent,
 } from "@/lib/email/subscriptions";
 import { emailEnv } from "@/lib/env";
@@ -107,6 +108,13 @@ export async function GET(request: Request) {
 
     if (!result.ok) {
       failures.push(`${subscription.userId}: ${result.error}`);
+      await logSentMessage({
+        userId: subscription.userId,
+        sentAt: now,
+        subject: message.subject,
+        result: "FAILED",
+        error: result.error,
+      });
       continue;
     }
 
@@ -114,6 +122,12 @@ export async function GET(request: Request) {
     // isReminderDue, a provider outage means tomorrow's run picks this
     // subscriber back up rather than the month being lost.
     await markReminderSent(subscription.userId, now);
+    await logSentMessage({
+      userId: subscription.userId,
+      sentAt: now,
+      subject: message.subject,
+      result: "SENT",
+    });
     sent += 1;
   }
 
