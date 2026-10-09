@@ -4,6 +4,19 @@ const mockSignInWithPassword = jest.fn(
     error: null,
   }),
 );
+const mockSignInWithOtp = jest.fn(
+  async (_args: unknown): Promise<{ error: { message: string } | null }> => ({
+    error: null,
+  }),
+);
+const mockVerifyOtp = jest.fn(
+  async (_args: unknown): Promise<{ error: { message: string } | null }> => ({
+    error: null,
+  }),
+);
+// Mutable so a case can present a Google-only account, or one with no address.
+let mockIdentities: { provider: string }[] = [{ provider: "email" }];
+let mockUserEmail: string | null = "test@example.com";
 
 jest.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
@@ -18,14 +31,24 @@ jest.mock("@/lib/supabase/server", () => ({
         data: {
           user: {
             id: "00000000-0000-0000-0000-0000000000aa",
-            email: "test@example.com",
+            email: mockUserEmail,
+            identities: mockIdentities,
           },
         },
       }),
       signInWithPassword: (args: unknown) => mockSignInWithPassword(args),
+      signInWithOtp: (args: unknown) => mockSignInWithOtp(args),
+      verifyOtp: (args: unknown) => mockVerifyOtp(args),
       signOut: async () => ({ error: null }),
     },
   }),
+}));
+
+// The real module is used everywhere else; this seam lets one case drive the
+// limiter to "limited" without a Redis.
+const mockCheckRateLimit = jest.fn(async (): Promise<string> => "allowed");
+jest.mock("@/lib/rateLimit", () => ({
+  checkRateLimit: () => mockCheckRateLimit(),
 }));
 
 import { TEST_USER_ID } from "@test/support/helpers";
@@ -34,6 +57,7 @@ import {
   deleteMyAccount,
   exportMyData,
   resetToDefaults,
+  sendReauthCode,
 } from "@/app/(app)/settings/dataActions";
 import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
@@ -116,6 +140,17 @@ async function seedFinancialData(userId: string) {
   });
 }
 
+// The mocked account is mutable so a case can present a Google-only user or
+// one with no address; reset before every test so no case leaks into the next.
+beforeEach(() => {
+  mockIdentities = [{ provider: "email" }];
+  mockUserEmail = "test@example.com";
+  mockCheckRateLimit.mockResolvedValue("allowed");
+  mockSignInWithPassword.mockClear();
+  mockSignInWithOtp.mockClear();
+  mockVerifyOtp.mockClear();
+});
+
 describe("exportMyData (integration)", () => {
   test("includes every user-owned table, scoped to the caller", async () => {
     await seedFinancialData(TEST_USER_ID);
@@ -159,7 +194,7 @@ describe("clearMyData (integration)", () => {
     await seedFinancialData(TEST_USER_ID);
     // seedUser() (global beforeEach) already created UserSettings for TEST_USER_ID.
 
-    await clearMyData("test-password");
+    await clearMyData({ method: "password", password: "test-password" });
 
     expect(
       await prisma.transaction.count({ where: { userId: TEST_USER_ID } }),
@@ -213,7 +248,7 @@ describe("clearMyData (integration)", () => {
     await prisma.user.create({ data: { id: OTHER_USER_ID } });
     await seedFinancialData(OTHER_USER_ID);
 
-    await clearMyData("test-password");
+    await clearMyData({ method: "password", password: "test-password" });
 
     expect(
       await prisma.transaction.count({ where: { userId: OTHER_USER_ID } }),
@@ -234,7 +269,7 @@ describe("deleteMyAccount (integration)", () => {
     await seedFinancialData(TEST_USER_ID);
 
     // redirect("/") is mocked to throw `redirect:/`.
-    await expect(deleteMyAccount("test-password")).rejects.toThrow(
+    await expect(deleteMyAccount({ method: "password", password: "test-password" })).rejects.toThrow(
       "redirect:/",
     );
 
@@ -271,7 +306,7 @@ describe("deleteMyAccount (integration)", () => {
     await prisma.user.create({ data: { id: OTHER_USER_ID } });
     await seedFinancialData(OTHER_USER_ID);
 
-    await expect(deleteMyAccount("test-password")).rejects.toThrow(
+    await expect(deleteMyAccount({ method: "password", password: "test-password" })).rejects.toThrow(
       "redirect:/",
     );
 
@@ -290,7 +325,70 @@ describe("deleteMyAccount (integration)", () => {
   });
 });
 
-describe("verifyPassword — wrong password rejection (integration)", () => {
+describe("verifyUser (integration)", () => {
+  test("checks a password for an account that has one", async () => {
+    await clearMyData({ method: "password", password: "hunter2" });
+
+    expect(mockSignInWithPassword).toHaveBeenCalledWith({
+      email: "test@example.com",
+      password: "hunter2",
+    });
+    expect(mockVerifyOtp).not.toHaveBeenCalled();
+  });
+
+  test("checks an emailed code for an account with no password", async () => {
+    mockIdentities = [{ provider: "google" }];
+
+    await clearMyData({ method: "otp", code: "123456" });
+
+    expect(mockVerifyOtp).toHaveBeenCalledWith({
+      email: "test@example.com",
+      token: "123456",
+      type: "email",
+    });
+    expect(mockSignInWithPassword).not.toHaveBeenCalled();
+  });
+
+  test("reports a wrong code distinctly from a wrong password", async () => {
+    mockVerifyOtp.mockResolvedValueOnce({ error: { message: "expired" } });
+
+    await expect(
+      clearMyData({ method: "otp", code: "000000" }),
+    ).rejects.toThrow("That code is not valid");
+  });
+
+  test("sends the code to the address on the account", async () => {
+    await sendReauthCode();
+
+    expect(mockSignInWithOtp).toHaveBeenCalledWith({
+      email: "test@example.com",
+      options: { shouldCreateUser: false },
+    });
+  });
+
+  // Review Focus 4: a user who mistypes twice must be told why no further code
+  // arrives, not left staring at a panel that silently stops working.
+  test("explains when too many codes have been requested", async () => {
+    mockCheckRateLimit.mockResolvedValue("limited");
+
+    await expect(sendReauthCode()).rejects.toThrow(
+      "Too many codes requested. Please try again later.",
+    );
+    expect(mockSignInWithOtp).not.toHaveBeenCalled();
+  });
+
+  // Review Focus 5: an account with no address can neither be mailed a code
+  // nor matched to a password, so it must redirect rather than throw.
+  test("redirects an account with no email to sign-in", async () => {
+    mockUserEmail = null;
+
+    await expect(
+      clearMyData({ method: "otp", code: "123456" }),
+    ).rejects.toThrow(/redirect:\/sign-in/);
+  });
+});
+
+describe("verifyUser — wrong password rejection (integration)", () => {
   beforeEach(() => {
     mockDeleteUser.mockClear();
     mockSignInWithPassword.mockResolvedValue({
@@ -308,7 +406,7 @@ describe("verifyPassword — wrong password rejection (integration)", () => {
       where: { userId: TEST_USER_ID },
     });
 
-    await expect(clearMyData("wrong-password")).rejects.toThrow(
+    await expect(clearMyData({ method: "password", password: "wrong-password" })).rejects.toThrow(
       "Incorrect password",
     );
 
@@ -323,7 +421,7 @@ describe("verifyPassword — wrong password rejection (integration)", () => {
   test("deleteMyAccount throws and leaves user rows intact", async () => {
     await seedFinancialData(TEST_USER_ID);
 
-    await expect(deleteMyAccount("wrong-password")).rejects.toThrow(
+    await expect(deleteMyAccount({ method: "password", password: "wrong-password" })).rejects.toThrow(
       "Incorrect password",
     );
 
@@ -339,7 +437,7 @@ describe("verifyPassword — wrong password rejection (integration)", () => {
   test("resetToDefaults throws and leaves data unchanged", async () => {
     await seedFinancialData(TEST_USER_ID);
 
-    await expect(resetToDefaults("wrong-password")).rejects.toThrow(
+    await expect(resetToDefaults({ method: "password", password: "wrong-password" })).rejects.toThrow(
       "Incorrect password",
     );
 

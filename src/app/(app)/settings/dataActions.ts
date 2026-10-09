@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import type { Reauthentication } from "@/lib/auth/reauth";
 import { serializeExport } from "@/lib/data/serialize";
 import { clientIp } from "@/lib/http/clientIp";
 import { log } from "@/lib/log";
@@ -20,11 +21,23 @@ async function requireUserId(): Promise<string> {
   return user.id;
 }
 
-async function verifyPassword(password: string): Promise<void> {
+// Proves the caller is the account holder before an irreversible action.
+//
+// Which proof applies depends on how the account signs in: an account with an
+// email identity has a password, and everything else — a Google-only account
+// above all — has a one-time code mailed to the address on the account. The
+// callers do not care which; they hand over whatever the panel collected.
+//
+// Both branches mint a fresh session as a side effect of verifying, which is
+// how Supabase's verification calls work; it refreshes the caller's own
+// session and is harmless.
+async function verifyUser(proof: Reauthentication): Promise<void> {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  // An account with no address can neither be mailed a code nor matched to a
+  // password; treat it as unauthenticated rather than failing obscurely.
   if (!user?.email) redirect("/sign-in?next=/settings");
   // Two buckets mirror the sign-in pattern: per-IP bounds one attacker,
   // per-account bounds a pool of IPs guessing at the same user.
@@ -35,11 +48,46 @@ async function verifyPassword(password: string): Promise<void> {
   if (ipVerdict !== "allowed" || accountVerdict !== "allowed") {
     throw new Error("Too many attempts. Please try again later.");
   }
-  const { error } = await supabase.auth.signInWithPassword({
+
+  if (proof.method === "password") {
+    const { error } = await supabase.auth.signInWithPassword({
+      email: user.email,
+      password: proof.password,
+    });
+    if (error) throw new Error("Incorrect password");
+    return;
+  }
+
+  const { error } = await supabase.auth.verifyOtp({
     email: user.email,
-    password,
+    token: proof.code,
+    type: "email",
   });
-  if (error) throw new Error("Incorrect password");
+  if (error) throw new Error("That code is not valid");
+}
+
+// Mails a one-time code to the account holder, for accounts that have no
+// password. `shouldCreateUser: false` so this can never mint an account —
+// GoTrue answers otp_disabled when no user row matches, which cannot happen
+// here because the caller is already signed in.
+export async function sendReauthCode(): Promise<void> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user?.email) redirect("/sign-in?next=/settings");
+
+  // Its own bucket: each send spends from the project's shared mail budget,
+  // which Supabase's built-in sender caps at 2/hour.
+  if ((await checkRateLimit("reauth-code", user.email)) !== "allowed") {
+    throw new Error("Too many codes requested. Please try again later.");
+  }
+
+  const { error } = await supabase.auth.signInWithOtp({
+    email: user.email,
+    options: { shouldCreateUser: false },
+  });
+  if (error) throw new Error("Couldn't send a code. Please try again.");
 }
 
 // Deletes every FINANCIAL row for a user, in FK-safe order. Transactions go
@@ -126,9 +174,9 @@ export async function exportMyData(): Promise<string> {
 // that comment describes is the same, and Category goes too, which the other
 // paths deliberately keep. Seeding after a partial delete would duplicate the
 // starter categories, so the two halves cannot be separate transactions.
-export async function resetToDefaults(password: string): Promise<void> {
+export async function resetToDefaults(proof: Reauthentication): Promise<void> {
   const userId = await requireUserId();
-  await verifyPassword(password);
+  await verifyUser(proof);
 
   await prisma.$transaction(async (tx) => {
     // Transactions first: Transaction.transferAccount is onDelete: Restrict,
@@ -154,9 +202,9 @@ export async function resetToDefaults(password: string): Promise<void> {
   revalidatePath("/settings");
 }
 
-export async function clearMyData(password: string): Promise<void> {
+export async function clearMyData(proof: Reauthentication): Promise<void> {
   const userId = await requireUserId();
-  await verifyPassword(password);
+  await verifyUser(proof);
   await prisma.$transaction(financialDeletes(userId));
   revalidatePath("/dashboard");
   revalidatePath("/budget");
@@ -166,9 +214,9 @@ export async function clearMyData(password: string): Promise<void> {
   revalidatePath("/settings");
 }
 
-export async function deleteMyAccount(password: string): Promise<void> {
+export async function deleteMyAccount(proof: Reauthentication): Promise<void> {
   const userId = await requireUserId();
-  await verifyPassword(password);
+  await verifyUser(proof);
 
   // App data first, identity second: if the admin call below failed, we'd have
   // erased the financial PII rather than orphaning it behind an undeletable
