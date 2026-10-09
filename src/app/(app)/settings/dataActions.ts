@@ -76,6 +76,7 @@ export async function exportMyData(): Promise<string> {
     transactions,
     importBatches,
     plans,
+    sentMessages,
   ] = await Promise.all([
     prisma.user.findUnique({ where: { id: userId } }),
     prisma.userSettings.findUnique({ where: { userId } }),
@@ -96,13 +97,13 @@ export async function exportMyData(): Promise<string> {
         events: true,
       },
     }),
+    prisma.sentMessage.findMany({ where: { userId } }),
   ]);
 
   return serializeExport({
     exportedAt: new Date().toISOString(),
-    // v2 added importBatches and plans (with their nested rows), so "export my
-    // data" really is everything the database holds for the user.
-    schemaVersion: 2,
+    // v3 added sentMessages so the user's full communication history is included.
+    schemaVersion: 3,
     user,
     settings,
     categories,
@@ -113,6 +114,7 @@ export async function exportMyData(): Promise<string> {
     transactions,
     importBatches,
     plans,
+    sentMessages,
   });
 }
 

@@ -121,3 +121,35 @@ export async function markReminderSent(
     data: { monthlyReminderSentAt: sentAt },
   });
 }
+
+/**
+ * Writes an audit row for a send attempt — success or failure.
+ *
+ * Kept separate from markReminderSent so the audit record exists even when
+ * the send failed and the idempotency stamp is not written.
+ */
+export async function logSentMessage({
+  userId,
+  sentAt,
+  subject,
+  result,
+  error,
+}: {
+  userId: string;
+  sentAt: Date;
+  subject: string;
+  result: "SENT" | "FAILED";
+  error?: string;
+}): Promise<void> {
+  await prisma.sentMessage.create({
+    data: {
+      userId,
+      sentAt,
+      type: "MONTHLY_REMINDER",
+      channel: "EMAIL",
+      subject,
+      result,
+      error: error ?? null,
+    },
+  });
+}
