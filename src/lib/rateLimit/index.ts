@@ -21,6 +21,7 @@ export type RateLimitedAction =
   | "sign-up-address" // per submitted email: confirmation-mail bombing of one inbox
   | "verify-password" // per client IP: re-auth before destructive actions
   | "verify-password-account" // per account email: cross-IP guessing at one account
+  | "reauth-code" // per account email: each send spends from the mail budget
   | "unsubscribe" // per client IP: unauthenticated RFC 8058 endpoint
   | "data-export" // per userId: heavy 10-table fan-out
   | "oauth-initiate" // per client IP: OAuth flow initiation
@@ -73,6 +74,17 @@ const POLICIES: Record<RateLimitedAction, Policy> = {
   "verify-password-account": {
     windowSeconds: HOUR,
     maxAttempts: 10,
+    whenStoreFails: "allow",
+  },
+  // Proving who you are before a destructive action, for an account with no
+  // password. Each send is an email, and Supabase's built-in sender is capped
+  // at 2/hour for the whole project, so the window is hourly and keyed on the
+  // address — the budget being spent is shared, not per-client. Fails open:
+  // someone part-way through deleting their account must not be stranded by a
+  // cache outage.
+  "reauth-code": {
+    windowSeconds: HOUR,
+    maxAttempts: 5,
     whenStoreFails: "allow",
   },
   // Unauthenticated — fail open so a Redis outage never blocks RFC 8058

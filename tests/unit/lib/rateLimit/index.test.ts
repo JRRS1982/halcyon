@@ -94,4 +94,27 @@ describe("checkRateLimit", () => {
     await expect(checkRateLimit("sign-in", null)).resolves.toBe("allowed");
     expect(incrementWindow).not.toHaveBeenCalled();
   });
+
+  // Each re-auth code costs an email, and Supabase's built-in sender is capped
+  // at 2/hour for the whole project — so the bucket is per address and hourly,
+  // like the other mail-spending windows.
+  it("allows five re-auth codes per address per hour", async () => {
+    incrementWindow.mockResolvedValueOnce(5).mockResolvedValueOnce(6);
+    await expect(checkRateLimit("reauth-code", "a@b.com")).resolves.toBe(
+      "allowed",
+    );
+    await expect(checkRateLimit("reauth-code", "a@b.com")).resolves.toBe(
+      "limited",
+    );
+    expect(windowOf(0)).toBe(3600);
+  });
+
+  // Fails open, unlike sign-up: someone part-way through deleting their
+  // account must not be stranded by a cache outage.
+  it("fails open for re-auth codes when the store throws", async () => {
+    incrementWindow.mockRejectedValueOnce(new Error("redis down"));
+    await expect(checkRateLimit("reauth-code", "a@b.com")).resolves.toBe(
+      "allowed",
+    );
+  });
 });
