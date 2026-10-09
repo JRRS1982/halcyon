@@ -46,14 +46,30 @@ const emailSchema = z.object({
 // App-side rate limiter (src/lib/rateLimit). Optional like the email vars: when
 // either is absent the limiter no-ops, so local dev, CI and preview deploys run
 // without a Redis. Blank counts as absent for the same Docker Compose reason.
+//
+// Mandatory on a production deploy, because absence fails *open*: with no
+// store `incrementWindow` returns null and `checkRateLimit` answers "allowed"
+// before the policy is consulted, so even sign-up's `whenStoreFails: "block"`
+// is bypassed. Nothing logs it either, so a cleared or Preview-scoped Vercel
+// variable would silently remove every brute-force and email-bombing bound.
+// Failing the boot is the loud version of that.
+//
+// VERCEL_ENV, not NODE_ENV: the latter is also "production" for preview
+// deploys and for a local `pnpm build && pnpm start`, neither of which has a
+// Redis.
+const isProductionVercelDeploy = process.env.VERCEL_ENV === "production";
+
+const requiredOnVercelProduction = <T extends z.ZodType>(schema: T) =>
+  isProductionVercelDeploy ? schema : schema.optional();
+
 const rateLimitSchema = z.object({
   UPSTASH_REDIS_REST_URL: z.preprocess(
     blankAsAbsent,
-    z.string().url().optional(),
+    requiredOnVercelProduction(z.string().url()),
   ),
   UPSTASH_REDIS_REST_TOKEN: z.preprocess(
     blankAsAbsent,
-    z.string().min(1).optional(),
+    requiredOnVercelProduction(z.string().min(1)),
   ),
 });
 
@@ -115,8 +131,10 @@ export const emailEnv: z.infer<typeof emailSchema> = isServer
     })
   : {};
 
-// Separate and optional, for the same reasons as emailEnv above.
-export const rateLimitEnv: z.infer<typeof rateLimitSchema> = isServer
+// Separate from `env` for the same reason as emailEnv above. `Partial` because
+// the browser/edge branch below has no values at all — on a production server
+// the schema has already guaranteed both are present.
+export const rateLimitEnv: Partial<z.infer<typeof rateLimitSchema>> = isServer
   ? parse(rateLimitSchema, {
       UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
       UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
