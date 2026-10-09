@@ -146,14 +146,12 @@ export function DataPrivacy({ method }: { method: ReauthMethod }) {
     setError(null);
     setConfirmText("");
     setSecret("");
-    setCodeSent(false);
     setMode(next);
   };
 
   const cancel = () => {
     setConfirmText("");
     setSecret("");
-    setCodeSent(false);
     setMode(null);
   };
 
@@ -264,12 +262,20 @@ export function DataPrivacy({ method }: { method: ReauthMethod }) {
           onChange={(e) => setSecret(e.target.value)}
           placeholder="6-digit code"
         />
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onSendCode}
+          disabled={pending}
+        >
+          Send another code
+        </Button>
       </ConfirmField>
     ) : (
       <ConfirmField>
         <GroupText>
-          Your account signs in with Google, so there is no password to check.
-          We&rsquo;ll email you a one-time code instead.
+          Your account doesn&rsquo;t have a password, so we&rsquo;ll email you a
+          one-time code to confirm it&rsquo;s you.
         </GroupText>
         <Button
           type="button"

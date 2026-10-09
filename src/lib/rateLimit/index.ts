@@ -22,6 +22,7 @@ export type RateLimitedAction =
   | "verify-password" // per client IP: re-auth before destructive actions
   | "verify-password-account" // per account email: cross-IP guessing at one account
   | "reauth-code" // per account email: each send spends from the mail budget
+  | "verify-code" // per account email: a 6-digit code has no entropy to spare
   | "unsubscribe" // per client IP: unauthenticated RFC 8058 endpoint
   | "data-export" // per userId: heavy 10-table fan-out
   | "oauth-initiate" // per client IP: OAuth flow initiation
@@ -84,8 +85,24 @@ const POLICIES: Record<RateLimitedAction, Policy> = {
   // cache outage.
   "reauth-code": {
     windowSeconds: HOUR,
-    maxAttempts: 5,
+    // Two, to match the real constraint rather than sit above it: Supabase's
+    // built-in sender caps the whole project at 2/hour, so a higher number
+    // here would mean the provider rejected the send before this bucket ever
+    // bound, and the user would get a generic failure instead of being told
+    // they have asked for too many codes.
+    maxAttempts: 2,
     whenStoreFails: "allow",
+  },
+  // Verifying a code, as opposed to sending one. Separate from the password
+  // buckets and fail-CLOSED, because the two secrets are not comparable: a
+  // password has real entropy behind it and survives an unbounded guessing
+  // window, whereas a 6-digit code valid for an hour is 10^6 and GoTrue does
+  // not count failed email-OTP verifies itself. This bucket is the entire
+  // guess budget, so losing it must stop verification, not open it.
+  "verify-code": {
+    windowSeconds: HOUR,
+    maxAttempts: 10,
+    whenStoreFails: "block",
   },
   // Unauthenticated — fail open so a Redis outage never blocks RFC 8058
   // one-click unsubscribes from mail clients, which must not be broken.

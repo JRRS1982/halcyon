@@ -6,7 +6,7 @@
 - Preferences: currency, number format, theme — saved to `UserSettings`
 - Feature toggles: Transactions, Budget transfers, Plan — each hides its nav item and page entirely
 - Category management: create, rename, soft-delete, merge (merge reassigns transactions before deleting source)
-- DataPrivacy actions (export, clear, reset, delete account) all require password re-entry since PR #208
+- DataPrivacy actions (export, clear, reset, delete account) all require step-up re-authentication since PR #208 — a password, or a one-time emailed code for an account that has none
 
 ## Preferences
 
@@ -54,7 +54,7 @@ Opt-in email sent on a chosen day of the month. Off by default. Configure via Se
 
 ## Data privacy
 
-All destructive actions require password re-entry (step-up auth). See [../engineering/step-up-auth.md](../engineering/step-up-auth.md).
+All destructive actions require step-up re-authentication — a password, or a one-time emailed code for an account that signs in with Google and has none. See [../engineering/step-up-auth.md](../engineering/step-up-auth.md).
 
 | Action | What it does |
 |--------|-------------|

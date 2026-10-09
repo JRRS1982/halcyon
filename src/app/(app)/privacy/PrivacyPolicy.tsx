@@ -143,8 +143,10 @@ export function PrivacyPolicy() {
           That is the complete list. We do not use your data for marketing or
           advertising, we do not sell it or rent it, we do not share it with
           anyone except the processors named below, and we send no emails other
-          than account emails (such as confirmation and password reset) and the
-          opt-in reminder above.
+          than account emails (such as sign-up confirmation, and the one-time
+          code we send to confirm it&rsquo;s you before you erase or delete
+          anything, if your account signs in with Google) and the opt-in
+          reminder above.
         </LegalBody>
       </LegalSection>
 

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { Reauthentication } from "@/lib/auth/reauth";
+import { type Reauthentication, reauthMethodFor } from "@/lib/auth/reauth";
 import { serializeExport } from "@/lib/data/serialize";
 import { clientIp } from "@/lib/http/clientIp";
 import { log } from "@/lib/log";
@@ -39,6 +39,15 @@ async function verifyUser(proof: Reauthentication): Promise<void> {
   // An account with no address can neither be mailed a code nor matched to a
   // password; treat it as unauthenticated rather than failing obscurely.
   if (!user?.email) redirect("/sign-in?next=/settings");
+
+  // The browser picks which control to render, but it does not get to pick the
+  // gate. `proof.method` arrives from the client, so without this an attacker
+  // holding a stolen session on a password account could ask for a code and
+  // swap the gate from "knows the password" to "can read the inbox" — and with
+  // no password-reset flow in this app, those two are not equivalent.
+  const expected = reauthMethodFor(user.identities);
+  if (proof.method !== expected) throw new Error("Incorrect password");
+
   // Two buckets mirror the sign-in pattern: per-IP bounds one attacker,
   // per-account bounds a pool of IPs guessing at the same user.
   const [ipVerdict, accountVerdict] = await Promise.all([
@@ -58,12 +67,24 @@ async function verifyUser(proof: Reauthentication): Promise<void> {
     return;
   }
 
+  // Its own bucket, and fail-closed: see the policy comment in rateLimit.
+  if ((await checkRateLimit("verify-code", user.email)) !== "allowed") {
+    throw new Error("Too many attempts. Please try again later.");
+  }
+
   const { error } = await supabase.auth.verifyOtp({
     email: user.email,
     token: proof.code,
     type: "email",
   });
-  if (error) throw new Error("That code is not valid");
+  if (error) {
+    // Kept server-side: the user gets a readable message, the log gets the
+    // reason. Without this, a project with email OTP switched off in the
+    // Supabase dashboard would fail every Google account forever with nothing
+    // anywhere to say why.
+    log.error("Re-auth code rejected", { err: error });
+    throw new Error("That code is not valid");
+  }
 }
 
 // Mails a one-time code to the account holder, for accounts that have no
@@ -77,6 +98,12 @@ export async function sendReauthCode(): Promise<void> {
   } = await supabase.auth.getUser();
   if (!user?.email) redirect("/sign-in?next=/settings");
 
+  // An account with a password has no business being mailed a code; refusing
+  // here closes the same downgrade that verifyUser refuses below.
+  if (reauthMethodFor(user.identities) !== "otp") {
+    throw new Error("Incorrect password");
+  }
+
   // Its own bucket: each send spends from the project's shared mail budget,
   // which Supabase's built-in sender caps at 2/hour.
   if ((await checkRateLimit("reauth-code", user.email)) !== "allowed") {
@@ -87,7 +114,10 @@ export async function sendReauthCode(): Promise<void> {
     email: user.email,
     options: { shouldCreateUser: false },
   });
-  if (error) throw new Error("Couldn't send a code. Please try again.");
+  if (error) {
+    log.error("Re-auth code send failed", { err: error });
+    throw new Error("Couldn't send a code. Please try again.");
+  }
 }
 
 // Deletes every FINANCIAL row for a user, in FK-safe order. Transactions go

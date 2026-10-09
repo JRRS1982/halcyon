@@ -46,9 +46,13 @@ jest.mock("@/lib/supabase/server", () => ({
 
 // The real module is used everywhere else; this seam lets one case drive the
 // limiter to "limited" without a Redis.
-const mockCheckRateLimit = jest.fn(async (): Promise<string> => "allowed");
+const mockCheckRateLimit = jest.fn(
+  async (_action: string, _subject: string | null): Promise<string> =>
+    "allowed",
+);
 jest.mock("@/lib/rateLimit", () => ({
-  checkRateLimit: () => mockCheckRateLimit(),
+  checkRateLimit: (action: string, subject: string | null) =>
+    mockCheckRateLimit(action, subject),
 }));
 
 import { TEST_USER_ID } from "@test/support/helpers";
@@ -350,6 +354,7 @@ describe("verifyUser (integration)", () => {
   });
 
   test("reports a wrong code distinctly from a wrong password", async () => {
+    mockIdentities = [{ provider: "google" }];
     mockVerifyOtp.mockResolvedValueOnce({ error: { message: "expired" } });
 
     await expect(
@@ -358,6 +363,7 @@ describe("verifyUser (integration)", () => {
   });
 
   test("sends the code to the address on the account", async () => {
+    mockIdentities = [{ provider: "google" }];
     await sendReauthCode();
 
     expect(mockSignInWithOtp).toHaveBeenCalledWith({
@@ -366,9 +372,50 @@ describe("verifyUser (integration)", () => {
     });
   });
 
+  // Finding 1: `method` arrives from the browser. An attacker holding a stolen
+  // session on a password account must not be able to swap the gate from
+  // "knows the password" to "can read the inbox" by asking for a code.
+  test("refuses a code from an account that has a password", async () => {
+    await expect(
+      clearMyData({ method: "otp", code: "123456" }),
+    ).rejects.toThrow("Incorrect password");
+    expect(mockVerifyOtp).not.toHaveBeenCalled();
+  });
+
+  test("refuses to mail a code to an account that has a password", async () => {
+    await expect(sendReauthCode()).rejects.toThrow("Incorrect password");
+    expect(mockSignInWithOtp).not.toHaveBeenCalled();
+  });
+
+  test("keys the send on its own bucket and the account address", async () => {
+    mockIdentities = [{ provider: "google" }];
+
+    await sendReauthCode();
+
+    expect(mockCheckRateLimit).toHaveBeenCalledWith(
+      "reauth-code",
+      "test@example.com",
+    );
+  });
+
+  // Finding 2: a 6-digit code valid for an hour has no entropy to spare, so
+  // unlike the password branch its verify bucket must not fail open.
+  test("blocks code verification when the limiter store is down", async () => {
+    mockIdentities = [{ provider: "google" }];
+    mockCheckRateLimit.mockImplementation(async (action: string) =>
+      action === "verify-code" ? "unavailable" : "allowed",
+    );
+
+    await expect(
+      clearMyData({ method: "otp", code: "123456" }),
+    ).rejects.toThrow("Too many attempts. Please try again later.");
+    expect(mockVerifyOtp).not.toHaveBeenCalled();
+  });
+
   // Review Focus 4: a user who mistypes twice must be told why no further code
   // arrives, not left staring at a panel that silently stops working.
   test("explains when too many codes have been requested", async () => {
+    mockIdentities = [{ provider: "google" }];
     mockCheckRateLimit.mockResolvedValue("limited");
 
     await expect(sendReauthCode()).rejects.toThrow(

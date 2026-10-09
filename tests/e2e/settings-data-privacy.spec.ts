@@ -9,17 +9,18 @@
 // as a prop, and determines what the server action is handed back. A mocked
 // client component cannot show that the three halves agree.
 //
-// Only the password branch is covered. Driving the code branch needs the mock
-// auth server to issue and accept a one-time code, which is a larger change
-// than this spec earns — the integration tests already pin that branch's
-// behaviour.
+// Only the password branch is covered here. Driving the code branch needs the
+// mock auth server to issue and accept a one-time code, which is a larger
+// change than this spec earns — the integration tests pin the server half and
+// the DataPrivacy unit tests pin the client half.
 import { expect, signIn, test } from "./_helpers/fixtures";
 
+// Deliberately NOT chromium-gated. These assert which form control renders and
+// whether a button is enabled — label/htmlFor association and the accessibility
+// tree — which CLAUDE.md says must never be gated, because engines genuinely
+// differ there and a webkit-only regression would ship silently. The gate is
+// for server-action journeys ending in a Prisma write; neither of these is one.
 test.describe("Settings → your data", () => {
-  test.beforeEach(({ browserName }) => {
-    test.skip(browserName !== "chromium", "journey runs on chromium only");
-  });
-
   test("a password account is asked for its password, not a code", async ({
     page,
   }) => {
