@@ -36,7 +36,18 @@ const buildUser = (u) => ({
   last_sign_in_at: now(),
   app_metadata: { provider: "email", providers: ["email"] },
   user_metadata: {},
-  identities: [],
+  // Every mock user is created with a password, so it carries the email
+  // identity a real one would. The app reads this to decide whether to ask for
+  // a password or mail a one-time code (src/lib/auth/reauth.ts); an empty array
+  // would make every e2e account look like a Google-only sign-in.
+  identities: [
+    {
+      id: u.id,
+      user_id: u.id,
+      provider: "email",
+      identity_data: { email: u.email, sub: u.id },
+    },
+  ],
   created_at: now(),
   updated_at: now(),
 });
