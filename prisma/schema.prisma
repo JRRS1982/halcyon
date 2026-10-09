@@ -44,6 +44,7 @@ model User {
   transactions  Transaction[]
   importBatches ImportBatch[]
   plans         Plan[]
+  sentMessages  SentMessage[]
 }
 
 // Per-user app preferences. Lazily upserted on first read — there is no
@@ -671,4 +672,36 @@ model PlanEvent {
   saleAsset PlanAsset? @relation("EventProperty", fields: [assetId], references: [id], onDelete: SetNull)
 
   @@index([planId])
+}
+
+// An outbound communication attempt — email, SMS, push, or any future channel.
+// Stored so the user's send history is owned here, not locked in a third-party
+// provider's dashboard. Included in data export and deleted with the account.
+model SentMessage {
+  id      String         @id @default(cuid())
+  userId  String         @db.Uuid
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sentAt  DateTime
+  type    MessageType
+  channel MessageChannel
+  // Meaningful for email; null for channels where there is no subject line.
+  subject String?
+  result  MessageResult
+  // Provider error string, present only when result is FAILED.
+  error   String?
+
+  @@index([userId])
+}
+
+enum MessageType {
+  MONTHLY_REMINDER
+}
+
+enum MessageChannel {
+  EMAIL
+}
+
+enum MessageResult {
+  SENT
+  FAILED
 }
