@@ -53,15 +53,22 @@ overrides:
   # credentials. Pinned anyway: the fix is a floor bump, not a rewrite.
   mysql2: ">=3.22.0 <4.0.0"
   # GHSA-rgj7-g3m4-5g8c (libheif GHSA-g89c-p67h-r497 / GHSA-vh26-cvjv-hgcr,
-  # reachable when decoding malformed HEIF/AVIF) is patched in 0.35.4 by
-  # bundling the fixed libheif. Production tree — next pulls sharp for the
-  # Image Optimization API — so this one is load-bearing, not hygiene.
-  sharp: ">=0.35.4 <0.36.0"
+  # reachable when decoding malformed HEIF/AVIF) is patched in 0.35.4, and
+  # GHSA-wq5f-xc86-pv6w (librsvg CVE-2026-96889, reachable when rasterising
+  # malformed SVG) in 0.35.5 — both by bundling a fixed native library.
+  # Production tree — next pulls sharp for the Image Optimization API — so this
+  # one is load-bearing, not hygiene.
+  sharp: ">=0.35.5 <0.36.0"
   # GHSA-w5vr-8v7q-w6rv (calls process.exit on invalid input rather than
   # throwing) is patched in 2.11.0. Only moderate, so it does not gate CI, but
   # next and browserslist otherwise resolve two separate copies — the floor
   # clears the advisory and dedupes them to one.
   baseline-browser-mapping: ">=2.11.0 <3.0.0"
+  # GHSA-68fv-2mgg-jv7q (a crafted indexed source map stalls the event loop) is
+  # patched in 1.2.2. Reached via next > postcss, which only ever parses our own
+  # styled-components output at build time — never an attacker's source map — so
+  # the floor is hygiene, not a live exposure.
+  source-map-js: ">=1.2.2 <2.0.0"
 
 # Don't re-verify node_modules against the lockfile before `pnpm <script>`.
 # pnpm 11 added this pre-run check (pnpm 10 had none); in the dev container the
