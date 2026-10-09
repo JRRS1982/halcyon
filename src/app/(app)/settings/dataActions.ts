@@ -41,7 +41,20 @@ async function reauthAccount(): Promise<{
   // An account with no address can neither be mailed a code nor matched to a
   // password; treat it as unauthenticated rather than failing obscurely.
   if (!user?.email) redirect("/sign-in?next=/settings");
-  return { email: user.email, method: reauthMethodFor(user.identities) };
+
+  // Unclassifiable, which should not happen: every signed-in account carries an
+  // identity (see reauth.ts). Fail closed and say so in the log rather than
+  // picking a gate — picking the weaker one is the downgrade this whole check
+  // exists to refuse, and picking the stronger one locks a Google account out
+  // of erasing its own data. A fresh sign-in is the honest recovery.
+  const method = reauthMethodFor(user.identities);
+  if (!method) {
+    log.error("Re-auth method unreadable: account has no identities", {
+      userId: user.id,
+    });
+    redirect("/sign-in?next=/settings");
+  }
+  return { email: user.email, method };
 }
 
 // The browser picks which control to render; it does not get to pick the gate.

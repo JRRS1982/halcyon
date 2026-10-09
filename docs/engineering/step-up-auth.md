@@ -3,7 +3,7 @@
 **What:** `verifyUser()` proves the caller is the account holder before any destructive data action; a live session alone is not sufficient.  
 **Key points:**
 - Protects: `resetToDefaults`, `clearMyData`, `deleteMyAccount` — all in `src/app/(app)/settings/dataActions.ts`
-- Which proof applies is decided from the account's identities, **server-side**: a password for accounts that have one, a one-time emailed code for accounts that don't
+- Which proof applies is read from the account's identities, **server-side** — never guessed; an unreadable classification fails closed rather than defaulting
 - The client picks which control to *render*; it does not pick the gate — `verifyUser` re-derives the method and rejects a mismatched proof
 - OAuth-only accounts can use these actions. Before October 2026 they could not, which closed the right-to-erasure path for every Google user
 
@@ -27,7 +27,11 @@ type Reauthentication =
 
 ## Which proof an account offers
 
-`reauthMethodFor(identities)` (`src/lib/auth/reauth.ts`) is pure and has no imports. An `email` identity means the account has a password; everything else — a Google-only account, or identities that did not come back from `getUser()` — falls to a one-time code, which works for any confirmed account.
+`reauthMethodFor(identities)` (`src/lib/auth/reauth.ts`) is pure and has no imports. An `email` identity means the account has a password; a Google-only account gets a one-time code.
+
+**It never guesses.** An account signed up as one thing or the other and that is recorded, so this is a fact to read. GoTrue refuses to unlink a user's last identity (`"User must have at least 1 identity after unlinking"`, `internal/api/identity.go`) and this app has no anonymous sign-in, so every signed-in account carries at least one. An empty list is therefore a broken read, not a user state, and the function returns `null` rather than defaulting.
+
+That matters because neither default is safe. Defaulting to the code would hand a password account's gate to whoever can read its inbox — the exact downgrade the server-side check exists to refuse. Defaulting to the password would lock a Google account out of erasing its own data — the original bug. So `null` fails closed at both consumers: the server logs and redirects to sign-in, and the panel renders no control, which leaves every confirm button disabled by construction rather than by a guard someone could forget.
 
 A linked account holding both an `email` and a `google` identity gets the **password**: it has one to type.
 
@@ -83,7 +87,7 @@ The first two run in parallel for every call, whichever proof is being offered: 
 
 The typed secret is cleared on cancel and on completion, but **`codeSent` is not** — a code lives for an hour and only two can be sent per hour, so closing a panel must not throw away the only route to typing one that already arrived.
 
-The copy deliberately says "your account doesn't have a password" rather than naming Google: a second provider would make the specific claim wrong, and it is already wrong for a password account whose identities came back empty.
+The copy deliberately says "your account doesn't have a password" rather than naming Google: a second provider would make the specific claim wrong.
 
 ## Known gaps
 

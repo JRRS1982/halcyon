@@ -415,6 +415,19 @@ describe("verifyUser (integration)", () => {
     expect(mockVerifyOtp).not.toHaveBeenCalled();
   });
 
+  // An unclassifiable account must not get a gate picked for it: the weak one
+  // is the downgrade this check refuses, and the strong one locks a Google
+  // account out of erasing its own data.
+  test("refuses to act for an account with no identities", async () => {
+    mockIdentities = [];
+
+    await expect(
+      clearMyData({ method: "password", password: "hunter2" }),
+    ).rejects.toThrow("redirect:/sign-in?next=/settings");
+    expect(mockSignInWithPassword).not.toHaveBeenCalled();
+    expect(mockVerifyOtp).not.toHaveBeenCalled();
+  });
+
   test("spends only the code bucket when verifying a code", async () => {
     mockIdentities = [{ provider: "google" }];
 

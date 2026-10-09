@@ -47,7 +47,9 @@ export default async function SettingsPage() {
   // and only the server can see that — a Google account has no password to
   // type, so asking for one is the bug this resolves.
   // getCurrentUser is request-memoised, so this is the same lookup
-  // getCurrentUserSettings already paid for, not a second round trip.
+  // getCurrentUserSettings already paid for, not a second round trip. null
+  // means unclassifiable, which the panel renders as "can't confirm right now"
+  // rather than guessing a control the server would then reject.
   const reauthMethod = reauthMethodFor((await getCurrentUser())?.identities);
   const symbol = symbolFor(currency);
 

@@ -133,7 +133,7 @@ function actionError(err: unknown, fallback: string): string {
   return SERVER_ERRORS[msg] ?? fallback;
 }
 
-export function DataPrivacy({ method }: { method: ReauthMethod }) {
+export function DataPrivacy({ method }: { method: ReauthMethod | null }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [mode, setMode] = useState<Mode>(null);
@@ -161,6 +161,10 @@ export function DataPrivacy({ method }: { method: ReauthMethod }) {
     method === "password"
       ? { method: "password", password: secret }
       : { method: "otp", code: secret };
+
+  // Unclassifiable: no control is rendered, so `secret` stays empty and every
+  // confirm button stays disabled. Fail-closed by construction rather than by
+  // a guard someone could forget.
 
   const onSendCode = () =>
     startTransition(async () => {
@@ -234,7 +238,14 @@ export function DataPrivacy({ method }: { method: ReauthMethod }) {
   // A plain function, not a nested component: a component defined inside the
   // render would remount on every keystroke and drop the input's focus.
   const renderProof = () =>
-    method === "password" ? (
+    method === null ? (
+      <ConfirmField>
+        <GroupText>
+          We can&rsquo;t confirm it&rsquo;s you right now. Sign out and back in,
+          and if this keeps happening, get in touch.
+        </GroupText>
+      </ConfirmField>
+    ) : method === "password" ? (
       <ConfirmField>
         <ConfirmLabel htmlFor="reauth-secret">
           Enter your password to confirm

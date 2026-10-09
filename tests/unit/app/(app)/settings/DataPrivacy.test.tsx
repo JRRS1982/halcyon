@@ -18,7 +18,7 @@ jest.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: jest.fn() }),
 }));
 
-const renderit = (method: "password" | "otp" = "password") =>
+const renderit = (method: "password" | "otp" | null = "password") =>
   render(
     <ThemeProvider theme={theme}>
       <DataPrivacy method={method} />
@@ -196,5 +196,25 @@ describe("DataPrivacy code branch", () => {
     expect(
       within(reopened).getByLabelText(/enter the code we emailed you/i),
     ).toBeInTheDocument();
+  });
+});
+
+describe("DataPrivacy when the account can't be classified", () => {
+  test("offers no control, so confirm stays disabled", () => {
+    renderit(null);
+    fireEvent.click(screen.getByRole("button", { name: /clear my data/i }));
+    const panel = screen.getByRole("alertdialog", {
+      name: /confirm clear data/i,
+    });
+
+    expect(
+      within(panel).queryByLabelText(/enter your password to confirm/i),
+    ).not.toBeInTheDocument();
+    expect(
+      within(panel).queryByRole("button", { name: /email me a code/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(panel).getByRole("button", { name: /^clear my data$/i }),
+    ).toBeDisabled();
   });
 });

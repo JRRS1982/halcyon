@@ -17,12 +17,16 @@ describe("reauthMethodFor", () => {
     ).toBe("password");
   });
 
-  // getUser() does not always populate identities. A code works for any
-  // confirmed account; a password box for someone with no password is the bug
-  // this feature exists to fix, so absence falls to otp.
-  it("falls back to a code when identities are missing or empty", () => {
-    expect(reauthMethodFor(undefined)).toBe("otp");
-    expect(reauthMethodFor(null)).toBe("otp");
-    expect(reauthMethodFor([])).toBe("otp");
+  // An account always signed up as one thing or the other, so this is a fact
+  // to read, never a guess. GoTrue refuses to unlink a user's last identity
+  // ("User must have at least 1 identity after unlinking") and this app has no
+  // anonymous sign-in, so an empty list is a broken read rather than a user
+  // state — and the one thing that must not happen is defaulting to the weaker
+  // gate, which would hand a password account's confirmation to whoever can
+  // read its inbox.
+  it("refuses to classify an account with no identities", () => {
+    expect(reauthMethodFor(undefined)).toBeNull();
+    expect(reauthMethodFor(null)).toBeNull();
+    expect(reauthMethodFor([])).toBeNull();
   });
 });
