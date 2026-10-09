@@ -149,6 +149,7 @@ async function seedFinancialData(userId: string) {
 beforeEach(() => {
   mockIdentities = [{ provider: "email" }];
   mockUserEmail = "test@example.com";
+  mockCheckRateLimit.mockClear();
   mockCheckRateLimit.mockResolvedValue("allowed");
   mockSignInWithPassword.mockClear();
   mockSignInWithOtp.mockClear();
@@ -378,12 +379,14 @@ describe("verifyUser (integration)", () => {
   test("refuses a code from an account that has a password", async () => {
     await expect(
       clearMyData({ method: "otp", code: "123456" }),
-    ).rejects.toThrow("Incorrect password");
+    ).rejects.toThrow("That isn't how this account signs in");
     expect(mockVerifyOtp).not.toHaveBeenCalled();
   });
 
   test("refuses to mail a code to an account that has a password", async () => {
-    await expect(sendReauthCode()).rejects.toThrow("Incorrect password");
+    await expect(sendReauthCode()).rejects.toThrow(
+      "That isn't how this account signs in",
+    );
     expect(mockSignInWithOtp).not.toHaveBeenCalled();
   });
 
@@ -410,6 +413,25 @@ describe("verifyUser (integration)", () => {
       clearMyData({ method: "otp", code: "123456" }),
     ).rejects.toThrow("Too many attempts. Please try again later.");
     expect(mockVerifyOtp).not.toHaveBeenCalled();
+  });
+
+  test("spends only the code bucket when verifying a code", async () => {
+    mockIdentities = [{ provider: "google" }];
+
+    await clearMyData({ method: "otp", code: "123456" });
+
+    const actions = mockCheckRateLimit.mock.calls.map(([action]) => action);
+    expect(actions).toEqual(["verify-code"]);
+  });
+
+  test("spends only the password buckets when verifying a password", async () => {
+    await clearMyData({ method: "password", password: "hunter2" });
+
+    const actions = mockCheckRateLimit.mock.calls.map(([action]) => action);
+    expect(actions.sort()).toEqual([
+      "verify-password",
+      "verify-password-account",
+    ]);
   });
 
   // Review Focus 4: a user who mistypes twice must be told why no further code

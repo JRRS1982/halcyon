@@ -2,7 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { type Reauthentication, reauthMethodFor } from "@/lib/auth/reauth";
+import {
+  type Reauthentication,
+  type ReauthMethod,
+  reauthMethodFor,
+} from "@/lib/auth/reauth";
 import { serializeExport } from "@/lib/data/serialize";
 import { clientIp } from "@/lib/http/clientIp";
 import { log } from "@/lib/log";
@@ -11,14 +15,49 @@ import { checkRateLimit } from "@/lib/rateLimit";
 import { seedStarterData } from "@/lib/settings/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/supabase/user";
 
 async function requireUserId(): Promise<string> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   if (!user) redirect("/sign-in?next=/settings");
   return user.id;
+}
+
+// The account this request is re-authenticating, and the proof it may offer.
+//
+// Shared by both entry points rather than hoisted above them: `verifyUser` and
+// `sendReauthCode` are independently reachable server actions, so each has to
+// assert for itself — a wrapper they must remember to call would be the weaker
+// design. What they share is the lookup and the two things that can go wrong
+// with it.
+//
+// `getCurrentUser` is request-memoised, so the second call in a destructive
+// action (requireUserId, then this) costs nothing.
+async function reauthAccount(): Promise<{
+  email: string;
+  method: ReauthMethod;
+}> {
+  const user = await getCurrentUser();
+  // An account with no address can neither be mailed a code nor matched to a
+  // password; treat it as unauthenticated rather than failing obscurely.
+  if (!user?.email) redirect("/sign-in?next=/settings");
+  return { email: user.email, method: reauthMethodFor(user.identities) };
+}
+
+// The browser picks which control to render; it does not get to pick the gate.
+// `proof.method` arrives from the client, so without this an attacker holding a
+// stolen session on a password account could ask for a code and swap the gate
+// from "knows the password" to "can read the inbox" — and with no
+// password-reset flow in this app, those two are not equivalent.
+//
+// Its own message, not "Incorrect password": this is the one event the
+// re-derivation exists to catch, and sharing a string with an ordinary typo
+// would make it both unloggable and — on the send path, where no password was
+// ever typed — nonsense to read.
+function assertMethod(actual: ReauthMethod, expected: ReauthMethod): void {
+  if (actual === expected) return;
+  log.warn("Re-auth method mismatch", { expected, actual });
+  throw new Error("That isn't how this account signs in");
 }
 
 // Proves the caller is the account holder before an irreversible action.
@@ -32,48 +71,42 @@ async function requireUserId(): Promise<string> {
 // how Supabase's verification calls work; it refreshes the caller's own
 // session and is harmless.
 async function verifyUser(proof: Reauthentication): Promise<void> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  // An account with no address can neither be mailed a code nor matched to a
-  // password; treat it as unauthenticated rather than failing obscurely.
-  if (!user?.email) redirect("/sign-in?next=/settings");
+  const { email, method } = await reauthAccount();
+  assertMethod(proof.method, method);
 
-  // The browser picks which control to render, but it does not get to pick the
-  // gate. `proof.method` arrives from the client, so without this an attacker
-  // holding a stolen session on a password account could ask for a code and
-  // swap the gate from "knows the password" to "can read the inbox" — and with
-  // no password-reset flow in this app, those two are not equivalent.
-  const expected = reauthMethodFor(user.identities);
-  if (proof.method !== expected) throw new Error("Incorrect password");
-
-  // Two buckets mirror the sign-in pattern: per-IP bounds one attacker,
-  // per-account bounds a pool of IPs guessing at the same user.
-  const [ipVerdict, accountVerdict] = await Promise.all([
-    checkRateLimit("verify-password", await clientIp()),
-    checkRateLimit("verify-password-account", user.email),
-  ]);
-  if (ipVerdict !== "allowed" || accountVerdict !== "allowed") {
+  // Only the buckets the chosen gate actually spends. Before, both password
+  // buckets were charged whichever proof was offered, so a code attempt ate
+  // the password-guessing budget and `verify-code` counted the very same
+  // events a second time.
+  const verdicts = await Promise.all(
+    proof.method === "password"
+      ? // Two mirror the sign-in pattern: per-IP bounds one attacker,
+        // per-account bounds a pool of IPs guessing at the same user.
+        [
+          checkRateLimit("verify-password", await clientIp()),
+          checkRateLimit("verify-password-account", email),
+        ]
+      : // One, keyed per account and fail-closed: see the policy comment in
+        // rateLimit. A per-IP bound adds little when the subject is the code.
+        [checkRateLimit("verify-code", email)],
+  );
+  if (verdicts.some((verdict) => verdict !== "allowed")) {
     throw new Error("Too many attempts. Please try again later.");
   }
 
+  const supabase = await createClient();
+
   if (proof.method === "password") {
     const { error } = await supabase.auth.signInWithPassword({
-      email: user.email,
+      email,
       password: proof.password,
     });
     if (error) throw new Error("Incorrect password");
     return;
   }
 
-  // Its own bucket, and fail-closed: see the policy comment in rateLimit.
-  if ((await checkRateLimit("verify-code", user.email)) !== "allowed") {
-    throw new Error("Too many attempts. Please try again later.");
-  }
-
   const { error } = await supabase.auth.verifyOtp({
-    email: user.email,
+    email,
     token: proof.code,
     type: "email",
   });
@@ -92,26 +125,20 @@ async function verifyUser(proof: Reauthentication): Promise<void> {
 // GoTrue answers otp_disabled when no user row matches, which cannot happen
 // here because the caller is already signed in.
 export async function sendReauthCode(): Promise<void> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user?.email) redirect("/sign-in?next=/settings");
-
-  // An account with a password has no business being mailed a code; refusing
-  // here closes the same downgrade that verifyUser refuses below.
-  if (reauthMethodFor(user.identities) !== "otp") {
-    throw new Error("Incorrect password");
-  }
+  const { email, method } = await reauthAccount();
+  // An account with a password has no business being mailed a code; this is
+  // the same downgrade verifyUser refuses, at the other entry point.
+  assertMethod("otp", method);
 
   // Its own bucket: each send spends from the project's shared mail budget,
   // which Supabase's built-in sender caps at 2/hour.
-  if ((await checkRateLimit("reauth-code", user.email)) !== "allowed") {
+  if ((await checkRateLimit("reauth-code", email)) !== "allowed") {
     throw new Error("Too many codes requested. Please try again later.");
   }
 
+  const supabase = await createClient();
   const { error } = await supabase.auth.signInWithOtp({
-    email: user.email,
+    email,
     options: { shouldCreateUser: false },
   });
   if (error) {

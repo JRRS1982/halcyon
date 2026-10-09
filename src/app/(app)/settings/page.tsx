@@ -9,7 +9,7 @@ import {
   symbolFor,
 } from "@/lib/settings/currency";
 import { getCurrentUserSettings } from "@/lib/settings/server";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/supabase/user";
 import { getOrProvisionCategories } from "@/lib/transactions/server";
 import { AccountManager, type ManagedAccount } from "./AccountManager";
 import { updateSettings } from "./actions";
@@ -46,10 +46,9 @@ export default async function SettingsPage() {
   // Which proof the data panel asks for depends on how this account signs in,
   // and only the server can see that — a Google account has no password to
   // type, so asking for one is the bug this resolves.
-  const {
-    data: { user },
-  } = await (await createClient()).auth.getUser();
-  const reauthMethod = reauthMethodFor(user?.identities);
+  // getCurrentUser is request-memoised, so this is the same lookup
+  // getCurrentUserSettings already paid for, not a second round trip.
+  const reauthMethod = reauthMethodFor((await getCurrentUser())?.identities);
   const symbol = symbolFor(currency);
 
   // Provision categories from the budget if none exist yet (idempotent), then

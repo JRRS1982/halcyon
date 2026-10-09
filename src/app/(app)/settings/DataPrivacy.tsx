@@ -119,11 +119,11 @@ type Mode = "reset" | "clear" | "delete" | null;
 
 const SERVER_ERRORS: Record<string, string> = {
   "Incorrect password": "Incorrect password.",
+  "That isn't how this account signs in":
+    "That isn't how this account signs in. Reload the page and try again.",
   "That code is not valid": "That code is not valid. Check it and try again.",
   "Too many codes requested. Please try again later.":
     "Too many codes requested. Please try again later.",
-  "Couldn't send a code. Please try again.":
-    "Couldn't send a code. Please try again.",
   "Too many attempts. Please try again later.":
     "Too many attempts. Please try again later.",
 };
@@ -233,14 +233,14 @@ export function DataPrivacy({ method }: { method: ReauthMethod }) {
 
   // A plain function, not a nested component: a component defined inside the
   // render would remount on every keystroke and drop the input's focus.
-  const renderProof = (key: string) =>
+  const renderProof = () =>
     method === "password" ? (
       <ConfirmField>
-        <ConfirmLabel htmlFor={`${key}-password`}>
+        <ConfirmLabel htmlFor="reauth-secret">
           Enter your password to confirm
         </ConfirmLabel>
         <ConfirmInput
-          id={`${key}-password`}
+          id="reauth-secret"
           type="password"
           autoComplete="current-password"
           value={secret}
@@ -250,11 +250,11 @@ export function DataPrivacy({ method }: { method: ReauthMethod }) {
       </ConfirmField>
     ) : codeSent ? (
       <ConfirmField>
-        <ConfirmLabel htmlFor={`${key}-code`}>
+        <ConfirmLabel htmlFor="reauth-secret">
           Enter the code we emailed you
         </ConfirmLabel>
         <ConfirmInput
-          id={`${key}-code`}
+          id="reauth-secret"
           type="text"
           inputMode="numeric"
           autoComplete="one-time-code"
@@ -322,7 +322,7 @@ export function DataPrivacy({ method }: { method: ReauthMethod }) {
               are put back, exactly as they were on your first day. Your login
               and settings stay. This can&rsquo;t be undone.
             </WarningText>
-            {renderProof("reset")}
+            {renderProof()}
             <Actions>
               <Button
                 type="button"
@@ -367,7 +367,7 @@ export function DataPrivacy({ method }: { method: ReauthMethod }) {
               will be permanently removed. Your login, settings, and categories
               stay. This can&rsquo;t be undone.
             </WarningText>
-            {renderProof("clear")}
+            {renderProof()}
             <Actions>
               <Button
                 type="button"
@@ -423,7 +423,7 @@ export function DataPrivacy({ method }: { method: ReauthMethod }) {
                 aria-label="Type DELETE to confirm account deletion"
               />
             </ConfirmField>
-            {renderProof("delete")}
+            {renderProof()}
             <Actions>
               <Button
                 type="button"
