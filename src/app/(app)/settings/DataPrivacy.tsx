@@ -4,11 +4,13 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import styled from "styled-components";
 import { Button } from "@/components/ui/Button";
+import type { Reauthentication, ReauthMethod } from "@/lib/auth/reauth";
 import {
   clearMyData,
   deleteMyAccount,
   exportMyData,
   resetToDefaults,
+  sendReauthCode,
 } from "./dataActions";
 import { SectionHeading, SettingsCard } from "./SectionHeading";
 
@@ -117,6 +119,11 @@ type Mode = "reset" | "clear" | "delete" | null;
 
 const SERVER_ERRORS: Record<string, string> = {
   "Incorrect password": "Incorrect password.",
+  "That code is not valid": "That code is not valid. Check it and try again.",
+  "Too many codes requested. Please try again later.":
+    "Too many codes requested. Please try again later.",
+  "Couldn't send a code. Please try again.":
+    "Couldn't send a code. Please try again.",
   "Too many attempts. Please try again later.":
     "Too many attempts. Please try again later.",
 };
@@ -126,26 +133,47 @@ function actionError(err: unknown, fallback: string): string {
   return SERVER_ERRORS[msg] ?? fallback;
 }
 
-export function DataPrivacy() {
+export function DataPrivacy({ method }: { method: ReauthMethod }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [mode, setMode] = useState<Mode>(null);
   const [confirmText, setConfirmText] = useState("");
-  const [password, setPassword] = useState("");
+  const [secret, setSecret] = useState("");
+  const [codeSent, setCodeSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const start = (next: Mode) => {
     setError(null);
     setConfirmText("");
-    setPassword("");
+    setSecret("");
+    setCodeSent(false);
     setMode(next);
   };
 
   const cancel = () => {
     setConfirmText("");
-    setPassword("");
+    setSecret("");
+    setCodeSent(false);
     setMode(null);
   };
+
+  // The panel collects one secret; which kind it is was decided server-side
+  // from the account's identities, not guessed here.
+  const proof = (): Reauthentication =>
+    method === "password"
+      ? { method: "password", password: secret }
+      : { method: "otp", code: secret };
+
+  const onSendCode = () =>
+    startTransition(async () => {
+      setError(null);
+      try {
+        await sendReauthCode();
+        setCodeSent(true);
+      } catch (err) {
+        setError(actionError(err, "Couldn't send a code. Please try again."));
+      }
+    });
 
   const onExport = () =>
     startTransition(async () => {
@@ -168,7 +196,7 @@ export function DataPrivacy() {
     startTransition(async () => {
       setError(null);
       try {
-        await resetToDefaults(password);
+        await resetToDefaults(proof());
         setMode(null);
         router.refresh();
       } catch (err) {
@@ -182,7 +210,7 @@ export function DataPrivacy() {
     startTransition(async () => {
       setError(null);
       try {
-        await clearMyData(password);
+        await clearMyData(proof());
         setMode(null);
         router.refresh();
       } catch (err) {
@@ -196,7 +224,7 @@ export function DataPrivacy() {
     startTransition(async () => {
       setError(null);
       try {
-        await deleteMyAccount(password);
+        await deleteMyAccount(proof());
         // On success deleteMyAccount redirects; nothing more to do here.
       } catch (err) {
         setError(
@@ -204,6 +232,55 @@ export function DataPrivacy() {
         );
       }
     });
+
+  // A plain function, not a nested component: a component defined inside the
+  // render would remount on every keystroke and drop the input's focus.
+  const renderProof = (key: string) =>
+    method === "password" ? (
+      <ConfirmField>
+        <ConfirmLabel htmlFor={`${key}-password`}>
+          Enter your password to confirm
+        </ConfirmLabel>
+        <ConfirmInput
+          id={`${key}-password`}
+          type="password"
+          autoComplete="current-password"
+          value={secret}
+          onChange={(e) => setSecret(e.target.value)}
+          placeholder="Your password"
+        />
+      </ConfirmField>
+    ) : codeSent ? (
+      <ConfirmField>
+        <ConfirmLabel htmlFor={`${key}-code`}>
+          Enter the code we emailed you
+        </ConfirmLabel>
+        <ConfirmInput
+          id={`${key}-code`}
+          type="text"
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          value={secret}
+          onChange={(e) => setSecret(e.target.value)}
+          placeholder="6-digit code"
+        />
+      </ConfirmField>
+    ) : (
+      <ConfirmField>
+        <GroupText>
+          Your account signs in with Google, so there is no password to check.
+          We&rsquo;ll email you a one-time code instead.
+        </GroupText>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onSendCode}
+          disabled={pending}
+        >
+          Email me a code
+        </Button>
+      </ConfirmField>
+    );
 
   return (
     <Shell>
@@ -239,25 +316,13 @@ export function DataPrivacy() {
               are put back, exactly as they were on your first day. Your login
               and settings stay. This can&rsquo;t be undone.
             </WarningText>
-            <ConfirmField>
-              <ConfirmLabel htmlFor="reset-password">
-                Enter your password to confirm
-              </ConfirmLabel>
-              <ConfirmInput
-                id="reset-password"
-                type="password"
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Your password"
-              />
-            </ConfirmField>
+            {renderProof("reset")}
             <Actions>
               <Button
                 type="button"
                 variant="destructive"
                 onClick={onReset}
-                disabled={pending || !password}
+                disabled={pending || !secret}
               >
                 Reset to defaults
               </Button>
@@ -296,25 +361,13 @@ export function DataPrivacy() {
               will be permanently removed. Your login, settings, and categories
               stay. This can&rsquo;t be undone.
             </WarningText>
-            <ConfirmField>
-              <ConfirmLabel htmlFor="clear-password">
-                Enter your password to confirm
-              </ConfirmLabel>
-              <ConfirmInput
-                id="clear-password"
-                type="password"
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Your password"
-              />
-            </ConfirmField>
+            {renderProof("clear")}
             <Actions>
               <Button
                 type="button"
                 variant="destructive"
                 onClick={onClear}
-                disabled={pending || !password}
+                disabled={pending || !secret}
               >
                 Clear my data
               </Button>
@@ -364,25 +417,13 @@ export function DataPrivacy() {
                 aria-label="Type DELETE to confirm account deletion"
               />
             </ConfirmField>
-            <ConfirmField>
-              <ConfirmLabel htmlFor="delete-password">
-                Enter your password to confirm
-              </ConfirmLabel>
-              <ConfirmInput
-                id="delete-password"
-                type="password"
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Your password"
-              />
-            </ConfirmField>
+            {renderProof("delete")}
             <Actions>
               <Button
                 type="button"
                 variant="destructive"
                 onClick={onDelete}
-                disabled={pending || confirmText !== "DELETE" || !password}
+                disabled={pending || confirmText !== "DELETE" || !secret}
               >
                 Delete my account
               </Button>

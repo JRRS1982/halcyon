@@ -269,9 +269,9 @@ describe("deleteMyAccount (integration)", () => {
     await seedFinancialData(TEST_USER_ID);
 
     // redirect("/") is mocked to throw `redirect:/`.
-    await expect(deleteMyAccount({ method: "password", password: "test-password" })).rejects.toThrow(
-      "redirect:/",
-    );
+    await expect(
+      deleteMyAccount({ method: "password", password: "test-password" }),
+    ).rejects.toThrow("redirect:/");
 
     expect(mockDeleteUser).toHaveBeenCalledTimes(1);
     expect(mockDeleteUser).toHaveBeenCalledWith(TEST_USER_ID);
@@ -306,9 +306,9 @@ describe("deleteMyAccount (integration)", () => {
     await prisma.user.create({ data: { id: OTHER_USER_ID } });
     await seedFinancialData(OTHER_USER_ID);
 
-    await expect(deleteMyAccount({ method: "password", password: "test-password" })).rejects.toThrow(
-      "redirect:/",
-    );
+    await expect(
+      deleteMyAccount({ method: "password", password: "test-password" }),
+    ).rejects.toThrow("redirect:/");
 
     expect(
       await prisma.user.findUnique({ where: { id: OTHER_USER_ID } }),
@@ -406,9 +406,9 @@ describe("verifyUser — wrong password rejection (integration)", () => {
       where: { userId: TEST_USER_ID },
     });
 
-    await expect(clearMyData({ method: "password", password: "wrong-password" })).rejects.toThrow(
-      "Incorrect password",
-    );
+    await expect(
+      clearMyData({ method: "password", password: "wrong-password" }),
+    ).rejects.toThrow("Incorrect password");
 
     expect(
       await prisma.transaction.count({ where: { userId: TEST_USER_ID } }),
@@ -421,9 +421,9 @@ describe("verifyUser — wrong password rejection (integration)", () => {
   test("deleteMyAccount throws and leaves user rows intact", async () => {
     await seedFinancialData(TEST_USER_ID);
 
-    await expect(deleteMyAccount({ method: "password", password: "wrong-password" })).rejects.toThrow(
-      "Incorrect password",
-    );
+    await expect(
+      deleteMyAccount({ method: "password", password: "wrong-password" }),
+    ).rejects.toThrow("Incorrect password");
 
     expect(
       await prisma.user.findUnique({ where: { id: TEST_USER_ID } }),
@@ -437,9 +437,9 @@ describe("verifyUser — wrong password rejection (integration)", () => {
   test("resetToDefaults throws and leaves data unchanged", async () => {
     await seedFinancialData(TEST_USER_ID);
 
-    await expect(resetToDefaults({ method: "password", password: "wrong-password" })).rejects.toThrow(
-      "Incorrect password",
-    );
+    await expect(
+      resetToDefaults({ method: "password", password: "wrong-password" }),
+    ).rejects.toThrow("Incorrect password");
 
     expect(
       await prisma.transaction.count({ where: { userId: TEST_USER_ID } }),

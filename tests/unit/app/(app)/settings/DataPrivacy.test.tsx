@@ -9,6 +9,7 @@ jest.mock("@/app/(app)/settings/dataActions", () => ({
   clearMyData: jest.fn(async () => undefined),
   deleteMyAccount: jest.fn(async () => undefined),
   resetToDefaults: () => resetToDefaults(),
+  sendReauthCode: jest.fn(async () => undefined),
 }));
 
 // useRouter() throws without an app-router context under jsdom — provide a stub.
@@ -16,10 +17,10 @@ jest.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: jest.fn() }),
 }));
 
-const renderit = () =>
+const renderit = (method: "password" | "otp" = "password") =>
   render(
     <ThemeProvider theme={theme}>
-      <DataPrivacy />
+      <DataPrivacy method={method} />
     </ThemeProvider>,
   );
 
@@ -116,5 +117,31 @@ describe("DataPrivacy — reset to defaults", () => {
     fireEvent.click(confirmBtn);
 
     expect(resetToDefaults).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("DataPrivacy confirmation control", () => {
+  test("asks for a password when the account has one", () => {
+    renderit("password");
+    fireEvent.click(screen.getByRole("button", { name: /delete my account/i }));
+
+    expect(
+      screen.getByLabelText(/enter your password to confirm/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /email me a code/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  test("offers to email a code when the account has no password", () => {
+    renderit("otp");
+    fireEvent.click(screen.getByRole("button", { name: /delete my account/i }));
+
+    expect(
+      screen.getByRole("button", { name: /email me a code/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByLabelText(/enter your password to confirm/i),
+    ).not.toBeInTheDocument();
   });
 });
