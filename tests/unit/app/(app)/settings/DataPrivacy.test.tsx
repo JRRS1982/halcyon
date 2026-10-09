@@ -4,11 +4,13 @@ import { DataPrivacy } from "@/app/(app)/settings/DataPrivacy";
 import { theme } from "@/lib/theme";
 
 const resetToDefaults = jest.fn(async () => undefined);
+const sendReauthCode = jest.fn(async () => undefined);
 jest.mock("@/app/(app)/settings/dataActions", () => ({
   exportMyData: jest.fn(async () => "{}"),
   clearMyData: jest.fn(async () => undefined),
   deleteMyAccount: jest.fn(async () => undefined),
   resetToDefaults: () => resetToDefaults(),
+  sendReauthCode: () => sendReauthCode(),
 }));
 
 // useRouter() throws without an app-router context under jsdom — provide a stub.
@@ -16,10 +18,10 @@ jest.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: jest.fn() }),
 }));
 
-const renderit = () =>
+const renderit = (method: "password" | "otp" | null = "password") =>
   render(
     <ThemeProvider theme={theme}>
-      <DataPrivacy />
+      <DataPrivacy method={method} />
     </ThemeProvider>,
   );
 
@@ -116,5 +118,103 @@ describe("DataPrivacy — reset to defaults", () => {
     fireEvent.click(confirmBtn);
 
     expect(resetToDefaults).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("DataPrivacy confirmation control", () => {
+  test("asks for a password when the account has one", () => {
+    renderit("password");
+    fireEvent.click(screen.getByRole("button", { name: /delete my account/i }));
+
+    expect(
+      screen.getByLabelText(/enter your password to confirm/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /email me a code/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  test("offers to email a code when the account has no password", () => {
+    renderit("otp");
+    fireEvent.click(screen.getByRole("button", { name: /delete my account/i }));
+
+    expect(
+      screen.getByRole("button", { name: /email me a code/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByLabelText(/enter your password to confirm/i),
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe("DataPrivacy code branch", () => {
+  // Finding 6: nothing exercised send -> type -> confirm from the client, which
+  // is the only branch this feature exists for.
+  test("sending a code reveals the input, which then enables confirm", async () => {
+    renderit("otp");
+    fireEvent.click(screen.getByRole("button", { name: /clear my data/i }));
+    const panel = screen.getByRole("alertdialog", {
+      name: /confirm clear data/i,
+    });
+
+    fireEvent.click(
+      within(panel).getByRole("button", { name: /email me a code/i }),
+    );
+    expect(sendReauthCode).toHaveBeenCalled();
+
+    const field = await within(panel).findByLabelText(
+      /enter the code we emailed you/i,
+    );
+    const confirm = within(panel).getByRole("button", {
+      name: /^clear my data$/i,
+    });
+    expect(confirm).toBeDisabled();
+
+    fireEvent.change(field, { target: { value: "123456" } });
+    expect(confirm).toBeEnabled();
+  });
+
+  // Finding 4: a code already sat in the inbox, but cancelling threw away the
+  // only route to typing it, and the send cap is 2/hour.
+  test("keeps a route to an already-sent code after cancelling", async () => {
+    renderit("otp");
+    fireEvent.click(screen.getByRole("button", { name: /clear my data/i }));
+    const panel = screen.getByRole("alertdialog", {
+      name: /confirm clear data/i,
+    });
+    fireEvent.click(
+      within(panel).getByRole("button", { name: /email me a code/i }),
+    );
+    await within(panel).findByLabelText(/enter the code we emailed you/i);
+    fireEvent.click(within(panel).getByRole("button", { name: /cancel/i }));
+
+    fireEvent.click(screen.getByRole("button", { name: /clear my data/i }));
+    const reopened = screen.getByRole("alertdialog", {
+      name: /confirm clear data/i,
+    });
+
+    expect(
+      within(reopened).getByLabelText(/enter the code we emailed you/i),
+    ).toBeInTheDocument();
+  });
+});
+
+describe("DataPrivacy when the account can't be classified", () => {
+  test("offers no control, so confirm stays disabled", () => {
+    renderit(null);
+    fireEvent.click(screen.getByRole("button", { name: /clear my data/i }));
+    const panel = screen.getByRole("alertdialog", {
+      name: /confirm clear data/i,
+    });
+
+    expect(
+      within(panel).queryByLabelText(/enter your password to confirm/i),
+    ).not.toBeInTheDocument();
+    expect(
+      within(panel).queryByRole("button", { name: /email me a code/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(panel).getByRole("button", { name: /^clear my data$/i }),
+    ).toBeDisabled();
   });
 });

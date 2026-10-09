@@ -19,6 +19,8 @@ Application-level rate limiting via Upstash Ratelimit. Implemented in `src/lib/r
 | `sign-up-address` | Submitted email | 1 hour | 3 | **block** |
 | `verify-password` | Client IP | 1 min | 5 | allow |
 | `verify-password-account` | Account email | 1 hour | 10 | allow |
+| `reauth-code` | Account email | 1 hour | 2 | allow |
+| `verify-code` | Account email | 1 hour | 10 | **block** |
 | `unsubscribe` | Client IP | 1 min | 20 | allow |
 | `data-export` | userId | 1 min | 2 | allow |
 | `oauth-initiate` | Client IP | 1 min | 10 | allow |
@@ -56,6 +58,7 @@ Either bucket returning `"limited"` is enough to reject the request. This preven
 | `sign-in` / `sign-in-account` | `src/app/sign-in/actions.ts` |
 | `sign-up` / `sign-up-address` | `src/app/sign-up/actions.ts` |
 | `verify-password` / `verify-password-account` | `src/app/(app)/settings/dataActions.ts` |
+| `reauth-code` / `verify-code` | `src/app/(app)/settings/dataActions.ts` |
 | `oauth-initiate` | `src/app/auth/oauth-actions.ts` |
 | `data-export` | `src/app/(app)/settings/dataActions.ts` |
 | `unsubscribe` | `src/app/api/unsubscribe/route.ts` |

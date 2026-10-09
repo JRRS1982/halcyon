@@ -17,6 +17,11 @@ jest.mock("@/lib/supabase/server", () => ({
           user: {
             id: "00000000-0000-0000-0000-0000000000aa",
             email: "test@example.com",
+            // A signed-in account really does carry identities, and the app
+            // reads them to decide whether to ask for a password or mail a
+            // one-time code (src/lib/auth/reauth.ts). Omitting them made this
+            // fixture look like a Google-only sign-in.
+            identities: [{ provider: "email" }],
           },
         },
       }),

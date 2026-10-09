@@ -4,6 +4,19 @@ const mockSignInWithPassword = jest.fn(
     error: null,
   }),
 );
+const mockSignInWithOtp = jest.fn(
+  async (_args: unknown): Promise<{ error: { message: string } | null }> => ({
+    error: null,
+  }),
+);
+const mockVerifyOtp = jest.fn(
+  async (_args: unknown): Promise<{ error: { message: string } | null }> => ({
+    error: null,
+  }),
+);
+// Mutable so a case can present a Google-only account, or one with no address.
+let mockIdentities: { provider: string }[] = [{ provider: "email" }];
+let mockUserEmail: string | null = "test@example.com";
 
 jest.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
@@ -18,14 +31,28 @@ jest.mock("@/lib/supabase/server", () => ({
         data: {
           user: {
             id: "00000000-0000-0000-0000-0000000000aa",
-            email: "test@example.com",
+            email: mockUserEmail,
+            identities: mockIdentities,
           },
         },
       }),
       signInWithPassword: (args: unknown) => mockSignInWithPassword(args),
+      signInWithOtp: (args: unknown) => mockSignInWithOtp(args),
+      verifyOtp: (args: unknown) => mockVerifyOtp(args),
       signOut: async () => ({ error: null }),
     },
   }),
+}));
+
+// The real module is used everywhere else; this seam lets one case drive the
+// limiter to "limited" without a Redis.
+const mockCheckRateLimit = jest.fn(
+  async (_action: string, _subject: string | null): Promise<string> =>
+    "allowed",
+);
+jest.mock("@/lib/rateLimit", () => ({
+  checkRateLimit: (action: string, subject: string | null) =>
+    mockCheckRateLimit(action, subject),
 }));
 
 import { TEST_USER_ID } from "@test/support/helpers";
@@ -34,6 +61,7 @@ import {
   deleteMyAccount,
   exportMyData,
   resetToDefaults,
+  sendReauthCode,
 } from "@/app/(app)/settings/dataActions";
 import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
@@ -116,6 +144,18 @@ async function seedFinancialData(userId: string) {
   });
 }
 
+// The mocked account is mutable so a case can present a Google-only user or
+// one with no address; reset before every test so no case leaks into the next.
+beforeEach(() => {
+  mockIdentities = [{ provider: "email" }];
+  mockUserEmail = "test@example.com";
+  mockCheckRateLimit.mockClear();
+  mockCheckRateLimit.mockResolvedValue("allowed");
+  mockSignInWithPassword.mockClear();
+  mockSignInWithOtp.mockClear();
+  mockVerifyOtp.mockClear();
+});
+
 describe("exportMyData (integration)", () => {
   test("includes every user-owned table, scoped to the caller", async () => {
     await seedFinancialData(TEST_USER_ID);
@@ -159,7 +199,7 @@ describe("clearMyData (integration)", () => {
     await seedFinancialData(TEST_USER_ID);
     // seedUser() (global beforeEach) already created UserSettings for TEST_USER_ID.
 
-    await clearMyData("test-password");
+    await clearMyData({ method: "password", password: "test-password" });
 
     expect(
       await prisma.transaction.count({ where: { userId: TEST_USER_ID } }),
@@ -213,7 +253,7 @@ describe("clearMyData (integration)", () => {
     await prisma.user.create({ data: { id: OTHER_USER_ID } });
     await seedFinancialData(OTHER_USER_ID);
 
-    await clearMyData("test-password");
+    await clearMyData({ method: "password", password: "test-password" });
 
     expect(
       await prisma.transaction.count({ where: { userId: OTHER_USER_ID } }),
@@ -234,9 +274,9 @@ describe("deleteMyAccount (integration)", () => {
     await seedFinancialData(TEST_USER_ID);
 
     // redirect("/") is mocked to throw `redirect:/`.
-    await expect(deleteMyAccount("test-password")).rejects.toThrow(
-      "redirect:/",
-    );
+    await expect(
+      deleteMyAccount({ method: "password", password: "test-password" }),
+    ).rejects.toThrow("redirect:/");
 
     expect(mockDeleteUser).toHaveBeenCalledTimes(1);
     expect(mockDeleteUser).toHaveBeenCalledWith(TEST_USER_ID);
@@ -271,9 +311,9 @@ describe("deleteMyAccount (integration)", () => {
     await prisma.user.create({ data: { id: OTHER_USER_ID } });
     await seedFinancialData(OTHER_USER_ID);
 
-    await expect(deleteMyAccount("test-password")).rejects.toThrow(
-      "redirect:/",
-    );
+    await expect(
+      deleteMyAccount({ method: "password", password: "test-password" }),
+    ).rejects.toThrow("redirect:/");
 
     expect(
       await prisma.user.findUnique({ where: { id: OTHER_USER_ID } }),
@@ -290,7 +330,147 @@ describe("deleteMyAccount (integration)", () => {
   });
 });
 
-describe("verifyPassword — wrong password rejection (integration)", () => {
+describe("verifyUser (integration)", () => {
+  test("checks a password for an account that has one", async () => {
+    await clearMyData({ method: "password", password: "hunter2" });
+
+    expect(mockSignInWithPassword).toHaveBeenCalledWith({
+      email: "test@example.com",
+      password: "hunter2",
+    });
+    expect(mockVerifyOtp).not.toHaveBeenCalled();
+  });
+
+  test("checks an emailed code for an account with no password", async () => {
+    mockIdentities = [{ provider: "google" }];
+
+    await clearMyData({ method: "otp", code: "123456" });
+
+    expect(mockVerifyOtp).toHaveBeenCalledWith({
+      email: "test@example.com",
+      token: "123456",
+      type: "email",
+    });
+    expect(mockSignInWithPassword).not.toHaveBeenCalled();
+  });
+
+  test("reports a wrong code distinctly from a wrong password", async () => {
+    mockIdentities = [{ provider: "google" }];
+    mockVerifyOtp.mockResolvedValueOnce({ error: { message: "expired" } });
+
+    await expect(
+      clearMyData({ method: "otp", code: "000000" }),
+    ).rejects.toThrow("That code is not valid");
+  });
+
+  test("sends the code to the address on the account", async () => {
+    mockIdentities = [{ provider: "google" }];
+    await sendReauthCode();
+
+    expect(mockSignInWithOtp).toHaveBeenCalledWith({
+      email: "test@example.com",
+      options: { shouldCreateUser: false },
+    });
+  });
+
+  // Finding 1: `method` arrives from the browser. An attacker holding a stolen
+  // session on a password account must not be able to swap the gate from
+  // "knows the password" to "can read the inbox" by asking for a code.
+  test("refuses a code from an account that has a password", async () => {
+    await expect(
+      clearMyData({ method: "otp", code: "123456" }),
+    ).rejects.toThrow("That isn't how this account signs in");
+    expect(mockVerifyOtp).not.toHaveBeenCalled();
+  });
+
+  test("refuses to mail a code to an account that has a password", async () => {
+    await expect(sendReauthCode()).rejects.toThrow(
+      "That isn't how this account signs in",
+    );
+    expect(mockSignInWithOtp).not.toHaveBeenCalled();
+  });
+
+  test("keys the send on its own bucket and the account address", async () => {
+    mockIdentities = [{ provider: "google" }];
+
+    await sendReauthCode();
+
+    expect(mockCheckRateLimit).toHaveBeenCalledWith(
+      "reauth-code",
+      "test@example.com",
+    );
+  });
+
+  // Finding 2: a 6-digit code valid for an hour has no entropy to spare, so
+  // unlike the password branch its verify bucket must not fail open.
+  test("blocks code verification when the limiter store is down", async () => {
+    mockIdentities = [{ provider: "google" }];
+    mockCheckRateLimit.mockImplementation(async (action: string) =>
+      action === "verify-code" ? "unavailable" : "allowed",
+    );
+
+    await expect(
+      clearMyData({ method: "otp", code: "123456" }),
+    ).rejects.toThrow("Too many attempts. Please try again later.");
+    expect(mockVerifyOtp).not.toHaveBeenCalled();
+  });
+
+  // An unclassifiable account must not get a gate picked for it: the weak one
+  // is the downgrade this check refuses, and the strong one locks a Google
+  // account out of erasing its own data.
+  test("refuses to act for an account with no identities", async () => {
+    mockIdentities = [];
+
+    await expect(
+      clearMyData({ method: "password", password: "hunter2" }),
+    ).rejects.toThrow("redirect:/sign-in?next=/settings");
+    expect(mockSignInWithPassword).not.toHaveBeenCalled();
+    expect(mockVerifyOtp).not.toHaveBeenCalled();
+  });
+
+  test("spends only the code bucket when verifying a code", async () => {
+    mockIdentities = [{ provider: "google" }];
+
+    await clearMyData({ method: "otp", code: "123456" });
+
+    const actions = mockCheckRateLimit.mock.calls.map(([action]) => action);
+    expect(actions).toEqual(["verify-code"]);
+  });
+
+  test("spends only the password buckets when verifying a password", async () => {
+    await clearMyData({ method: "password", password: "hunter2" });
+
+    const actions = mockCheckRateLimit.mock.calls.map(([action]) => action);
+    expect(actions.sort()).toEqual([
+      "verify-password",
+      "verify-password-account",
+    ]);
+  });
+
+  // Review Focus 4: a user who mistypes twice must be told why no further code
+  // arrives, not left staring at a panel that silently stops working.
+  test("explains when too many codes have been requested", async () => {
+    mockIdentities = [{ provider: "google" }];
+    mockCheckRateLimit.mockResolvedValue("limited");
+
+    await expect(sendReauthCode()).rejects.toThrow(
+      "Too many codes requested. Please try again later.",
+    );
+    expect(mockSignInWithOtp).not.toHaveBeenCalled();
+  });
+
+  // Review Focus 5: an account with no address can neither be mailed a code
+  // nor matched to a password, so it must redirect rather than throw.
+  test("redirects an account with no email to sign-in", async () => {
+    mockUserEmail = null;
+
+    await expect(
+      clearMyData({ method: "otp", code: "123456" }),
+    ).rejects.toThrow(/redirect:\/sign-in/);
+  });
+});
+
+describe("verifyUser — wrong password rejection (integration)", () => {
   beforeEach(() => {
     mockDeleteUser.mockClear();
     mockSignInWithPassword.mockResolvedValue({
@@ -308,9 +488,9 @@ describe("verifyPassword — wrong password rejection (integration)", () => {
       where: { userId: TEST_USER_ID },
     });
 
-    await expect(clearMyData("wrong-password")).rejects.toThrow(
-      "Incorrect password",
-    );
+    await expect(
+      clearMyData({ method: "password", password: "wrong-password" }),
+    ).rejects.toThrow("Incorrect password");
 
     expect(
       await prisma.transaction.count({ where: { userId: TEST_USER_ID } }),
@@ -323,9 +503,9 @@ describe("verifyPassword — wrong password rejection (integration)", () => {
   test("deleteMyAccount throws and leaves user rows intact", async () => {
     await seedFinancialData(TEST_USER_ID);
 
-    await expect(deleteMyAccount("wrong-password")).rejects.toThrow(
-      "Incorrect password",
-    );
+    await expect(
+      deleteMyAccount({ method: "password", password: "wrong-password" }),
+    ).rejects.toThrow("Incorrect password");
 
     expect(
       await prisma.user.findUnique({ where: { id: TEST_USER_ID } }),
@@ -339,9 +519,9 @@ describe("verifyPassword — wrong password rejection (integration)", () => {
   test("resetToDefaults throws and leaves data unchanged", async () => {
     await seedFinancialData(TEST_USER_ID);
 
-    await expect(resetToDefaults("wrong-password")).rejects.toThrow(
-      "Incorrect password",
-    );
+    await expect(
+      resetToDefaults({ method: "password", password: "wrong-password" }),
+    ).rejects.toThrow("Incorrect password");
 
     expect(
       await prisma.transaction.count({ where: { userId: TEST_USER_ID } }),

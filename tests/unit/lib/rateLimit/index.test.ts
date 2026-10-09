@@ -94,4 +94,38 @@ describe("checkRateLimit", () => {
     await expect(checkRateLimit("sign-in", null)).resolves.toBe("allowed");
     expect(incrementWindow).not.toHaveBeenCalled();
   });
+
+  // Two, not more: Supabase's built-in sender caps the whole project at 2/hour,
+  // so a looser bucket here would never bind — the provider would reject the
+  // send first and the user would get a generic failure instead of being told
+  // they have asked for too many codes.
+  it("allows two re-auth codes per address per hour", async () => {
+    incrementWindow.mockResolvedValueOnce(2).mockResolvedValueOnce(3);
+    await expect(checkRateLimit("reauth-code", "a@b.com")).resolves.toBe(
+      "allowed",
+    );
+    await expect(checkRateLimit("reauth-code", "a@b.com")).resolves.toBe(
+      "limited",
+    );
+    expect(windowOf(0)).toBe(3600);
+  });
+
+  // Fails open, unlike sign-up: someone part-way through deleting their
+  // account must not be stranded by a cache outage.
+  it("fails open for re-auth codes when the store throws", async () => {
+    incrementWindow.mockRejectedValueOnce(new Error("redis down"));
+    await expect(checkRateLimit("reauth-code", "a@b.com")).resolves.toBe(
+      "allowed",
+    );
+  });
+
+  // Verifying a code is the opposite posture to sending one. A 6-digit code is
+  // 10^6 and GoTrue does not count failed email-OTP verifies itself, so this
+  // bucket is the whole guess budget — losing it must stop verification.
+  it("fails closed for code verification when the store throws", async () => {
+    incrementWindow.mockRejectedValueOnce(new Error("redis down"));
+    await expect(checkRateLimit("verify-code", "a@b.com")).resolves.toBe(
+      "unavailable",
+    );
+  });
 });
