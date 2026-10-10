@@ -52,5 +52,5 @@ managed in the Vercel dashboard → Domains → balanced.money → DNS Records.
 
 ## Related
 
-- Outbound email (the monthly reminder): [reminders.md](reminders.md)
-- Privacy posture and maintainer rules: [../DataPrivacyStatement.md](../DataPrivacyStatement.md)
+- Outbound email (the monthly reminder): [../features/reminders.md](../features/reminders.md)
+- Privacy posture and maintainer rules: [../data-privacy-statement.md](../data-privacy-statement.md)

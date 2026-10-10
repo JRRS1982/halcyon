@@ -128,7 +128,7 @@ describe("monthly reminder cron (integration)", () => {
       expect(sendEmail).toHaveBeenCalledTimes(1);
       expect(sendEmail.mock.calls[0][0]).toMatchObject({
         to: "user@example.com",
-        subject: "August 2026 is ready to log",
+        subject: "Your August 2026 catch-up",
       });
     });
 
@@ -178,7 +178,7 @@ describe("monthly reminder cron (integration)", () => {
 
       expect(await response.json()).toMatchObject({ sent: 1 });
       expect(sendEmail.mock.calls[0][0].subject).toBe(
-        "September 2026 is ready to log",
+        "Your September 2026 catch-up",
       );
     });
 
@@ -192,7 +192,7 @@ describe("monthly reminder cron (integration)", () => {
         userId: TEST_USER_ID,
         type: "MONTHLY_REMINDER",
         channel: "EMAIL",
-        subject: "August 2026 is ready to log",
+        subject: "Your August 2026 catch-up",
         result: "SENT",
         error: null,
       });

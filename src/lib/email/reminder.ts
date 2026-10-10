@@ -149,13 +149,35 @@ export function buildReminder({
   const unsubscribeUrl = `${base}/unsubscribe?token=${encodeURIComponent(unsubscribeToken)}`;
   const guideUrl = `${base}/guide`;
 
-  const subject = `${month} is ready to log`;
+  const subject = `Your ${month} catch-up`;
+
+  // The middle step is the only paragraph that differs by mode, and until
+  // October 2026 only the *link* varied: a manual user was told to "import it",
+  // an instruction for a feature they do not have. Held as wrapped lines so the
+  // plain-text part keeps its shape, and joined with spaces for the HTML, which
+  // wraps itself — one source of words, two renderings.
+  const logLines = transactionsEnabled
+    ? [
+        "Fifteen minutes is usually enough: import your transactions and",
+        "categorise them, check the budget against what you actually spent, and",
+        "update your balances. The dashboard will then show how you're tracking",
+        "against your plan.",
+      ]
+    : [
+        "Fifteen minutes is usually enough: enter what you spent, check it",
+        "against the budget, and update your balances. The dashboard will then",
+        "show how you're tracking against your plan.",
+      ];
 
   const text = [
-    `${month} is done, so your statement should be available to download.`,
+    `${month} is done — time for your monthly catch-up. Your statement`,
+    "should be ready to download.",
     "",
-    "The usual five minutes: import it, categorise what came in, check the",
-    "budget, update your balances, then look at the dashboard.",
+    ...logLines,
+    "",
+    "It's the monthly rhythm that does the work. Keep it going and you build a",
+    "clear view of what's coming in and what's going out — and a plan",
+    "grounded in what actually happened.",
     "",
     `Log ${month}: ${ctaUrl}`,
     `How it works: ${guideUrl}`,
@@ -175,9 +197,10 @@ export function buildReminder({
   <body style="margin:0;padding:24px;background:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#1a1a1a;">
     <div style="max-width:520px;margin:0 auto;">
       <p style="margin:0 0 24px;font-size:13px;letter-spacing:0.08em;text-transform:uppercase;color:#717171;">Balanced Money</p>
-      <h1 style="margin:0 0 16px;font-size:24px;line-height:1.3;font-weight:600;">${month} is ready to log</h1>
-      <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#3d3d3d;">${month} is done, so your statement should be available to download.</p>
-      <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#3d3d3d;">The usual five minutes: import it, categorise what came in, check the budget, update your balances, then look at the dashboard.</p>
+      <h1 style="margin:0 0 16px;font-size:24px;line-height:1.3;font-weight:600;">Your ${month} catch-up</h1>
+      <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#3d3d3d;">${month} is done — time for your monthly catch-up. Your statement should be ready to download.</p>
+      <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#3d3d3d;">${logLines.join(" ")}</p>
+      <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#3d3d3d;">It's the monthly rhythm that does the work. Keep it going and you build a clear view of what's coming in and what's going out — and a plan grounded in what actually happened.</p>
       <p style="margin:0 0 32px;">
         <a href="${ctaUrl}" style="display:inline-block;background:#1a1a1a;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:4px;font-size:14px;">Log ${month}</a>
       </p>
