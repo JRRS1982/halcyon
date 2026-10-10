@@ -112,7 +112,7 @@ describe("buildReminder", () => {
   });
 
   test("is about the month that just finished", () => {
-    expect(message.subject).toBe("August 2026 is ready to log");
+    expect(message.subject).toBe("Your August 2026 catch-up");
   });
 
   // The reason this email carries no figures is a privacy decision, not a
@@ -173,6 +173,23 @@ describe("buildReminder", () => {
     expect(manual.text).toContain("https://balanced.money/budget");
     expect(manual.html).toContain("https://balanced.money/budget");
     expect(manual.html).not.toContain("/transactions");
+  });
+
+  // Until October 2026 only the link varied by mode, so a manual user was told
+  // to "import your transactions" — an instruction for a feature they have
+  // switched off. The words have to follow the link, not just point at it.
+  test("tells manual users to enter figures, never to import them", () => {
+    const manual = buildReminder({
+      siteUrl: "https://balanced.money",
+      unsubscribeToken: "tok-123",
+      now: at("2026-09-08"),
+      transactionsEnabled: false,
+    });
+    expect(manual.text).toContain("enter what you spent");
+    expect(manual.html).toContain("enter what you spent");
+    expect(manual.text).not.toMatch(/import/i);
+    expect(manual.html).not.toMatch(/import/i);
+    expect(message.text).toMatch(/import your transactions/);
   });
 
   // /about does not exist — the guide lives at /guide. Asserted because the

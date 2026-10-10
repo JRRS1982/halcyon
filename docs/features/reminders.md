@@ -16,7 +16,13 @@ turns it on.
 ## What the email contains — and what it deliberately doesn't
 
 **No figures.** No balances, no totals, no category or account names. Just
-"August 2026 is ready to log", a sign-in button, and a link to the guide.
+"Your August 2026 catch-up", the three steps of the habit in general terms, a
+button to the work and a link to the guide.
+
+The wording follows the user's mode, not just the link: a transactions user is
+told to import and categorise, a manual user to enter what they spent. Until
+October 2026 only the button's destination varied, so manual users were told to
+import something they had no importer for.
 
 Financial data is *not* special-category data under UK GDPR Art. 9 — that list
 is health, ethnicity, religion, politics, union membership, genetics,
