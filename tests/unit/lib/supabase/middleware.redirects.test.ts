@@ -11,8 +11,9 @@
 // auth round-trip the proxy has just made.
 
 const getUser = jest.fn();
+const signOut = jest.fn(async () => undefined);
 jest.mock("@supabase/ssr", () => ({
-  createServerClient: () => ({ auth: { getUser } }),
+  createServerClient: () => ({ auth: { getUser, signOut } }),
 }));
 jest.mock("@/lib/env", () => ({
   env: {
@@ -23,10 +24,22 @@ jest.mock("@/lib/env", () => ({
 
 import { NextRequest } from "next/server";
 import { POST_AUTH_LANDING } from "@/lib/auth/landing";
+import { ACTIVITY_COOKIE, serializeActivity } from "@/lib/auth/sessionTimeout";
 import { updateSession } from "@/lib/supabase/middleware";
 
-const requestFor = (path: string) =>
-  new NextRequest(new URL(`http://localhost:3000${path}`));
+// Every request carries a live activity stamp. The proxy expires a signed-in
+// request that arrives without one, so these redirect assertions would
+// otherwise all be exercising the expiry path instead of the routing it is
+// meant to check. Ignored outright on the signed-out cases.
+const requestFor = (path: string) => {
+  const request = new NextRequest(new URL(`http://localhost:3000${path}`));
+  const now = Date.now();
+  request.cookies.set(
+    ACTIVITY_COOKIE,
+    serializeActivity({ startedAt: now, lastSeenAt: now }),
+  );
+  return request;
+};
 
 const signedIn = () =>
   getUser.mockResolvedValue({ data: { user: { id: "u1" } } });

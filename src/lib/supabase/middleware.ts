@@ -118,7 +118,7 @@ export const updateSession = async (request: NextRequest) => {
 const expireSession = async (
   request: NextRequest,
   supabase: ReturnType<typeof createServerClient>,
-  reason: "idle" | "absolute",
+  reason: "idle" | "absolute" | "unreadable",
 ) => {
   // Captured before signOut, which writes through the cookie adapter above and
   // so edits `request.cookies` as it goes. Reading the names first keeps this
