@@ -60,7 +60,7 @@ export function SignUpForm({ error, success }: SignUpFormProps) {
             name="password"
             type="password"
             autoComplete="new-password"
-            minLength={8}
+            minLength={12}
             required
           />
         </Field>

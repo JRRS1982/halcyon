@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { SESSION_TIMEOUT } from "@/lib/auth/sessionTimeout";
 
 // The mock Supabase server is pre-seeded with this user.
-const KNOWN_USER = { email: "test@example.com", password: "password123" };
+const KNOWN_USER = { email: "test@example.com", password: "e2e-password-123" };
 
 test.describe.configure({ mode: "serial" });
 
@@ -65,14 +65,33 @@ test.describe("sign-up", () => {
     await expect(
       page
         .locator('p[role="alert"]')
-        .filter({ hasText: /Password must be at least 8 characters/ }),
+        .filter({ hasText: /Password must be at least 12 characters/ }),
+    ).toBeVisible();
+  });
+
+  // Long enough to pass the length rule, so this can only be the breach check
+  // firing. The mock serves HIBP's range endpoint and reports a hit for this
+  // one password's hash prefix — see tests/e2e/_mock/supabase.mjs.
+  test("rejects a password that appears in a breach corpus", async ({
+    page,
+  }) => {
+    await page.goto("/sign-up");
+    await disableNativeValidation(page);
+    await page.fill("input[name='email']", "breached@example.com");
+    await page.fill("input[name='password']", "Breached-E2E-Password-1");
+    await page.getByRole("button", { name: "Create account" }).click();
+    await expect(page).toHaveURL(/\/sign-up\?error=/);
+    await expect(
+      page
+        .locator('p[role="alert"]')
+        .filter({ hasText: /appeared in a data breach/ }),
     ).toBeVisible();
   });
 
   test("happy path shows the 'check your email' message", async ({ page }) => {
     await page.goto("/sign-up");
     await page.fill("input[name='email']", `new+${Date.now()}@example.com`);
-    await page.fill("input[name='password']", "password123");
+    await page.fill("input[name='password']", "e2e-password-123");
     await page.getByRole("button", { name: "Create account" }).click();
     await expect(page).toHaveURL(/\/sign-up\?success=1/);
     await expect(page.getByRole("status")).toContainText(/Check your email/);

@@ -85,7 +85,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
 
 export { expect } from "@playwright/test";
 
-const KNOWN_USER = { email: "test@example.com", password: "password123" };
+const KNOWN_USER = { email: "test@example.com", password: "e2e-password-123" };
 
 // Signs in as the mock Supabase user and waits for the post-login redirect.
 // The app upserts the User/UserSettings profile rows on the first request.
