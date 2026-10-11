@@ -2,17 +2,20 @@
 
 **What:** `verifyUser()` proves the caller is the account holder before any destructive data action; a live session alone is not sufficient.  
 **Key points:**
-- Protects: `resetToDefaults`, `clearMyData`, `deleteMyAccount` — all in `src/app/(app)/settings/dataActions.ts`
+- Protects: `exportMyData`, `resetToDefaults`, `clearMyData`, `deleteMyAccount` — all in `src/app/(app)/settings/dataActions.ts`
 - Which proof applies is read from the account's identities, **server-side** — never guessed; an unreadable classification fails closed rather than defaulting
 - The client picks which control to *render*; it does not pick the gate — `verifyUser` re-derives the method and rejects a mismatched proof
 - OAuth-only accounts can use these actions. Before October 2026 they could not, which closed the right-to-erasure path for every Google user — but see Known gaps: the code branch is inert until custom SMTP is configured, because Supabase's built-in sender emails a link rather than a code
 
 Destructive data actions require the user to re-prove who they are before the operation executes. A valid session alone is not sufficient.
 
+`exportMyData` is in that list despite destroying nothing: it hands over the entire financial record, which is at least as sensitive as deleting it. It was added in October 2026 after an audit found it was the only one of the four without a gate — an unlocked signed-in browser was a complete breach. `docs/features/settings.md` had claimed all four were protected since PR #208, so the documentation was describing the intent rather than the code.
+
 ## Protected actions
 
 All three live in `src/app/(app)/settings/dataActions.ts`:
 
+- `exportMyData(proof)` — returns every user-owned row as JSON
 - `resetToDefaults(proof)` — deletes all data and re-seeds defaults
 - `clearMyData(proof)` — deletes all financial rows
 - `deleteMyAccount(proof)` — deletes all rows and erases the Supabase auth identity

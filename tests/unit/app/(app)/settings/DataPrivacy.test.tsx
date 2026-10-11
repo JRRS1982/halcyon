@@ -1,12 +1,19 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { ThemeProvider } from "styled-components";
 import { DataPrivacy } from "@/app/(app)/settings/DataPrivacy";
 import { theme } from "@/lib/theme";
 
 const resetToDefaults = jest.fn(async () => undefined);
 const sendReauthCode = jest.fn(async () => undefined);
+const exportMyData = jest.fn(async (_proof: unknown) => "{}");
 jest.mock("@/app/(app)/settings/dataActions", () => ({
-  exportMyData: jest.fn(async () => "{}"),
+  exportMyData: (proof: unknown) => exportMyData(proof),
   clearMyData: jest.fn(async () => undefined),
   deleteMyAccount: jest.fn(async () => undefined),
   resetToDefaults: () => resetToDefaults(),
@@ -37,6 +44,33 @@ describe("DataPrivacy", () => {
     expect(
       screen.getByRole("button", { name: /delete my account/i }),
     ).toBeInTheDocument();
+  });
+
+  // The export hands over the whole financial record, so it takes the same
+  // proof as the destructive actions rather than downloading on first click.
+  // Before October 2026 an unlocked signed-in browser was a complete breach.
+  test("export asks for a proof before it downloads anything", async () => {
+    // jsdom has no object-URL support, and the download path uses it.
+    URL.createObjectURL = jest.fn(() => "blob:stub");
+    URL.revokeObjectURL = jest.fn();
+    exportMyData.mockClear();
+    renderit();
+
+    fireEvent.click(screen.getByRole("button", { name: /export my data/i }));
+
+    expect(exportMyData).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByLabelText(/enter your password to confirm/i), {
+      target: { value: "hunter2" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^download$/i }));
+
+    await waitFor(() =>
+      expect(exportMyData).toHaveBeenCalledWith({
+        method: "password",
+        password: "hunter2",
+      }),
+    );
   });
 
   test("clear opens an in-app warning with confirm + cancel (no native confirm)", () => {

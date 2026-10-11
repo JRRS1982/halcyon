@@ -162,7 +162,9 @@ describe("exportMyData (integration)", () => {
     await prisma.user.create({ data: { id: OTHER_USER_ID } });
     await seedFinancialData(OTHER_USER_ID);
 
-    const dump = JSON.parse(await exportMyData());
+    const dump = JSON.parse(
+      await exportMyData({ method: "password", password: "test-password" }),
+    );
 
     expect(dump.user.id).toBe(TEST_USER_ID);
     expect(dump.accounts).toHaveLength(1);
@@ -480,6 +482,17 @@ describe("verifyUser — wrong password rejection (integration)", () => {
 
   afterEach(() => {
     mockSignInWithPassword.mockResolvedValue({ error: null });
+  });
+
+  // The export hands over the whole financial record, which is at least as
+  // sensitive as clearing it. Until October 2026 it was the only one of the
+  // four destructive-data actions with no proof gate at all.
+  test("exportMyData throws rather than handing over the record", async () => {
+    await seedFinancialData(TEST_USER_ID);
+
+    await expect(
+      exportMyData({ method: "password", password: "wrong-password" }),
+    ).rejects.toThrow("Incorrect password");
   });
 
   test("clearMyData throws and leaves all rows intact", async () => {
