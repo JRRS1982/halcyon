@@ -77,6 +77,9 @@ export default defineConfig({
       env: {
         // Point the app at the mock Supabase instead of the real project.
         NEXT_PUBLIC_SUPABASE_URL: mockSupabaseURL,
+        // And at the mock's /range/ handler instead of Have I Been Pwned, so
+        // sign-up never depends on a third party's uptime mid-run.
+        HIBP_RANGE_URL: `${mockSupabaseURL}/range/`,
         NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
           "sb_publishable_test_anon_key_for_e2e",
         // src/lib/env.ts validates this at boot (via instrumentation.ts); the

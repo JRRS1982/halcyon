@@ -18,7 +18,7 @@ const users = new Map();
 users.set("test@example.com", {
   id: "00000000-0000-0000-0000-000000000001",
   email: "test@example.com",
-  password: "password123",
+  password: "e2e-password-123",
   confirmed: true,
 });
 
@@ -97,6 +97,25 @@ const server = http.createServer(async (req, res) => {
     // Health check — used by Playwright's webServer readiness probe.
     if (req.method === "GET" && url.pathname === "/health") {
       return json(res, 200, { ok: true });
+    }
+
+    // GET /range/:prefix — Have I Been Pwned's k-anonymity endpoint, which
+    // src/lib/auth/breachedPassword.ts consults on sign-up. Served here so the
+    // suite stays hermetic: a live call would make every sign-up test depend on
+    // a third party's uptime and latency. The empty body means "no match", so
+    // any password the specs use is treated as un-breached.
+    if (req.method === "GET" && url.pathname.startsWith("/range/")) {
+      // SHA-1("Breached-E2E-Password-1") split the way the range API does:
+      // the client sends the first five hex characters and matches the rest
+      // locally. Only that one prefix reports a hit, so every other password
+      // the specs use reads as un-breached.
+      const BREACHED_PREFIX = "72C88";
+      const BREACHED_SUFFIX = "0FBFDD961CCBC7896E2785EC362DBF3AE5C";
+      const prefix = url.pathname.slice("/range/".length).toUpperCase();
+      const body = prefix === BREACHED_PREFIX ? `${BREACHED_SUFFIX}:4242` : "";
+      log(body ? "breach match" : "no breach match");
+      res.writeHead(200, { "Content-Type": "text/plain" });
+      return res.end(body);
     }
 
     // POST /auth/v1/signup

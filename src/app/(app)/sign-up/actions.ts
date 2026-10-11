@@ -2,6 +2,7 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { checkPasswordBreach } from "@/lib/auth/breachedPassword";
 import { signUpSchema } from "@/lib/auth/schemas";
 import { clientIp } from "@/lib/http/clientIp";
 import { log } from "@/lib/log";
@@ -46,6 +47,21 @@ export const signUp = async (formData: FormData) => {
   const rejection = ipRejection ?? addressRejection;
   if (rejection) {
     failSignUp(rejection);
+  }
+
+  // A password already in a breach corpus is the one credential-stuffing
+  // actually uses, and no rate limit helps when the guess is already correct.
+  // "unknown" means HIBP was unreachable: logged, and allowed through. Refusing
+  // a probably-fine password because someone else's service is down is the
+  // worse failure, and the same call the rate limiter makes for sign-in.
+  const breach = await checkPasswordBreach(parsed.data.password);
+  if (breach === "breached") {
+    failSignUp(
+      "That password has appeared in a data breach. Please choose another.",
+    );
+  }
+  if (breach === "unknown") {
+    log.warn("Breached-password check unavailable; allowing sign-up");
   }
 
   const origin = (await headers()).get("origin");
