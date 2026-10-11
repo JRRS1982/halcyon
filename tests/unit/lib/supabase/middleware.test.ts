@@ -98,6 +98,9 @@ const idleExpired = () =>
 const absoluteExpired = () =>
   activityCookie(SESSION_TIMEOUT.absoluteMs + MINUTE, 0);
 
+// Well inside both windows — the ordinary case.
+const live = () => activityCookie(MINUTE, 0);
+
 beforeEach(() => {
   currentUser = { id: "user-1" };
   signOut.mockClear();
@@ -117,14 +120,40 @@ describe("updateSession — session cookies", () => {
 });
 
 describe("updateSession — activity tracking", () => {
-  it("starts the activity clock when a signed-in request has no cookie", async () => {
+  // The proxy used to seed a clock for any signed-in request that arrived
+  // without one, which made the cookie trivially defeatable: an attacker
+  // replaying stolen sb-* cookies just omitted it and never aged out. Seeding
+  // is now the job of the two paths that mint sessions (the password form and
+  // the auth callback), and the proxy only ever reads.
+  it("expires a signed-in request that arrives with no cookie", async () => {
     const response = await updateSession(buildRequest("/dashboard"));
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toContain("/sign-in");
+    expect(response.headers.get("location")).toContain("timeout=unreadable");
+    // And the stolen session is revoked, not merely redirected away from.
+    expect(signOut).toHaveBeenCalled();
+  });
+
+  // Same for a cookie that does not parse — a truncated, re-encoded or
+  // hand-written value is tampering, not a reason to start the clock over.
+  it("expires a signed-in request whose cookie is unreadable", async () => {
+    const response = await updateSession(
+      buildRequest("/dashboard", { [ACTIVITY_COOKIE]: "not-a-stamp" }),
+    );
+
+    expect(response.headers.get("location")).toContain("timeout=unreadable");
+  });
+
+  it("advances the clock on a readable, live session", async () => {
+    const response = await updateSession(
+      buildRequest("/dashboard", { [ACTIVITY_COOKIE]: live() }),
+    );
 
     const activity = parseActivity(
       response.cookies.get(ACTIVITY_COOKIE)?.value,
     );
     expect(activity).not.toBeNull();
-    expect(activity?.startedAt).toBeCloseTo(activity?.lastSeenAt ?? 0, -2);
   });
 
   it("advances lastSeenAt but preserves startedAt on an active session", async () => {
@@ -146,7 +175,9 @@ describe("updateSession — activity tracking", () => {
   });
 
   it("outlives both timeout windows so eviction cannot resurrect a session", async () => {
-    const response = await updateSession(buildRequest("/dashboard"));
+    const response = await updateSession(
+      buildRequest("/dashboard", { [ACTIVITY_COOKIE]: live() }),
+    );
 
     const maxAge = response.cookies.get(ACTIVITY_COOKIE)?.maxAge ?? 0;
     expect(maxAge * 1000).toBeGreaterThanOrEqual(SESSION_TIMEOUT.absoluteMs);
@@ -154,7 +185,9 @@ describe("updateSession — activity tracking", () => {
   });
 
   it("marks the cookie httpOnly and lax", async () => {
-    const response = await updateSession(buildRequest("/dashboard"));
+    const response = await updateSession(
+      buildRequest("/dashboard", { [ACTIVITY_COOKIE]: live() }),
+    );
 
     const cookie = response.cookies.get(ACTIVITY_COOKIE);
     expect(cookie?.httpOnly).toBe(true);

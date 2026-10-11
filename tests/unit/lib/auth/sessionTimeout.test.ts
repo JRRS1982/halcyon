@@ -81,8 +81,18 @@ describe("nextActivity", () => {
 });
 
 describe("evaluateSession", () => {
-  it("treats a missing cookie as active rather than expired", () => {
-    expect(evaluateSession(null, NOW, config)).toEqual({ status: "active" });
+  // Until October 2026 this returned "active", which made the cookie the
+  // weakest link rather than the bound it exists to be: an attacker replaying
+  // stolen sb-* cookies could simply omit bm_activity on every request and
+  // never age out. It is the only lifetime bound in the app — Supabase's own
+  // session time-box is Pro-only and refresh tokens have no absolute expiry.
+  // Every authenticated entry point seeds the cookie, so on an authenticated
+  // request its absence is tampering or a stale session, never a new one.
+  it("treats a missing cookie as expired, not as a fresh session", () => {
+    expect(evaluateSession(null, NOW, config)).toEqual({
+      status: "expired",
+      reason: "unreadable",
+    });
   });
 
   it("is active within both windows", () => {

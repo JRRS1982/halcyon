@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { startActivityClock } from "@/lib/auth/activityClock";
 import { POST_AUTH_LANDING } from "@/lib/auth/landing";
 import { safeNext } from "@/lib/auth/safeNext";
 import { log } from "@/lib/log";
@@ -27,6 +28,11 @@ export const GET = async (request: Request) => {
       `${origin}/sign-in?error=${encodeURIComponent(error.message)}`,
     );
   }
+
+  // Sessions born here (OAuth, email confirmation, magic link) carry no
+  // activity cookie, and the proxy reads its absence as expired — so without
+  // this the user lands straight back on /sign-in.
+  await startActivityClock();
 
   return NextResponse.redirect(`${origin}${next}`);
 };

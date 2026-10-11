@@ -7,6 +7,10 @@ import { POST_AUTH_LANDING } from "@/lib/auth/landing";
 const TIMEOUT_NOTICES: Record<string, string> = {
   idle: "You were signed out after a period of inactivity.",
   absolute: "You were signed out because your session reached its time limit.",
+  // Not a time limit — the session's age was unreadable, so it was ended
+  // rather than trusted. Honest about the cause without inviting alarm.
+  unreadable:
+    "We couldn't confirm how long you'd been signed in, so we signed you out. Please sign in again.",
 };
 
 type Props = {

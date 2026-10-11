@@ -69,7 +69,9 @@ export function CookiePolicy() {
                 <td>
                   Records when your session started and was last active, so the
                   time limits above can be enforced. Contains two timestamps and
-                  nothing else.
+                  nothing else. Deleting it signs you out: without it we
+                  can&rsquo;t tell how long you&rsquo;ve been signed in, and we
+                  end the session rather than assume it just began.
                 </td>
                 <td>24 hours.</td>
               </tr>
