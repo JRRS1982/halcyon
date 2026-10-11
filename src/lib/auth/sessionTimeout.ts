@@ -53,7 +53,7 @@ export type SessionActivity = {
 
 export type SessionStatus =
   | { status: "active" }
-  | { status: "expired"; reason: "idle" | "absolute" };
+  | { status: "expired"; reason: "idle" | "absolute" | "unreadable" };
 
 // Cookie payload is "<startedAt>.<lastSeenAt>" in epoch milliseconds — cheaper
 // to read and write than JSON, and there is nothing else to carry.
@@ -119,7 +119,12 @@ export const evaluateSession = (
   now: number,
   config: SessionTimeoutConfig = SESSION_TIMEOUT,
 ): SessionStatus => {
-  if (activity === null) return { status: "active" };
+  // No readable activity on an authenticated request is a failure, not a
+  // beginning. Every entry point that creates a session seeds this cookie, and
+  // its max-age outlives both windows, so the only ways to arrive without one
+  // are tampering or a session predating this guard. Returning "active" here
+  // made the cookie trivially defeatable: omit it and neither limit ever fires.
+  if (activity === null) return { status: "expired", reason: "unreadable" };
   if (now - activity.startedAt >= config.absoluteMs)
     return { status: "expired", reason: "absolute" };
   if (now - activity.lastSeenAt >= config.idleMs)
