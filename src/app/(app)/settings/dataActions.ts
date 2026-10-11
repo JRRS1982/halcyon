@@ -178,8 +178,12 @@ function financialDeletes(userId: string) {
   ];
 }
 
-export async function exportMyData(): Promise<string> {
+export async function exportMyData(proof: Reauthentication): Promise<string> {
   const userId = await requireUserId();
+  // Handing over the whole financial record is at least as sensitive as
+  // deleting it, so it takes the same proof as its three destructive siblings.
+  // Without this an unlocked signed-in browser is a complete data breach.
+  await verifyUser(proof);
   if ((await checkRateLimit("data-export", userId)) !== "allowed") {
     throw new Error("Too many export requests. Please try again later.");
   }

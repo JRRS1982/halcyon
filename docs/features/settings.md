@@ -58,7 +58,7 @@ All destructive actions require step-up re-authentication — a password, or a o
 
 | Action | What it does |
 |--------|-------------|
-| Export my data | Returns a JSON string (schema version 2) containing all 10 user-owned tables. Rate-limited: 2 exports/minute. |
+| Export my data | Returns a JSON string (schema version 2) containing all 10 user-owned tables. Requires a step-up proof (password or emailed code) — the file is the whole record. Rate-limited: 2 exports/minute. |
 | Clear my data | Deletes all financial rows (transactions, budget, balance, accounts, plan, periods). Keeps User, UserSettings, and Categories. |
 | Reset to defaults | Same as clear, plus deletes categories, then re-seeds the starter data (41 categories, 6 accounts, £0 budget sheet). |
 | Delete my account | Deletes all rows including User and UserSettings, then calls Supabase admin to erase the auth identity. Redirects to `/`. |

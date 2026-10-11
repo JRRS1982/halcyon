@@ -65,6 +65,13 @@ const WarningBox = styled.div`
   gap: ${({ theme }) => theme.spacing.md};
 `;
 
+// The export's panel. Same shape as WarningBox, without the red border: an
+// export is sensitive, not destructive, and borrowing the destructive styling
+// would cry wolf on the two panels that really are irreversible.
+const ConfirmBox = styled(WarningBox)`
+  border-color: ${({ theme }) => theme.colors.hairline};
+`;
+
 const WarningTitle = styled.p`
   margin: 0;
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
@@ -115,7 +122,7 @@ const Alert = styled.p`
   font-size: 13px;
 `;
 
-type Mode = "reset" | "clear" | "delete" | null;
+type Mode = "export" | "reset" | "clear" | "delete" | null;
 
 const SERVER_ERRORS: Record<string, string> = {
   "Incorrect password": "Incorrect password.",
@@ -181,7 +188,7 @@ export function DataPrivacy({ method }: { method: ReauthMethod | null }) {
     startTransition(async () => {
       setError(null);
       try {
-        const json = await exportMyData();
+        const json = await exportMyData(proof());
         const blob = new Blob([json], { type: "application/json" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -189,8 +196,9 @@ export function DataPrivacy({ method }: { method: ReauthMethod | null }) {
         a.download = `halcyon-export-${new Date().toISOString().slice(0, 10)}.json`;
         a.click();
         URL.revokeObjectURL(url);
-      } catch {
-        setError("Export failed. Please try again.");
+        setMode(null);
+      } catch (err) {
+        setError(actionError(err, "Export failed. Please try again."));
       }
     });
 
@@ -316,12 +324,42 @@ export function DataPrivacy({ method }: { method: ReauthMethod | null }) {
           <Button
             type="button"
             variant="outline"
-            onClick={onExport}
+            onClick={() => start("export")}
             disabled={pending}
           >
             Export my data
           </Button>
         </Group>
+
+        {mode === "export" ? (
+          <ConfirmBox role="dialog" aria-label="Confirm data export">
+            <WarningTitle>Confirm it&rsquo;s you</WarningTitle>
+            <WarningText>
+              The file contains everything Halcyon holds about you — every
+              balance, transaction and plan. Anyone who can open it can read
+              your finances, so we ask who you are first.
+            </WarningText>
+            {renderProof()}
+            <Actions>
+              <Button
+                type="button"
+                variant="primary"
+                onClick={onExport}
+                disabled={pending || !secret}
+              >
+                Download
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={cancel}
+                disabled={pending}
+              >
+                Cancel
+              </Button>
+            </Actions>
+          </ConfirmBox>
+        ) : null}
 
         {mode === "reset" ? (
           <WarningBox role="alertdialog" aria-label="Confirm reset to defaults">
