@@ -51,6 +51,16 @@ export async function ensurePeriodForMonthIn(
   // Counted only on the create path, so navigating between months a user
   // already has costs nothing extra. Reading is never capped — an account at
   // the ceiling must still be able to open the months it owns.
+  //
+  // Check-then-write, so concurrent calls can each read the same count and all
+  // proceed: the real ceiling is MAX_PERIODS_PER_USER plus whatever was in
+  // flight. Accepted. The overshoot is bounded by concurrency and self-limits
+  // immediately — the next count is over the line and every later create is
+  // refused — so it turns "unlimited rows" into "1,200 and a bit", which is
+  // what the cap is for. Closing it properly needs a per-user advisory lock or
+  // SERIALIZABLE isolation, and this helper runs inside callers' own
+  // transactions, where either would be a deadlock risk for no real gain.
+  // MAX_TRANSACTIONS_PER_USER has the same shape and the same reasoning.
   const held = await db.financialPeriod.count({ where: { userId } });
   if (held >= MAX_PERIODS_PER_USER) {
     throw new Error(
