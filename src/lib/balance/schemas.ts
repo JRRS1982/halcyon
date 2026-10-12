@@ -1,5 +1,6 @@
 import type { AccountType } from "@prisma/client";
 import { z } from "zod";
+import { calendarYear } from "@/lib/budget/period";
 
 export const accountSectionSchema = z.enum([
   "CURRENT",
@@ -11,7 +12,7 @@ export const accountSectionSchema = z.enum([
 
 export const copyBalancePeriodFromSchema = z.object({
   sourcePeriodId: z.string().uuid(),
-  targetYear: z.number().int(),
+  targetYear: calendarYear,
   targetMonth: z.number().int().min(0).max(11),
 });
 
@@ -56,7 +57,7 @@ export const renameAccountSchema = z.object({
 export const upsertBalanceValueSchema = z
   .object({
     accountId: z.string().uuid(),
-    year: z.number().int(),
+    year: calendarYear,
     month: z.number().int().min(0).max(11),
     value: z.number().optional(),
     notes: z.string().max(2000).nullable().optional(),
@@ -67,7 +68,7 @@ export const upsertBalanceValueSchema = z
 
 export const clearBalanceValueSchema = z.object({
   accountId: z.string().uuid(),
-  year: z.number().int(),
+  year: calendarYear,
   month: z.number().int().min(0).max(11),
 });
 

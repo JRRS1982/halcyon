@@ -2,6 +2,7 @@ import "server-only";
 
 import type { User } from "@supabase/supabase-js";
 import { cache } from "react";
+import { isEmailConfirmed } from "@/lib/auth/confirmed";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -22,5 +23,9 @@ export const getCurrentUser = cache(async (): Promise<User | null> => {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  // An unconfirmed address is not an identity. Treated as signed out rather
+  // than trusted, so the guarantee lives in code instead of in a dashboard
+  // toggle this repo cannot see.
+  if (user && !isEmailConfirmed(user)) return null;
   return user;
 });

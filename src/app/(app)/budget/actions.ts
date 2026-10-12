@@ -16,7 +16,12 @@ import {
   type CopyableItem,
 } from "@/lib/budget/copyPeriod";
 import { ensurePeriodForMonthIn } from "@/lib/budget/ensurePeriod";
-import { currentMonthRange, monthRangeFor } from "@/lib/budget/period";
+import {
+  calendarMonth,
+  calendarYear,
+  currentMonthRange,
+  monthRangeFor,
+} from "@/lib/budget/period";
 import {
   type CopyPeriodFromInput,
   type CreateItemForMonthInput,
@@ -78,7 +83,13 @@ export async function ensureCurrentPeriod() {
 // Creates it if missing. Used by the toolbar stepper / picker to navigate
 // between periods (including ones that haven't been visited yet).
 export async function ensurePeriodForMonth(year: number, month: number) {
-  const range = monthRangeFor(year, month);
+  // Parsed, like every other action in this file. These two arrive straight
+  // from the client and reached Date.UTC() unchecked, which is how a row
+  // labelled "undefined 2026" could be written.
+  const range = monthRangeFor(
+    calendarYear.parse(year),
+    calendarMonth.parse(month),
+  );
   return ensurePeriodForMonthInternal(
     range.startDate,
     range.endDate,

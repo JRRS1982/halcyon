@@ -2,6 +2,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { type CategorySection, PrismaClient, UserStatus } from "@prisma/client";
 import { createClient } from "@supabase/supabase-js";
 import { buildAccountData } from "../src/lib/accounts/creation";
+import { isSeedableAuthProject } from "../src/lib/auth/demo";
 import { monthRangeFor, previousMonth } from "../src/lib/budget/period";
 import { netActual } from "../src/lib/transactions/actual";
 
@@ -78,6 +79,18 @@ function adminClient() {
 // Finds or creates the demo user in cloud Supabase auth and returns its uuid.
 // Idempotent: re-running reuses the existing auth user rather than erroring.
 async function seedAuthUser(): Promise<string> {
+  // assertLocalDatabase() checks DATABASE_URL, which is the wrong connection
+  // for this function: auth users go to NEXT_PUBLIC_SUPABASE_URL, not through
+  // Prisma. Without this, a .env pairing a local DATABASE_URL with the
+  // production Supabase URL would mint demo@halcyon.local — password published
+  // in this repo — in production auth.
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!isSeedableAuthProject(supabaseUrl)) {
+    throw new Error(
+      `Refusing to seed auth: NEXT_PUBLIC_SUPABASE_URL "${supabaseUrl ?? "(unset)"}" is not an allowed project. Add its ref to SEEDABLE_PROJECT_REFS in src/lib/auth/demo.ts if that is deliberate.`,
+    );
+  }
+
   const admin = adminClient();
 
   const { data: list, error: listError } = await admin.auth.admin.listUsers();

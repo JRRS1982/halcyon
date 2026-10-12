@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 // Date helpers for FinancialPeriod. v1 uses UTC calendar months only.
 
 const MONTH_NAMES = [
@@ -20,6 +22,16 @@ export type PeriodRange = {
   endDate: Date;
   label: string;
 };
+
+// Bounds for anything that reaches monthRangeFor or a FinancialPeriod write.
+//
+// Unbounded, `[2026, 999]` yields MONTH_NAMES[999] === undefined (a row labelled
+// "undefined 2026") and a startDate centuries out, and a loop over distinct
+// years mints junk periods without limit. 1900–2200 is wider than any ledger a
+// person will keep and still three orders of magnitude tighter than the integer
+// space. Month is 0-indexed, so 0–11.
+export const calendarYear = z.number().int().min(1900).max(2200);
+export const calendarMonth = z.number().int().min(0).max(11);
 
 // Returns the calendar-month range for a given (year, month) — month is
 // 0-indexed (0=Jan, 11=Dec). startDate is the first of the month at 00:00 UTC;

@@ -33,6 +33,9 @@ jest.mock("@/lib/supabase/server", () => ({
             id: "00000000-0000-0000-0000-0000000000aa",
             email: mockUserEmail,
             identities: mockIdentities,
+            // Confirmed, like any real signed-in account — the app treats an
+            // unconfirmed address as signed out (src/lib/auth/confirmed.ts).
+            email_confirmed_at: "2026-01-01T00:00:00.000Z",
           },
         },
       }),
