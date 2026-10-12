@@ -1,8 +1,10 @@
 /**
  * @jest-environment node
  */
-const checkRateLimit = jest.fn(async () => "allowed");
-const unsubscribeByToken = jest.fn(async () => "unsubscribed");
+const checkRateLimit = jest.fn(
+  async (_action: string, _subject: string) => "allowed",
+);
+const unsubscribeByToken = jest.fn(async (_token: string) => "unsubscribed");
 
 jest.mock("@/lib/rateLimit", () => ({
   checkRateLimit: (action: string, subject: string) =>
