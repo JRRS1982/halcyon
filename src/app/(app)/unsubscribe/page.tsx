@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { unsubscribeTokenExists } from "@/lib/email/subscriptions";
+import { clientIp } from "@/lib/http/clientIp";
+import { checkRateLimit } from "@/lib/rateLimit";
 import { confirmUnsubscribe } from "./actions";
 import { UnsubscribePanel } from "./UnsubscribePanel";
 
@@ -30,12 +32,20 @@ export default async function UnsubscribePage({
   // Looked up before anything is shown, so a link that matches nobody says so
   // straight away rather than offering a button that turns out to do nothing.
   // A read only — the change itself needs the POST below.
-  const recognised = done ? true : await unsubscribeTokenExists(token);
+  //
+  // Rate limited on the same bucket as the action and POST /api/unsubscribe:
+  // this lookup is an unauthenticated query against production Postgres, and
+  // limiting only the API route left it reachable without one.
+  const limited =
+    !done &&
+    (await checkRateLimit("unsubscribe", await clientIp())) !== "allowed";
+  const recognised =
+    done || limited ? true : await unsubscribeTokenExists(token);
 
   return (
     <UnsubscribePanel
       token={token}
-      done={done ?? (recognised ? undefined : "unknown")}
+      done={done ?? (limited ? "busy" : recognised ? undefined : "unknown")}
       action={confirmUnsubscribe}
     />
   );
