@@ -72,6 +72,27 @@ export function UnsubscribePanel({ token, done, action }: Props) {
     );
   }
 
+  // Rate limited. Opting out is a right, not a favour, so this says plainly
+  // that the request will work shortly rather than implying it was refused.
+  if (done === "busy") {
+    return (
+      <Shell>
+        <PageHeader
+          eyebrow="Reminders"
+          title="Just a moment"
+          lead="We're seeing a lot of requests right now. Wait a minute and open this link again — your reminders are still on until you confirm."
+        />
+        <Body>
+          If it keeps happening, sign in and switch reminders off in Settings
+          instead.
+        </Body>
+        <Actions>
+          <QuietLink href="/settings">Go to Settings</QuietLink>
+        </Actions>
+      </Shell>
+    );
+  }
+
   // An unrecognised token. Not framed as an error the visitor caused: the
   // likeliest cause is that the account was deleted, which is a state they
   // already wanted.

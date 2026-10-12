@@ -54,6 +54,33 @@ const hasPolicy = (sql: string, table: string): boolean =>
     "i",
   ).test(sql);
 
+// Tables revoked in bulk. 20261012090000 does every table in one FOREACH over
+// a name array rather than seventeen statements, so a per-table check has to
+// look inside that array as well as at the individual-statement form
+// 20261009120000 used for SentMessage.
+const bulkRevokedTables = (sql: string): Set<string> => {
+  const names = new Set<string>();
+  for (const block of sql.split(/DO \$outer\$/)) {
+    if (!/REVOKE\s+INSERT,\s*UPDATE,\s*DELETE/i.test(block)) continue;
+    const array = block.match(/ARRAY\s*\[([^\]]+)\]/i);
+    if (!array?.[1]) continue;
+    for (const [, name] of array[1].matchAll(/'([^']+)'/g))
+      if (name) names.add(name);
+  }
+  return names;
+};
+
+const revokesWrites = (
+  sql: string,
+  table: string,
+  bulk: Set<string>,
+): boolean =>
+  bulk.has(table) ||
+  new RegExp(
+    `REVOKE[^;]*?ON\\s+(?:public\\.)?"${table}"[^;]*?FROM[^;]*?authenticated`,
+    "is",
+  ).test(sql);
+
 describe("row level security", () => {
   const sql = allMigrationSql();
   const models = modelNames();
@@ -71,5 +98,16 @@ describe("row level security", () => {
 
   it.each(models)("%s has an owner policy", (model) => {
     expect(hasPolicy(sql, model)).toBe(true);
+  });
+
+  // A policy answers "whose rows?", never "may you write at all?". Supabase
+  // grants anon/authenticated full table access by default, so a model with a
+  // policy but no revoke still lets a signed-in account POST rows straight to
+  // /rest/v1/<table> under its own auth.uid() — bypassing every ceiling the
+  // app enforces, because the Data API runs none of its code. Nothing in this
+  // app writes that way (supabase.auth only, no .from() in src/), so the whole
+  // write surface should stay revoked as new models are added.
+  it.each(models)("%s has Data API writes revoked", (model) => {
+    expect(revokesWrites(sql, model, bulkRevokedTables(sql))).toBe(true);
   });
 });
