@@ -1,11 +1,15 @@
 /**
  * @jest-environment node
  */
-const exchangeCodeForSession = jest.fn(async () => ({ error: null }));
+const exchangeCodeForSession = jest.fn(async () => ({
+  data: { redirectType: null },
+  error: null,
+}));
+const signOut = jest.fn(async () => ({ error: null }));
 const cookieSet = jest.fn();
 
 jest.mock("@/lib/supabase/server", () => ({
-  createClient: async () => ({ auth: { exchangeCodeForSession } }),
+  createClient: async () => ({ auth: { exchangeCodeForSession, signOut } }),
 }));
 jest.mock("next/headers", () => ({
   cookies: async () => ({ set: cookieSet }),
@@ -18,7 +22,10 @@ import { ACTIVITY_COOKIE, parseActivity } from "@/lib/auth/sessionTimeout";
 const callback = (url: string) => GET(new Request(url));
 
 describe("auth callback", () => {
-  beforeEach(() => cookieSet.mockClear());
+  beforeEach(() => {
+    cookieSet.mockClear();
+    signOut.mockClear();
+  });
 
   // The proxy treats an authenticated request with no readable activity cookie
   // as expired. The password form seeds that clock itself, but every session
@@ -51,5 +58,55 @@ describe("auth callback", () => {
     await callback("https://balanced.money/auth/callback");
 
     expect(cookieSet).not.toHaveBeenCalled();
+  });
+
+  // redirectType comes from the PKCE verifier cookie written when the flow
+  // started, not from a query param, so it is a signal about this browser's
+  // own flow rather than something a link can assert. It is "recovery" only
+  // when resetPasswordForEmail opened the flow.
+  //
+  // This app has no password-reset screen, so a recovery code reaching here
+  // would mint a full session and drop the user on the dashboard — signed in,
+  // never asked for a new password. A recovery link is proof of email control
+  // leading to a password set, not a general-purpose login.
+  it("refuses a recovery code, which this app has no screen for", async () => {
+    exchangeCodeForSession.mockResolvedValueOnce({
+      data: { redirectType: "recovery" },
+      error: null,
+    } as never);
+
+    const response = await callback(
+      "https://balanced.money/auth/callback?code=abc",
+    );
+
+    expect(cookieSet).not.toHaveBeenCalled();
+    expect(response.headers.get("location")).toContain("/sign-in?error=");
+  });
+
+  // exchangeCodeForSession writes the session cookie before it returns, so a
+  // refusal that only redirects leaves the browser holding a working session
+  // and the user one navigation away from the dashboard.
+  it("ends the session it refuses rather than only redirecting", async () => {
+    exchangeCodeForSession.mockResolvedValueOnce({
+      data: { redirectType: "recovery" },
+      error: null,
+    } as never);
+
+    await callback("https://balanced.money/auth/callback?code=abc");
+
+    expect(signOut).toHaveBeenCalled();
+  });
+
+  // Supabase redirects here with `error`/`error_description` and no code when
+  // the user declines consent at the provider or follows an expired link.
+  // Reported as "Missing auth code", that reads like a bug in the app.
+  it("surfaces the provider's reason instead of a missing-code message", async () => {
+    const response = await callback(
+      "https://balanced.money/auth/callback?error=access_denied&error_description=User%20declined",
+    );
+
+    const location = response.headers.get("location") ?? "";
+    expect(location).toContain("User%20declined");
+    expect(location).not.toContain("Missing%20auth%20code");
   });
 });
