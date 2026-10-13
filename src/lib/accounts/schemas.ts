@@ -3,6 +3,7 @@ import { z } from "zod";
 import { type TermField, termsFor } from "@/lib/accounts/accountDraft";
 import { accountSectionSchema, accountTypeSchema } from "@/lib/balance/schemas";
 import { calendarYear } from "@/lib/budget/period";
+import { money14 } from "@/lib/money/bounds";
 
 // Every parameter is optional and nullable, and the two mean different things:
 // absent = "don't touch this", null = "clear it, take the default". The card
@@ -38,7 +39,7 @@ export const createAccountSchema = z
     name: z.string().trim().min(1).max(120),
     type: accountTypeSchema,
     section: accountSectionSchema,
-    value: z.number(),
+    value: money14,
     canImportTransactions: z.boolean(),
     // Empty when the drawer's advanced section was left alone, which is the
     // common case — the action then writes no terms row at all.
@@ -46,7 +47,7 @@ export const createAccountSchema = z
     mortgage: z
       .object({
         name: z.string().trim().min(1).max(120),
-        value: z.number(),
+        value: money14,
         canImportTransactions: z.boolean(),
         terms: accountTermsSchema.default({}),
       })

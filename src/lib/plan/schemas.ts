@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { calendarDate } from "@/lib/budget/period";
+import { money14 } from "@/lib/money/bounds";
 
 const WRAPPER = z.enum([
   "PENSION",
@@ -57,7 +58,7 @@ export const updatePlanAssetSchema = z.object({
   wrapper: WRAPPER,
   // Unbounded like BalanceItem.value, the observation Sync copies here: an
   // overdrawn current account is an asset row with a negative balance.
-  openingValue: z.number(),
+  openingValue: money14,
   expectedReturnPct: columnPct.nullable(),
   feePct: columnPct,
   monthlyContribution: z.number().min(0),
@@ -71,7 +72,7 @@ export const updatePlanLiabilitySchema = z
   .object({
     liabilityId: z.string().uuid(),
     label: z.string().min(1).max(200),
-    openingBalance: z.number(),
+    openingBalance: money14,
     interestPct: columnPct,
     monthlyRepayment: z.number().min(0),
     startAge: z.number().int().min(0).max(120).nullable(),
@@ -184,7 +185,7 @@ export const createPlanAssetSchema = z
   .object({
     label: z.string().min(1).max(200),
     wrapper: WRAPPER,
-    openingValue: z.number().min(0),
+    openingValue: money14.min(0),
     mortgage: mortgageChoice.optional(),
   })
   .refine((a) => a.wrapper === "PROPERTY" || a.mortgage === undefined, {
@@ -194,7 +195,7 @@ export const createPlanAssetSchema = z
 
 export const createPlanLiabilitySchema = z.object({
   label: z.string().min(1).max(200),
-  openingBalance: z.number().min(0),
+  openingBalance: money14.min(0),
   property: propertyChoice.optional(),
 });
 
