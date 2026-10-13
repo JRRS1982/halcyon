@@ -16,11 +16,21 @@
 // two hundred income streams — so this only ever bites automated abuse.
 export const MAX_PLAN_ROWS_PER_KIND = 200;
 
+// Shared so the one-at-a-time creates and the bulk Sync path report the same
+// ceiling the same way. Sync bypassed this entirely until October 2026: the cap
+// lived only in nextSortOrderWithinCap, which the manual creates call and
+// applySyncPlan does not — so the constant read like the plan's ceiling while
+// the bulk path walked past it.
+export const planFullError = (kind: string) =>
+  new Error(
+    `This plan already has the maximum of ${MAX_PLAN_ROWS_PER_KIND} ${kind} rows.`,
+  );
+
 // The subset of a Prisma delegate this needs. Structural rather than a union of
 // the five generated types: every Plan* child is counted and ordered the same
 // way, and naming them individually would mean editing this file whenever a
 // sixth is added.
-type PlanRowDelegate = {
+export type PlanRowDelegate = {
   count(args: { where: { planId: string; deletedAt: null } }): Promise<number>;
   aggregate(args: {
     where: { planId: string; deletedAt: null };
@@ -53,11 +63,7 @@ export async function nextSortOrderWithinCap(
     }),
   ]);
 
-  if (held >= MAX_PLAN_ROWS_PER_KIND) {
-    throw new Error(
-      `This plan already has the maximum of ${MAX_PLAN_ROWS_PER_KIND} ${kind} rows.`,
-    );
-  }
+  if (held >= MAX_PLAN_ROWS_PER_KIND) throw planFullError(kind);
 
   return (max._max.sortOrder ?? -1) + 1;
 }

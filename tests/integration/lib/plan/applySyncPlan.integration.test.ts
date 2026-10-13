@@ -10,6 +10,7 @@ import type { AccountType } from "@prisma/client";
 import { TEST_USER_ID } from "@test/support/helpers";
 import { buildAccountData } from "@/lib/accounts/creation";
 import { applySyncPlan } from "@/lib/plan/applySyncPlan";
+import { MAX_PLAN_ROWS_PER_KIND } from "@/lib/plan/limits";
 import { emptyRowTerms } from "@/lib/plan/rowTerms";
 import { prisma } from "@/lib/prisma";
 
@@ -237,5 +238,93 @@ describe("applySyncPlan (integration, direct)", () => {
       ["ISA", 5],
       ["SIPP", 6],
     ]);
+  });
+});
+
+// Sync writes rows directly rather than through nextSortOrderWithinCap, so
+// MAX_PLAN_ROWS_PER_KIND did not apply to this path at all — the ceiling held
+// for the one-at-a-time creates while the bulk path walked straight past it.
+// Chained with an uncapped account list, one press of Sync could write
+// thousands of PlanAsset rows, and the projection is O(rows x years) so every
+// later /plan render pays for it.
+describe("applySyncPlan — the per-kind ceiling", () => {
+  // Real accounts, because linkId is an Account id and the plan row carries it
+  // as a foreign key — and because the attack this guards chains through an
+  // uncapped account list in the first place.
+  const additionsFor = async (count: number) => {
+    const accounts = await Promise.all(
+      Array.from({ length: count }, (_, i) =>
+        prisma.account.create({
+          data: {
+            userId: TEST_USER_ID,
+            name: `Account ${i}`,
+            ...buildAccountData({ type: "SAVINGS" as AccountType }),
+          },
+        }),
+      ),
+    );
+    return accounts.map((account, i) => ({
+      kind: "ASSET" as const,
+      linkId: account.id,
+      label: `Added ${i}`,
+      value: 1,
+      wrapper: null,
+      flow: 0,
+      terms: emptyRowTerms(),
+      defaults: { drawdownPriority: 0, incomeKind: null, expenseSection: null },
+    }));
+  };
+
+  const sync = (
+    plan: { id: string },
+    additions: Awaited<ReturnType<typeof additionsFor>>,
+  ) =>
+    applySyncPlan(
+      prisma,
+      plan.id,
+      TEST_USER_ID,
+      { updates: [], removals: [], additions, unchanged: [] },
+      new Map(),
+    );
+
+  const fill = (planId: string, count: number) =>
+    prisma.planAsset.createMany({
+      data: Array.from({ length: count }, (_, i) => ({
+        planId,
+        label: `Held ${i}`,
+        openingValue: 0,
+        sortOrder: i,
+      })),
+    });
+
+  it("adds rows while the plan is under the ceiling", async () => {
+    const plan = await ownPlan();
+    await expect(sync(plan, await additionsFor(3))).resolves.toBeUndefined();
+    expect(await prisma.planAsset.count({ where: { planId: plan.id } })).toBe(
+      3,
+    );
+  });
+
+  it("refuses a Sync that would breach the ceiling", async () => {
+    const plan = await ownPlan();
+    await fill(plan.id, MAX_PLAN_ROWS_PER_KIND - 1);
+
+    await expect(sync(plan, await additionsFor(5))).rejects.toThrow(
+      /maximum of \d+ ASSET rows/i,
+    );
+  });
+
+  // All-or-nothing, like the rest of Sync: a run that would breach writes
+  // nothing rather than stopping part-way and leaving a plan the user never
+  // asked for.
+  it("writes nothing at all when it would breach", async () => {
+    const plan = await ownPlan();
+    await fill(plan.id, MAX_PLAN_ROWS_PER_KIND - 1);
+
+    await expect(sync(plan, await additionsFor(5))).rejects.toThrow();
+
+    expect(await prisma.planAsset.count({ where: { planId: plan.id } })).toBe(
+      MAX_PLAN_ROWS_PER_KIND - 1,
+    );
   });
 });

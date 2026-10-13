@@ -7,6 +7,11 @@
 // rather than in syncActions.ts so it stays importable from both places.
 
 import type { Prisma } from "@prisma/client";
+import {
+  MAX_PLAN_ROWS_PER_KIND,
+  type PlanRowDelegate,
+  planFullError,
+} from "@/lib/plan/limits";
 import type {
   PlanRowKind,
   RealityRow,
@@ -298,6 +303,45 @@ async function nextSortOrders(
   };
 }
 
+// Room for everything this Sync is about to add, checked before any of it is
+// written.
+//
+// Sync creates rows directly rather than through nextSortOrderWithinCap, so
+// MAX_PLAN_ROWS_PER_KIND did not apply here at all — the ceiling held for the
+// one-at-a-time creates while the bulk path walked past it. Chained with an
+// uncapped account list, one press of Sync could write thousands of PlanAsset
+// rows, and the projection is O(rows x years) so every later /plan render pays
+// for it.
+//
+// Checked in a batch rather than per row because a Sync is all-or-nothing: a
+// run that would breach the ceiling fails before writing anything, instead of
+// stopping half way and leaving the plan in a state the user did not ask for.
+async function assertRoomForAdditions(
+  tx: Prisma.TransactionClient,
+  planId: string,
+  additions: readonly RealityRow[],
+): Promise<void> {
+  const wanted = new Map<PlanRowKind, number>();
+  for (const addition of additions) {
+    wanted.set(addition.kind, (wanted.get(addition.kind) ?? 0) + 1);
+  }
+
+  const where = { planId, deletedAt: null };
+  for (const [kind, count] of wanted) {
+    // Typed structurally: Prisma's four generated delegates have incompatible
+    // generic signatures, so a bare union of them is not callable.
+    const delegates: Record<PlanRowKind, PlanRowDelegate> = {
+      ASSET: tx.planAsset,
+      LIABILITY: tx.planLiability,
+      INCOME: tx.planIncome,
+      EXPENSE: tx.planExpense,
+    };
+
+    const held = await delegates[kind].count({ where });
+    if (held + count > MAX_PLAN_ROWS_PER_KIND) throw planFullError(kind);
+  }
+}
+
 export async function applySyncPlan(
   tx: Prisma.TransactionClient,
   planId: string,
@@ -345,6 +389,8 @@ export async function applySyncPlan(
   // Read after the removals above, so a row this Sync deleted does not hold a
   // sortOrder open. Incremented in memory from there, keeping the additions
   // deterministic — and in resolution order — within one run.
+  await assertRoomForAdditions(tx, planId, plan.additions);
+
   const sortOrders = await nextSortOrders(tx, planId);
   for (const addition of plan.additions) {
     await addRow(
