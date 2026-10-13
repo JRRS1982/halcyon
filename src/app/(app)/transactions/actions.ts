@@ -4,11 +4,14 @@ import type { AccountKind } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { kindOf } from "@/lib/accounts/accountDraft";
+import { createAccountWithinCap } from "@/lib/accounts/createWithinCap";
 import { buildAccountData } from "@/lib/accounts/creation";
 import { calendarDate } from "@/lib/budget/period";
 import { categorySectionSchema } from "@/lib/budget/schemas";
+import { createCategoryWithinCap } from "@/lib/categories/createWithinCap";
 import { cleanLabel } from "@/lib/categories/normalize";
 import { sectionFor, sectionLabel } from "@/lib/categories/sections";
+import { money14 } from "@/lib/money/bounds";
 import { prisma } from "@/lib/prisma";
 import { requireTransactionsEnabled } from "@/lib/settings/server";
 import { transactionFingerprint } from "@/lib/transactions/dedupe";
@@ -18,6 +21,7 @@ import {
   mapRows,
 } from "@/lib/transactions/import";
 import {
+  countedByCap,
   MAX_IMPORT_ROWS,
   MAX_TRANSACTIONS_PER_USER,
 } from "@/lib/transactions/limits";
@@ -102,11 +106,12 @@ async function resolveAccount(
 
   const name = cleanLabel(newAccountName ?? "");
   if (!name) throw new Error("An account is required to import");
-  const created = await prisma.account.create({
-    data: { userId, name, ...buildAccountData({ type: "CURRENT_ACCOUNT" }) },
-    select: { id: true, name: true },
+  const created = await createAccountWithinCap(prisma.account, {
+    userId,
+    name,
+    ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
   });
-  return created;
+  return { id: created.id, name: created.name };
 }
 
 // Maps + splits the parsed CSV into importable (valid) rows and an invalid
@@ -137,17 +142,28 @@ export async function previewImport(
       select: { id: true },
     });
     if (account) {
-      const dates = valid.map((row) => row.date as Date);
-      const min = new Date(Math.min(...dates.map((d) => d.getTime())));
-      const max = new Date(Math.max(...dates.map((d) => d.getTime())));
+      // Look only at the dates the CSV actually names, not the span between
+      // its earliest and latest. A duplicate has to share a date with one of
+      // these rows — the fingerprint includes the date — so the span was never
+      // doing work the `in` list does not, and it loaded every transaction in
+      // between. With a wide-enough CSV that is the whole ledger, in a route
+      // that writes nothing and so is bounded by no cap.
+      //
+      // `take` is the second fence: distinct dates are bounded by
+      // MAX_IMPORT_ROWS, but a single date can hold many transactions, and the
+      // only thing this read feeds is a fingerprint set.
+      const dates = [
+        ...new Set(valid.map((row) => (row.date as Date).getTime())),
+      ].map((time) => new Date(time));
       const existing = await prisma.transaction.findMany({
         where: {
           userId,
           accountId,
           deletedAt: null,
-          date: { gte: min, lte: max },
+          date: { in: dates },
         },
         select: { date: true, amount: true, description: true },
+        take: MAX_IMPORT_ROWS * 2,
       });
       const seen = new Set(
         existing.map((tx) =>
@@ -196,13 +212,13 @@ export async function commitImport(input: CommitInput): Promise<ImportResult> {
 
   let autoCategorised = 0;
   if (toInsert.length > 0) {
-    // Bound the total a single user can accumulate across all imports. Counting
-    // live rows (deletedAt: null) keeps reversed/deleted batches from counting
-    // against the cap, and fails closed: if the count query throws, the import
-    // does not proceed.
-    const existing = await prisma.transaction.count({
-      where: { userId, deletedAt: null },
-    });
+    // Bound the total a single user can accumulate across all imports.
+    // countedByCap counts every row, tombstones included, so reversing or
+    // deleting an import does NOT free room here — that is the point, since
+    // both delete paths are soft and a live count let commit → reverse →
+    // repeat write forever. Fails closed: if the count query throws, the
+    // import does not proceed.
+    const existing = await countedByCap(prisma.transaction, userId);
     if (existing + toInsert.length > MAX_TRANSACTIONS_PER_USER) {
       throw new Error(
         `Import would exceed the ${MAX_TRANSACTIONS_PER_USER.toLocaleString()} transaction limit`,
@@ -237,27 +253,33 @@ export async function commitImport(input: CommitInput): Promise<ImportResult> {
       ),
     );
 
-    // The batch groups this run's rows so the whole import can be reversed.
-    const batch = await prisma.importBatch.create({
-      data: { userId, accountId: account.id, fileName: fileName ?? null },
-      select: { id: true },
-    });
-    await prisma.transaction.createMany({
-      data: toInsert.map((row) => {
-        const categoryId = memory.get(descriptionKey(row.description)) ?? null;
-        if (categoryId) autoCategorised += 1;
-        return {
-          userId,
-          accountId: account.id,
-          importBatchId: batch.id,
-          date: row.date as Date,
-          amount: row.amount as number,
-          description: row.description,
-          categoryId,
-          // Kept CSV columns, keyed by header label (undefined leaves NULL).
-          extra: row.extra ?? undefined,
-        };
-      }),
+    // The batch groups this run's rows so the whole import can be reversed —
+    // and is created in the same transaction as them, so a rejected row set
+    // leaves no batch behind. Separately, it would appear in the reverse
+    // picker as an import the user could undo with nothing in it.
+    await prisma.$transaction(async (tx) => {
+      const batch = await tx.importBatch.create({
+        data: { userId, accountId: account.id, fileName: fileName ?? null },
+        select: { id: true },
+      });
+      await tx.transaction.createMany({
+        data: toInsert.map((row) => {
+          const categoryId =
+            memory.get(descriptionKey(row.description)) ?? null;
+          if (categoryId) autoCategorised += 1;
+          return {
+            userId,
+            accountId: account.id,
+            importBatchId: batch.id,
+            date: row.date as Date,
+            amount: row.amount as number,
+            description: row.description,
+            categoryId,
+            // Kept CSV columns, keyed by header label (undefined leaves NULL).
+            extra: row.extra ?? undefined,
+          };
+        }),
+      });
     });
   }
 
@@ -401,10 +423,9 @@ const createTransactionSchema = z.object({
   description: z.string().trim().min(1).max(300),
   // Bank-signed, like imported rows: negative for money out, positive for
   // money in. Zero records nothing and is refused.
-  amount: z
-    .number()
-    .finite()
-    .refine((v) => v !== 0, { message: "Amount can't be zero" }),
+  amount: money14.refine((v) => v !== 0, {
+    message: "Amount can't be zero",
+  }),
   categoryId: z.string().uuid().nullable(),
 });
 
@@ -437,9 +458,7 @@ export async function createTransaction(
   // write path into the same table, and a loop over it grows that table just
   // as effectively as a loop over the import — a cap on one route only is not
   // a cap.
-  const existing = await prisma.transaction.count({
-    where: { userId, deletedAt: null },
-  });
+  const existing = await countedByCap(prisma.transaction, userId);
   if (existing + 1 > MAX_TRANSACTIONS_PER_USER) {
     throw new Error(
       `You have reached the ${MAX_TRANSACTIONS_PER_USER.toLocaleString()} transaction limit`,
@@ -648,13 +667,10 @@ export async function createAccountAndTransfer(
     // gesture, not the balance drawer — so it defaults to SAVINGS: a plain
     // asset, same bucket most transfer counterparties actually are. It still
     // lands in the ledger picker's Transfers group regardless of type.
-    const account = await tx.account.create({
-      data: {
-        userId,
-        name: cleanLabel(name),
-        ...buildAccountData({ type: "SAVINGS" }),
-      },
-      select: { id: true, name: true, type: true },
+    const account = await createAccountWithinCap(tx.account, {
+      userId,
+      name: cleanLabel(name),
+      ...buildAccountData({ type: "SAVINGS" }),
     });
 
     // A freshly-created account can't own any existing transaction, so no
@@ -706,14 +722,11 @@ export async function createAndAssignCategory(
   const resolvedSection = sectionFor(type, section);
 
   const created = await prisma.$transaction(async (tx) => {
-    const newCategory = await tx.category.create({
-      data: {
-        userId,
-        label: cleanLabel(label),
-        type,
-        section: resolvedSection,
-      },
-      select: { id: true, label: true, type: true },
+    const newCategory = await createCategoryWithinCap(tx.category, {
+      userId,
+      label: cleanLabel(label),
+      type,
+      section: resolvedSection,
     });
 
     const result = await tx.transaction.updateMany({

@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import type { AuthNoticeCode } from "@/lib/auth/authNotices";
 import { checkPasswordBreach } from "@/lib/auth/breachedPassword";
 import { callbackOrigin } from "@/lib/auth/callbackOrigin";
 import { signUpSchema } from "@/lib/auth/schemas";
@@ -9,20 +10,17 @@ import { log } from "@/lib/log";
 import { checkRateLimit, type RateLimitVerdict } from "@/lib/rateLimit";
 import { createClient } from "@/lib/supabase/server";
 
-function failSignUp(message: string): never {
-  redirect(`/sign-up?error=${encodeURIComponent(message)}`);
+// A code, never a message: see lib/auth/authNotices.ts.
+function failSignUp(code: AuthNoticeCode): never {
+  redirect(`/sign-up?error=${code}`);
 }
 
 // Every sign-up sends a confirmation email, so this is the one place the
 // limiter fails closed (see src/lib/rateLimit): with the store down, pausing
 // new sign-ups is cheaper than an unbounded stream of outbound mail.
-const rejectionFor = (verdict: RateLimitVerdict): string | null => {
-  if (verdict === "limited") {
-    return "Too many attempts. Please wait a minute and try again.";
-  }
-  if (verdict === "unavailable") {
-    return "Sign-up is temporarily unavailable. Please try again shortly.";
-  }
+const rejectionFor = (verdict: RateLimitVerdict): AuthNoticeCode | null => {
+  if (verdict === "limited") return "too-many-attempts";
+  if (verdict === "unavailable") return "signup-unavailable";
   return null;
 };
 
@@ -33,7 +31,11 @@ export const signUp = async (formData: FormData) => {
   });
 
   if (!parsed.success) {
-    failSignUp(parsed.error.issues[0]?.message ?? "Invalid form submission");
+    failSignUp(
+      parsed.error.issues[0]?.path[0] === "email"
+        ? "invalid-email"
+        : "password-too-short",
+    );
   }
 
   // Two buckets: the client's IP bounds one attacker, the address bounds how
@@ -56,9 +58,7 @@ export const signUp = async (formData: FormData) => {
   // worse failure, and the same call the rate limiter makes for sign-in.
   const breach = await checkPasswordBreach(parsed.data.password);
   if (breach === "breached") {
-    failSignUp(
-      "That password has appeared in a data breach. Please choose another.",
-    );
+    failSignUp("password-breached");
   }
   if (breach === "unknown") {
     log.warn("Breached-password check unavailable; allowing sign-up");

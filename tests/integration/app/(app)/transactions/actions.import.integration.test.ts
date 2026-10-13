@@ -187,4 +187,54 @@ describe("import (integration)", () => {
       expect(tesco?.categoryId).toBeNull();
     });
   });
+
+  // The duplicate lookup used to query the span between the CSV's earliest and
+  // latest dates, which loaded every transaction in between — on a wide CSV,
+  // the whole ledger, in a route that writes nothing and so is capped by
+  // nothing. It now queries only the dates the CSV names. This is the case
+  // that would break if the `in` list were wrong: the dates are years apart,
+  // so a span would cover them trivially while an `in` list has to be exact.
+  test("flags duplicates on dates that are years apart", async () => {
+    const scattered = [
+      ["date", "desc", "amount"],
+      ["2020-01-15", "Old thing", "-10"],
+      ["2026-03-02", "Shell", "-50"],
+    ];
+
+    const res = await commitImport({
+      accountId: null,
+      newAccountName: "Scattered",
+      rows: scattered,
+      mapping,
+      skipIndexes: [],
+    });
+    expect(res.imported).toBe(2);
+
+    const account = await prisma.account.findFirstOrThrow({
+      where: { userId: TEST_USER_ID, name: "Scattered" },
+    });
+
+    // A transaction sitting between the two CSV dates — the span query would
+    // have loaded it, the `in` list must not, and either way it is not a
+    // duplicate of anything in the file.
+    await prisma.transaction.create({
+      data: {
+        userId: TEST_USER_ID,
+        accountId: account.id,
+        date: new Date("2023-06-01"),
+        description: "In between",
+        amount: -99,
+      },
+    });
+
+    const preview = await previewImport({
+      accountId: account.id,
+      newAccountName: null,
+      rows: scattered,
+      mapping,
+    });
+
+    expect(preview.validCount).toBe(2);
+    expect(preview.duplicates).toHaveLength(2);
+  });
 });

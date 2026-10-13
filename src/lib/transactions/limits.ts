@@ -18,6 +18,28 @@ export const MAX_IMPORT_FILE_BYTES = 2 * 1024 * 1024;
 // history sit far below this, so it only ever bites automated abuse.
 export const MAX_TRANSACTIONS_PER_USER = 250_000;
 
+// Counts every row the user has, including soft-deleted ones.
+//
+// Both delete paths are soft — reverseImport stamps a whole batch,
+// bulkDeleteTransactions stamps a selection — and neither row ever comes back:
+// nothing restores a transaction and dedupe already ignores the tombstones. So
+// a cap that counted live rows let commit → reverse → repeat write permanently
+// while reporting no change, which is precisely the loop the comment above says
+// this constant exists to stop.
+//
+// Not hard deleted, unlike the budget and balance rows that copy-forward
+// replaces: the data export reads transactions with no deletedAt filter, so
+// these are still the user's data and removing them would change what an export
+// contains. That is a decision about retention, not a bug to fix behind it.
+export type TransactionCountDelegate = {
+  count(args: { where: { userId: string } }): Promise<number>;
+};
+
+export const countedByCap = (
+  db: TransactionCountDelegate,
+  userId: string,
+): Promise<number> => db.count({ where: { userId } });
+
 export const MAX_IMPORT_FILE_MB = MAX_IMPORT_FILE_BYTES / (1024 * 1024);
 
 // Shown next to the file picker and reused in the rejection messages so the

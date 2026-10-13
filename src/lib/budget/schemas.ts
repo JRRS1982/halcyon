@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { calendarYear } from "@/lib/budget/period";
+import { money12 } from "@/lib/money/bounds";
 
 export const itemTypeSchema = z.enum([
   "INCOME",
@@ -104,7 +105,7 @@ export const createItemForMonthSchema = z
     direction: transferDirectionSchema.nullable().optional(),
     // The Add drawer collects the amount up front, so the row is never
     // written as a placeholder to be filled in afterwards.
-    budget: z.number().nonnegative().optional(),
+    budget: money12.nonnegative().optional(),
   })
   .superRefine(anchorInvariants);
 
@@ -112,8 +113,8 @@ export const updateItemSchema = z
   .object({
     itemId: z.string().uuid(),
     label: z.string().trim().max(120).optional(),
-    budget: z.number().nonnegative().optional(),
-    actual: z.number().nonnegative().optional(),
+    budget: money12.nonnegative().optional(),
+    actual: money12.nonnegative().optional(),
     section: categorySectionSchema.optional(),
     notes: z.string().max(500).nullable().optional(),
   })

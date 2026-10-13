@@ -121,6 +121,9 @@ export function parseYm(s: string): { year: number; month: number } | null {
   if (!match) return null;
   const year = Number(match[1]);
   const m = Number(match[2]);
-  if (!Number.isFinite(year) || m < 1 || m > 12) return null;
+  // The same bounds parseDate and the copy schemas use. Unbounded, /budget?ym=
+  // accepted any four-digit year, and that page's render creates a period —
+  // so the URL set how many a single user could mint.
+  if (calendarYear.safeParse(year).error || m < 1 || m > 12) return null;
   return { year, month: m - 1 };
 }

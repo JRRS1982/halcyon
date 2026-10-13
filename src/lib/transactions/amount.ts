@@ -1,3 +1,5 @@
+import { money14 } from "@/lib/money/bounds";
+
 // Parses a bank-statement amount cell into a signed number, or null if it
 // isn't a number. Tolerates currency symbols, comma thousands separators,
 // surrounding whitespace, a leading +/-, accounting-style parentheses for
@@ -25,6 +27,10 @@ export function parseAmount(raw: string): number | null {
 
   const value = Number(cleaned);
   if (!Number.isFinite(value)) return null;
+  // Out of the column's range is a bad cell, not a failed import: returning
+  // null puts the row in invalidCount with the other unparseable ones, where
+  // letting it through meant Postgres rejected the whole createMany.
+  if (money14.safeParse(Math.trunc(value * 100) / 100).error) return null;
 
   if (parenNegative || debitMarker) return -Math.abs(value);
   if (creditMarker) return Math.abs(value);

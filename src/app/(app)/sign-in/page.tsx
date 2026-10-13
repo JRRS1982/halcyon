@@ -1,4 +1,5 @@
 import { SignInForm } from "@/components/auth/SignInForm";
+import { authNotice } from "@/lib/auth/authNotices";
 import { POST_AUTH_LANDING } from "@/lib/auth/landing";
 
 // Set by the proxy's expiry redirect and by the client-side idle timer. Looking
@@ -20,9 +21,23 @@ type Props = {
 export default async function SignInPage(props: Props) {
   const searchParams = await props.searchParams;
   const next = searchParams.next ?? POST_AUTH_LANDING;
-  const notice = searchParams.timeout
-    ? TIMEOUT_NOTICES[searchParams.timeout]
-    : undefined;
+  // Object.hasOwn for the same reason authNotice uses it: a plain index finds
+  // Object.prototype members, so `?timeout=__proto__` returned a truthy object
+  // and React threw rendering it as a child — taking out the unauthenticated
+  // sign-in page. No attacker text is reachable this way, so it is not the
+  // phishing echo `?error=` was; it is the same unguarded lookup left in the
+  // sibling parameter three lines away.
+  const notice =
+    searchParams.timeout !== undefined &&
+    Object.hasOwn(TIMEOUT_NOTICES, searchParams.timeout)
+      ? TIMEOUT_NOTICES[searchParams.timeout]
+      : undefined;
 
-  return <SignInForm next={next} error={searchParams.error} notice={notice} />;
+  return (
+    <SignInForm
+      next={next}
+      error={authNotice(searchParams.error)}
+      notice={notice}
+    />
+  );
 }

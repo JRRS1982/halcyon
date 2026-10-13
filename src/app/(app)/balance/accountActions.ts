@@ -3,6 +3,7 @@
 import type { AccountType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { accountTypesOfKind, kindOf } from "@/lib/accounts/accountDraft";
+import { createAccountWithinCap } from "@/lib/accounts/createWithinCap";
 import {
   buildAccountData,
   buildMortgageAccountData,
@@ -27,6 +28,7 @@ import {
   setAccountTermsSchema,
 } from "@/lib/accounts/schemas";
 import { requireUserId } from "@/lib/auth/requireUserId";
+import { createBalanceItemWithinCap } from "@/lib/balance/createWithinCap";
 import { isValidBalanceCategory } from "@/lib/balance/reorder";
 import {
   type RenameAccountInput,
@@ -157,20 +159,6 @@ export async function createAccount(
   const kind = kindOf(parsed.type);
 
   const result = await prisma.$transaction(async (tx) => {
-    // An account multiplies: one BalanceItem per month it appears in, and one
-    // plan row per account on every Sync. Capping it bounds all three tables.
-    //
-    // Check-then-write, the same accepted race ensurePeriodForMonthIn carries
-    // and for the same reason: concurrent creates can each read the same count,
-    // so the real ceiling is MAX_ACCOUNTS_PER_USER plus whatever was in flight.
-    // The overshoot is bounded by concurrency and self-limits on the next call,
-    // which is what the cap is for; closing it properly needs a per-user
-    // advisory lock for no real gain.
-    const held = await tx.account.count({
-      where: { userId, deletedAt: null },
-    });
-    if (held >= MAX_ACCOUNTS_PER_USER) throw accountLimitError();
-
     const period = await ensurePeriodForMonthIn(tx, userId, range);
 
     // sortOrder appends to the end of this account's (kind, section) bucket
@@ -187,22 +175,18 @@ export async function createAccount(
       select: { sortOrder: true },
     });
 
-    const account = await tx.account.create({
-      data: {
-        userId,
-        name,
-        canImportTransactions: parsed.canImportTransactions,
-        sortOrder: nextSortOrder(last?.sortOrder),
-        ...accountData,
-      },
+    const account = await createAccountWithinCap(tx.account, {
+      userId,
+      name,
+      canImportTransactions: parsed.canImportTransactions,
+      sortOrder: nextSortOrder(last?.sortOrder),
+      ...accountData,
     });
 
-    await tx.balanceItem.create({
-      data: {
-        periodId: period.id,
-        accountId: account.id,
-        value: parsed.value,
-      },
+    await createBalanceItemWithinCap(tx.balanceItem, {
+      periodId: period.id,
+      accountId: account.id,
+      value: parsed.value,
     });
 
     if (hasAnyTerm(parsed.terms)) {
@@ -227,21 +211,20 @@ export async function createAccount(
         select: { sortOrder: true },
       });
 
-      const mortgage = await tx.account.create({
-        data: {
-          userId,
-          ...buildMortgageAccountData(parsed.mortgage),
-          sortOrder: nextSortOrder(lastLiability?.sortOrder),
-          linkedAccountId: account.id,
-        },
+      // Its own cap check, not one shared with the property above. A pair
+      // created at the ceiling would otherwise put two rows past a single
+      // count — small, but the kind of overshoot that only ever grows.
+      const mortgage = await createAccountWithinCap(tx.account, {
+        userId,
+        ...buildMortgageAccountData(parsed.mortgage),
+        sortOrder: nextSortOrder(lastLiability?.sortOrder),
+        linkedAccountId: account.id,
       });
 
-      await tx.balanceItem.create({
-        data: {
-          periodId: period.id,
-          accountId: mortgage.id,
-          value: parsed.mortgage.value,
-        },
+      await createBalanceItemWithinCap(tx.balanceItem, {
+        periodId: period.id,
+        accountId: mortgage.id,
+        value: parsed.mortgage.value,
       });
 
       if (hasAnyTerm(parsed.mortgage.terms)) {
@@ -489,6 +472,15 @@ export async function setAccountTerms(input: unknown): Promise<void> {
 export async function restoreAccount(input: AccountIdInput): Promise<void> {
   const userId = await requireUserId("/balance");
   const { accountId } = accountIdSchema.parse(input);
+
+  // Un-archiving puts a row back on the sheet, so it has to respect the sheet's
+  // ceiling the way creating one does. Without this the live cap could be
+  // exceeded without a single create: archive to the floor, create more,
+  // restore the lot.
+  const live = await prisma.account.count({
+    where: { userId, deletedAt: null },
+  });
+  if (live >= MAX_ACCOUNTS_PER_USER) throw accountLimitError();
 
   const result = await prisma.account.updateMany({
     where: { id: accountId, userId },

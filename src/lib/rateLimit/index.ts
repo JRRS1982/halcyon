@@ -26,6 +26,7 @@ export type RateLimitedAction =
   | "unsubscribe" // per client IP: unauthenticated RFC 8058 endpoint
   | "data-export" // per userId: heavy 10-table fan-out
   | "oauth-initiate" // per client IP: OAuth flow initiation
+  | "auth-callback" // per client IP: unauthenticated, makes an outbound token call
   | "health";
 
 export type RateLimitVerdict = "allowed" | "limited" | "unavailable";
@@ -112,16 +113,45 @@ const POLICIES: Record<RateLimitedAction, Policy> = {
     whenStoreFails: "allow",
   },
   // Authenticated export: heavy 10-table fan-out; keyed on userId via subject.
+  //
+  // Fails closed, like sign-up and for the same kind of reason. This bucket is
+  // the only brake on the heaviest query in the app — every transaction the
+  // user owns, read and serialised into one in-memory string — so with the
+  // store unreachable "allow" removes the single thing standing between a
+  // loop and an OOM-killed function. Pausing exports during a cache outage is
+  // a worse minute for one user; allowing them is a worse hour for everyone.
   "data-export": {
     windowSeconds: MINUTE,
     maxAttempts: 2,
-    whenStoreFails: "allow",
+    whenStoreFails: "block",
   },
   // OAuth initiation: Supabase's own throttle sees Vercel egress IPs, not the
   // real client, so we add an app-side per-IP gate here.
   "oauth-initiate": {
     windowSeconds: MINUTE,
     maxAttempts: 10,
+    whenStoreFails: "allow",
+  },
+  // The OAuth/confirmation landing route: unauthenticated, and every request
+  // carrying a `code` spends one call on Supabase's token endpoint. Because
+  // clientIp is forwarded as X-Forwarded-For, a rotating source walks past
+  // Supabase's own per-IP throttle and burns the project-wide auth budget
+  // instead — which locks real users out of sign-in while it runs.
+  //
+  // Fails open, and unlike sign-in there is no second line behind it: the note
+  // above says a rotating source walks past Supabase's own per-IP throttle,
+  // which is the whole reason this bucket exists. So during a store outage
+  // this hole is genuinely open.
+  //
+  // Kept open anyway, as a judgement about which cost is certain. An OAuth-only
+  // account has no other way in, and email confirmation is how every new
+  // account starts, so failing closed turns every cache blip into a sign-up
+  // and sign-in outage for the people who cannot route around it. The attack
+  // needs the outage and an attacker already looping. If that trade stops
+  // looking right, this is the line to change.
+  "auth-callback": {
+    windowSeconds: MINUTE,
+    maxAttempts: 20,
     whenStoreFails: "allow",
   },
   health: { windowSeconds: MINUTE, maxAttempts: 10, whenStoreFails: "allow" },

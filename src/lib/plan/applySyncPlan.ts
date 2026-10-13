@@ -7,6 +7,7 @@
 // rather than in syncActions.ts so it stays importable from both places.
 
 import type { Prisma } from "@prisma/client";
+import { assertRoom } from "@/lib/limits/ceilings";
 import {
   MAX_PLAN_ROWS_PER_KIND,
   type PlanRowDelegate,
@@ -337,8 +338,18 @@ async function assertRoomForAdditions(
       EXPENSE: tx.planExpense,
     };
 
-    const held = await delegates[kind].count({ where });
-    if (held + count > MAX_PLAN_ROWS_PER_KIND) throw planFullError(kind);
+    // Both ceilings, as createPlanRowWithinCap applies to the one-at-a-time
+    // path. Sync's own deletes are hard (deleteMany above), so it leaves no
+    // tombstones of its own — but the manual deletes are soft, and a plan full
+    // of them must not get a fresh allowance just because the rows arrived
+    // through Sync.
+    await assertRoom({
+      countLive: () => delegates[kind].count({ where }),
+      countStored: () => delegates[kind].count({ where: { planId } }),
+      liveMax: MAX_PLAN_ROWS_PER_KIND,
+      liveError: () => planFullError(kind),
+      adding: count,
+    });
   }
 }
 

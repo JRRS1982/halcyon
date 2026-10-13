@@ -15,9 +15,7 @@ export const signInWithGoogle = async () => {
   if (
     (await checkRateLimit("oauth-initiate", await clientIp())) !== "allowed"
   ) {
-    redirect(
-      `/sign-in?error=${encodeURIComponent("Too many requests. Please try again later.")}`,
-    );
+    redirect("/sign-in?error=too-many-attempts");
   }
   const supabase = await createClient();
 
@@ -29,9 +27,7 @@ export const signInWithGoogle = async () => {
   });
 
   if (error || !data?.url) {
-    redirect(
-      `/sign-in?error=${encodeURIComponent(error?.message ?? "Could not start Google sign-in")}`,
-    );
+    redirect("/sign-in?error=oauth-unavailable");
   }
 
   redirect(data.url);

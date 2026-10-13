@@ -1,6 +1,7 @@
 import type { AccountType } from "@prisma/client";
 import { z } from "zod";
 import { calendarYear } from "@/lib/budget/period";
+import { money14 } from "@/lib/money/bounds";
 
 export const accountSectionSchema = z.enum([
   "CURRENT",
@@ -59,7 +60,7 @@ export const upsertBalanceValueSchema = z
     accountId: z.string().uuid(),
     year: calendarYear,
     month: z.number().int().min(0).max(11),
-    value: z.number().optional(),
+    value: money14.optional(),
     notes: z.string().max(2000).nullable().optional(),
   })
   .refine((patch) => patch.value !== undefined || patch.notes !== undefined, {

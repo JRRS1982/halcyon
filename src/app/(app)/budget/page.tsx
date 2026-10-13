@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 import { kindOf } from "@/lib/accounts/accountDraft";
+import { createBudgetItemsWithinCap } from "@/lib/budget/createWithinCap";
+import { ensurePeriodForMonthIn } from "@/lib/budget/ensurePeriod";
 import {
   currentMonthRange,
   formatYm,
@@ -111,17 +113,14 @@ export default async function BudgetPage(props: PageProps) {
       .filter((id): id is string => id !== null && !existing.has(id));
 
     if (missingIds.length > 0) {
+      // Through ensurePeriodForMonthIn, not a bare create. This is a GET
+      // render that writes, so the direct create meant a page load could mint
+      // a FinancialPeriod without MAX_PERIODS_PER_USER ever running — and a
+      // request for each of the ~3,600 months parseDate accepts would have
+      // reached three times the ceiling, with no gesture from the user and no
+      // rate bucket covering a render.
       const targetPeriod =
-        period ??
-        (await prisma.financialPeriod.create({
-          data: {
-            userId: user.id,
-            granularity: "MONTH",
-            startDate: range.startDate,
-            endDate: range.endDate,
-            label: range.label,
-          },
-        }));
+        period ?? (await ensurePeriodForMonthIn(prisma, user.id, range));
       period = targetPeriod;
 
       const cats = await prisma.category.findMany({
@@ -134,8 +133,10 @@ export default async function BudgetPage(props: PageProps) {
         },
       });
       const baseSort = items.reduce((max, i) => Math.max(max, i.sortOrder), 0);
-      await prisma.budgetItem.createMany({
-        data: cats.map((c, idx) => ({
+      await createBudgetItemsWithinCap(
+        prisma.budgetItem,
+        targetPeriod.id,
+        cats.map((c, idx) => ({
           periodId: targetPeriod.id,
           categoryId: c.id,
           type: c.type,
@@ -144,7 +145,7 @@ export default async function BudgetPage(props: PageProps) {
           budget: 0,
           sortOrder: baseSort + 1 + idx,
         })),
-      });
+      );
       items = await prisma.budgetItem.findMany({
         where: { periodId: targetPeriod.id, deletedAt: null },
         orderBy: [{ type: "asc" }, { sortOrder: "asc" }],
