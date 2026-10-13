@@ -20,6 +20,7 @@ import {
   mapRows,
 } from "@/lib/transactions/import";
 import {
+  countedByCap,
   MAX_IMPORT_ROWS,
   MAX_TRANSACTIONS_PER_USER,
 } from "@/lib/transactions/limits";
@@ -214,9 +215,7 @@ export async function commitImport(input: CommitInput): Promise<ImportResult> {
     // live rows (deletedAt: null) keeps reversed/deleted batches from counting
     // against the cap, and fails closed: if the count query throws, the import
     // does not proceed.
-    const existing = await prisma.transaction.count({
-      where: { userId, deletedAt: null },
-    });
+    const existing = await countedByCap(prisma.transaction, userId);
     if (existing + toInsert.length > MAX_TRANSACTIONS_PER_USER) {
       throw new Error(
         `Import would exceed the ${MAX_TRANSACTIONS_PER_USER.toLocaleString()} transaction limit`,
@@ -451,9 +450,7 @@ export async function createTransaction(
   // write path into the same table, and a loop over it grows that table just
   // as effectively as a loop over the import — a cap on one route only is not
   // a cap.
-  const existing = await prisma.transaction.count({
-    where: { userId, deletedAt: null },
-  });
+  const existing = await countedByCap(prisma.transaction, userId);
   if (existing + 1 > MAX_TRANSACTIONS_PER_USER) {
     throw new Error(
       `You have reached the ${MAX_TRANSACTIONS_PER_USER.toLocaleString()} transaction limit`,
