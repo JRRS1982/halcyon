@@ -7,6 +7,7 @@ const exchangeCodeForSession = jest.fn(async () => ({
 }));
 const signOut = jest.fn(async () => ({ error: null }));
 const cookieSet = jest.fn();
+const checkRateLimit = jest.fn(async () => "allowed");
 
 jest.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({ auth: { exchangeCodeForSession, signOut } }),
@@ -15,6 +16,10 @@ jest.mock("next/headers", () => ({
   cookies: async () => ({ set: cookieSet }),
 }));
 jest.mock("@/lib/log", () => ({ log: { error: jest.fn() } }));
+jest.mock("@/lib/http/clientIp", () => ({ clientIp: async () => "1.2.3.4" }));
+jest.mock("@/lib/rateLimit", () => ({
+  checkRateLimit: () => checkRateLimit(),
+}));
 
 import { GET } from "@/app/auth/callback/route";
 import { ACTIVITY_COOKIE, parseActivity } from "@/lib/auth/sessionTimeout";
@@ -25,6 +30,24 @@ describe("auth callback", () => {
   beforeEach(() => {
     cookieSet.mockClear();
     signOut.mockClear();
+    checkRateLimit.mockClear();
+  });
+
+  // Unauthenticated, and every request with a code spends one call on
+  // Supabase's token endpoint — so a loop here costs the project's auth budget
+  // and locks real users out of sign-in while it runs.
+  it("refuses once the per-IP limit is spent, before any exchange", async () => {
+    checkRateLimit.mockResolvedValueOnce("limited" as never);
+
+    const response = await callback(
+      "https://balanced.money/auth/callback?code=abc",
+    );
+
+    expect(exchangeCodeForSession).not.toHaveBeenCalled();
+    expect(cookieSet).not.toHaveBeenCalled();
+    expect(response.headers.get("location")).toContain(
+      "/sign-in?error=too-many-attempts",
+    );
   });
 
   // The proxy treats an authenticated request with no readable activity cookie
@@ -80,7 +103,9 @@ describe("auth callback", () => {
     );
 
     expect(cookieSet).not.toHaveBeenCalled();
-    expect(response.headers.get("location")).toContain("/sign-in?error=");
+    expect(response.headers.get("location")).toContain(
+      "/sign-in?error=link-unusable",
+    );
   });
 
   // exchangeCodeForSession writes the session cookie before it returns, so a
@@ -106,7 +131,10 @@ describe("auth callback", () => {
     );
 
     const location = response.headers.get("location") ?? "";
-    expect(location).toContain("User%20declined");
-    expect(location).not.toContain("Missing%20auth%20code");
+    // A code the page can look up, not the provider's text. The description is
+    // logged instead — it is attacker-influenced, and `?error=` is rendered.
+    expect(location).toContain("/sign-in?error=provider-declined");
+    expect(location).not.toContain("User");
+    expect(location).not.toContain("missing-code");
   });
 });

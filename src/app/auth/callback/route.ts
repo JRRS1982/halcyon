@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { startActivityClock } from "@/lib/auth/activityClock";
+import type { AuthNoticeCode } from "@/lib/auth/authNotices";
 import { POST_AUTH_LANDING } from "@/lib/auth/landing";
 import { isRecoveryExchange } from "@/lib/auth/redirectType";
 import { safeNext } from "@/lib/auth/safeNext";
+import { clientIp } from "@/lib/http/clientIp";
 import { log } from "@/lib/log";
+import { checkRateLimit } from "@/lib/rateLimit";
 import { createClient } from "@/lib/supabase/server";
 
 // Called by Supabase Auth after email confirmation, magic-link click, or OAuth
@@ -14,10 +17,12 @@ export const GET = async (request: Request) => {
   const code = searchParams.get("code");
   const next = safeNext(searchParams.get("next"), POST_AUTH_LANDING);
 
-  const refuse = (message: string) =>
-    NextResponse.redirect(
-      `${origin}/sign-in?error=${encodeURIComponent(message)}`,
-    );
+  // A code, never a message: see lib/auth/authNotices.ts. This route is the
+  // reason that matters most — the provider's own error_description arrives
+  // here as attacker-influenced text, and forwarding it put that text in the
+  // one parameter the sign-in page used to render verbatim.
+  const refuse = (code: AuthNoticeCode) =>
+    NextResponse.redirect(`${origin}/sign-in?error=${code}`);
 
   // Supabase redirects here with `error`/`error_description` and no code when
   // the user declines consent at the provider, or follows a link that has
@@ -26,18 +31,34 @@ export const GET = async (request: Request) => {
   // reads like a bug in this app rather than a choice the user just made.
   const providerError = searchParams.get("error");
   if (providerError) {
-    log.error("Auth provider returned an error", { err: providerError });
-    return refuse(searchParams.get("error_description") ?? providerError);
+    // The description is logged, not shown. It is the provider's text about
+    // the user's own choice, and the page has its own words for that.
+    log.error("Auth provider returned an error", {
+      err: providerError,
+      description: searchParams.get("error_description") ?? undefined,
+    });
+    return refuse(
+      providerError === "access_denied" ? "provider-declined" : "link-expired",
+    );
   }
 
-  if (!code) return refuse("Missing auth code");
+  if (!code) return refuse("missing-code");
+
+  // Per client IP, before the exchange. This route is unauthenticated and every
+  // request carrying a code spends one call on Supabase's token endpoint, so a
+  // loop here burns the project's auth budget rather than this app's — and real
+  // users meet a locked sign-in while it runs. Fails open by policy: a cache
+  // outage must not break OAuth or email confirmation.
+  if ((await checkRateLimit("auth-callback", await clientIp())) !== "allowed") {
+    return refuse("too-many-attempts");
+  }
 
   const supabase = await createClient();
   const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error) {
     log.error("Auth code exchange failed", { err: error });
-    return refuse(error.message);
+    return refuse("link-expired");
   }
 
   // This app has no password-reset screen. Without this check a recovery code
@@ -56,7 +77,7 @@ export const GET = async (request: Request) => {
       err: "no password-reset flow in this app",
     });
     await supabase.auth.signOut();
-    return refuse("That link can't be used to sign in");
+    return refuse("link-unusable");
   }
 
   // Sessions born here (OAuth, email confirmation, magic link) carry no
