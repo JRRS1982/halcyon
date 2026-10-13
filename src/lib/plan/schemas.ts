@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { calendarDate } from "@/lib/budget/period";
 
 const WRAPPER = z.enum([
   "PENSION",
@@ -12,7 +13,7 @@ const WRAPPER = z.enum([
 
 export const updatePlanAssumptionsSchema = z.object({
   planId: z.string().uuid(),
-  dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  dateOfBirth: calendarDate,
   retirementAge: z.number().int().min(40).max(90),
   planToAge: z.number().int().min(50).max(120),
   inflationPct: z.number().min(0).max(20),

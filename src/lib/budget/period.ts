@@ -33,6 +33,35 @@ export type PeriodRange = {
 export const calendarYear = z.number().int().min(1900).max(2200);
 export const calendarMonth = z.number().int().min(0).max(11);
 
+// A plain calendar date typed into a form, as YYYY-MM-DD.
+//
+// The shape alone is not enough, and the two ways it falls short fail
+// differently. An out-of-range month — "2026-13-01" — makes new Date() return
+// Invalid Date, which reaches Prisma and throws; the user sees a 500 for what
+// is really a validation error. An impossible day is quieter and worse:
+// new Date("2026-02-30") does not fail, it rolls forward to 2 March, so the
+// row is stored under a date nobody typed and nothing ever says so.
+//
+// Round-tripping through Date.UTC is what separates the two from a real date:
+// a rolled-over date no longer matches the numbers it was built from.
+export const calendarDate = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Enter a date as YYYY-MM-DD")
+  .refine((value) => {
+    const [year, month, day] = value.split("-").map(Number);
+    if (year === undefined || month === undefined || day === undefined) {
+      return false;
+    }
+    if (calendarYear.safeParse(year).error) return false;
+
+    const parsed = new Date(Date.UTC(year, month - 1, day));
+    return (
+      parsed.getUTCFullYear() === year &&
+      parsed.getUTCMonth() === month - 1 &&
+      parsed.getUTCDate() === day
+    );
+  }, "Enter a real calendar date");
+
 // Returns the calendar-month range for a given (year, month) — month is
 // 0-indexed (0=Jan, 11=Dec). startDate is the first of the month at 00:00 UTC;
 // endDate is the last day of the month at 00:00 UTC. Label is "<Month> <Year>".

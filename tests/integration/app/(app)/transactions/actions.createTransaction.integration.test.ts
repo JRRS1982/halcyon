@@ -1,4 +1,5 @@
 import { TEST_USER_ID } from "@test/support/helpers";
+import { z } from "zod";
 import { createTransaction } from "@/app/(app)/transactions/actions";
 import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
@@ -120,5 +121,43 @@ describe("createTransaction (integration)", () => {
         categoryId: null,
       }),
     ).rejects.toThrow();
+  });
+
+  // The date field only checked its shape, so "2026-02-30" parsed, became
+  // 2 March on the way to the database, and the user's row sat under a date
+  // they never typed with nothing to say so.
+  test("refuses a date the calendar does not have", async () => {
+    const account = await seedAccount();
+
+    await expect(
+      createTransaction({
+        accountId: account.id,
+        date: "2026-02-30",
+        description: "Corner cafe",
+        amount: -3.5,
+        categoryId: null,
+      }),
+    ).rejects.toBeInstanceOf(z.ZodError);
+
+    expect(await prisma.transaction.count()).toBe(0);
+  });
+
+  // The other half of the same hole: an impossible month makes new Date()
+  // return Invalid Date, which used to reach Prisma and surface as a 500
+  // rather than as the validation error it is.
+  test("refuses an impossible month without reaching the database", async () => {
+    const account = await seedAccount();
+
+    await expect(
+      createTransaction({
+        accountId: account.id,
+        date: "2026-13-01",
+        description: "Corner cafe",
+        amount: -3.5,
+        categoryId: null,
+      }),
+    ).rejects.toBeInstanceOf(z.ZodError);
+
+    expect(await prisma.transaction.count()).toBe(0);
   });
 });

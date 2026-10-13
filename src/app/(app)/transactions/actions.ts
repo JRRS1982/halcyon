@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { kindOf } from "@/lib/accounts/accountDraft";
 import { buildAccountData } from "@/lib/accounts/creation";
+import { calendarDate } from "@/lib/budget/period";
 import { categorySectionSchema } from "@/lib/budget/schemas";
 import { cleanLabel } from "@/lib/categories/normalize";
 import { sectionFor, sectionLabel } from "@/lib/categories/sections";
@@ -396,7 +397,7 @@ const createTransactionSchema = z.object({
   accountId: z.string().uuid(),
   // A plain calendar date from the form's date input; parsed at UTC midnight
   // to match how imports store statement dates.
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  date: calendarDate,
   description: z.string().trim().min(1).max(300),
   // Bank-signed, like imported rows: negative for money out, positive for
   // money in. Zero records nothing and is refused.

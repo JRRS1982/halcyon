@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireUserId } from "@/lib/auth/requireUserId";
+import { calendarDate } from "@/lib/budget/period";
 import { applySyncPlan } from "@/lib/plan/applySyncPlan";
 import { nextSortOrderWithinCap } from "@/lib/plan/limits";
 import { latestReality } from "@/lib/plan/reality";
@@ -49,7 +50,7 @@ export async function getPrimaryPlan() {
 // Retirement age is not asked for at create time — it is seeded with the same
 // default the Assumptions panel then edits (which is what drives the charts).
 const createPlanSchema = z.object({
-  dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  dateOfBirth: calendarDate,
   retirementAge: z.number().int().min(40).max(90).default(67),
 });
 
