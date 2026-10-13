@@ -47,8 +47,9 @@ export const GET = async (request: Request) => {
   // Per client IP, before the exchange. This route is unauthenticated and every
   // request carrying a code spends one call on Supabase's token endpoint, so a
   // loop here burns the project's auth budget rather than this app's — and real
-  // users meet a locked sign-in while it runs. Fails open by policy: a cache
-  // outage must not break OAuth or email confirmation.
+  // users meet a locked sign-in while it runs. Fails open by policy, with no
+  // provider throttle behind it — see the note on the bucket in lib/rateLimit
+  // for which cost that trade accepts and which it avoids.
   if ((await checkRateLimit("auth-callback", await clientIp())) !== "allowed") {
     return refuse("too-many-attempts");
   }

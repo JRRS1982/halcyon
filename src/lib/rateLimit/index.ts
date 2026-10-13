@@ -138,8 +138,17 @@ const POLICIES: Record<RateLimitedAction, Policy> = {
   // Supabase's own per-IP throttle and burns the project-wide auth budget
   // instead — which locks real users out of sign-in while it runs.
   //
-  // Fails open: a cache outage must never break OAuth or email confirmation,
-  // which are the only ways some accounts can get in at all.
+  // Fails open, and unlike sign-in there is no second line behind it: the note
+  // above says a rotating source walks past Supabase's own per-IP throttle,
+  // which is the whole reason this bucket exists. So during a store outage
+  // this hole is genuinely open.
+  //
+  // Kept open anyway, as a judgement about which cost is certain. An OAuth-only
+  // account has no other way in, and email confirmation is how every new
+  // account starts, so failing closed turns every cache blip into a sign-up
+  // and sign-in outage for the people who cannot route around it. The attack
+  // needs the outage and an attacker already looping. If that trade stops
+  // looking right, this is the line to change.
   "auth-callback": {
     windowSeconds: MINUTE,
     maxAttempts: 20,
