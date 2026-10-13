@@ -17,7 +17,9 @@ describe("money bounds", () => {
     expect(money14.safeParse(999_999_999_999.99).success).toBe(true);
   });
 
-  // z.number() rejects NaN but not Infinity, and the action payload carries it.
+  // zod 4's z.number() already rejects both — this pins that it stays true,
+  // since an earlier version of this module carried a .finite() added on the
+  // belief that Infinity got through, which was zod 3 behaviour.
   it("rejects the values that are not quantities", () => {
     expect(money14.safeParse(Number.POSITIVE_INFINITY).success).toBe(false);
     expect(money14.safeParse(Number.NEGATIVE_INFINITY).success).toBe(false);
@@ -27,6 +29,21 @@ describe("money bounds", () => {
   it("rejects fractions of a penny, which the column would silently round", () => {
     expect(money14.safeParse(1.005).success).toBe(false);
     expect(money14.safeParse(0.001).success).toBe(false);
+  });
+
+  // The first version of this check was `Number.isInteger(value * 100)`, which
+  // rejected 9,175 of the 100,000 penny amounts between 0.01 and 1000.00 —
+  // every one where the float multiply lands just off an integer, including
+  // 0.07, 0.29 and 1.1 (1.1 * 100 === 110.00000000000001). It passed its own
+  // tests because they all used round numbers. Exhaustive here for that
+  // reason: a sampled test is what missed it.
+  it("accepts every penny amount in the ordinary range", () => {
+    const rejected: number[] = [];
+    for (let pennies = -100_000; pennies <= 100_000; pennies += 1) {
+      const value = pennies / 100;
+      if (!money14.safeParse(value).success) rejected.push(value);
+    }
+    expect(rejected).toEqual([]);
   });
 
   it("holds the narrower column to its narrower ceiling", () => {
