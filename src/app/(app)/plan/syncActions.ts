@@ -2,7 +2,6 @@
 
 import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { requireUserId } from "@/lib/auth/requireUserId";
 import { applySyncPlan } from "@/lib/plan/applySyncPlan";
 import { latestReality } from "@/lib/plan/reality";
@@ -15,22 +14,12 @@ import {
   type SyncPlan,
 } from "@/lib/plan/sync";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/supabase/user";
 import {
   loadPlanRecord,
   loadPlanRecordForRender,
   type PlanRecord,
 } from "./planRecord";
 
-// Same contract as before — the signed-in user's id, or a redirect to sign-in
-// with /plan as the return path. The difference is the call underneath:
-// getCurrentUser is memoised with React's cache(), so a render that touches
-// several of these actions authenticates once instead of once per action.
-//
-// Per-request memoisation, not a cache across requests: a signed-out visitor
-// never inherits a previous request's session. getCurrentUser's own doc
-// comment describes this being done for the layout and settings paths; the
-// plan actions simply never adopted it.
 // A Prisma.Decimal can't cross the comparison in resolvePlanSync as anything
 // but a plain number, and a plan row's own growth/debt columns are nullable —
 // see balance/page.tsx's numberOrNull for the same conversion at a sibling
