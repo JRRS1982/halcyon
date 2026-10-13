@@ -40,8 +40,15 @@ next-env.d.ts
 /build
 
 # Environment files
-.env*.local
-.env
+#
+# A glob with explicit exceptions, not a list of names. Enumerating four exact
+# spellings meant any env file someone later created under a fifth —
+# .env.staging, .env.backup, .env.supabase — was untracked but visible, and one
+# `git add .` would publish it. This repo is public, so that is the whole
+# distance between a local secret and a leaked one.
+.env*
+!.env.example
+!.env.development
 
 # Debug logs
 npm-debug.log*
@@ -62,8 +69,9 @@ pnpm-debug.log*
 *.sln
 *.sw?
 
-.env.production
-.env.test
 # .env.development is committed on purpose (local docker values only) — see the
 # header in that file. Do NOT add it here: it is already tracked, so a gitignore
 # entry has no effect on it and only misleads.
+
+# Vercel CLI link + build state
+.vercel/
