@@ -1,3 +1,5 @@
+import { calendarYear } from "@/lib/budget/period";
+
 // Parses a date cell using a user-chosen field order, resolving the classic
 // DD/MM vs MM/DD ambiguity at the import mapping step rather than guessing.
 // Accepts '/', '-' and '.' separators and two-digit years (expanded to the
@@ -30,6 +32,10 @@ export function parseDate(raw: string, format: DateFormat): Date | null {
 
   if (year < 100) year += 2000;
   if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  // Same bounds the rest of the app puts on a calendar year. Unbounded, a
+  // two-row CSV dated 01/01/0001 and 31/12/9999 gave previewImport a duplicate
+  // lookup spanning all of recorded time — which is the user's whole ledger.
+  if (calendarYear.safeParse(year).error) return null;
 
   const date = new Date(Date.UTC(year, month - 1, day));
   if (

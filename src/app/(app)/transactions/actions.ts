@@ -4,9 +4,11 @@ import type { AccountKind } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { kindOf } from "@/lib/accounts/accountDraft";
+import { createAccountWithinCap } from "@/lib/accounts/createWithinCap";
 import { buildAccountData } from "@/lib/accounts/creation";
 import { calendarDate } from "@/lib/budget/period";
 import { categorySectionSchema } from "@/lib/budget/schemas";
+import { createCategoryWithinCap } from "@/lib/categories/createWithinCap";
 import { cleanLabel } from "@/lib/categories/normalize";
 import { sectionFor, sectionLabel } from "@/lib/categories/sections";
 import { prisma } from "@/lib/prisma";
@@ -102,11 +104,12 @@ async function resolveAccount(
 
   const name = cleanLabel(newAccountName ?? "");
   if (!name) throw new Error("An account is required to import");
-  const created = await prisma.account.create({
-    data: { userId, name, ...buildAccountData({ type: "CURRENT_ACCOUNT" }) },
-    select: { id: true, name: true },
+  const created = await createAccountWithinCap(prisma.account, {
+    userId,
+    name,
+    ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
   });
-  return created;
+  return { id: created.id, name: created.name };
 }
 
 // Maps + splits the parsed CSV into importable (valid) rows and an invalid
@@ -137,17 +140,28 @@ export async function previewImport(
       select: { id: true },
     });
     if (account) {
-      const dates = valid.map((row) => row.date as Date);
-      const min = new Date(Math.min(...dates.map((d) => d.getTime())));
-      const max = new Date(Math.max(...dates.map((d) => d.getTime())));
+      // Look only at the dates the CSV actually names, not the span between
+      // its earliest and latest. A duplicate has to share a date with one of
+      // these rows — the fingerprint includes the date — so the span was never
+      // doing work the `in` list does not, and it loaded every transaction in
+      // between. With a wide-enough CSV that is the whole ledger, in a route
+      // that writes nothing and so is bounded by no cap.
+      //
+      // `take` is the second fence: distinct dates are bounded by
+      // MAX_IMPORT_ROWS, but a single date can hold many transactions, and the
+      // only thing this read feeds is a fingerprint set.
+      const dates = [
+        ...new Set(valid.map((row) => (row.date as Date).getTime())),
+      ].map((time) => new Date(time));
       const existing = await prisma.transaction.findMany({
         where: {
           userId,
           accountId,
           deletedAt: null,
-          date: { gte: min, lte: max },
+          date: { in: dates },
         },
         select: { date: true, amount: true, description: true },
+        take: MAX_IMPORT_ROWS * 2,
       });
       const seen = new Set(
         existing.map((tx) =>
@@ -648,13 +662,10 @@ export async function createAccountAndTransfer(
     // gesture, not the balance drawer — so it defaults to SAVINGS: a plain
     // asset, same bucket most transfer counterparties actually are. It still
     // lands in the ledger picker's Transfers group regardless of type.
-    const account = await tx.account.create({
-      data: {
-        userId,
-        name: cleanLabel(name),
-        ...buildAccountData({ type: "SAVINGS" }),
-      },
-      select: { id: true, name: true, type: true },
+    const account = await createAccountWithinCap(tx.account, {
+      userId,
+      name: cleanLabel(name),
+      ...buildAccountData({ type: "SAVINGS" }),
     });
 
     // A freshly-created account can't own any existing transaction, so no
@@ -706,14 +717,11 @@ export async function createAndAssignCategory(
   const resolvedSection = sectionFor(type, section);
 
   const created = await prisma.$transaction(async (tx) => {
-    const newCategory = await tx.category.create({
-      data: {
-        userId,
-        label: cleanLabel(label),
-        type,
-        section: resolvedSection,
-      },
-      select: { id: true, label: true, type: true },
+    const newCategory = await createCategoryWithinCap(tx.category, {
+      userId,
+      label: cleanLabel(label),
+      type,
+      section: resolvedSection,
     });
 
     const result = await tx.transaction.updateMany({
