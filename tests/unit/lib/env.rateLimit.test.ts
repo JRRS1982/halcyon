@@ -21,6 +21,14 @@ const LIMITER = {
   UPSTASH_REDIS_REST_TOKEN: "token-abc",
 };
 
+// SITE_URL is required on a production Vercel deploy too, so these fixtures
+// have to supply it — otherwise every "production" case here fails on SITE_URL
+// before it reaches the limiter assertion it is actually about.
+const PRODUCTION = {
+  VERCEL_ENV: "production",
+  SITE_URL: "https://balanced.money",
+};
+
 // Suffixed names rather than bare `load`/`original`: env.test.ts and
 // env.email.test.ts load env.ts dynamically too, and with no top-level
 // import/export TypeScript treats all three as global scripts sharing one
@@ -35,7 +43,7 @@ const loadEnvForLimiter = (overrides: Record<string, string>) => {
   for (const key of [
     ...Object.keys(BASE),
     ...Object.keys(LIMITER),
-    "VERCEL_ENV",
+    ...Object.keys(PRODUCTION),
   ]) {
     delete process.env[key];
   }
@@ -73,7 +81,7 @@ describe("rate limiter env", () => {
   });
 
   it("refuses to boot a production deploy with no store configured", async () => {
-    const message = await limiterFailureFor({ VERCEL_ENV: "production" });
+    const message = await limiterFailureFor({ ...PRODUCTION });
 
     expect(message).toContain("UPSTASH_REDIS_REST_URL (not set)");
     expect(message).toContain("UPSTASH_REDIS_REST_TOKEN (not set)");
@@ -81,7 +89,7 @@ describe("rate limiter env", () => {
 
   it("refuses to boot a production deploy holding only half the pair", async () => {
     const message = await limiterFailureFor({
-      VERCEL_ENV: "production",
+      ...PRODUCTION,
       UPSTASH_REDIS_REST_URL: LIMITER.UPSTASH_REDIS_REST_URL,
     });
 
@@ -92,7 +100,7 @@ describe("rate limiter env", () => {
   // fail production the same way absent does rather than slipping through.
   it("treats a blank value in production as absent", async () => {
     const message = await limiterFailureFor({
-      VERCEL_ENV: "production",
+      ...PRODUCTION,
       UPSTASH_REDIS_REST_URL: "",
       UPSTASH_REDIS_REST_TOKEN: "",
     });
@@ -102,7 +110,7 @@ describe("rate limiter env", () => {
 
   it("boots a production deploy when the store is configured", async () => {
     const { rateLimitEnv } = await loadEnvForLimiter({
-      VERCEL_ENV: "production",
+      ...PRODUCTION,
       ...LIMITER,
     });
 

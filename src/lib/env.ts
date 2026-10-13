@@ -32,12 +32,26 @@ const serverSchema = z.object({
 // way it can arrive.
 const blankAsAbsent = (value: unknown) => (value === "" ? undefined : value);
 
+const isProductionVercelDeploy = process.env.VERCEL_ENV === "production";
+
+const requiredOnVercelProduction = <T extends z.ZodType>(schema: T) =>
+  isProductionVercelDeploy ? schema : schema.optional();
+
 const emailSchema = z.object({
   RESEND_API_KEY: z.preprocess(blankAsAbsent, z.string().min(1).optional()),
   EMAIL_FROM: z.preprocess(blankAsAbsent, z.string().min(1).optional()),
   // Absolute origin for links in emails. There is no request to derive it from
   // inside a cron job, and a relative URL in an inbox goes nowhere.
-  SITE_URL: z.preprocess(blankAsAbsent, z.string().url().optional()),
+  //
+  // Required on a production Vercel deploy. Besides the cron job, it is the
+  // server-known origin the sign-up and OAuth redirects are built from — the
+  // alternative being the client's own Origin header, which is the thing being
+  // defended against. Unset there, the only fallback is that header, so the
+  // boot fails rather than quietly reinstating it.
+  SITE_URL: z.preprocess(
+    blankAsAbsent,
+    requiredOnVercelProduction(z.string().url()),
+  ),
   // Vercel sends this as a bearer on scheduled invocations. Without it the cron
   // route refuses to run at all rather than standing open — see the route.
   CRON_SECRET: z.preprocess(blankAsAbsent, z.string().min(1).optional()),
@@ -57,11 +71,6 @@ const emailSchema = z.object({
 // VERCEL_ENV, not NODE_ENV: the latter is also "production" for preview
 // deploys and for a local `pnpm build && pnpm start`, neither of which has a
 // Redis.
-const isProductionVercelDeploy = process.env.VERCEL_ENV === "production";
-
-const requiredOnVercelProduction = <T extends z.ZodType>(schema: T) =>
-  isProductionVercelDeploy ? schema : schema.optional();
-
 const rateLimitSchema = z.object({
   UPSTASH_REDIS_REST_URL: z.preprocess(
     blankAsAbsent,
@@ -122,7 +131,11 @@ export const env = { ...publicEnv, ...serverEnv };
 // Exported separately rather than merged into `env`: these are all optional, so
 // folding them in would make `env.RESEND_API_KEY` a `string | undefined` on a
 // object whose whole point is that its members are guaranteed present.
-export const emailEnv: z.infer<typeof emailSchema> = isServer
+// `Partial` for the same reason as rateLimitEnv below: making SITE_URL
+// conditionally required turns it into required-but-possibly-undefined, which
+// the browser/edge `{}` branch no longer satisfies. On a production server the
+// schema has already guaranteed it is present.
+export const emailEnv: Partial<z.infer<typeof emailSchema>> = isServer
   ? parse(emailSchema, {
       RESEND_API_KEY: process.env.RESEND_API_KEY,
       EMAIL_FROM: process.env.EMAIL_FROM,
