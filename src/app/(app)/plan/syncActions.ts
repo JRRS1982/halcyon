@@ -3,6 +3,7 @@
 import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { requireUserId } from "@/lib/auth/requireUserId";
 import { applySyncPlan } from "@/lib/plan/applySyncPlan";
 import { latestReality } from "@/lib/plan/reality";
 import { emptyRowTerms } from "@/lib/plan/rowTerms";
@@ -30,12 +31,6 @@ import {
 // never inherits a previous request's session. getCurrentUser's own doc
 // comment describes this being done for the layout and settings paths; the
 // plan actions simply never adopted it.
-async function requireUserId(): Promise<string> {
-  const user = await getCurrentUser();
-  if (!user) redirect("/sign-in?next=/plan");
-  return user.id;
-}
-
 // A Prisma.Decimal can't cross the comparison in resolvePlanSync as anything
 // but a plain number, and a plan row's own growth/debt columns are nullable —
 // see balance/page.tsx's numberOrNull for the same conversion at a sibling
@@ -179,7 +174,7 @@ function rowKindsOf(
 // What Sync would do, without doing it — the same object the button's counts,
 // the per-row indicators and the confirmation dialog all render.
 export async function getPlanSyncPreview(): Promise<SyncPlan | null> {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/plan");
   // The memoised read: /plan renders the sheet and this preview in one pass,
   // and they used to fetch the same plan twice.
   const plan = await loadPlanRecordForRender(userId);
@@ -192,7 +187,7 @@ export async function getPlanSyncPreview(): Promise<SyncPlan | null> {
 
 // Performs a Sync and returns what it did.
 export async function syncPlan(): Promise<SyncPlan> {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/plan");
   // Deliberately the *unmemoised* read, unlike the preview above. This path
   // writes, and Next re-renders /plan inside the same request afterwards — so
   // a plan cached here could be handed to the render that follows the write

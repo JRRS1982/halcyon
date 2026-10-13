@@ -9,6 +9,7 @@ import type {
 } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { kindOf } from "@/lib/accounts/accountDraft";
+import { requireUserId } from "@/lib/auth/requireUserId";
 import { assertAnchorMatches, requiredAnchorKind } from "@/lib/budget/anchors";
 import {
   buildCopiedItems,
@@ -35,7 +36,6 @@ import {
 } from "@/lib/budget/schemas";
 import { sectionFor } from "@/lib/categories/sections";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
 import {
   accountActual,
   isAccountKeyed,
@@ -61,17 +61,6 @@ function toClientItem(item: BudgetItem) {
 // Gates every server action on a valid signed-in user. The middleware also
 // guards /budget, but every action enforces auth independently — never trust
 // a single layer.
-async function requireUserId(): Promise<string> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    redirect("/sign-in?next=/budget");
-  }
-  return user.id;
-}
-
 // Returns the user's FinancialPeriod for the current calendar month;
 // creates it if it doesn't exist yet. Idempotent — safe to call on every
 // /budget visit.
@@ -108,7 +97,7 @@ async function ensurePeriodForMonthInternal(
   endDate: Date,
   label: string,
 ) {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/budget");
   return ensurePeriodForMonthIn(prisma, userId, { startDate, endDate, label });
 }
 
@@ -283,7 +272,7 @@ async function categoryIdForRow(
 }
 
 export async function createItemForMonth(input: CreateItemForMonthInput) {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/budget");
   const parsed = createItemForMonthSchema.parse(input);
   const range = monthRangeFor(parsed.year, parsed.month);
 
@@ -344,7 +333,7 @@ export async function createItemForMonth(input: CreateItemForMonthInput) {
 }
 
 export async function updateItem(input: UpdateItemInput) {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/budget");
   const parsed = updateItemSchema.parse(input);
 
   const item = await prisma.budgetItem.findFirst({
@@ -399,7 +388,7 @@ export async function updateItem(input: UpdateItemInput) {
 
 // Soft-delete an item.
 export async function deleteItem(input: DeleteItemInput) {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/budget");
   const parsed = deleteItemSchema.parse(input);
 
   const item = await prisma.budgetItem.findFirst({
@@ -420,7 +409,7 @@ export async function deleteItem(input: DeleteItemInput) {
 // "Copy from…". Newest first. Virtual (never-saved) months have no row and so
 // never appear, which is what we want — there's nothing to copy from them.
 export async function listCopyablePeriods() {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/budget");
 
   const periods = await prisma.financialPeriod.findMany({
     where: {
@@ -442,7 +431,7 @@ export async function listCopyablePeriods() {
 // atomic overwrite. Returns the new item list so the client can swap state
 // without a refetch.
 export async function copyPeriodFrom(input: CopyPeriodFromInput) {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/budget");
   const parsed = copyPeriodFromSchema.parse(input);
 
   const source = await prisma.financialPeriod.findFirst({

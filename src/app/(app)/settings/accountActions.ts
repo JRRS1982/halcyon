@@ -4,20 +4,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { renameAccount as renameAccountShared } from "@/app/(app)/balance/accountActions";
+import { requireUserId } from "@/lib/auth/requireUserId";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
 
 // Accounts are managed in Settings and exist independently of the transactions
 // feature toggle, so these gate on auth only.
-async function requireUserId(): Promise<string> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/sign-in?next=/settings");
-  return user.id;
-}
-
 function revalidateAll() {
   revalidatePath("/settings");
   revalidatePath("/transactions");
@@ -41,7 +32,7 @@ const importsSchema = idSchema.extend({ enabled: z.boolean() });
 export async function setAccountImports(
   input: z.input<typeof importsSchema>,
 ): Promise<void> {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/settings");
   const { accountId, enabled } = importsSchema.parse(input);
   const result = await prisma.account.updateMany({
     where: { id: accountId, userId, deletedAt: null },
@@ -59,7 +50,7 @@ export async function setAccountImports(
 export async function deleteAccount(
   input: z.input<typeof idSchema>,
 ): Promise<void> {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/settings");
   const { accountId } = idSchema.parse(input);
 
   const referenced = await prisma.transaction.count({

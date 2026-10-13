@@ -3,24 +3,15 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { requireUserId } from "@/lib/auth/requireUserId";
 import { categorySectionSchema } from "@/lib/budget/schemas";
 import { planItemMerge } from "@/lib/categories/merge";
 import { cleanLabel } from "@/lib/categories/normalize";
 import { sectionFor } from "@/lib/categories/sections";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
 
 // Categories are managed in Settings and exist regardless of the transactions
 // feature, so these gate on auth only (not requireTransactionsEnabled).
-async function requireUserId(): Promise<string> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/sign-in?next=/settings");
-  return user.id;
-}
-
 // Budget + dashboard read categories/actuals; settings renders the list.
 function revalidateAll() {
   revalidatePath("/settings");
@@ -38,7 +29,7 @@ const upsertSchema = z.object({
 export async function createManagedCategory(
   input: z.input<typeof upsertSchema>,
 ): Promise<void> {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/settings");
   const { label, type, section } = upsertSchema.parse(input);
   await prisma.category.create({
     data: {
@@ -56,7 +47,7 @@ const updateSchema = upsertSchema.extend({ categoryId: z.string().uuid() });
 export async function updateCategory(
   input: z.input<typeof updateSchema>,
 ): Promise<void> {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/settings");
   const { categoryId, label, type, section } = updateSchema.parse(input);
   const result = await prisma.category.updateMany({
     where: { id: categoryId, userId, deletedAt: null },
@@ -77,7 +68,7 @@ const idSchema = z.object({ categoryId: z.string().uuid() });
 export async function deleteCategory(
   input: z.input<typeof idSchema>,
 ): Promise<void> {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/settings");
   const { categoryId } = idSchema.parse(input);
   const result = await prisma.category.updateMany({
     where: { id: categoryId, userId, deletedAt: null },
@@ -98,7 +89,7 @@ const mergeSchema = z.object({
 export async function mergeCategories(
   input: z.input<typeof mergeSchema>,
 ): Promise<void> {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/settings");
   const { sourceId, survivorId } = mergeSchema.parse(input);
   if (sourceId === survivorId) {
     throw new Error("Choose a different category to merge into");

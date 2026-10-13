@@ -7,6 +7,7 @@ import {
   type ReauthMethod,
   reauthMethodFor,
 } from "@/lib/auth/reauth";
+import { requireUserId } from "@/lib/auth/requireUserId";
 import { serializeExport } from "@/lib/data/serialize";
 import { clientIp } from "@/lib/http/clientIp";
 import { log } from "@/lib/log";
@@ -16,12 +17,6 @@ import { seedStarterData } from "@/lib/settings/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/supabase/user";
-
-async function requireUserId(): Promise<string> {
-  const user = await getCurrentUser();
-  if (!user) redirect("/sign-in?next=/settings");
-  return user.id;
-}
 
 // The account this request is re-authenticating, and the proof it may offer.
 //
@@ -179,7 +174,7 @@ function financialDeletes(userId: string) {
 }
 
 export async function exportMyData(proof: Reauthentication): Promise<string> {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/settings");
   // Handing over the whole financial record is at least as sensitive as
   // deleting it, so it takes the same proof as its three destructive siblings.
   // Without this an unlocked signed-in browser is a complete data breach.
@@ -249,7 +244,7 @@ export async function exportMyData(proof: Reauthentication): Promise<string> {
 // paths deliberately keep. Seeding after a partial delete would duplicate the
 // starter categories, so the two halves cannot be separate transactions.
 export async function resetToDefaults(proof: Reauthentication): Promise<void> {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/settings");
   await verifyUser(proof);
 
   await prisma.$transaction(async (tx) => {
@@ -277,7 +272,7 @@ export async function resetToDefaults(proof: Reauthentication): Promise<void> {
 }
 
 export async function clearMyData(proof: Reauthentication): Promise<void> {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/settings");
   await verifyUser(proof);
   await prisma.$transaction(financialDeletes(userId));
   revalidatePath("/dashboard");
@@ -289,7 +284,7 @@ export async function clearMyData(proof: Reauthentication): Promise<void> {
 }
 
 export async function deleteMyAccount(proof: Reauthentication): Promise<void> {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/settings");
   await verifyUser(proof);
 
   // App data first, identity second: if the admin call below failed, we'd have

@@ -2,6 +2,7 @@
 
 import type { BalanceItem } from "@prisma/client";
 import { redirect } from "next/navigation";
+import { requireUserId } from "@/lib/auth/requireUserId";
 import { toCarriedOverRows } from "@/lib/balance/copyRows";
 import {
   type ClearBalanceValueInput,
@@ -14,7 +15,6 @@ import {
 import { ensurePeriodForMonthIn } from "@/lib/budget/ensurePeriod";
 import { monthRangeFor } from "@/lib/budget/period";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
 import { ensurePeriodForMonth } from "../budget/actions";
 
 // Prisma `Decimal` can't cross the server→client boundary (it serialises to
@@ -27,17 +27,6 @@ function toClientItem(item: BalanceItem) {
 // Mirrors the auth gate in src/app/budget/actions.ts — every action enforces
 // auth independently. Middleware also guards /balance but we never trust a
 // single layer.
-async function requireUserId(): Promise<string> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    redirect("/sign-in?next=/balance");
-  }
-  return user.id;
-}
-
 // Keyed by (account, month) rather than by item id: the account is the
 // durable thing the user is naming a value for, so the same gesture that
 // created last month's row also updates this month's — never a second row
@@ -45,7 +34,7 @@ async function requireUserId(): Promise<string> {
 // index on live (periodId, accountId) rows means Prisma's own upsert() can't
 // target this, hence the explicit find-then-write.
 export async function upsertBalanceValue(input: UpsertBalanceValueInput) {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/balance");
   const parsed = upsertBalanceValueSchema.parse(input);
   const range = monthRangeFor(parsed.year, parsed.month);
 
@@ -105,7 +94,7 @@ export async function upsertBalanceValue(input: UpsertBalanceValueInput) {
 export async function clearBalanceValue(
   input: ClearBalanceValueInput,
 ): Promise<void> {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/balance");
   const parsed = clearBalanceValueSchema.parse(input);
   const range = monthRangeFor(parsed.year, parsed.month);
 
@@ -128,7 +117,7 @@ export async function clearBalanceValue(
 // The user's periods that have at least one balance item — the candidate
 // sources for "Copy from…" on the balance sheet. Newest first.
 export async function listCopyableBalancePeriods() {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/balance");
 
   const periods = await prisma.financialPeriod.findMany({
     where: {
@@ -153,7 +142,7 @@ export async function listCopyableBalancePeriods() {
 // (periodId, accountId) rows is the fence). Returns the new item list so the
 // client can swap state without a refetch.
 export async function copyBalancePeriodFrom(input: CopyBalancePeriodFromInput) {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/balance");
   const parsed = copyBalancePeriodFromSchema.parse(input);
 
   const source = await prisma.financialPeriod.findFirst({

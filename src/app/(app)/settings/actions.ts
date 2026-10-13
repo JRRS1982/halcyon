@@ -3,22 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { requireUserId } from "@/lib/auth/requireUserId";
 import { isDashboardChartKey } from "@/lib/dashboard/charts";
 import { reminderDaySchema } from "@/lib/email/reminder";
 import { ensureUnsubscribeToken } from "@/lib/email/subscriptions";
 import { prisma } from "@/lib/prisma";
 import { CURRENCY_CODES, NUMBER_FORMATS } from "@/lib/settings/currency";
 import { isThemePreference } from "@/lib/settings/theme";
-import { createClient } from "@/lib/supabase/server";
-
-async function requireUserId(): Promise<string> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/sign-in?next=/settings");
-  return user.id;
-}
 
 const updateSettingsSchema = z.object({
   currency: z.enum(CURRENCY_CODES),
@@ -28,7 +19,7 @@ const updateSettingsSchema = z.object({
 // Saves the Format preferences (currency + number format) from the Save button.
 // The transactions toggle is handled separately (toggleTransactions).
 export async function updateSettings(formData: FormData) {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/settings");
   const parsed = updateSettingsSchema.parse({
     currency: formData.get("currency"),
     numberFormat: formData.get("numberFormat"),
@@ -56,7 +47,7 @@ const setChartVisibilitySchema = z.object({
 export async function setChartVisibility(
   input: z.input<typeof setChartVisibilitySchema>,
 ) {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/settings");
   const { key, visible } = setChartVisibilitySchema.parse(input);
   if (!isDashboardChartKey(key)) throw new Error("Unknown chart");
 
@@ -82,7 +73,7 @@ export async function setChartVisibility(
 // dialog (not the Save button). Changes the nav + route gating + budget
 // actuals, all rendered server-side, so revalidate the whole layout.
 export async function toggleTransactions(enabled: boolean) {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/settings");
   await prisma.userSettings.upsert({
     where: { userId },
     update: { transactionsEnabled: enabled },
@@ -94,7 +85,7 @@ export async function toggleTransactions(enabled: boolean) {
 // Flips the budget Transfers section on/off. Only affects the budget page's
 // rendering and the ledger's Transfer option, so revalidate those.
 export async function toggleTransfers(enabled: boolean) {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/settings");
   await prisma.userSettings.upsert({
     where: { userId },
     update: { transfersEnabled: enabled },
@@ -109,7 +100,7 @@ export async function toggleTransfers(enabled: boolean) {
 // whole layout has to revalidate, not just /settings, or the page would save
 // the choice and keep showing the old scheme until a hard refresh.
 export async function setThemePreference(preference: string) {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/settings");
   if (!isThemePreference(preference)) return;
 
   await prisma.userSettings.upsert({
@@ -126,7 +117,7 @@ export async function setThemePreference(preference: string) {
 // exists before any email could carry a link to it — the cron skips a
 // subscription with no token rather than sending mail nobody can escape.
 export async function toggleMonthlyReminder(enabled: boolean) {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/settings");
 
   await prisma.userSettings.upsert({
     where: { userId },
@@ -140,7 +131,7 @@ export async function toggleMonthlyReminder(enabled: boolean) {
 
 // Which day of the month the reminder goes out on.
 export async function setMonthlyReminderDay(day: number) {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/settings");
   const parsed = reminderDaySchema.safeParse(day);
   if (!parsed.success) return;
 
