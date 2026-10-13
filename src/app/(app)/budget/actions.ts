@@ -33,6 +33,7 @@ import {
   type UpdateItemInput,
   updateItemSchema,
 } from "@/lib/budget/schemas";
+import { createCategoryWithinCap } from "@/lib/categories/createWithinCap";
 import { sectionFor } from "@/lib/categories/sections";
 import { prisma } from "@/lib/prisma";
 import {
@@ -258,14 +259,11 @@ async function categoryIdForRow(
 
   if (row.section === null) return null;
 
-  const created = await tx.category.create({
-    data: {
-      userId,
-      type: row.type,
-      label,
-      section: row.section,
-    },
-    select: { id: true },
+  const created = await createCategoryWithinCap(tx.category, {
+    userId,
+    type: row.type,
+    label,
+    section: row.section,
   });
   return created.id;
 }
@@ -476,10 +474,13 @@ export async function copyPeriodFrom(input: CopyPeriodFromInput) {
   if (copied.length > MAX_ITEMS_PER_PERIOD) throw periodFullError();
 
   await prisma.$transaction([
-    prisma.budgetItem.updateMany({
-      where: { periodId: target.id, deletedAt: null },
-      data: { deletedAt: new Date() },
-    }),
+    // Hard delete, not a deletedAt stamp. These rows are being replaced, and
+    // nothing in the app ever reads a soft-deleted budget item back, so a
+    // tombstone is storage with no reader. Stamping them also made this action
+    // an unbounded writer: MAX_ITEMS_PER_PERIOD counts live rows — correctly,
+    // since it is the sheet's display ceiling — so every repeat of the same
+    // copy added N permanent rows while the cap reported no change.
+    prisma.budgetItem.deleteMany({ where: { periodId: target.id } }),
     prisma.budgetItem.createMany({
       data: copied.map((it) => ({
         id: it.id,

@@ -198,10 +198,10 @@ export async function copyBalancePeriodFrom(input: CopyBalancePeriodFromInput) {
   if (copied.length > MAX_ITEMS_PER_PERIOD) throw periodFullError();
 
   await prisma.$transaction([
-    prisma.balanceItem.updateMany({
-      where: { periodId: target.id, deletedAt: null },
-      data: { deletedAt: new Date() },
-    }),
+    // Hard delete for the same reason as the budget twin: these rows are
+    // replaced, never read back, and stamping them turned one server action
+    // into an unbounded writer behind a cap that counts only live rows.
+    prisma.balanceItem.deleteMany({ where: { periodId: target.id } }),
     prisma.balanceItem.createMany({
       data: copied.map((it) => {
         if (!accountById.has(it.accountId)) {

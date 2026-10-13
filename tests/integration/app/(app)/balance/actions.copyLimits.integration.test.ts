@@ -74,4 +74,23 @@ describe("balance copy ceiling (integration)", () => {
 
     expect(items).toHaveLength(MAX_ITEMS_PER_PERIOD);
   });
+
+  // The same storage defect the budget twin had: MAX_ITEMS_PER_PERIOD counts
+  // live rows, so stamping the replaced rows let one action write permanently
+  // while the cap reported no change.
+  it("does not grow the table when the same copy runs repeatedly", async () => {
+    const source = await seedPeriodWithRows(3);
+    const target = { targetYear: 2026, targetMonth: 3 };
+
+    await copyBalancePeriodFrom({ sourcePeriodId: source.id, ...target });
+    const afterFirst = await prisma.balanceItem.count();
+
+    await copyBalancePeriodFrom({ sourcePeriodId: source.id, ...target });
+    await copyBalancePeriodFrom({ sourcePeriodId: source.id, ...target });
+
+    expect(await prisma.balanceItem.count()).toBe(afterFirst);
+    expect(
+      await prisma.balanceItem.count({ where: { deletedAt: { not: null } } }),
+    ).toBe(0);
+  });
 });

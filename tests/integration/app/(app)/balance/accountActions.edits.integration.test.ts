@@ -177,14 +177,20 @@ describe("copyBalancePeriodFrom", () => {
     expect(Number(liveRows[0]?.value)).toBe(100);
     expect(liveRows[0]?.carriedOver).toBe(true);
 
-    // The old value is soft-deleted, not left live alongside the new one —
-    // the partial unique index on live (periodId, accountId) rows would
-    // reject two live rows for the same account+month.
+    // The replaced value is gone, not left alongside the new one — the partial
+    // unique index on live (periodId, accountId) rows would reject two live
+    // rows for the same account+month.
+    //
+    // This used to assert two rows, one of them soft-deleted, which pinned the
+    // tombstone as the mechanism rather than the rule. Copy-forward now hard
+    // deletes what it replaces: nothing reads a soft-deleted balance item back,
+    // and stamping them made repeated copies grow the table without bound
+    // behind a cap that counts only live rows.
     const allTargetRows = await prisma.balanceItem.findMany({
       where: { accountId: a.id, periodId: result.periodId },
     });
-    expect(allTargetRows).toHaveLength(2);
-    expect(allTargetRows.filter((r) => r.deletedAt !== null)).toHaveLength(1);
+    expect(allTargetRows).toHaveLength(1);
+    expect(allTargetRows.filter((r) => r.deletedAt !== null)).toHaveLength(0);
   });
 });
 
