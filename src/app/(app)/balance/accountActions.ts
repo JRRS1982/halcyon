@@ -3,15 +3,12 @@
 import type { AccountType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { accountTypesOfKind, kindOf } from "@/lib/accounts/accountDraft";
+import { createAccountWithinCap } from "@/lib/accounts/createWithinCap";
 import {
   buildAccountData,
   buildMortgageAccountData,
   nextSortOrder,
 } from "@/lib/accounts/creation";
-import {
-  accountLimitError,
-  MAX_ACCOUNTS_PER_USER,
-} from "@/lib/accounts/limits";
 import {
   type AccountDeletionCounts,
   type AccountIdInput,
@@ -157,20 +154,6 @@ export async function createAccount(
   const kind = kindOf(parsed.type);
 
   const result = await prisma.$transaction(async (tx) => {
-    // An account multiplies: one BalanceItem per month it appears in, and one
-    // plan row per account on every Sync. Capping it bounds all three tables.
-    //
-    // Check-then-write, the same accepted race ensurePeriodForMonthIn carries
-    // and for the same reason: concurrent creates can each read the same count,
-    // so the real ceiling is MAX_ACCOUNTS_PER_USER plus whatever was in flight.
-    // The overshoot is bounded by concurrency and self-limits on the next call,
-    // which is what the cap is for; closing it properly needs a per-user
-    // advisory lock for no real gain.
-    const held = await tx.account.count({
-      where: { userId, deletedAt: null },
-    });
-    if (held >= MAX_ACCOUNTS_PER_USER) throw accountLimitError();
-
     const period = await ensurePeriodForMonthIn(tx, userId, range);
 
     // sortOrder appends to the end of this account's (kind, section) bucket
@@ -187,14 +170,12 @@ export async function createAccount(
       select: { sortOrder: true },
     });
 
-    const account = await tx.account.create({
-      data: {
-        userId,
-        name,
-        canImportTransactions: parsed.canImportTransactions,
-        sortOrder: nextSortOrder(last?.sortOrder),
-        ...accountData,
-      },
+    const account = await createAccountWithinCap(tx.account, {
+      userId,
+      name,
+      canImportTransactions: parsed.canImportTransactions,
+      sortOrder: nextSortOrder(last?.sortOrder),
+      ...accountData,
     });
 
     await tx.balanceItem.create({
@@ -227,13 +208,14 @@ export async function createAccount(
         select: { sortOrder: true },
       });
 
-      const mortgage = await tx.account.create({
-        data: {
-          userId,
-          ...buildMortgageAccountData(parsed.mortgage),
-          sortOrder: nextSortOrder(lastLiability?.sortOrder),
-          linkedAccountId: account.id,
-        },
+      // Its own cap check, not one shared with the property above. A pair
+      // created at the ceiling would otherwise put two rows past a single
+      // count — small, but the kind of overshoot that only ever grows.
+      const mortgage = await createAccountWithinCap(tx.account, {
+        userId,
+        ...buildMortgageAccountData(parsed.mortgage),
+        sortOrder: nextSortOrder(lastLiability?.sortOrder),
+        linkedAccountId: account.id,
       });
 
       await tx.balanceItem.create({

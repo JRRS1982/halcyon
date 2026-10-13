@@ -2,6 +2,7 @@ import "server-only";
 
 import type { AccountKind } from "@prisma/client";
 import { kindOf } from "@/lib/accounts/accountDraft";
+import { createCategoryWithinCap } from "@/lib/categories/createWithinCap";
 import { categoryKey, cleanLabel } from "@/lib/categories/normalize";
 import { sectionLabel } from "@/lib/categories/sections";
 import { prisma } from "@/lib/prisma";
@@ -144,15 +145,12 @@ export async function getOrProvisionCategories(
 
   const created: LedgerCategory[] = [];
   for (const [i, group] of groupList.entries()) {
-    const category = await prisma.category.create({
-      data: {
-        userId,
-        type: group.type,
-        section: group.section,
-        label: group.label,
-        sortOrder: i,
-      },
-      select: { id: true, label: true, type: true },
+    const category = await createCategoryWithinCap(prisma.category, {
+      userId,
+      type: group.type,
+      section: group.section,
+      label: group.label,
+      sortOrder: i,
     });
     await prisma.budgetItem.updateMany({
       where: { id: { in: group.itemIds } },
