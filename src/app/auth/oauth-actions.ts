@@ -2,6 +2,7 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { callbackOrigin } from "@/lib/auth/callbackOrigin";
 import { clientIp } from "@/lib/http/clientIp";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { createClient } from "@/lib/supabase/server";
@@ -11,7 +12,7 @@ import { createClient } from "@/lib/supabase/server";
 // Supabase, which redirects back to our /auth/callback with a one-time code
 // that the existing callback route exchanges for a session.
 export const signInWithGoogle = async () => {
-  const origin = (await headers()).get("origin");
+  const origin = await callbackOrigin();
   if (
     (await checkRateLimit("oauth-initiate", await clientIp())) !== "allowed"
   ) {

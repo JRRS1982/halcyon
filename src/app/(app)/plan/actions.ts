@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { applySyncPlan } from "@/lib/plan/applySyncPlan";
+import { nextSortOrderWithinCap } from "@/lib/plan/limits";
 import { latestReality } from "@/lib/plan/reality";
 import {
   type CreatePlanAssetInput,
@@ -286,10 +287,11 @@ export async function createPlanAsset(
   const parsed = createPlanAssetSchema.parse(input);
 
   const id = await prisma.$transaction(async (tx) => {
-    const max = await tx.planAsset.aggregate({
-      where: { planId: plan.id, deletedAt: null },
-      _max: { sortOrder: true },
-    });
+    const sortOrder = await nextSortOrderWithinCap(
+      tx.planAsset,
+      plan.id,
+      "asset",
+    );
     const asset = await tx.planAsset.create({
       data: {
         planId: plan.id,
@@ -298,7 +300,7 @@ export async function createPlanAsset(
         openingValue: parsed.openingValue,
         monthlyContribution: 0,
         drawdownPriority: 0,
-        sortOrder: (max._max.sortOrder ?? -1) + 1,
+        sortOrder,
       },
     });
 
@@ -365,10 +367,11 @@ export async function createPlanLiability(
   const parsed = createPlanLiabilitySchema.parse(input);
 
   const created = await prisma.$transaction(async (tx) => {
-    const max = await tx.planLiability.aggregate({
-      where: { planId: plan.id, deletedAt: null },
-      _max: { sortOrder: true },
-    });
+    const sortOrder = await nextSortOrderWithinCap(
+      tx.planLiability,
+      plan.id,
+      "liability",
+    );
 
     let linkedAssetId: string | null = null;
     const choice = parsed.property;
@@ -413,7 +416,7 @@ export async function createPlanLiability(
         interestPct: 0,
         monthlyRepayment: 0,
         linkedAssetId,
-        sortOrder: (max._max.sortOrder ?? -1) + 1,
+        sortOrder,
       },
     });
 
@@ -446,10 +449,11 @@ export async function createPlanLiability(
 export async function createPlanIncome(): Promise<string> {
   const userId = await requireUserId();
   const plan = await requirePrimaryPlan(userId);
-  const max = await prisma.planIncome.aggregate({
-    where: { planId: plan.id, deletedAt: null },
-    _max: { sortOrder: true },
-  });
+  const sortOrder = await nextSortOrderWithinCap(
+    prisma.planIncome,
+    plan.id,
+    "income",
+  );
   const row = await prisma.planIncome.create({
     data: {
       planId: plan.id,
@@ -458,7 +462,7 @@ export async function createPlanIncome(): Promise<string> {
       annualAmount: 0,
       growthKind: "INFLATION",
       taxable: true,
-      sortOrder: (max._max.sortOrder ?? -1) + 1,
+      sortOrder,
     },
   });
   revalidatePath("/plan");
@@ -468,10 +472,11 @@ export async function createPlanIncome(): Promise<string> {
 export async function createPlanExpense(): Promise<string> {
   const userId = await requireUserId();
   const plan = await requirePrimaryPlan(userId);
-  const max = await prisma.planExpense.aggregate({
-    where: { planId: plan.id, deletedAt: null },
-    _max: { sortOrder: true },
-  });
+  const sortOrder = await nextSortOrderWithinCap(
+    prisma.planExpense,
+    plan.id,
+    "expense",
+  );
   const row = await prisma.planExpense.create({
     data: {
       planId: plan.id,
@@ -479,7 +484,7 @@ export async function createPlanExpense(): Promise<string> {
       section: "FIXED",
       annualAmount: 0,
       inflationLinked: true,
-      sortOrder: (max._max.sortOrder ?? -1) + 1,
+      sortOrder,
     },
   });
   revalidatePath("/plan");
@@ -489,10 +494,11 @@ export async function createPlanExpense(): Promise<string> {
 export async function createPlanEvent(): Promise<string> {
   const userId = await requireUserId();
   const plan = await requirePrimaryPlan(userId);
-  const max = await prisma.planEvent.aggregate({
-    where: { planId: plan.id, deletedAt: null },
-    _max: { sortOrder: true },
-  });
+  const sortOrder = await nextSortOrderWithinCap(
+    prisma.planEvent,
+    plan.id,
+    "event",
+  );
   const row = await prisma.planEvent.create({
     data: {
       planId: plan.id,
@@ -500,7 +506,7 @@ export async function createPlanEvent(): Promise<string> {
       age: plan.retirementAge,
       direction: "OUTFLOW",
       amount: 0,
-      sortOrder: (max._max.sortOrder ?? -1) + 1,
+      sortOrder,
     },
   });
   revalidatePath("/plan");
@@ -618,10 +624,14 @@ export async function linkRepaymentExpense(input: {
       select: { id: true },
     });
     if (existing) return existing.id;
-    const max = await tx.planExpense.aggregate({
-      where: { planId: liability.planId, deletedAt: null },
-      _max: { sortOrder: true },
-    });
+    // Idempotent per liability, so not an abuse vector — but it writes to a
+    // capped table, and the ceiling belongs to the table rather than to any
+    // one entry point.
+    const sortOrder = await nextSortOrderWithinCap(
+      tx.planExpense,
+      liability.planId,
+      "expense",
+    );
     const row = await tx.planExpense.create({
       data: {
         planId: liability.planId,
@@ -630,7 +640,7 @@ export async function linkRepaymentExpense(input: {
         annualAmount: Number(liability.monthlyRepayment) * 12,
         inflationLinked: false,
         liabilityId,
-        sortOrder: (max._max.sortOrder ?? -1) + 1,
+        sortOrder,
       },
     });
     return row.id;

@@ -16,6 +16,7 @@ import {
   type CopyableItem,
 } from "@/lib/budget/copyPeriod";
 import { ensurePeriodForMonthIn } from "@/lib/budget/ensurePeriod";
+import { MAX_ITEMS_PER_PERIOD, periodFullError } from "@/lib/budget/limits";
 import {
   calendarMonth,
   calendarYear,
@@ -306,6 +307,13 @@ export async function createItemForMonth(input: CreateItemForMonthInput) {
       await requireAccountUnbudgeted(tx, period.id, parsed.accountId);
     }
 
+    // The sheet is a page a person reads, and nothing bounded how many rows it
+    // could hold — which also made copyPeriodFrom an N-times amplifier.
+    const held = await tx.budgetItem.count({
+      where: { periodId: period.id, deletedAt: null },
+    });
+    if (held >= MAX_ITEMS_PER_PERIOD) throw periodFullError();
+
     // New row's sortOrder = max(sortOrder) + 1 within (periodId, type).
     const last = await tx.budgetItem.findFirst({
       where: { periodId: period.id, type: parsed.type, deletedAt: null },
@@ -477,6 +485,7 @@ export async function copyPeriodFrom(input: CopyPeriodFromInput) {
   );
 
   const copied = buildCopiedItems(kept, randomUUID);
+  if (copied.length > MAX_ITEMS_PER_PERIOD) throw periodFullError();
 
   await prisma.$transaction([
     prisma.budgetItem.updateMany({
