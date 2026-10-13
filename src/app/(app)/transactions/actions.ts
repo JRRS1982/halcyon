@@ -212,10 +212,12 @@ export async function commitImport(input: CommitInput): Promise<ImportResult> {
 
   let autoCategorised = 0;
   if (toInsert.length > 0) {
-    // Bound the total a single user can accumulate across all imports. Counting
-    // live rows (deletedAt: null) keeps reversed/deleted batches from counting
-    // against the cap, and fails closed: if the count query throws, the import
-    // does not proceed.
+    // Bound the total a single user can accumulate across all imports.
+    // countedByCap counts every row, tombstones included, so reversing or
+    // deleting an import does NOT free room here — that is the point, since
+    // both delete paths are soft and a live count let commit → reverse →
+    // repeat write forever. Fails closed: if the count query throws, the
+    // import does not proceed.
     const existing = await countedByCap(prisma.transaction, userId);
     if (existing + toInsert.length > MAX_TRANSACTIONS_PER_USER) {
       throw new Error(

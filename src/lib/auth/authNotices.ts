@@ -37,14 +37,13 @@ export const AUTH_NOTICES = {
 
 export type AuthNoticeCode = keyof typeof AUTH_NOTICES;
 
-// Unknown codes render nothing at all, which is the whole point: a value the
-// app did not produce has no message.
-//
 // Object.hasOwn, not a plain index: `?error=toString` would otherwise find the
 // inherited function and render it, which is the lookup table leaking exactly
 // the thing it was built to stop.
-export const authNotice = (code: string | undefined): string | undefined => {
-  if (code === undefined) return undefined;
-  if (!Object.hasOwn(AUTH_NOTICES, code)) return undefined;
-  return AUTH_NOTICES[code as AuthNoticeCode];
-};
+const isAuthNoticeCode = (code: string): code is AuthNoticeCode =>
+  Object.hasOwn(AUTH_NOTICES, code);
+
+// Unknown codes render nothing at all, which is the whole point: a value the
+// app did not produce has no message.
+export const authNotice = (code: string | undefined): string | undefined =>
+  code !== undefined && isAuthNoticeCode(code) ? AUTH_NOTICES[code] : undefined;
