@@ -2,6 +2,7 @@ import type { AccountType } from "@prisma/client";
 import { z } from "zod";
 import { type TermField, termsFor } from "@/lib/accounts/accountDraft";
 import { accountSectionSchema, accountTypeSchema } from "@/lib/balance/schemas";
+import { calendarYear } from "@/lib/budget/period";
 
 // Every parameter is optional and nullable, and the two mean different things:
 // absent = "don't touch this", null = "clear it, take the default". The card
@@ -32,7 +33,7 @@ export const accountTermsSchema = z.object({
 // the link in the same transaction.
 export const createAccountSchema = z
   .object({
-    year: z.number().int(),
+    year: calendarYear,
     month: z.number().int().min(0).max(11),
     name: z.string().trim().min(1).max(120),
     type: accountTypeSchema,
@@ -70,7 +71,7 @@ export const archiveAccountSchema = accountIdSchema.extend({
   // month on go; earlier ones are observations that were true when they were
   // made. Taken from the sheet rather than from the clock, so the row leaves
   // the sheet the button was on.
-  fromYear: z.number().int(),
+  fromYear: calendarYear,
   fromMonth: z.number().int().min(0).max(11),
 });
 

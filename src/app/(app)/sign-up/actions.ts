@@ -1,6 +1,5 @@
 "use server";
 
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { checkPasswordBreach } from "@/lib/auth/breachedPassword";
 import { callbackOrigin } from "@/lib/auth/callbackOrigin";

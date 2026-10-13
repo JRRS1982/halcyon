@@ -1,4 +1,5 @@
 import { TEST_USER_ID } from "@test/support/helpers";
+import { z } from "zod";
 import { createPlan, getPrimaryPlan } from "@/app/(app)/plan/actions";
 import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
@@ -105,5 +106,17 @@ describe("createPlan (integration)", () => {
     const plan = await getPrimaryPlan();
     expect(plan?.userId).toBe(TEST_USER_ID);
     expect(plan?.id).not.toBe(otherPlan.id);
+  });
+
+  // Date of birth drives every age on the projection, so a date that silently
+  // moved is a whole plan computed against the wrong year. The field checked
+  // only the shape, and new Date("2026-02-30") rolls forward rather than
+  // failing, so nothing downstream could tell.
+  it("refuses a date of birth the calendar does not have", async () => {
+    await expect(
+      createPlan({ dateOfBirth: "1990-02-30" }),
+    ).rejects.toBeInstanceOf(z.ZodError);
+
+    expect(await prisma.plan.count()).toBe(0);
   });
 });

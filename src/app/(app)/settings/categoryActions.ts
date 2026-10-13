@@ -1,10 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireUserId } from "@/lib/auth/requireUserId";
 import { categorySectionSchema } from "@/lib/budget/schemas";
+import {
+  categoryLimitError,
+  MAX_CATEGORIES_PER_USER,
+} from "@/lib/categories/limits";
 import { planItemMerge } from "@/lib/categories/merge";
 import { cleanLabel } from "@/lib/categories/normalize";
 import { sectionFor } from "@/lib/categories/sections";
@@ -31,6 +34,14 @@ export async function createManagedCategory(
 ): Promise<void> {
   const userId = await requireUserId("/settings");
   const { label, type, section } = upsertSchema.parse(input);
+
+  // Check-then-write, the same accepted race the other per-user caps carry:
+  // the overshoot is bounded by concurrency and self-limits on the next call.
+  const held = await prisma.category.count({
+    where: { userId, deletedAt: null },
+  });
+  if (held >= MAX_CATEGORIES_PER_USER) throw categoryLimitError();
+
   await prisma.category.create({
     data: {
       userId,

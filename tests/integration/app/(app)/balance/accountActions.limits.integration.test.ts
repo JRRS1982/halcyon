@@ -1,4 +1,5 @@
 import { TEST_USER_ID } from "@test/support/helpers";
+import { z } from "zod";
 import { createAccount } from "@/app/(app)/balance/accountActions";
 import { MAX_ACCOUNTS_PER_USER } from "@/lib/accounts/limits";
 import { prisma } from "@/lib/prisma";
@@ -52,5 +53,19 @@ describe("account cap (integration)", () => {
     const { accountId } = await createAccount(savingsInput);
 
     expect(accountId).toBeTruthy();
+  });
+});
+
+// `year` reached Date.UTC() and a FinancialPeriod write with only z.number()
+// in front of it, the same hole calendarYear was added for on the budget and
+// balance copy schemas — createAccount is a third path into the same write.
+describe("account period bounds (integration)", () => {
+  it("refuses a year outside any plausible ledger", async () => {
+    await expect(
+      createAccount({ ...savingsInput, year: 999999 }),
+    ).rejects.toBeInstanceOf(z.ZodError);
+
+    expect(await prisma.financialPeriod.count()).toBe(0);
+    expect(await prisma.account.count()).toBe(0);
   });
 });

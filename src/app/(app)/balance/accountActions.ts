@@ -2,7 +2,6 @@
 
 import type { AccountType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { accountTypesOfKind, kindOf } from "@/lib/accounts/accountDraft";
 import {
   buildAccountData,
