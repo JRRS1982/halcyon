@@ -19,9 +19,41 @@ import { join } from "node:path";
 // reason in the place the failure is read.
 const SRC = join(process.cwd(), "src");
 
+// model -> the one file allowed to create it.
 const OWNERS: Record<string, string> = {
-  "category.create": "src/lib/categories/createWithinCap.ts",
-  "account.create": "src/lib/accounts/createWithinCap.ts",
+  category: "src/lib/categories/createWithinCap.ts",
+  account: "src/lib/accounts/createWithinCap.ts",
+  budgetItem: "src/lib/budget/createWithinCap.ts",
+  balanceItem: "src/lib/balance/createWithinCap.ts",
+  planAsset: "src/lib/plan/createWithinCap.ts",
+  planLiability: "src/lib/plan/createWithinCap.ts",
+  planIncome: "src/lib/plan/createWithinCap.ts",
+  planExpense: "src/lib/plan/createWithinCap.ts",
+  planEvent: "src/lib/plan/createWithinCap.ts",
+};
+
+// Every way Prisma writes a new row, not just .create(. The first version of
+// this test matched .create( alone, which left createMany, upsert and
+// connectOrCreate invisible to it — the next bulk write would have landed
+// uncapped with a green build, which is how this defect started.
+const WRITES = "create|createMany|createManyAndReturn|upsert";
+
+// Provisioning seeds fixed arrays once per user behind a race gate, so it
+// cannot be looped. Named here rather than left silently matching, so the
+// exception is something a reader can see and argue with.
+const ALLOWED: Record<string, string[]> = {
+  category: ["src/lib/settings/server.ts"],
+  account: ["src/lib/settings/server.ts"],
+  budgetItem: ["src/lib/settings/server.ts"],
+  // Sync is all-or-nothing: it has to know the whole batch fits before it
+  // writes any of it, so a run that would breach the ceiling fails before
+  // touching the plan rather than stopping half way. assertRoomForAdditions
+  // does that, against both ceilings, for every kind it is about to add — so
+  // this file is capped, just not one row at a time.
+  planAsset: ["src/lib/plan/applySyncPlan.ts"],
+  planLiability: ["src/lib/plan/applySyncPlan.ts"],
+  planIncome: ["src/lib/plan/applySyncPlan.ts"],
+  planExpense: ["src/lib/plan/applySyncPlan.ts"],
 };
 
 const sourceFiles = (dir: string): string[] =>
@@ -36,14 +68,31 @@ const relative = (path: string) =>
 
 describe.each(Object.entries(OWNERS))(
   "%s is created in one place",
-  (member, owner) => {
-    it(`has no call site outside ${owner}`, () => {
-      // `.create(` on the model, however the client is named — prisma, tx, db.
-      const pattern = new RegExp(`\\.${member.replace(".", "\\.")}\\(`);
+  (model, owner) => {
+    it(`has no write site outside ${owner}`, () => {
+      // However the client is named — prisma, tx, db.
+      const pattern = new RegExp(`\\.${model}\\.(${WRITES})\\(`);
+      const allowed = new Set([owner, ...(ALLOWED[model] ?? [])]);
 
       const offenders = sourceFiles(SRC)
-        .filter((file) => relative(file) !== owner)
+        .filter((file) => !allowed.has(relative(file)))
         .filter((file) => pattern.test(readFileSync(file, "utf8")))
+        .map(relative);
+
+      expect(offenders).toEqual([]);
+    });
+
+    // A nested write reaches the same table without naming the delegate.
+    it(`has no nested relation write outside ${owner}`, () => {
+      const nested = new RegExp(
+        `\\b${model}:\\s*\\{[^}]*\\b(create|connectOrCreate)\\b`,
+        "s",
+      );
+      const allowed = new Set([owner, ...(ALLOWED[model] ?? [])]);
+
+      const offenders = sourceFiles(SRC)
+        .filter((file) => !allowed.has(relative(file)))
+        .filter((file) => nested.test(readFileSync(file, "utf8")))
         .map(relative);
 
       expect(offenders).toEqual([]);
@@ -53,10 +102,23 @@ describe.each(Object.entries(OWNERS))(
 
 // A rule nobody can break because it is also never used is not a rule. If the
 // owning file stops creating, this test has stopped guarding anything.
-describe("the owning helpers still create", () => {
-  it.each(Object.entries(OWNERS))("%s is called in %s", (member, owner) => {
+// A rule nobody can break because nothing uses it has stopped guarding
+// anything. The owners write through a structural delegate rather than a named
+// model — one helper serves all five plan kinds that way — so this asserts the
+// write and the ceiling are both still there, not which table they reach.
+describe("the owning helpers still create, and still check", () => {
+  it.each([...new Set(Object.values(OWNERS))])("%s writes", (owner) => {
     const source = readFileSync(join(process.cwd(), owner), "utf8");
-    const bare = member.split(".")[1] as string;
-    expect(source).toMatch(new RegExp(`\\.${bare}\\(`));
+    expect(source).toMatch(/\b(create|createMany)\(/);
   });
+
+  it.each([...new Set(Object.values(OWNERS))])(
+    "%s checks both ceilings",
+    (owner) => {
+      const source = readFileSync(join(process.cwd(), owner), "utf8");
+      expect(source).toMatch(/assertRoom\(/);
+      expect(source).toMatch(/countLive:/);
+      expect(source).toMatch(/countStored:/);
+    },
+  );
 });

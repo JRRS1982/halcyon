@@ -4,6 +4,10 @@ import type { BalanceItem } from "@prisma/client";
 import { requireUserId } from "@/lib/auth/requireUserId";
 import { toCarriedOverRows } from "@/lib/balance/copyRows";
 import {
+  createBalanceItemsWithinCap,
+  createBalanceItemWithinCap,
+} from "@/lib/balance/createWithinCap";
+import {
   type ClearBalanceValueInput,
   type CopyBalancePeriodFromInput,
   clearBalanceValueSchema,
@@ -76,13 +80,11 @@ export async function upsertBalanceValue(input: UpsertBalanceValueInput) {
       );
     }
 
-    return tx.balanceItem.create({
-      data: {
-        periodId: period.id,
-        accountId: account.id,
-        value: parsed.value,
-        notes: parsed.notes ?? null,
-      },
+    return createBalanceItemWithinCap(tx.balanceItem, {
+      periodId: period.id,
+      accountId: account.id,
+      value: parsed.value,
+      notes: parsed.notes ?? null,
     });
   });
 
@@ -197,13 +199,16 @@ export async function copyBalancePeriodFrom(input: CopyBalancePeriodFromInput) {
   // one call writes one row per live account.
   if (copied.length > MAX_ITEMS_PER_PERIOD) throw periodFullError();
 
-  await prisma.$transaction([
+  await prisma.$transaction(async (tx) => {
     // Hard delete for the same reason as the budget twin: these rows are
     // replaced, never read back, and stamping them turned one server action
     // into an unbounded writer behind a cap that counts only live rows.
-    prisma.balanceItem.deleteMany({ where: { periodId: target.id } }),
-    prisma.balanceItem.createMany({
-      data: copied.map((it) => {
+    await tx.balanceItem.deleteMany({ where: { periodId: target.id } });
+
+    await createBalanceItemsWithinCap(
+      tx.balanceItem,
+      target.id,
+      copied.map((it) => {
         if (!accountById.has(it.accountId)) {
           throw new Error("Account not found");
         }
@@ -214,8 +219,8 @@ export async function copyBalancePeriodFrom(input: CopyBalancePeriodFromInput) {
           carriedOver: it.carriedOver,
         };
       }),
-    }),
-  ]);
+    );
+  });
 
   return { periodId: target.id, items: copied };
 }

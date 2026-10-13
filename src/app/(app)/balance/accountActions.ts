@@ -10,6 +10,10 @@ import {
   nextSortOrder,
 } from "@/lib/accounts/creation";
 import {
+  accountLimitError,
+  MAX_ACCOUNTS_PER_USER,
+} from "@/lib/accounts/limits";
+import {
   type AccountDeletionCounts,
   type AccountIdInput,
   type AccountTermsInput,
@@ -24,6 +28,7 @@ import {
   setAccountTermsSchema,
 } from "@/lib/accounts/schemas";
 import { requireUserId } from "@/lib/auth/requireUserId";
+import { createBalanceItemWithinCap } from "@/lib/balance/createWithinCap";
 import { isValidBalanceCategory } from "@/lib/balance/reorder";
 import {
   type RenameAccountInput,
@@ -178,12 +183,10 @@ export async function createAccount(
       ...accountData,
     });
 
-    await tx.balanceItem.create({
-      data: {
-        periodId: period.id,
-        accountId: account.id,
-        value: parsed.value,
-      },
+    await createBalanceItemWithinCap(tx.balanceItem, {
+      periodId: period.id,
+      accountId: account.id,
+      value: parsed.value,
     });
 
     if (hasAnyTerm(parsed.terms)) {
@@ -218,12 +221,10 @@ export async function createAccount(
         linkedAccountId: account.id,
       });
 
-      await tx.balanceItem.create({
-        data: {
-          periodId: period.id,
-          accountId: mortgage.id,
-          value: parsed.mortgage.value,
-        },
+      await createBalanceItemWithinCap(tx.balanceItem, {
+        periodId: period.id,
+        accountId: mortgage.id,
+        value: parsed.mortgage.value,
       });
 
       if (hasAnyTerm(parsed.mortgage.terms)) {
@@ -471,6 +472,15 @@ export async function setAccountTerms(input: unknown): Promise<void> {
 export async function restoreAccount(input: AccountIdInput): Promise<void> {
   const userId = await requireUserId("/balance");
   const { accountId } = accountIdSchema.parse(input);
+
+  // Un-archiving puts a row back on the sheet, so it has to respect the sheet's
+  // ceiling the way creating one does. Without this the live cap could be
+  // exceeded without a single create: archive to the floor, create more,
+  // restore the lot.
+  const live = await prisma.account.count({
+    where: { userId, deletedAt: null },
+  });
+  if (live >= MAX_ACCOUNTS_PER_USER) throw accountLimitError();
 
   const result = await prisma.account.updateMany({
     where: { id: accountId, userId },

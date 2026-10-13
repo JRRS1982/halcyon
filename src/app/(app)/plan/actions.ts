@@ -6,7 +6,7 @@ import { z } from "zod";
 import { requireUserId } from "@/lib/auth/requireUserId";
 import { calendarDate } from "@/lib/budget/period";
 import { applySyncPlan } from "@/lib/plan/applySyncPlan";
-import { nextSortOrderWithinCap } from "@/lib/plan/limits";
+import { createPlanRowWithinCap } from "@/lib/plan/createWithinCap";
 import { latestReality } from "@/lib/plan/reality";
 import {
   type CreatePlanAssetInput,
@@ -224,37 +224,35 @@ async function attachNewMortgage(
   assetId: string,
   label = "Mortgage",
 ): Promise<string> {
-  const maxL = await tx.planLiability.aggregate({
-    where: { planId, deletedAt: null },
-    _max: { sortOrder: true },
-  });
-  const liability = await tx.planLiability.create({
-    data: {
+  const liability = await createPlanRowWithinCap(
+    tx.planLiability,
+    planId,
+    "liability",
+    (sortOrder) => ({
       planId,
       label,
       openingBalance: 0,
       interestPct: 0,
       monthlyRepayment: 0,
       linkedAssetId: assetId,
-      sortOrder: (maxL._max.sortOrder ?? -1) + 1,
-    },
-  });
+      sortOrder,
+    }),
+  );
 
-  const maxE = await tx.planExpense.aggregate({
-    where: { planId, deletedAt: null },
-    _max: { sortOrder: true },
-  });
-  await tx.planExpense.create({
-    data: {
+  await createPlanRowWithinCap(
+    tx.planExpense,
+    planId,
+    "expense",
+    (sortOrder) => ({
       planId,
       label: `${label} repayment`,
       section: null,
       annualAmount: 0,
       inflationLinked: false,
       liabilityId: liability.id,
-      sortOrder: (maxE._max.sortOrder ?? -1) + 1,
-    },
-  });
+      sortOrder,
+    }),
+  );
   return liability.id;
 }
 
@@ -272,13 +270,11 @@ export async function createPlanAsset(
   const parsed = createPlanAssetSchema.parse(input);
 
   const id = await prisma.$transaction(async (tx) => {
-    const sortOrder = await nextSortOrderWithinCap(
+    const asset = await createPlanRowWithinCap(
       tx.planAsset,
       plan.id,
       "asset",
-    );
-    const asset = await tx.planAsset.create({
-      data: {
+      (sortOrder) => ({
         planId: plan.id,
         label: parsed.label,
         wrapper: parsed.wrapper,
@@ -286,8 +282,8 @@ export async function createPlanAsset(
         monthlyContribution: 0,
         drawdownPriority: 0,
         sortOrder,
-      },
-    });
+      }),
+    );
 
     const choice = parsed.mortgage;
     if (choice?.mode === "NEW") {
@@ -352,30 +348,23 @@ export async function createPlanLiability(
   const parsed = createPlanLiabilitySchema.parse(input);
 
   const created = await prisma.$transaction(async (tx) => {
-    const sortOrder = await nextSortOrderWithinCap(
-      tx.planLiability,
-      plan.id,
-      "liability",
-    );
-
     let linkedAssetId: string | null = null;
     const choice = parsed.property;
     if (choice?.mode === "NEW") {
-      const maxA = await tx.planAsset.aggregate({
-        where: { planId: plan.id, deletedAt: null },
-        _max: { sortOrder: true },
-      });
-      const property = await tx.planAsset.create({
-        data: {
+      const property = await createPlanRowWithinCap(
+        tx.planAsset,
+        plan.id,
+        "asset",
+        (sortOrder) => ({
           planId: plan.id,
           label: choice.label,
-          wrapper: "PROPERTY",
+          wrapper: "PROPERTY" as const,
           openingValue: 0,
           monthlyContribution: 0,
           drawdownPriority: 0,
-          sortOrder: (maxA._max.sortOrder ?? -1) + 1,
-        },
-      });
+          sortOrder,
+        }),
+      );
       linkedAssetId = property.id;
     } else if (choice?.mode === "EXISTING") {
       // The property must exist, be a property, and not already be mortgaged.
@@ -393,8 +382,11 @@ export async function createPlanLiability(
       linkedAssetId = free.id;
     }
 
-    const liability = await tx.planLiability.create({
-      data: {
+    const liability = await createPlanRowWithinCap(
+      tx.planLiability,
+      plan.id,
+      "liability",
+      (sortOrder) => ({
         planId: plan.id,
         label: parsed.label,
         openingBalance: parsed.openingBalance,
@@ -402,26 +394,25 @@ export async function createPlanLiability(
         monthlyRepayment: 0,
         linkedAssetId,
         sortOrder,
-      },
-    });
+      }),
+    );
 
     // A mortgage's payment lives on a repayment expense, not on the liability.
     if (linkedAssetId !== null) {
-      const maxE = await tx.planExpense.aggregate({
-        where: { planId: plan.id, deletedAt: null },
-        _max: { sortOrder: true },
-      });
-      await tx.planExpense.create({
-        data: {
+      await createPlanRowWithinCap(
+        tx.planExpense,
+        plan.id,
+        "expense",
+        (sortOrder) => ({
           planId: plan.id,
           label: `${parsed.label} repayment`,
           section: null,
           annualAmount: 0,
           inflationLinked: false,
           liabilityId: liability.id,
-          sortOrder: (maxE._max.sortOrder ?? -1) + 1,
-        },
-      });
+          sortOrder,
+        }),
+      );
     }
 
     return { liabilityId: liability.id, linkedAssetId };
@@ -434,22 +425,20 @@ export async function createPlanLiability(
 export async function createPlanIncome(): Promise<string> {
   const userId = await requireUserId("/plan");
   const plan = await requirePrimaryPlan(userId);
-  const sortOrder = await nextSortOrderWithinCap(
+  const row = await createPlanRowWithinCap(
     prisma.planIncome,
     plan.id,
     "income",
-  );
-  const row = await prisma.planIncome.create({
-    data: {
+    (sortOrder) => ({
       planId: plan.id,
       label: "New income",
-      kind: "OTHER",
+      kind: "OTHER" as const,
       annualAmount: 0,
-      growthKind: "INFLATION",
+      growthKind: "INFLATION" as const,
       taxable: true,
       sortOrder,
-    },
-  });
+    }),
+  );
   revalidatePath("/plan");
   return row.id;
 }
@@ -457,21 +446,19 @@ export async function createPlanIncome(): Promise<string> {
 export async function createPlanExpense(): Promise<string> {
   const userId = await requireUserId("/plan");
   const plan = await requirePrimaryPlan(userId);
-  const sortOrder = await nextSortOrderWithinCap(
+  const row = await createPlanRowWithinCap(
     prisma.planExpense,
     plan.id,
     "expense",
-  );
-  const row = await prisma.planExpense.create({
-    data: {
+    (sortOrder) => ({
       planId: plan.id,
       label: "New expense",
-      section: "FIXED",
+      section: "FIXED" as const,
       annualAmount: 0,
       inflationLinked: true,
       sortOrder,
-    },
-  });
+    }),
+  );
   revalidatePath("/plan");
   return row.id;
 }
@@ -479,21 +466,19 @@ export async function createPlanExpense(): Promise<string> {
 export async function createPlanEvent(): Promise<string> {
   const userId = await requireUserId("/plan");
   const plan = await requirePrimaryPlan(userId);
-  const sortOrder = await nextSortOrderWithinCap(
+  const row = await createPlanRowWithinCap(
     prisma.planEvent,
     plan.id,
     "event",
-  );
-  const row = await prisma.planEvent.create({
-    data: {
+    (sortOrder) => ({
       planId: plan.id,
       label: "New event",
       age: plan.retirementAge,
-      direction: "OUTFLOW",
+      direction: "OUTFLOW" as const,
       amount: 0,
       sortOrder,
-    },
-  });
+    }),
+  );
   revalidatePath("/plan");
   return row.id;
 }
@@ -612,13 +597,11 @@ export async function linkRepaymentExpense(input: {
     // Idempotent per liability, so not an abuse vector — but it writes to a
     // capped table, and the ceiling belongs to the table rather than to any
     // one entry point.
-    const sortOrder = await nextSortOrderWithinCap(
+    const row = await createPlanRowWithinCap(
       tx.planExpense,
       liability.planId,
       "expense",
-    );
-    const row = await tx.planExpense.create({
-      data: {
+      (sortOrder) => ({
         planId: liability.planId,
         label: `${liability.label} repayment`,
         section: null,
@@ -626,8 +609,8 @@ export async function linkRepaymentExpense(input: {
         inflationLinked: false,
         liabilityId,
         sortOrder,
-      },
-    });
+      }),
+    );
     return row.id;
   });
   revalidatePath("/plan");

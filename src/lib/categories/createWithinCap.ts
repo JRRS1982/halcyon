@@ -1,4 +1,5 @@
 import type { Category, Prisma } from "@prisma/client";
+import { assertRoom } from "@/lib/limits/ceilings";
 import { categoryLimitError, MAX_CATEGORIES_PER_USER } from "./limits";
 
 // The only place in the app that creates a Category.
@@ -15,7 +16,9 @@ import { categoryLimitError, MAX_CATEGORIES_PER_USER } from "./limits";
 // has to serve both `prisma` and a `$transaction` client, and the two do not
 // unify. Mirrors PlanRowDelegate in plan/limits.ts.
 export type CategoryDelegate = {
-  count(args: { where: { userId: string; deletedAt: null } }): Promise<number>;
+  // deletedAt optional so the same delegate serves both counts: omitted means
+  // every row, including tombstones.
+  count(args: { where: { userId: string; deletedAt?: null } }): Promise<number>;
   create(args: {
     data: Prisma.CategoryUncheckedCreateInput;
   }): Promise<Category>;
@@ -25,14 +28,19 @@ export async function createCategoryWithinCap(
   db: CategoryDelegate,
   data: Prisma.CategoryUncheckedCreateInput,
 ): Promise<Category> {
-  // Live rows only: deleting a category is a soft delete so historical budget
-  // actuals still compute, and counting the tombstones would let a few rounds
-  // of tidying up lock the list for good. That makes this a display ceiling,
-  // not a storage bound — the storage bound is the second check below.
-  const held = await db.count({
-    where: { userId: data.userId, deletedAt: null },
+  // Two ceilings. The live one is what the user meets: deleting a category is
+  // a soft delete so historical budget actuals still compute, and counting the
+  // tombstones there would let a few rounds of tidying up lock the list for
+  // good. That makes it a display ceiling, which is exactly why the second,
+  // tombstone-inclusive one has to exist — without it, create/delete looped
+  // forever behind a number that never moved.
+  await assertRoom({
+    countLive: () =>
+      db.count({ where: { userId: data.userId, deletedAt: null } }),
+    countStored: () => db.count({ where: { userId: data.userId } }),
+    liveMax: MAX_CATEGORIES_PER_USER,
+    liveError: categoryLimitError,
   });
-  if (held >= MAX_CATEGORIES_PER_USER) throw categoryLimitError();
 
   return db.create({ data });
 }

@@ -31,39 +31,18 @@ export const planFullError = (kind: string) =>
 // way, and naming them individually would mean editing this file whenever a
 // sixth is added.
 export type PlanRowDelegate = {
-  count(args: { where: { planId: string; deletedAt: null } }): Promise<number>;
+  // deletedAt optional so one delegate serves both counts: omitted means
+  // every row, tombstones included. See lib/limits/ceilings.ts.
+  count(args: { where: { planId: string; deletedAt?: null } }): Promise<number>;
   aggregate(args: {
     where: { planId: string; deletedAt: null };
     _max: { sortOrder: true };
   }): Promise<{ _max: { sortOrder: number | null } }>;
 };
 
-/**
- * The sortOrder a new row should take, provided the plan is under its ceiling.
- *
- * Every create already ran the aggregate; folding the count in beside it keeps
- * the cap and the ordering in one place rather than five, and means a sixth
- * row kind inherits the ceiling by construction instead of by remembering.
- *
- * Check-then-write, like MAX_TRANSACTIONS_PER_USER and MAX_PERIODS_PER_USER:
- * concurrent calls can each read the same count, so the real ceiling is this
- * plus whatever was in flight. Bounded and self-limiting, and accepted for the
- * same reasons — see the note in src/lib/budget/ensurePeriod.ts.
- */
-export async function nextSortOrderWithinCap(
-  delegate: PlanRowDelegate,
-  planId: string,
-  kind: string,
-): Promise<number> {
-  const [held, max] = await Promise.all([
-    delegate.count({ where: { planId, deletedAt: null } }),
-    delegate.aggregate({
-      where: { planId, deletedAt: null },
-      _max: { sortOrder: true },
-    }),
-  ]);
-
-  if (held >= MAX_PLAN_ROWS_PER_KIND) throw planFullError(kind);
-
-  return (max._max.sortOrder ?? -1) + 1;
-}
+// nextSortOrderWithinCap used to live here. It was the plan cap's gate, and
+// its doc comment claimed a new row kind would inherit the ceiling "by
+// construction instead of by remembering" — which was already false, because
+// attachNewMortgage computed sortOrder by hand and created two rows without
+// it. Ordering and the ceiling now travel with the create itself, in
+// createPlanRowWithinCap.

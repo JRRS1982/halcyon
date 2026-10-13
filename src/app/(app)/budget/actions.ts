@@ -15,6 +15,10 @@ import {
   type CopiedItem,
   type CopyableItem,
 } from "@/lib/budget/copyPeriod";
+import {
+  createBudgetItemsWithinCap,
+  createBudgetItemWithinCap,
+} from "@/lib/budget/createWithinCap";
 import { ensurePeriodForMonthIn } from "@/lib/budget/ensurePeriod";
 import { MAX_ITEMS_PER_PERIOD, periodFullError } from "@/lib/budget/limits";
 import {
@@ -293,13 +297,6 @@ export async function createItemForMonth(input: CreateItemForMonthInput) {
       await requireAccountUnbudgeted(tx, period.id, parsed.accountId);
     }
 
-    // The sheet is a page a person reads, and nothing bounded how many rows it
-    // could hold — which also made copyPeriodFrom an N-times amplifier.
-    const held = await tx.budgetItem.count({
-      where: { periodId: period.id, deletedAt: null },
-    });
-    if (held >= MAX_ITEMS_PER_PERIOD) throw periodFullError();
-
     // New row's sortOrder = max(sortOrder) + 1 within (periodId, type).
     const last = await tx.budgetItem.findFirst({
       where: { periodId: period.id, type: parsed.type, deletedAt: null },
@@ -307,22 +304,20 @@ export async function createItemForMonth(input: CreateItemForMonthInput) {
       select: { sortOrder: true },
     });
 
-    const item = await tx.budgetItem.create({
-      data: {
-        periodId: period.id,
+    const item = await createBudgetItemWithinCap(tx.budgetItem, {
+      periodId: period.id,
+      type: parsed.type,
+      section,
+      label: parsed.label,
+      ...(parsed.budget !== undefined && { budget: parsed.budget }),
+      categoryId: await categoryIdForRow(tx, userId, {
         type: parsed.type,
-        section,
         label: parsed.label,
-        ...(parsed.budget !== undefined && { budget: parsed.budget }),
-        categoryId: await categoryIdForRow(tx, userId, {
-          type: parsed.type,
-          label: parsed.label,
-          section,
-        }),
-        accountId: parsed.accountId ?? null,
-        direction: parsed.direction ?? null,
-        sortOrder: (last?.sortOrder ?? 0) + 1,
-      },
+        section,
+      }),
+      accountId: parsed.accountId ?? null,
+      direction: parsed.direction ?? null,
+      sortOrder: (last?.sortOrder ?? 0) + 1,
     });
 
     return { periodId: period.id, item: toClientItem(item) };
@@ -473,16 +468,21 @@ export async function copyPeriodFrom(input: CopyPeriodFromInput) {
   const copied = buildCopiedItems(kept, randomUUID);
   if (copied.length > MAX_ITEMS_PER_PERIOD) throw periodFullError();
 
-  await prisma.$transaction([
+  await prisma.$transaction(async (tx) => {
     // Hard delete, not a deletedAt stamp. These rows are being replaced, and
     // nothing in the app ever reads a soft-deleted budget item back, so a
     // tombstone is storage with no reader. Stamping them also made this action
     // an unbounded writer: MAX_ITEMS_PER_PERIOD counts live rows — correctly,
     // since it is the sheet's display ceiling — so every repeat of the same
     // copy added N permanent rows while the cap reported no change.
-    prisma.budgetItem.deleteMany({ where: { periodId: target.id } }),
-    prisma.budgetItem.createMany({
-      data: copied.map((it) => ({
+    await tx.budgetItem.deleteMany({ where: { periodId: target.id } });
+
+    // Through the helper like every other create, which also means the counts
+    // it runs see the emptied period rather than the one being replaced.
+    await createBudgetItemsWithinCap(
+      tx.budgetItem,
+      target.id,
+      copied.map((it) => ({
         id: it.id,
         periodId: target.id,
         type: it.type,
@@ -495,8 +495,8 @@ export async function copyPeriodFrom(input: CopyPeriodFromInput) {
         actual: it.actual,
         sortOrder: it.sortOrder,
       })),
-    }),
-  ]);
+    );
+  });
 
   return {
     periodId: target.id,
