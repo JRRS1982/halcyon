@@ -10,6 +10,10 @@ import {
   nextSortOrder,
 } from "@/lib/accounts/creation";
 import {
+  accountLimitError,
+  MAX_ACCOUNTS_PER_USER,
+} from "@/lib/accounts/limits";
+import {
   type AccountDeletionCounts,
   type AccountIdInput,
   type AccountTermsInput,
@@ -154,6 +158,13 @@ export async function createAccount(
   const kind = kindOf(parsed.type);
 
   const result = await prisma.$transaction(async (tx) => {
+    // An account multiplies: one BalanceItem per month it appears in, and one
+    // plan row per account on every Sync. Capping it bounds all three tables.
+    const held = await tx.account.count({
+      where: { userId, deletedAt: null },
+    });
+    if (held >= MAX_ACCOUNTS_PER_USER) throw accountLimitError();
+
     const period = await ensurePeriodForMonthIn(tx, userId, range);
 
     // sortOrder appends to the end of this account's (kind, section) bucket
