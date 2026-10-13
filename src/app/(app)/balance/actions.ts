@@ -13,6 +13,7 @@ import {
   upsertBalanceValueSchema,
 } from "@/lib/balance/schemas";
 import { ensurePeriodForMonthIn } from "@/lib/budget/ensurePeriod";
+import { MAX_ITEMS_PER_PERIOD, periodFullError } from "@/lib/budget/limits";
 import { monthRangeFor } from "@/lib/budget/period";
 import { prisma } from "@/lib/prisma";
 import { ensurePeriodForMonth } from "../budget/actions";
@@ -191,6 +192,11 @@ export async function copyBalancePeriodFrom(input: CopyBalancePeriodFromInput) {
     select: { id: true },
   });
   const accountById = new Map(accounts.map((a) => [a.id, a]));
+
+  // The same ceiling copyPeriodFrom enforces on the budget side. Left off here,
+  // this is exactly the N-times amplifier budget/limits.ts was written to stop:
+  // one call writes one row per live account.
+  if (copied.length > MAX_ITEMS_PER_PERIOD) throw periodFullError();
 
   await prisma.$transaction([
     prisma.balanceItem.updateMany({
