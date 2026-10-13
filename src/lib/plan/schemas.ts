@@ -1,6 +1,16 @@
 import { z } from "zod";
 import { calendarDate } from "@/lib/budget/period";
-import { money14 } from "@/lib/money/bounds";
+import { money12, money14 } from "@/lib/money/bounds";
+
+// Deliberately unbounded in years — a mortgage term can outlive the plan — but
+// not unbounded in magnitude: these reach Postgres Int columns, where anything
+// past int4 is an out-of-range error on write rather than a field error.
+const INT4_MAX = 2_147_483_647;
+const int4 = z
+  .number()
+  .int()
+  .min(-INT4_MAX - 1)
+  .max(INT4_MAX);
 
 const WRAPPER = z.enum([
   "PENSION",
@@ -23,7 +33,7 @@ export const updatePlanAssumptionsSchema = z.object({
   taxRegime: z.enum(["RUK", "SCOTLAND"]),
   thresholdsInflationLinked: z.boolean(),
   statePensionAge: z.number().int().min(50).max(80).nullable(),
-  statePensionAnnual: z.number().min(0).nullable(),
+  statePensionAnnual: money12.min(0).nullable(),
   expectedDeathAge: z.number().int().min(1).max(120).nullable(),
 });
 
@@ -61,11 +71,11 @@ export const updatePlanAssetSchema = z.object({
   openingValue: money14,
   expectedReturnPct: columnPct.nullable(),
   feePct: columnPct,
-  monthlyContribution: z.number().min(0),
+  monthlyContribution: money12.min(0),
   contributionEndAge: z.number().int().min(0).max(120).nullable(),
   // 0…120, exactly as AccountTerms.minAccessAge accepts.
   minAccessAge: z.number().int().min(0).max(120).nullable(),
-  drawdownPriority: z.number().int().min(0),
+  drawdownPriority: z.number().int().min(0).max(INT4_MAX),
 });
 
 export const updatePlanLiabilitySchema = z
@@ -74,7 +84,7 @@ export const updatePlanLiabilitySchema = z
     label: z.string().min(1).max(200),
     openingBalance: money14,
     interestPct: columnPct,
-    monthlyRepayment: z.number().min(0),
+    monthlyRepayment: money12.min(0),
     startAge: z.number().int().min(0).max(120).nullable(),
     // The two age fields Sync writes carry no range at all. They are not
     // typed as ages: reality.ts derives them from AccountTerms.revisionDate
@@ -82,10 +92,10 @@ export const updatePlanLiabilitySchema = z
     // accepts any year — so any integer can legitimately arrive, and a bound
     // here would lock the row rather than stop the odd date. A nonsense age
     // simply never triggers in the projection's year loop.
-    endAge: z.number().int().nullable(),
+    endAge: int4.nullable(),
     linkedAssetId: z.string().uuid().nullable(),
     interestOnly: z.boolean(),
-    revisionAge: z.number().int().nullable(),
+    revisionAge: int4.nullable(),
     revisionRate: columnPct.nullable(),
   })
   .refine(
@@ -118,7 +128,7 @@ export const updatePlanIncomeSchema = z.object({
   incomeId: z.string().uuid(),
   label: z.string().min(1).max(200),
   kind: INCOME_KIND,
-  annualAmount: z.number().min(0),
+  annualAmount: money12.min(0),
   startAge: z.number().int().min(0).max(120).nullable(),
   endAge: z.number().int().min(0).max(120).nullable(),
   growthKind: GROWTH_KIND,
@@ -130,7 +140,7 @@ export const updatePlanExpenseSchema = z.object({
   expenseId: z.string().uuid(),
   label: z.string().min(1).max(200),
   section: EXPENSE_SECTION,
-  annualAmount: z.number().min(0),
+  annualAmount: money12.min(0),
   startAge: z.number().int().min(0).max(120).nullable(),
   endAge: z.number().int().min(0).max(120).nullable(),
   inflationLinked: z.boolean(),
@@ -142,7 +152,7 @@ export const updatePlanEventSchema = z
     label: z.string().min(1).max(200),
     age: z.number().int().min(0).max(120),
     direction: EVENT_DIRECTION,
-    amount: z.number().min(0),
+    amount: money14.min(0),
     kind: EVENT_KIND,
     assetId: z.string().uuid().nullable(),
   })

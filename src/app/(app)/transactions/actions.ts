@@ -11,6 +11,7 @@ import { categorySectionSchema } from "@/lib/budget/schemas";
 import { createCategoryWithinCap } from "@/lib/categories/createWithinCap";
 import { cleanLabel } from "@/lib/categories/normalize";
 import { sectionFor, sectionLabel } from "@/lib/categories/sections";
+import { money14 } from "@/lib/money/bounds";
 import { prisma } from "@/lib/prisma";
 import { requireTransactionsEnabled } from "@/lib/settings/server";
 import { transactionFingerprint } from "@/lib/transactions/dedupe";
@@ -250,27 +251,33 @@ export async function commitImport(input: CommitInput): Promise<ImportResult> {
       ),
     );
 
-    // The batch groups this run's rows so the whole import can be reversed.
-    const batch = await prisma.importBatch.create({
-      data: { userId, accountId: account.id, fileName: fileName ?? null },
-      select: { id: true },
-    });
-    await prisma.transaction.createMany({
-      data: toInsert.map((row) => {
-        const categoryId = memory.get(descriptionKey(row.description)) ?? null;
-        if (categoryId) autoCategorised += 1;
-        return {
-          userId,
-          accountId: account.id,
-          importBatchId: batch.id,
-          date: row.date as Date,
-          amount: row.amount as number,
-          description: row.description,
-          categoryId,
-          // Kept CSV columns, keyed by header label (undefined leaves NULL).
-          extra: row.extra ?? undefined,
-        };
-      }),
+    // The batch groups this run's rows so the whole import can be reversed —
+    // and is created in the same transaction as them, so a rejected row set
+    // leaves no batch behind. Separately, it would appear in the reverse
+    // picker as an import the user could undo with nothing in it.
+    await prisma.$transaction(async (tx) => {
+      const batch = await tx.importBatch.create({
+        data: { userId, accountId: account.id, fileName: fileName ?? null },
+        select: { id: true },
+      });
+      await tx.transaction.createMany({
+        data: toInsert.map((row) => {
+          const categoryId =
+            memory.get(descriptionKey(row.description)) ?? null;
+          if (categoryId) autoCategorised += 1;
+          return {
+            userId,
+            accountId: account.id,
+            importBatchId: batch.id,
+            date: row.date as Date,
+            amount: row.amount as number,
+            description: row.description,
+            categoryId,
+            // Kept CSV columns, keyed by header label (undefined leaves NULL).
+            extra: row.extra ?? undefined,
+          };
+        }),
+      });
     });
   }
 
@@ -414,10 +421,9 @@ const createTransactionSchema = z.object({
   description: z.string().trim().min(1).max(300),
   // Bank-signed, like imported rows: negative for money out, positive for
   // money in. Zero records nothing and is refused.
-  amount: z
-    .number()
-    .finite()
-    .refine((v) => v !== 0, { message: "Amount can't be zero" }),
+  amount: money14.refine((v) => v !== 0, {
+    message: "Amount can't be zero",
+  }),
   categoryId: z.string().uuid().nullable(),
 });
 
