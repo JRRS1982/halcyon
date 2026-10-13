@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { calendarYear } from "@/lib/budget/period";
 
 export const itemTypeSchema = z.enum([
   "INCOME",
@@ -94,7 +95,7 @@ export const createItemSchema = z
 // FinancialPeriod row yet.
 export const createItemForMonthSchema = z
   .object({
-    year: z.number().int(),
+    year: calendarYear,
     month: z.number().int().min(0).max(11),
     type: itemTypeSchema,
     section: categorySectionSchema.nullable().optional(),
@@ -132,7 +133,7 @@ export const deleteItemSchema = z.object({
 
 export const copyPeriodFromSchema = z.object({
   sourcePeriodId: z.string().uuid(),
-  targetYear: z.number().int(),
+  targetYear: calendarYear,
   targetMonth: z.number().int().min(0).max(11),
 });
 

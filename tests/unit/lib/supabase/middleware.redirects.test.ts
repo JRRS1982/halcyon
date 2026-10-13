@@ -42,7 +42,17 @@ const requestFor = (path: string) => {
 };
 
 const signedIn = () =>
-  getUser.mockResolvedValue({ data: { user: { id: "u1" } } });
+  getUser.mockResolvedValue({
+    data: { user: { id: "u1", email_confirmed_at: "2026-01-01T00:00:00Z" } },
+  });
+
+// Supabase returns a live session for an unconfirmed address when the project's
+// "Confirm email" toggle is off. The app refuses it in code rather than relying
+// on that dashboard setting staying as it is.
+const signedInUnconfirmed = () =>
+  getUser.mockResolvedValue({
+    data: { user: { id: "u1", email_confirmed_at: null } },
+  });
 const signedOut = () => getUser.mockResolvedValue({ data: { user: null } });
 
 describe("proxy redirects", () => {
@@ -59,6 +69,14 @@ describe("proxy redirects", () => {
     expect(new URL(res.headers.get("location") ?? "").pathname).toBe(
       POST_AUTH_LANDING,
     );
+  });
+
+  test("turns an unconfirmed account away from a protected route", async () => {
+    signedInUnconfirmed();
+    const res = await updateSession(requestFor("/dashboard"));
+
+    expect(res.status).toBe(307);
+    expect(res.headers.get("location")).toContain("/sign-in");
   });
 
   test("leaves the marketing page alone for signed-out visitors", async () => {

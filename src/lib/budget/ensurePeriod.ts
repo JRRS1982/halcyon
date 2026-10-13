@@ -10,6 +10,18 @@ export type MonthRange = {
   label: string;
 };
 
+// Per-user ceiling on FinancialPeriod rows.
+//
+// A month is one row and nothing bounded how many a caller could mint:
+// ensurePeriodForMonth takes a (year, month) pair, so a loop over distinct
+// years grew the shared table without limit — storage, backup size, and every
+// period-scanning query (dashboard KPIs, the data export) slowing for the whole
+// project. Sizing, in the spirit of MAX_TRANSACTIONS_PER_USER: a century of
+// monthly use is 1,200 rows, so this only ever bites automated abuse. The year
+// bounds on calendarYear cap the key space at 3,600, so this is the tighter of
+// the two and the one that binds.
+export const MAX_PERIODS_PER_USER = 1200;
+
 /**
  * The user's FinancialPeriod for a month, created if it doesn't exist yet.
  *
@@ -35,6 +47,26 @@ export async function ensurePeriodForMonthIn(
     },
   });
   if (existing) return existing;
+
+  // Counted only on the create path, so navigating between months a user
+  // already has costs nothing extra. Reading is never capped — an account at
+  // the ceiling must still be able to open the months it owns.
+  //
+  // Check-then-write, so concurrent calls can each read the same count and all
+  // proceed: the real ceiling is MAX_PERIODS_PER_USER plus whatever was in
+  // flight. Accepted. The overshoot is bounded by concurrency and self-limits
+  // immediately — the next count is over the line and every later create is
+  // refused — so it turns "unlimited rows" into "1,200 and a bit", which is
+  // what the cap is for. Closing it properly needs a per-user advisory lock or
+  // SERIALIZABLE isolation, and this helper runs inside callers' own
+  // transactions, where either would be a deadlock risk for no real gain.
+  // MAX_TRANSACTIONS_PER_USER has the same shape and the same reasoning.
+  const held = await db.financialPeriod.count({ where: { userId } });
+  if (held >= MAX_PERIODS_PER_USER) {
+    throw new Error(
+      `You have reached the maximum number of months (${MAX_PERIODS_PER_USER}).`,
+    );
+  }
 
   return db.financialPeriod.create({
     data: {

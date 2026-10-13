@@ -30,7 +30,10 @@ type CookieAdapter = {
 };
 
 const signOut = jest.fn().mockResolvedValue({ error: null });
-let currentUser: { id: string } | null = { id: "user-1" };
+let currentUser: { id: string; email_confirmed_at?: string | null } | null = {
+  id: "user-1",
+  email_confirmed_at: "2026-01-01T00:00:00Z",
+};
 let clientOptions: {
   cookies: CookieAdapter;
   cookieOptions?: Record<string, unknown>;
@@ -102,7 +105,8 @@ const absoluteExpired = () =>
 const live = () => activityCookie(MINUTE, 0);
 
 beforeEach(() => {
-  currentUser = { id: "user-1" };
+  // Confirmed: the proxy now treats an unconfirmed address as signed out.
+  currentUser = { id: "user-1", email_confirmed_at: "2026-01-01T00:00:00Z" };
   signOut.mockClear();
 });
 

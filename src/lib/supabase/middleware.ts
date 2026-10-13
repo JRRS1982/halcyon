@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
+import { isEmailConfirmed } from "@/lib/auth/confirmed";
 import { POST_AUTH_LANDING } from "@/lib/auth/landing";
 import {
   ACTIVITY_COOKIE,
@@ -49,8 +50,13 @@ export const updateSession = async (request: NextRequest) => {
   // IMPORTANT: do not run any other code between createServerClient and
   // getUser. The call refreshes the session cookies in `supabaseResponse`.
   const {
-    data: { user },
+    data: { user: authUser },
   } = await supabase.auth.getUser();
+
+  // An unconfirmed address is not an identity — see src/lib/auth/confirmed.ts.
+  // Treated exactly as signed out, so it cannot reach a protected route and is
+  // sent to /sign-in like any visitor without a session.
+  const user = authUser && isEmailConfirmed(authUser) ? authUser : null;
 
   // Route protection: any path starting with one of these requires a session.
   // Unauthenticated visits get redirected to /sign-in with `?next=...` so the
@@ -66,6 +72,9 @@ export const updateSession = async (request: NextRequest) => {
   const isProtected = protectedPaths.some((p) =>
     request.nextUrl.pathname.startsWith(p),
   );
+
+  // An unconfirmed address is not an identity — see src/lib/auth/confirmed.ts.
+  // Treated exactly as signed out, so it cannot reach a protected route.
 
   if (!user && isProtected) {
     const url = request.nextUrl.clone();

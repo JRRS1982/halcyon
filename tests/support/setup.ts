@@ -22,6 +22,11 @@ jest.mock("@/lib/supabase/server", () => ({
             // one-time code (src/lib/auth/reauth.ts). Omitting them made this
             // fixture look like a Google-only sign-in.
             identities: [{ provider: "email" }],
+            // Likewise confirmed. The app treats an unconfirmed address as
+            // signed out (src/lib/auth/confirmed.ts), so a fixture without
+            // this looks like someone who never clicked the link in their
+            // email and gets redirected out of every action.
+            email_confirmed_at: "2026-01-01T00:00:00.000Z",
           },
         },
       }),
