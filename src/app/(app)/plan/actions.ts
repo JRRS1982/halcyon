@@ -4,6 +4,7 @@ import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { requireUserId } from "@/lib/auth/requireUserId";
 import { applySyncPlan } from "@/lib/plan/applySyncPlan";
 import { nextSortOrderWithinCap } from "@/lib/plan/limits";
 import { latestReality } from "@/lib/plan/reality";
@@ -40,14 +41,8 @@ import { loadPlanRecordForRender } from "./planRecord";
 // never inherits a previous request's session. getCurrentUser's own doc
 // comment describes this being done for the layout and settings paths; the
 // plan actions simply never adopted it.
-async function requireUserId(): Promise<string> {
-  const user = await getCurrentUser();
-  if (!user) redirect("/sign-in?next=/plan");
-  return user.id;
-}
-
 export async function getPrimaryPlan() {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/plan");
   return loadPlanRecordForRender(userId);
 }
 
@@ -64,7 +59,7 @@ export async function createPlan(input: {
   dateOfBirth: string;
   retirementAge?: number;
 }): Promise<void> {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/plan");
   const { dateOfBirth, retirementAge } = createPlanSchema.parse(input);
 
   // Read reality before opening the transaction, not inside it: latestReality
@@ -130,7 +125,7 @@ export async function createPlan(input: {
 export async function updatePlanAssumptions(
   input: UpdatePlanAssumptionsInput,
 ): Promise<void> {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/plan");
   const p = updatePlanAssumptionsSchema.parse(input);
   const res = await prisma.plan.updateMany({
     where: { id: p.planId, userId, deletedAt: null },
@@ -155,7 +150,7 @@ export async function updatePlanAssumptions(
 export async function updatePlanAsset(
   input: UpdatePlanAssetInput,
 ): Promise<void> {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/plan");
   const p = updatePlanAssetSchema.parse(input);
   const res = await prisma.planAsset.updateMany({
     where: {
@@ -182,7 +177,7 @@ export async function updatePlanAsset(
 export async function updatePlanLiability(
   input: UpdatePlanLiabilityInput,
 ): Promise<void> {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/plan");
   const p = updatePlanLiabilitySchema.parse(input);
 
   if (p.linkedAssetId !== null) {
@@ -282,7 +277,7 @@ async function attachNewMortgage(
 export async function createPlanAsset(
   input: CreatePlanAssetInput,
 ): Promise<string> {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/plan");
   const plan = await requirePrimaryPlan(userId);
   const parsed = createPlanAssetSchema.parse(input);
 
@@ -338,7 +333,7 @@ const createMortgageForPropertySchema = z.object({
 export async function createMortgageForProperty(input: {
   assetId: string;
 }): Promise<string> {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/plan");
   const { assetId } = createMortgageForPropertySchema.parse(input);
   const id = await prisma.$transaction(async (tx) => {
     const property = await tx.planAsset.findFirst({
@@ -362,7 +357,7 @@ export async function createMortgageForProperty(input: {
 export async function createPlanLiability(
   input: CreatePlanLiabilityInput,
 ): Promise<{ liabilityId: string; linkedAssetId: string | null }> {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/plan");
   const plan = await requirePrimaryPlan(userId);
   const parsed = createPlanLiabilitySchema.parse(input);
 
@@ -447,7 +442,7 @@ export async function createPlanLiability(
 }
 
 export async function createPlanIncome(): Promise<string> {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/plan");
   const plan = await requirePrimaryPlan(userId);
   const sortOrder = await nextSortOrderWithinCap(
     prisma.planIncome,
@@ -470,7 +465,7 @@ export async function createPlanIncome(): Promise<string> {
 }
 
 export async function createPlanExpense(): Promise<string> {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/plan");
   const plan = await requirePrimaryPlan(userId);
   const sortOrder = await nextSortOrderWithinCap(
     prisma.planExpense,
@@ -492,7 +487,7 @@ export async function createPlanExpense(): Promise<string> {
 }
 
 export async function createPlanEvent(): Promise<string> {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/plan");
   const plan = await requirePrimaryPlan(userId);
   const sortOrder = await nextSortOrderWithinCap(
     prisma.planEvent,
@@ -514,7 +509,7 @@ export async function createPlanEvent(): Promise<string> {
 }
 
 export async function deletePlanAsset(input: { id: string }): Promise<void> {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/plan");
   const { id } = deleteRowSchema.parse(input);
   await prisma.$transaction(async (tx) => {
     const res = await tx.planAsset.updateMany({
@@ -554,7 +549,7 @@ export async function deletePlanAsset(input: { id: string }): Promise<void> {
 export async function deletePlanLiability(input: {
   id: string;
 }): Promise<void> {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/plan");
   const { id } = deleteRowSchema.parse(input);
   await prisma.$transaction(async (tx) => {
     const res = await tx.planLiability.updateMany({
@@ -572,7 +567,7 @@ export async function deletePlanLiability(input: {
 }
 
 export async function deletePlanIncome(input: { id: string }): Promise<void> {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/plan");
   const { id } = deleteRowSchema.parse(input);
   const res = await prisma.planIncome.updateMany({
     where: { id, deletedAt: null, plan: { userId, deletedAt: null } },
@@ -583,7 +578,7 @@ export async function deletePlanIncome(input: { id: string }): Promise<void> {
 }
 
 export async function deletePlanExpense(input: { id: string }): Promise<void> {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/plan");
   const { id } = deleteRowSchema.parse(input);
   await prisma.$transaction(async (tx) => {
     const expense = await tx.planExpense.findFirst({
@@ -608,7 +603,7 @@ export async function deletePlanExpense(input: { id: string }): Promise<void> {
 export async function linkRepaymentExpense(input: {
   liabilityId: string;
 }): Promise<string> {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/plan");
   const { liabilityId } = linkRepaymentSchema.parse(input);
   const id = await prisma.$transaction(async (tx) => {
     const liability = await tx.planLiability.findFirst({
@@ -654,7 +649,7 @@ export async function linkRepaymentExpense(input: {
 export async function unlinkRepaymentExpense(input: {
   id: string;
 }): Promise<void> {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/plan");
   const { id } = deleteRowSchema.parse(input);
   await prisma.$transaction(async (tx) => {
     const expense = await tx.planExpense.findFirst({
@@ -674,7 +669,7 @@ export async function unlinkRepaymentExpense(input: {
 }
 
 export async function deletePlanEvent(input: { id: string }): Promise<void> {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/plan");
   const { id } = deleteRowSchema.parse(input);
   const res = await prisma.planEvent.updateMany({
     where: { id, deletedAt: null, plan: { userId, deletedAt: null } },
@@ -687,7 +682,7 @@ export async function deletePlanEvent(input: { id: string }): Promise<void> {
 export async function updatePlanIncome(
   input: UpdatePlanIncomeInput,
 ): Promise<void> {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/plan");
   const p = updatePlanIncomeSchema.parse(input);
   const res = await prisma.planIncome.updateMany({
     where: {
@@ -713,7 +708,7 @@ export async function updatePlanIncome(
 export async function updatePlanExpense(
   input: UpdatePlanExpenseInput,
 ): Promise<void> {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/plan");
   const p = updatePlanExpenseSchema.parse(input);
   const res = await prisma.planExpense.updateMany({
     where: {
@@ -737,7 +732,7 @@ export async function updatePlanExpense(
 export async function updatePlanEvent(
   input: UpdatePlanEventInput,
 ): Promise<void> {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/plan");
   const p = updatePlanEventSchema.parse(input);
 
   if (p.kind === "PROPERTY_SALE") {

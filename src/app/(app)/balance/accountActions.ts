@@ -23,6 +23,7 @@ import {
   disallowedTerms,
   setAccountTermsSchema,
 } from "@/lib/accounts/schemas";
+import { requireUserId } from "@/lib/auth/requireUserId";
 import { isValidBalanceCategory } from "@/lib/balance/reorder";
 import {
   type RenameAccountInput,
@@ -36,7 +37,6 @@ import { ensurePeriodForMonthIn } from "@/lib/budget/ensurePeriod";
 import { monthRangeFor } from "@/lib/budget/period";
 import { cleanLabel } from "@/lib/categories/normalize";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/lib/supabase/server";
 
 // An empty terms payload means the user answered nothing, so there is no row
 // to write. A row of all-nulls would be indistinguishable in behaviour but
@@ -53,15 +53,6 @@ function requireTermsOfType(type: AccountType, terms: AccountTermsInput): void {
   throw new Error(
     `A ${type} account has no ${rejected.join(", ")} — that is not one of its parameters`,
   );
-}
-
-async function requireUserId(): Promise<string> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/sign-in?next=/balance");
-  return user.id;
 }
 
 function revalidateAll() {
@@ -143,7 +134,7 @@ async function resolveLinkedPartnerId(
 export async function createAccount(
   input: CreateAccountInput,
 ): Promise<{ periodId: string; accountId: string }> {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/balance");
   const parsed = createAccountSchema.parse(input);
   const range = monthRangeFor(parsed.year, parsed.month);
 
@@ -260,7 +251,7 @@ export async function createAccount(
 export async function setAccountType(
   input: SetAccountTypeInput,
 ): Promise<void> {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/balance");
   const { accountId, type } = setAccountTypeSchema.parse(input);
 
   await prisma.$transaction(async (tx) => {
@@ -328,7 +319,7 @@ export async function setAccountType(
 export async function setAccountSection(
   input: SetAccountSectionInput,
 ): Promise<void> {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/balance");
   const { accountId, section } = setAccountSectionSchema.parse(input);
 
   await prisma.$transaction(async (tx) => {
@@ -371,7 +362,7 @@ export async function setAccountSection(
 // carries no label mirror to fan out to — the balance sheet always reads the
 // account's name directly.
 export async function renameAccount(input: RenameAccountInput): Promise<void> {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/balance");
   const { accountId, name } = renameAccountSchema.parse(input);
   const label = cleanLabel(name);
 
@@ -408,7 +399,7 @@ export async function renameAccount(input: RenameAccountInput): Promise<void> {
 export async function archiveAccount(
   input: ArchiveAccountInput,
 ): Promise<void> {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/balance");
   const { accountId, alsoLinked, fromYear, fromMonth } =
     archiveAccountSchema.parse(input);
 
@@ -449,7 +440,7 @@ export async function archiveAccount(
 // write by claiming a different one.
 export async function setAccountTerms(input: unknown): Promise<void> {
   const { accountId, terms } = setAccountTermsSchema.parse(input);
-  const userId = await requireUserId();
+  const userId = await requireUserId("/balance");
 
   await prisma.$transaction(async (tx) => {
     // Ownership is the primary boundary (ADR-002: the server role bypasses
@@ -479,7 +470,7 @@ export async function setAccountTerms(input: unknown): Promise<void> {
 }
 
 export async function restoreAccount(input: AccountIdInput): Promise<void> {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/balance");
   const { accountId } = accountIdSchema.parse(input);
 
   const result = await prisma.account.updateMany({
@@ -496,7 +487,7 @@ export async function restoreAccount(input: AccountIdInput): Promise<void> {
 export async function accountDeletionCounts(
   input: AccountIdInput,
 ): Promise<AccountDeletionCounts> {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/balance");
   const { accountId } = accountIdSchema.parse(input);
   await requireOwnedAccount(userId, accountId);
 
@@ -577,7 +568,7 @@ export async function accountDeletionCounts(
 export async function deleteAccountEverywhere(
   input: DeleteAccountEverywhereInput,
 ): Promise<void> {
-  const userId = await requireUserId();
+  const userId = await requireUserId("/balance");
   const { accountId, alsoLinked } = deleteAccountEverywhereSchema.parse(input);
   await requireOwnedAccount(userId, accountId);
 
