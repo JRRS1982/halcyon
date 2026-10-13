@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { startActivityClock } from "@/lib/auth/activityClock";
+import type { AuthNoticeCode } from "@/lib/auth/authNotices";
 import { DEMO_EMAIL, DEMO_PASSWORD } from "@/lib/auth/demo";
 import { POST_AUTH_LANDING } from "@/lib/auth/landing";
 import { safeNext } from "@/lib/auth/safeNext";
@@ -16,14 +17,18 @@ import { createClient } from "@/lib/supabase/server";
 // not confirmed" for a registered one — so echoing them would let anyone with
 // a list of addresses learn which ones have an account here. The provider's
 // message goes to the server log instead, where it is still useful.
-const SIGN_IN_FAILED_MESSAGE = "Email or password is incorrect.";
-
-const TOO_MANY_ATTEMPTS_MESSAGE =
-  "Too many attempts. Please wait a minute and try again.";
-
-function failSignIn(message: string): never {
-  redirect(`/sign-in?error=${encodeURIComponent(message)}`);
+// A code, never a message: see lib/auth/authNotices.ts. The page looks it up
+// and renders nothing for anything it did not produce.
+function failSignIn(code: AuthNoticeCode): never {
+  redirect(`/sign-in?error=${code}`);
 }
+
+// Which field the user got wrong is worth saying; the schema's own wording is
+// not carried in the URL to say it.
+const issueCode = (
+  issue: { path: PropertyKey[] } | undefined,
+): AuthNoticeCode =>
+  issue?.path[0] === "email" ? "invalid-email" : "password-required";
 
 export const signIn = async (formData: FormData) => {
   const parsed = signInSchema.safeParse({
@@ -33,7 +38,7 @@ export const signIn = async (formData: FormData) => {
   const next = safeNext(formData.get("next"), POST_AUTH_LANDING);
 
   if (!parsed.success) {
-    failSignIn(parsed.error.issues[0]?.message ?? "Invalid form submission");
+    failSignIn(issueCode(parsed.error.issues[0]));
   }
 
   // Two buckets: the client's IP bounds one attacker, the account bounds a
@@ -44,7 +49,7 @@ export const signIn = async (formData: FormData) => {
     parsed.data.email,
   );
   if (ipVerdict !== "allowed" || accountVerdict !== "allowed") {
-    failSignIn(TOO_MANY_ATTEMPTS_MESSAGE);
+    failSignIn("too-many-attempts");
   }
 
   const supabase = await createClient();
@@ -57,7 +62,7 @@ export const signIn = async (formData: FormData) => {
       status: error.status,
       message: error.message,
     });
-    failSignIn(SIGN_IN_FAILED_MESSAGE);
+    failSignIn("sign-in-failed");
   }
 
   await startActivityClock();
@@ -81,7 +86,10 @@ export const signInAsDemo = async (formData: FormData) => {
   });
 
   if (error) {
-    failSignIn(error.message);
+    // Dev-only path, but the provider's message still does not travel through
+    // the URL — it goes where the developer actually reads it.
+    log.warn("Demo sign-in rejected by provider", { message: error.message });
+    failSignIn("sign-in-failed");
   }
 
   await startActivityClock();
