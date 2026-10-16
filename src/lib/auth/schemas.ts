@@ -19,10 +19,33 @@ export const signInSchema = z.object({
 // finding. The other half is checkPasswordBreach, consulted in the sign-up
 // action: length alone does nothing about "Password1234", which is long,
 // compliant and in every breach corpus there is.
+const newPassword = z
+  .string()
+  .min(12, "Password must be at least 12 characters");
+
 export const signUpSchema = z.object({
   email: z.string().trim().email("Enter a valid email"),
-  password: z.string().min(12, "Password must be at least 12 characters"),
+  password: newPassword,
 });
+
+// Changing the password from Settings. The current password is the step-up
+// proof (verifyUser), so like sign-in it only has to be present; the new
+// password meets the sign-up rule, so the floor cannot be stepped around by
+// signing up with a long password and changing it to a short one.
+//
+// The breach half of that rule lives in the action, not here: it is a network
+// call, and a schema that reached out to HiBP would make every parse of it —
+// including the client's — an outbound request.
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Enter your current password"),
+    newPassword,
+  })
+  .refine((input) => input.newPassword !== input.currentPassword, {
+    message: "Choose a password you aren't already using",
+    path: ["newPassword"],
+  });
 
 export type SignInInput = z.infer<typeof signInSchema>;
 export type SignUpInput = z.infer<typeof signUpSchema>;
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
