@@ -6,11 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Halcyon is a personal finance web app built as a learning project. The build process, stack choices, and roadmap follow `docs/playbook.md`; technical decisions are recorded as ADRs in `docs/adrs/`. Treat those documents as the source of truth when behavior or architecture is unclear — do not invent patterns that contradict them.
 
-Companion AI context lives in `.ai/`:
-
-- `.ai/code-style.md` — coding conventions (early returns, self-documenting code, minimal dependencies)
-- `.ai/typescript.md` — TypeScript practices (derive types from zod/Prisma, `satisfies` over `as`, no enums, discriminated unions)
-- `.ai/review-guidelines.md` — review checklist (security-sensitive code, hard-coded secrets, dependency justification)
+Coding, TypeScript, testing, review and documentation conventions are not in this repo. They come from the user-level rules in [`JRRS1982/dotfiles`](https://github.com/JRRS1982/dotfiles) (`.claude/rules/`), which Claude Code loads on demand by file type. This file holds only what is specific to Halcyon.
 
 ## Stack
 
@@ -99,14 +95,6 @@ There is no longer a self-hosted production setup — `Dockerfile.prod`, `compos
 - **Merging PRs**: the repo is **public**, and a repository **ruleset** named `master` is active on the default branch (`gh api repos/JRRS1982/halcyon/rulesets`). It requires five status checks — `lint-and-test`, `e2e-tests`, `integration-tests`, `migrate-prod`, `mixed-schema-check` (added 23 Sep 2026) — and blocks deletion and non-fast-forward pushes. There are no bypass actors, so this applies to the owner too: a PR whose checks haven't passed reports `mergeStateStatus: BLOCKED` and cannot be merged by any means, including the API.
   - GitHub's auto-merge is **disabled** at the repo level — `gh pr merge --auto` fails with "Auto merge is not allowed for this repository". Use `gh pr checks <n> --watch` then a plain `gh pr merge <n> --merge --delete-branch` instead. (`--watch` exits non-zero if *any* check fails, required or not — including `security-audit`.)
   - `migrate-prod` is required but only *runs* on a push to the default branch; on a PR it reports as skipped, which the ruleset accepts.
-
-## Code style (from .ai/code-style.md)
-
-- Prefer pure functions and self-documenting names over comments.
-- Use early returns instead of nested conditionals.
-- Keep changes minimal when editing existing code; don't refactor or "clean up" unless asked.
-- Don't add features that weren't requested.
-- Justify any new external dependency against long-term maintenance cost.
 
 <!-- BEGIN:nextjs-agent-rules -->
 
