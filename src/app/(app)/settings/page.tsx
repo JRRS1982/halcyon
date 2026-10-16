@@ -14,6 +14,7 @@ import { getOrProvisionCategories } from "@/lib/transactions/server";
 import { AccountManager, type ManagedAccount } from "./AccountManager";
 import { updateSettings } from "./actions";
 import { CategoryManager, type ManagedCategory } from "./CategoryManager";
+import { ChangePassword } from "./ChangePassword";
 import { DashboardSettings } from "./DashboardSettings";
 import { DataPrivacy } from "./DataPrivacy";
 import { SettingsForm } from "./SettingsForm";
@@ -158,8 +159,8 @@ export default async function SettingsPage() {
     label: `${symbol}${NUMBER_FORMAT_SPEC[fmt].example} · ${NUMBER_FORMAT_LABELS[fmt]}`,
   }));
 
-  // One landmark around all five sections. Each supplies its own <section>
-  // and heading, so the page reads as a single region with five parts.
+  // One landmark around all the sections. Each supplies its own <section>
+  // and heading, so the page reads as a single region with several parts.
   return (
     <main>
       <SettingsForm
@@ -177,6 +178,10 @@ export default async function SettingsPage() {
       <DashboardSettings hiddenCharts={hiddenCharts} />
       <CategoryManager categories={managedCategories} />
       <AccountManager accounts={managedAccounts} archived={archivedAccounts} />
+      {/* Only an account that signs in with a password has one to change.
+          Hiding it from a Google account is the courtesy; changePassword
+          refuses that account server-side whatever the browser renders. */}
+      {reauthMethod === "password" ? <ChangePassword /> : null}
       <DataPrivacy method={reauthMethod} />
     </main>
   );
