@@ -9,13 +9,19 @@ import { ThemeProvider } from "styled-components";
 import { DataPrivacy } from "@/app/(app)/settings/DataPrivacy";
 import { theme } from "@/lib/theme";
 
-const resetToDefaults = jest.fn(async () => undefined);
-const sendReauthCode = jest.fn(async () => undefined);
-const exportMyData = jest.fn(async (_proof: unknown) => "{}");
+// The actions report their outcome rather than throwing, so the mocks return
+// what the real ones do — a mock that resolves to undefined would read as a
+// refusal with no reason and pass for the wrong cause.
+const resetToDefaults = jest.fn(async () => ({ ok: true }));
+const sendReauthCode = jest.fn(async () => ({ ok: true }));
+const exportMyData = jest.fn(async (_proof: unknown) => ({
+  ok: true,
+  json: "{}",
+}));
 jest.mock("@/app/(app)/settings/dataActions", () => ({
   exportMyData: (proof: unknown) => exportMyData(proof),
-  clearMyData: jest.fn(async () => undefined),
-  deleteMyAccount: jest.fn(async () => undefined),
+  clearMyData: jest.fn(async () => ({ ok: true })),
+  deleteMyAccount: jest.fn(async () => ({ ok: true })),
   resetToDefaults: () => resetToDefaults(),
   sendReauthCode: () => sendReauthCode(),
 }));

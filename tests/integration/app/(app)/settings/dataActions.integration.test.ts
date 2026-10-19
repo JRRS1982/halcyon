@@ -165,9 +165,12 @@ describe("exportMyData (integration)", () => {
     await prisma.user.create({ data: { id: OTHER_USER_ID } });
     await seedFinancialData(OTHER_USER_ID);
 
-    const dump = JSON.parse(
-      await exportMyData({ method: "password", password: "test-password" }),
-    );
+    const result = await exportMyData({
+      method: "password",
+      password: "test-password",
+    });
+    if (!result.ok) throw new Error(`export refused: ${result.reason}`);
+    const dump = JSON.parse(result.json);
 
     expect(dump.user.id).toBe(TEST_USER_ID);
     expect(dump.accounts).toHaveLength(1);
@@ -365,7 +368,7 @@ describe("verifyUser (integration)", () => {
 
     await expect(
       clearMyData({ method: "otp", code: "000000" }),
-    ).rejects.toThrow("That code is not valid");
+    ).resolves.toEqual({ ok: false, reason: "bad-code" });
   });
 
   test("sends the code to the address on the account", async () => {
@@ -384,14 +387,15 @@ describe("verifyUser (integration)", () => {
   test("refuses a code from an account that has a password", async () => {
     await expect(
       clearMyData({ method: "otp", code: "123456" }),
-    ).rejects.toThrow("That isn't how this account signs in");
+    ).resolves.toEqual({ ok: false, reason: "wrong-method" });
     expect(mockVerifyOtp).not.toHaveBeenCalled();
   });
 
   test("refuses to mail a code to an account that has a password", async () => {
-    await expect(sendReauthCode()).rejects.toThrow(
-      "That isn't how this account signs in",
-    );
+    await expect(sendReauthCode()).resolves.toEqual({
+      ok: false,
+      reason: "wrong-method",
+    });
     expect(mockSignInWithOtp).not.toHaveBeenCalled();
   });
 
@@ -416,7 +420,7 @@ describe("verifyUser (integration)", () => {
 
     await expect(
       clearMyData({ method: "otp", code: "123456" }),
-    ).rejects.toThrow("Too many attempts. Please try again later.");
+    ).resolves.toEqual({ ok: false, reason: "rate-limited" });
     expect(mockVerifyOtp).not.toHaveBeenCalled();
   });
 
@@ -458,9 +462,10 @@ describe("verifyUser (integration)", () => {
     mockIdentities = [{ provider: "google" }];
     mockCheckRateLimit.mockResolvedValue("limited");
 
-    await expect(sendReauthCode()).rejects.toThrow(
-      "Too many codes requested. Please try again later.",
-    );
+    await expect(sendReauthCode()).resolves.toEqual({
+      ok: false,
+      reason: "code-send-limited",
+    });
     expect(mockSignInWithOtp).not.toHaveBeenCalled();
   });
 
@@ -495,7 +500,7 @@ describe("verifyUser — wrong password rejection (integration)", () => {
 
     await expect(
       exportMyData({ method: "password", password: "wrong-password" }),
-    ).rejects.toThrow("Incorrect password");
+    ).resolves.toEqual({ ok: false, reason: "wrong-password" });
   });
 
   test("clearMyData throws and leaves all rows intact", async () => {
@@ -506,7 +511,7 @@ describe("verifyUser — wrong password rejection (integration)", () => {
 
     await expect(
       clearMyData({ method: "password", password: "wrong-password" }),
-    ).rejects.toThrow("Incorrect password");
+    ).resolves.toEqual({ ok: false, reason: "wrong-password" });
 
     expect(
       await prisma.transaction.count({ where: { userId: TEST_USER_ID } }),
@@ -521,7 +526,7 @@ describe("verifyUser — wrong password rejection (integration)", () => {
 
     await expect(
       deleteMyAccount({ method: "password", password: "wrong-password" }),
-    ).rejects.toThrow("Incorrect password");
+    ).resolves.toEqual({ ok: false, reason: "wrong-password" });
 
     expect(
       await prisma.user.findUnique({ where: { id: TEST_USER_ID } }),
@@ -537,7 +542,7 @@ describe("verifyUser — wrong password rejection (integration)", () => {
 
     await expect(
       resetToDefaults({ method: "password", password: "wrong-password" }),
-    ).rejects.toThrow("Incorrect password");
+    ).resolves.toEqual({ ok: false, reason: "wrong-password" });
 
     expect(
       await prisma.transaction.count({ where: { userId: TEST_USER_ID } }),
