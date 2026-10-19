@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import styled from "styled-components";
 import { Button } from "@/components/ui/Button";
 import type { Reauthentication, ReauthMethod } from "@/lib/auth/reauth";
+import { REAUTH_MESSAGES } from "@/lib/auth/reauthOutcome";
 import {
   clearMyData,
   deleteMyAccount,
@@ -124,21 +125,13 @@ const Alert = styled.p`
 
 type Mode = "export" | "reset" | "clear" | "delete" | null;
 
-const SERVER_ERRORS: Record<string, string> = {
-  "Incorrect password": "Incorrect password.",
-  "That isn't how this account signs in":
-    "That isn't how this account signs in. Reload the page and try again.",
-  "That code is not valid": "That code is not valid. Check it and try again.",
-  "Too many codes requested. Please try again later.":
-    "Too many codes requested. Please try again later.",
-  "Too many attempts. Please try again later.":
-    "Too many attempts. Please try again later.",
-};
-
-function actionError(err: unknown, fallback: string): string {
-  const msg = err instanceof Error ? err.message : "";
-  return SERVER_ERRORS[msg] ?? fallback;
-}
+// The actions name their refusal and REAUTH_MESSAGES holds the words, so
+// nothing here reads an error message: see lib/auth/reauthOutcome.ts for why
+// a thrown message cannot survive the trip in a production build.
+//
+// A thrown error now means the action could not run at all, which is not a
+// rule the user broke and not something a more specific message would help.
+const UNREACHABLE = "Couldn't reach the server. Please try again.";
 
 export function DataPrivacy({ method }: { method: ReauthMethod | null }) {
   const router = useRouter();
@@ -177,10 +170,14 @@ export function DataPrivacy({ method }: { method: ReauthMethod | null }) {
     startTransition(async () => {
       setError(null);
       try {
-        await sendReauthCode();
+        const result = await sendReauthCode();
+        if (!result.ok) {
+          setError(REAUTH_MESSAGES[result.reason]);
+          return;
+        }
         setCodeSent(true);
-      } catch (err) {
-        setError(actionError(err, "Couldn't send a code. Please try again."));
+      } catch {
+        setError(UNREACHABLE);
       }
     });
 
@@ -188,8 +185,12 @@ export function DataPrivacy({ method }: { method: ReauthMethod | null }) {
     startTransition(async () => {
       setError(null);
       try {
-        const json = await exportMyData(proof());
-        const blob = new Blob([json], { type: "application/json" });
+        const result = await exportMyData(proof());
+        if (!result.ok) {
+          setError(REAUTH_MESSAGES[result.reason]);
+          return;
+        }
+        const blob = new Blob([result.json], { type: "application/json" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
@@ -197,8 +198,8 @@ export function DataPrivacy({ method }: { method: ReauthMethod | null }) {
         a.click();
         URL.revokeObjectURL(url);
         setMode(null);
-      } catch (err) {
-        setError(actionError(err, "Export failed. Please try again."));
+      } catch {
+        setError(UNREACHABLE);
       }
     });
 
@@ -206,13 +207,15 @@ export function DataPrivacy({ method }: { method: ReauthMethod | null }) {
     startTransition(async () => {
       setError(null);
       try {
-        await resetToDefaults(proof());
+        const result = await resetToDefaults(proof());
+        if (!result.ok) {
+          setError(REAUTH_MESSAGES[result.reason]);
+          return;
+        }
         setMode(null);
         router.refresh();
-      } catch (err) {
-        setError(
-          actionError(err, "Couldn't reset your data. Please try again."),
-        );
+      } catch {
+        setError(UNREACHABLE);
       }
     });
 
@@ -220,13 +223,15 @@ export function DataPrivacy({ method }: { method: ReauthMethod | null }) {
     startTransition(async () => {
       setError(null);
       try {
-        await clearMyData(proof());
+        const result = await clearMyData(proof());
+        if (!result.ok) {
+          setError(REAUTH_MESSAGES[result.reason]);
+          return;
+        }
         setMode(null);
         router.refresh();
-      } catch (err) {
-        setError(
-          actionError(err, "Couldn't clear your data. Please try again."),
-        );
+      } catch {
+        setError(UNREACHABLE);
       }
     });
 
@@ -234,12 +239,11 @@ export function DataPrivacy({ method }: { method: ReauthMethod | null }) {
     startTransition(async () => {
       setError(null);
       try {
-        await deleteMyAccount(proof());
-        // On success deleteMyAccount redirects; nothing more to do here.
-      } catch (err) {
-        setError(
-          actionError(err, "Couldn't delete your account. Please try again."),
-        );
+        const result = await deleteMyAccount(proof());
+        // On success deleteMyAccount redirects, so only a refusal returns.
+        if (!result.ok) setError(REAUTH_MESSAGES[result.reason]);
+      } catch {
+        setError(UNREACHABLE);
       }
     });
 

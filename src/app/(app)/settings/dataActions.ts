@@ -3,8 +3,15 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { Reauthentication } from "@/lib/auth/reauth";
+import type { ReauthOutcome } from "@/lib/auth/reauthOutcome";
+import { refusalFor } from "@/lib/auth/reauthRefusal";
 import { requireUserId } from "@/lib/auth/requireUserId";
-import { assertMethod, reauthAccount, verifyUser } from "@/lib/auth/verifyUser";
+import {
+  assertMethod,
+  REAUTH_ERRORS,
+  reauthAccount,
+  verifyUser,
+} from "@/lib/auth/verifyUser";
 import { serializeExport } from "@/lib/data/serialize";
 import { log } from "@/lib/log";
 import { prisma } from "@/lib/prisma";
@@ -17,27 +24,32 @@ import { createClient } from "@/lib/supabase/server";
 // password. `shouldCreateUser: false` so this can never mint an account —
 // GoTrue answers otp_disabled when no user row matches, which cannot happen
 // here because the caller is already signed in.
-export async function sendReauthCode(): Promise<void> {
+export async function sendReauthCode(): Promise<ReauthOutcome> {
   const { email, method } = await reauthAccount();
-  // An account with a password has no business being mailed a code; this is
-  // the same downgrade verifyUser refuses, at the other entry point.
-  assertMethod("otp", method);
+  try {
+    // An account with a password has no business being mailed a code; this is
+    // the same downgrade verifyUser refuses, at the other entry point.
+    assertMethod("otp", method);
 
-  // Its own bucket: each send spends from the project's shared mail budget,
-  // which Supabase's built-in sender caps at 2/hour.
-  if ((await checkRateLimit("reauth-code", email)) !== "allowed") {
-    throw new Error("Too many codes requested. Please try again later.");
-  }
+    // Its own bucket: each send spends from the project's shared mail budget,
+    // which Supabase's built-in sender caps at 2/hour.
+    if ((await checkRateLimit("reauth-code", email)) !== "allowed") {
+      throw new Error(REAUTH_ERRORS.codeSendLimited);
+    }
 
-  const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithOtp({
-    email,
-    options: { shouldCreateUser: false },
-  });
-  if (error) {
-    log.error("Re-auth code send failed", { err: error });
-    throw new Error("Couldn't send a code. Please try again.");
+    const supabase = await createClient();
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: { shouldCreateUser: false },
+    });
+    if (error) {
+      log.error("Re-auth code send failed", { err: error });
+      throw new Error(REAUTH_ERRORS.codeSendFailed);
+    }
+  } catch (err) {
+    return { ok: false, reason: refusalFor(err) };
   }
+  return { ok: true };
 }
 
 // Deletes every FINANCIAL row for a user, in FK-safe order. Transactions go
@@ -58,14 +70,20 @@ function financialDeletes(userId: string) {
   ];
 }
 
-export async function exportMyData(proof: Reauthentication): Promise<string> {
+export async function exportMyData(
+  proof: Reauthentication,
+): Promise<ReauthOutcome<{ json: string }>> {
   const userId = await requireUserId("/settings");
   // Handing over the whole financial record is at least as sensitive as
   // deleting it, so it takes the same proof as its three destructive siblings.
   // Without this an unlocked signed-in browser is a complete data breach.
-  await verifyUser(proof);
-  if ((await checkRateLimit("data-export", userId)) !== "allowed") {
-    throw new Error("Too many export requests. Please try again later.");
+  try {
+    await verifyUser(proof);
+    if ((await checkRateLimit("data-export", userId)) !== "allowed") {
+      throw new Error(REAUTH_ERRORS.rateLimited);
+    }
+  } catch (err) {
+    return { ok: false, reason: refusalFor(err) };
   }
   const [
     user,
@@ -102,7 +120,7 @@ export async function exportMyData(proof: Reauthentication): Promise<string> {
     prisma.sentMessage.findMany({ where: { userId } }),
   ]);
 
-  return serializeExport({
+  const json = serializeExport({
     exportedAt: new Date().toISOString(),
     // v3 added sentMessages so the user's full communication history is included.
     schemaVersion: 3,
@@ -118,6 +136,7 @@ export async function exportMyData(proof: Reauthentication): Promise<string> {
     plans,
     sentMessages,
   });
+  return { ok: true, json };
 }
 
 // Back to how the app looked on day one: every financial row goes, and the
@@ -128,9 +147,15 @@ export async function exportMyData(proof: Reauthentication): Promise<string> {
 // that comment describes is the same, and Category goes too, which the other
 // paths deliberately keep. Seeding after a partial delete would duplicate the
 // starter categories, so the two halves cannot be separate transactions.
-export async function resetToDefaults(proof: Reauthentication): Promise<void> {
+export async function resetToDefaults(
+  proof: Reauthentication,
+): Promise<ReauthOutcome> {
   const userId = await requireUserId("/settings");
-  await verifyUser(proof);
+  try {
+    await verifyUser(proof);
+  } catch (err) {
+    return { ok: false, reason: refusalFor(err) };
+  }
 
   await prisma.$transaction(async (tx) => {
     // Transactions first: Transaction.transferAccount is onDelete: Restrict,
@@ -154,11 +179,18 @@ export async function resetToDefaults(proof: Reauthentication): Promise<void> {
   revalidatePath("/transactions");
   revalidatePath("/plan");
   revalidatePath("/settings");
+  return { ok: true };
 }
 
-export async function clearMyData(proof: Reauthentication): Promise<void> {
+export async function clearMyData(
+  proof: Reauthentication,
+): Promise<ReauthOutcome> {
   const userId = await requireUserId("/settings");
-  await verifyUser(proof);
+  try {
+    await verifyUser(proof);
+  } catch (err) {
+    return { ok: false, reason: refusalFor(err) };
+  }
   await prisma.$transaction(financialDeletes(userId));
   revalidatePath("/dashboard");
   revalidatePath("/budget");
@@ -166,11 +198,18 @@ export async function clearMyData(proof: Reauthentication): Promise<void> {
   revalidatePath("/transactions");
   revalidatePath("/plan");
   revalidatePath("/settings");
+  return { ok: true };
 }
 
-export async function deleteMyAccount(proof: Reauthentication): Promise<void> {
+export async function deleteMyAccount(
+  proof: Reauthentication,
+): Promise<ReauthOutcome> {
   const userId = await requireUserId("/settings");
-  await verifyUser(proof);
+  try {
+    await verifyUser(proof);
+  } catch (err) {
+    return { ok: false, reason: refusalFor(err) };
+  }
 
   // App data first, identity second: if the admin call below failed, we'd have
   // erased the financial PII rather than orphaning it behind an undeletable

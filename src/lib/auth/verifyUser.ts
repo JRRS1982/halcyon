@@ -30,6 +30,8 @@ export const REAUTH_ERRORS = {
   wrongMethod: "That isn't how this account signs in",
   rateLimited: "Too many attempts. Please try again later.",
   badCode: "That code is not valid",
+  codeSendLimited: "Too many codes requested. Please try again later.",
+  codeSendFailed: "Couldn't send a code. Please try again.",
 } as const;
 
 // The account this request is re-authenticating, and the proof it may offer.
