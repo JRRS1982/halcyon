@@ -5,6 +5,7 @@ import {
   type Reauthentication,
   type ReauthMethod,
   reauthMethodFor,
+  reauthSchema,
 } from "@/lib/auth/reauth";
 import { clientIp } from "@/lib/http/clientIp";
 import { log } from "@/lib/log";
@@ -20,13 +21,24 @@ import { getCurrentUser } from "@/lib/supabase/user";
 // those is a server action the browser can call directly, and verifyUser on
 // its own would be a password oracle with nothing behind it.
 
+// The refusals this module throws, named so a caller can tell them apart
+// without repeating the literal. changePassword maps these to its own codes;
+// a rename here is then a type error there rather than a message that quietly
+// stops matching.
+export const REAUTH_ERRORS = {
+  wrongPassword: "Incorrect password",
+  wrongMethod: "That isn't how this account signs in",
+  rateLimited: "Too many attempts. Please try again later.",
+  badCode: "That code is not valid",
+} as const;
+
 // The account this request is re-authenticating, and the proof it may offer.
 //
-// Shared by both entry points rather than hoisted above them: `verifyUser` and
-// `sendReauthCode` are independently reachable server actions, so each has to
-// assert for itself — a wrapper they must remember to call would be the weaker
-// design. What they share is the lookup and the two things that can go wrong
-// with it.
+// Shared by both entry points rather than hoisted above them: `verifyUser` is
+// called from several server actions and `sendReauthCode` is one itself, so
+// each has to assert for itself — a wrapper they must remember to call would
+// be the weaker design. What they share is the lookup and the two things that
+// can go wrong with it.
 //
 // `getCurrentUser` is request-memoised, so the second call in a destructive
 // action (requireUserId, then this) costs nothing.
@@ -70,10 +82,11 @@ export function assertMethod(
 ): void {
   if (actual === expected) return;
   log.warn("Re-auth method mismatch", { expected, actual });
-  throw new Error("That isn't how this account signs in");
+  throw new Error(REAUTH_ERRORS.wrongMethod);
 }
 
-// Proves the caller is the account holder before an irreversible action.
+// Proves the caller is the account holder before an irreversible or
+// credential-changing action.
 //
 // Which proof applies depends on how the account signs in: an account with an
 // email identity has a password, and everything else — a Google-only account
@@ -84,15 +97,18 @@ export function assertMethod(
 // how Supabase's verification calls work; it refreshes the caller's own
 // session and is harmless.
 export async function verifyUser(proof: Reauthentication): Promise<void> {
+  // See reauthSchema: this object came from the browser, and the union that
+  // types it is erased at runtime.
+  const checked = reauthSchema.parse(proof);
   const { email, method } = await reauthAccount();
-  assertMethod(proof.method, method);
+  assertMethod(checked.method, method);
 
   // Only the buckets the chosen gate actually spends. Before, both password
   // buckets were charged whichever proof was offered, so a code attempt ate
   // the password-guessing budget and `verify-code` counted the very same
   // events a second time.
   const verdicts = await Promise.all(
-    proof.method === "password"
+    checked.method === "password"
       ? // Two mirror the sign-in pattern: per-IP bounds one attacker,
         // per-account bounds a pool of IPs guessing at the same user.
         [
@@ -104,23 +120,23 @@ export async function verifyUser(proof: Reauthentication): Promise<void> {
         [checkRateLimit("verify-code", email)],
   );
   if (verdicts.some((verdict) => verdict !== "allowed")) {
-    throw new Error("Too many attempts. Please try again later.");
+    throw new Error(REAUTH_ERRORS.rateLimited);
   }
 
   const supabase = await createClient();
 
-  if (proof.method === "password") {
+  if (checked.method === "password") {
     const { error } = await supabase.auth.signInWithPassword({
       email,
-      password: proof.password,
+      password: checked.password,
     });
-    if (error) throw new Error("Incorrect password");
+    if (error) throw new Error(REAUTH_ERRORS.wrongPassword);
     return;
   }
 
   const { error } = await supabase.auth.verifyOtp({
     email,
-    token: proof.code,
+    token: checked.code,
     type: "email",
   });
   if (error) {
@@ -129,6 +145,6 @@ export async function verifyUser(proof: Reauthentication): Promise<void> {
     // Supabase dashboard would fail every Google account forever with nothing
     // anywhere to say why.
     log.error("Re-auth code rejected", { err: error });
-    throw new Error("That code is not valid");
+    throw new Error(REAUTH_ERRORS.badCode);
   }
 }

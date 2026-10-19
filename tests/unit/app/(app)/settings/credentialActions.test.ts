@@ -88,6 +88,10 @@ async function sha1Upper(value: string): Promise<string> {
     .toUpperCase();
 }
 
+// Every refusal is RETURNED, not thrown. A thrown message does not survive a
+// production build — Next sends only a digest — so a panel reading err.message
+// would show one generic line for every cause. These assertions are on the
+// returned reason for that reason.
 describe("changePassword", () => {
   beforeEach(() => {
     mockIdentities = [{ provider: "email" }];
@@ -136,7 +140,7 @@ describe("changePassword", () => {
 
     await expect(
       changePassword({ currentPassword: "wrong", newPassword: NEW }),
-    ).rejects.toThrow("Incorrect password");
+    ).resolves.toEqual({ ok: false, reason: "wrong-password" });
     expect(mockUpdateUser).not.toHaveBeenCalled();
     expect(mockSignOut).not.toHaveBeenCalled();
   });
@@ -148,7 +152,7 @@ describe("changePassword", () => {
 
     await expect(
       changePassword({ currentPassword: CURRENT, newPassword: NEW }),
-    ).rejects.toThrow("That isn't how this account signs in");
+    ).resolves.toEqual({ ok: false, reason: "wrong-method" });
     expect(mockUpdateUser).not.toHaveBeenCalled();
   });
 
@@ -160,7 +164,7 @@ describe("changePassword", () => {
 
     await expect(
       changePassword({ currentPassword: CURRENT, newPassword: NEW }),
-    ).rejects.toThrow("That password has appeared in a data breach");
+    ).resolves.toEqual({ ok: false, reason: "breached" });
     expect(mockUpdateUser).not.toHaveBeenCalled();
   });
 
@@ -180,7 +184,7 @@ describe("changePassword", () => {
 
     await expect(
       changePassword({ currentPassword: CURRENT, newPassword: NEW }),
-    ).rejects.toThrow("Too many attempts");
+    ).resolves.toEqual({ ok: false, reason: "rate-limited" });
     expect(mockSignInWithPassword).not.toHaveBeenCalled();
     expect(mockUpdateUser).not.toHaveBeenCalled();
   });
@@ -190,7 +194,7 @@ describe("changePassword", () => {
   it("refuses a new password under the sign-up floor", async () => {
     await expect(
       changePassword({ currentPassword: CURRENT, newPassword: "tooshort" }),
-    ).rejects.toThrow("Password must be at least 12 characters");
+    ).resolves.toEqual({ ok: false, reason: "too-short" });
     expect(mockSignInWithPassword).not.toHaveBeenCalled();
     expect(mockUpdateUser).not.toHaveBeenCalled();
   });
@@ -198,14 +202,26 @@ describe("changePassword", () => {
   it("refuses a new password identical to the current one", async () => {
     await expect(
       changePassword({ currentPassword: CURRENT, newPassword: CURRENT }),
-    ).rejects.toThrow("Choose a password you aren't already using");
+    ).resolves.toEqual({ ok: false, reason: "same-password" });
     expect(mockUpdateUser).not.toHaveBeenCalled();
   });
 
   it("reports that the other sessions went", async () => {
     await expect(
       changePassword({ currentPassword: CURRENT, newPassword: NEW }),
-    ).resolves.toEqual({ othersSignedOut: true });
+    ).resolves.toEqual({ ok: true, othersSignedOut: true });
+  });
+
+  // supabase-js returns { error } for an ordinary failure, but a network drop
+  // rejects. The password has already changed by then, so letting it escape
+  // would report a failure that did not happen — and invite a retry that now
+  // fails with "that isn't your current password".
+  it("keeps the change when revoking throws rather than returning", async () => {
+    mockSignOut.mockRejectedValueOnce(new Error("network down"));
+
+    await expect(
+      changePassword({ currentPassword: CURRENT, newPassword: NEW }),
+    ).resolves.toEqual({ ok: true, othersSignedOut: false });
   });
 
   // The password did change; saying otherwise would invite a second change
@@ -217,7 +233,7 @@ describe("changePassword", () => {
 
     await expect(
       changePassword({ currentPassword: CURRENT, newPassword: NEW }),
-    ).resolves.toEqual({ othersSignedOut: false });
+    ).resolves.toEqual({ ok: true, othersSignedOut: false });
     expect(mockLogError).toHaveBeenCalled();
   });
 });

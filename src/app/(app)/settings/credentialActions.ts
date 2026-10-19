@@ -1,16 +1,44 @@
 "use server";
 
 import { checkPasswordBreach } from "@/lib/auth/breachedPassword";
+import type {
+  ChangePasswordOutcome,
+  ChangePasswordRefusal,
+} from "@/lib/auth/changePasswordOutcome";
 import { requireUserId } from "@/lib/auth/requireUserId";
 import {
   type ChangePasswordInput,
   changePasswordSchema,
 } from "@/lib/auth/schemas";
-import { verifyUser } from "@/lib/auth/verifyUser";
+import { REAUTH_ERRORS, verifyUser } from "@/lib/auth/verifyUser";
 import { log } from "@/lib/log";
 import { createClient } from "@/lib/supabase/server";
 
+// Which rule the schema refused. The message is the schema's, so this maps it
+// back to a code rather than sending the text: see changePasswordOutcome.ts
+// for why a thrown message cannot reach the browser in production.
+const REFUSAL_BY_MESSAGE: Record<string, ChangePasswordRefusal> = {
+  "Enter your current password": "current-password-required",
+  "Password must be at least 12 characters": "too-short",
+  "Choose a password you aren't already using": "same-password",
+  [REAUTH_ERRORS.wrongPassword]: "wrong-password",
+  [REAUTH_ERRORS.wrongMethod]: "wrong-method",
+  [REAUTH_ERRORS.rateLimited]: "rate-limited",
+};
+
+const refusalFor = (err: unknown): ChangePasswordRefusal => {
+  const message = err instanceof Error ? err.message : "";
+  // An unmapped throw is a bug, not a rule the user broke, so it reads as the
+  // provider refusing rather than inventing a reason they could act on.
+  return REFUSAL_BY_MESSAGE[message] ?? "provider-refused";
+};
+
 // Changes the password of an account that signs in with one.
+//
+// Returns its refusals rather than throwing them. A server action's thrown
+// error reaches the browser as a bare digest in a production build, so a
+// panel reading `err.message` would show the same generic line for a wrong
+// password, a breached one and a rate limit alike.
 //
 // No rate-limit bucket of its own. The only guessable part of this is the
 // current password, and verifyUser already spends `verify-password` and
@@ -18,16 +46,15 @@ import { createClient } from "@/lib/supabase/server";
 // brake, since the next attempt needs the password this one just set.
 export async function changePassword(
   input: ChangePasswordInput,
-): Promise<{ othersSignedOut: boolean }> {
-  await requireUserId("/settings");
+): Promise<ChangePasswordOutcome> {
+  const userId = await requireUserId("/settings");
+
   const parsed = changePasswordSchema.safeParse(input);
   if (!parsed.success) {
-    // The schema's own message, which the panel renders from its allowlist.
-    // These are strings this app authored, not anything the caller supplied,
-    // so passing one back says which rule failed without echoing input.
-    throw new Error(
-      parsed.error.issues[0]?.message ?? "Check the form and try again",
-    );
+    return {
+      ok: false,
+      reason: refusalFor(new Error(parsed.error.issues[0]?.message ?? "")),
+    };
   }
   const { currentPassword, newPassword } = parsed.data;
 
@@ -40,7 +67,14 @@ export async function changePassword(
   //
   // It signs in as a side effect, which leaves the session fresh enough for
   // GoTrue's secure-password-change recency window.
-  await verifyUser({ method: "password", password: currentPassword });
+  //
+  // It throws, because its four other callers want that; here the refusal is
+  // part of the answer, so it becomes one.
+  try {
+    await verifyUser({ method: "password", password: currentPassword });
+  } catch (err) {
+    return { ok: false, reason: refusalFor(err) };
+  }
 
   // The same check sign-up makes, for the same reason and with the same
   // policy: a breached password is the one credential-stuffing actually uses,
@@ -48,11 +82,11 @@ export async function changePassword(
   // Without this the floor could be walked around from the inside — sign up
   // with something strong, then change it to one of the top thousand.
   const breach = await checkPasswordBreach(newPassword);
-  if (breach === "breached") {
-    throw new Error("That password has appeared in a data breach");
-  }
+  if (breach === "breached") return { ok: false, reason: "breached" };
   if (breach === "unknown") {
-    log.warn("Breached-password check unavailable; allowing password change");
+    log.warn("Breached-password check unavailable; allowing password change", {
+      userId,
+    });
   }
 
   const supabase = await createClient();
@@ -60,9 +94,9 @@ export async function changePassword(
   if (error) {
     // Supabase enforces its own minimum and its own reuse rules, so this is
     // reachable with a password this app accepted. The user gets something
-    // readable; the log gets which rule it was.
-    log.error("Password change rejected", { err: error });
-    throw new Error("Couldn't change your password. Please try again.");
+    // readable; the log gets which rule it was, and whose.
+    log.error("Password change rejected", { userId, err: error });
+    return { ok: false, reason: "provider-refused" };
   }
 
   // The reason to change a password is usually that someone else may have
@@ -70,20 +104,26 @@ export async function changePassword(
   // of leaving them signed in with a password that no longer works; `others`
   // keeps this browser signed in, so the user is not thrown out of the page
   // they just used.
-  const { error: revokeError } = await supabase.auth.signOut({
-    scope: "others",
-  });
-  if (revokeError) {
-    // Not an error to throw: the password did change, and saying otherwise
-    // would invite a second attempt that revokes nothing either. But it is not
+  //
+  // Wrapped, because a network failure here throws rather than returning an
+  // error — and the password has already changed by this point, so letting it
+  // escape would report a failure that did not happen.
+  const revoked = await supabase.auth
+    .signOut({ scope: "others" })
+    .then(({ error: revokeError }) => !revokeError)
+    .catch(() => false);
+
+  if (!revoked) {
+    // Not a refusal: the password did change, and saying otherwise would
+    // invite a second attempt that revokes nothing either. But it is not
     // nothing — a session elsewhere has outlived the password it was created
     // with, which is the one thing someone changing their password wants gone.
     // So it is logged, and reported back, rather than papered over by a
     // confirmation that claims every device was signed out.
     log.error("Password changed but other sessions were not revoked", {
-      err: revokeError,
+      userId,
     });
   }
 
-  return { othersSignedOut: !revokeError };
+  return { ok: true, othersSignedOut: revoked };
 }

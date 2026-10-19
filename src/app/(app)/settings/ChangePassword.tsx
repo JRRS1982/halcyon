@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import styled from "styled-components";
 import { Button } from "@/components/ui/Button";
+import { CHANGE_PASSWORD_MESSAGES } from "@/lib/auth/changePasswordOutcome";
 import { changePassword } from "./credentialActions";
 import { SectionHeading, SettingsCard } from "./SectionHeading";
 
@@ -78,31 +79,6 @@ const Actions = styled.div`
   flex-wrap: wrap;
 `;
 
-// The messages the action throws, mapped to what the user reads. Anything not
-// listed falls back, so a provider string can never reach the page — the same
-// rule the auth notices follow, for the same reason.
-const SERVER_ERRORS: Record<string, string> = {
-  "Incorrect password": "That isn't your current password.",
-  "That password has appeared in a data breach":
-    "That password has appeared in a data breach. Please choose another.",
-  "That isn't how this account signs in":
-    "That isn't how this account signs in. Reload the page and try again.",
-  "Too many attempts. Please try again later.":
-    "Too many attempts. Please try again later.",
-  // The schema's messages, which the action passes back verbatim.
-  "Password must be at least 12 characters":
-    "Your new password must be at least 12 characters.",
-  "Choose a password you aren't already using":
-    "That's the password you already have. Choose a different one.",
-  "Enter your current password": "Enter your current password.",
-  "Check the form and try again": "Check the form and try again.",
-};
-
-function actionError(err: unknown, fallback: string): string {
-  const message = err instanceof Error ? err.message : "";
-  return SERVER_ERRORS[message] ?? fallback;
-}
-
 export function ChangePassword() {
   const [pending, startTransition] = useTransition();
   const [currentPassword, setCurrentPassword] = useState("");
@@ -119,13 +95,19 @@ export function ChangePassword() {
     startTransition(async () => {
       try {
         const result = await changePassword({ currentPassword, newPassword });
+        if (!result.ok) {
+          // The server named the reason, so the panel only has to read it.
+          // Nothing here parses an error message: see changePasswordOutcome.
+          setError(CHANGE_PASSWORD_MESSAGES[result.reason]);
+          return;
+        }
         setCurrentPassword("");
         setNewPassword("");
         setOthersSignedOut(result.othersSignedOut);
-      } catch (err) {
-        setError(
-          actionError(err, "Couldn't change your password. Please try again."),
-        );
+      } catch {
+        // Reaching here means the action itself failed to run — a network
+        // drop or a redeploy mid-request — not a rule the user broke.
+        setError("Couldn't reach the server. Please try again.");
       }
     });
   };
