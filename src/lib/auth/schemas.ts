@@ -16,9 +16,12 @@ export const signInSchema = z.object({
 //
 // Twelve, not eight. Eight has not been a meaningful floor for years, and the
 // Sep 2026 audit already identified the bump as the free half of the password
-// finding. The other half is checkPasswordBreach, consulted in the sign-up
-// action: length alone does nothing about "Password1234", which is long,
-// compliant and in every breach corpus there is.
+// finding. The other half is checkPasswordBreach, consulted in the sign-up and
+// change-password actions: length alone does nothing about "Password1234",
+// which is long, compliant and in every breach corpus there is.
+//
+// Shared by both schemas below, so the floor and the breach check cover the
+// two ways a password is ever set.
 const newPassword = z
   .string()
   .min(12, "Password must be at least 12 characters");
