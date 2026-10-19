@@ -1,5 +1,6 @@
 "use server";
 
+import { unstable_rethrow } from "next/navigation";
 import { checkPasswordBreach } from "@/lib/auth/breachedPassword";
 import type {
   ChangePasswordOutcome,
@@ -73,6 +74,11 @@ export async function changePassword(
   try {
     await verifyUser({ method: "password", password: currentPassword });
   } catch (err) {
+    // redirect() and notFound() work by throwing, and reauthAccount sends an
+    // account it cannot classify back to sign-in. Without this, that
+    // navigation is caught here and reported as a refusal, leaving the user on
+    // a form that answers "couldn't change your password" and never moves.
+    unstable_rethrow(err);
     return { ok: false, reason: refusalFor(err) };
   }
 

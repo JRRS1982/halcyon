@@ -18,6 +18,7 @@ const mockSignOut = jest.fn(
 );
 // Mutable so a case can present a Google-only account.
 let mockIdentities: { provider: string }[] = [{ provider: "email" }];
+let mockEmail: string | null = "test@example.com";
 
 jest.mock("@/lib/supabase/server", () => ({
   createClient: () => ({
@@ -26,7 +27,7 @@ jest.mock("@/lib/supabase/server", () => ({
         data: {
           user: {
             id: "00000000-0000-0000-0000-0000000000aa",
-            email: "test@example.com",
+            email: mockEmail,
             identities: mockIdentities,
             email_confirmed_at: "2026-01-01T00:00:00.000Z",
           },
@@ -95,6 +96,7 @@ async function sha1Upper(value: string): Promise<string> {
 describe("changePassword", () => {
   beforeEach(() => {
     mockIdentities = [{ provider: "email" }];
+    mockEmail = "test@example.com";
     mockSignInWithPassword.mockClear();
     mockUpdateUser.mockClear();
     mockSignOut.mockClear();
@@ -210,6 +212,18 @@ describe("changePassword", () => {
     await expect(
       changePassword({ currentPassword: CURRENT, newPassword: NEW }),
     ).resolves.toEqual({ ok: true, othersSignedOut: true });
+  });
+
+  // reauthAccount sends an account it cannot classify back to sign-in, and
+  // redirect() works by throwing. A catch that treats every throw as a refusal
+  // swallows the navigation and leaves the user on a form answering "couldn't
+  // change your password" forever.
+  it("lets a redirect out rather than reporting it as a refusal", async () => {
+    mockEmail = null;
+
+    await expect(
+      changePassword({ currentPassword: CURRENT, newPassword: NEW }),
+    ).rejects.toThrow(/NEXT_REDIRECT/);
   });
 
   // supabase-js returns { error } for an ordinary failure, but a network drop
