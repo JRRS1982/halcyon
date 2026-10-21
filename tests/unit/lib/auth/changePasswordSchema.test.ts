@@ -32,6 +32,18 @@ describe("changePasswordSchema", () => {
     ).toBe(true);
   });
 
+  it("rejects a new password over 200 characters", () => {
+    const result = changePasswordSchema.safeParse({
+      ...valid,
+      newPassword: "x".repeat(201),
+    });
+
+    expect(result.success).toBe(false);
+    expect(messagesFor(result, "newPassword")).toContain(
+      "Password must be at most 200 characters",
+    );
+  });
+
   // Saving your own password back is a no-op the user would read as a change,
   // which is worse than being told it isn't one.
   it("refuses a new password identical to the current one", () => {

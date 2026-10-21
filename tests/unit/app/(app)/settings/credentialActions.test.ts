@@ -193,6 +193,15 @@ describe("changePassword", () => {
 
   // The action re-parses what the panel already checked, because the panel is
   // not the only thing that can call it.
+  it("refuses a new password over the 200-character ceiling", async () => {
+    await expect(
+      changePassword({
+        currentPassword: CURRENT,
+        newPassword: "x".repeat(201),
+      }),
+    ).resolves.toEqual({ ok: false, reason: "too-long" });
+  });
+
   it("refuses a new password under the sign-up floor", async () => {
     await expect(
       changePassword({ currentPassword: CURRENT, newPassword: "tooshort" }),
@@ -212,6 +221,20 @@ describe("changePassword", () => {
     await expect(
       changePassword({ currentPassword: CURRENT, newPassword: NEW }),
     ).resolves.toEqual({ ok: true, othersSignedOut: true });
+  });
+
+  // Supabase may reject the update even after local validation passes — e.g. its
+  // own reuse policy. The password has not changed at that point, so no other
+  // sessions need revoking.
+  it("reports provider-refused when the update is rejected upstream", async () => {
+    mockUpdateUser.mockResolvedValueOnce({
+      error: { message: "Password does not meet requirements" },
+    });
+
+    await expect(
+      changePassword({ currentPassword: CURRENT, newPassword: NEW }),
+    ).resolves.toEqual({ ok: false, reason: "provider-refused" });
+    expect(mockSignOut).not.toHaveBeenCalled();
   });
 
   // reauthAccount sends an account it cannot classify back to sign-in, and

@@ -29,6 +29,7 @@ export const REAUTH_ERRORS = {
   wrongPassword: "Incorrect password",
   wrongMethod: "That isn't how this account signs in",
   rateLimited: "Too many attempts. Please try again later.",
+  exportRateLimited: "Too many export requests. Please try again later.",
   badCode: "That code is not valid",
   codeSendLimited: "Too many codes requested. Please try again later.",
   codeSendFailed: "Couldn't send a code. Please try again.",

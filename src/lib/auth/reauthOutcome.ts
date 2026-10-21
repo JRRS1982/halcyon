@@ -12,6 +12,7 @@ export const REAUTH_MESSAGES = {
     "That isn't how this account signs in. Reload the page and try again.",
   "bad-code": "That code is not valid. Check it and try again.",
   "rate-limited": "Too many attempts. Please try again later.",
+  "export-rate-limited": "Too many export requests. Please try again later.",
   "code-send-limited": "Too many codes requested. Please try again later.",
   "code-send-failed": "Couldn't send a code. Please try again.",
   // Nothing the user did. Reaching this means an unmapped throw, so it says

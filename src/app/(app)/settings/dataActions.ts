@@ -80,7 +80,7 @@ export async function exportMyData(
   try {
     await verifyUser(proof);
     if ((await checkRateLimit("data-export", userId)) !== "allowed") {
-      throw new Error(REAUTH_ERRORS.rateLimited);
+      throw new Error(REAUTH_ERRORS.exportRateLimited);
     }
   } catch (err) {
     return { ok: false, reason: refusalFor(err) };

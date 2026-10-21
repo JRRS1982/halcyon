@@ -12,6 +12,7 @@ const BY_MESSAGE: Record<string, ReauthRefusal> = {
   [REAUTH_ERRORS.wrongMethod]: "wrong-method",
   [REAUTH_ERRORS.badCode]: "bad-code",
   [REAUTH_ERRORS.rateLimited]: "rate-limited",
+  [REAUTH_ERRORS.exportRateLimited]: "export-rate-limited",
   [REAUTH_ERRORS.codeSendLimited]: "code-send-limited",
   [REAUTH_ERRORS.codeSendFailed]: "code-send-failed",
 };

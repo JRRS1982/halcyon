@@ -24,7 +24,8 @@ export const signInSchema = z.object({
 // two ways a password is ever set.
 const newPassword = z
   .string()
-  .min(12, "Password must be at least 12 characters");
+  .min(12, "Password must be at least 12 characters")
+  .max(200, "Password must be at most 200 characters");
 
 export const signUpSchema = z.object({
   email: z.string().trim().email("Enter a valid email"),
@@ -41,7 +42,7 @@ export const signUpSchema = z.object({
 // including the client's — an outbound request.
 export const changePasswordSchema = z
   .object({
-    currentPassword: z.string().min(1, "Enter your current password"),
+    currentPassword: z.string().min(1, "Enter your current password").max(200),
     newPassword,
   })
   .refine((input) => input.newPassword !== input.currentPassword, {

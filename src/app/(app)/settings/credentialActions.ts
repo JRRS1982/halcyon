@@ -21,6 +21,7 @@ import { createClient } from "@/lib/supabase/server";
 const REFUSAL_BY_MESSAGE: Record<string, ChangePasswordRefusal> = {
   "Enter your current password": "current-password-required",
   "Password must be at least 12 characters": "too-short",
+  "Password must be at most 200 characters": "too-long",
   "Choose a password you aren't already using": "same-password",
   [REAUTH_ERRORS.wrongPassword]: "wrong-password",
   [REAUTH_ERRORS.wrongMethod]: "wrong-method",

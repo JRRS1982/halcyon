@@ -12,6 +12,7 @@
 export const CHANGE_PASSWORD_MESSAGES = {
   "current-password-required": "Enter your current password.",
   "too-short": "Your new password must be at least 12 characters.",
+  "too-long": "Your new password must be at most 200 characters.",
   "same-password":
     "That's the password you already have. Choose a different one.",
   "wrong-password": "That isn't your current password.",

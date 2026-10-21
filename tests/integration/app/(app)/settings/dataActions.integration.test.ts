@@ -373,7 +373,8 @@ describe("verifyUser (integration)", () => {
 
   test("sends the code to the address on the account", async () => {
     mockIdentities = [{ provider: "google" }];
-    await sendReauthCode();
+    const result = await sendReauthCode();
+    expect(result).toEqual({ ok: true });
 
     expect(mockSignInWithOtp).toHaveBeenCalledWith({
       email: "test@example.com",
@@ -402,7 +403,8 @@ describe("verifyUser (integration)", () => {
   test("keys the send on its own bucket and the account address", async () => {
     mockIdentities = [{ provider: "google" }];
 
-    await sendReauthCode();
+    const result = await sendReauthCode();
+    expect(result).toEqual({ ok: true });
 
     expect(mockCheckRateLimit).toHaveBeenCalledWith(
       "reauth-code",
