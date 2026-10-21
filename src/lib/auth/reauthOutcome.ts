@@ -15,6 +15,11 @@ export const REAUTH_MESSAGES = {
   "export-rate-limited": "Too many export requests. Please try again later.",
   "code-send-limited": "Too many codes requested. Please try again later.",
   "code-send-failed": "Couldn't send a code. Please try again.",
+  // Data rows deleted but Supabase identity could not be removed — the
+  // financial PII is gone and the auth shell is harmless, but the user must
+  // know a manual tidy-up is needed rather than that the server is unreachable.
+  "orphaned-auth":
+    "Your data was deleted but your sign-in account could not be removed. Please contact support.",
   // Nothing the user did. Reaching this means an unmapped throw, so it says
   // the true thing rather than naming a rule they did not break.
   failed: "Something went wrong. Please try again.",

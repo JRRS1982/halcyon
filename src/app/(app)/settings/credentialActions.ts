@@ -29,10 +29,15 @@ const REFUSAL_BY_MESSAGE: Record<string, ChangePasswordRefusal> = {
 };
 
 const refusalFor = (err: unknown): ChangePasswordRefusal => {
+  // redirect() and notFound() work by throwing; without this they would be
+  // caught here and reported as a refusal, leaving the user on a stuck form.
+  unstable_rethrow(err);
   const message = err instanceof Error ? err.message : "";
+  const reason = REFUSAL_BY_MESSAGE[message];
+  if (!reason) log.warn("Unmapped error in changePassword", { message });
   // An unmapped throw is a bug, not a rule the user broke, so it reads as the
   // provider refusing rather than inventing a reason they could act on.
-  return REFUSAL_BY_MESSAGE[message] ?? "provider-refused";
+  return reason ?? "provider-refused";
 };
 
 // Changes the password of an account that signs in with one.
@@ -75,11 +80,6 @@ export async function changePassword(
   try {
     await verifyUser({ method: "password", password: currentPassword });
   } catch (err) {
-    // redirect() and notFound() work by throwing, and reauthAccount sends an
-    // account it cannot classify back to sign-in. Without this, that
-    // navigation is caught here and reported as a refusal, leaving the user on
-    // a form that answers "couldn't change your password" and never moves.
-    unstable_rethrow(err);
     return { ok: false, reason: refusalFor(err) };
   }
 

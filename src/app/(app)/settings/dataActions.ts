@@ -226,12 +226,14 @@ export async function deleteMyAccount(
   const { error } = await admin.auth.admin.deleteUser(userId);
   if (error) {
     // The financial rows are already gone, so a failure here leaves an auth
-    // identity with no app data behind it — worth a durable trace.
+    // identity with no app data behind it — worth a durable trace. We return
+    // rather than throw so the caller sees an accurate message: the user's data
+    // is deleted and retrying will not fix anything.
     log.error("Account deletion left an orphaned auth identity", {
       userId,
       err: error,
     });
-    throw new Error(`Failed to delete auth user: ${error.message}`);
+    return { ok: false, reason: "orphaned-auth" };
   }
 
   // A failed sign-out is tolerable here: the account is already deleted and the

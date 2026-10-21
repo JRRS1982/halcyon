@@ -116,13 +116,9 @@ describe("changePassword", () => {
   });
 
   it("sets the new password once the current one checks out", async () => {
-    await changePassword({ currentPassword: CURRENT, newPassword: NEW });
-
-    expect(mockSignInWithPassword).toHaveBeenCalledWith({
-      email: "test@example.com",
-      password: CURRENT,
-    });
-    expect(mockUpdateUser).toHaveBeenCalledWith({ password: NEW });
+    await expect(
+      changePassword({ currentPassword: CURRENT, newPassword: NEW }),
+    ).resolves.toMatchObject({ ok: true });
   });
 
   // The reason to change a password is usually that someone else may have

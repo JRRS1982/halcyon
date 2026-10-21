@@ -497,7 +497,7 @@ describe("verifyUser — wrong password rejection (integration)", () => {
   // The export hands over the whole financial record, which is at least as
   // sensitive as clearing it. Until October 2026 it was the only one of the
   // four destructive-data actions with no proof gate at all.
-  test("exportMyData throws rather than handing over the record", async () => {
+  test("exportMyData refuses rather than handing over the record", async () => {
     await seedFinancialData(TEST_USER_ID);
 
     await expect(
@@ -505,7 +505,7 @@ describe("verifyUser — wrong password rejection (integration)", () => {
     ).resolves.toEqual({ ok: false, reason: "wrong-password" });
   });
 
-  test("clearMyData throws and leaves all rows intact", async () => {
+  test("clearMyData refuses and leaves all rows intact", async () => {
     await seedFinancialData(TEST_USER_ID);
     const countBefore = await prisma.transaction.count({
       where: { userId: TEST_USER_ID },
@@ -523,7 +523,7 @@ describe("verifyUser — wrong password rejection (integration)", () => {
     ).toBe(1);
   });
 
-  test("deleteMyAccount throws and leaves user rows intact", async () => {
+  test("deleteMyAccount refuses and leaves user rows intact", async () => {
     await seedFinancialData(TEST_USER_ID);
 
     await expect(
@@ -539,7 +539,7 @@ describe("verifyUser — wrong password rejection (integration)", () => {
     expect(mockDeleteUser).not.toHaveBeenCalled();
   });
 
-  test("resetToDefaults throws and leaves data unchanged", async () => {
+  test("resetToDefaults refuses and leaves data unchanged", async () => {
     await seedFinancialData(TEST_USER_ID);
 
     await expect(
