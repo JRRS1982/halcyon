@@ -7,15 +7,24 @@ import {
 } from "@testing-library/react";
 import { ThemeProvider } from "styled-components";
 import { DataPrivacy } from "@/app/(app)/settings/DataPrivacy";
+import { REAUTH_MESSAGES, type ReauthOutcome } from "@/lib/auth/reauthOutcome";
 import { theme } from "@/lib/theme";
 
-const resetToDefaults = jest.fn(async () => undefined);
-const sendReauthCode = jest.fn(async () => undefined);
-const exportMyData = jest.fn(async (_proof: unknown) => "{}");
+// The actions report their outcome rather than throwing, so the mocks return
+// what the real ones do — a mock that resolves to undefined would read as a
+// refusal with no reason and pass for the wrong cause.
+const resetToDefaults = jest.fn(async () => ({ ok: true }));
+const sendReauthCode = jest.fn(async () => ({ ok: true }));
+const exportMyData = jest.fn(
+  async (_proof: unknown): Promise<ReauthOutcome<{ json: string }>> => ({
+    ok: true,
+    json: "{}",
+  }),
+);
 jest.mock("@/app/(app)/settings/dataActions", () => ({
   exportMyData: (proof: unknown) => exportMyData(proof),
-  clearMyData: jest.fn(async () => undefined),
-  deleteMyAccount: jest.fn(async () => undefined),
+  clearMyData: jest.fn(async () => ({ ok: true })),
+  deleteMyAccount: jest.fn(async () => ({ ok: true })),
   resetToDefaults: () => resetToDefaults(),
   sendReauthCode: () => sendReauthCode(),
 }));
@@ -70,6 +79,28 @@ describe("DataPrivacy", () => {
         method: "password",
         password: "hunter2",
       }),
+    );
+  });
+
+  test("shows the action's reason when it refuses", async () => {
+    exportMyData.mockResolvedValueOnce({
+      ok: false,
+      reason: "wrong-password" as const,
+    });
+    URL.createObjectURL = jest.fn(() => "blob:stub");
+    URL.revokeObjectURL = jest.fn();
+    renderit();
+
+    fireEvent.click(screen.getByRole("button", { name: /export my data/i }));
+    fireEvent.change(screen.getByLabelText(/enter your password to confirm/i), {
+      target: { value: "wrong" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^download$/i }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        REAUTH_MESSAGES["wrong-password"],
+      ),
     );
   });
 

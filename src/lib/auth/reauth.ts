@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 // How an account proves who it is before a destructive action.
 //
 // Supabase accounts carry one identity per sign-in method (email, phone,
@@ -15,9 +17,23 @@
 // the server-side check in dataActions.ts exists to refuse.
 export type ReauthMethod = "password" | "otp";
 
-export type Reauthentication =
-  | { method: "password"; password: string }
-  | { method: "otp"; code: string };
+// Parsed, not merely typed. This object arrives from the browser at a server
+// action and decides which credential gate runs, which makes it the one
+// client-supplied value in the app that reaches a security decision — the
+// TypeScript union says nothing at runtime. Both branches already fail closed
+// (assertMethod re-derives the method from the account's own identities, and
+// GoTrue rejects a malformed credential), so this is the shape check that
+// should not have been left to the type alone rather than a fix for a known
+// bypass.
+export const reauthSchema = z.discriminatedUnion("method", [
+  z.object({
+    method: z.literal("password"),
+    password: z.string().min(1).max(200),
+  }),
+  z.object({ method: z.literal("otp"), code: z.string().regex(/^[0-9]{6}$/) }),
+]);
+
+export type Reauthentication = z.infer<typeof reauthSchema>;
 
 export const reauthMethodFor = (
   identities: readonly { provider: string }[] | null | undefined,

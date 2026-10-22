@@ -42,11 +42,25 @@ jest.mock("@/lib/rateLimit", () => ({
 
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
 
-jest.mock("next/navigation", () => ({
-  redirect: (url: string) => {
-    throw new Error(`redirect:${url}`);
-  },
-}));
+// redirect() works by throwing, and `digest` is how the framework tells its
+// own control flow apart from a real failure — `unstable_rethrow` reads it to
+// let a navigation escape a catch that would otherwise swallow it. A plain
+// Error here would be unrecognisable, so an action that catches would report
+// the redirect as a failure in the tests while redirecting correctly in
+// production. The message stays readable so assertions can keep naming the
+// destination.
+jest.mock("next/navigation", () => {
+  const actual = jest.requireActual("next/navigation");
+  return {
+    ...actual,
+    redirect: (url: string) => {
+      const error = new Error(`redirect:${url}`);
+      (error as Error & { digest: string }).digest =
+        `NEXT_REDIRECT;replace;${url};307;`;
+      throw error;
+    },
+  };
+});
 
 import { resetDb, seedUser } from "./helpers";
 

@@ -22,6 +22,16 @@ users.set("test@example.com", {
   confirmed: true,
 });
 
+// A second account, for the one spec that changes a password. The store is
+// in-memory and shared by every spec in the run, so changing the known user's
+// password would sign out every test that ran after it.
+users.set("rotate@example.com", {
+  id: "00000000-0000-0000-0000-000000000002",
+  email: "rotate@example.com",
+  password: "e2e-rotate-123456",
+  confirmed: true,
+});
+
 const now = () => new Date().toISOString();
 const expiresAt = () => Math.floor(Date.now() / 1000) + 3600;
 
@@ -210,6 +220,23 @@ const server = http.createServer(async (req, res) => {
         return json(res, 401, { code: 401, msg: "User not found" });
       }
       log(`200 (user ${u.email})`);
+      return json(res, 200, buildUser(u));
+    }
+
+    // PUT /auth/v1/user — updateUser. The settings panel changes a password
+    // through this, and the stored password has to actually move: the spec
+    // signs in again with the new one, which is the only way to tell a real
+    // change from a 200 that did nothing.
+    if (req.method === "PUT" && url.pathname === "/auth/v1/user") {
+      const auth = req.headers.authorization ?? "";
+      const u = findUserByToken(auth.replace("Bearer ", ""));
+      if (!u) {
+        log("401 (unknown user)");
+        return json(res, 401, { code: 401, msg: "User not found" });
+      }
+      const body = await readJson(req);
+      if (body.password) u.password = body.password;
+      log(`200 (updated ${u.email})`);
       return json(res, 200, buildUser(u));
     }
 
