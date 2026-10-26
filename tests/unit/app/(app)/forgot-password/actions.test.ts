@@ -19,12 +19,14 @@ jest.mock("@/lib/supabase/server", () => ({
   }),
 }));
 
+// The server-owned origin the link is built from (see callbackOrigin). Stubbed
+// at the config boundary: CI has no .env, and the real module validates every
+// variable on import.
+jest.mock("@/lib/env", () => ({
+  emailEnv: { SITE_URL: "https://balanced.money" },
+}));
 jest.mock("next/headers", () => ({
-  headers: async () =>
-    new Map([
-      ["x-forwarded-for", "1.2.3.4"],
-      ["origin", "https://balanced.money"],
-    ]),
+  headers: async () => new Map([["x-forwarded-for", "1.2.3.4"]]),
 }));
 
 const mockCheckRateLimit = jest.fn(
