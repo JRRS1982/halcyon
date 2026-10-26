@@ -19,6 +19,9 @@ export type RateLimitedAction =
   | "sign-in-account" // per submitted email: distributed guessing at one account
   | "sign-up" // per client IP
   | "sign-up-address" // per submitted email: confirmation-mail bombing of one inbox
+  | "password-reset" // per client IP: each request sends a reset email
+  | "password-reset-address" // per submitted email: reset-mail bombing of one inbox
+  | "reset-password" // per client IP: unauthenticated, makes an outbound verify call
   | "verify-password" // per client IP: re-auth before destructive actions
   | "verify-password-account" // per account email: cross-IP guessing at one account
   | "reauth-code" // per account email: each send spends from the mail budget
@@ -66,6 +69,29 @@ const POLICIES: Record<RateLimitedAction, Policy> = {
     maxAttempts: 3,
     whenStoreFails: "block",
   },
+  // Asking for a reset link. The same shape as sign-up and for the same reason:
+  // every call sends an email whether or not the address has an account, so
+  // both buckets fail closed rather than open the mail tap during an outage.
+  "password-reset": {
+    windowSeconds: MINUTE,
+    maxAttempts: 10,
+    whenStoreFails: "block",
+  },
+  "password-reset-address": {
+    windowSeconds: HOUR,
+    maxAttempts: 3,
+    whenStoreFails: "block",
+  },
+  // Submitting a new password with a reset link. The token is a long random
+  // hash, so this is not a guessing budget — it bounds the outbound verify
+  // calls an unauthenticated loop could spend, as auth-callback does, and
+  // fails open for the same reason: someone locked out of their account has
+  // no other way back in.
+  "reset-password": {
+    windowSeconds: MINUTE,
+    maxAttempts: 10,
+    whenStoreFails: "allow",
+  },
   // Tighter than sign-in: gating irreversible operations, so a brief Redis
   // outage is still acceptable (fail open), but the window is shorter.
   "verify-password": {
@@ -79,19 +105,16 @@ const POLICIES: Record<RateLimitedAction, Policy> = {
     whenStoreFails: "allow",
   },
   // Proving who you are before a destructive action, for an account with no
-  // password. Each send is an email, and Supabase's built-in sender is capped
-  // at 2/hour for the whole project, so the window is hourly and keyed on the
-  // address — the budget being spent is shared, not per-client. Fails open:
-  // someone part-way through deleting their account must not be stranded by a
-  // cache outage.
+  // password. Each send is an email, so the window is hourly and keyed on the
+  // address. Fails open: someone part-way through deleting their account must
+  // not be stranded by a cache outage.
   "reauth-code": {
     windowSeconds: HOUR,
-    // Two, to match the real constraint rather than sit above it: Supabase's
-    // built-in sender caps the whole project at 2/hour, so a higher number
-    // here would mean the provider rejected the send before this bucket ever
-    // bound, and the user would get a generic failure instead of being told
-    // they have asked for too many codes.
-    maxAttempts: 2,
+    // Five: room for "Send another code" when the first lands in spam, and
+    // still well inside what the project's custom SMTP (Resend) will carry.
+    // It was two while Supabase's built-in sender capped the whole project at
+    // 2/hour; that cap went away with custom SMTP in Oct 2026.
+    maxAttempts: 5,
     whenStoreFails: "allow",
   },
   // Verifying a code, as opposed to sending one. Separate from the password

@@ -27,7 +27,7 @@ The pattern is the **"identity-in-`auth`, profile-in-`public`"** pattern — the
 |---|---|
 | Password storage | Supabase Auth uses bcrypt (or Argon2 depending on config) with a unique per-user salt, stored only in `auth.users.encrypted_password`. The application never sees the plaintext or the hash. |
 | Session management | Supabase issues a signed JWT after sign-in. `@supabase/ssr` stores it in `sb-*-auth-token` cookies. The library's default is `httpOnly: false` (so a browser-side client can read the session); this app has **no** browser-side Supabase client, so both server constructors pass [`sessionCookieOptions`](../../src/lib/supabase/cookieOptions.ts) — `HttpOnly`, `SameSite=Lax`, `Secure` in production — and client-side JavaScript cannot read the tokens (mitigates XSS-based session theft). Pinned by a unit test in `middleware.test.ts`. |
-| Email verification, password reset, OAuth callbacks | All handled by Supabase Auth endpoints. The app only implements a single `/auth/callback` route handler that exchanges a one-time code for a session. |
+| Email verification, password reset, OAuth callbacks | Supabase issues and checks every token. The app implements `/auth/callback` (exchanges a one-time code for a session) and `/reset-password` (verifies a recovery token on submit) — see [Password reset](#password-reset). |
 | Brute force / credential stuffing | Two layers. Supabase rate-limits its own auth endpoints (tunable in the dashboard), and because every call reaches it from Vercel's shared egress IPs, the app forwards the real client IP so those limits bind per attacker. On top, an app-side limiter ([`src/lib/rateLimit/`](../../src/lib/rateLimit/), Upstash Redis) keys sign-in on both the client IP (10/min) and the submitted email (20/hour), and sign-up on the IP (10/min) and the address (3 confirmation emails/hour). Sign-in fails open when the store is down; sign-up fails **closed**, because every call sends an email. No lockout counters in the app. |
 | Authorisation | Two layers: app-level `userId` filtering on every Prisma query (primary boundary, because server-side Prisma bypasses RLS), **plus** Postgres Row Level Security with `auth.uid() = id` policies (defence-in-depth; the real fence if/when a feature ever queries Supabase directly from the browser). |
 | Loss of secrets | The DB password and `SUPABASE_SECRET_KEY` are the only secrets that bypass RLS. They live in Vercel project env vars in production and the gitignored `.env` in dev — never in source. |
@@ -41,7 +41,7 @@ The pattern is the **"identity-in-`auth`, profile-in-`public`"** pattern — the
 | **Server components / route handlers** (`src/app/**`) | Vercel functions / local Node | Render pages and handle form POSTs. Use the server-side Supabase client (`src/lib/supabase/server.ts`). |
 | **Supabase Auth** | `<project>.supabase.co` | Hashes passwords, issues JWTs, sends emails, validates OAuth, owns `auth.users`. |
 | **Postgres** | Inside Supabase, same project | Stores `auth.users` (Supabase-managed) and `public."User"` (ours). Hosts the `on_auth_user_created` trigger that bridges the two. |
-| **Email provider** | Wired up by Supabase | Sends confirmation / password-reset emails. Templates are configured in the Supabase dashboard. |
+| **Email provider** | Resend, as Supabase's custom SMTP | Sends confirmation, password-reset and re-auth-code emails. Templates live in the Supabase dashboard — see [Supabase email setup](#supabase-email-setup). |
 
 ## Sequence diagrams
 
@@ -183,12 +183,14 @@ Two decisions worth knowing before changing any of it:
 | Client-side idle timer | [`src/lib/hooks/useIdleTimer.ts`](../../src/lib/hooks/useIdleTimer.ts) |
 | Idle warning dialog | [`src/components/auth/IdleTimeout/`](../../src/components/auth/IdleTimeout/) |
 | Session cookie attributes (HttpOnly etc.), shared by both clients | [`src/lib/supabase/cookieOptions.ts`](../../src/lib/supabase/cookieOptions.ts) |
-| App-side rate limiter (sign-in, sign-up, health) | [`src/lib/rateLimit/`](../../src/lib/rateLimit/) |
+| App-side rate limiter (sign-in, sign-up, password reset, re-auth, health) | [`src/lib/rateLimit/`](../../src/lib/rateLimit/) |
 | Server-side Supabase client (cookies via `next/headers`) | [`src/lib/supabase/server.ts`](../../src/lib/supabase/server.ts) |
 | Middleware Supabase client + session refresh helper | [`src/lib/supabase/middleware.ts`](../../src/lib/supabase/middleware.ts) |
 | Next.js middleware entry point (`proxy` export) | [`src/proxy.ts`](../../src/proxy.ts) |
 | Sign-in page + server action | [`src/app/(app)/sign-in/`](<../../src/app/(app)/sign-in/>) |
 | Sign-up page + server action | [`src/app/(app)/sign-up/`](<../../src/app/(app)/sign-up/>) |
+| Forgot-password page + server action (sends the link) | [`src/app/(app)/forgot-password/`](<../../src/app/(app)/forgot-password/>) |
+| Reset-password page + server action (sets the password) | [`src/app/(app)/reset-password/`](<../../src/app/(app)/reset-password/>) |
 | OAuth / magic-link / email-confirmation callback | [`src/app/auth/callback/route.ts`](../../src/app/auth/callback/route.ts) |
 | Sign-out server action | [`src/app/actions.ts`](../../src/app/actions.ts) |
 | Where sign-in lands (`POST_AUTH_LANDING`) | [`src/lib/auth/landing.ts`](../../src/lib/auth/landing.ts) |
@@ -239,10 +241,41 @@ For the button to actually work, two pieces of configuration are required outsid
 
 Supabase needs to know which post-auth URLs are allowed to receive the session. **Authentication → URL Configuration**:
 
-- **Site URL**: `http://localhost:3210` for dev; change to your Vercel URL for prod.
-- **Redirect URLs**: add both `http://localhost:3210/auth/callback` and your production `https://<vercel-app>/auth/callback`.
+- **Site URL**: `http://localhost:3210` for dev; `https://www.balanced.money` for prod.
+- **Redirect URLs**: every URL the app passes as a redirect, exactly as built from `SITE_URL` (see [`callbackOrigin`](../../src/lib/auth/callbackOrigin.ts)). Production's `SITE_URL` is the apex `https://balanced.money`, which 308s to `www`, so prod needs both hosts:
+  - `https://balanced.money/auth/callback` and `https://www.balanced.money/auth/callback`
+  - `https://balanced.money/reset-password` and `https://www.balanced.money/reset-password`
+  - dev: `http://localhost:3210/auth/callback` and `http://localhost:3210/reset-password`
+
+  Use exact paths, not `/**`: a wildcard lets a one-time code be sent to any page. A redirect missing from the list does not error — Supabase silently falls back to the Site URL, so Google sign-in lands on `/?code=…` signed out. That is what happened in Oct 2026 when the apex callback was missing.
 
 Once those are in place, the button works without any further code changes.
+
+## Password reset
+
+`/sign-in` links to `/forgot-password`. Its action calls `resetPasswordForEmail` with `redirectTo` set to `${SITE_URL}/reset-password`, and always answers "if an account uses that address, a link is on its way" — a different page for an unknown address would let anyone test which addresses have accounts. Two rate-limit buckets (per IP, per address) fail closed, because every request sends an email.
+
+The email links to `/reset-password?token_hash=…`, not through `/auth/callback`. Three reasons:
+
+- **Mail scanners open links.** The page verifies nothing on load; the token is spent only when the user submits a new password. A link verified on GET would be burned by Outlook Safe Links before the user clicked it.
+- **No PKCE.** A `code` link only works in the browser that asked for it (the verifier lives in a cookie there). A `token_hash` works on any device, which is where people read email.
+- **A recovery link is not a login.** `/auth/callback` still refuses recovery codes and signs the browser out, so a link built the old way cannot land someone on the dashboard without setting a password.
+
+On submit, [`resetPassword`](<../../src/app/(app)/reset-password/actions.ts>) checks length and HIBP first (so a refusal leaves the link usable), then `verifyOtp({ type: "recovery", token_hash })`, then `updateUser`, then revokes every other session and starts the activity clock. Every refusal after the verify signs the browser out again.
+
+**Google-only accounts are refused.** Supabase will email a reset link to any registered address, and following it would give a Google-only account a password it never had — a second way in, which changes what the step-up check in Settings asks for. The refusal happens after the token is verified, so only someone who can read the inbox learns which kind of account it is.
+
+## Supabase email setup
+
+Dashboard-only configuration the auth emails depend on. None of it is visible in this repo.
+
+| Setting | Value | What breaks without it |
+|---|---|---|
+| **Authentication → Emails → SMTP Settings** | Custom SMTP: host `smtp.resend.com`, port `465`, user `resend`, password a Resend **sending-only** key used for nothing else (`supabase-auth-prod`). Sender `account@balanced.money`, name `Balanced Money`. | Supabase's built-in sender delivers only to project team members, caps the project at about 2 emails/hour, and won't let templates be edited. |
+| **Email template: Magic link or OTP** | A code-only email showing `{{ .Token }}`, no link. | Google-only accounts get a link with nothing to type, and cannot pass the step-up check before exporting or deleting data. |
+| **Email template: Reset password** | Link to `{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=recovery` | The default `{{ .ConfirmationURL }}` goes through `/auth/callback`, which refuses recovery codes — reset links stop working. |
+| **Providers → Email → Email OTP Length** | `6` | The app accepts exactly six digits. At 8, every code is refused as invalid. |
+| **URL Configuration** | See [Redirect URLs](#3-redirect-urls) | OAuth and reset links fall back to the Site URL and do nothing. |
 
 ## E2E test coverage
 
@@ -254,7 +287,9 @@ Once those are in place, the button works without any further code changes.
 - Sign-out: cookie clears; `/dashboard` becomes inaccessible again.
 - Google button: present on both sign-in and sign-up pages (the real OAuth round-trip is not E2E-tested — would require a fake Google).
 
-Tests run against a **mock Supabase Auth server** at [`tests/e2e/_mock/supabase.mjs`](../../tests/e2e/_mock/supabase.mjs) — a small Node HTTP server implementing just enough of `/auth/v1/*` to drive the flow end-to-end without touching the real Supabase project. It's in-memory, pre-seeded with one user (`test@example.com` / `password123`), and reset on every Playwright run.
+[`tests/e2e/password-reset.spec.ts`](../../tests/e2e/password-reset.spec.ts) covers the reset round trip: request a link, open it, set a password, refuse the spent link, sign in with the new password. The mock issues `recovery_<userId>` tokens so the spec can build the link without a mailbox.
+
+Tests run against a **mock Supabase Auth server** at [`tests/e2e/_mock/supabase.mjs`](../../tests/e2e/_mock/supabase.mjs) — a small Node HTTP server implementing just enough of `/auth/v1/*` to drive the flow end-to-end without touching the real Supabase project. It's in-memory, pre-seeded with three users (`test@example.com` for most specs; `rotate@example.com` and `reset@example.com` for the specs that change a password, so they cannot sign out the rest), and reset on every Playwright run.
 
 `playwright.config.ts` starts the mock + a dedicated Next.js dev server on port `3100` (so it can run alongside the developer's own `pnpm dev` on `3210`) with env vars pointing at the mock.
 
@@ -298,5 +333,5 @@ sequenceDiagram
 
 ## Known gaps / next iterations
 
-- **Password reset UI, MFA, more OAuth providers** — small Supabase dashboard toggles + UI additions. (Delete-account is now implemented — see "Account deletion & data erasure" above.)
+- **MFA, more OAuth providers** — Supabase dashboard toggles + UI additions. Not yet built.
 - **Real OAuth round-trip not E2E tested**. The mock returns a canned redirect; a true Google flow would need a real Google test account and is more brittle than it's worth.

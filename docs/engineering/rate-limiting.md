@@ -1,10 +1,10 @@
 # Rate Limiting
 
-**What:** Per-action sliding-window limits via Upstash Ratelimit; fails open on Redis unavailability (except sign-up, which fails closed).  
+**What:** Per-action sliding-window limits via Upstash Ratelimit; most fail open on Redis unavailability, the email-sending and guess-budget ones fail closed.  
 **Key points:**
 - Two buckets per sensitive action: per-IP (brute-force) + per-account/email (credential stuffing)
 - `checkRateLimit(action, key)` in `src/lib/rateLimit/index.ts` — returns `"allowed"` or throws/returns 429
-- `whenStoreFails: "allow"` on all actions except sign-up; Redis outage does not block real users
+- `whenStoreFails: "block"` on sign-up, the reset-link request, `verify-code` and `data-export`; everything else fails open so a Redis outage does not block real users
 - IPs stored as SHA-256 hashes in Upstash — not plaintext; compliant with GDPR's data minimisation principle
 
 Application-level rate limiting via Upstash Ratelimit. Implemented in `src/lib/rateLimit/index.ts`.
@@ -17,16 +17,19 @@ Application-level rate limiting via Upstash Ratelimit. Implemented in `src/lib/r
 | `sign-in-account` | Submitted email | 1 hour | 20 | allow |
 | `sign-up` | Client IP | 1 min | 10 | **block** |
 | `sign-up-address` | Submitted email | 1 hour | 3 | **block** |
+| `password-reset` | Client IP | 1 min | 10 | **block** |
+| `password-reset-address` | Submitted email | 1 hour | 3 | **block** |
+| `reset-password` | Client IP | 1 min | 10 | allow |
 | `verify-password` | Client IP | 1 min | 5 | allow |
 | `verify-password-account` | Account email | 1 hour | 10 | allow |
-| `reauth-code` | Account email | 1 hour | 2 | allow |
+| `reauth-code` | Account email | 1 hour | 5 | allow |
 | `verify-code` | Account email | 1 hour | 10 | **block** |
 | `unsubscribe` | Client IP | 1 min | 20 | allow |
-| `data-export` | userId | 1 min | 2 | allow |
+| `data-export` | userId | 1 min | 2 | **block** |
 | `oauth-initiate` | Client IP | 1 min | 10 | allow |
 | `health` | Client IP | 1 min | 10 | allow |
 
-Sign-up fails **closed** (blocks on Redis outage) because each call sends a confirmation email — an unbounded window burns sender reputation and the project's mail quota. All other actions fail open.
+Sign-up and the reset-link request fail **closed** (block on Redis outage) because each call sends an email — an unbounded window burns sender reputation and the project's mail quota. `verify-code` and `data-export` also fail closed; see the comments on their policies.
 
 ## Fail-open
 
@@ -56,7 +59,9 @@ Either bucket returning `"limited"` is enough to reject the request. This preven
 | Action | File |
 |--------|------|
 | `sign-in` / `sign-in-account` | `src/app/sign-in/actions.ts` |
-| `sign-up` / `sign-up-address` | `src/app/sign-up/actions.ts` |
+| `sign-up` / `sign-up-address` | `src/app/(app)/sign-up/actions.ts` |
+| `password-reset` / `password-reset-address` | `src/app/(app)/forgot-password/actions.ts` |
+| `reset-password` | `src/app/(app)/reset-password/actions.ts` |
 | `verify-password` / `verify-password-account` | `src/app/(app)/settings/dataActions.ts` |
 | `reauth-code` / `verify-code` | `src/app/(app)/settings/dataActions.ts` |
 | `oauth-initiate` | `src/app/auth/oauth-actions.ts` |

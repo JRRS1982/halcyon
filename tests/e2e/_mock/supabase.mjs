@@ -32,6 +32,19 @@ users.set("rotate@example.com", {
   confirmed: true,
 });
 
+// A third, for the password-reset spec, for the same reason as the second.
+users.set("reset@example.com", {
+  id: "00000000-0000-0000-0000-000000000003",
+  email: "reset@example.com",
+  password: "e2e-reset-1234567",
+  confirmed: true,
+});
+
+// Recovery tokens issued by /recover and not yet spent by /verify. Real ones
+// are random; these are `recovery_<userId>` so a spec can build the link the
+// email would carry without reading a mailbox.
+const recoveryTokens = new Map();
+
 const now = () => new Date().toISOString();
 const expiresAt = () => Math.floor(Date.now() / 1000) + 3600;
 
@@ -197,6 +210,35 @@ const server = http.createServer(async (req, res) => {
 
       log("400 (unsupported grant_type)");
       return json(res, 400, { error: "unsupported_grant_type" });
+    }
+
+    // POST /auth/v1/recover — resetPasswordForEmail. Answers 200 whether or
+    // not the address has an account, as the real one does.
+    if (req.method === "POST" && url.pathname === "/auth/v1/recover") {
+      const body = await readJson(req);
+      const u = users.get(body.email);
+      if (u) recoveryTokens.set(`recovery_${u.id}`, u.email);
+      log(`200 (recover ${body.email}${u ? "" : ", no such user"})`);
+      return json(res, 200, {});
+    }
+
+    // POST /auth/v1/verify — verifyOtp with a recovery token_hash. One use per
+    // token, so the spec can show a spent link is refused.
+    if (req.method === "POST" && url.pathname === "/auth/v1/verify") {
+      const body = await readJson(req);
+      const email = recoveryTokens.get(body.token_hash ?? "");
+      if (body.type !== "recovery" || !email) {
+        log("403 (otp_expired)");
+        return json(res, 403, {
+          code: 403,
+          error_code: "otp_expired",
+          msg: "Token has expired or is invalid",
+        });
+      }
+      recoveryTokens.delete(body.token_hash);
+      const u = users.get(email);
+      log(`200 (recovery verified ${email})`);
+      return json(res, 200, buildSession(u));
     }
 
     // GET /auth/v1/user — current user from Bearer token.

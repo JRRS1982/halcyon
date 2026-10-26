@@ -72,8 +72,8 @@ export async function reauthAccount(): Promise<{
 // The browser picks which control to render; it does not get to pick the gate.
 // `proof.method` arrives from the client, so without this an attacker holding a
 // stolen session on a password account could ask for a code and swap the gate
-// from "knows the password" to "can read the inbox" — and with no
-// password-reset flow in this app, those two are not equivalent.
+// from "knows the password" to "can read the inbox". Password reset makes the
+// inbox a slower route to the same place, but not a session-only one.
 //
 // Its own message, not "Incorrect password": this is the one event the
 // re-derivation exists to catch, and sharing a string with an ordinary typo
@@ -101,8 +101,18 @@ export function assertMethod(
 // session and is harmless.
 export async function verifyUser(proof: Reauthentication): Promise<void> {
   // See reauthSchema: this object came from the browser, and the union that
-  // types it is erased at runtime.
-  const checked = reauthSchema.parse(proof);
+  // types it is erased at runtime. A malformed proof is a refusal like any
+  // other: an unmapped ZodError read "something went wrong" to the user, which
+  // is how an 8-digit code from a misconfigured project hid in Oct 2026.
+  const parsed = reauthSchema.safeParse(proof);
+  if (!parsed.success) {
+    throw new Error(
+      proof?.method === "password"
+        ? REAUTH_ERRORS.wrongPassword
+        : REAUTH_ERRORS.badCode,
+    );
+  }
+  const checked = parsed.data;
   const { email, method } = await reauthAccount();
   assertMethod(checked.method, method);
 

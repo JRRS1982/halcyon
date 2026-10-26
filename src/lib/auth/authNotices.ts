@@ -28,9 +28,22 @@ export const AUTH_NOTICES = {
   "sign-in-failed": "Email or password is incorrect.",
   "missing-code": "That sign-in link is incomplete. Please try again.",
   "link-expired": "That link has expired or has already been used.",
-  // A password-reset code reaching the callback. There is no reset screen to
-  // send the user to, so the honest answer is that the link is not a login.
+  // A password-reset code reaching the callback rather than /reset-password,
+  // which means a link from before the reset template pointed there. It is
+  // still not a login, and the honest answer is to say so.
   "link-unusable": "That link can't be used to sign in.",
+  "reset-unavailable":
+    "Password reset is temporarily unavailable. Please try again shortly.",
+  "reset-link-invalid":
+    "That reset link has expired or has already been used. Request a new one.",
+  // Only ever shown after the link has been verified, so it reaches someone
+  // who controls the inbox — never a stranger typing addresses into a form.
+  "reset-google-account":
+    "This account signs in with Google, so it has no password to reset. Use Continue with Google.",
+  "reset-same-password":
+    "That is already your password. Sign in with it, or request a new link to choose a different one.",
+  "reset-failed":
+    "We couldn't set that password. Request a new link and try again.",
   "provider-declined": "Google sign-in was not completed. Please try again.",
   "oauth-unavailable": "Could not start Google sign-in.",
 } as const;

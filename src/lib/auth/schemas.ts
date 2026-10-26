@@ -51,6 +51,20 @@ export const changePasswordSchema = z
     path: ["newPassword"],
   });
 
+// Asking for a reset link: the address only. Whether it has an account is
+// never said back (see the forgot-password action), so this is a shape check.
+export const forgotPasswordSchema = z.object({
+  email: z.string().trim().email("Enter a valid email"),
+});
+
+// Setting a new password from a reset link. The link's token_hash is the
+// proof, carried in a hidden field; its length cap only keeps a pasted
+// essay away from Supabase, which is the real judge of whether it is valid.
+export const resetPasswordSchema = z.object({
+  tokenHash: z.string().min(1).max(200),
+  password: newPassword,
+});
+
 export type SignInInput = z.infer<typeof signInSchema>;
 export type SignUpInput = z.infer<typeof signUpSchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;

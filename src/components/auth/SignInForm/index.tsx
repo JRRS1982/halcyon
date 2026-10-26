@@ -30,9 +30,14 @@ export function SignInForm({ next, error, notice }: SignInFormProps) {
       title="Sign in"
       lead="Pick up where you left off."
       footnote={
-        <Footnote>
-          New here? <FootLink href="/sign-up">Create an account</FootLink>
-        </Footnote>
+        <>
+          <Footnote>
+            <FootLink href="/forgot-password">Forgot your password?</FootLink>
+          </Footnote>
+          <Footnote>
+            New here? <FootLink href="/sign-up">Create an account</FootLink>
+          </Footnote>
+        </>
       }
     >
       {error && <Alert role="alert">{error}</Alert>}
