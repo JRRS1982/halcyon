@@ -35,10 +35,23 @@ jest.mock("@/lib/supabase/server", () => ({
   }),
 }));
 
-jest.mock("@/lib/http/clientIp", () => ({ clientIp: async () => null }));
-jest.mock("@/lib/rateLimit", () => ({
-  checkRateLimit: async () => "allowed",
+//  - the client IP → a fixed documentation address, so per-IP buckets are
+//    charged as they are in production rather than skipped for a null subject.
+//  - Upstash Redis → an in-memory store, under the real limiter and its real
+//    policies. Emptied before every test.
+jest.mock("@/lib/http/clientIp", () => ({
+  clientIp: async () => "203.0.113.7",
 }));
+jest.mock("@/lib/rateLimit/redis", () =>
+  jest.requireActual("@test/support/fakeRateLimitStore"),
+);
+beforeEach(() => {
+  jest
+    .requireActual<typeof import("./fakeRateLimitStore")>(
+      "./fakeRateLimitStore",
+    )
+    .resetStore();
+});
 
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
 

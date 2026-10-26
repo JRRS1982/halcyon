@@ -7,7 +7,6 @@ const exchangeCodeForSession = jest.fn(async () => ({
 }));
 const signOut = jest.fn(async () => ({ error: null }));
 const cookieSet = jest.fn();
-const checkRateLimit = jest.fn(async () => "allowed");
 
 jest.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({ auth: { exchangeCodeForSession, signOut } }),
@@ -17,10 +16,12 @@ jest.mock("next/headers", () => ({
 }));
 jest.mock("@/lib/log", () => ({ log: { error: jest.fn() } }));
 jest.mock("@/lib/http/clientIp", () => ({ clientIp: async () => "1.2.3.4" }));
-jest.mock("@/lib/rateLimit", () => ({
-  checkRateLimit: () => checkRateLimit(),
-}));
+// The real limiter, over an in-memory Redis: see fakeRateLimitStore.
+jest.mock("@/lib/rateLimit/redis", () =>
+  jest.requireActual("@test/support/fakeRateLimitStore"),
+);
 
+import { exhaust, resetStore } from "@test/support/fakeRateLimitStore";
 import { GET } from "@/app/auth/callback/route";
 import { ACTIVITY_COOKIE, parseActivity } from "@/lib/auth/sessionTimeout";
 
@@ -30,14 +31,14 @@ describe("auth callback", () => {
   beforeEach(() => {
     cookieSet.mockClear();
     signOut.mockClear();
-    checkRateLimit.mockClear();
+    resetStore();
   });
 
   // Unauthenticated, and every request with a code spends one call on
   // Supabase's token endpoint — so a loop here costs the project's auth budget
   // and locks real users out of sign-in while it runs.
   it("refuses once the per-IP limit is spent, before any exchange", async () => {
-    checkRateLimit.mockResolvedValueOnce("limited" as never);
+    exhaust("auth-callback");
 
     const response = await callback(
       "https://balanced.money/auth/callback?code=abc",

@@ -46,14 +46,10 @@ jest.mock("next/headers", () => ({
   headers: async () => new Map([["x-forwarded-for", "1.2.3.4"]]),
 }));
 
-const mockCheckRateLimit = jest.fn(
-  async (_action: string, _subject: string | null): Promise<string> =>
-    "allowed",
+// The real limiter, over an in-memory Redis: see fakeRateLimitStore.
+jest.mock("@/lib/rateLimit/redis", () =>
+  jest.requireActual("@test/support/fakeRateLimitStore"),
 );
-jest.mock("@/lib/rateLimit", () => ({
-  checkRateLimit: (action: string, subject: string | null) =>
-    mockCheckRateLimit(action, subject),
-}));
 
 const mockLogWarn = jest.fn();
 const mockLogError = jest.fn();
@@ -64,6 +60,7 @@ jest.mock("@/lib/log", () => ({
   },
 }));
 
+import { exhaust, resetStore } from "@test/support/fakeRateLimitStore";
 import { changePassword } from "@/app/(app)/settings/credentialActions";
 
 const CURRENT = "the-old-password";
@@ -100,11 +97,7 @@ describe("changePassword", () => {
     mockSignInWithPassword.mockClear();
     mockUpdateUser.mockClear();
     mockSignOut.mockClear();
-    // mockReset, not mockClear: a case that drives the limiter to "limited"
-    // sets an implementation, and clearing only the call log would leave it
-    // limited for every case after it.
-    mockCheckRateLimit.mockReset();
-    mockCheckRateLimit.mockResolvedValue("allowed");
+    resetStore();
     mockLogWarn.mockClear();
     mockLogError.mockClear();
     global.fetch = hibpAnswers("0000000000000000000000000000000000A:3");
@@ -178,7 +171,7 @@ describe("changePassword", () => {
   });
 
   it("stops at the rate limit before spending a guess", async () => {
-    mockCheckRateLimit.mockResolvedValue("limited");
+    exhaust("verify-password-account");
 
     await expect(
       changePassword({ currentPassword: CURRENT, newPassword: NEW }),

@@ -36,15 +36,17 @@ jest.mock("next/headers", () => ({
 }));
 jest.mock("@/lib/log", () => ({ log: { warn: jest.fn(), error: jest.fn() } }));
 
-const checkRateLimit = jest.fn(
-  async (_action: string, _subject: string | null): Promise<string> =>
-    "allowed",
+// The real limiter, over an in-memory Redis: see fakeRateLimitStore.
+jest.mock("@/lib/rateLimit/redis", () =>
+  jest.requireActual("@test/support/fakeRateLimitStore"),
 );
-jest.mock("@/lib/rateLimit", () => ({
-  checkRateLimit: (action: string, subject: string | null) =>
-    checkRateLimit(action, subject),
-}));
 
+import {
+  chargedActions,
+  chargesTo,
+  resetStore,
+  takeStoreDown,
+} from "@test/support/fakeRateLimitStore";
 import type { Reauthentication } from "@/lib/auth/reauth";
 import { REAUTH_ERRORS, verifyUser } from "@/lib/auth/verifyUser";
 
@@ -53,7 +55,7 @@ describe("verifyUser", () => {
     mockIdentities = [{ provider: "email" }];
     signInWithPassword.mockClear();
     verifyOtp.mockClear();
-    checkRateLimit.mockClear();
+    resetStore();
   });
 
   // The proof is the one client-supplied object in the app that reaches a
@@ -98,15 +100,9 @@ describe("verifyUser", () => {
   it("charges the per-IP and per-account buckets for a password", async () => {
     await verifyUser({ method: "password", password: "hunter2hunter2" });
 
-    expect(checkRateLimit).toHaveBeenCalledWith("verify-password", "1.2.3.4");
-    expect(checkRateLimit).toHaveBeenCalledWith(
-      "verify-password-account",
-      "test@example.com",
-    );
-    expect(checkRateLimit).not.toHaveBeenCalledWith(
-      "verify-code",
-      expect.anything(),
-    );
+    expect(chargesTo("verify-password", "1.2.3.4")).toBe(1);
+    expect(chargesTo("verify-password-account", "test@example.com")).toBe(1);
+    expect(chargedActions()).not.toContain("verify-code");
   });
 
   it("charges only the code bucket for an emailed code", async () => {
@@ -114,13 +110,19 @@ describe("verifyUser", () => {
 
     await verifyUser({ method: "otp", code: "123456" });
 
-    expect(checkRateLimit).toHaveBeenCalledWith(
-      "verify-code",
-      "test@example.com",
+    expect(chargesTo("verify-code", "test@example.com")).toBe(1);
+    expect(chargedActions()).not.toContain("verify-password");
+  });
+
+  // The code bucket is the whole guess budget for a 6-digit code, so a store
+  // outage must stop verification rather than lift the limit.
+  it("refuses a code while the limiter's store is down", async () => {
+    mockIdentities = [{ provider: "google" }];
+    takeStoreDown();
+
+    await expect(verifyUser({ method: "otp", code: "123456" })).rejects.toThrow(
+      REAUTH_ERRORS.rateLimited,
     );
-    expect(checkRateLimit).not.toHaveBeenCalledWith(
-      "verify-password",
-      expect.anything(),
-    );
+    expect(verifyOtp).not.toHaveBeenCalled();
   });
 });

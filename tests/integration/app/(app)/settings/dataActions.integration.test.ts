@@ -47,17 +47,12 @@ jest.mock("@/lib/supabase/server", () => ({
   }),
 }));
 
-// The real module is used everywhere else; this seam lets one case drive the
-// limiter to "limited" without a Redis.
-const mockCheckRateLimit = jest.fn(
-  async (_action: string, _subject: string | null): Promise<string> =>
-    "allowed",
-);
-jest.mock("@/lib/rateLimit", () => ({
-  checkRateLimit: (action: string, subject: string | null) =>
-    mockCheckRateLimit(action, subject),
-}));
-
+import {
+  chargedActions,
+  chargesTo,
+  exhaust,
+  takeStoreDown,
+} from "@test/support/fakeRateLimitStore";
 import { TEST_USER_ID } from "@test/support/helpers";
 import {
   clearMyData,
@@ -152,8 +147,6 @@ async function seedFinancialData(userId: string) {
 beforeEach(() => {
   mockIdentities = [{ provider: "email" }];
   mockUserEmail = "test@example.com";
-  mockCheckRateLimit.mockClear();
-  mockCheckRateLimit.mockResolvedValue("allowed");
   mockSignInWithPassword.mockClear();
   mockSignInWithOtp.mockClear();
   mockVerifyOtp.mockClear();
@@ -406,19 +399,14 @@ describe("verifyUser (integration)", () => {
     const result = await sendReauthCode();
     expect(result).toEqual({ ok: true });
 
-    expect(mockCheckRateLimit).toHaveBeenCalledWith(
-      "reauth-code",
-      "test@example.com",
-    );
+    expect(chargesTo("reauth-code", "test@example.com")).toBe(1);
   });
 
   // Finding 2: a 6-digit code valid for an hour has no entropy to spare, so
   // unlike the password branch its verify bucket must not fail open.
   test("blocks code verification when the limiter store is down", async () => {
     mockIdentities = [{ provider: "google" }];
-    mockCheckRateLimit.mockImplementation(async (action: string) =>
-      action === "verify-code" ? "unavailable" : "allowed",
-    );
+    takeStoreDown();
 
     await expect(
       clearMyData({ method: "otp", code: "123456" }),
@@ -444,15 +432,13 @@ describe("verifyUser (integration)", () => {
 
     await clearMyData({ method: "otp", code: "123456" });
 
-    const actions = mockCheckRateLimit.mock.calls.map(([action]) => action);
-    expect(actions).toEqual(["verify-code"]);
+    expect(chargedActions()).toEqual(["verify-code"]);
   });
 
   test("spends only the password buckets when verifying a password", async () => {
     await clearMyData({ method: "password", password: "hunter2" });
 
-    const actions = mockCheckRateLimit.mock.calls.map(([action]) => action);
-    expect(actions.sort()).toEqual([
+    expect(chargedActions().sort()).toEqual([
       "verify-password",
       "verify-password-account",
     ]);
@@ -462,7 +448,7 @@ describe("verifyUser (integration)", () => {
   // arrives, not left staring at a panel that silently stops working.
   test("explains when too many codes have been requested", async () => {
     mockIdentities = [{ provider: "google" }];
-    mockCheckRateLimit.mockResolvedValue("limited");
+    exhaust("reauth-code");
 
     await expect(sendReauthCode()).resolves.toEqual({
       ok: false,
