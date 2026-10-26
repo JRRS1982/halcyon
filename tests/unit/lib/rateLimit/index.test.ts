@@ -95,12 +95,10 @@ describe("checkRateLimit", () => {
     expect(incrementWindow).not.toHaveBeenCalled();
   });
 
-  // Two, not more: Supabase's built-in sender caps the whole project at 2/hour,
-  // so a looser bucket here would never bind — the provider would reject the
-  // send first and the user would get a generic failure instead of being told
-  // they have asked for too many codes.
-  it("allows two re-auth codes per address per hour", async () => {
-    incrementWindow.mockResolvedValueOnce(2).mockResolvedValueOnce(3);
+  // Enough for "Send another code" when the first lands in spam; each one is
+  // still an email, so the window is an hour.
+  it("allows five re-auth codes per address per hour", async () => {
+    incrementWindow.mockResolvedValueOnce(5).mockResolvedValueOnce(6);
     await expect(checkRateLimit("reauth-code", "a@b.com")).resolves.toBe(
       "allowed",
     );

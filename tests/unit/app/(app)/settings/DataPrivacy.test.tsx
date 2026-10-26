@@ -240,7 +240,7 @@ describe("DataPrivacy code branch", () => {
   });
 
   // Finding 4: a code already sat in the inbox, but cancelling threw away the
-  // only route to typing it, and the send cap is 2/hour.
+  // only route to typing it, and sends are capped per hour.
   test("keeps a route to an already-sent code after cancelling", async () => {
     renderit("otp");
     fireEvent.click(screen.getByRole("button", { name: /clear my data/i }));

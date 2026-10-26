@@ -88,11 +88,11 @@ describe("auth callback", () => {
   // own flow rather than something a link can assert. It is "recovery" only
   // when resetPasswordForEmail opened the flow.
   //
-  // This app has no password-reset screen, so a recovery code reaching here
-  // would mint a full session and drop the user on the dashboard — signed in,
-  // never asked for a new password. A recovery link is proof of email control
-  // leading to a password set, not a general-purpose login.
-  it("refuses a recovery code, which this app has no screen for", async () => {
+  // Reset links go to /reset-password, never here; a recovery code reaching
+  // this route would mint a full session and drop the user on the dashboard —
+  // signed in, never asked for a new password. A recovery link is proof of
+  // email control leading to a password set, not a general-purpose login.
+  it("refuses a recovery code rather than signing the user in", async () => {
     exchangeCodeForSession.mockResolvedValueOnce({
       data: { redirectType: "recovery" },
       error: null,

@@ -62,12 +62,14 @@ export const GET = async (request: Request) => {
     return refuse("link-expired");
   }
 
-  // This app has no password-reset screen. Without this check a recovery code
-  // would mint an ordinary session and land the user on the dashboard, signed
-  // in and never asked for a new password — and a recovery link is proof of
-  // email control meant to lead to setting one, not a general-purpose login.
-  // Nothing here calls resetPasswordForEmail today, so this is the guard that
-  // makes adding password reset a deliberate act rather than a silent one.
+  // Password reset does not come through here. Its email links straight to
+  // /reset-password with a token_hash, verified only when the new password is
+  // submitted (see that action for why). A recovery code arriving here means a
+  // link built the old way — the Supabase template reverted, or a stale email —
+  // and without this check it would mint an ordinary session and land the
+  // user on the dashboard, signed in and never asked for a new password. A
+  // recovery link is proof of email control meant to lead to setting one, not
+  // a general-purpose login.
   //
   // The exchange has already written the session cookie by the time it
   // returns, so refusing means ending that session: a redirect on its own
@@ -75,7 +77,7 @@ export const GET = async (request: Request) => {
   // everything it was supposed to refuse.
   if (isRecoveryExchange(data)) {
     log.error("Refused a recovery code at the auth callback", {
-      err: "no password-reset flow in this app",
+      err: "recovery links belong at /reset-password",
     });
     await supabase.auth.signOut();
     return refuse("link-unusable");

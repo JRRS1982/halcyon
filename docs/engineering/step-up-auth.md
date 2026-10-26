@@ -5,7 +5,7 @@
 - Protects: `exportMyData`, `resetToDefaults`, `clearMyData`, `deleteMyAccount` — all in `src/app/(app)/settings/dataActions.ts`
 - Which proof applies is read from the account's identities, **server-side** — never guessed; an unreadable classification fails closed rather than defaulting
 - The client picks which control to *render*; it does not pick the gate — `verifyUser` re-derives the method and rejects a mismatched proof
-- OAuth-only accounts can use these actions. Before October 2026 they could not, which closed the right-to-erasure path for every Google user — but see Known gaps: the code branch is inert until custom SMTP is configured, because Supabase's built-in sender emails a link rather than a code
+- OAuth-only accounts can use these actions, by an emailed 6-digit code. Before October 2026 they could not, which closed the right-to-erasure path for every Google user. The code path depends on dashboard settings — custom SMTP, a code-only template and a 6-digit OTP length — listed in [Supabase email setup](../features/auth.md#supabase-email-setup)
 
 Destructive data actions require the user to re-prove who they are before the operation executes. A valid session alone is not sufficient.
 
@@ -43,7 +43,7 @@ It is consulted in two places, for two different reasons:
 - `src/app/(app)/settings/page.tsx` — to choose which control the panel renders
 - `verifyUser` — to decide which proof is **acceptable**
 
-The second is the security boundary. `proof.method` arrives from the browser, so without the server-side re-derivation an attacker holding a stolen session on a password account could request a code and swap the gate from *knows the password* to *can read the inbox*. With no password-reset flow in this app, those are not equivalent.
+The second is the security boundary. `proof.method` arrives from the browser, so without the server-side re-derivation an attacker holding a stolen session on a password account could request a code and swap the gate from *knows the password* to *can read the inbox*. Since password reset shipped (Oct 2026), inbox access can also set a new password, so the two are closer than they were — but the check still stops a stolen session *without* the inbox from choosing the weaker-looking gate, and it keeps a password account's proof the one the owner actually set.
 
 ## Implementation
 
@@ -69,12 +69,12 @@ Four buckets, via `checkRateLimit()` (`src/lib/rateLimit/index.ts`):
 |--------|-----|-------|------------------|
 | `verify-password` | Client IP | 5 / minute | allow |
 | `verify-password-account` | Account email (SHA-256) | 10 / hour | allow |
-| `reauth-code` | Account email (SHA-256) | 2 / hour | allow |
+| `reauth-code` | Account email (SHA-256) | 5 / hour | allow |
 | `verify-code` | Account email (SHA-256) | 10 / hour | **block** |
 
 The first two run in parallel for every call, whichever proof is being offered: the per-IP bucket bounds a single attacker from one location, the per-account bucket bounds a pool of IPs guessing at one account.
 
-`reauth-code` is 2/hour to match the real constraint rather than sit above it — Supabase's built-in sender caps the whole project at 2/hour, so a looser bucket would never bind and the user would get a generic send failure instead of being told they have asked for too many codes. That mirroring is the justification, so it expires with the constraint: configuring custom SMTP lifts the project cap, and the number then has to be argued on its own merits rather than inherited.
+`reauth-code` is 5/hour: room for "Send another code" when the first lands in spam, and each send is still an email. It was 2/hour while Supabase's built-in sender capped the whole project at 2/hour; custom SMTP (Resend) lifted that cap in October 2026.
 
 `verify-code` is the one bucket that fails **closed**, and the asymmetry is deliberate. A password has real entropy behind it and survives an unbounded guessing window; a 6-digit code valid for an hour is 10⁶, and GoTrue does not count failed email-OTP verifies itself. That bucket is therefore the entire guess budget, so losing the store must stop verification rather than open it.
 
@@ -86,14 +86,13 @@ The first two run in parallel for every call, whichever proof is being offered: 
 - **Code accounts:** an "Email me a code" button, then `<input inputMode="numeric" autoComplete="one-time-code">` plus a "Send another code" affordance
 - The confirm button is `disabled` until the field is non-empty
 - The delete-account confirm button additionally requires the text field to contain exactly `"DELETE"`
-- Server error messages are mapped through a `SERVER_ERRORS` lookup; unmapped errors fall back to a generic message
+- Actions return `{ ok: false, reason }` rather than throwing (a thrown message reaches a production browser only as a digest); the panel reads the words from `REAUTH_MESSAGES` in `src/lib/auth/reauthOutcome.ts`, and an unmapped error falls back to a generic message
 
-The typed secret is cleared on cancel and on completion, but **`codeSent` is not** — a code lives for an hour and only two can be sent per hour, so closing a panel must not throw away the only route to typing one that already arrived.
+The typed secret is cleared on cancel and on completion, but **`codeSent` is not** — a code lives for an hour and sends are capped per hour, so closing a panel must not throw away the only route to typing one that already arrived.
 
 The copy deliberately says "your account doesn't have a password" rather than naming Google: a second provider would make the specific claim wrong.
 
 ## Known gaps
 
-- **No password reset or change flow anywhere in the app.** This is what makes mailbox access non-equivalent to password knowledge, and therefore what makes the server-side method check load-bearing. If a reset flow is added, revisit that reasoning.
-- **The code does not reach the user on Supabase's built-in email sender.** There is nothing to enable: GoTrue's `External.Email.MagicLinkEnabled` defaults to `true` and hosted Supabase exposes no toggle for it, so an enabled Email provider is sufficient for the *provider* check. The obstacle is the template. The built-in sender only ever sends Supabase's **default** templates — the dashboard greys the fields out and says so — and the default “Magic link or OTP” template is a sign-in **link** carrying no `{{ .Token }}`. The panel asks for a 6-digit code, so an OAuth-only account receives a link and has nothing to type. Editing the template requires **custom SMTP** (Authentication → Emails). Until that is configured in production this path is inert, and the erasure gap it exists to close stays open for Google accounts. The provider error is logged server-side, so a failure here is diagnosable rather than silent.
-- **`SERVER_ERRORS` assumes thrown server-action messages reach the client verbatim.** Next may replace them with a generic string plus a digest in production builds. This predates the code branch — `"Incorrect password"` has the same exposure — but it is worth confirming empirically, because the readable distinction between "wrong code" and "too many attempts" rests on it.
+- **Password reset makes the inbox a route to the password.** Revisited when reset shipped: the server-side method check stays, for the reason above, but it is no longer the only thing standing between inbox access and a password account's data.
+- **The code path depends on dashboard settings this repo cannot see.** Custom SMTP, the code-only "Magic link or OTP" template and an Email OTP Length of 6 — see [Supabase email setup](../features/auth.md#supabase-email-setup). In October 2026 the OTP length was 8, and every code was refused; a malformed code now reads as "That code is not valid", and any unmapped error in these actions is logged.
