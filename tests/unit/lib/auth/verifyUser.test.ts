@@ -46,7 +46,7 @@ jest.mock("@/lib/rateLimit", () => ({
 }));
 
 import type { Reauthentication } from "@/lib/auth/reauth";
-import { verifyUser } from "@/lib/auth/verifyUser";
+import { REAUTH_ERRORS, verifyUser } from "@/lib/auth/verifyUser";
 
 describe("verifyUser", () => {
   beforeEach(() => {
@@ -77,6 +77,18 @@ describe("verifyUser", () => {
     } as unknown as Reauthentication;
 
     await expect(verifyUser(crafted)).rejects.toThrow();
+    expect(verifyOtp).not.toHaveBeenCalled();
+  });
+
+  // An 8-digit code from a project whose OTP length had drifted reached the
+  // user as "something went wrong", because a parse failure was not a refusal
+  // the panel had words for. It is a bad code, and must say so.
+  it("refuses a code of the wrong length as an invalid code", async () => {
+    mockIdentities = [{ provider: "google" }];
+
+    await expect(
+      verifyUser({ method: "otp", code: "12345678" }),
+    ).rejects.toThrow(REAUTH_ERRORS.badCode);
     expect(verifyOtp).not.toHaveBeenCalled();
   });
 

@@ -3,6 +3,7 @@ import "server-only";
 import { unstable_rethrow } from "next/navigation";
 import type { ReauthRefusal } from "@/lib/auth/reauthOutcome";
 import { REAUTH_ERRORS } from "@/lib/auth/verifyUser";
+import { log } from "@/lib/log";
 
 // verifyUser and sendReauthCode throw, because throwing is what a gate should
 // do. Turning that into a code is the caller's job, and it happens here so the
@@ -31,5 +32,8 @@ const BY_MESSAGE: Record<string, ReauthRefusal> = {
 export const refusalFor = (err: unknown): ReauthRefusal => {
   unstable_rethrow(err);
   const message = err instanceof Error ? err.message : "";
-  return BY_MESSAGE[message] ?? "failed";
+  const reason = BY_MESSAGE[message];
+  if (reason) return reason;
+  log.error("Unmapped error in a re-authenticated action", { err });
+  return "failed";
 };

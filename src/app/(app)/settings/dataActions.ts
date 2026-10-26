@@ -31,8 +31,8 @@ export async function sendReauthCode(): Promise<ReauthOutcome> {
     // the same downgrade verifyUser refuses, at the other entry point.
     assertMethod("otp", method);
 
-    // Its own bucket: each send spends from the project's shared mail budget,
-    // which Supabase's built-in sender caps at 2/hour.
+    // Its own bucket: each send is an email, so sends are capped per address
+    // per hour (see the policy in lib/rateLimit).
     if ((await checkRateLimit("reauth-code", email)) !== "allowed") {
       throw new Error(REAUTH_ERRORS.codeSendLimited);
     }
