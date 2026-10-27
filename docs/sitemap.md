@@ -4,7 +4,7 @@
 **Key points:**
 - Public pages: `/`, `/sign-in`, `/sign-up`, `/forgot-password`, `/reset-password`, `/guide`, `/how-its-built`, `/design`, `/privacy`, `/cookies`, `/terms`, `/unsubscribe`
 - Authenticated pages: `/transactions`, `/budget`, `/balance`, `/dashboard`, `/plan`, `/settings`
-- Non-page routes: `/auth/callback`, `/design.md`, `/api/unsubscribe`, `/api/health`, `/api/cron/monthly-reminder`
+- Non-page routes: `/auth/callback`, `/design.md`, `/api/unsubscribe`, `/api/health`, `/api/csp-report`, `/api/cron/monthly-reminder`
 - The six authenticated pages are in the proxy's `protectedPaths` list, and each page re-checks the session itself
 - If a route is listed here, it exists in the codebase
 
@@ -124,6 +124,7 @@ Machine endpoints; none is in `protectedPaths`.
 | Route | What it is |
 | --- | --- |
 | `POST /api/unsubscribe` | One-click unsubscribe (RFC 8058), called by mail clients from the reminder's `List-Unsubscribe` header. Token in the query string. |
+| `POST /api/csp-report` | Where browsers send Content-Security-Policy violation reports. Counts each in Upstash for 30 days; see ADR-002. |
 | `GET /api/health` | Production liveness check (`SELECT 1` through Prisma). Needs the `CRON_SECRET` bearer token; called daily by `.github/workflows/health.yml`. |
 | `/api/cron/monthly-reminder` | The daily Vercel Cron job that sends due monthly reminders. Needs the `CRON_SECRET` bearer token. |
 

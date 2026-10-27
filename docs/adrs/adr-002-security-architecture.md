@@ -79,7 +79,7 @@ The original (Nov 2025) design used NextAuth.js + bcrypt against a self-hosted P
 - **CSRF protection**: Next.js Server Actions include CSRF tokens by default. Route handlers that mutate state must be POST-only.
 - **Input validation**: Zod schemas for all API inputs (prevents injection and shape errors).
 - **CORS**: Restrict to same-origin only.
-- **Security headers**: `next.config.mjs` sends `frame-ancestors 'none'` and `X-Frame-Options: DENY` (clickjacking), `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin` and a `Permissions-Policy` switching off camera, microphone and location on every response; `tests/e2e/security-headers.spec.ts` checks them. HSTS comes from Vercel. A script-restricting Content-Security-Policy is *Not yet built* — Next and styled-components inline scripts and styles, so it needs per-request nonces and a report-only trial first.
+- **Security headers**: `next.config.mjs` sends `frame-ancestors 'none'` and `X-Frame-Options: DENY` (clickjacking), `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin` and a `Permissions-Policy` switching off camera, microphone and location on every response; `tests/e2e/security-headers.spec.ts` checks them. HSTS comes from Vercel. A fuller Content-Security-Policy runs **report-only** (since 27 Oct 2026): browsers block nothing and report what they would have blocked to `/api/csp-report`, which counts each rule-and-host pair in Upstash for 30 days (Upstash console → Data Browser, keys `csp:*`). It allows inline scripts and styles, because Next and styled-components emit them and nonces would make every page render per request; it still rules out other hosts' scripts and styles, plugins, `<base>` hijacking and forms posting elsewhere. To enforce it, rename `Content-Security-Policy-Report-Only` to `Content-Security-Policy` in `next.config.mjs` once the counts show only noise such as browser extensions. `tests/e2e/csp.spec.ts` fails if the app's own pages would trip it. A nonce-based policy that also stops injected inline scripts is *Not yet built*.
 
 ### Threat Model & Mitigations
 
@@ -87,7 +87,7 @@ The original (Nov 2025) design used NextAuth.js + bcrypt against a self-hosted P
 |--------|-----------|
 | **SQL injection** | Prisma ORM with parameterised queries |
 | **Clickjacking** | `frame-ancestors 'none'` and `X-Frame-Options: DENY` on every response |
-| **XSS** | React auto-escaping, sanitise user-generated content (a script-restricting CSP is not yet built) |
+| **XSS** | React auto-escaping, sanitise user-generated content (CSP report-only, without nonces — see Security headers) |
 | **CSRF** | Server Actions' built-in tokens, SameSite cookies |
 | **Brute force login** | Supabase Auth rate limits + dashboard-configured thresholds |
 | **Session hijacking** | HttpOnly cookies, Secure flag, SameSite=Lax, short access-token expiry |

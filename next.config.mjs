@@ -1,3 +1,41 @@
+const isDev = process.env.NODE_ENV === "development";
+
+// Supabase's origin, for the one place the browser talks to it: the
+// no-JavaScript "Continue with Google" form, whose redirect chain runs through
+// Supabase and then Google. form-action applies to redirects after a submit.
+const supabaseOrigin = (() => {
+  try {
+    return new URL(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").origin;
+  } catch {
+    return "";
+  }
+})();
+
+// The policy on trial. Report-only: browsers block nothing and send what they
+// would have blocked to /api/csp-report, which counts it in Upstash. Enforce it
+// (rename the header) once a trial shows only noise such as extensions.
+//
+// No nonces, so inline scripts and styles stay allowed: Next and
+// styled-components both emit them, and nonces would force every page —
+// the static landing page included — to render per request. What this still
+// stops: scripts and styles from other hosts, plugins, <base> hijacking, forms
+// posting elsewhere, and connections to unknown servers. Development adds
+// 'unsafe-eval' (React's dev tooling) and websockets (hot reload).
+const cspReportOnly = [
+  "default-src 'self'",
+  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' blob: data:",
+  "font-src 'self'",
+  `connect-src 'self'${isDev ? " ws: wss:" : ""}`,
+  "object-src 'none'",
+  "base-uri 'self'",
+  `form-action 'self' ${supabaseOrigin} https://accounts.google.com`,
+  "frame-ancestors 'none'",
+  "report-uri /api/csp-report",
+  "report-to csp",
+].join("; ");
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -14,11 +52,9 @@ const nextConfig = {
     formats: ["image/avif", "image/webp"],
   },
   // Browser protections the app opts into on every response. HSTS is not
-  // here: Vercel already sends it for the whole domain. A full
-  // Content-Security-Policy (which scripts may run) is not built yet — Next
-  // and styled-components inline scripts and styles, so it needs per-request
-  // nonces and a report-only trial first. The one directive below,
-  // frame-ancestors, restricts nothing but framing, so it is safe on its own.
+  // here: Vercel already sends it for the whole domain. The enforced CSP
+  // carries only frame-ancestors, which restricts nothing but framing; the
+  // fuller policy above runs report-only alongside it.
   async headers() {
     return [
       {
@@ -29,6 +65,13 @@ const nextConfig = {
           // control; X-Frame-Options covers older browsers.
           { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
           { key: "X-Frame-Options", value: "DENY" },
+          {
+            key: "Content-Security-Policy-Report-Only",
+            value: cspReportOnly,
+          },
+          // Where Chromium sends reports named by `report-to csp`; Firefox
+          // and Safari use `report-uri`.
+          { key: "Reporting-Endpoints", value: 'csp="/api/csp-report"' },
           // Never guess a response's type: a file served as text stays text.
           { key: "X-Content-Type-Options", value: "nosniff" },
           // Reset links carry a token in the URL. Other sites are told only

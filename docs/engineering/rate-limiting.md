@@ -27,6 +27,7 @@ Application-level rate limiting via Upstash Ratelimit. Implemented in `src/lib/r
 | `unsubscribe` | Client IP | 1 min | 20 | allow |
 | `data-export` | userId | 1 min | 2 | **block** |
 | `oauth-initiate` | Client IP | 1 min | 10 | allow |
+| `csp-report` | Client IP | 1 min | 60 | allow |
 | `health` | Client IP | 1 min | 10 | allow |
 
 Sign-up and the reset-link request fail **closed** (block on Redis outage) because each call sends an email — an unbounded window burns sender reputation and the project's mail quota. `verify-code` and `data-export` also fail closed; see the comments on their policies.
@@ -67,4 +68,5 @@ Either bucket returning `"limited"` is enough to reject the request. This preven
 | `oauth-initiate` | `src/app/auth/oauth-actions.ts` |
 | `data-export` | `src/app/(app)/settings/dataActions.ts` |
 | `unsubscribe` | `src/app/api/unsubscribe/route.ts` |
+| `csp-report` | `src/app/api/csp-report/route.ts` |
 | `health` | `src/app/api/health/route.ts` |
