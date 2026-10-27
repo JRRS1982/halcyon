@@ -30,6 +30,7 @@ export type RateLimitedAction =
   | "data-export" // per userId: heavy 10-table fan-out
   | "oauth-initiate" // per client IP: OAuth flow initiation
   | "auth-callback" // per client IP: unauthenticated, makes an outbound token call
+  | "csp-report" // per client IP: unauthenticated, each report writes to Redis
   | "health";
 
 export type RateLimitVerdict = "allowed" | "limited" | "unavailable";
@@ -153,6 +154,14 @@ const POLICIES: Record<RateLimitedAction, Policy> = {
   "oauth-initiate": {
     windowSeconds: MINUTE,
     maxAttempts: 10,
+    whenStoreFails: "allow",
+  },
+  // Browsers send these on their own, so a busy page can send a burst; the
+  // limit is generous for a real visitor and still bounds a flood. Fails open:
+  // a lost report during an outage costs one count in a trial.
+  "csp-report": {
+    windowSeconds: MINUTE,
+    maxAttempts: 60,
     whenStoreFails: "allow",
   },
   // The OAuth/confirmation landing route: unauthenticated, and every request
