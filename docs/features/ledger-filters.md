@@ -1,17 +1,14 @@
 # Ledger filters: a drawer, a badge, and the chips that undo it
 
-**What:** Four additional filters (date range, account, category, amount) surfaced in a drawer alongside the existing search; every active filter shows as a removable chip.  
+**What:** Five filters (date range, account, category, amount, uncategorized) in a drawer beside the search box; every active filter shows as a removable chip.  
 **Key points:**
 - All filter state lives in the URL — shareable, bookmarkable, back-button aware
 - Amount filter matches magnitude (absolute value), not sign — £50 matches both debit and credit
 - The drawer badge shows the count of active non-search filters
 - `ledgerWhere()` in `src/lib/transactions/` is the single pure predicate composing all filters
 
-The transactions ledger could answer "where did I spend the word *tesco*?" and
-"what have I not categorised?" — and nothing else. A year of imports had no way
-to look at one month, one account, one category, or one size of charge.
-
-Four filters now do, from a drawer on the toolbar:
+A drawer on the toolbar narrows the ledger by month, account, category, size of
+charge or missing category, alongside the search box:
 
 | Filter | URL | Matches |
 |---|---|---|
@@ -62,11 +59,9 @@ stated twice and drift:
   patch that clears it. The badge count is its `.length` and the chip row is
   its contents, so the badge can never claim more filters than the chips show.
 
-`uncat` is in that list precisely *because* it moved into the drawer. It used
-to be a visible toolbar toggle, and was deliberately excluded from the chips as
-a second representation of state you could already see. Once it went into the
-drawer that reasoning inverted: invisible state that hides rows is exactly what
-the chips exist to prevent.
+`uncat` is in that list because it lives in the drawer: invisible state that
+hides rows is exactly what the chips exist to prevent. The search box is the
+one exclusion, since its own input already shows it.
 
 A filter pointing at a since-deleted account or category keeps its chip,
 labelled `Unknown account`. An invisible filter that silently hides rows is
@@ -116,7 +111,6 @@ importable subset (`canImportTransactions`) used by the import picker and
 quick-add — so it can never fail to name an account that owns rows but has
 imports switched off.
 
-
 ## The controls card
 
 Everything that acts on the ledger sits in one bounded card, so the table below
@@ -136,19 +130,13 @@ back when the selection clears.
 The swap is the point: once rows are selected you have already found them, so
 the box's job changes from finding rows to labelling them.
 
-This replaced a permanently-mounted bulk bar that sat greyed out below the
-toolbar whenever nothing was selected. It was permanent only to stop the table
-jumping as it mounted and unmounted; a card that is always there solves that
-without the dead row. `Delete…` and `Clear` now simply do not exist until there
-is something to act on.
+`Delete…` and `Clear` do not exist until rows are selected. The card itself is
+always mounted, so the table does not jump.
 
 ## The table's own chrome
 
-The ledger table never got the design system's sheet treatment, and its header
-was off-spec in four ways at once — `dim` colour, weight 600, body face, plain
-`hairline` — which is why it read as slightly heavier data rather than as the
-head of a table. It now follows `sheet-row-head`: canvas-soft ground, mono-caps
-labels, `hairline-strong` below.
+The header follows the design system's `sheet-row-head`: canvas-soft ground,
+mono-caps labels, `hairline-strong` below.
 
 The footer follows `sheet-row-grand`, the black band that ends a sheet, with
 one deliberate deviation: the spec sets its amount in `amount-xl` (18px), but
@@ -169,8 +157,8 @@ label is what keeps it honest:
 | Everything matching fits this page | `Total · 42 transactions` |
 | It does not | `This page · 50 of 312` |
 
-Calling a partial sum "Total" would be a lie by omission, and the page size is
-expected to become a user setting later, which changes which case you are in.
+Calling a partial sum "Total" would be a lie by omission. The page size is the
+constant `PAGE_SIZE` (50) in `pagination.ts`.
 
 The sum runs in integer pence. `0.1 + 0.2` in floating point is
 `0.30000000000000004`, and a money total nobody typed is a bug people notice.

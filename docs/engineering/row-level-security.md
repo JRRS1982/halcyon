@@ -3,8 +3,9 @@
 **What:** Postgres RLS policies as defence-in-depth; the primary fence is `userId` filtering in every Prisma query.  
 **Key points:**
 - App Prisma role bypasses RLS — app-level `userId` filters are the real boundary (per ADR-002)
-- RLS policies fire only if a future feature queries Supabase directly from the browser client
-- When adding a user-owned model: write both the Prisma `userId` filter AND the `CREATE POLICY` statement
+- RLS policies fire only on the Supabase Data API (PostgREST); the app does not use it, but it is reachable
+- Since `20261012090000_restrict_data_api_writes`, `anon` and `authenticated` hold `SELECT` only on every user-owned table
+- When adding a user-owned model: write the Prisma `userId` filter, the RLS policy, and the write revoke
 - `ENABLE ROW LEVEL SECURITY` on the table alone is not enough — also needs a policy, or all rows are blocked
 
 How user data is fenced at the database level, why the app doesn't notice, and
@@ -32,9 +33,8 @@ runs your application code.
 └────────────────────────────────────────────────────────────────┘
 ```
 
-Door 2 is live on this project — `https://<ref>.supabase.co/rest/v1/` answers
-requests. It never touches this repo, so no amount of application-side care
-protects it.
+Door 2 is live on this project: `https://<ref>.supabase.co/rest/v1/` answers
+requests. It never runs application code, so only the database can protect it.
 
 ## The roles, and where `auth.uid()` comes from
 
@@ -44,20 +44,26 @@ protects it.
 | `anon` | Any HTTP caller presenting the publishable key, not signed in | Yes |
 | `authenticated` | Any signed-in Supabase Auth user — *any* user, not just the row's owner | Yes |
 
-Note what `authenticated` means: it is not "the right user", it is "some logged-in
-user". Being signed in gets you through the `GRANT`; it is RLS that decides
-*which rows* you get.
+`authenticated` means "some logged-in user", not "the row's owner". Being signed
+in gets you through the `GRANT`; RLS decides *which rows* you get.
 
-That decision is made by `auth.uid()`, a Supabase-provided function which reads
-the user id out of the request's JWT. So a policy of `auth.uid() = "userId"`
-resolves, per request, to "the rows whose owner is the caller". There is no
-equivalent inside the app path, which is why Door 1 relies on explicit filters
-instead.
+RLS decides with `auth.uid()`, a Supabase function that reads the user id from
+the request's JWT. A policy of `auth.uid() = "userId"` resolves, per request, to
+"the rows owned by the caller". The app path has no equivalent, so Door 1 relies
+on explicit filters.
 
-**Grants are wide open by default.** Every table in the `public` schema grants
+**Supabase grants wide by default.** A new table in the `public` schema grants
 all privileges to both `anon` and `authenticated`. A `GRANT` is table-wide: hold
-one, and absent RLS you see and can modify *every row*. RLS is therefore not
-belt-and-braces for Door 2 — it is the only lock on it.
+one, and absent RLS you see *every row*. Two locks therefore guard Door 2:
+
+- **RLS policies** scope reads to the caller's own rows.
+- **Write revokes** remove `INSERT`, `UPDATE` and `DELETE` from `anon` and
+  `authenticated`. A policy answers "whose rows?", never "may you write at all?",
+  so without the revoke a signed-in user could post rows straight to
+  `/rest/v1/<table>` and bypass every cap the app enforces. The app never writes
+  that way (`supabase.auth` only, no `.from()` in `src/`), so
+  `20261012090000_restrict_data_api_writes` revoked writes on all 17 tables in one
+  loop. `SELECT` stays.
 
 ## Why a missing policy is invisible
 
@@ -76,9 +82,11 @@ advisor warning and backfilled in
 
 ## The regression guard
 
-`prisma/schema.rls.test.ts` fails the build if any model in
-`schema.prisma` has no `ENABLE ROW LEVEL SECURITY` **and** no `CREATE POLICY`
-anywhere in `prisma/migrations/`.
+`tests/unit/schema.rls.test.ts` fails the build if any model in `schema.prisma`
+lacks any of: `ENABLE ROW LEVEL SECURITY`, a `CREATE POLICY`, or a
+`REVOKE INSERT, UPDATE, DELETE ... FROM anon, authenticated`, found anywhere in
+`prisma/migrations/`. It accepts the revoke either as its own statement or in
+the name array of the bulk migration.
 
 It is deliberately static — it reads the migration SQL rather than querying
 Postgres — because the RLS blocks are skipped on the local database (see below),
@@ -86,12 +94,12 @@ so a live `pg_tables` assertion could never pass locally.
 
 ## Adding a table: the checklist
 
-Three things, and the first two are easy to remember because the third fails
-loudly if you forget them.
+Four things. The guard fails loudly on steps 2 and 3 if you forget them.
 
 1. The `userId` filter in every Prisma query (Door 1).
 2. An RLS policy in the migration (Door 2).
-3. `pnpm test` — the guard above tells you if step 2 is missing.
+3. A write revoke in the same migration (Door 2).
+4. `pnpm test` runs the guard.
 
 Author the migration as usual (`make migrate-create name=<verb_table>`), then
 append a block to the generated `migration.sql`. For a table with a direct
@@ -111,6 +119,8 @@ BEGIN
         USING (auth.uid() = "userId")
         WITH CHECK (auth.uid() = "userId")
     $body$;
+
+    EXECUTE $body$REVOKE INSERT, UPDATE, DELETE ON public."YourTable" FROM anon, authenticated$body$;
 
   END IF;
 END
@@ -145,5 +155,5 @@ owner sees 1 of 2 rows, cross-user `DELETE` affects nothing, and a forged
 ## Related
 
 - [ADR-002 — Security Architecture](../adrs/adr-002-security-architecture.md)
-- [Auth flow and sequence diagrams](auth.md)
+- [Auth flow and sequence diagrams](../features/auth.md)
 - [Data models](../data-models/data-models.md)

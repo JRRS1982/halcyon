@@ -5,7 +5,8 @@
 - All interactive elements reachable by keyboard; focus order follows visual order
 - ARIA landmarks on every page (verified by `tests/e2e/landmarks.spec.ts`)
 - Colour contrast ratio ≥ 4.5:1 for normal text, ≥ 3:1 for large text (check when modifying palette)
-- E2E `theme.spec.ts` and `mobile-sheet.spec.ts` run on all three engines — layout/CSS regressions catch accessibility breakage
+- E2E `theme.spec.ts` and `mobile-sheet.spec.ts` run on chromium, firefox and webkit, so layout and CSS regressions surface per engine
+- No automated axe scan runs in CI; contrast and screen-reader checks are manual
 
 ## Core Principles
 
@@ -43,11 +44,9 @@
 - Check color contrast
 - Validate with automated tools (WAVE, axe, Lighthouse)
 
-### Performance
+### Motion
 
-- Ensure fast loading of accessibility features
-- Optimize images and media
-- Support reduced motion preferences
+- Honour `prefers-reduced-motion`
 
 ## Resources
 

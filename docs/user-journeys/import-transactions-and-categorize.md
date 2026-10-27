@@ -1,59 +1,66 @@
 # User Journey: Import Transactions and Categorize
 
-**Journey:** A user uploads a bank statement CSV, reviews what was imported, and categorizes the transactions.  
-**Outcome:** Transactions stored, duplicates surfaced, all rows assigned a category.
+**Journey:** A user imports a bank statement CSV, reviews it, and categorizes the transactions.  
+**Outcome:** Transactions stored, likely duplicates skipped or kept by choice, every row categorized, actuals visible in `/budget`.
 
-Requires `transactionsEnabled = true` in UserSettings — the nav link is hidden and the route redirects to `/dashboard` when off.
+Requires the Transactions setting to be on. When it is off, the nav link is hidden and `/transactions` redirects to `/dashboard`. See [features/transactions.md](../features/transactions.md) for the full spec.
 
 ## Flow
 
 ```mermaid
 flowchart TD
-    A[Navigate to /transactions] --> B[Open Import panel]
-    B --> C[Select .csv file]
-    C --> D[Configure date format and column mapping]
-    D --> E[App fingerprints each row\naccount + date + amount + description]
-    E --> F{Duplicates found?}
-    F -->|Yes| G[Duplicate rows flagged for review\nnot silently dropped]
-    F -->|No| H[Preview rows]
-    G --> H
-    H --> I[Confirm import → ImportBatch created]
-    I --> J[Ledger shows new rows as uncategorized]
-    J --> K{Categorize}
-    K -->|Single row| L[Click row → category combobox]
-    K -->|Bulk| M[Select rows → search box becomes category input\napply to all selected]
-    L --> N[Category saved]
-    M --> N
-    N --> O{More uncategorized?}
-    O -->|Yes| K
+    A[Navigate to /transactions] --> B[Click Import statement…]
+    B --> C[Choose a .csv file]
+    C --> D[Import a statement dialog:\nconfirm Date / Description / Amount columns and date format]
+    D --> E[Choose Import into: an account or + New account…]
+    E --> F[Review the preview]
+    F --> G[Click Import N transactions into account]
+    G --> H{Likely duplicates?}
+    H -->|Yes| I[Possible duplicates dialog:\nticked rows skipped, untick to keep]
+    H -->|No| J[Rows imported as one batch]
+    I --> J
+    J --> K[Ledger shows rows; known descriptions already categorized]
+    K --> L{Categorize}
+    L -->|Single row| M[Click the category cell → pick or create a category]
+    L -->|Bulk| N[Select rows → search box becomes category picker]
+    M --> O{More uncategorized?}
+    N --> O
+    O -->|Yes| L
     O -->|No| P[Done — actuals visible in /budget]
-    J -->|Mistake| Q[Open Reverse Import panel\nselect batch → delete all its rows]
+    J -->|Mistake| Q[Undo import… → pick the import → Reverse import]
 ```
 
 ## Steps
 
-### Upload
+### Import a statement
 
-1. Navigate to `/transactions` → open the Import panel.
-2. Choose a `.csv` file (only `.csv` / `text/csv` accepted).
-3. Set date format and map columns (date, amount, description) if the parser doesn't auto-detect.
+1. On `/transactions`, click **Import statement…** and choose a `.csv` file. Limits: 5,000 rows and 2 MB per import.
+2. The **Import a statement** dialog opens with the date, description and amount columns detected. Change them, the date format, or the extra columns to keep if the guess is wrong.
+3. Under **Import into**, pick an importable account, or **+ New account…** and name it.
+4. Check the preview. Rows with errors show in the Status column and are skipped.
+5. Click **Import N transactions into <account>**.
 
-### Deduplication
+### Duplicates
 
-Each row is fingerprinted: `accountId | YYYY-MM-DD | amountInCents | normalizedDescription`. If a row with the same fingerprint already exists, it is **flagged**, not silently dropped — the user decides whether to import it.
+A row is a likely duplicate when an existing transaction in the same account has the same date, amount and description (compared case-insensitively with spaces collapsed). If any are found, **Possible duplicates** lists them. They start ticked, meaning skipped. Untick the ones that are genuinely separate, then click **Import N new** (or **Import N new, skip M**). Nothing is dropped without being shown.
 
-### Review and confirm
+### Auto-categorization
 
-After parsing, a preview shows the mapped rows. Confirming creates an `ImportBatch` record (file name, row count) and inserts the `Transaction` rows linked to it.
+On import, each row whose description matches one you categorized before takes that category. The result toast reports the count, for example "Imported 40 into Current account, 12 auto-categorised".
 
 ### Categorize
 
-The ledger shows an uncategorized count badge. Two modes:
-- **Single:** click a row's category cell → combobox appears.
-- **Bulk:** select rows with checkboxes → the search box becomes a category input; applying sets the category on all selected rows.
+When rows lack a category, the ledger header shows "N uncategorized — assign a category below". Two ways to fix:
 
-Categorized transactions flow into the `/budget` actuals column for their category and period.
+- **Single:** click a row's category cell and pick a category. The picker can also create a category or mark the row as a transfer to another account.
+- **Bulk:** tick rows. The search box becomes a category picker; applying it sets the category on all selected rows.
 
-### Reverse a batch
+Categorized transactions feed the **Actual** column in `/budget` for their category and month.
 
-If the import was wrong: open the Reverse Import panel, select the batch by file name and date, confirm. All transactions in that batch are deleted. Categories assigned to those rows are also removed.
+### Add one by hand
+
+**Add transaction** (direction, amount, description, date, account, category) records a single entry with no statement, for example cash spending.
+
+### Undo an import
+
+Click **Undo import…**, choose the import from the list, and click **Reverse import (delete N)** in the "Reverse an import" dialog. Every transaction from that import leaves the ledger, budget actuals and dashboard, along with any categories or notes on those rows. There is no undo.

@@ -111,9 +111,6 @@ export const idleStateAt = (
   return { phase: "warning", secondsRemaining: Math.ceil(remainingMs / 1000) };
 };
 
-// A missing or unreadable cookie counts as active, not expired. Treating it as
-// expired would loop forever for any client that cannot store the cookie, and
-// the downside is only that clearing one cookie restarts your own clock.
 export const evaluateSession = (
   activity: SessionActivity | null,
   now: number,

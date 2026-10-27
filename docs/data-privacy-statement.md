@@ -10,15 +10,12 @@
 The authoritative privacy documents are the ones users actually see, versioned
 with the code that must honour them:
 
-- **Privacy Policy** — `src/app/(app)/privacy/page.tsx`, served at `/privacy`
-- **Cookie Policy** — `src/app/(app)/cookies/page.tsx`, served at `/cookies`
-- **Terms of Service** — `src/app/(app)/terms/page.tsx`, served at `/terms`
+- **Privacy Policy** — `src/app/(app)/privacy/PrivacyPolicy.tsx`, served at `/privacy`
+- **Cookie Policy** — `src/app/(app)/cookies/CookiePolicy.tsx`, served at `/cookies`
+- **Terms of Service** — `src/app/(app)/terms/TermsOfService.tsx`, served at `/terms`
 
-An earlier version of this file was a generic GDPR template that listed
-categories of data the app might collect (names, gender, phone numbers, postal
-addresses, location, usage analytics). Balanced Money collects none of those,
-and keeping the template around contradicted the live policy — in a public
-repo, that contradiction is itself a risk. It was replaced with this pointer.
+This file is a pointer, not a policy. A generic GDPR template once stood here and
+contradicted the live policy, which in a public repo is itself a risk.
 
 ## The actual posture, for maintainers
 
@@ -27,7 +24,7 @@ repo, that contradiction is itself a risk. It was replaced with this pointer.
 - No analytics, tracking, advertising, profiling, or AI anywhere.
 - Processors: Supabase (DB + auth), Vercel (hosting), Resend (outbound email —
   address only, opt-in reminder only), ImprovMX (inbound contact-email
-  forwarding — see `docs/features/contact-email.md`). Name any new processor
+  forwarding — see [`contact-email.md`](engineering/contact-email.md)). Name any new processor
   in the Privacy Policy before shipping it.
 - Only strictly-necessary first-party cookies (Supabase session, `bm_activity`
   timeout cookie, transient OAuth PKCE) — which is why there is no consent
@@ -36,9 +33,11 @@ repo, that contradiction is itself a risk. It was replaced with this pointer.
 - Self-service rights: export (JSON), clear, and hard-delete live in
   Settings → Your data (`src/app/(app)/settings/dataActions.ts`). When adding a
   user-owned model, add it to the export AND to the clear/delete paths, and
-  extend `src/app/(app)/settings/dataActions.integration.test.ts` — the privacy policy
-  promises "everything", so an omitted table makes the policy false.
+  extend `tests/integration/app/(app)/settings/dataActions.integration.test.ts` — the privacy
+  policy promises "everything", so an omitted table makes the policy false.
 
-Owner to-dos tracked elsewhere: ICO registration and Supabase/Vercel DPA
-records. The `hello@balanced.money` contact address named in the policies is
+Upstash holds the rate-limit counters, keyed by a SHA-256 digest of an IP or
+email address for at most an hour (see [rate limiting](engineering/rate-limiting.md));
+it is listed as a processor in the Privacy Policy. Owner to-dos tracked elsewhere: ICO registration and
+Supabase/Vercel DPA records. The `hello@balanced.money` contact address named in the policies is
 live (ImprovMX forwarding, verified 2026-08-18).

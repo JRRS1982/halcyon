@@ -454,10 +454,10 @@ export function SettingsForm({
           <ToggleText>
             <FieldLabel>Transfers and saving</FieldLabel>
             <FieldHint>
-              Adds a Transfers and saving section to the budget that totals
-              money moved between your own accounts (e.g. Current → ISA) — kept
-              out of income and expenses. Tag a transaction as a transfer from
-              the Transactions page. Needs Transactions switched on.
+              Lets you mark a transaction as money moved between your own
+              accounts (e.g. Current → ISA), so it stays out of income and
+              expenses. Mark it from the Transactions page. Needs Transactions
+              switched on.
             </FieldHint>
           </ToggleText>
           <SwitchControl>

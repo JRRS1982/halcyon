@@ -54,7 +54,7 @@ jobs:
   # A migration must never ship with the code that uses it. Separation is what
   # makes the deploy order stop mattering: a migration PR changes no
   # application code, so whichever of migrate-prod and the Vercel promotion
-  # lands first, schema and code still agree. See src/lib/ci/mixedSchema.ts.
+  # lands first, schema and code still agree. See tests/ci/mixedSchema.ts.
   #
   # PR-only: on a push to master the merge has already happened and there is
   # nothing left to reject.

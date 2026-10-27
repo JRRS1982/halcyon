@@ -1,33 +1,33 @@
 # User Journey: Session Timeout
 
 **Journey:** A user leaves the app idle and returns to find their session has expired.  
-**Outcome:** User re-authenticates and lands back at their original destination.
+**Outcome:** User signs in again and lands back at their original destination.
 
 ## Timeout limits
 
 | Limit | Value |
 |-------|-------|
-| Idle timeout | 6 hours of inactivity |
+| Idle timeout | 6 hours without a click, key press, scroll or touch |
 | Absolute cap | 24 hours from sign-in, regardless of activity |
-| Warning before expiry | 60 seconds |
+| Warning before idle expiry | 60 seconds |
 
-Both limits are enforced in two places: the client-side `IdleTimeout` component (warns and signs out gracefully) and the server-side proxy (`src/proxy.ts`) which enforces expiry on every request — including for browsers that were closed without signing out.
+Two parts enforce this. The client `IdleTimeout` component (`src/components/auth/IdleTimeout/`) warns and signs out gracefully. The server proxy (`src/proxy.ts`, logic in `src/lib/supabase/middleware.ts`) is the enforcing half: it checks the `bm_activity` cookie on every request, including for browsers closed without signing out.
 
 ## Flow
 
 ```mermaid
 flowchart TD
-    A[User leaves app idle] --> B{6 hours elapsed?}
+    A[User leaves app idle] --> B{Idle for 5h 59m?}
     B -->|No| A
-    B -->|Yes| C[IdleTimeout component shows warning modal\n60 seconds remaining]
+    B -->|Yes| C["'Still there?' modal\n60-second countdown"]
     C --> D{User responds?}
-    D -->|Clicks Stay signed in| E[Session extended — proxy resets\nactivity cookie on next request]
-    D -->|Ignores / closes tab| F[signOutIdle fires after 60s\nRedirects to /sign-in?timeout=idle]
-    F --> G[Sign-in page shows\n'You were signed out after a period of inactivity']
+    D -->|Stay signed in| E[Page refreshes; proxy resets\nactivity cookie]
+    D -->|Sign out, or no response in 60s| F[signOutIdle\nredirect to /sign-in?timeout=idle]
+    F --> G[Sign-in page shows the reason]
     G --> H[User signs in]
-    H --> I[Redirected to /transactions — default landing\nor ?next= destination if set]
+    H --> I[/transactions, or the ?next= destination]
 
-    J[User returns after 24 hours] --> K[Proxy detects absolute cap exceeded\nClears session, redirects /sign-in?timeout=absolute]
+    J[User returns after 24 hours] --> K[Proxy ends session\nredirect to /sign-in?timeout=absolute]
     K --> G
 ```
 
@@ -35,16 +35,22 @@ flowchart TD
 
 ### Warning modal
 
-At 60 seconds before idle expiry, a modal dialog appears over the page with a countdown. The user can click **Stay signed in** — this triggers a page refresh, which passes through the proxy and resets the activity cookie.
+Sixty seconds before idle expiry, a modal titled **Still there?** shows a countdown. Escape does not dismiss it. **Stay signed in** refreshes the page, which passes through the proxy and resets the activity cookie. **Sign out** ends the session at once.
 
 ### After expiry
 
-If the warning is ignored, `signOutIdle` calls Supabase sign-out and redirects to `/sign-in?timeout=idle`. The sign-in page maps the `timeout` param to a human-readable notice. After signing in, the `?next=` param (if present) restores the user's original destination; otherwise they land at `/transactions`.
+If the warning is ignored, `signOutIdle` signs out of Supabase and redirects to `/sign-in?timeout=idle`. The sign-in page shows a notice for the `timeout` value:
+
+- `idle`: "You were signed out after a period of inactivity."
+- `absolute`: "You were signed out because your session reached its time limit."
+- `unreadable`: "We couldn't confirm how long you'd been signed in, so we signed you out. Please sign in again." This happens when the activity cookie is missing or malformed.
+
+After signing in, `?next=` (if present) restores the original destination; otherwise the user lands on `/transactions`.
 
 ### Absolute cap
 
-If 24 hours have elapsed since sign-in — regardless of activity — the proxy enforces expiry on the next request and redirects to `/sign-in?timeout=absolute`. There is no warning for the absolute cap.
+After 24 hours from sign-in, the proxy ends the session on the next request and redirects to `/sign-in?timeout=absolute`. There is no warning for the cap.
 
 ### Proxy enforcement
 
-The proxy re-evaluates the `bm_activity` cookie on every request. A session closed by closing the browser is expired by the proxy the moment someone opens the app again — the client-side `IdleTimeout` component is the courteous half, not the enforcing half.
+A session left in a closed browser expires the moment someone opens the app again. The client component is the courteous half; the proxy is what actually ends sessions.

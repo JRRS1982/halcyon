@@ -3,8 +3,16 @@
 - Status: Accepted
 - Created by: @jrrs1982
 - Date: 2025-11-27
-- Last revised: 2026-05-22 — replaced NextAuth + bcrypt with Supabase Auth; production now runs on Vercel + Supabase managed Postgres. See [ADR-001](ADR-001-TechStackSelection.md).
+- Last revised: 2026-05-22 — replaced NextAuth + bcrypt with Supabase Auth; production now runs on Vercel + Supabase managed Postgres. See [ADR-001](adr-001-tech-stack-selection.md).
 - Decision maker: @jrrs1982
+
+> **Update 2026-10-27.** The decision stands. Since it was written: Supabase Data API write privileges
+> are revoked on every user-owned table (`20261012090000_restrict_data_api_writes`), so RLS now scopes reads
+> only; the RLS guard moved to `tests/unit/schema.rls.test.ts`; Next.js 16 renamed middleware to
+> `src/proxy.ts`; and rate-limit failure policy varies per action (see
+> [Rate limiting](../engineering/rate-limiting.md)). Step-up re-verification before sensitive actions is
+> documented in [Step-up auth](../engineering/step-up-auth.md). Sections below are corrected where they
+> described the present wrongly.
 
 **Decision:** Supabase Auth owns identity (passwords, OAuth, session cookies); every Prisma query filters by `userId` as the primary fence; RLS policies are defence-in-depth.
 
@@ -20,7 +28,7 @@ The original (Nov 2025) design used NextAuth.js + bcrypt against a self-hosted P
 
 ### Authentication
 
-- **Supabase Auth** with email/password and OAuth providers. Supabase handles password hashing (Argon2 internally), email verification, password reset, and brute-force throttling on its own auth endpoints.
+- **Supabase Auth** with email/password and OAuth providers. Supabase handles password hashing, email verification, password reset, and brute-force throttling on its own auth endpoints.
 - **`@supabase/ssr`** integrates Supabase Auth with the Next.js App Router. Sessions are JWTs delivered as `HttpOnly`, `Secure`, `SameSite=Lax` cookies.
 - **Email verification required** before account activation (Supabase project setting).
 - **Account lockout / brute force**: Supabase Auth enforces rate limits on `/auth/v1/token`, `/auth/v1/signup`, etc. We rely on Supabase's defaults and tighten them in the dashboard rather than implementing our own lockout logic in the app.
@@ -28,7 +36,7 @@ The original (Nov 2025) design used NextAuth.js + bcrypt against a self-hosted P
 
 ### Authorization
 
-- **Next.js middleware** reads the Supabase session from cookies and redirects unauthenticated requests away from protected routes.
+- **Next.js proxy** (`src/proxy.ts`) reads the Supabase session from cookies and redirects unauthenticated requests away from protected routes.
 - **Server components and route handlers** call `supabase.auth.getUser()` to obtain the authenticated user before any data access.
 - **Application-level `userId` filtering**: every Prisma query that touches user-owned data is filtered by the authenticated `userId`. This is the *primary* authorization boundary, because Prisma connects to Postgres using a role that bypasses RLS (see "Defence in depth" below).
 - **Soft deletes**: `deletedAt` timestamps for financial documents/items (audit trail).
@@ -36,21 +44,21 @@ The original (Nov 2025) design used NextAuth.js + bcrypt against a self-hosted P
 ### Defence in depth: Row Level Security
 
 - **RLS policies** are enabled on all user-data tables in Postgres. Enforced by
-  `prisma/schema.rls.test.ts`, which fails the build if a model has no
-  policy. See [Row Level Security](../features/row-level-security.md) for the
+  `tests/unit/schema.rls.test.ts`, which fails the build if a model has no
+  policy or no write revoke. See [Row Level Security](../engineering/row-level-security.md) for the
   working detail and the template for new tables.
 - RLS is **not** the primary enforcement mechanism *for the application path*,
   because server-side Prisma queries use the standard Postgres connection (not a
   Supabase JWT) and therefore bypass RLS.
 - It **is** the only enforcement mechanism for the **Supabase Data API**
   (PostgREST), which is enabled on this project and reaches the same tables over
-  HTTPS without passing through the app. `anon` and `authenticated` hold all
-  privileges on the `public` schema by default, and a `GRANT` is table-wide — so
-  an unfenced table is world-readable and world-writable to anyone holding the
-  publishable key, which is public by design. Describing RLS as purely
-  "defence in depth" understates this: for that surface it is the whole fence.
-- Beyond that, RLS also means mistakes in server code that forget a `userId`
-  filter are caught at the database layer when policies match.
+  HTTPS without passing through the app. Supabase grants `anon` and `authenticated`
+  all privileges on the `public` schema by default, and a `GRANT` is table-wide —
+  so an unfenced table is readable and writable by anyone holding the publishable
+  key, which is public by design. Describing RLS as purely "defence in depth"
+  understates this: for that surface it is the main fence. The second is a revoke
+  of `INSERT`, `UPDATE` and `DELETE` on every user-owned table, because a policy
+  scopes rows but cannot stop a user writing within their own.
 - RLS policies are migrated via Prisma raw SQL migrations alongside schema
   changes. Prisma cannot generate them — `schema.prisma` has no way to express a
   policy — so each one is hand-written into the generated `migration.sql`. Since
@@ -59,7 +67,7 @@ The original (Nov 2025) design used NextAuth.js + bcrypt against a self-hosted P
 
 ### Data Protection
 
-- **Environment variables**: Supabase keys and `DATABASE_URL` / `DIRECT_URL` live in Vercel project env vars (production) and `.env.development` (local). All env vars are validated with zod-env. See [ADR-004](ADR-004-SecretManagement.md).
+- **Environment variables**: Supabase keys and `DATABASE_URL` / `DIRECT_URL` live in Vercel project env vars (production) and `.env.development` (local). All env vars are validated with zod-env. See [ADR-004](adr-004-secret-management.md).
 - **Database encryption**: Supabase enforces TLS for all connections and encrypts data at rest. No additional configuration needed.
 - **No sensitive data in logs**: Sanitise logs to exclude tokens and raw financial values. Vercel and Supabase logs are accessible from their dashboards.
 
@@ -67,27 +75,27 @@ The original (Nov 2025) design used NextAuth.js + bcrypt against a self-hosted P
 
 - **Rate limiting**:
   - Supabase Auth rate-limits its own endpoints (login, signup, password reset).
-  - Application-level rate limiting is implemented via Upstash Ratelimit (`src/lib/rateLimit/index.ts`). Covered endpoints: sign-in (per-IP + per-account), sign-up, OAuth initiation, password re-verification, data export, and the RFC 8058 unsubscribe endpoint. Each limit uses a fail-open policy (`whenStoreFails: "allow"`) so a Redis outage never blocks legitimate users.
+  - Application-level rate limiting is implemented via Upstash Ratelimit (`src/lib/rateLimit/index.ts`). The policy table, keys and failure behaviour (fail open for most, fail closed where a call sends email or spends a guess budget) are in [Rate limiting](../engineering/rate-limiting.md).
 - **CSRF protection**: Next.js Server Actions include CSRF tokens by default. Route handlers that mutate state must be POST-only.
 - **Input validation**: Zod schemas for all API inputs (prevents injection and shape errors).
 - **CORS**: Restrict to same-origin only.
-- **Security headers**: CSP, HSTS, X-Frame-Options configured in `next.config.mjs`. Vercel adds reasonable defaults; we override where stricter.
+- **Security headers**: *Not yet built.* `next.config.mjs` sets no CSP, HSTS or X-Frame-Options; only Vercel's defaults apply.
 
 ### Threat Model & Mitigations
 
 | Threat | Mitigation |
 |--------|-----------|
 | **SQL injection** | Prisma ORM with parameterised queries |
-| **XSS** | React auto-escaping, CSP headers, sanitise user-generated content |
+| **XSS** | React auto-escaping, sanitise user-generated content (CSP not yet built) |
 | **CSRF** | Server Actions' built-in tokens, SameSite cookies |
 | **Brute force login** | Supabase Auth rate limits + dashboard-configured thresholds |
 | **Session hijacking** | HttpOnly cookies, Secure flag, SameSite=Lax, short access-token expiry |
 | **Unauthorised data access** | App-level `userId` filtering on every Prisma query; RLS policies as defence-in-depth |
-| **Password leaks** | Supabase handles hashing (Argon2); password reset via verified email |
+| **Password leaks** | Supabase handles hashing; password reset via verified email |
 | **OAuth token theft** | OAuth flow managed by Supabase Auth; tokens never round-trip through our app |
-| **Forgotten `userId` filter** | RLS policies block the query at the DB layer if client-side; code review + tests if server-side |
+| **Forgotten `userId` filter** | Server-side Prisma bypasses RLS, so code review and integration tests are the only catch; RLS covers the Data API only |
 | **Public-key exposure** | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` is safe to expose by design; `SUPABASE_SECRET_KEY` is server-only and never sent to the browser |
-| **Direct Data API access** | The publishable key reaches PostgREST without touching the app, so RLS policies are the only control — enforced on every model by `prisma/schema.rls.test.ts` |
+| **Direct Data API access** | The publishable key reaches PostgREST without touching the app, so RLS policies are the only control — enforced on every model by `tests/unit/schema.rls.test.ts`, with writes revoked as well |
 
 ### Monitoring & Incident Response
 
@@ -99,7 +107,7 @@ The original (Nov 2025) design used NextAuth.js + bcrypt against a self-hosted P
 
 ### Original (2025-11)
 
-- **Argon2 instead of bcrypt**: more secure but less mature in Node; bcrypt was battle-tested. *Obsolete under Supabase Auth* — Supabase uses Argon2 internally, so we get it without managing it ourselves.
+- **Argon2 instead of bcrypt**: more secure but less mature in Node; bcrypt was battle-tested. *Obsolete under Supabase Auth* — Supabase owns password hashing.
 - **Refresh token rotation**: added complexity; deferred for MVP. *Now provided by Supabase Auth by default.*
 - **Database-level encryption (pgcrypto)**: deferred to post-MVP (performance overhead). Unchanged.
 - **2FA/MFA**: excluded from MVP. Supabase Auth supports TOTP MFA — easy to enable when needed.
@@ -113,8 +121,8 @@ The original (Nov 2025) design used NextAuth.js + bcrypt against a self-hosted P
 ## Consequences
 
 - **Good**: Layered security — Supabase handles the auth primitives that are hardest to get right (hashing, rotation, email verification, brute-force), application code handles the domain authorization it actually knows about (`userId` filtering).
-- **Good**: RLS gives us a safety net if a future feature ever queries Supabase directly from the browser.
+- **Good**: RLS and the write revokes fence the Supabase Data API, and are a safety net if a feature ever queries Supabase directly from the browser.
 - **Good**: No 2FA in MVP but the path to enable it is now just a Supabase dashboard toggle + UI work.
 - **Bad**: Vendor lock-in on Supabase Auth — `auth.users` is theirs, and migrating off later would require user re-onboarding or a custom migration.
-- **Bad**: Server-side queries bypass RLS, so app-level filtering bugs are not caught at the DB layer for server-side reads. Mitigation: code review + integration tests + RLS-on-by-default policy structure.
+- **Bad**: Server-side queries bypass RLS, so app-level filtering bugs are not caught at the DB layer for server-side reads. Mitigation: code review + integration tests.
 - **Neutral**: JWT sessions mean no server-side session revocation; mitigated by short access-token expiry and the ability to invalidate refresh tokens via Supabase Admin API.

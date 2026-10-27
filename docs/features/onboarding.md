@@ -2,7 +2,7 @@
 
 **What:** New accounts are seeded with 41 categories, 6 accounts, and a £0 budget sheet for the current month — so every page renders meaningfully on first login.  
 **Key points:**
-- Seeding runs inside `provisionUserSettings` on the first sign-in, not at sign-up
+- Seeding runs inside `provisionUserSettings` on a user's first authenticated request, not at sign-up
 - The starter period is the *current* month — "latest period" queries satisfy without any user input
 - E2E specs that seed their own month must call `clearStarterPeriods()` first, or fixture and starter periods collide
 - Source of truth for the list is `src/lib/onboarding/defaults.ts` — not this document
@@ -22,13 +22,10 @@ authenticated request and creates, in one transaction:
 | | |
 |---|---|
 | `Category` | the full taxonomy, `sortOrder` = list order |
-| `Account` | one per default name, `type` left null |
+| `Account` | one per default name, each with a `type` (and so a section) via `buildAccountData`; six assets, no liabilities |
 | `FinancialPeriod` + `BudgetItem` | the current month, one £0 row per category flagged `inStarterBudget` |
 
-Only a subset of categories becomes budget rows. The rest are in every picker
-from the start and reach the sheet on their own, the first month a transaction
-lands in one — the budget page already materialises a row for any category with
-activity. That is what makes a fine-grained taxonomy cheap: the sheet stays
+Only a subset of categories becomes budget rows (those flagged `inStarterBudget`). The rest are in every picker from the start. With the transactions feature on, they reach the sheet on their own the first month a transaction lands in one: the budget page materialises a row for any category with activity. That is what makes a fine-grained taxonomy cheap: the sheet stays
 short, and the dashboard's spending chart aggregates by bucket, not by label, so
 dormant categories add nothing to it.
 
@@ -42,8 +39,7 @@ set and the user would open Settings to everything twice.
 
 **The starter month is the *current* month, so it outranks anything a test
 seeds for itself.** Code that reads "the latest period" gets the starter sheet:
-the dashboard KPIs take the last point of each series, and `createPlan` seeds
-from the most recent period. E2E specs that seed a past month and assert on a
+the dashboard KPIs take the last point of each series, and `createPlan` (a Sync against an empty plan) reads the latest period. E2E specs that seed a past month and assert on a
 derived figure must call `clearStarterPeriods` (`tests/e2e/_helpers/fixtures.ts`)
 first, or their fixture is inert. Integration tests are unaffected — their
 `seedUser` helper writes `UserSettings` directly, so provisioning never runs.
@@ -68,8 +64,6 @@ step with the module.
   an ISA or SIPP, or used to pay off a card held as an `Account`, is a
   *transfer*. Transfers ship on by default, so an expense line for the same
   movement would count it twice.
-- **Accounts carry no `type`.** The Settings form does not collect one, so a
-  default with a type set would be a value the user can see but never edit.
 - **Some categories cannot be filled from bank data alone.** A supermarket shop
   arrives as a single total, so wine and meal deals stay inside Groceries
   whatever categories exist. Alcohol and Coffee & Snacks capture what is bought

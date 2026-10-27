@@ -86,7 +86,7 @@ export default async function SettingsPage() {
 
   const managedCategories: ManagedCategory[] = categoryRows.flatMap((c) => {
     // The query's `where` already excludes anything but INCOME/EXPENSE, but
-    // ItemType is shared with BudgetItem/BudgetTemplateItem, so the
+    // ItemType is shared with BudgetItem, so the
     // Prisma-generated type for `c.type` is still the full enum. This
     // narrows it back down without a cast; unreachable in practice.
     if (c.type !== "INCOME" && c.type !== "EXPENSE") return [];
