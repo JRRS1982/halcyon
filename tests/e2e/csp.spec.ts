@@ -12,10 +12,17 @@
 import type { Page } from "@playwright/test";
 import { expect, signIn, test } from "./_helpers/fixtures";
 
+// Where the init script collects violations on the page's window.
+declare global {
+  interface Window {
+    __csp?: string[];
+  }
+}
+
 const collectViolations = (page: Page) =>
   page.addInitScript(() => {
     const seen: string[] = [];
-    (window as unknown as { __csp: string[] }).__csp = seen;
+    window.__csp = seen;
     document.addEventListener("securitypolicyviolation", (event) => {
       seen.push(`${event.effectiveDirective} ← ${event.blockedURI}`);
     });
@@ -24,9 +31,7 @@ const collectViolations = (page: Page) =>
 const violationsOn = async (page: Page, path: string) => {
   await page.goto(path);
   await page.waitForLoadState("load");
-  return page.evaluate(
-    () => (window as unknown as { __csp: string[] }).__csp ?? [],
-  );
+  return page.evaluate(() => window.__csp ?? []);
 };
 
 test.describe("content security policy (report-only)", () => {

@@ -156,6 +156,14 @@ const POLICIES: Record<RateLimitedAction, Policy> = {
     maxAttempts: 10,
     whenStoreFails: "allow",
   },
+  // Browsers send these on their own, so a busy page can send a burst; the
+  // limit is generous for a real visitor and still bounds a flood. Fails open:
+  // a lost report during an outage costs one count in a trial.
+  "csp-report": {
+    windowSeconds: MINUTE,
+    maxAttempts: 60,
+    whenStoreFails: "allow",
+  },
   // The OAuth/confirmation landing route: unauthenticated, and every request
   // carrying a `code` spends one call on Supabase's token endpoint. Because
   // clientIp is forwarded as X-Forwarded-For, a rotating source walks past
@@ -173,14 +181,6 @@ const POLICIES: Record<RateLimitedAction, Policy> = {
   // and sign-in outage for the people who cannot route around it. The attack
   // needs the outage and an attacker already looping. If that trade stops
   // looking right, this is the line to change.
-  // Browsers send these on their own, so a busy page can send a burst; the
-  // limit is generous for a real visitor and still bounds a flood. Fails open:
-  // a lost report during an outage costs one count in a trial.
-  "csp-report": {
-    windowSeconds: MINUTE,
-    maxAttempts: 60,
-    whenStoreFails: "allow",
-  },
   "auth-callback": {
     windowSeconds: MINUTE,
     maxAttempts: 20,
