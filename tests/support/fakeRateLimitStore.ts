@@ -23,8 +23,10 @@ const keyFor = (action: RateLimitedAction, subject: string): string =>
 
 const actionOf = (key: string): string => key.split(":")[1] ?? "";
 
-// Replaces redis.ts's export of the same name and shape.
-export const incrementWindow = async (
+// Replaces redis.ts's export of the same name. Checked against the real
+// signature, so a change there fails the type check here instead of leaving
+// every test green over a fake that no longer matches.
+export const incrementWindow = (async (
   key: string,
   _windowSeconds: number,
 ): Promise<number | null> => {
@@ -35,7 +37,7 @@ export const incrementWindow = async (
   const next = (counts.get(key) ?? 0) + 1;
   counts.set(key, next);
   return next;
-};
+}) satisfies typeof import("@/lib/rateLimit/redis")["incrementWindow"];
 
 /** Every bucket empty, every action under its limit, the store reachable. */
 export const resetStore = (): void => {
