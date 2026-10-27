@@ -29,17 +29,18 @@ jest.mock("next/headers", () => ({
   headers: async () => new Map([["x-forwarded-for", "1.2.3.4"]]),
 }));
 
-const mockCheckRateLimit = jest.fn(
-  async (_action: string, _subject: string | null): Promise<string> =>
-    "allowed",
+// The real limiter, over an in-memory Redis: see fakeRateLimitStore.
+jest.mock("@/lib/rateLimit/redis", () =>
+  jest.requireActual("@test/support/fakeRateLimitStore"),
 );
-jest.mock("@/lib/rateLimit", () => ({
-  checkRateLimit: (action: string, subject: string | null) =>
-    mockCheckRateLimit(action, subject),
-}));
 
 jest.mock("@/lib/log", () => ({ log: { warn: jest.fn(), error: jest.fn() } }));
 
+import {
+  exhaust,
+  resetStore,
+  takeStoreDown,
+} from "@test/support/fakeRateLimitStore";
 import { requestPasswordReset } from "@/app/(app)/forgot-password/actions";
 
 async function landsOn(action: Promise<unknown>): Promise<string> {
@@ -63,8 +64,7 @@ describe("requestPasswordReset", () => {
   beforeEach(() => {
     mockResetPasswordForEmail.mockReset();
     mockResetPasswordForEmail.mockResolvedValue({ error: null });
-    mockCheckRateLimit.mockReset();
-    mockCheckRateLimit.mockResolvedValue("allowed");
+    resetStore();
   });
 
   it("sends a link that opens the reset page", async () => {
@@ -97,9 +97,7 @@ describe("requestPasswordReset", () => {
   });
 
   it("bounds how many reset emails one inbox can be sent", async () => {
-    mockCheckRateLimit.mockImplementation(async (action) =>
-      action === "password-reset-address" ? "limited" : "allowed",
-    );
+    exhaust("password-reset-address");
 
     await expect(request("someone@example.com")).resolves.toBe(
       "/forgot-password?error=too-many-attempts",
@@ -110,7 +108,7 @@ describe("requestPasswordReset", () => {
   // Every request sends an email, so a limiter outage pauses resets rather
   // than letting them through unbounded.
   it("sends nothing while the limiter is unavailable", async () => {
-    mockCheckRateLimit.mockResolvedValue("unavailable");
+    takeStoreDown();
 
     await expect(request("someone@example.com")).resolves.toBe(
       "/forgot-password?error=reset-unavailable",

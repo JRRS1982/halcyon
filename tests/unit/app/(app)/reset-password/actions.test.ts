@@ -39,17 +39,14 @@ jest.mock("next/headers", () => ({
   cookies: async () => ({ set: mockCookieSet }),
 }));
 
-const mockCheckRateLimit = jest.fn(
-  async (_action: string, _subject: string | null): Promise<string> =>
-    "allowed",
+// The real limiter, over an in-memory Redis: see fakeRateLimitStore.
+jest.mock("@/lib/rateLimit/redis", () =>
+  jest.requireActual("@test/support/fakeRateLimitStore"),
 );
-jest.mock("@/lib/rateLimit", () => ({
-  checkRateLimit: (action: string, subject: string | null) =>
-    mockCheckRateLimit(action, subject),
-}));
 
 jest.mock("@/lib/log", () => ({ log: { warn: jest.fn(), error: jest.fn() } }));
 
+import { exhaust, resetStore } from "@test/support/fakeRateLimitStore";
 import { resetPassword } from "@/app/(app)/reset-password/actions";
 import { POST_AUTH_LANDING } from "@/lib/auth/landing";
 import { ACTIVITY_COOKIE } from "@/lib/auth/sessionTimeout";
@@ -107,8 +104,7 @@ describe("resetPassword", () => {
     mockUpdateUser.mockResolvedValue({ error: null });
     mockSignOut.mockClear();
     mockCookieSet.mockClear();
-    mockCheckRateLimit.mockReset();
-    mockCheckRateLimit.mockResolvedValue("allowed");
+    resetStore();
     global.fetch = hibpAnswers("");
   });
 
@@ -157,7 +153,7 @@ describe("resetPassword", () => {
     });
 
     it("refuses once the per-IP limit is spent", async () => {
-      mockCheckRateLimit.mockResolvedValue("limited");
+      exhaust("reset-password");
 
       await expect(submit()).resolves.toBe(
         `/reset-password?token_hash=${TOKEN}&error=too-many-attempts`,
