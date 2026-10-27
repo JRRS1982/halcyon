@@ -1,17 +1,19 @@
 # Stakeholder Mapping
 
-**What:** Power/interest grid for this project — currently a solo personal project, so stakeholder map is intentionally minimal.  
+**What:** Power/interest grid for this project. It is a solo personal project, so the map is deliberately minimal.  
 **Key points:**
-- Primary stakeholder is the owner/developer; all others are low-influence at this stage
-- If the app gains users, revisit and promote them to high-interest/low-influence
+- The owner/developer is the primary stakeholder; everyone else is low-influence for now
+- If the app gains users, revisit the map and promote them to high-interest
 
-- High influence / high interest → keep closely involved.
-- High influence / low interest → keep satisfied but not overloaded.
-- Low influence / high interest → keep informed.
-- Low influence / low interest → minimal effort.
+## Grid
 
-## Stakeholder List
+- High influence, high interest: keep closely involved.
+- High influence, low interest: keep satisfied, not overloaded.
+- Low influence, high interest: keep informed.
+- Low influence, low interest: minimal effort.
 
-- Me! (High influence / high interest)
-- My family (High influence / low interest)
-- My friends (Low influence / low interest)
+## Stakeholders
+
+- Me: high influence, high interest.
+- My family: high influence, low interest.
+- My friends: low influence, low interest.

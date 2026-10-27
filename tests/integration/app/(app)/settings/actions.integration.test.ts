@@ -71,7 +71,7 @@ describe("settings actions (integration)", () => {
     });
   });
 
-  test("turns the budget's transfers section off", async () => {
+  test("turns off marking transactions as transfers", async () => {
     await toggleTransfers(false);
 
     expect((await settings()).transfersEnabled).toBe(false);

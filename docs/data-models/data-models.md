@@ -26,37 +26,47 @@ not by our migrations). The end-to-end sequences are in
   latter; that is not a precedent for copying them.
 
 Consequently there is no `VerificationToken` or `PasswordResetToken` table, and
-no password or lockout columns on `User` — Supabase owns all of it. Note that
-the `Account` model *is* in the schema but is unrelated to auth: it is a user's
-**bank account**.
+no password or lockout columns on `User` — Supabase owns all of it. The
+`Account` model is unrelated to auth: it is something the user owns or owes
+(see below).
 
 ## The tables
 
 Every table below is owned by exactly one user, directly via `userId` or through
 a parent. Most carry `deletedAt` for soft deletion.
 
-### Budget and balance
+### Periods, budget and balance
 
 | Table | What it's for |
 |---|---|
 | `User` | profile row; the owner every other table hangs off |
-| `UserSettings` | per-user preferences and feature flags, created lazily on first read |
-| `FinancialPeriod` | one month (or week/quarter/year), the shared spine for `/budget` and `/balance` — both hang off the same period row. Unique per `(userId, granularity, startDate)` |
-| `BudgetItem` | a budget row in a period: income, expense, transfer, or repayment — budgeted vs actual |
-| `BalanceItem` | a balance-sheet row in a period: asset or liability |
+| `UserSettings` | per-user preferences and feature flags, created on first read |
+| `FinancialPeriod` | one month — the shared spine for `/budget` and `/balance`. Unique per `(userId, granularity, startDate)`. The enum also allows `WEEK` and `QUARTER`, but every writer creates `MONTH` |
+| `BudgetItem` | a budget row in a period, one of four kinds. `INCOME` and `EXPENSE` link a `Category` and carry its `section`; `TRANSFER` (into an asset account, with a direction) and `REPAYMENT` (at a liability) link an `Account` instead. Budgeted vs actual |
+| `BalanceItem` | one month's value for one `Account`: value, notes, and a `carriedOver` flag for values copied from last month. The partial unique index `BalanceItem_period_account_live` allows one live row per account per month |
+
+`BudgetItem.categoryId` is nullable: transfer and repayment rows key on an
+account instead, and older free-typed rows have neither. `label` is the
+fallback either way.
+
+### Accounts and categories
+
+| Table | What it's for |
+|---|---|
+| `Account` | the registry of everything a user owns or owes — current accounts, savings, ISAs, pensions, property, mortgages, loans. `type` is the one stored fact; asset-or-liability (`kind`) and tax wrapper (`wrapper`) are derived from it in code (`kindOf`/`wrapperOf`), never stored. `section` is the user-editable balance-sheet group. `linkedAccountId` pairs a mortgage with its property. See [features/accounts.md](../features/accounts.md) |
+| `AccountTerms` | 1:1 with `Account` (its `accountId` is the primary key): the projection parameters the account feeds into the Plan — expected return, fees, interest rate, a mortgage's revision terms, a final-salary entitlement. Blank means "take the default", never "unknown" |
+| `Category` | the stable list of income and spending categories that budget rows and transactions are filed under, each with a `section`. See [features/onboarding.md](../features/onboarding.md) for what a new account starts with |
+
+New `Account` and `Category` rows are created only through
+`src/lib/accounts/createWithinCap.ts` and `src/lib/categories/createWithinCap.ts`,
+which enforce the per-user caps.
 
 ### Transactions
 
 | Table | What it's for |
 |---|---|
-| `Category` | the stable taxonomy a transaction is filed under, and what a `BudgetItem` links to. See [features/onboarding.md](../features/onboarding.md) for what a new account starts with |
-| `Account` | the durable registry for every account a user owns or owes — `type` (e.g. `CURRENT_ACCOUNT`, `SAVINGS`, `MORTGAGE`) determines the account; `kind` (asset/liability) and `wrapper` (ISA, pension, GIA, etc.) are derived from type at runtime and never stored. Also the counterparty for budget transfers and repayments. See [features/accounts.md](../features/accounts.md) |
-| `AccountTerms` | 1:1 with `Account` (its `accountId` is the primary key) — the projection parameters that account feeds into the Plan: expected return, fees, interest rate, a mortgage's revision terms, a final-salary entitlement. Blank means "take the default," never "unknown" — true of the eight nullable columns, and of the ninth (`interestOnly`, non-null with a `false` default) for the same reason a flag has no "unknown" |
-| `ImportBatch` | one CSV import, so it can be reversed as a unit |
-| `Transaction` | an imported or manual line: date, signed amount, description, optional category and counterparty account |
-
-`BudgetItem.categoryId` is nullable on purpose: a free-typed budget row has no
-category, and `label` stays the fallback either way.
+| `ImportBatch` | one CSV import into one account, so it can be reversed as a unit |
+| `Transaction` | an imported or manual line: date, signed amount, description, optional category, and an optional counterparty account when it is a transfer |
 
 ### Plan
 
@@ -65,10 +75,10 @@ is per plan and cascades from it.
 
 | Table | What it's for |
 |---|---|
-| `Plan` | the user's projection: date of birth, retirement age, assumptions |
-| `PlanAsset` | a pot or property, with a tax wrapper that drives withdrawal tax |
-| `PlanLiability` | a debt; optionally linked to the `PlanAsset` it is secured on (a mortgage) |
-| `PlanIncome`, `PlanExpense` | recurring flows. An expense may be the repayment leg of a liability |
+| `Plan` | the user's projection: date of birth, retirement age, assumptions, tax regime |
+| `PlanAsset` | a pot or property, with a tax wrapper that drives withdrawal tax. Mirrors an `Account` (`accountId`) |
+| `PlanLiability` | a debt, mirroring an `Account`; optionally linked to the `PlanAsset` it is secured on (a mortgage) |
+| `PlanIncome`, `PlanExpense` | recurring flows, mirroring a budget `Category` (`categoryId`). An expense may be the repayment leg of a liability |
 | `PlanEvent` | a one-off at an age — a lump sum, or the sale of a linked property |
 
 Those three optional links (mortgage → property, repayment → liability, sale →
@@ -76,9 +86,18 @@ property) are what make a mortgage behave as one thing across three tables. They
 are `SetNull` on delete, so removing a property leaves its debt rather than
 silently deleting it.
 
-A new plan is seeded from the user's most recent period — see
-`src/lib/plan/sync.ts` (`createPlan`), and the warning about the starter month in
+The `accountId`/`categoryId` links are how Sync refreshes a plan from the
+budget and balance sheet; each is unique per plan and `SetNull` on delete. A new
+plan is seeded the same way, from the user's most recent month — see
+`createPlan` in `src/app/(app)/plan/actions.ts`, [features/plan-sync.md](../features/plan-sync.md),
+and the warning about the starter month in
 [features/onboarding.md](../features/onboarding.md).
+
+### Messaging
+
+| Table | What it's for |
+|---|---|
+| `SentMessage` | one row per message sent to a user — today only the monthly reminder email — with its result. Included in the data export. See [features/reminders.md](../features/reminders.md) |
 
 ## Ownership and access
 
@@ -92,9 +111,13 @@ erDiagram
     USER ||--o{ IMPORT_BATCH : owns
     USER ||--o{ TRANSACTION : owns
     USER ||--o{ PLAN : owns
+    USER ||--o{ SENT_MESSAGE : "was sent"
     FINANCIAL_PERIOD ||--o{ BUDGET_ITEM : "budget rows"
     FINANCIAL_PERIOD ||--o{ BALANCE_ITEM : "balance rows"
-    CATEGORY ||--o{ BUDGET_ITEM : "linked (nullable)"
+    CATEGORY ||--o{ BUDGET_ITEM : "income/expense rows"
+    ACCOUNT ||--o{ BUDGET_ITEM : "transfer/repayment rows"
+    ACCOUNT ||--o{ BALANCE_ITEM : "monthly value"
+    ACCOUNT ||--o| ACCOUNT : "mortgage on property"
     CATEGORY ||--o{ TRANSACTION : "categorises"
     ACCOUNT ||--o{ TRANSACTION : "holds"
     ACCOUNT ||--o{ TRANSACTION : "transfer counterparty"
@@ -106,6 +129,10 @@ erDiagram
     PLAN ||--o{ PLAN_INCOME : has
     PLAN ||--o{ PLAN_EXPENSE : has
     PLAN ||--o{ PLAN_EVENT : has
+    ACCOUNT ||--o{ PLAN_ASSET : "mirrored as"
+    ACCOUNT ||--o{ PLAN_LIABILITY : "mirrored as"
+    CATEGORY ||--o{ PLAN_INCOME : "mirrored as"
+    CATEGORY ||--o{ PLAN_EXPENSE : "mirrored as"
     PLAN_ASSET ||--o| PLAN_LIABILITY : "mortgage on"
     PLAN_LIABILITY ||--o| PLAN_EXPENSE : "repaid by"
     PLAN_ASSET ||--o{ PLAN_EVENT : "sold by"
@@ -118,7 +145,7 @@ defence-in-depth, limiting rows to `userId = auth.uid()` (period- and
 plan-scoped tables resolve ownership through their parent) — they become the
 real fence only if a future feature queries Supabase from the client. When you
 add a user-owned model, write both. See
-[features/row-level-security.md](../features/row-level-security.md) and
+[engineering/row-level-security.md](../engineering/row-level-security.md) and
 [ADR-002](../adrs/adr-002-security-architecture.md).
 
 > **Why the schema looks like this.** An earlier draft had a hierarchical

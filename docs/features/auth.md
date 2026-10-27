@@ -1,11 +1,11 @@
 # Authentication Flow
 
-**What:** Supabase Auth (email/password + Google OAuth) integrated into Next.js via `@supabase/ssr`; cookies managed server-side in middleware.  
+**What:** Supabase Auth (email/password + Google OAuth) integrated into Next.js via `@supabase/ssr`; cookies managed server-side in the proxy (`src/proxy.ts`).  
 **Key points:**
 - Session lives in `sb-*-auth-token` cookies set by Supabase; `src/proxy.ts` refreshes them on every request
 - Route protection: `src/lib/supabase/middleware.ts` checks session and redirects unauthenticated requests to `/sign-in`
 - Server actions re-call `requireUserId()` — middleware is not the only fence
-- Google OAuth is live; GitHub is configured in code but disabled in the Supabase dashboard
+- Google is the only OAuth provider; the app has no GitHub sign-in
 
 This document explains *what kind* of authentication Halcyon uses, where each piece of state lives, and what happens on the wire during sign-up, sign-in, and sign-out.
 
@@ -29,7 +29,7 @@ The pattern is the **"identity-in-`auth`, profile-in-`public`"** pattern — the
 | Session management | Supabase issues a signed JWT after sign-in. `@supabase/ssr` stores it in `sb-*-auth-token` cookies. The library's default is `httpOnly: false` (so a browser-side client can read the session); this app has **no** browser-side Supabase client, so both server constructors pass [`sessionCookieOptions`](../../src/lib/supabase/cookieOptions.ts) — `HttpOnly`, `SameSite=Lax`, `Secure` in production — and client-side JavaScript cannot read the tokens (mitigates XSS-based session theft). Pinned by a unit test in `middleware.test.ts`. |
 | Email verification, password reset, OAuth callbacks | Supabase issues and checks every token. The app implements `/auth/callback` (exchanges a one-time code for a session) and `/reset-password` (verifies a recovery token on submit) — see [Password reset](#password-reset). |
 | Brute force / credential stuffing | Two layers. Supabase rate-limits its own auth endpoints (tunable in the dashboard), and because every call reaches it from Vercel's shared egress IPs, the app forwards the real client IP so those limits bind per attacker. On top, an app-side limiter ([`src/lib/rateLimit/`](../../src/lib/rateLimit/), Upstash Redis) keys sign-in on both the client IP (10/min) and the submitted email (20/hour), and sign-up on the IP (10/min) and the address (3 confirmation emails/hour). Sign-in fails open when the store is down; sign-up fails **closed**, because every call sends an email. No lockout counters in the app. |
-| Authorisation | Two layers: app-level `userId` filtering on every Prisma query (primary boundary, because server-side Prisma bypasses RLS), **plus** Postgres Row Level Security with `auth.uid() = id` policies (defence-in-depth; the real fence if/when a feature ever queries Supabase directly from the browser). |
+| Authorisation | Two layers: app-level `userId` filtering on every Prisma query (primary boundary, because server-side Prisma bypasses RLS), **plus** Postgres Row Level Security with `auth.uid() = id` policies (the only fence on the Supabase Data API, where writes are also revoked; see [Row Level Security](../engineering/row-level-security.md)). |
 | Loss of secrets | The DB password and `SUPABASE_SECRET_KEY` are the only secrets that bypass RLS. They live in Vercel project env vars in production and the gitignored `.env` in dev — never in source. |
 
 ## Components involved
@@ -37,7 +37,7 @@ The pattern is the **"identity-in-`auth`, profile-in-`public`"** pattern — the
 | Component | Lives in | Role |
 |---|---|---|
 | **Browser** | User's machine | Submits forms; holds the session cookie. |
-| **Next.js middleware** (`src/proxy.ts`) | Vercel edge / local Node | Runs on every request. Calls `supabase.auth.getUser()` to refresh the session cookie. |
+| **Next.js proxy** (`src/proxy.ts`) | Vercel edge / local Node | Runs on every request. Calls `supabase.auth.getUser()` to refresh the session cookie. |
 | **Server components / route handlers** (`src/app/**`) | Vercel functions / local Node | Render pages and handle form POSTs. Use the server-side Supabase client (`src/lib/supabase/server.ts`). |
 | **Supabase Auth** | `<project>.supabase.co` | Hashes passwords, issues JWTs, sends emails, validates OAuth, owns `auth.users`. |
 | **Postgres** | Inside Supabase, same project | Stores `auth.users` (Supabase-managed) and `public."User"` (ours). Hosts the `on_auth_user_created` trigger that bridges the two. |
@@ -166,12 +166,11 @@ Two windows, both defined in [`src/lib/auth/sessionTimeout.ts`](../../src/lib/au
 
 **The server is the fence.** `updateSession` reads a `bm_activity` cookie — `"<startedAt>.<lastSeenAt>"`, httpOnly, `SameSite=Lax` — and calls `evaluateSession` on every authenticated request. Expired means `supabase.auth.signOut()` (so the refresh token is revoked, not merely forgotten), every `sb-*` cookie cleared on the redirect, and `307 → /sign-in?timeout=idle|absolute|unreadable`. Active means the cookie is rewritten with a fresh `lastSeenAt`. This is what catches the closed-browser case.
 
-Two decisions worth knowing before changing any of it:
+Three decisions worth knowing before changing any of it:
 
 - **No readable cookie means expired, not new.** `evaluateSession(null)` returns `expired` with reason `unreadable`, and so does an unparseable value. Until October 2026 it returned `active`, which made the cookie trivially defeatable: an attacker replaying stolen `sb-*` cookies simply omitted `bm_activity` on every request and neither limit ever fired. It is the only lifetime bound the app has — Supabase's own session time-box is Pro-only and refresh tokens carry no absolute expiry.
 - **Seeding is the job of the paths that mint sessions, not the proxy.** `startActivityClock` (`src/lib/auth/activityClock.ts`) is called by the password sign-in action and by `/auth/callback`, which covers OAuth, email confirmation and magic links. The proxy only ever reads. That split is load-bearing in both directions: if the proxy seeded, the guard above would be pointless; if a session source forgets to seed, its users are signed straight back out.
 - **The cookie's `maxAge` is the absolute window, not the idle one.** If the browser dropped it at the idle limit, a visit just past that limit would arrive with no cookie — which now ends the session rather than resurrecting it, but would end it for an innocent reason. Expiry is decided by `evaluateSession`, never by cookie eviction.
-- **A missing or unreadable cookie counts as active, not expired.** Treating it as expired would loop forever for any client that cannot store the cookie. The cookie is unsigned for the same reason the trade-off is acceptable: forging it only extends the forger's own session, and they already hold the refresh token that grants it.
 
 **The client is the courtesy.** [`useIdleTimer`](../../src/lib/hooks/useIdleTimer.ts) ticks once a second, re-deriving state from wall-clock timestamps rather than counting elapsed ticks — so a laptop that slept through the window wakes up knowing the session already lapsed. [`IdleTimeout`](../../src/components/auth/IdleTimeout/) renders the 60-second warning as a native `<dialog>` opened with `showModal()`; "Stay signed in" calls `router.refresh()`, whose request passes through the proxy and resets the server's clock as a side effect, so no dedicated action is needed. Tabs share one activity clock over a `BroadcastChannel`, so working in one tab does not let another time out underneath you. Once the warning is up, ordinary activity no longer extends the session — only the explicit button does, because only that path also moves the server's clock.
 

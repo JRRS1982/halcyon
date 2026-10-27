@@ -154,16 +154,7 @@ Transfers, Repayments. The two account groups are one list partitioned on
 `Account.kind` — `LIABILITY` accounts are Repayments, **everything else** is a
 Transfer.
 
-> **Correction to the record.** The unified-accounts design spec says this
-> picker "filters on `kind != NONE`". It never did, and it must not — `NONE`
-> was later removed from `AccountKind` entirely, so the sentence no longer
-> even parses against the schema. Nothing filtered on kind at all before this
-> branch — `LedgerAccount` did not even carry `kind` — and every account
-> (including a plain current account) is a perfectly ordinary transfer
-> target. Implementing that sentence literally would have made every newly
-> created account vanish from both groups. The spec is a gitignored
-> historical record and is not being edited; this paragraph is where the
-> correction lives.
+The picker does not filter on `Account.kind` beyond that partition. The unified-accounts design spec says it "filters on `kind != NONE`"; that was never true, and `NONE` no longer exists in `AccountKind`. Every account, including a plain current account, is a valid transfer target.
 
 Note the asymmetry, and that it is deliberate: the **ledger** picker offers
 every account, because any account can be one end of a movement. The **budget**
@@ -225,24 +216,7 @@ now reads a `flow` alongside each account row's value:
 | `TRANSFER OUTFLOW` on an asset | — reads as `0` | |
 | `REPAYMENT` on a liability | `PlanLiability.monthlyRepayment` | **monthly** (`budget`, as stored) |
 
-**The units are symmetric now, and weren't when this feature shipped.** Both
-columns are monthly, matching the budget rows that feed them, so the value
-passes through unrounded with no arithmetic at the write. That wasn't true at
-first: the plan's asset drawer asked for an *annual* contribution
-(`PlanAsset.annualContribution`), which needed the reality side to annualise
-the monthly budget figure and round it to 2dp before comparing — `£833.33 ×
-12` is `9999.960000000001` in IEEE-754 but `9999.96` in a `numeric(12,2)`
-column, and compared unrounded that row would report as an update on every
-Sync forever. A later phase renamed the column to `monthlyContribution` and
-made the drawer's editable field monthly too, for a different reason than
-symmetry: an editable annual field divides by 12 on the way in, so a user
-typing £10,000 would watch it become £9,999.96 the moment it round-tripped.
-The rounding described above went with it — there's no cross-unit multiply
-left to round. See
-[`plan-sync.md`](plan-sync.md#contributions-are-stored-monthly). The
-liability side needed no such change — `monthlyRepayment` was already
-monthly — and `liabilityStep` still does its own `× 12` for interest math
-inside the projection; only the write-time unit changed.
+Both columns are monthly, matching the budget rows that feed them, so the value passes through unchanged: no multiplication, no rounding. The plan's asset drawer edits `monthlyContribution` directly, because an editable annual field would divide by 12 on the way in and a typed £10,000 would round-trip as £9,999.96. See [`plan-sync.md`](plan-sync.md#contributions-are-stored-monthly). `liabilityStep` does its own `× 12` for interest inside the projection.
 
 Three things worth stating plainly:
 
@@ -277,18 +251,11 @@ category can never take the new branch, because its flow is `null`.
 
 ## ⚠️ Sync now replaces contributions and repayments
 
-`PlanAsset.monthlyContribution` (`annualContribution` at the time this
-feature shipped — see "Reaching the plan," above) and
-`PlanLiability.monthlyRepayment` have moved from Sync's **Kept** list to its
-**Replaced** list. This is a deliberate change to the rule in
-[`plan-sync.md`](plan-sync.md), and it has a user-visible consequence:
+`PlanAsset.monthlyContribution` and `PlanLiability.monthlyRepayment` are on Sync's **Replaced** list, not its **Kept** list. This changed the rule in [`plan-sync.md`](plan-sync.md) and has a user-visible consequence:
 
-> **An existing user's hand-typed mortgage repayment, with no matching
-> `REPAYMENT` budget row, resets to 0 on their next Sync.**
+> **An existing user's hand-typed mortgage repayment, with no matching `REPAYMENT` budget row, resets to 0 on their next Sync.**
 
-It is visible — the row carries a `●` changed marker beforehand and is counted
-in the Sync button's change count — but nothing on screen explains *why*, so
-it is written down here.
+The row carries a `●` changed marker beforehand and is counted in the Sync button's change count, but nothing on screen explains *why*, so it is written down here.
 
 The alternative was "null means leave it alone", and it was rejected: it can
 never **clear** a contribution when its budget row is deleted. A stale figure
@@ -324,40 +291,13 @@ whole mitigation.
 
 ## Limitations
 
-Three, stated here rather than left to be discovered.
+**There are no budget templates, so no template can carry a transfer or repayment.** The only copy path is month to month (`copyPeriodFrom`), which carries anchors correctly: it re-fences ownership and kind, and skips only rows whose account has since been archived, deleted or re-kinded. The sheet reports the skipped count with `skippedRowsNotice`.
 
-**Budget templates do not carry transfers or repayments.**
-`BudgetTemplateItem` has no `accountId` or `direction` columns, so the anchor
-cannot survive the round trip. `saveBudgetTemplate` writes such a row with the
-anchor nulled and says nothing at save time; `copyBudgetTemplateInto` then
-drops it (`withValidAnchorsOnly`, which refuses to create a row the create
-action itself would reject) and returns a `skipped` count, which the sheet
-*does* surface as a notice. So the rows are not silently lost. The notice reads
-"because their accounts could not be carried over", which is true of both paths
-that reach it; it used to say "no longer available", which was a false
-statement here — it blamed an account that is perfectly fine when the real
-cause is the template's schema. Persisting the anchor needs a migration plus a
-product decision about what a "template transfer"
-means when the account may not exist in the target month; `BalanceTemplateItem`
-already carries an `accountId`, so there is in-repo precedent whenever that is
-built. Copying from another *month* carries anchors correctly — that path
-re-fences ownership and kind and skips only rows whose account has since been
-archived, deleted or re-kinded.
+**`favourableVariance` implements the variance rule, and the sheet has no variance column.** The sheet shows Budget, Actual and "Left over", so the function is tested and unconsumed. It is kept because the asymmetry it encodes is subtle: positive means "went the way you wanted", uniform on *direction* and never on whether the target is an asset or a liability. Money *into* an account improves net worth whether it is a pension or a mortgage, and money *out* worsens it either way.
 
-**`favourableVariance` implements the variance rule, and the sheet has no
-variance column.** The sheet shows Budget, Actual and "Left over" — there is
-no variance display for the rule to drive, so the function is tested and
-unconsumed. It is kept rather than deleted because the asymmetry it encodes is
-subtle: positive means "went the way you wanted", which is uniform on
-*direction* and never on whether the target is an asset or a liability. Money
-*into* an account improves net worth whether it is a pension or a mortgage,
-and money *out* worsens it either way — there is no `Account.kind` to branch
-on. A documented unconsumed rule is honest; an undocumented one is rot.
+**One anchored budget row per account per period.** See above. Fenced in the picker and in `createItemForMonth`, not in the database.
 
-**One anchored budget row per account per period** — see above. Fenced in the
-picker and in `createItemForMonth`, not in the database.
-
-## Out of scope, named so nobody builds them by accident
+## Not yet built
 
 - **Borrowing more** — an increase in debt with cash in. Needs its own kind or
   a direction on `REPAYMENT`, and plan-side modelling of new borrowing.
@@ -371,34 +311,10 @@ picker and in `createItemForMonth`, not in the database.
   repayment appears in the cash-flow chart's expense total and not in the
   category breakdown. The two charts answer different questions and neither is
   wrong, but they no longer add up to the same number.
-- **Refusing an account-keyed plan row with no `BalanceItem` behind it.**
-  `latestAccountRows` drops an account with no observation before it reads the
-  budgeted flow ([`reality.ts`](../../src/lib/plan/reality.ts)), so budgeting a
-  contribution to an account you have never put on the balance sheet reaches
-  nothing. Distinct from "a budgeted flow rescues a zero-valued row" above,
-  which is about an account observed *at £0*: that one has a `BalanceItem` and
-  does reach the resolver. It is the pre-existing "no observation, no plan row"
-  rule rather than anything this branch introduced, and changing it is a
-  product decision about what an unobserved account is worth. Deferred to P4.
 - **Retiring `PlanLiability.linkedAssetId`** in favour of
   `Account.linkedAccountId`.
-- ~~**Renaming `monthlyRepayment`** for symmetry with `annualContribution` —
-  the units are deliberate, see above.~~ **Overtaken.** `annualContribution`
-  was itself renamed to `monthlyContribution` in a later phase — not for
-  symmetry, but because an editable annual field divides by 12 on the way in
-  and a typed £10,000 would drift to £9,999.96 (see
-  [`plan-sync.md`](plan-sync.md#contributions-are-stored-monthly)). The two
-  columns are both monthly now, so the asymmetry this bullet was rejecting no
-  longer exists; nothing here needed renaming after all.
-- **Splitting `BudgetSheet.tsx`** (now ~1,860 lines). Real, and not this
-  branch's job.
-- **Holdings within a wrapper** — designed for, not built; see
-  [`accounts.md`](accounts.md).
-- ~~**Giving the onboarding-seeded accounts real kinds.**~~ Done by the
-  balance-accounts contract migration: every account now carries a `type` (and
-  so a `kind`) from the moment it's created, including the six onboarding
-  seeds — an empty Transfer picker is essentially never a `NO_ACCOUNTS` case
-  any more (see "Adding a row" above).
+- **Splitting `BudgetSheet.tsx`** (about 2,200 lines).
+- **Holdings within an account**: see [`accounts.md`](accounts.md#not-yet-built).
 
 ## Code map
 
@@ -412,7 +328,7 @@ picker and in `createItemForMonth`, not in the database.
 | Net transfer flow per account, one source per counterparty pair | [`src/lib/transactions/transfers.ts`](../../src/lib/transactions/transfers.ts) |
 | `isAccountKeyed`, `netActual`, `accountActual` | [`src/lib/transactions/actual.ts`](../../src/lib/transactions/actual.ts) |
 | `transferLegs`, `getTransferFlowByAccount`, `getTransferFlowByMonthAndAccount`, `getLedgerAccounts` | [`src/lib/transactions/server.ts`](../../src/lib/transactions/server.ts) |
-| Create/copy fences, `withValidAnchorsOnly`, template paths | [`src/app/(app)/budget/actions.ts`](<../../src/app/(app)/budget/actions.ts>) |
+| Create/copy fences, `withValidAnchorsOnly`, `copyPeriodFrom` | [`src/app/(app)/budget/actions.ts`](<../../src/app/(app)/budget/actions.ts>) |
 | Actual overlay routing, `serializedItems` carrying the anchor | [`src/app/(app)/budget/page.tsx`](<../../src/app/(app)/budget/page.tsx>) |
 | Add drawers, three sections, the Repayments bucket | [`src/app/(app)/budget/BudgetSheet.tsx`](<../../src/app/(app)/budget/BudgetSheet.tsx>) |
 | The picker's four groups | [`src/app/(app)/transactions/CategoryCombobox.tsx`](<../../src/app/(app)/transactions/CategoryCombobox.tsx>) |
@@ -424,42 +340,8 @@ picker and in `createItemForMonth`, not in the database.
 
 ### Testing
 
-- **Unit** — `budget/schemas.test.ts` (all four kinds' anchor and direction
-  invariants, each asserting the specific refinement message),
-  `budget/anchors.test.ts` (required kind per type, and the unanchored branch
-  zod makes unreachable through the action), `budget/sections.test.ts`
-  (`sectionOf`, `transferRowLabel`, `anchorTargetLabel`,
-  `eligibleAnchorAccounts`, `anchorPickerEmptyReason`, `skippedRowsNotice`),
-  `budget/totals.test.ts` (`sumAmounts` across kinds, `surplus` in both
-  directions, `favourableVariance`'s `INFLOW`/`OUTFLOW` asymmetry),
-  `transfers.transferSource.test.ts` (the per-pair source rule, including
-  the self-transfer edge and all three double-count scenarios),
-  `transactions/actual.test.ts` (`accountActual`'s sign, `netActual`'s
-  exclusion), `transactions/CategoryCombobox.test.tsx` (the four groups and
-  the keyboard index across them), `transfers.transferSource.test.ts` again
-  for `netTransfersByMonthAndAccount` (each month nets on its own; the per-pair
-  rule holds inside a bucket), `dashboard/series.test.ts` (`monthFlow` counts a
-  repayment and excludes a transfer, and converting a mortgage between the two
-  leaves the savings rate where it was).
-- **Integration** (`*.integration.test.ts`, real Postgres) —
-  `schema.budgetTransfers.integration.test.ts`, `actions.transfers.integration.test.ts`
-  (cross-tenant, both kind mismatches, the one-row-per-account fence, the
-  happy path), `actions.copyAnchors.integration.test.ts` (anchors carried and re-fenced
-  across copy-forward; template rows dropped),
-  `actions.copyComputedActuals.integration.test.ts` (a copied anchored row adopts the
-  target month's flow rather than returning 0),
-  `page.cashFlow.integration.test.ts` (a repayment is charted as expenditure in
-  both modes — the transactions-mode case needs the account-keyed source, not
-  just `monthFlow`),
-  `server.transferSource.integration.test.ts`, `plan/reality.integration.test.ts` (the
-  flow read, both units, the `OUTFLOW` zero), `syncActions.integration.test.ts`
-  (the flow reaching both plan columns, and the widened zero-value guard).
-- **E2E** — [`tests/e2e/budget-transfers.spec.ts`](../../tests/e2e/budget-transfers.spec.ts):
-  budget a transfer to an ISA, see it in Transfers and out of Expenses with
-  the surplus falling by it, then tag a real movement and watch it fill that
-  row's actual; and budget a repayment at a mortgage, see it counted in
-  Expenses, then Sync and find it on the plan's liability. Both are
-  server-action journeys, so both are chromium-gated per the repo's
-  browser-coverage rule. Section placement is asserted through the section
-  totals rather than through DOM order, so no structural claim is gated to one
-  engine.
+Paths are under `tests/`.
+
+- **Unit**: `unit/lib/budget/` (`schemas.test.ts` for the anchor and direction invariants, `anchors.test.ts`, `sections.test.ts` for `sectionOf`, labels, `eligibleAnchorAccounts`, `anchorPickerEmptyReason` and `skippedRowsNotice`, `totals.test.ts` for `surplus` and `favourableVariance`), `unit/lib/transactions/` (`transfers.transferSource.test.ts` for the per-pair source rule and the month-bucketed variant, `actual.test.ts`), `unit/app/(app)/transactions/CategoryCombobox.test.tsx` (the four picker groups), and `unit/lib/dashboard/series.test.ts` (`monthFlow` counts a repayment and excludes a transfer).
+- **Integration** (real Postgres): `integration/schema.budgetTransfers.integration.test.ts`; under `integration/app/(app)/budget/`, `actions.transfers` (cross-tenant, kind mismatches, the one-row-per-account fence), `actions.copyAnchors` (anchors carried and re-fenced across a copy) and `actions.copyComputedActuals` (a copied anchored row adopts the target month's flow); `integration/app/(app)/dashboard/page.cashFlow.integration.test.ts` (a repayment is charted as expenditure in both modes); `integration/lib/transactions/server.transferSource.integration.test.ts`; `integration/lib/plan/reality.integration.test.ts` (the flow read and the `OUTFLOW` zero); and `integration/app/(app)/plan/syncActions.integration.test.ts` (flow reaching both plan columns, the widened zero-value guard).
+- **E2E**: [`tests/e2e/budget-transfers.spec.ts`](../../tests/e2e/budget-transfers.spec.ts) budgets a transfer to an ISA and checks it sits in Transfers, outside Expenses, with the surplus falling by it. It then tags a real movement and watches the row's actual fill. It also budgets a repayment at a mortgage, checks it counts in Expenses, then Syncs and finds it on the plan's liability. Both are chromium-gated server-action journeys. Section placement is asserted through section totals, not DOM order, so no structural claim is engine-gated.

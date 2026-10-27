@@ -1,28 +1,34 @@
 # User Personas
 
-## Info
+**What:** Three example personas (a planner, a retiree, a young spender) to keep design decisions grounded in different users.  
+**Key points:**
+- Fields marked `*` are required in every persona; the rest add depth
 
-- [ ] *Name
-- [ ] *Age
-- [ ] *Occupation
-- [ ] *Frustrations
-- [ ] *Location
-- [ ] *Income
-- [ ] *Education
-- [ ] *Tech literacy
-- [ ] *Personality traits
-- [ ] *Favourite brands
-- [ ] *Tagline
-- [ ] Values
-- [ ] Photo
-- [ ] Bio
-- [ ] Core Needs
-- [ ] Beliefs
-- [ ] Goals
-- [ ] Motivations
-- [ ] Obstacles
-- [ ] Preferences
-- [ ] Priorities
+## Persona fields
+
+Fields marked `*` are required.
+
+- *Name
+- *Age
+- *Occupation
+- *Frustrations
+- *Location
+- *Income
+- *Education
+- *Tech literacy
+- *Personality traits
+- *Favourite brands
+- *Tagline
+- Values
+- Photo
+- Bio
+- Core Needs
+- Beliefs
+- Goals
+- Motivations
+- Obstacles
+- Preferences
+- Priorities
 
 ## Example One
 

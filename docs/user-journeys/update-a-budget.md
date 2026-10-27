@@ -1,9 +1,9 @@
 # User Journey: Update a Budget
 
 **Journey:** A user opens the budget sheet and enters their planned figures for the month.  
-**Outcome:** Budgeted amounts saved, Difference column updated, actuals visible alongside plan.
+**Outcome:** Budgeted amounts saved; Left over total updated; actuals shown beside the plan.
 
-The budget is an inline spreadsheet grid — there are no pop-up forms. Changes save automatically on blur or via a debounced update as you type. See [features/budget.md](../features/budget.md) for the data model.
+The budget is an inline spreadsheet grid with no pop-up forms. Edits save automatically (debounced 500 ms, committed on blur). A status pip in the toolbar shows `Saving…`, `Saved <time>` or `Failed — <reason>`. See [features/budget.md](../features/budget.md) for the data model.
 
 ## Flow
 
@@ -12,63 +12,70 @@ flowchart TD
     A[Navigate to /budget] --> B[Sheet loads for current month]
     B --> C{What does the user want?}
 
-    C -->|Edit a figure| D[Click a Budgeted cell]
+    C -->|Edit a figure| D[Click a Budget cell]
     D --> E[Type new value]
-    E --> F[Difference column updates instantly]
-    F --> G[Blur or press Enter — value saved]
+    E --> F[Section totals and Left over update as you type]
 
-    C -->|Add a row| H[Open 'Add a row' popover]
-    H --> I[Choose kind: Income / Expense / Transfer / Repayment]
-    I --> J[Pick category or account anchor]
-    J --> K[Row appears in sheet — edit Budgeted inline]
+    C -->|Add a row| H[Click + Add → Add a row popover]
+    H --> I[Choose Income / Expense / Transfers and saving]
+    I --> J[Choose section, or the account for transfers and debt payments]
+    J --> K[Row appears — edit Budget inline]
 
-    C -->|Delete a row| L[Click delete icon on row]
+    C -->|Delete a row| L[Click a cell in the row → × Delete row]
     L --> M[Row removed immediately — no confirmation dialog]
 
-    C -->|Copy last month| N[Click 'Fill from' toolbar button]
-    N --> O[Choose source period]
-    O --> P[Rows copied; archived/deleted accounts skipped]
+    C -->|Fill from another month| N[Click Fill from]
+    N --> O[Choose source month → Fill]
+    O --> P[Rows replaced by the source month's rows; skipped rows reported]
 
-    C -->|Change month| Q[Use period navigator in toolbar]
+    C -->|Change month| Q[◀ ▶ arrows, Today, or the month picker]
     Q --> B
 ```
 
-## Step-by-step
+## Steps
 
-### Editing a value
+### Layout
 
-1. User opens `/budget` — the current month's sheet loads (created automatically if it doesn't exist).
-2. Each row shows: **Label** | **Budgeted** | **Spent / Received** | **Difference**.
-3. User clicks a **Budgeted** cell. It becomes an editable input.
-4. Typing updates the **Difference** column optimistically; the value is debounced-saved per keystroke and committed on blur.
-5. Pressing **Enter** moves focus to the same field on the row below. On the last row of an income or expense section, Enter adds a new blank row.
+Columns are **Category**, **Budget**, **Actual** and **Notes**. Rows group into:
 
-### Adding a row
+- **Income**, in sections Salary, Side income, Investments, Pensions, Other.
+- **Expenses**, in sections Fixed, Variable, Discretionary, then **Debt payments** (repayments at a liability account).
+- **Transfers and saving** (to an asset account you own).
+- **Left over**, a total row for the month.
 
-1. User opens the **"Add a row"** popover (toolbar, top of sheet).
-2. Chooses the row kind: Income, Expense, Transfer, or Repayment.
-3. Selects the category (Income/Expense) or account anchor (Transfer/Repayment). Accounts already on the sheet are excluded — one row per account per period.
-4. The row is inserted into the correct section with a £0 budget. User edits the Budgeted cell inline.
+A summary table of recent months (Month, Income, Expenses, Net) appears below the sheet once more than one month exists.
 
-### Deleting a row
+### Edit a figure
 
-1. User clicks the delete icon on any row.
-2. The row is removed immediately — there is no confirmation dialog.
+1. Click a **Budget** cell and type.
+2. Totals recalculate as you type; the value saves shortly after you stop.
+3. Arrow keys and Tab move between cells. **Enter** moves to the same cell one row down; at the end of a section it adds a new row.
 
-### Copying from a previous period
+### Add a row
 
-1. User clicks **"Fill from"** in the toolbar (separate from the Add a row button).
-2. Selects a past period.
-3. All rows from that period are copied into the current month. Rows anchored to accounts that have since been archived, deleted, or re-typed are skipped; the sheet reports the count.
+1. Click **+ Add**. The **Add a row** popover opens.
+2. Choose **Income**, **Expense** or **Transfers and saving**, then the section. Under Expense, **Debt payment** is the fourth choice.
+3. Income and Expense rows take a name. Transfers and debt payments pick an account instead; each account gets one row per month. With no suitable account, the popover offers **Add one now**.
 
-### Navigating periods
+### Delete a row
 
-The toolbar's period navigator moves forward or backward one month. Each month is an independent `FinancialPeriod`; the sheet for a month is created on first visit.
+Click any cell in the row, then **× Delete row** in the toolbar. The row goes at once, with no confirmation.
 
-## What the Actuals column shows
+### Fill from another month
 
-The **Spent / Received** column is read-only:
-- **INCOME / EXPENSE** rows: sum of transactions categorised to that category in the period.
-- **TRANSFER / REPAYMENT** rows: actuals from the transfer/repayment data for that account.
+1. Click **Fill from** and choose a source month.
+2. Confirm with **Fill**. The popover warns that this replaces the rows in the current month, carries budgeted amounts over and resets actuals to 0.
+3. Rows anchored to accounts that have since been archived, deleted or re-typed are skipped, and a notice reports how many.
 
-Users cannot edit actuals from the budget page — they come from the Transactions ledger.
+### Change month
+
+Use **◀** and **▶** for one month, **Today** to return to now, or the month label to pick a month and year. A month's sheet exists in the database only once you add or fill a row; before that it shows empty.
+
+## What the Actual column shows
+
+With the Transactions setting **on**, Actual is read-only and computed from the ledger:
+
+- Income and expense rows: the net of transactions categorised to that category in the month.
+- Transfer and debt-payment rows: the net flow on that account from transfer-tagged transactions.
+
+With Transactions **off**, Actual is a typed figure you edit like Budget.

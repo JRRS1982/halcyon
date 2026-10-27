@@ -3,7 +3,7 @@
 **What:** GitHub Actions runs lint/tests/migration; Vercel deploys independently; production only promotes when both agree.  
 **Key points:**
 - Six CI jobs: `lint-and-test`, `integration-tests`, `e2e-tests`, `mixed-schema-check`, `security-audit`, `migrate-prod`
-- `migrate-prod` runs `prisma migrate deploy` against production Supabase before Vercel promotes — this is what prevents code reaching a un-migrated schema
+- `migrate-prod` runs `prisma migrate deploy` against production Supabase before Vercel promotes — this is what prevents code reaching an un-migrated schema
 - `mixed-schema-check` rejects PRs that bundle migration files with application code changes
 - Required checks live in the Vercel dashboard (not this repo) — changing that list changes the release guarantee
 
@@ -87,9 +87,9 @@ Fails a PR that changes `prisma/migrations/**` *and* application code
 (`src/**`, `tests/**`). Run locally with `pnpm check:mixed-schema`; the
 `mixed-schema-ok` label overrides it.
 
-**What it buys:** clean reverts (revert a mixed PR and the migration file goes
-with it while the migration stays applied — `prisma/migrations/` then disagrees
-with the database); a red signal while production is still *consistent*, before
+**What it buys:** clean reverts (reverting a mixed PR deletes the migration file
+while the migration stays applied, so `prisma/migrations/` then disagrees with
+the database); a red signal while production is still *consistent*, before
 anything depends on the missing column; defence in depth if the Deployment
 Checks list regresses again; and the precondition for expand → use → contract.
 
@@ -192,9 +192,10 @@ deploy succeeds)` so they explain themselves.
 **Two Playwright configs, and they must not overlap.** `playwright.config.ts`
 runs `tests/e2e/` against a local dev server and mock Supabase;
 `playwright.smoke.config.ts` runs `tests/smoke/` against a deployed URL with no
-`webServer`. The configs are separated at the folder level — smoke lives under
-`tests/smoke/`, not under `tests/e2e/` — so there is no overlap and no
-`testIgnore` needed. **A 401 means `CRON_SECRET` in GitHub does not match
+`webServer`. The folder split (`tests/smoke/` versus `tests/e2e/`) keeps them
+apart. Both `e2e-tests` and `smoke.yml` run in the pinned
+`mcr.microsoft.com/playwright` image, so no browser install step can hang.
+**A 401 means `CRON_SECRET` in GitHub does not match
 Vercel's — a drifted secret, not an outage.** `smoke.yml` additionally checks
 that signed-out authed routes return **307 → /sign-in**; a **500** there is the
 schema/code split.

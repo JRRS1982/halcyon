@@ -46,15 +46,15 @@ monthly rhythm the app is built around, reachable without an account.
 ## Project docs
 
 Built as a learning project, and documented like one. Start with the
-[Playbook](docs/Playbook.md) for how it was approached, or the
+[Playbook](docs/playbook.md) for how it was approached, or the
 [docs](docs/) directory for architecture and design.
 
 ## Deployment
 
 - **Development**: <http://localhost:3210/> (`pnpm dev` or `make up`).
 - **Production**: <https://balanced.money> (also served on the Vercel default domain, <https://halcyon-silk.vercel.app>).
-- **Hosting**: [Vercel](https://vercel.com) runs the Next.js app (App Router server components + route handlers + middleware). [Supabase](https://supabase.com) provides managed Postgres and Auth. See [ADR-001](docs/ADRs/ADR-001-TechStackSelection.md) for the rationale.
-- **Email**: outbound (the opt-in monthly reminder) goes through [Resend](https://resend.com); inbound (the `hello@balanced.money` contact address named in the legal pages) is [ImprovMX](https://improvmx.com) forwarding — MX + SPF records live in Vercel DNS, the forwarding destination in the ImprovMX dashboard. See [docs/features/contact-email.md](docs/features/contact-email.md).
+- **Hosting**: [Vercel](https://vercel.com) runs the Next.js app (App Router server components + route handlers + middleware). [Supabase](https://supabase.com) provides managed Postgres and Auth. See [ADR-001](docs/adrs/adr-001-tech-stack-selection.md) for the rationale.
+- **Email**: outbound (the opt-in monthly reminder) goes through [Resend](https://resend.com); inbound (the `hello@balanced.money` contact address named in the legal pages) is [ImprovMX](https://improvmx.com) forwarding — MX + SPF records live in Vercel DNS, the forwarding destination in the ImprovMX dashboard. See [docs/engineering/contact-email.md](docs/engineering/contact-email.md).
 - **Pipeline**: pushes to `master` trigger GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) which runs `biome ci`, `tsc --noEmit`, Jest, and Playwright on Node 22 + pnpm 11. Vercel watches `master` independently and ships the build to production once its own build passes.
 - **Database migrations**: applied by GitHub Actions, not by the host. The `migrate-prod` job in [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs `prisma migrate deploy` against the production `DIRECT_URL` (unpooled Supabase connection, port 5432, supplied via the `PROD_DIRECT_URL` repo secret) — but only on push to `master` and only after lint/test + e2e pass. Vercel is configured to wait for this workflow before deploying, so the new code never goes live against an un-migrated schema. Migrations are forward-only; to undo, write a corrective migration. Manual fallback: `pnpm exec prisma migrate deploy` with `DIRECT_URL` set.
 - **Rollback**: one click in the Vercel dashboard (it keeps every previous build immutable). Pair with a corrective DB migration if a release introduced a schema change.
@@ -94,20 +94,20 @@ Prisma migrations always run inside the container — **`make migrate-create` / 
 
 I have done my best, with the support of AI to put a comprehensive set of documents in place to help me and others understand the project and its architecture.
 
-- [Tech Stack](docs/ADRs/ADR-001-TechStackSelection.md)
-- [Playbook](docs/Playbook.md)
-- [Data Models](docs/DataModels/DataModels.md)
-- [Architecture Decision Records (ADRs)](docs/ADRs/)
-- [Security Architecture](docs/ADRs/ADR-002-SecurityArchitecture.md)
-- [Row Level Security](docs/features/row-level-security.md) — the two doors into the data, and the hand-written step Prisma can't generate
+- [Tech Stack](docs/adrs/adr-001-tech-stack-selection.md)
+- [Playbook](docs/playbook.md)
+- [Data Models](docs/data-models/data-models.md)
+- [Architecture Decision Records (ADRs)](docs/adrs/)
+- [Security Architecture](docs/adrs/adr-002-security-architecture.md)
+- [Row Level Security](docs/engineering/row-level-security.md) — the two doors into the data, and the hand-written step Prisma can't generate
 - [Auth Flow (sequence diagrams)](docs/features/auth.md)
-- [User Personas](docs/UserPersonas.md)
-- [User Journeys](docs/UserJourneys/UserJourney.md)
-- [Stakeholder Mapping](docs/StakeholderMapping.md)
-- [Success Metrics](docs/SuccessMetrics.md)
-- [Data Privacy Statement](docs/DataPrivacyStatement.md)
+- [User Personas](docs/user-personas.md)
+- [User Journeys](docs/user-journeys/)
+- [Stakeholder Mapping](docs/stakeholder-mapping.md)
+- [Success Metrics](docs/success-metrics.md)
+- [Data Privacy Statement](docs/data-privacy-statement.md)
 - [Design System (DESIGN.md)](DESIGN.md)
-- [Accessibility Standards](docs/AccessibilityStandards.md)
+- [Accessibility Standards](docs/accessibility-standards.md)
 
 ## Testing
 

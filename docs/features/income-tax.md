@@ -1,25 +1,22 @@
 # Income tax: bands the user never types
 
-**What:** Real UK income-tax bands applied to plan projections; replaces the user-typed blended rate and fixes double-use of the personal allowance.  
+**What:** Real UK income-tax bands applied to plan projections, with the personal allowance used once per year.  
 **Key points:**
-- Bands defined in `src/lib/tax/` for RUK and Scottish regimes; user picks regime + whether thresholds inflate
-- All income sources in a year are aggregated before applying bands — personal allowance is used once
-- Pension withdrawals are added to earned income before tax, not taxed independently
-- `TAX_REGIME` enum: `REST_OF_UK` and `SCOTLAND` — do not rename `REST_OF_UK` without migration
+- Bands live in `src/lib/tax/` for the `RUK` (rest of UK) and `SCOTLAND` regimes. The user picks a regime and whether thresholds inflate.
+- A year's income and its withdrawals are taxed as one income, so the personal allowance applies once.
+- Pension and GIA withdrawals stack on top of the year's other income instead of being taxed independently.
+- The Prisma enum `TaxRegime` stores `RUK` and `SCOTLAND`. Renaming `RUK` needs a migration.
 
-Before this feature, the projection taxed a single blended rate the user
-typed into the Assumptions panel — a v1 simplification recorded in the
-original life-planning design as a deliberate trade against annual
-maintenance. It also hid a real defect: a year's income and a pension
-withdrawal were taxed as two independent calculations, so the personal
-allowance was applied twice. Under-taxing by a whole allowance every year
-errs in the dangerous direction — it makes a plan look feasible when it
-isn't.
+The projection applies real UK income tax from shipped band data, not a
+user-typed blended rate. The design reasoning is in
+[the design doc](../superpowers/specs/2026-08-27-uk-income-tax-design.md); this
+doc covers what was built and what a reader would otherwise have to
+reverse-engineer.
 
-The projection now applies real UK income tax from shipped band data. See
-[the design doc](../superpowers/specs/2026-08-27-uk-income-tax-design.md) for
-the reasoning that got here — this doc covers what was actually built and the
-things a reader would otherwise have to reverse-engineer.
+The design closes one defect in particular. Taxing a year's income and a
+pension withdrawal as two independent calculations applied the personal
+allowance twice. Under-taxing errs in the dangerous direction: it makes a plan
+look feasible when it isn't.
 
 ## Bands are shipped data, not a setting
 
@@ -39,6 +36,10 @@ module.
 - `bands.ts` — the `YEARS` table (one entry, `2025/26`) and the year/context
   lookups.
 - `compute.ts` — `taxOn` and `grossFor`, the walk in both directions.
+- `published.ts` — `publishedRates` turns the stored table back into what HMRC
+  publishes (total-income thresholds, the taper described in words) for the
+  plan page's `TaxBandsCard`. It derives from the same table the engine walks,
+  so the card cannot drift from the arithmetic.
 
 Bands sit on **taxable income after the personal allowance**, not on total
 income — the taper (below) shrinks the allowance rather than moving
@@ -60,7 +61,7 @@ It dissolves because the taper is linear: each extra £1 over £100,000 costs
 50p of allowance that was being taxed at 40%, so the marginal rate is
 40% + 20% = 60%. Keeping the allowance constant and inserting a 60% band
 over that stretch is arithmetically identical to the tapered calculation —
-verified in `bands.ts`'s comments and in `compute.test.ts` at £30k, £60k,
+verified in `bands.ts`'s comments and in `tests/unit/lib/tax/compute.test.ts` at £30k, £60k,
 £100k, £110k, £125,140, £130k and £200k, equal at every point including both
 boundaries. In taxable terms (income minus the full £12,570 allowance): the
 taper starts at 100,000 − 12,570 = 87,430 and ends at 125,140 − 12,570 =
@@ -92,20 +93,16 @@ double-allowance defect the feature exists to fix — see "One tax context per
 projection year," below.
 
 `grossFor`'s band walk is not exact: it rounds an accumulated *gross*, while
-`taxOn` (called to get the walk's actual tax) rounds an accumulated *tax* —
-two roundings of two different running totals that can land on different
-whole pounds right at a band boundary. So the walk only gets gross to within
-a pound of the true answer; `taxOn` is the one source of truth for tax and
-adjudicates from there (`compute.ts`'s `grossFor`, the nudge loop at the
-bottom). It nudges gross by the fewest whole pounds so the pair never
-under-funds the requested net — **a pound short compounds across a
-projection; a pound over does not.** This is a deliberate bias, not a defect:
-the unclaimed net is at most £1 per taxable pot per year, roughly £40 nominal
-across a 40-year plan.
+`taxOn` rounds an accumulated *tax*, and the two can land on different whole
+pounds at a band boundary. So the walk gets gross to within a pound, and
+`taxOn` stays the one source of truth for tax. A nudge loop at the bottom of
+`grossFor` adjusts gross to the smallest whole-pound figure whose net still
+covers the requirement, so the pair never under-funds it. A pound short
+compounds across a projection; the loop never allows one.
 
-Both functions are indifferent to how many bands there are — three... well,
-four including the taper for rest-of-UK, seven for Scotland, whatever a
-future year brings.
+Both functions are indifferent to how many bands there are: four for
+rest-of-UK (including the taper), seven for Scotland, whatever a future year
+brings.
 
 ## One tax context per projection year
 
@@ -154,12 +151,11 @@ there's nothing left to solve for, so the inverse walk isn't needed) or
 grosses up through `grossFor` when the balance's net proceeds do exceed the
 need, to work out exactly how much of it to withdraw.
 
-A gross that comes back at or above the balance drains too. `grossFor`
-deliberately rounds up rather than risk under-funding (see the rounding note
-above), so when the need sits within a pound of what a full drain nets it can
-answer with more than the pot holds. Draining instead closes the pot at
-exactly zero rather than a fraction of a pound negative — which `grow()` would
-otherwise compound for every remaining year of the projection.
+A gross at or above the balance drains too. The nudge in `grossFor` never
+under-funds, so when the need sits within a pound of what a full drain nets, it
+can answer with more than the pot holds. Draining instead closes the pot at
+exactly zero, not a fraction of a pound negative that `grow()` would compound
+for every remaining year.
 
 ## GIA: the most misleading number this feature can produce
 
@@ -260,9 +256,8 @@ Named so nobody builds these by accident:
   one toggle — inflated from the anchor year, or frozen forever — rather than
   modelling the freeze-then-uprate shape. A later refinement if it earns its
   place.
-- **A per-band breakdown in the UI.** Reporting, not correctness; the
-  projection's single tax figure is unchanged in shape from before this
-  feature.
+- **A per-band breakdown of the user's own tax.** `TaxBandsCard` shows the
+  published rates, not how much of the user's income fell in each band.
 - **Marriage allowance, blind person's allowance, salary sacrifice**, and
   every other adjustment to taxable income. The model taxes what the plan
   already calls taxable income.
@@ -281,28 +276,32 @@ Named so nobody builds these by accident:
 | Which wrappers are taxed on withdrawal (`PENSION`, `GIA`) | [`src/lib/plan/tax.ts`](../../src/lib/plan/tax.ts) |
 | One tax context per year; `incTax` from income, threaded into `fundDeficit` | [`src/lib/plan/project.ts`](../../src/lib/plan/project.ts) |
 | `fundDeficit`: drains taxable pots, accumulates `taxedSoFar` across pots | [`src/lib/plan/assets.ts`](../../src/lib/plan/assets.ts) |
+| Published-rates view derived from the band table | [`src/lib/tax/published.ts`](../../src/lib/tax/published.ts) |
 | `Plan.taxRegime`, `Plan.thresholdsInflationLinked`, `TaxRegime` enum | [`prisma/schema.prisma`](../../prisma/schema.prisma) |
-| Regime picker + inflation-linked checkbox (replaces the old `Tax rate %` field) | [`src/app/(app)/plan/AssumptionsPanel.tsx`](<../../src/app/(app)/plan/AssumptionsPanel.tsx>) |
+| Regime picker + inflation-linked checkbox | [`src/app/(app)/plan/AssumptionsPanel.tsx`](<../../src/app/(app)/plan/AssumptionsPanel.tsx>) |
+| Published bands card on the plan page | [`src/app/(app)/plan/TaxBandsCard.tsx`](<../../src/app/(app)/plan/TaxBandsCard.tsx>) |
 
 ### Testing
 
-- **Unit** — [`src/lib/tax/compute.test.ts`](../../src/lib/tax/compute.test.ts)
-  (the walk both directions: allowance boundary, basic/higher/additional
-  bands, the taper's 60% equivalence, Scottish boundaries, the
-  `grossFor`/`taxOn` inverse property), [`src/lib/tax/bands.test.ts`](../../src/lib/tax/bands.test.ts)
-  (the inflation anchor: scale 1 through the anchor year, compounding after,
-  toggle off pins scale at 1 indefinitely), [`src/lib/plan/tax.test.ts`](../../src/lib/plan/tax.test.ts)
-  (`isTaxableOnWithdrawal`), [`src/lib/plan/project.test.ts`](../../src/lib/plan/project.test.ts)
-  and [`src/lib/plan/assets.test.ts`](../../src/lib/plan/assets.test.ts)
-  (the double-allowance case: income plus a withdrawal taxed as one income,
-  not two; a drawdown that fits inside the unused allowance costs nothing;
-  `thresholdsInflationLinked` leaves year-0 tax unchanged but strictly lowers
-  later years' tax; `project.test.ts` also has the regime case — SCOTLAND and
-  RUK taxing the same income differently, and the SCOTLAND figure matching
-  `taxOn` by hand).
-- **Integration** — [`prisma/schema.taxRegime.integration.test.ts`](../../prisma/schema.taxRegime.integration.test.ts)
-  (a plan round-trips `taxRegime`/`thresholdsInflationLinked`; both tests are
-  Prisma round-trips and don't run the projection — that's covered by the
-  `project.test.ts` regime case above).
-- **No e2e.** Nothing here is a journey; it's arithmetic behind the existing
-  Assumptions panel and projection screens.
+- **Unit**
+  - [`tests/unit/lib/tax/compute.test.ts`](../../tests/unit/lib/tax/compute.test.ts):
+    the walk both directions (allowance boundary, band ceilings, the taper's
+    60% equivalence, Scottish boundaries, the `grossFor`/`taxOn` inverse).
+  - [`tests/unit/lib/tax/bands.test.ts`](../../tests/unit/lib/tax/bands.test.ts):
+    the inflation anchor (scale 1 through the anchor year, compounding after,
+    toggle off pins scale at 1).
+  - [`tests/unit/lib/tax/published.test.ts`](../../tests/unit/lib/tax/published.test.ts):
+    the stored figures really are the published ones.
+  - [`tests/unit/lib/plan/tax.test.ts`](../../tests/unit/lib/plan/tax.test.ts):
+    `isTaxableOnWithdrawal`.
+  - [`tests/unit/lib/plan/project.test.ts`](../../tests/unit/lib/plan/project.test.ts)
+    and [`tests/unit/lib/plan/assets.test.ts`](../../tests/unit/lib/plan/assets.test.ts):
+    the double-allowance case (a second taxable pot stacks on the first; a draw
+    inside the unused allowance costs nothing), the inflation toggle, and the
+    regime case (SCOTLAND and RUK tax the same income differently).
+- **Integration** —
+  [`tests/integration/schema.taxRegime.integration.test.ts`](../../tests/integration/schema.taxRegime.integration.test.ts):
+  a plan round-trips `taxRegime` and `thresholdsInflationLinked`, and
+  `taxRegime` defaults to `RUK`. It does not run the projection.
+- **No e2e.** It is arithmetic behind the existing Assumptions panel and
+  projection screens.
