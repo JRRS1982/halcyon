@@ -83,7 +83,7 @@ Deliver safely to production and establish operational readiness.
 - [ ] Production observability and telemetry
 - [ ] Monitoring dashboards and alerting thresholds
 - [ ] Feature flags and release checklist
-- [ ] Post-deploy health verification (24-72h)
+- [x] Post-deploy health verification (24-72h) — `smoke.yml` after every production deploy, `health.yml` daily
 - [ ] Runbooks and on-call support procedures
 - [ ] Validated CI/CD pipeline in production
 - [ ] Confirmed disaster recovery capability
@@ -95,7 +95,7 @@ Keep the product reliable, current, and continuously improving.
 
 - [ ] Developer documentation and onboarding materials
 - [ ] Post-mortem reviews and process improvements
-- [ ] Dependency updates and technical debt management
+- [x] Dependency updates and technical debt management — Dependabot, plus the `security-audit` CI job
 - [ ] Data export and end-of-life planning
 - [ ] Ongoing performance optimization
 - [ ] Addition of features past the MVP

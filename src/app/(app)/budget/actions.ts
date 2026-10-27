@@ -24,7 +24,6 @@ import { MAX_ITEMS_PER_PERIOD, periodFullError } from "@/lib/budget/limits";
 import {
   calendarMonth,
   calendarYear,
-  currentMonthRange,
   monthRangeFor,
 } from "@/lib/budget/period";
 import {
@@ -65,14 +64,6 @@ function toClientItem(item: BudgetItem) {
 // Gates every server action on a valid signed-in user. The middleware also
 // guards /budget, but every action enforces auth independently — never trust
 // a single layer.
-// Returns the user's FinancialPeriod for the current calendar month;
-// creates it if it doesn't exist yet. Idempotent — safe to call on every
-// /budget visit.
-export async function ensureCurrentPeriod() {
-  const now = currentMonthRange();
-  return ensurePeriodForMonthInternal(now.startDate, now.endDate, now.label);
-}
-
 // Returns the user's FinancialPeriod for (year, month) — month 0-indexed.
 // Creates it if missing. Used by the toolbar stepper / picker to navigate
 // between periods (including ones that haven't been visited yet).

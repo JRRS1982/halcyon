@@ -18,7 +18,7 @@ import {
 // code (dataActions.ts, sessionTimeout.ts, the reminder in src/lib/email/).
 export function PrivacyPolicy() {
   return (
-    <LegalPage title="Privacy Policy" effectiveDate="18 August 2026">
+    <LegalPage title="Privacy Policy" effectiveDate="27 October 2026">
       <LegalBody>
         Balanced Money exists to help you understand your own money — not to
         monetise your data. This notice explains, as plainly and completely as
@@ -40,8 +40,8 @@ export function PrivacyPolicy() {
             never sell or share your data for marketing.
           </li>
           <li>
-            Four service providers process data on our behalf — Supabase,
-            Vercel, Resend, and ImprovMX — and only to run the service.
+            Five service providers process data on our behalf — Supabase,
+            Vercel, Resend, Upstash, and ImprovMX — and only to run the service.
           </li>
           <li>
             You can export, clear, or permanently delete everything yourself, at
@@ -99,10 +99,11 @@ export function PrivacyPolicy() {
           <strong>Technical data.</strong> Our hosting providers keep standard,
           short-lived server logs (such as IP address, browser type, and request
           times) for security and operations. To limit repeated sign-in and
-          sign-up attempts and prevent abuse, we also process your IP address
-          transiently — stored only as a one-way hash for a few minutes and then
-          discarded, never as your actual address. We do not use any of this to
-          identify or profile you.
+          sign-up attempts and prevent abuse, we also process your IP address,
+          and the email address you sign in, sign up or reset a password with,
+          transiently — stored only as a one-way hash for at most an hour and
+          then discarded, never as the address itself. We do not use any of this
+          to identify or profile you.
         </LegalBody>
         <LegalBody>
           <strong>What we do not collect:</strong> no analytics or usage
@@ -199,8 +200,20 @@ export function PrivacyPolicy() {
                 <td>Resend</td>
                 <td>Email delivery</td>
                 <td>
-                  Your email address only, and only if you turn the monthly
-                  reminder on — never your financial data
+                  Your email address, to send account emails (confirming
+                  sign-up, password resets, sign-in codes) and, if you turn it
+                  on, the monthly reminder — never your financial data
+                </td>
+              </tr>
+              <tr>
+                <td>Upstash</td>
+                <td>
+                  Rate limiting, to stop repeated sign-in and sign-up attempts
+                </td>
+                <td>
+                  One-way hashes of your IP address and the email address you
+                  sign in with, kept for at most an hour — never the address
+                  itself, and never your financial data
                 </td>
               </tr>
               <tr>

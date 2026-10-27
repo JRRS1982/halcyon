@@ -36,8 +36,8 @@ contradicted the live policy, which in a public repo is itself a risk.
   extend `tests/integration/app/(app)/settings/dataActions.integration.test.ts` — the privacy
   policy promises "everything", so an omitted table makes the policy false.
 
-Known gap: Upstash (rate-limit counters keyed by a SHA-256 digest of IP or email,
-see [rate limiting](engineering/rate-limiting.md)) is not in the Privacy Policy's
-processor table. Owner to-dos tracked elsewhere: ICO registration and
+Upstash holds the rate-limit counters, keyed by a SHA-256 digest of an IP or
+email address for at most an hour (see [rate limiting](engineering/rate-limiting.md));
+it is listed as a processor in the Privacy Policy. Owner to-dos tracked elsewhere: ICO registration and
 Supabase/Vercel DPA records. The `hello@balanced.money` contact address named in the policies is
 live (ImprovMX forwarding, verified 2026-08-18).
