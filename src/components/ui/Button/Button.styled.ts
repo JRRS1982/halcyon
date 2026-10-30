@@ -15,10 +15,10 @@ const variantStyles = {
   outline: css`
     background: ${({ theme }) => theme.colors.canvas};
     color: ${({ theme }) => theme.colors.ink};
-    border: 1px solid ${({ theme }) => theme.colors.hairline};
+    border: 1px solid ${({ theme }) => theme.colors.ink};
 
     &:hover:not(:disabled) {
-      border-color: ${({ theme }) => theme.colors.ink};
+      background: ${({ theme }) => theme.colors.canvasSoft};
     }
   `,
   destructive: css`
@@ -34,12 +34,10 @@ const variantStyles = {
 
 export const StyledButton = styled.button<{ $variant: ButtonVariant }>`
   ${({ theme }) => css`
-    font-family: ${theme.typography.monoCaps.family};
-    font-size: ${theme.typography.monoCaps.size};
-    font-weight: ${theme.typography.monoCaps.weight};
-    line-height: 1;
-    text-transform: uppercase;
-    letter-spacing: ${theme.typography.monoCaps.letterSpacing};
+    font-family: ${theme.typography.bodyMdStrong.family};
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.15;
 
     border-radius: ${theme.rounded.sm};
     padding: ${theme.spacing.sm} ${theme.spacing.lg};
