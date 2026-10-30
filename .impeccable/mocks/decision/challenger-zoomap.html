@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>This month · Balanced Money</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{--water:#F5F1E4;--land:#8ED462;--ink:#2C2E2A;--mute:#565951;--yellow:#F5E211;--coral:#FF705D;--blue:#2BA0FF;--lilac:#EBC1FF;--sky:#A9D6FF;--meadow:#C4EBA6;--line:#DCD6C2}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1440px;height:900px;overflow:hidden}
+body{background:var(--water);color:var(--ink);font:500 15px/1.35 Figtree,system-ui,sans-serif;font-variant-numeric:tabular-nums;padding:0 40px}
+a{color:inherit;text-decoration:none}
+button,select{font:inherit;color:inherit;cursor:pointer}
+.bar{height:76px;display:flex;align-items:center;gap:32px}
+.mark{font-size:22px;letter-spacing:-.04em;display:flex;align-items:center;gap:10px}
+.mark i{width:26px;height:26px;border-radius:50%;background:var(--land);box-shadow:inset -9px 0 0 var(--yellow)}
+nav{display:flex;gap:6px;flex:1}
+.pill{height:38px;padding:0 18px;border-radius:99px;display:inline-flex;align-items:center;border:1.5px solid transparent}
+nav .pill:hover{border-color:var(--ink)}
+nav .on{background:var(--yellow);border-color:var(--ink)}
+.quiet{color:var(--mute);background:none;border:0}
+.head{height:104px;display:flex;align-items:flex-end;gap:20px;padding-bottom:22px}
+h1{font-size:68px;line-height:.95;letter-spacing:-.06em;font-weight:500}
+.step{display:flex;gap:6px;margin-bottom:6px}
+.round{width:40px;height:40px;border-radius:50%;border:1.5px solid var(--ink);background:var(--water);display:grid;place-items:center}
+.round svg{width:16px;height:16px}
+.cap{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 14px 0 5px;border-radius:99px;border:1.5px solid var(--ink);background:var(--water);white-space:nowrap;font-size:15px}
+.cap b{width:24px;height:24px;border-radius:50%;border:1.5px solid var(--ink);flex:none;font-weight:500;display:grid;place-items:center;font-size:13px}
+.ok{margin-bottom:9px;margin-right:auto}
+.ok b{background:var(--land)}
+.btn{height:42px;padding:0 20px 0 6px;border-radius:99px;border:1.5px solid var(--ink);background:var(--blue);display:inline-flex;align-items:center;gap:10px;margin-bottom:5px}
+.btn b{width:30px;height:30px;border-radius:50%;background:var(--water);border:1.5px solid var(--ink);display:grid;place-items:center;font-weight:500}
+main{display:grid;grid-template-columns:820px 1fr;gap:40px;height:720px}
+.map{position:relative;border-top:1.5px solid var(--ink)}
+.maphd{display:flex;justify-content:space-between;align-items:center;height:52px}
+.maphd p{color:var(--mute)}
+select{height:36px;border-radius:99px;border:1.5px solid var(--ink);background:var(--water);padding:0 34px 0 16px;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%232C2E2A' stroke-width='1.8'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center}
+.map>svg{display:block;margin-top:-6px}
+.map .cap{position:absolute}
+.alert{background:var(--coral)}
+.alert b{background:var(--water)}
+.here{background:var(--yellow);height:40px;font-size:16px;padding-right:18px}
+.here b{background:var(--ink);color:var(--yellow);width:28px;height:28px}
+.fig{border-top:1.5px solid var(--ink);display:flex;flex-direction:column}
+.fig dl>div{display:grid;grid-template-columns:1fr auto;align-items:baseline;padding:18px 0;border-bottom:1px solid var(--line);gap:2px 16px}
+dt{font-size:15px}
+dd{text-align:right;font-size:22px;letter-spacing:-.03em}
+dd small,.sub{grid-column:1/-1;color:var(--mute);font-size:13.5px;letter-spacing:0}
+.lead{padding:18px 0 20px!important}
+.lead dd{font-size:64px;line-height:.95;letter-spacing:-.06em}
+.tag{display:inline-block;border-radius:99px;padding:1px 9px;border:1.5px solid var(--ink);font-size:13px;letter-spacing:0;margin-left:6px;vertical-align:3px}
+.spark{display:flex;justify-content:space-between;align-items:flex-end;padding-top:16px}
+.spark p{color:var(--mute);font-size:13.5px}
+</style>
+</head>
+<body>
+<header class="bar">
+  <a class="mark" href="#"><i></i>Balanced Money</a>
+  <nav aria-label="Main">
+    <a class="pill on" href="#" aria-current="page">This month</a>
+    <a class="pill" href="#">Budget</a><a class="pill" href="#">Balance</a>
+    <a class="pill" href="#">Transactions</a><a class="pill" href="#">Plan</a>
+    <a class="pill" href="#">Settings</a>
+  </nav>
+  <button class="pill quiet" type="button">Sign out</button>
+</header>
+
+<section class="head">
+  <h1>October 2026</h1>
+  <div class="step">
+    <button class="round" type="button" aria-label="September 2026"><svg viewBox="0 0 16 16"><path d="M10 3L5 8l5 5" fill="none" stroke="#2C2E2A" stroke-width="2"/></svg></button>
+    <button class="round" type="button" aria-label="November 2026"><svg viewBox="0 0 16 16"><path d="M6 3l5 5-5 5" fill="none" stroke="#2C2E2A" stroke-width="2"/></svg></button>
+  </div>
+  <span class="cap ok"><b>✓</b>All caught up · 214 of 214 categorised</span>
+  <button class="btn" type="button"><b>+</b>Open October’s budget</button>
+</section>
+
+<main>
+  <section class="map" aria-label="Spend map: where October’s £3,665 went">
+    <div class="maphd">
+      <p>Where October’s £3,665 went. Each area is drawn to the money in it.</p>
+      <select aria-label="Group map by"><option>By budget section</option><option>By category</option><option>By account</option></select>
+    </div>
+    <svg width="820" height="668" viewBox="0 0 840 684" role="img" aria-label="Fixed £1,441, Variable £662, Discretionary £327, Left over £1,235">
+      <g transform="translate(0 14)" stroke="#F5F1E4" stroke-width="12" stroke-linejoin="round">
+        <path transform="translate(40 0)" fill="#8ED462" d="M92 140C126 54 262 30 344 72C424 114 444 206 414 288C384 372 300 410 218 402C118 392 56 330 58 248C59 198 74 168 92 140Z"/>
+        <path transform="translate(-10 0)" fill="#C4EBA6" fill-rule="evenodd" d="M452 112C522 52 662 54 742 114C812 170 814 298 762 368C702 440 562 442 482 392C418 352 400 186 452 112ZM562 196C602 170 664 182 678 228C692 274 652 310 606 306C560 302 530 238 562 196Z"/>
+        <path transform="translate(50 -40)" fill="#EBC1FF" d="M108 516C120 446 222 420 302 438C382 458 412 528 392 600C372 668 272 690 190 670C120 652 98 580 108 516Z"/>
+        <path transform="translate(-30 -60)" fill="#A9D6FF" d="M478 500C508 448 602 448 642 490C682 530 662 612 600 632C538 652 466 600 478 500Z"/>
+        <path d="M596 304v24" stroke="#2C2E2A" stroke-width="2.5"/>
+        <circle cx="596" cy="296" r="8" fill="#F5E211" stroke="#2C2E2A" stroke-width="2.5"/>
+      </g>
+    </svg>
+    <span class="cap" style="left:159px;top:219px"><b style="background:var(--land)"></b>Fixed · £1,441</span>
+    <span class="cap" style="left:500px;top:163px"><b style="background:var(--meadow)"></b>Left over · £1,235</span>
+    <span class="cap here" style="left:494px;top:391px"><b>●</b>You are here · £1,235 left over</span>
+    <span class="cap" style="left:199px;top:474px"><b style="background:var(--lilac)"></b>Variable · £662</span>
+    <span class="cap alert" style="left:140px;top:579px"><b>!</b>Over by £82 · Groceries £492 of £420</span>
+    <span class="cap" style="left:423px;top:501px"><b style="background:var(--sky)"></b>Discretionary · £327</span>
+  </section>
+
+  <aside class="fig" aria-label="October figures">
+    <dl>
+      <div class="lead"><dt>Left over</dt><dd>£1,235</dd><small>−£60 vs September · £1,295</small></div>
+      <div><dt>Income</dt><dd>£3,665</dd></div>
+      <div><dt>Spent</dt><dd>£2,430<span class="tag" style="background:var(--coral)">108%</span></dd><small>of a £2,250 budget · Groceries is the only line over</small></div>
+      <div><dt>Savings rate</dt><dd>34%</dd></div>
+      <div><dt>Net worth</dt><dd>£155,140</dd><small>+£2,260 on September · as of 31 Oct</small></div>
+      <div><dt>Plan</dt><dd>£911,844 at 67<span class="tag" style="background:var(--land)">On track</span></dd></div>
+    </dl>
+    <div class="spark">
+      <div><dt>Left over, last 12 months</dt><p>Nov 25 – Oct 26 · £1.2k–£1.4k</p></div>
+      <svg width="236" height="56" viewBox="-4 -4 228 56" role="img" aria-label="Monthly left over from November 2025 to October 2026, between £1,180 and £1,380">
+        <path d="M0 37L20 42L40 27L60 15L80 21L100 10L120 4L140 17L160 27L180 12L200 20L220 32" fill="none" stroke="#2C2E2A" stroke-width="2" stroke-linejoin="round"/>
+        <circle cx="220" cy="32" r="5" fill="#F5E211" stroke="#2C2E2A" stroke-width="2"/>
+      </svg>
+    </div>
+  </aside>
+</main>
+</body>
+</html>

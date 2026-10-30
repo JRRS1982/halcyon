@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en-GB"><head><meta charset="utf-8"><title>Balanced Money · This month</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--orange:#EF7B12;--green:#2F8F46;--green-d:#247A3B;--blue:#1F5FAD;--violet:#7A3E9D;--white:#FFF;--paper:#F4F1EC;--ink:#1A1A1A;--mute:#555;--rule:#1A1A1A;--hair:#DDD7CE;--s:24px;--band:52px}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1440px;height:900px;overflow:hidden;background:var(--white);color:var(--ink)}
+body{font:400 16px/1.4 "Alegreya Sans",system-ui,sans-serif;font-variant-numeric:tabular-nums lining-nums}
+a{color:inherit}
+button,select{font:inherit;color:inherit}
+.num{font-variant-numeric:tabular-nums lining-nums;letter-spacing:-.01em}
+/* top bar */
+.top{height:64px;padding:0 48px;display:flex;align-items:center;gap:40px;border-bottom:1px solid var(--hair)}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:20px;letter-spacing:.01em}
+.mark{width:18px;height:22px;background:linear-gradient(var(--orange) 0 32%,var(--white) 32% 68%,var(--orange) 68%);outline:1.5px solid var(--ink)}
+.tabs{display:flex;gap:4px;height:100%}
+.tabs a{display:flex;align-items:center;padding:0 14px;text-decoration:none;font-weight:500;font-size:16px;color:var(--mute);border-bottom:3px solid transparent;margin-bottom:-1px}
+.tabs a[aria-current]{color:var(--ink);font-weight:700;border-bottom-color:var(--ink)}
+.quiet{margin-left:auto;display:flex;gap:24px;font-size:15px;color:var(--mute)}
+.quiet a{text-decoration:none}
+/* heading row */
+.head{height:96px;padding:0 48px;display:flex;align-items:center;gap:24px}
+h1{font-size:32px;font-weight:800;letter-spacing:-.01em;margin-right:8px}
+.picker{display:flex;align-items:center;gap:8px}
+.icon{width:36px;height:36px;border:1px solid var(--hair);background:var(--white);border-radius:4px;font-size:18px;line-height:1;cursor:pointer}
+.sel{position:relative}
+.sel select{appearance:none;height:36px;padding:0 36px 0 14px;border:1px solid var(--ink);border-radius:4px;background:var(--white);font-weight:700;font-size:16px}
+.sel::after{content:"";position:absolute;right:14px;top:15px;border:5px solid transparent;border-top-color:var(--ink)}
+.status{margin-left:auto;display:flex;align-items:center;gap:10px;font-size:15px;color:var(--mute)}
+.chip{display:flex;align-items:center;gap:8px;height:32px;padding:0 14px;border-radius:16px;background:var(--paper);color:var(--ink);font-weight:700}
+.chip i{width:8px;height:8px;border-radius:50%;background:var(--green-d)}
+/* layout */
+main{padding:0 48px;display:grid;grid-template-columns:800px 520px;grid-template-rows:340px 256px 60px;gap:var(--s)}
+/* three-band cover — the signature */
+.cover{display:grid;grid-template-rows:var(--band) minmax(0,1fr) var(--band);border:1px solid var(--ink);border-radius:2px;overflow:hidden;background:var(--white)}
+.band{display:flex;align-items:center;justify-content:space-between;padding:0 24px;color:var(--white);font-size:16px}
+.band b{font-weight:800;font-size:18px;letter-spacing:.02em}
+.band a{font-weight:700;text-underline-offset:3px}
+.mid{padding:18px 24px;border-top:3px solid var(--white);border-bottom:3px solid var(--white)}
+.green .band{background:var(--green-d)} .blue .band{background:var(--blue)} .violet .band{background:var(--violet)}
+.orange .band{background:var(--orange);color:var(--ink)}
+/* hero */
+.hero .mid{padding:22px 32px 20px;display:flex;flex-direction:column}
+.eyebrow{font-size:14px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
+.fig{display:flex;align-items:baseline;gap:14px;margin-top:2px}
+.fig strong{font-size:96px;font-weight:800;line-height:1;letter-spacing:-.03em}
+.fig span{font-size:30px;font-weight:500}
+.sub{font-size:18px;color:var(--mute);margin-top:10px}
+.sub em{font-style:normal;color:var(--ink);font-weight:700}
+.split{margin-top:auto;flex:none;display:flex;height:12px;border-radius:2px;overflow:hidden}
+.split i{display:block}
+.legend{display:flex;gap:24px;margin-top:10px;font-size:14px;color:var(--mute)}
+.legend span{display:flex;align-items:center;gap:6px} .legend i{width:10px;height:10px;border-radius:1px}
+.legend b{color:var(--ink);font-weight:700}
+/* shelf */
+.shelf{border:1px solid var(--ink);border-radius:2px;display:grid;grid-template-rows:var(--band) 1fr var(--band)}
+.shelf header,.shelf footer{display:flex;align-items:center;justify-content:space-between;padding:0 24px}
+.shelf header{border-bottom:1px solid var(--hair)} .shelf footer{border-top:1px solid var(--hair);font-size:15px;color:var(--mute)}
+.shelf h2{font-size:18px;font-weight:800}
+.seg{display:flex;border:1px solid var(--hair);border-radius:4px;overflow:hidden;font-size:14px}
+.seg button{border:0;background:var(--white);padding:4px 12px;cursor:pointer;color:var(--mute)} .seg button[aria-pressed=true]{background:var(--ink);color:var(--white);font-weight:700}
+.rack{position:relative;padding:28px 24px 0;display:flex;align-items:flex-end;justify-content:space-between}
+.rack::after{content:"";position:absolute;left:16px;right:16px;bottom:26px;height:5px;background:var(--ink);border-radius:1px}
+.sp{display:flex;flex-direction:column;align-items:center;gap:10px;width:30px}
+.spine{position:relative;width:28px;height:162px;background:var(--paper);border:1px solid #C9C2B6;border-bottom:0;border-top:8px solid var(--green-d)}
+.spine i{position:absolute;left:0;right:0;bottom:0;background:var(--green)}
+.sp small{font-size:13px;color:var(--mute);height:16px}
+.sp.now .spine{width:36px;transform:translateY(-18px);border:2px solid var(--ink);border-top:10px solid var(--green-d);box-shadow:4px 0 0 rgba(26,26,26,.18)}
+.sp.now i{background:var(--green-d)} .sp.now small{color:var(--ink);font-weight:800}
+.tag{position:absolute;top:-30px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--white);font-size:13px;font-weight:700;padding:2px 7px;border-radius:2px;white-space:nowrap}
+/* section covers */
+.sections{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,1fr);gap:var(--s)}
+.sec .band{font-size:15px}
+.amt{display:flex;align-items:baseline;gap:8px}
+.amt strong{font-size:44px;font-weight:800;line-height:1;letter-spacing:-.02em} .amt span{font-size:18px;color:var(--mute)}
+.bar{position:relative;height:10px;margin:14px 0 12px;background:var(--paper);border-radius:2px;overflow:hidden}
+.bar i{position:absolute;inset:0 auto 0 0;width:100%}
+.bar u{position:absolute;top:0;bottom:0;right:0;background:repeating-linear-gradient(135deg,var(--ink) 0 2px,transparent 2px 5px);opacity:.85}
+.bar s{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--ink)}
+.line{display:flex;justify-content:space-between;font-size:15px;color:var(--mute)} .line b{color:var(--ink);font-weight:700}
+.alert{display:flex;align-items:center;gap:10px;font-size:15px;padding:6px 10px;margin:0 -10px;background:#FDEBD9;border-left:4px solid var(--orange)}
+.alert b{font-weight:800} .pill{margin-left:auto;font-size:13px;font-weight:800;background:var(--ink);color:var(--white);padding:1px 8px;border-radius:2px}
+/* strip */
+.strip{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;background:var(--paper);border-top:3px solid var(--ink)}
+.strip div{display:flex;align-items:center;gap:14px;padding:0 24px;font-size:16px}
+.strip div+div{border-left:1px solid #CFC8BC}
+.strip .k{font-size:14px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
+.strip strong{font-size:24px;font-weight:800}
+.up{color:var(--green-d);font-weight:700} .strip a{margin-left:auto;font-weight:700;text-underline-offset:3px}
+</style></head>
+<body>
+<header class="top">
+  <div class="brand"><span class="mark" aria-hidden="true"></span>Balanced Money</div>
+  <nav class="tabs" aria-label="Main"><a href="#" aria-current="page">This month</a><a href="#">Budget</a><a href="#">Balance</a><a href="#">Transactions</a><a href="#">Plan</a><a href="#">Settings</a></nav>
+  <div class="quiet"><a href="#">Guide</a><a href="#">Sign out</a></div>
+</header>
+<div class="head">
+  <h1>This month</h1>
+  <div class="picker">
+    <button class="icon" aria-label="Previous month">&lsaquo;</button>
+    <label class="sel"><select aria-label="Month"><option>October 2026</option><option>September 2026</option></select></label>
+    <button class="icon" aria-label="Next month">&rsaquo;</button>
+  </div>
+  <div class="status">Last import 27 Oct<span class="chip"><i></i>All caught up</span></div>
+</div>
+<main>
+  <section class="cover green hero">
+    <div class="band"><b>October 2026 · Your month</b><span>Income series</span></div>
+    <div class="mid">
+      <div class="eyebrow">Left over</div>
+      <div class="fig num"><strong>£1,235</strong><span>left over</span></div>
+      <p class="sub num"><em>£60 less than September</em> · income £3,665 · spent £2,430</p>
+      <div class="split" aria-label="Where income went"><i style="width:39.3%;background:var(--blue)"></i><i style="width:18.1%;background:var(--orange)"></i><i style="width:8.9%;background:var(--violet)"></i><i style="width:33.7%;background:var(--green)"></i></div>
+      <div class="legend num"><span><i style="background:var(--blue)"></i>Fixed <b>39%</b></span><span><i style="background:var(--orange)"></i>Variable <b>18%</b></span><span><i style="background:var(--violet)"></i>Discretionary <b>9%</b></span><span><i style="background:var(--green)"></i>Left over <b>34%</b></span></div>
+    </div>
+    <div class="band"><b>On track · savings rate 34%</b><a href="#">Open October budget &rarr;</a></div>
+  </section>
+  <section class="shelf" aria-label="Left over by month">
+    <header><h2>The shelf · left over by month</h2><div class="seg"><button aria-pressed="true">12 months</button><button aria-pressed="false">24 months</button></div></header>
+    <div class="rack num">
+      <div class="sp"><div class="spine"><i style="height:65%"></i></div><small>Nov</small></div>
+      <div class="sp"><div class="spine"><i style="height:27%"></i></div><small>Dec</small></div>
+      <div class="sp"><div class="spine"><i style="height:75%"></i></div><small>Jan</small></div>
+      <div class="sp"><div class="spine"><i style="height:89%"></i></div><small>Feb</small></div>
+      <div class="sp"><div class="spine"><i style="height:70%"></i></div><small>Mar</small></div>
+      <div class="sp"><div class="spine"><i style="height:79%"></i></div><small>Apr</small></div>
+      <div class="sp"><div class="spine"><i style="height:58%"></i></div><small>May</small></div>
+      <div class="sp"><div class="spine"><i style="height:94%"></i></div><small>Jun</small></div>
+      <div class="sp"><div class="spine"><i style="height:68%"></i></div><small>Jul</small></div>
+      <div class="sp"><div class="spine"><i style="height:77%"></i></div><small>Aug</small></div>
+      <div class="sp"><div class="spine"><i style="height:86%"></i></div><small>Sep</small></div>
+      <div class="sp now"><div class="spine"><span class="tag">£1,235</span><i style="height:82%"></i></div><small>Oct</small></div>
+    </div>
+    <footer class="num"><span>Nov 2025 – Oct 2026 · average <b style="color:var(--ink)">£1,083</b></span><span>Best: June £1,410</span></footer>
+  </section>
+  <div class="sections num">
+    <section class="cover blue sec">
+      <div class="band"><b>Fixed</b><span>9 items</span></div>
+      <div class="mid"><div class="amt"><strong>£1,441</strong><span>of £1,430</span></div>
+        <div class="bar"><i style="background:var(--blue)"></i><u style="width:0.8%"></u><s style="left:99.2%"></s></div>
+        <div class="line"><span>Largest · Rent</span><b>£1,050 of £1,050</b></div></div>
+      <div class="band"><b>£11 over</b><span>101% of budget</span></div>
+    </section>
+    <section class="cover orange sec">
+      <div class="band"><b>Variable</b><span>7 items</span></div>
+      <div class="mid"><div class="amt"><strong>£662</strong><span>of £580</span></div>
+        <div class="bar"><i style="background:var(--orange)"></i><u style="width:12.4%"></u><s style="left:87.6%"></s></div>
+        <div class="alert"><span><b>Groceries</b> £492 of £420, over by £72</span><span class="pill">Over</span></div></div>
+      <div class="band"><b>Over budget · £82 over</b><a href="#">Review groceries &rarr;</a></div>
+    </section>
+    <section class="cover violet sec">
+      <div class="band"><b>Discretionary</b><span>6 items</span></div>
+      <div class="mid"><div class="amt"><strong>£327</strong><span>of £245</span></div>
+        <div class="bar"><i style="background:var(--violet)"></i><u style="width:25.1%"></u><s style="left:74.9%"></s></div>
+        <div class="line"><span>Largest · Eating out</span><b>£148 of £120</b></div></div>
+      <div class="band"><b>£82 over</b><span>133% of budget</span></div>
+    </section>
+  </div>
+  <div class="strip num">
+    <div><span class="k">Net worth</span><strong>£155,140</strong><span class="up">+£2,260</span><span style="color:var(--mute)">as of 31 Oct</span><a href="#">Balance sheet</a></div>
+    <div><span class="k">Plan</span><strong>On track</strong><span>£911,844 at 67</span><a href="#">Open plan</a></div>
+  </div>
+</main>
+</body></html>

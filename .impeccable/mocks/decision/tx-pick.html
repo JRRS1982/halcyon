@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=390">
+<title>Ticked Statement — Transactions</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#FBF8F1;--navy:#17325C;--tick:#1E7B45;--pencil:#6E737C;--red:#C4422B;--body:#1F2329;--muted:#5B606A;--rule:#E4DDCE}
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:390px;height:844px;overflow:hidden;background:var(--paper);font-family:"IBM Plex Sans",sans-serif;color:var(--body);position:relative}
+.mono{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
+header{background:var(--navy);color:#fff;padding:14px 16px 16px}
+.top{display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:15px}
+.top small{font-weight:500;font-size:13px;opacity:.8}
+.stmt{margin-top:14px;display:flex;justify-content:space-between;align-items:flex-end}
+.stmt h1{font-size:21px;font-weight:700;line-height:1.1}
+.stmt p{font-size:13px;opacity:.85;margin-top:2px}
+.bal{text-align:right}.bal b{display:block;font-size:20px}
+.bal span{font-size:12px;opacity:.8}
+.meter{margin-top:14px;height:8px;border-radius:4px;background:rgba(255,255,255,.18);display:flex;overflow:hidden}
+.meter i{display:block;height:100%}
+.legend{display:flex;gap:14px;margin-top:6px;font-size:12px;opacity:.9}
+.legend span:before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;background:var(--c)}
+.tools{display:flex;gap:8px;padding:12px 16px}
+.seg{flex:1;display:flex;background:#EFE9DC;border-radius:8px;padding:3px}
+.seg span{flex:1;text-align:center;font-size:13.5px;font-weight:600;padding:7px 0;border-radius:6px;color:var(--muted)}
+.seg .on{background:#fff;color:var(--navy);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.search{width:40px;border:1px solid var(--rule);border-radius:8px;background:#fff;position:relative}
+.search:after{content:"";position:absolute;left:12px;top:11px;width:11px;height:11px;border:2px solid var(--muted);border-radius:50%}
+.colh{display:flex;padding:6px 16px;font-size:12px;color:var(--muted);font-weight:600;border-bottom:1.5px solid var(--navy)}
+.colh span:first-child{width:28px}.colh span:nth-child(2){flex:1}
+.line{display:flex;align-items:flex-start;padding:11px 16px;border-bottom:1px solid var(--rule)}
+.mark{width:28px;flex:0 0 28px;padding-top:1px}
+.tick{color:var(--tick);font-family:Caveat;font-size:26px;line-height:.8;font-weight:700}
+.q{display:inline-grid;place-items:center;width:20px;height:20px;border:1.5px solid var(--pencil);border-radius:50%;color:var(--pencil);font-family:Caveat;font-size:17px;line-height:1}
+.blank{display:block;width:18px;height:18px;border:1.5px solid #BDB6A6;border-radius:4px}
+.what{flex:1;min-width:0}
+.d{font-size:12px;color:var(--muted)}
+.n{font-weight:600;font-size:15px}
+.cat{font-size:13px;color:var(--navy);margin-top:3px;font-weight:500}
+.note{font-family:Caveat;font-size:21px;color:var(--pencil);line-height:1;margin-top:3px}
+.note b{font-weight:700}
+.act{display:flex;gap:6px;margin-top:6px}
+.act span{font-size:12.5px;font-weight:600;border-radius:6px;padding:5px 10px;border:1px solid var(--rule);background:#fff;color:var(--navy)}
+.act .yes{background:var(--tick);border-color:var(--tick);color:#fff}
+.amt{font-size:14.5px;text-align:right;padding-left:8px}
+.amt.in{color:var(--tick)}
+.foot{position:absolute;left:0;right:0;bottom:72px;background:var(--paper);border-top:1px solid var(--rule);padding:10px 16px;display:flex;gap:8px}
+.foot span{flex:1;text-align:center;border-radius:10px;padding:11px 0;font-weight:600;font-size:14.5px}
+.add{border:1.5px solid var(--navy);color:var(--navy);background:#fff}
+.all{background:var(--navy);color:#fff}
+nav{position:absolute;left:0;right:0;bottom:0;height:72px;background:#fff;border-top:1px solid var(--rule);display:flex;padding:8px 6px 16px}
+nav a{flex:1;text-align:center;font-size:11px;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:4px}
+nav i{width:22px;height:22px;border-radius:6px;border:2px solid currentColor;display:block}
+nav a.on{color:var(--navy);font-weight:700}
+</style></head><body>
+<header>
+  <div class="top">Balanced Money <small>Menu</small></div>
+  <div class="stmt">
+    <div><h1>October statement</h1><p>Current &amp; Joint · 38 lines imported</p></div>
+    <div class="bal mono"><b>−£1,612.40</b><span>out so far</span></div>
+  </div>
+  <div class="meter"><i style="width:68%;background:#7FC79A"></i><i style="width:24%;background:#C9CED6"></i><i style="width:8%;background:#F08A6E"></i></div>
+  <div class="legend"><span style="--c:#7FC79A">26 ticked</span><span style="--c:#C9CED6">9 pencilled</span><span style="--c:#F08A6E">3 to ask</span></div>
+</header>
+<div class="tools"><div class="seg"><span class="on">To check · 12</span><span>All lines</span></div><div class="search"></div></div>
+<div class="colh"><span></span><span>Line</span><span>Amount</span></div>
+
+<div class="line"><div class="mark"><span class="q">?</span></div>
+  <div class="what"><div class="d">27 Oct · Current</div><div class="n">PRET A MANGER 2210</div>
+    <div class="note">coffee &amp; snacks? <b>·</b> like last week</div>
+    <div class="act"><span class="yes">✓ Tick</span><span>Change</span><span>Split</span></div></div>
+  <div class="amt mono">−4.35</div></div>
+
+<div class="line"><div class="mark"><span class="q">?</span></div>
+  <div class="what"><div class="d">25 Oct · Current</div><div class="n">AMZN MKTP UK*2K4</div>
+    <div class="note">not sure: household, gifts or hobbies?</div>
+    <div class="act"><span>Household</span><span>Gifts</span><span>Hobbies</span><span>···</span></div></div>
+  <div class="amt mono">−23.99</div></div>
+
+<div class="line"><div class="mark"><span class="tick">✓</span></div>
+  <div class="what"><div class="d">25 Oct · Current</div><div class="n">PAYROLL OCT</div><div class="cat">Salary</div></div>
+  <div class="amt mono in">+2,850.00</div></div>
+
+<div class="line"><div class="mark"><span class="q">?</span></div>
+  <div class="what"><div class="d">24 Oct · Joint</div><div class="n">DELIVEROO</div>
+    <div class="note">takeaways?</div></div>
+  <div class="amt mono">−27.40</div></div>
+
+<div class="line"><div class="mark"><span class="tick">✓</span></div>
+  <div class="what"><div class="d">22 Oct · Joint</div><div class="n">SHELL 4419</div><div class="cat">Fuel</div></div>
+  <div class="amt mono">−58.02</div></div>
+
+<div class="foot"><span class="add">+ Add a line</span><span class="all">Tick all 9 pencilled</span></div>
+<nav><a><i></i>Home</a><a class="on"><i></i>Statement</a><a><i></i>Budget</a><a><i></i>Balance</a><a><i></i>Plan</a></nav>
+</body></html>

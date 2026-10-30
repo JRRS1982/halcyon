@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=390">
+<title>Mixtape Card — Transactions</title>
+<link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--card:#FFFFFF;--ball:#1F3FA6;--pencil:#646A73;--stripe:#D7262E;--cream:#F4F1EA;--body:#1E2230;--muted:#5C616B;--line:#D9E1F2}
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:390px;height:844px;overflow:hidden;background:var(--cream);font-family:"Work Sans",sans-serif;color:var(--body);font-variant-numeric:tabular-nums;position:relative}
+.hand{font-family:Kalam,cursive}
+header{background:var(--card);padding:0 0 12px;border-bottom:1px solid var(--line)}
+.stripe{height:10px;background:linear-gradient(90deg,var(--stripe) 0 70%,#111 70% 74%,var(--stripe) 74%)}
+.top{display:flex;justify-content:space-between;padding:12px 16px 0;font-weight:700;font-size:15px}
+.top span:last-child{font-weight:500;color:var(--muted);font-size:13px}
+h1{font-family:Kalam;font-weight:700;color:var(--ball);font-size:32px;line-height:1;padding:10px 16px 0;text-transform:uppercase}
+.sub{padding:2px 16px 0;color:var(--muted);font-size:13px}
+.sides{display:flex;margin:12px 16px 0;border:1.5px solid var(--ball);border-radius:10px;overflow:hidden}
+.sides div{flex:1;padding:8px 10px}
+.sides .on{background:var(--ball);color:#fff}
+.sides small{display:block;font-size:11.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;opacity:.85}
+.sides b{font-size:17px}
+.net{display:flex;justify-content:space-between;padding:8px 16px 0;font-size:13px;color:var(--muted)}
+.net b{color:var(--body)}
+.queue{display:flex;justify-content:space-between;align-items:center;margin:12px 16px 6px}
+.queue b{font-size:14px}
+.queue span{font-size:13px;font-weight:600;color:#fff;background:var(--ball);border-radius:999px;padding:7px 12px}
+.list{margin:0 12px;background:var(--card);border-radius:12px;border:1px solid var(--line);overflow:hidden}
+.trk{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--line)}
+.no{font-family:Kalam;font-weight:700;color:var(--ball);width:22px;font-size:17px}
+.t{flex:1;min-width:0}
+.t .n{font-weight:600;font-size:14.5px}
+.t .c{font-family:Kalam;font-size:17px;color:var(--ball);line-height:1.1}
+.trk.pen .no,.trk.pen .c{color:var(--pencil)}
+.trk.pen .c:after{content:" — pencilled";font-family:"Work Sans";font-size:11.5px;color:var(--pencil)}
+.trk.ask .c{color:var(--stripe);font-family:"Work Sans";font-size:12.5px;font-weight:600}
+.a{font-weight:600;font-size:14.5px;text-align:right}
+.ink{width:30px;height:30px;border-radius:50%;border:1.5px solid var(--ball);display:grid;place-items:center;color:var(--ball);font-weight:700;font-size:15px}
+.trk.done .ink{background:var(--ball);color:#fff}
+.addtrack{margin:10px 12px 0;border:1.5px dashed var(--ball);border-radius:12px;padding:12px;color:var(--ball);font-weight:600;font-size:14.5px;background:#fff}
+.addtrack span{color:var(--muted);font-weight:400}
+nav{position:absolute;left:0;right:0;bottom:0;height:72px;background:#fff;border-top:1px solid var(--line);display:flex;padding:8px 6px 16px}
+nav a{flex:1;text-align:center;font-size:11px;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:4px}
+nav i{width:22px;height:22px;border-radius:6px;border:2px solid currentColor;display:block}
+nav a.on{color:var(--ball);font-weight:700}
+</style></head><body>
+<header>
+  <div class="stripe"></div>
+  <div class="top"><span>Balanced Money</span><span>Menu</span></div>
+  <h1>October · C90</h1>
+  <div class="sub">38 lines from Current &amp; Joint statements</div>
+  <div class="sides">
+    <div><small>Side A · In</small><b>£3,115.00</b></div>
+    <div class="on"><small>Side B · Out</small><b>£1,612.40</b></div>
+  </div>
+  <div class="net"><span>Left over so far</span><b>£1,502.60</b></div>
+</header>
+<div class="queue"><b>12 tracks in pencil</b><span>Ink all 9</span></div>
+<div class="list">
+  <div class="trk pen"><span class="no">B7</span><div class="t"><div class="n">PRET A MANGER 2210</div><div class="c">Coffee &amp; Snacks</div></div><span class="a">£4.35</span><span class="ink">✓</span></div>
+  <div class="trk ask"><span class="no">B8</span><div class="t"><div class="n">AMZN MKTP UK*2K4</div><div class="c">Pick a category →</div></div><span class="a">£23.99</span><span class="ink">?</span></div>
+  <div class="trk pen"><span class="no">B9</span><div class="t"><div class="n">DELIVEROO</div><div class="c">Takeaways</div></div><span class="a">£27.40</span><span class="ink">✓</span></div>
+  <div class="trk done"><span class="no">B10</span><div class="t"><div class="n">SHELL 4419</div><div class="c">Fuel</div></div><span class="a">£58.02</span><span class="ink">✓</span></div>
+  <div class="trk done"><span class="no">B11</span><div class="t"><div class="n">TESCO STORES 3421</div><div class="c">Groceries</div></div><span class="a">£64.18</span><span class="ink">✓</span></div>
+  <div class="trk pen"><span class="no">B12</span><div class="t"><div class="n">PETS AT HOME</div><div class="c">Pets</div></div><span class="a">£31.50</span><span class="ink">✓</span></div>
+</div>
+<div class="addtrack">+ Add a track <span>“4.35 Pret coffee”</span></div>
+<nav><a><i></i>Home</a><a class="on"><i></i>Money in/out</a><a><i></i>Budget</a><a><i></i>Balance</a><a><i></i>Plan</a></nav>
+</body></html>
