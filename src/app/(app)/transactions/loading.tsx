@@ -13,7 +13,7 @@ import {
 // parallel (accounts, categories, the page of rows, the uncategorised count).
 export default function TransactionsLoading() {
   return (
-    <SkeletonPage label="your transactions" maxWidth="960px">
+    <SkeletonPage label="your transactions" maxWidth="1240px">
       <SkeletonHeader actions={<Skeleton width={180} height={30} />} />
       <SkeletonPanelStack>
         <SkeletonPanel bodyHeight={80} />

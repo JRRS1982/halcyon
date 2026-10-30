@@ -78,12 +78,11 @@ export const ToolbarRow = styled.div`
   `}
 `;
 
+// A ruled section, as the pages set their panels.
 export const Panel = styled.div`
   ${({ theme }) => css`
-    border: 1px solid ${theme.colors.hairline};
-    border-radius: ${theme.rounded.sm};
-    background: ${theme.colors.canvas};
-    padding: ${theme.spacing.xl};
+    border-top: 1px solid ${theme.colors.ink};
+    padding: ${theme.spacing.lg} 0;
     display: grid;
     gap: ${theme.spacing.md};
   `}
@@ -100,13 +99,10 @@ export const PanelGrid = styled.div`
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
 `;
 
-// The sheet outline: hairline box, soft header strip, then plain rows.
+// The sheet outline: an ink-ruled head, then plain rows, as the market-data
+// tables are set.
 export const SheetBox = styled.div`
-  ${({ theme }) => css`
-    border: 1px solid ${theme.colors.hairline};
-    border-radius: ${theme.rounded.sm};
-    overflow: hidden;
-  `}
+  overflow: hidden;
 `;
 
 export const SheetLine = styled.div<{ $tone: "head" | "band" | "row" }>`
@@ -117,25 +113,17 @@ export const SheetLine = styled.div<{ $tone: "head" | "band" | "row" }>`
     gap: ${theme.spacing.md};
     padding: ${theme.spacing.md};
     border-bottom: 1px solid ${theme.colors.hairline};
-    background: ${
-      $tone === "band"
-        ? theme.colors.band
-        : $tone === "head"
-          ? theme.colors.canvasSoft
-          : theme.colors.canvas
-    };
-
-    &:last-child {
-      border-bottom: none;
+    ${
+      $tone === "head" &&
+      css`
+      border-bottom: 2px solid ${theme.colors.ink};
+    `
     }
-
-    /* On the dark band the soft-grey bar would vanish. */
     ${
       $tone === "band" &&
       css`
-      ${Bar} {
-        background: ${theme.colors.hairlineBand};
-      }
+      padding-top: ${theme.spacing.xl};
+      border-bottom-color: ${theme.colors.ink};
     `
     }
 
