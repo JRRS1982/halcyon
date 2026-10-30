@@ -5,10 +5,10 @@ import type { BriefNote } from "@/lib/insights/monthBrief";
 
 // The strip under the headline: the month's bottom line as a big figure, then
 // the brief's notes as short columns, each led in claret like a news brief.
-const Strip = styled.section`
-  ${({ theme }) => css`
+const Strip = styled.section<{ $withFigure: boolean }>`
+  ${({ theme, $withFigure }) => css`
     display: grid;
-    grid-template-columns: 220px repeat(3, minmax(0, 1fr));
+    grid-template-columns: ${$withFigure ? "220px " : ""}repeat(3, minmax(0, 1fr));
     gap: ${theme.spacing["2xl"]};
     padding: ${theme.spacing.lg} 0 ${theme.spacing.xl};
     margin-bottom: ${theme.spacing.xl};
@@ -69,25 +69,32 @@ const Note = styled.p`
   `}
 `;
 
+/**
+ * The month's notes, optionally led by its left-over figure. The dashboard
+ * already shows the figure in its key-figures strip, so it passes none.
+ */
 export function MonthBriefPanel({
-  leftOver,
-  planned,
+  figure,
   fmt,
   notes,
 }: {
-  leftOver: number;
-  planned: number;
+  figure?: { leftOver: number; planned: number };
   fmt: (n: number) => string;
   notes: BriefNote[];
 }) {
-  const isShort = leftOver < 0;
+  if (!figure && notes.length === 0) return null;
+  const isShort = (figure?.leftOver ?? 0) < 0;
   return (
-    <Strip aria-label="The month in brief">
-      <div>
-        <Figure>{isShort ? "Short" : "Left over"}</Figure>
-        <FigureValue $short={isShort}>{fmt(Math.abs(leftOver))}</FigureValue>
-        <FigureNote>{fmt(planned)} planned</FigureNote>
-      </div>
+    <Strip aria-label="The month in brief" $withFigure={figure !== undefined}>
+      {figure && (
+        <div>
+          <Figure>{isShort ? "Short" : "Left over"}</Figure>
+          <FigureValue $short={isShort}>
+            {fmt(Math.abs(figure.leftOver))}
+          </FigureValue>
+          <FigureNote>{fmt(figure.planned)} planned</FigureNote>
+        </div>
+      )}
       {notes.map((note) => (
         <Note key={note.lead}>
           <b>{note.lead}</b> {note.body}

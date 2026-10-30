@@ -14,6 +14,7 @@ import {
 } from "react";
 import styled, { css } from "styled-components";
 import { AddAccountDrawer } from "@/app/(app)/balance/AddAccountDrawer";
+import { MonthBriefPanel } from "@/components/insights/MonthBriefPanel";
 import { Sheet } from "@/components/sheet/Sheet";
 import {
   type Insight,
@@ -83,7 +84,6 @@ import {
   listCopyablePeriods,
   updateItem,
 } from "./actions";
-import { MonthBriefPanel } from "./MonthBriefPanel";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -1835,8 +1835,7 @@ export function BudgetSheet({
         lead={brief.standfirst}
       />
       <MonthBriefPanel
-        leftOver={leftOver.actual}
-        planned={leftOver.budget}
+        figure={{ leftOver: leftOver.actual, planned: leftOver.budget }}
         fmt={fmtAmount}
         notes={brief.notes}
       />

@@ -3,6 +3,7 @@
 import nextDynamic from "next/dynamic";
 import Link from "next/link";
 import styled, { css } from "styled-components";
+import { MonthBriefPanel } from "@/components/insights/MonthBriefPanel";
 import { ChartFallback } from "@/components/ui/ChartFallback";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { WhenVisible } from "@/components/ui/WhenVisible";
@@ -13,11 +14,14 @@ import {
   trailingAverageSeries,
 } from "@/lib/dashboard/series";
 import { dashboardSummary } from "@/lib/dashboard/summary";
-import type { NumberFormat } from "@/lib/settings/currency";
+import type { MonthBrief } from "@/lib/insights/monthBrief";
+import { formatAmount, type NumberFormat } from "@/lib/settings/currency";
 import { theme } from "@/lib/theme";
 import type { BalancePoint } from "./BalanceTrendChart";
 import { MonthChecklist } from "./MonthChecklist";
 import { SummaryRow } from "./SummaryRow";
+
+type DashboardBrief = MonthBrief & { monthLabel: string; ym: string };
 
 // Recharts is ~123KB gzipped — by far the heaviest thing the app ships, and
 // none of it is needed to render the page frame. Loading each chart on demand
@@ -160,28 +164,27 @@ const CategoryGrid = styled.div`
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
 `;
 
+// Each chart is a ruled section of the page, as a paper sets a chart under a
+// headline, rather than a box floating on it.
 const Panel = styled.section`
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  background: ${({ theme }) => theme.colors.canvas};
-  padding: ${({ theme }) => theme.spacing.xl};
+  border-top: 1px solid ${({ theme }) => theme.colors.ink};
+  padding-top: ${({ theme }) => theme.spacing.lg};
 `;
 
 const PanelTitle = styled.h2`
-  font-family: ${({ theme }) => theme.typography.kicker.family};
-  font-size: ${({ theme }) => theme.typography.kicker.size};
-  font-weight: ${({ theme }) => theme.typography.kicker.weight};
-  letter-spacing: ${({ theme }) => theme.typography.kicker.letterSpacing};
-  text-transform: uppercase;
-  color: ${({ theme }) => theme.colors.body};
-  margin: 0 0 ${({ theme }) => theme.spacing.sm};
+  font-family: ${({ theme }) => theme.typography.displayLg.family};
+  font-size: ${({ theme }) => theme.typography.displayLg.size};
+  font-weight: ${({ theme }) => theme.typography.displayLg.weight};
+  line-height: ${({ theme }) => theme.typography.displayLg.lineHeight};
+  color: ${({ theme }) => theme.colors.ink};
+  margin: 0 0 ${({ theme }) => theme.spacing.xs};
 `;
 
 const PanelLead = styled.p`
   margin: 0 0 ${({ theme }) => theme.spacing.lg};
   max-width: 70ch;
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.5;
   color: ${({ theme }) => theme.colors.body};
 `;
@@ -189,11 +192,13 @@ const PanelLead = styled.p`
 // Unified card for the "this month" section: checklist status + KPI tiles
 // together so the period context (the card header) covers both.
 const CurrentMonthCard = styled.section`
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  background: ${({ theme }) => theme.colors.canvas};
-  padding: ${({ theme }) => theme.spacing.lg};
-  margin-top: ${({ theme }) => theme.spacing["2xl"]};
+  margin: ${({ theme }) => theme.spacing.xl} 0 ${({ theme }) => theme.spacing["3xl"]};
+`;
+
+const BriefLink = styled(Link)`
+  color: ${({ theme }) => theme.colors.accent};
+  font-weight: 600;
+  white-space: nowrap;
 `;
 
 // Shown only when the whole dashboard has nothing in it — see `nothingToChart`.
@@ -286,6 +291,7 @@ export function DashboardView({
   hiddenCharts = [],
   checklist,
   checklistMonth,
+  brief = null,
 }: {
   balanceData: BalancePoint[];
   expenditureData: ExpenditurePoint[];
@@ -295,6 +301,7 @@ export function DashboardView({
   hiddenCharts?: string[];
   checklist: Checklist;
   checklistMonth: string;
+  brief?: DashboardBrief | null;
 }) {
   const shown = (key: string) => !hiddenCharts.includes(key);
   // Per-category balance series with trailing average, dropping categories that
@@ -371,20 +378,37 @@ export function DashboardView({
   return (
     <Shell>
       <PageHeader
-        eyebrow="Overview"
-        title="Dashboard"
-        lead="Trends across your tracked months."
+        eyebrow={brief ? `Dashboard · ${brief.monthLabel}` : "Dashboard"}
+        title={brief ? brief.headline : "Dashboard"}
+        lead={
+          brief ? (
+            <>
+              {brief.standfirst}{" "}
+              <BriefLink href={`/budget?ym=${brief.ym}`}>
+                Open the budget →
+              </BriefLink>
+            </>
+          ) : (
+            "Trends across your tracked months."
+          )
+        }
       />
+      {brief && (
+        <MonthBriefPanel
+          fmt={(n) => formatAmount(currency, n, numberFormat)}
+          notes={brief.notes}
+        />
+      )}
       {/* Suppressed on a first run: four dashes over an empty-state card would
           be noise, and the card already says what to do. */}
       {!nothingToChart && (
         <CurrentMonthCard aria-label={`This month · ${checklistMonth}`}>
-          <MonthChecklist checklist={checklist} monthLabel={checklistMonth} />
           <SummaryRow
             stats={summary}
             currency={currency}
             numberFormat={numberFormat}
           />
+          <MonthChecklist checklist={checklist} monthLabel={checklistMonth} />
         </CurrentMonthCard>
       )}
       {nothingToChart && (
