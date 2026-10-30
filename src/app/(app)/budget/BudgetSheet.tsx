@@ -16,6 +16,7 @@ import styled, { css } from "styled-components";
 import { AddAccountDrawer } from "@/app/(app)/balance/AddAccountDrawer";
 import { Sheet } from "@/components/sheet/Sheet";
 import {
+  type Insight,
   SheetGrandRow,
   SheetHeadRow,
   SheetItemRow,
@@ -49,7 +50,10 @@ import {
 } from "@/lib/budget/sections";
 import {
   computeRollups,
+  describeVariance,
   type ItemAmounts,
+  type ItemForTotals,
+  shareOfSpend,
   sumAmounts,
   surplus,
 } from "@/lib/budget/totals";
@@ -295,6 +299,42 @@ function AmountInput({
     />
   );
 }
+
+const VarianceText = styled.span<{ $favourable: boolean }>`
+  color: ${({ theme, $favourable }) =>
+    $favourable ? theme.colors.positive : theme.colors.negative};
+  font-weight: 600;
+  white-space: nowrap;
+`;
+
+const OnBudget = styled.span`
+  color: ${({ theme }) => theme.colors.dim};
+`;
+
+const Share = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.sm};
+  font-size: 13px;
+`;
+
+// The bar is the share drawn to scale: a full track is the whole month.
+const ShareTrack = styled.span`
+  width: 64px;
+  height: 8px;
+  background: ${({ theme }) => theme.colors.hairline};
+`;
+
+const ShareFill = styled.span`
+  display: block;
+  height: 100%;
+  background: ${({ theme }) => theme.colors.accent};
+`;
+
+type VarianceKind = Pick<ItemForTotals, "type" | "direction">;
+const INCOME_KIND: VarianceKind = { type: "INCOME", direction: null };
+const EXPENSE_KIND: VarianceKind = { type: "EXPENSE", direction: null };
+const REPAYMENT_KIND: VarianceKind = { type: "REPAYMENT", direction: null };
 
 const PageShell = styled.main`
   max-width: 1240px;
@@ -834,6 +874,8 @@ export function BudgetSheet({
   const fmtAmount = (n: number) => formatAmount(currency, n, numberFormat);
   const fmtSigned = (n: number) =>
     formatSignedAmount(currency, n, numberFormat);
+  const fmtShare = (fraction: number) =>
+    `${Math.round(fraction * 100).toLocaleString("en-GB")}%`;
   // periodState carries the period's DB id once it's been materialised.
   // A virtual period (no row in DB yet) starts with id="". The first
   // onAddRow call ensures the DB row exists and flips id to the real uuid.
@@ -1580,6 +1622,38 @@ export function BudgetSheet({
         ? `Saved ${formatRelative(lastSavedAt, now)}`
         : "Up to date";
 
+  // The two read-only columns: how far a row landed from its budget, and — for
+  // spending — its share of everything spent this month.
+  const insightFor = (kind: VarianceKind, amounts: ItemAmounts): Insight => {
+    const isSpend = kind.type === "EXPENSE" || kind.type === "REPAYMENT";
+    const share = isSpend
+      ? shareOfSpend(amounts.actual, expenseTotals.actual)
+      : null;
+    return {
+      variance: renderVariance(kind, amounts),
+      share:
+        share === null || amounts.actual <= 0 ? undefined : (
+          <Share>
+            <ShareTrack>
+              <ShareFill style={{ width: `${Math.min(share, 1) * 100}%` }} />
+            </ShareTrack>
+            {fmtShare(share)}
+          </Share>
+        ),
+    };
+  };
+
+  const renderVariance = (kind: VarianceKind, amounts: ItemAmounts) => {
+    if (amounts.budget === 0 && amounts.actual === 0) return undefined;
+    const variance = describeVariance(kind, amounts);
+    if (!variance) return <OnBudget>On budget</OnBudget>;
+    return (
+      <VarianceText $favourable={variance.favourable}>
+        {fmtAmount(variance.amount)} {variance.word}
+      </VarianceText>
+    );
+  };
+
   // ─── Render ───────────────────────────────────────────────────────────────
 
   // The section header inside a section: its name, an info popover, and its
@@ -1588,8 +1662,10 @@ export function BudgetSheet({
     label: string,
     help: string,
     totals: ItemAmounts,
+    kind: VarianceKind,
   ) => (
     <SheetSubheadRow
+      insight={insightFor(kind, totals)}
       label={
         <SubheadLabel>
           {label}
@@ -1620,6 +1696,10 @@ export function BudgetSheet({
   );
 
   const renderItemRow = (item: SerializedItem) => {
+    const insight = insightFor(item, {
+      budget: item.budget,
+      actual: item.actual,
+    });
     // What an anchored row points at, said from the user's side: "To Vanguard
     // ISA", never the stored INFLOW.
     const accountName = item.accountId
@@ -1703,6 +1783,7 @@ export function BudgetSheet({
             tone: item.actual === 0 ? "dim" : "default",
           },
         }}
+        insight={insight}
         notes={{
           value: (
             <CellInput
@@ -2083,6 +2164,7 @@ export function BudgetSheet({
 
         <SheetSectionRow
           label="Income"
+          insight={insightFor(INCOME_KIND, incomeTotals)}
           amounts={{
             budget: fmtAmount(incomeTotals.budget),
             actual: fmtAmount(incomeTotals.actual),
@@ -2090,13 +2172,15 @@ export function BudgetSheet({
         />
         {incomeSections.map(({ cat, rows, totals }) => (
           <div key={cat.key}>
-            {renderSectionSubhead(cat.label, cat.help, totals)}
+            {renderSectionSubhead(cat.label, cat.help, totals, INCOME_KIND)}
             {rows.map((item) => renderItemRow(item))}
           </div>
         ))}
 
         <SheetSectionRow
           label="Expenses"
+          // Every expense is 100% of itself; the section shows only its variance.
+          insight={{ variance: renderVariance(EXPENSE_KIND, expenseTotals) }}
           amounts={{
             budget: fmtAmount(expenseTotals.budget),
             actual: fmtAmount(expenseTotals.actual),
@@ -2104,7 +2188,7 @@ export function BudgetSheet({
         />
         {expenseSections.map(({ cat, rows, totals }) => (
           <div key={cat.key}>
-            {renderSectionSubhead(cat.label, cat.help, totals)}
+            {renderSectionSubhead(cat.label, cat.help, totals, EXPENSE_KIND)}
             {rows.map((item) => renderItemRow(item))}
           </div>
         ))}
@@ -2113,6 +2197,7 @@ export function BudgetSheet({
             "Debt payments",
             REPAYMENTS_HELP,
             repaymentTotals,
+            REPAYMENT_KIND,
           )}
           {repaymentRows.map((item) => renderItemRow(item))}
         </div>
@@ -2128,6 +2213,7 @@ export function BudgetSheet({
 
         <SheetGrandRow
           label="Left over"
+          insight={insightFor(INCOME_KIND, leftOver)}
           amounts={{
             budget: fmtSigned(leftOver.budget),
             actual: fmtSigned(leftOver.actual),

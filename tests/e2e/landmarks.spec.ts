@@ -106,7 +106,8 @@ test.describe("Sheet semantics", () => {
 
     for (const column of ["Category", "Budget", "Actual"]) {
       await expect(
-        sheet.getByRole("columnheader", { name: column }),
+        // Exact, because "vs budget" also contains "Budget".
+        sheet.getByRole("columnheader", { name: column, exact: true }),
       ).toBeVisible();
     }
 

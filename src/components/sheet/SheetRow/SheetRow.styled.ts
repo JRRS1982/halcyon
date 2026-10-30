@@ -1,9 +1,10 @@
 import styled, { css } from "styled-components";
 
-// Shared 4-column template across every row in the sheet (Category · Budget ·
-// Actual · Notes). Keep this in lockstep with DESIGN.md → Layout → Grid &
+// Shared 6-column template across every row in the sheet (Category · Budget ·
+// Actual · vs budget · Share of spend · Notes). Keep this in lockstep with DESIGN.md → Layout → Grid &
 // Container → "Sheet column template".
-export const SHEET_GRID = "1fr 150px 150px 1fr";
+export const SHEET_GRID =
+  "minmax(180px, 1.2fr) 120px 120px 120px 150px minmax(160px, 1fr)";
 
 // Below desktop the amount columns narrow and the row keeps a floor width, so
 // the sheet container (which turns into a horizontal scroller at the same
@@ -15,19 +16,22 @@ const baseRow = css`
   grid-template-columns: ${SHEET_GRID};
 
   @media (max-width: 991px) {
-    grid-template-columns: minmax(200px, 1fr) 120px 120px minmax(150px, 1fr);
-    min-width: 600px;
+    grid-template-columns: minmax(200px, 1fr) 110px 110px 110px 140px minmax(
+        150px,
+        1fr
+      );
+    min-width: 860px;
   }
 
   /* A 360px phone leaves 328px inside the page's 16px mobile gutters, so the
      row floor sits at 320px — all three columns land on screen with nothing
-     to pan to. Notes is hidden to keep the sheet at three columns and within
-     the viewport. Amounts keep tabular-nums room at 95px; see SheetCell for
+     to pan to. The insight columns and Notes are hidden to keep the sheet at
+     three columns and within the viewport. Amounts keep tabular-nums room at 95px; see SheetCell for
      the matching drop in horizontal cell padding. */
   @media (max-width: 767px) {
     grid-template-columns: minmax(130px, 1fr) 95px 95px;
     min-width: 320px;
-    > div:nth-child(4) {
+    > div:nth-child(n + 4) {
       display: none;
     }
   }

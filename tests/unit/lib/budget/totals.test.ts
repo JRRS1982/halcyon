@@ -1,7 +1,9 @@
 import {
   computeRollups,
+  describeVariance,
   favourableVariance,
   type ItemForTotals,
+  shareOfSpend,
   sumAmounts,
   surplus,
 } from "@/lib/budget/totals";
@@ -262,5 +264,77 @@ describe("surplus", () => {
 
   test("empty item list has zero surplus", () => {
     expect(surplus([], "actual")).toBe(0);
+  });
+});
+
+// The sheet's "vs budget" column. If this is wrong, a user reads an overspend
+// as a saving (or the reverse) on the row they came to the budget to check.
+describe("describeVariance", () => {
+  test("spending more than budgeted is over, and unfavourable", () => {
+    expect(
+      describeVariance(
+        { type: "EXPENSE", direction: null },
+        { budget: 420, actual: 492 },
+      ),
+    ).toEqual({ amount: 72, word: "over", favourable: false });
+  });
+
+  test("spending less than budgeted is under, and favourable", () => {
+    expect(
+      describeVariance(
+        { type: "EXPENSE", direction: null },
+        { budget: 240, actual: 190 },
+      ),
+    ).toEqual({ amount: 50, word: "under", favourable: true });
+  });
+
+  test("income short of budget is below, and unfavourable", () => {
+    expect(
+      describeVariance(
+        { type: "INCOME", direction: null },
+        { budget: 100, actual: 0 },
+      ),
+    ).toEqual({ amount: 100, word: "below", favourable: false });
+  });
+
+  test("paying more off a debt than planned is more, and favourable", () => {
+    expect(
+      describeVariance(
+        { type: "REPAYMENT", direction: null },
+        { budget: 300, actual: 350 },
+      ),
+    ).toEqual({ amount: 50, word: "more", favourable: true });
+  });
+
+  test("drawing more out of an account than planned is unfavourable", () => {
+    expect(
+      describeVariance(
+        { type: "TRANSFER", direction: "OUTFLOW" },
+        { budget: 100, actual: 150 },
+      ),
+    ).toEqual({ amount: 50, word: "more", favourable: false });
+  });
+
+  // Amounts arrive as floats; a sub-penny difference is "on budget", not
+  // "£0.00 over".
+  test("a row on budget, to the penny, has no variance", () => {
+    expect(
+      describeVariance(
+        { type: "EXPENSE", direction: null },
+        { budget: 0.1 + 0.2, actual: 0.3 },
+      ),
+    ).toBeNull();
+  });
+});
+
+// The sheet's "Share of spend" column. If this is wrong, a user misjudges
+// which category their money actually goes to.
+describe("shareOfSpend", () => {
+  test("is the row's actual as a fraction of the month's spending", () => {
+    expect(shareOfSpend(492, 2460)).toBeCloseTo(0.2, 5);
+  });
+
+  test("is undefined when nothing has been spent", () => {
+    expect(shareOfSpend(0, 0)).toBeNull();
   });
 });

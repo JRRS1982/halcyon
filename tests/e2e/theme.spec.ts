@@ -3,10 +3,13 @@
 // The scheme is decided by CSS (a media query plus a data-theme attribute the
 // server writes), so the only way to test it is to ask a real browser what it
 // actually resolved — with a real OS preference set.
+import { darkPalette, lightPalette } from "@/lib/palette";
 import { expect, signIn, test } from "./_helpers/fixtures";
 
-const LIGHT_CANVAS = "#FFFFFF";
-const DARK_CANVAS = "#0F1116";
+// From the palettes, so a palette change doesn't masquerade as a broken scheme
+// switch. What this spec checks is which set applies, not the values in it.
+const LIGHT_CANVAS = lightPalette.canvas.toUpperCase();
+const DARK_CANVAS = darkPalette.canvas.toUpperCase();
 
 // Reads the resolved custom property rather than a rendered colour, so the
 // assertion names the token that is wrong when it fails.
