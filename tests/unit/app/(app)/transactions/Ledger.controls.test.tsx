@@ -78,7 +78,6 @@ const renderLedger = (search = "") => {
           },
         ]}
         transferAccounts={[{ id: ACCOUNT, name: "Current", kind: "ASSET" }]}
-        uncategorizedCount={0}
         transfersEnabled={true}
       />
     </ThemeProvider>,

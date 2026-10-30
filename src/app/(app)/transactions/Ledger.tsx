@@ -51,27 +51,14 @@ const Section = styled.section`
   gap: ${({ theme }) => theme.spacing.lg};
 `;
 
-const Head = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: ${({ theme }) => theme.spacing.lg};
-  flex-wrap: wrap;
-`;
-
+// Visually hidden: it names the section in the document outline.
 const Title = styled.h2`
-  margin: 0;
-  font-family: ${({ theme }) => theme.typography.kicker.family};
-  font-size: ${({ theme }) => theme.typography.kicker.size};
-  text-transform: uppercase;
-  letter-spacing: ${({ theme }) => theme.typography.kicker.letterSpacing};
-  color: ${({ theme }) => theme.colors.dim};
-`;
-
-const Nudge = styled.span`
-  font-family: ${({ theme }) => theme.typography.bodyMd.family};
-  font-size: 13px;
-  color: ${({ theme }) => theme.colors.body};
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 `;
 
 // The ledger's amount column is 96px and a five-figure total in amount-xl
@@ -520,7 +507,6 @@ type LedgerProps = {
   // a display name; deliberately not the importable-only list the page also
   // queries for the import picker and quick-add.
   transferAccounts: LedgerAccount[];
-  uncategorizedCount: number;
   transfersEnabled: boolean;
   // The user's money format, from Settings.
   currency?: string;
@@ -532,7 +518,6 @@ export function Ledger({
   query,
   categories: initialCategories,
   transferAccounts: initialTransferAccounts,
-  uncategorizedCount,
   transfersEnabled,
   currency = "GBP",
   numberFormat = DEFAULT_NUMBER_FORMAT,
@@ -920,14 +905,9 @@ export function Ledger({
 
   return (
     <Section>
-      <Head>
-        <Title>Transactions</Title>
-        {uncategorizedCount > 0 && (
-          <Nudge>
-            {uncategorizedCount} uncategorized — assign a category below
-          </Nudge>
-        )}
-      </Head>
+      {/* The page headline above already says what needs doing, so the
+          ledger's heading is for assistive tech's outline only. */}
+      <Title>Transactions</Title>
 
       <LedgerControls
         search={search}

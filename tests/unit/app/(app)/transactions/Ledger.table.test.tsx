@@ -54,7 +54,6 @@ const renderLedger = (amounts: number[], total = amounts.length) =>
         query={parseLedgerSearchParams({})}
         categories={[]}
         transferAccounts={[]}
-        uncategorizedCount={0}
         transfersEnabled={true}
       />
     </ThemeProvider>,

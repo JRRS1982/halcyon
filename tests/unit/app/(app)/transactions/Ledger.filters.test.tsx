@@ -49,7 +49,6 @@ const renderLedger = (search: string) => {
           { id: SAVINGS, name: "Savings", kind: "ASSET" },
           { id: CURRENT, name: "Current", kind: "ASSET" },
         ]}
-        uncategorizedCount={0}
         transfersEnabled={true}
       />
     </ThemeProvider>,
@@ -205,7 +204,6 @@ describe("ledger filter drawer draft", () => {
           query={parseLedgerSearchParams({})}
           categories={[]}
           transferAccounts={[]}
-          uncategorizedCount={0}
           transfersEnabled={true}
         />
       </ThemeProvider>,

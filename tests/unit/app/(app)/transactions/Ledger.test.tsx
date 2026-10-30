@@ -71,7 +71,6 @@ const renderLedger = () =>
             kind: "LIABILITY",
           },
         ]}
-        uncategorizedCount={0}
         transfersEnabled={true}
       />
     </ThemeProvider>,
@@ -103,7 +102,6 @@ describe("Ledger search box", () => {
           query={queryWith({ q: search })}
           categories={[]}
           transferAccounts={[]}
-          uncategorizedCount={0}
           transfersEnabled={true}
         />
       </ThemeProvider>,
@@ -133,7 +131,6 @@ describe("Ledger search box", () => {
             query={queryWith({ q: "coffee" })}
             categories={[]}
             transferAccounts={[]}
-            uncategorizedCount={0}
             transfersEnabled={true}
           />
         </ThemeProvider>,
@@ -157,7 +154,6 @@ describe("Ledger search box", () => {
           query={queryWith({ q: "rent" })}
           categories={[]}
           transferAccounts={[]}
-          uncategorizedCount={0}
           transfersEnabled={true}
         />
       </ThemeProvider>,

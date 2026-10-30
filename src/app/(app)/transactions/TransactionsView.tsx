@@ -132,7 +132,6 @@ export function TransactionsView({
         query={query}
         categories={categories}
         transferAccounts={transferAccounts}
-        uncategorizedCount={uncategorizedCount}
         transfersEnabled={transfersEnabled}
         currency={currency}
         numberFormat={numberFormat}
