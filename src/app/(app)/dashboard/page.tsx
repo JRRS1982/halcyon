@@ -1,9 +1,5 @@
 import { redirect } from "next/navigation";
-import {
-  currentMonthRange,
-  formatYm,
-  MONTH_LABELS_SHORT,
-} from "@/lib/budget/period";
+import { currentMonthRange, MONTH_LABELS_SHORT } from "@/lib/budget/period";
 import { computeRollups } from "@/lib/budget/totals";
 import { isExpenseSection } from "@/lib/categories/sections";
 import { monthChecklist } from "@/lib/dashboard/checklist";
@@ -16,10 +12,7 @@ import {
   type MonthFlow,
   monthFlow,
 } from "@/lib/dashboard/series";
-import { historyByCategory } from "@/lib/insights/history";
-import { monthBrief } from "@/lib/insights/monthBrief";
 import { prisma } from "@/lib/prisma";
-import { formatAmount } from "@/lib/settings/currency";
 import { getCurrentUserSettings } from "@/lib/settings/server";
 import { getCurrentUser } from "@/lib/supabase/user";
 import {
@@ -260,53 +253,6 @@ export default async function DashboardPage() {
   // ─── This-month checklist: the monthly loop as state ──────────────────────
   // Derived almost entirely from the periods already loaded; the only extra
   // read is the uncategorized count, and only in transactions mode.
-  // The brief covers the latest month with any spending in it, so a month that
-  // has only just begun doesn't headline the page as empty. Its history is the
-  // months before it, read the same way.
-  const ymOf = (date: Date) =>
-    formatYm(date.getUTCFullYear(), date.getUTCMonth());
-  const spendOf = (p: (typeof periods)[number]) =>
-    p.items
-      .filter((i) => i.type === "EXPENSE" || i.type === "REPAYMENT")
-      .reduce((total, i) => total + actualFor(p.startDate, i), 0);
-  const briefIndex = periods.findLastIndex((p) => spendOf(p) > 0);
-  const briefPeriod = periods[briefIndex];
-  const prior = periods.slice(0, Math.max(briefIndex, 0));
-  const history = historyByCategory(
-    prior.flatMap((p) =>
-      p.items.flatMap((i) =>
-        i.categoryId
-          ? [
-              {
-                categoryId: i.categoryId,
-                ym: ymOf(p.startDate),
-                actual: actualFor(p.startDate, i),
-              },
-            ]
-          : [],
-      ),
-    ),
-    prior.map((p) => ({ ym: ymOf(p.startDate), label: p.label })),
-  );
-  const brief = briefPeriod
-    ? {
-        monthLabel: briefPeriod.label,
-        ym: ymOf(briefPeriod.startDate),
-        ...monthBrief({
-          rows: briefPeriod.items.map((i) => ({
-            label: i.label,
-            type: i.type,
-            direction: i.direction,
-            budget: Number(i.budget),
-            actual: actualFor(briefPeriod.startDate, i),
-            history: i.categoryId ? (history[i.categoryId] ?? []) : [],
-          })),
-          monthLabel: briefPeriod.label,
-          fmt: (n) => formatAmount(currency, n, numberFormat),
-        }),
-      }
-    : null;
-
   const currentPeriod = periods.find(
     (p) => p.startDate.getTime() === now.startDate.getTime(),
   );
@@ -332,7 +278,6 @@ export default async function DashboardPage() {
       hiddenCharts={hiddenCharts}
       checklist={checklist}
       checklistMonth={now.label}
-      brief={brief}
     />
   );
 }

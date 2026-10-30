@@ -18,10 +18,7 @@ import type { ActiveFilter } from "@/lib/transactions/activeFilters";
 const Card = styled.section`
   display: grid;
   gap: ${({ theme }) => theme.spacing.md};
-  padding: ${({ theme }) => theme.spacing.md};
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  background: ${({ theme }) => theme.colors.canvas};
+  padding: ${({ theme }) => theme.spacing.md} 0;
 `;
 
 const Row = styled.div`

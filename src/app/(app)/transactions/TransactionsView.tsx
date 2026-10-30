@@ -17,7 +17,7 @@ type TransferAccount = {
 };
 
 const Shell = styled.main`
-  max-width: 960px;
+  max-width: 1240px;
   margin: 0 auto;
   padding: ${({ theme }) => theme.spacing["3xl"]}
     ${({ theme }) => theme.spacing["2xl"]} ${({ theme }) => theme.spacing["5xl"]};
@@ -27,6 +27,29 @@ const Shell = styled.main`
     padding-right: ${({ theme }) => theme.spacing.lg};
   }
 `;
+
+// The page's actions on their own ruled row under the headline, so a long
+// headline never squeezes them.
+const Actions = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.sm};
+  padding: ${({ theme }) => theme.spacing.md} 0;
+  margin-bottom: ${({ theme }) => theme.spacing.xl};
+  border-top: 1px solid ${({ theme }) => theme.colors.ink};
+  border-bottom: 1px solid ${({ theme }) => theme.colors.hairlineStrong};
+`;
+
+const plural = (n: number, one: string, many: string) =>
+  `${n.toLocaleString("en-GB")} ${n === 1 ? one : many}`;
+
+// What the ledger needs from you, said first: the rows still waiting for a
+// category are what stops the budget's actuals being complete.
+const headlineFor = (uncategorized: number) =>
+  uncategorized === 0
+    ? "Every transaction has a category"
+    : `${plural(uncategorized, "transaction needs", "transactions need")} a category`;
 
 export function TransactionsView({
   accounts,
@@ -54,17 +77,19 @@ export function TransactionsView({
   return (
     <Shell>
       <PageHeader
-        eyebrow="Money in & out"
-        title="Transactions"
-        lead="Import bank statements and categorize spending against your budget."
-        actions={
-          <>
-            <QuickAdd accounts={accounts} categories={categories} />
-            <ReverseImport />
-            <ImportPanel accounts={accounts} />
-          </>
+        eyebrow="Transactions · money in & out"
+        title={headlineFor(uncategorizedCount)}
+        lead={
+          uncategorizedCount === 0
+            ? "Your budget's actuals are complete. Import your next statement when it arrives, or add a transaction by hand."
+            : "Until they have one, they are left out of your budget's actuals and your charts. Filter to uncategorised below and work down the list."
         }
       />
+      <Actions>
+        <ImportPanel accounts={accounts} />
+        <QuickAdd accounts={accounts} categories={categories} />
+        <ReverseImport />
+      </Actions>
       <Ledger
         page={page}
         query={query}

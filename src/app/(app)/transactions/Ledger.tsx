@@ -68,22 +68,24 @@ const Nudge = styled.span`
   color: ${({ theme }) => theme.colors.body};
 `;
 
-// DESIGN.md → sheet-row-grand: the black band that ends the table. The spec
-// sets its amount in amount-xl (18px), but the ledger's amount column is 96px
-// and a five-figure total would overflow it, so this uses amount-strong — the
-// band still carries the emphasis, which is the point the spec makes.
+// The ledger's amount column is 96px and a five-figure total in amount-xl
+// would overflow it, so the total uses amount-strong; the rules carry the
+// emphasis.
+// The table's bottom line, set like the budget's grand total: between two ink
+// rules on the soft ground.
 const TotalCell = styled.td`
   padding: ${({ theme }) => theme.spacing.md};
-  background: ${({ theme }) => theme.colors.band};
-  color: ${({ theme }) => theme.colors.onBand};
+  background: ${({ theme }) => theme.colors.canvasSoft};
+  color: ${({ theme }) => theme.colors.ink};
+  border-top: 2px solid ${({ theme }) => theme.colors.ink};
+  border-bottom: 2px solid ${({ theme }) => theme.colors.ink};
   font-family: ${({ theme }) => theme.typography.control.family};
   font-size: ${({ theme }) => theme.typography.control.size};
   white-space: nowrap;
 `;
 
-// Always monochrome — DESIGN.md is explicit that a grand-total row takes no
-// positive/negative colouring, because the band is already the heaviest
-// treatment on the page and colour fights it.
+// Always monochrome: a grand total takes no positive/negative colouring, so it
+// never competes with the rows' signs.
 const TotalAmount = styled(TotalCell)`
   text-align: right;
   font-family: ${({ theme }) => theme.typography.amountStrong.family};
@@ -117,7 +119,7 @@ const Table = styled.table`
   table-layout: fixed;
   border-collapse: collapse;
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
-  font-size: 13px;
+  font-size: 14px;
 
   @media (max-width: 991px) {
     min-width: 940px;
@@ -137,18 +139,15 @@ const COLUMN_WIDTHS: [column: string, width: string][] = [
   ["note", "76px"],
 ];
 
-// DESIGN.md → sheet-row-head: canvas-soft ground, mono-caps labels, and a
-// hairline-strong rule below. The ledger's header used to be plain bold body
-// text on canvas over an ordinary hairline, which is why it read as a row of
-// slightly heavier data rather than as the head of the table.
+// Set as the budget sheet's head: small muted labels closed by a heavy ink
+// rule, so the ledger reads as the same kind of table.
 const Th = styled.th<{ $align?: "right" }>`
   text-align: ${({ $align }) => ($align === "right" ? "right" : "left")};
   padding: ${({ theme }) => theme.spacing.sm};
-  background: ${({ theme }) => theme.colors.canvasSoft};
-  border-bottom: 1px solid ${({ theme }) => theme.colors.hairlineStrong};
+  border-bottom: 2px solid ${({ theme }) => theme.colors.ink};
   color: ${({ theme }) => theme.colors.body};
   font-family: ${({ theme }) => theme.typography.control.family};
-  font-size: ${({ theme }) => theme.typography.control.size};
+  font-size: 13px;
   font-weight: ${({ theme }) => theme.typography.control.weight};
   cursor: pointer;
   user-select: none;
@@ -169,7 +168,7 @@ const Row = styled.tr`
 `;
 
 const Td = styled.td`
-  padding: ${({ theme }) => theme.spacing.sm};
+  padding: ${({ theme }) => theme.spacing.md} ${({ theme }) => theme.spacing.sm};
   border-bottom: 1px solid ${({ theme }) => theme.colors.hairline};
   color: ${({ theme }) => theme.colors.ink};
   vertical-align: middle;
@@ -187,7 +186,8 @@ const TdNowrap = styled(Td)`
 `;
 
 const Amount = styled.td<{ $negative: boolean }>`
-  padding: ${({ theme }) => theme.spacing.sm};
+  padding: ${({ theme }) => theme.spacing.md} ${({ theme }) => theme.spacing.sm};
+  font-weight: 600;
   border-bottom: 1px solid ${({ theme }) => theme.colors.hairline};
   text-align: right;
   font-variant-numeric: tabular-nums;
@@ -229,8 +229,7 @@ const stickySelect = css`
 const ThCheck = styled.th`
   width: 28px;
   padding: ${({ theme }) => theme.spacing.sm};
-  background: ${({ theme }) => theme.colors.canvasSoft};
-  border-bottom: 1px solid ${({ theme }) => theme.colors.hairlineStrong};
+  border-bottom: 2px solid ${({ theme }) => theme.colors.ink};
 `;
 
 // Select-all header cell; pins with its column, see stickySelect.

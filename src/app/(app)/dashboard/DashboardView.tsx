@@ -14,14 +14,12 @@ import {
   trailingAverageSeries,
 } from "@/lib/dashboard/series";
 import { dashboardSummary } from "@/lib/dashboard/summary";
-import type { MonthBrief } from "@/lib/insights/monthBrief";
+import { overallBrief } from "@/lib/insights/overallBrief";
 import { formatAmount, type NumberFormat } from "@/lib/settings/currency";
 import { theme } from "@/lib/theme";
 import type { BalancePoint } from "./BalanceTrendChart";
 import { MonthChecklist } from "./MonthChecklist";
 import { SummaryRow } from "./SummaryRow";
-
-type DashboardBrief = MonthBrief & { monthLabel: string; ym: string };
 
 // Recharts is ~123KB gzipped — by far the heaviest thing the app ships, and
 // none of it is needed to render the page frame. Loading each chart on demand
@@ -195,12 +193,6 @@ const CurrentMonthCard = styled.section`
   margin: ${({ theme }) => theme.spacing.xl} 0 ${({ theme }) => theme.spacing["3xl"]};
 `;
 
-const BriefLink = styled(Link)`
-  color: ${({ theme }) => theme.colors.accent};
-  font-weight: 600;
-  white-space: nowrap;
-`;
-
 // Shown only when the whole dashboard has nothing in it — see `nothingToChart`.
 const FirstRun = styled.section`
   border: 1px solid ${({ theme }) => theme.colors.hairline};
@@ -291,7 +283,6 @@ export function DashboardView({
   hiddenCharts = [],
   checklist,
   checklistMonth,
-  brief = null,
 }: {
   balanceData: BalancePoint[];
   expenditureData: ExpenditurePoint[];
@@ -301,7 +292,6 @@ export function DashboardView({
   hiddenCharts?: string[];
   checklist: Checklist;
   checklistMonth: string;
-  brief?: DashboardBrief | null;
 }) {
   const shown = (key: string) => !hiddenCharts.includes(key);
   // Per-category balance series with trailing average, dropping categories that
@@ -369,6 +359,22 @@ export function DashboardView({
     balanceData.length === 0 &&
     expenditurePanels.length === 0;
 
+  // The page's headline is the whole window, not a month: the budget page
+  // tells each month's story.
+  const brief = overallBrief({
+    balance: balanceData,
+    cashFlow: cashFlowData,
+    expenditure: expenditureData,
+    fmt: (n) => formatAmount(currency, n, numberFormat),
+  });
+  const span =
+    cashFlowData.length > 0
+      ? {
+          first: cashFlowData[0]?.month ?? "",
+          last: cashFlowData.at(-1)?.month ?? "",
+        }
+      : null;
+
   const summary = dashboardSummary({
     balance: balanceData,
     cashFlow: cashFlowData,
@@ -378,20 +384,11 @@ export function DashboardView({
   return (
     <Shell>
       <PageHeader
-        eyebrow={brief ? `Dashboard · ${brief.monthLabel}` : "Dashboard"}
-        title={brief ? brief.headline : "Dashboard"}
-        lead={
-          brief ? (
-            <>
-              {brief.standfirst}{" "}
-              <BriefLink href={`/budget?ym=${brief.ym}`}>
-                Open the budget →
-              </BriefLink>
-            </>
-          ) : (
-            "Trends across your tracked months."
-          )
+        eyebrow={
+          span ? `Dashboard · ${span.first} to ${span.last}` : "Dashboard"
         }
+        title={brief ? brief.headline : "Dashboard"}
+        lead={brief?.standfirst || "Trends across your tracked months."}
       />
       {brief && (
         <MonthBriefPanel
