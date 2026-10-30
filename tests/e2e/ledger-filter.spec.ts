@@ -182,7 +182,8 @@ test.describe("ledger controls card and total row", () => {
     await page.getByLabel("To", { exact: true }).fill("2026-03-31");
     await page.getByRole("button", { name: "Apply" }).click();
 
-    await expect(page.locator("tfoot")).toContainText("-12.00");
+    // In the default money format, as Settings sets it.
+    await expect(page.locator("tfoot")).toContainText("−£12");
     await expect(page.locator("tfoot")).toContainText("Total · 1 transaction");
 
     // Selecting a row hands the search box's slot to the categorize control.

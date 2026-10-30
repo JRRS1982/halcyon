@@ -1,11 +1,10 @@
 // tests/e2e/mobile-ledger.spec.ts
 //
-// The ledger table pans horizontally on a phone with the selection column
-// pinned left — the bulk workflow needs the checkboxes in view while the
-// category column is reached by panning (the same treatment the budget and
-// balance sheets get, see mobile-sheet.spec.ts). Layout-only, so it runs on
-// every engine; the rows are seeded straight into the database rather than
-// through the import journey.
+// On a phone the ledger reads as statement lines rather than a panning table:
+// each row's amount and category picker sit on screen with its checkbox, so a
+// user can review and categorise without scrolling sideways. Layout-only, so
+// it runs on every engine; the rows are seeded straight into the database
+// rather than through the import journey.
 import { buildAccountData } from "@/lib/accounts/creation";
 import { expect, signedInUser, signIn, test } from "./_helpers/fixtures";
 
@@ -14,7 +13,7 @@ const PHONE = { width: 390, height: 844 };
 test.describe("Ledger on a phone", () => {
   test.use({ viewport: PHONE });
 
-  test("the table pans with the selection checkboxes pinned", async ({
+  test("every row's amount and category are on screen, with no sideways scroll", async ({
     page,
     db,
   }) => {
@@ -52,30 +51,29 @@ test.describe("Ledger on a phone", () => {
     const scroller = page.locator("[data-ledger-scroller]");
     await expect(scroller).toBeVisible();
 
-    // The table is wider than the phone, so the container is scrollable...
+    // Nothing to pan to: the lines fit the phone.
     const { scrollWidth, clientWidth } = await scroller.evaluate((el) => ({
       scrollWidth: el.scrollWidth,
       clientWidth: el.clientWidth,
     }));
-    expect(scrollWidth).toBeGreaterThan(clientWidth);
+    expect(scrollWidth).toBeLessThanOrEqual(clientWidth);
 
-    // ...and the row's checkbox stays put while the columns slide under it.
-    const checkbox = page.getByRole("checkbox", {
-      name: "Select Supermarket weekly shop",
-    });
-    const before = await checkbox.boundingBox();
-    await scroller.evaluate((el) => {
-      el.scrollLeft = el.scrollWidth;
-    });
-    const panned = await scroller.evaluate((el) => el.scrollLeft);
-    expect(panned).toBeGreaterThan(0);
-    const after = await checkbox.boundingBox();
-    expect(after?.x).toBeCloseTo(before?.x ?? 0, 0);
-
-    // The notes spacer header (the other narrow non-sorting cell) must NOT
-    // have followed the checkboxes to the left edge — it is the table's last
-    // column, so at full pan it sits on the right half of the screen.
-    const notesBox = await page.locator('th[aria-label="Notes"]').boundingBox();
-    expect(notesBox?.x ?? Number.NaN).toBeGreaterThan(clientWidth / 2);
+    // The row's checkbox, its amount and its category picker are all inside
+    // the viewport at once.
+    const row = page
+      .getByRole("row")
+      .filter({ hasText: "Supermarket weekly shop" });
+    for (const part of [
+      row.getByRole("checkbox", { name: "Select Supermarket weekly shop" }),
+      // The amount in the default money format (no decimals).
+      row.getByText(/£4[23]$/),
+      row.getByRole("button", { name: /Uncategori[sz]ed/ }),
+    ]) {
+      const box = await part.boundingBox();
+      expect(box).not.toBeNull();
+      expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(
+        PHONE.width,
+      );
+    }
   });
 });

@@ -114,8 +114,31 @@ const Table = styled.table`
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
   font-size: 14px;
 
-  @media (max-width: 991px) {
+  /* A tablet keeps the columns and pans them. */
+  @media (max-width: 991px) and (min-width: 768px) {
     min-width: 940px;
+  }
+
+  /* A phone reads the ledger as statement lines instead (see Row): no column
+     heads, no panning, every row's amount and category on screen. */
+  @media (max-width: 767px) {
+    display: block;
+
+    colgroup,
+    thead {
+      display: none;
+    }
+    tbody,
+    tfoot {
+      display: block;
+    }
+    tfoot tr {
+      display: flex;
+      justify-content: space-between;
+    }
+    tfoot td:empty {
+      display: none;
+    }
   }
 `;
 
@@ -201,11 +224,69 @@ const Th = styled.th<{ $align?: "right" }>`
 // what the click was aimed at. The three things that own their own click (the
 // checkbox, the category combobox, the details toggle) stop the event so a
 // click there still does only its own job.
+// On a phone each transaction is a statement line: date and account small on
+// top, the description and its amount, then the category with its approval
+// and the note toggle. Cells keep their table order (select, date,
+// description, account, amount, category, note) and are placed by area.
 const Row = styled.tr`
   cursor: pointer;
 
   &:hover {
     background: ${({ theme }) => theme.colors.canvasSoft};
+  }
+
+  @media (max-width: 767px) {
+    display: grid;
+    grid-template-columns: 32px auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "check date account account"
+      "check description description amount"
+      "check category category note";
+    align-items: center;
+    column-gap: ${({ theme }) => theme.spacing.sm};
+    row-gap: ${({ theme }) => theme.spacing.xs};
+    padding: ${({ theme }) => theme.spacing.md} 0;
+    border-bottom: 1px solid ${({ theme }) => theme.colors.hairline};
+
+    > td {
+      border-bottom: none;
+      padding: 0;
+      position: static;
+      background: transparent;
+    }
+    > td:nth-child(1) {
+      grid-area: check;
+      align-self: start;
+      padding-top: 2px;
+    }
+    > td:nth-child(2),
+    > td:nth-child(4) {
+      font-size: 12px;
+      color: ${({ theme }) => theme.colors.body};
+    }
+    > td:nth-child(2) {
+      grid-area: date;
+    }
+    > td:nth-child(3) {
+      grid-area: description;
+      font-size: 15px;
+      font-weight: 600;
+    }
+    > td:nth-child(4) {
+      grid-area: account;
+    }
+    > td:nth-child(5) {
+      grid-area: amount;
+      font-size: 16px;
+    }
+    > td:nth-child(6) {
+      grid-area: category;
+      padding-top: ${({ theme }) => theme.spacing.xs};
+    }
+    > td:nth-child(7) {
+      grid-area: note;
+      padding-top: ${({ theme }) => theme.spacing.xs};
+    }
   }
 `;
 
@@ -257,7 +338,7 @@ const EmptyLink = styled(Link)`
 // same sticky-left treatment the budget/balance sheets give their category
 // cell (SheetRow.styled). Opaque background so panning columns slide under it.
 const stickySelect = css`
-  @media (max-width: 991px) {
+  @media (max-width: 991px) and (min-width: 768px) {
     position: sticky;
     left: 0;
     z-index: 1;
