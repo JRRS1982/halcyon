@@ -32,7 +32,7 @@ export const Eyebrow = styled.p`
   font-weight: ${({ theme }) => theme.typography.kicker.weight};
   letter-spacing: ${({ theme }) => theme.typography.kicker.letterSpacing};
   text-transform: uppercase;
-  color: ${({ theme }) => theme.colors.bodyMuted};
+  color: ${({ theme }) => theme.colors.accent};
   margin: 0;
 `;
 
