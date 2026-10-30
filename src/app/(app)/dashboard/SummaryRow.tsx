@@ -29,6 +29,18 @@ const Tile = styled.div`
     border-left: none;
     padding-left: 0;
   }
+
+  /* Two-by-two on a phone: each row starts flush left, and the second row is
+     ruled off from the first. */
+  @media (max-width: 767px) {
+    &:nth-child(odd) {
+      border-left: none;
+      padding-left: 0;
+    }
+    &:nth-child(n + 3) {
+      border-top: 1px solid ${({ theme }) => theme.colors.hairlineStrong};
+    }
+  }
 `;
 
 const Label = styled.div`
