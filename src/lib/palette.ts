@@ -45,7 +45,13 @@ export type ColorToken =
   | "chartProperty"
   | "chartOtherAsset"
   | "chartPension"
-  | "chartDbPension";
+  | "chartDbPension"
+  // One colour per spending section (Fixed / Variable / Discretionary), used
+  // wherever that section appears: its budget heading, its share bars, its
+  // dashboard chart. Graphics, so 3:1 against the page.
+  | "sectionFixed"
+  | "sectionVariable"
+  | "sectionDiscretionary";
 
 export type Palette = Record<ColorToken, string>;
 
@@ -95,6 +101,9 @@ export const lightPalette: Palette = {
   chartOtherAsset: "#BE185D",
   chartPension: "#1D4ED8",
   chartDbPension: "#C2410C",
+  sectionFixed: "#1B4E8A",
+  sectionVariable: "#B4530A",
+  sectionDiscretionary: "#8E1B3D",
 };
 
 /**
@@ -146,6 +155,9 @@ export const darkPalette: Palette = {
   chartOtherAsset: "#D06B95",
   chartPension: "#5B8DEF",
   chartDbPension: "#D96A45",
+  sectionFixed: "#7FA9E6",
+  sectionVariable: "#E39A4F",
+  sectionDiscretionary: "#E58AA6",
 };
 
 export const cssVariableName = (token: string) => `--c-${token}`;

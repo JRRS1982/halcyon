@@ -77,6 +77,7 @@ import {
   parseEditable,
   significantBefore,
 } from "@/lib/settings/currency";
+import { theme } from "@/lib/theme";
 import {
   copyPeriodFrom,
   createItemForMonth,
@@ -328,11 +329,18 @@ const ShareTrack = styled.span`
   background: ${({ theme }) => theme.colors.hairline};
 `;
 
-const ShareFill = styled.span`
+const ShareFill = styled.span<{ $color: string }>`
   display: block;
   height: 100%;
-  background: ${({ theme }) => theme.colors.accent};
+  background: ${({ $color }) => $color};
 `;
+
+// Each spending section's colour code, shared with the dashboard's charts.
+const SECTION_COLOR: Partial<Record<string, string>> = {
+  FIXED: theme.colors.sectionFixed,
+  VARIABLE: theme.colors.sectionVariable,
+  DISCRETIONARY: theme.colors.sectionDiscretionary,
+};
 
 type VarianceKind = Pick<ItemForTotals, "type" | "direction">;
 const INCOME_KIND: VarianceKind = { type: "INCOME", direction: null };
@@ -1629,7 +1637,11 @@ export function BudgetSheet({
 
   // The two read-only columns: how far a row landed from its budget, and — for
   // spending — its share of everything spent this month.
-  const insightFor = (kind: VarianceKind, amounts: ItemAmounts): Insight => {
+  const insightFor = (
+    kind: VarianceKind,
+    amounts: ItemAmounts,
+    color: string = theme.colors.accent,
+  ): Insight => {
     const isSpend = kind.type === "EXPENSE" || kind.type === "REPAYMENT";
     const share = isSpend
       ? shareOfSpend(amounts.actual, expenseTotals.actual)
@@ -1640,7 +1652,10 @@ export function BudgetSheet({
         share === null || amounts.actual <= 0 ? undefined : (
           <Share>
             <ShareTrack>
-              <ShareFill style={{ width: `${Math.min(share, 1) * 100}%` }} />
+              <ShareFill
+                $color={color}
+                style={{ width: `${Math.min(share, 1) * 100}%` }}
+              />
             </ShareTrack>
             {fmtShare(share)}
           </Share>
@@ -1682,9 +1697,11 @@ export function BudgetSheet({
     help: string,
     totals: ItemAmounts,
     kind: VarianceKind,
+    accent?: string,
   ) => (
     <SheetSubheadRow
-      insight={insightFor(kind, totals)}
+      accent={accent}
+      insight={insightFor(kind, totals, accent)}
       label={
         <SubheadLabel>
           {label}
@@ -1715,10 +1732,11 @@ export function BudgetSheet({
   );
 
   const renderItemRow = (item: SerializedItem) => {
-    const insight = insightFor(item, {
-      budget: item.budget,
-      actual: item.actual,
-    });
+    const insight = insightFor(
+      item,
+      { budget: item.budget, actual: item.actual },
+      SECTION_COLOR[item.section ?? ""],
+    );
     // What an anchored row points at, said from the user's side: "To Vanguard
     // ISA", never the stored INFLOW.
     const accountName = item.accountId
@@ -2209,7 +2227,13 @@ export function BudgetSheet({
         />
         {expenseSections.map(({ cat, rows, totals }) => (
           <div key={cat.key}>
-            {renderSectionSubhead(cat.label, cat.help, totals, EXPENSE_KIND)}
+            {renderSectionSubhead(
+              cat.label,
+              cat.help,
+              totals,
+              EXPENSE_KIND,
+              SECTION_COLOR[cat.key],
+            )}
             {rows.map((item) => renderItemRow(item))}
           </div>
         ))}

@@ -114,7 +114,7 @@ const CATEGORY_PANELS: {
 }[] = [
   {
     label: "Fixed",
-    color: theme.colors.positive,
+    color: theme.colors.sectionFixed,
     lead: "Fixed costs each month — actual vs budget vs the 6-month average.",
     actualKey: "fixedActual",
     budgetKey: "fixedBudget",
@@ -122,7 +122,7 @@ const CATEGORY_PANELS: {
   },
   {
     label: "Variable",
-    color: theme.colors.accent,
+    color: theme.colors.sectionVariable,
     lead: "Variable spending each month — actual vs budget vs the 6-month average.",
     actualKey: "variableActual",
     budgetKey: "variableBudget",
@@ -130,7 +130,7 @@ const CATEGORY_PANELS: {
   },
   {
     label: "Discretionary",
-    color: theme.colors.chartRate,
+    color: theme.colors.sectionDiscretionary,
     lead: "Discretionary spending each month — actual vs budget vs the 6-month average.",
     actualKey: "discretionaryActual",
     budgetKey: "discretionaryBudget",

@@ -78,13 +78,16 @@ export function SheetSubheadRow({
   label,
   amounts,
   insight,
+  accent,
 }: {
   label: ReactNode;
   amounts: AmountCells;
   insight?: Insight;
+  // The section's colour code, when it has one.
+  accent?: string;
 }) {
   return (
-    <SubheadRow role="row">
+    <SubheadRow role="row" $accent={accent}>
       <SheetCell role="rowheader">{label}</SheetCell>
       <SheetCell align="right">{amounts.budget}</SheetCell>
       <SheetCell align="right">{amounts.actual}</SheetCell>

@@ -80,6 +80,9 @@ const groupOf: Record<ColorToken, GroupName> = {
   chartOtherAsset: "chart",
   chartPension: "chart",
   chartDbPension: "chart",
+  sectionFixed: "chart",
+  sectionVariable: "chart",
+  sectionDiscretionary: "chart",
 };
 
 export type SwatchGroup = {

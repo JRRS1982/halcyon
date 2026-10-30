@@ -58,6 +58,9 @@ export const theme = {
     chartOtherAsset: cssVar("chartOtherAsset"),
     chartPension: cssVar("chartPension"),
     chartDbPension: cssVar("chartDbPension"),
+    sectionFixed: cssVar("sectionFixed"),
+    sectionVariable: cssVar("sectionVariable"),
+    sectionDiscretionary: cssVar("sectionDiscretionary"),
   },
 
   // Five sizes only. See DESIGN.md → Typography → Hierarchy.

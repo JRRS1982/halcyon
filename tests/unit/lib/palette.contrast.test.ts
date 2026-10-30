@@ -93,6 +93,20 @@ describe("colour contrast", () => {
       );
     });
 
+    // A section's colour is how a user tells Fixed from Variable at a glance;
+    // a bar that fades into the page tells them nothing.
+    test.each([
+      "sectionFixed",
+      "sectionVariable",
+      "sectionDiscretionary",
+    ] as const)("%s is visible on every surface", (token) => {
+      for (const surface of SURFACES) {
+        expect(
+          contrast(palette[token], palette[surface]),
+        ).toBeGreaterThanOrEqual(AA_NON_TEXT);
+      }
+    });
+
     // The whole point of the band is that it separates itself from the page.
     // In dark mode it is lighter than the canvas rather than darker, and this
     // holds either way.

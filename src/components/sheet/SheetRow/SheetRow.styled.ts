@@ -114,9 +114,18 @@ export const SectionRow = styled.div`
   ${sectionCells}
 `;
 
-export const SubheadRow = styled.div`
+// $accent is the section's colour code, drawn as a bar against the label.
+export const SubheadRow = styled.div<{ $accent?: string }>`
   ${baseRow}
   ${subheadCells}
+  ${({ $accent, theme }) =>
+    $accent &&
+    css`
+      > div:nth-child(1) {
+        box-shadow: inset 4px 0 0 ${$accent};
+        padding-left: ${theme.spacing.lg};
+      }
+    `}
 `;
 
 export const ItemRow = styled.div<{ $group?: boolean }>`
