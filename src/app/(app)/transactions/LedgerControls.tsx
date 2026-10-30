@@ -39,10 +39,10 @@ const Slot = styled.div`
 `;
 
 const SelectionCount = styled.span`
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
+  font-family: ${({ theme }) => theme.typography.kicker.family};
+  font-size: ${({ theme }) => theme.typography.kicker.size};
+  font-weight: ${({ theme }) => theme.typography.kicker.weight};
+  letter-spacing: ${({ theme }) => theme.typography.kicker.letterSpacing};
   text-transform: uppercase;
   color: ${({ theme }) => theme.colors.ink};
   white-space: nowrap;
@@ -135,10 +135,8 @@ const DangerButton = styled.button`
   border-radius: ${({ theme }) => theme.rounded.sm};
   background: ${({ theme }) => theme.colors.canvas};
   color: ${({ theme }) => theme.colors.negative};
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
-  text-transform: uppercase;
+  font-family: ${({ theme }) => theme.typography.control.family};
+  font-size: ${({ theme }) => theme.typography.control.size};
   cursor: pointer;
   white-space: nowrap;
 `;

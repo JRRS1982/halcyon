@@ -11,11 +11,11 @@ export const Page = styled.main`
 
 export const Eyebrow = styled.p`
   ${({ theme }) => css`
-    font-family: ${theme.typography.monoCaps.family};
-    font-size: ${theme.typography.monoCaps.size};
-    font-weight: ${theme.typography.monoCaps.weight};
+    font-family: ${theme.typography.kicker.family};
+    font-size: ${theme.typography.kicker.size};
+    font-weight: ${theme.typography.kicker.weight};
     text-transform: uppercase;
-    letter-spacing: ${theme.typography.monoCaps.letterSpacing};
+    letter-spacing: ${theme.typography.kicker.letterSpacing};
     color: ${theme.colors.body};
     margin: 0;
   `}
@@ -65,11 +65,9 @@ export const Field = styled.label`
 
 export const Label = styled.span`
   ${({ theme }) => css`
-    font-family: ${theme.typography.monoCaps.family};
-    font-size: ${theme.typography.monoCaps.size};
-    font-weight: ${theme.typography.monoCaps.weight};
-    text-transform: uppercase;
-    letter-spacing: ${theme.typography.monoCaps.letterSpacing};
+    font-family: ${theme.typography.control.family};
+    font-size: ${theme.typography.control.size};
+    font-weight: ${theme.typography.control.weight};
     color: ${theme.colors.body};
   `}
 `;
@@ -104,11 +102,11 @@ export const Divider = styled.div`
     align-items: center;
     gap: ${theme.spacing.md};
     margin: ${theme.spacing.sm} 0;
-    font-family: ${theme.typography.monoCaps.family};
-    font-size: ${theme.typography.monoCaps.size};
-    font-weight: ${theme.typography.monoCaps.weight};
+    font-family: ${theme.typography.kicker.family};
+    font-size: ${theme.typography.kicker.size};
+    font-weight: ${theme.typography.kicker.weight};
     text-transform: uppercase;
-    letter-spacing: ${theme.typography.monoCaps.letterSpacing};
+    letter-spacing: ${theme.typography.kicker.letterSpacing};
     color: ${theme.colors.dim};
 
     &::before,

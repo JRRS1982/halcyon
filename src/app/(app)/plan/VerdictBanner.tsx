@@ -35,10 +35,10 @@ const Status = styled.span<{ $ok: boolean }>`
   display: inline-flex;
   align-items: center;
   gap: ${({ theme }) => theme.spacing.sm};
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
+  font-family: ${({ theme }) => theme.typography.kicker.family};
+  font-size: ${({ theme }) => theme.typography.kicker.size};
+  font-weight: ${({ theme }) => theme.typography.kicker.weight};
+  letter-spacing: ${({ theme }) => theme.typography.kicker.letterSpacing};
   text-transform: uppercase;
   color: ${({ theme, $ok }) =>
     $ok ? theme.colors.positive : theme.colors.negative};
@@ -109,10 +109,10 @@ const Stat = styled.div`
 `;
 
 const StatKey = styled.dt`
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
+  font-family: ${({ theme }) => theme.typography.kicker.family};
+  font-size: ${({ theme }) => theme.typography.kicker.size};
+  font-weight: ${({ theme }) => theme.typography.kicker.weight};
+  letter-spacing: ${({ theme }) => theme.typography.kicker.letterSpacing};
   text-transform: uppercase;
   color: ${({ theme }) => theme.colors.dim};
 `;

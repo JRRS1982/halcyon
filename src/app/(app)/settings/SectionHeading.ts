@@ -8,11 +8,11 @@ export const SectionHeading = styled.h2`
     ${({ theme }) => theme.spacing.lg};
   padding-bottom: ${({ theme }) => theme.spacing.xs};
   border-bottom: 1px solid ${({ theme }) => theme.colors.hairline};
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
+  font-family: ${({ theme }) => theme.typography.kicker.family};
   font-size: 14px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
+  letter-spacing: ${({ theme }) => theme.typography.kicker.letterSpacing};
   color: ${({ theme }) => theme.colors.ink};
 `;
 

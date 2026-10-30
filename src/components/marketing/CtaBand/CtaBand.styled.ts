@@ -22,11 +22,11 @@ export const Band = styled.section`
 
 export const Eyebrow = styled.p`
   ${({ theme }) => css`
-    font-family: ${theme.typography.monoCaps.family};
-    font-size: ${theme.typography.monoCaps.size};
-    font-weight: ${theme.typography.monoCaps.weight};
+    font-family: ${theme.typography.kicker.family};
+    font-size: ${theme.typography.kicker.size};
+    font-weight: ${theme.typography.kicker.weight};
     text-transform: uppercase;
-    letter-spacing: ${theme.typography.monoCaps.letterSpacing};
+    letter-spacing: ${theme.typography.kicker.letterSpacing};
     color: ${theme.colors.bodyOnBand};
     margin: 0;
   `}
@@ -61,11 +61,9 @@ export const InvertedCta = styled(Link)`
   ${({ theme }) => css`
     display: inline-block;
     margin-top: ${theme.spacing["3xl"]};
-    font-family: ${theme.typography.monoCaps.family};
-    font-size: ${theme.typography.monoCaps.size};
-    font-weight: ${theme.typography.monoCaps.weight};
-    text-transform: uppercase;
-    letter-spacing: ${theme.typography.monoCaps.letterSpacing};
+    font-family: ${theme.typography.control.family};
+    font-size: ${theme.typography.control.size};
+    font-weight: ${theme.typography.control.weight};
     background: ${theme.colors.canvas};
     color: ${theme.colors.ink};
     border-radius: ${theme.rounded.sm};

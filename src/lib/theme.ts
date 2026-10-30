@@ -111,7 +111,16 @@ export const theme = {
       lineHeight: 1.25,
       letterSpacing: "0",
     },
-    monoCaps: {
+    // Buttons, toolbar tools, selects and table column heads: sentence case,
+    // the one weight a control is set in everywhere.
+    control: {
+      family: SANS,
+      size: "14px",
+      weight: 600,
+      lineHeight: 1.15,
+      letterSpacing: "0",
+    },
+    kicker: {
       family: SANS,
       size: "12px",
       weight: 700,

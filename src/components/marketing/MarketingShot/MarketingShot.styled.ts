@@ -28,11 +28,11 @@ export const Placeholder = styled.div`
 
 export const Label = styled.span`
   ${({ theme }) => css`
-    font-family: ${theme.typography.monoCaps.family};
-    font-size: ${theme.typography.monoCaps.size};
-    font-weight: ${theme.typography.monoCaps.weight};
+    font-family: ${theme.typography.kicker.family};
+    font-size: ${theme.typography.kicker.size};
+    font-weight: ${theme.typography.kicker.weight};
     text-transform: uppercase;
-    letter-spacing: ${theme.typography.monoCaps.letterSpacing};
+    letter-spacing: ${theme.typography.kicker.letterSpacing};
     color: ${theme.colors.body};
   `}
 `;

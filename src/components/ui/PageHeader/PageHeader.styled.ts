@@ -20,12 +20,12 @@ export const HeaderLeft = styled.div`
 
 export const Eyebrow = styled.div`
   ${({ theme }) => css`
-    font-family: ${theme.typography.monoCaps.family};
-    font-size: ${theme.typography.monoCaps.size};
-    font-weight: ${theme.typography.monoCaps.weight};
-    line-height: ${theme.typography.monoCaps.lineHeight};
+    font-family: ${theme.typography.kicker.family};
+    font-size: ${theme.typography.kicker.size};
+    font-weight: ${theme.typography.kicker.weight};
+    line-height: ${theme.typography.kicker.lineHeight};
     text-transform: uppercase;
-    letter-spacing: ${theme.typography.monoCaps.letterSpacing};
+    letter-spacing: ${theme.typography.kicker.letterSpacing};
     color: ${theme.colors.body};
   `}
 `;

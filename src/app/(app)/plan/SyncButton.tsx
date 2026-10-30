@@ -17,11 +17,9 @@ const Wrap = styled.div`
   justify-items: start;
 `;
 const Btn = styled.button`
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
-  text-transform: uppercase;
+  font-family: ${({ theme }) => theme.typography.control.family};
+  font-size: ${({ theme }) => theme.typography.control.size};
+  font-weight: ${({ theme }) => theme.typography.control.weight};
   line-height: 1;
   border-radius: ${({ theme }) => theme.rounded.sm};
   padding: ${({ theme }) => theme.spacing.sm} ${({ theme }) => theme.spacing.lg};

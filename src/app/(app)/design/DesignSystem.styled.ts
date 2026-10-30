@@ -52,10 +52,10 @@ export const Rule = styled.hr`
 `;
 
 const label = css`
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
+  font-family: ${({ theme }) => theme.typography.kicker.family};
+  font-size: ${({ theme }) => theme.typography.kicker.size};
+  font-weight: ${({ theme }) => theme.typography.kicker.weight};
+  letter-spacing: ${({ theme }) => theme.typography.kicker.letterSpacing};
   text-transform: uppercase;
 `;
 
@@ -82,7 +82,7 @@ export const PanelTitle = styled.h2`
 `;
 
 export const Mono = styled.code`
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
+  font-family: ${({ theme }) => theme.typography.kicker.family};
   font-size: 13px;
   color: ${({ theme }) => theme.colors.ink};
   word-break: break-all;
@@ -146,7 +146,7 @@ export const SwatchMeta = styled.div`
 `;
 
 export const TokenName = styled.div`
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
+  font-family: ${({ theme }) => theme.typography.kicker.family};
   font-size: 12px;
   color: ${({ theme }) => theme.colors.ink};
   word-break: break-all;
@@ -165,7 +165,7 @@ export const HexRow = styled.dl`
 
   dd {
     margin: 0;
-    font-family: ${({ theme }) => theme.typography.monoCaps.family};
+    font-family: ${({ theme }) => theme.typography.kicker.family};
     font-size: 12px;
     color: ${({ theme }) => theme.colors.body};
   }
@@ -225,7 +225,7 @@ export const ContractSource = styled.pre`
   border-radius: ${({ theme }) => theme.rounded.sm};
   background: ${({ theme }) => theme.colors.canvasSoft};
   overflow-x: auto;
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
+  font-family: ${({ theme }) => theme.typography.kicker.family};
   font-size: 12px;
   line-height: 1.6;
   color: ${({ theme }) => theme.colors.body};

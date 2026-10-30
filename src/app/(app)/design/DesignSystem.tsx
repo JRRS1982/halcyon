@@ -52,7 +52,8 @@ const SAMPLES: Record<TypographyToken, string> = {
   amount: "£1,240.00",
   amountStrong: "£8,500.00",
   amountXl: "£124,806.32",
-  monoCaps: "Category · Jan 2026 · Locked",
+  control: "Import statement",
+  kicker: "Budget · October 2026",
 };
 
 const sampleStyle = (token: Typography[TypographyToken]) => ({

@@ -6,10 +6,10 @@ import type { Checklist } from "@/lib/dashboard/checklist";
 
 const Header = styled.p`
   ${({ theme }) => css`
-    font-family: ${theme.typography.monoCaps.family};
-    font-size: ${theme.typography.monoCaps.size};
-    font-weight: ${theme.typography.monoCaps.weight};
-    letter-spacing: ${theme.typography.monoCaps.letterSpacing};
+    font-family: ${theme.typography.kicker.family};
+    font-size: ${theme.typography.kicker.size};
+    font-weight: ${theme.typography.kicker.weight};
+    letter-spacing: ${theme.typography.kicker.letterSpacing};
     text-transform: uppercase;
     color: ${theme.colors.body};
     margin: 0;

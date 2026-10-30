@@ -44,11 +44,9 @@ const ModalBody = styled.div`
 `;
 
 const Label = styled.span`
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
-  text-transform: uppercase;
+  font-family: ${({ theme }) => theme.typography.control.family};
+  font-size: ${({ theme }) => theme.typography.control.size};
+  font-weight: ${({ theme }) => theme.typography.control.weight};
   color: ${({ theme }) => theme.colors.dim};
 `;
 
@@ -76,11 +74,9 @@ const FileButton = styled.span`
   border-radius: ${({ theme }) => theme.rounded.sm};
   background: ${({ theme }) => theme.colors.primary};
   color: ${({ theme }) => theme.colors.onPrimary};
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
-  text-transform: uppercase;
+  font-family: ${({ theme }) => theme.typography.control.family};
+  font-size: ${({ theme }) => theme.typography.control.size};
+  font-weight: ${({ theme }) => theme.typography.control.weight};
   white-space: nowrap;
 `;
 
@@ -278,10 +274,10 @@ const Toast = styled.div`
 
 const DialogTitle = styled.h2`
   margin: 0;
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
+  font-family: ${({ theme }) => theme.typography.kicker.family};
+  font-size: ${({ theme }) => theme.typography.kicker.size};
   text-transform: uppercase;
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
+  letter-spacing: ${({ theme }) => theme.typography.kicker.letterSpacing};
   color: ${({ theme }) => theme.colors.dim};
 `;
 

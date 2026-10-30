@@ -141,11 +141,11 @@ export const ReturnLabel = styled.span`
     writing-mode: vertical-rl;
     background: ${theme.colors.canvas};
     padding: ${theme.spacing.xs} 0;
-    font-family: ${theme.typography.monoCaps.family};
-    font-size: ${theme.typography.monoCaps.size};
-    font-weight: ${theme.typography.monoCaps.weight};
+    font-family: ${theme.typography.kicker.family};
+    font-size: ${theme.typography.kicker.size};
+    font-weight: ${theme.typography.kicker.weight};
     text-transform: uppercase;
-    letter-spacing: ${theme.typography.monoCaps.letterSpacing};
+    letter-spacing: ${theme.typography.kicker.letterSpacing};
     color: ${theme.colors.body};
     white-space: nowrap;
   `}
@@ -162,20 +162,20 @@ export const Marker = styled.span<{ $outline?: boolean }>`
     color: ${$outline ? theme.colors.ink : theme.colors.onBand};
     border: 1px solid ${$outline ? theme.colors.hairlineStrong : theme.colors.band};
     border-radius: ${theme.rounded.sm};
-    font-family: ${theme.typography.monoCaps.family};
-    font-size: ${theme.typography.monoCaps.size};
-    font-weight: ${theme.typography.monoCaps.weight};
-    letter-spacing: ${theme.typography.monoCaps.letterSpacing};
+    font-family: ${theme.typography.kicker.family};
+    font-size: ${theme.typography.kicker.size};
+    font-weight: ${theme.typography.kicker.weight};
+    letter-spacing: ${theme.typography.kicker.letterSpacing};
   `}
 `;
 
 export const StepKey = styled.p`
   ${({ theme }) => css`
-    font-family: ${theme.typography.monoCaps.family};
-    font-size: ${theme.typography.monoCaps.size};
-    font-weight: ${theme.typography.monoCaps.weight};
+    font-family: ${theme.typography.kicker.family};
+    font-size: ${theme.typography.kicker.size};
+    font-weight: ${theme.typography.kicker.weight};
     text-transform: uppercase;
-    letter-spacing: ${theme.typography.monoCaps.letterSpacing};
+    letter-spacing: ${theme.typography.kicker.letterSpacing};
     color: ${theme.colors.ink};
     margin: 0;
     padding-top: ${theme.spacing.sm};
@@ -215,11 +215,11 @@ export const OptionCard = styled.div`
 export const Badge = styled.span<{ $accent?: boolean }>`
   ${({ theme, $accent }) => css`
     display: inline-block;
-    font-family: ${theme.typography.monoCaps.family};
-    font-size: ${theme.typography.monoCaps.size};
-    font-weight: ${theme.typography.monoCaps.weight};
+    font-family: ${theme.typography.kicker.family};
+    font-size: ${theme.typography.kicker.size};
+    font-weight: ${theme.typography.kicker.weight};
     text-transform: uppercase;
-    letter-spacing: ${theme.typography.monoCaps.letterSpacing};
+    letter-spacing: ${theme.typography.kicker.letterSpacing};
     color: ${$accent ? theme.colors.accent : theme.colors.ink};
     border: 1px solid ${$accent ? theme.colors.accent : theme.colors.hairline};
     border-radius: ${theme.rounded.sm};
@@ -261,11 +261,11 @@ export const FinaleCard = styled.div`
 
 export const FinaleKey = styled.p`
   ${({ theme }) => css`
-    font-family: ${theme.typography.monoCaps.family};
-    font-size: ${theme.typography.monoCaps.size};
-    font-weight: ${theme.typography.monoCaps.weight};
+    font-family: ${theme.typography.kicker.family};
+    font-size: ${theme.typography.kicker.size};
+    font-weight: ${theme.typography.kicker.weight};
     text-transform: uppercase;
-    letter-spacing: ${theme.typography.monoCaps.letterSpacing};
+    letter-spacing: ${theme.typography.kicker.letterSpacing};
     color: ${theme.colors.onBand};
     margin: 0;
   `}

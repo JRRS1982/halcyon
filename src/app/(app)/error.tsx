@@ -41,11 +41,9 @@ const BackLink = styled(Link)`
     border: 1px solid ${theme.colors.hairline};
     border-radius: ${theme.rounded.sm};
     padding: ${theme.spacing.sm} ${theme.spacing.lg};
-    font-family: ${theme.typography.monoCaps.family};
-    font-size: ${theme.typography.monoCaps.size};
-    font-weight: ${theme.typography.monoCaps.weight};
-    letter-spacing: ${theme.typography.monoCaps.letterSpacing};
-    text-transform: uppercase;
+    font-family: ${theme.typography.control.family};
+    font-size: ${theme.typography.control.size};
+    font-weight: ${theme.typography.control.weight};
     text-decoration: none;
 
     &:hover {
@@ -63,9 +61,9 @@ const BackLink = styled(Link)`
 // useful instead of "it broke".
 const Digest = styled.p`
   margin-top: ${({ theme }) => theme.spacing.xl};
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
+  font-family: ${({ theme }) => theme.typography.kicker.family};
+  font-size: ${({ theme }) => theme.typography.kicker.size};
+  letter-spacing: ${({ theme }) => theme.typography.kicker.letterSpacing};
   text-transform: uppercase;
   color: ${({ theme }) => theme.colors.body};
 `;

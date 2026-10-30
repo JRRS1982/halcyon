@@ -20,11 +20,9 @@ const TriggerButton = styled.button`
   border-radius: ${({ theme }) => theme.rounded.sm};
   background: ${({ theme }) => theme.colors.canvas};
   color: ${({ theme }) => theme.colors.ink};
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
-  text-transform: uppercase;
+  font-family: ${({ theme }) => theme.typography.control.family};
+  font-size: ${({ theme }) => theme.typography.control.size};
+  font-weight: ${({ theme }) => theme.typography.control.weight};
   white-space: nowrap;
   cursor: pointer;
 
@@ -59,10 +57,10 @@ const Dialog = styled.dialog`
 
 const DialogTitle = styled.h2`
   margin: 0;
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
+  font-family: ${({ theme }) => theme.typography.kicker.family};
+  font-size: ${({ theme }) => theme.typography.kicker.size};
   text-transform: uppercase;
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
+  letter-spacing: ${({ theme }) => theme.typography.kicker.letterSpacing};
   color: ${({ theme }) => theme.colors.dim};
 `;
 
@@ -109,11 +107,9 @@ const DangerButton = styled.button`
   border-radius: ${({ theme }) => theme.rounded.sm};
   background: ${({ theme }) => theme.colors.canvas};
   color: ${({ theme }) => theme.colors.negative};
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
-  text-transform: uppercase;
+  font-family: ${({ theme }) => theme.typography.control.family};
+  font-size: ${({ theme }) => theme.typography.control.size};
+  font-weight: ${({ theme }) => theme.typography.control.weight};
   cursor: pointer;
 
   &:disabled {

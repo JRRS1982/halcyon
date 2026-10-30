@@ -29,10 +29,10 @@ const Tile = styled.div`
 `;
 
 const Label = styled.div`
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
+  font-family: ${({ theme }) => theme.typography.kicker.family};
+  font-size: ${({ theme }) => theme.typography.kicker.size};
+  font-weight: ${({ theme }) => theme.typography.kicker.weight};
+  letter-spacing: ${({ theme }) => theme.typography.kicker.letterSpacing};
   text-transform: uppercase;
   color: ${({ theme }) => theme.colors.body};
 `;

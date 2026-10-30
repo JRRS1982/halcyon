@@ -713,11 +713,9 @@ const SummaryTable = styled.table`
 const SummaryTh = styled.th<{ $right?: boolean }>`
   ${({ theme }) => css`
     padding: ${theme.spacing.xs} ${theme.spacing.md};
-    font-family: ${theme.typography.monoCaps.family};
-    font-size: ${theme.typography.monoCaps.size};
-    font-weight: ${theme.typography.monoCaps.weight};
-    letter-spacing: ${theme.typography.monoCaps.letterSpacing};
-    text-transform: uppercase;
+    font-family: ${theme.typography.control.family};
+    font-size: ${theme.typography.control.size};
+    font-weight: ${theme.typography.control.weight};
     color: ${theme.colors.body};
     border-bottom: 1px solid ${theme.colors.hairline};
   `}

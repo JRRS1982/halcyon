@@ -19,11 +19,11 @@ export const Grid = styled.div`
 
 export const Eyebrow = styled.p`
   ${({ theme }) => css`
-    font-family: ${theme.typography.monoCaps.family};
-    font-size: ${theme.typography.monoCaps.size};
-    font-weight: ${theme.typography.monoCaps.weight};
+    font-family: ${theme.typography.kicker.family};
+    font-size: ${theme.typography.kicker.size};
+    font-weight: ${theme.typography.kicker.weight};
     text-transform: uppercase;
-    letter-spacing: ${theme.typography.monoCaps.letterSpacing};
+    letter-spacing: ${theme.typography.kicker.letterSpacing};
     color: ${theme.colors.body};
     margin: 0;
   `}
@@ -85,11 +85,9 @@ export const CtaRow = styled.div`
 
 const buttonBase = css`
   ${({ theme }) => css`
-    font-family: ${theme.typography.monoCaps.family};
-    font-size: ${theme.typography.monoCaps.size};
-    font-weight: ${theme.typography.monoCaps.weight};
-    text-transform: uppercase;
-    letter-spacing: ${theme.typography.monoCaps.letterSpacing};
+    font-family: ${theme.typography.control.family};
+    font-size: ${theme.typography.control.size};
+    font-weight: ${theme.typography.control.weight};
     border-radius: ${theme.rounded.sm};
     padding: ${theme.spacing.sm} ${theme.spacing.lg};
     white-space: nowrap;

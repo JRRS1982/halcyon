@@ -98,9 +98,9 @@ const Head = styled.div`
   border-bottom: 1px solid ${({ theme }) => theme.colors.hairline};
 `;
 const Eyebrow = styled.div`
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
+  font-family: ${({ theme }) => theme.typography.kicker.family};
+  font-size: ${({ theme }) => theme.typography.kicker.size};
+  letter-spacing: ${({ theme }) => theme.typography.kicker.letterSpacing};
   text-transform: uppercase;
   color: ${({ theme }) => theme.colors.dim};
 `;
@@ -169,10 +169,8 @@ const SectionHead = styled.button`
   border: 0;
   cursor: pointer;
   padding: ${({ theme }) => theme.spacing.md} ${({ theme }) => theme.spacing.xl};
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
-  text-transform: uppercase;
+  font-family: ${({ theme }) => theme.typography.control.family};
+  font-size: ${({ theme }) => theme.typography.control.size};
   color: ${({ theme }) => theme.colors.bodyMuted};
 `;
 const SectionBody = styled.div`

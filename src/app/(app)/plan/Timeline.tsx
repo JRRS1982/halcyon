@@ -73,11 +73,11 @@ const Rows = styled.div`
 // nothing to close.
 const GroupLabel = styled.div<{ $first: boolean }>`
   grid-column: 1 / -1;
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
-  line-height: ${({ theme }) => theme.typography.monoCaps.lineHeight};
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
+  font-family: ${({ theme }) => theme.typography.kicker.family};
+  font-size: ${({ theme }) => theme.typography.kicker.size};
+  font-weight: ${({ theme }) => theme.typography.kicker.weight};
+  line-height: ${({ theme }) => theme.typography.kicker.lineHeight};
+  letter-spacing: ${({ theme }) => theme.typography.kicker.letterSpacing};
   text-transform: uppercase;
   color: ${({ theme }) => theme.colors.dim};
   ${({ $first, theme }) =>

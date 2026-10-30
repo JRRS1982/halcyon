@@ -59,10 +59,10 @@ const TypeHeader = styled.h3`
     ${({ theme }) => theme.spacing.sm};
   padding-bottom: ${({ theme }) => theme.spacing.xs};
   border-bottom: 2px solid ${({ theme }) => theme.colors.ink};
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
+  font-family: ${({ theme }) => theme.typography.kicker.family};
   font-size: 13px;
   text-transform: uppercase;
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
+  letter-spacing: ${({ theme }) => theme.typography.kicker.letterSpacing};
   color: ${({ theme }) => theme.colors.ink};
 `;
 

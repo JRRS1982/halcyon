@@ -55,10 +55,10 @@ const Head = styled.div`
 
 const Title = styled.h2`
   margin: 0;
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
+  font-family: ${({ theme }) => theme.typography.kicker.family};
+  font-size: ${({ theme }) => theme.typography.kicker.size};
   text-transform: uppercase;
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
+  letter-spacing: ${({ theme }) => theme.typography.kicker.letterSpacing};
   color: ${({ theme }) => theme.colors.dim};
 `;
 
@@ -76,10 +76,8 @@ const TotalCell = styled.td`
   padding: ${({ theme }) => theme.spacing.md};
   background: ${({ theme }) => theme.colors.band};
   color: ${({ theme }) => theme.colors.onBand};
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
-  text-transform: uppercase;
+  font-family: ${({ theme }) => theme.typography.control.family};
+  font-size: ${({ theme }) => theme.typography.control.size};
   white-space: nowrap;
 `;
 
@@ -149,11 +147,9 @@ const Th = styled.th<{ $align?: "right" }>`
   background: ${({ theme }) => theme.colors.canvasSoft};
   border-bottom: 1px solid ${({ theme }) => theme.colors.hairlineStrong};
   color: ${({ theme }) => theme.colors.body};
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
-  text-transform: uppercase;
+  font-family: ${({ theme }) => theme.typography.control.family};
+  font-size: ${({ theme }) => theme.typography.control.size};
+  font-weight: ${({ theme }) => theme.typography.control.weight};
   cursor: pointer;
   user-select: none;
   white-space: nowrap;
@@ -258,11 +254,9 @@ const NoteToggle = styled.button<{ $has: boolean }>`
   padding: 0;
   cursor: pointer;
   white-space: nowrap;
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
-  text-transform: uppercase;
+  font-family: ${({ theme }) => theme.typography.control.family};
+  font-size: ${({ theme }) => theme.typography.control.size};
+  font-weight: ${({ theme }) => theme.typography.control.weight};
   color: ${({ $has, theme }) =>
     $has ? theme.colors.accent : theme.colors.dim};
 `;
@@ -291,10 +285,10 @@ const ExtraPair = styled.span`
 `;
 
 const ExtraKey = styled.span`
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
+  font-family: ${({ theme }) => theme.typography.kicker.family};
+  font-size: ${({ theme }) => theme.typography.kicker.size};
+  font-weight: ${({ theme }) => theme.typography.kicker.weight};
+  letter-spacing: ${({ theme }) => theme.typography.kicker.letterSpacing};
   text-transform: uppercase;
   color: ${({ theme }) => theme.colors.dim};
   margin-right: ${({ theme }) => theme.spacing.xs};
@@ -333,9 +327,9 @@ const PageButton = styled.button<{ $current?: boolean }>`
     ${({ $current, theme }) =>
       $current ? theme.colors.primary : theme.colors.hairline};
   border-radius: ${({ theme }) => theme.rounded.sm};
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
+  font-family: ${({ theme }) => theme.typography.control.family};
+  font-size: ${({ theme }) => theme.typography.control.size};
+  font-weight: ${({ theme }) => theme.typography.control.weight};
   cursor: pointer;
 
   &:hover:not(:disabled) {
@@ -351,8 +345,8 @@ const PageButton = styled.button<{ $current?: boolean }>`
 const PageGap = styled.span`
   padding: 0 ${({ theme }) => theme.spacing.xs};
   color: ${({ theme }) => theme.colors.dim};
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
+  font-family: ${({ theme }) => theme.typography.kicker.family};
+  font-size: ${({ theme }) => theme.typography.kicker.size};
 `;
 
 const NoteArea = styled.textarea`
@@ -380,11 +374,9 @@ const DangerButton = styled.button`
   border-radius: ${({ theme }) => theme.rounded.sm};
   background: ${({ theme }) => theme.colors.canvas};
   color: ${({ theme }) => theme.colors.negative};
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
-  text-transform: uppercase;
+  font-family: ${({ theme }) => theme.typography.control.family};
+  font-size: ${({ theme }) => theme.typography.control.size};
+  font-weight: ${({ theme }) => theme.typography.control.weight};
   cursor: pointer;
 
   &:disabled {
@@ -436,10 +428,10 @@ const Dialog = styled.dialog`
 
 const DialogTitle = styled.h3`
   margin: 0;
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
+  font-family: ${({ theme }) => theme.typography.kicker.family};
+  font-size: ${({ theme }) => theme.typography.kicker.size};
   text-transform: uppercase;
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
+  letter-spacing: ${({ theme }) => theme.typography.kicker.letterSpacing};
   color: ${({ theme }) => theme.colors.dim};
 `;
 
