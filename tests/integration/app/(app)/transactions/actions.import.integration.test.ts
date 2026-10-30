@@ -155,6 +155,9 @@ describe("import (integration)", () => {
         where: { userId: TEST_USER_ID, description: "TESCO STORES 9999" },
       });
       expect(tesco?.categoryId).toBe(groceries.id);
+      // A remembered category is a suggestion: it shows in pencil until the
+      // user ticks it. If this were true, the ledger would never ask.
+      expect(tesco?.isCategoryConfirmed).toBe(false);
 
       const novel = await prisma.transaction.findFirst({
         where: { userId: TEST_USER_ID, description: "BRAND NEW PLACE" },

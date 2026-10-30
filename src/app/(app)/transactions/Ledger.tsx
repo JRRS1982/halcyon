@@ -23,6 +23,7 @@ import {
   bulkDeleteTransactions,
   bulkSetTransactionCategory,
   bulkSetTransactionTransfer,
+  confirmTransactionCategories,
   createAccountAndTransfer,
   createAndAssignCategory,
   setTransactionCategory,
@@ -129,13 +130,72 @@ const Table = styled.table`
 // In header order. Description is the only `auto` one, so it absorbs whatever
 // the viewport has spare — every other column keeps the width its content
 // actually needs.
+// The category cell: a mark saying where the row stands, then the picker. A
+// suggested category is pencilled (dashed, italic) until it is ticked.
+const CategoryCell = styled.div<{ $pencilled: boolean }>`
+  display: flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.sm};
+
+  > :last-child {
+    flex: 1;
+    min-width: 0;
+  }
+
+  ${({ $pencilled, theme }) =>
+    $pencilled &&
+    css`
+      > :last-child button {
+        border-style: dashed;
+        font-style: italic;
+        color: ${theme.colors.body};
+      }
+    `}
+`;
+
+const markBox = css`
+  flex: none;
+  width: 26px;
+  height: 26px;
+  display: inline-grid;
+  place-items: center;
+`;
+
+// Ticking is the one action a suggested row asks for, so it is a real button,
+// outlined in the action colour.
+const TickButton = styled.button`
+  ${markBox}
+  border: 1.5px solid ${({ theme }) => theme.colors.primary};
+  border-radius: ${({ theme }) => theme.rounded.full};
+  background: transparent;
+  color: ${({ theme }) => theme.colors.primary};
+  font-weight: 700;
+  cursor: pointer;
+
+  &:hover {
+    background: ${({ theme }) => theme.colors.primary};
+    color: ${({ theme }) => theme.colors.onPrimary};
+  }
+`;
+
+const Ticked = styled.span`
+  ${markBox}
+  color: ${({ theme }) => theme.colors.positive};
+  font-weight: 700;
+  font-size: 16px;
+`;
+
+const Unticked = styled.span`
+  ${markBox}
+`;
+
 const COLUMN_WIDTHS: [column: string, width: string][] = [
   ["select", "36px"],
   ["date", "100px"],
   ["description", "auto"],
   ["account", "132px"],
   ["amount", "96px"],
-  ["category", "236px"],
+  ["category", "270px"],
   ["note", "76px"],
 ];
 
@@ -599,7 +659,12 @@ export function Ledger({
         ? prev.filter((t) => t.id !== transactionId)
         : prev.map((t) =>
             t.id === transactionId
-              ? { ...t, categoryId, transferAccountId: null }
+              ? {
+                  ...t,
+                  categoryId,
+                  transferAccountId: null,
+                  isCategoryConfirmed: true,
+                }
               : t,
           ),
     );
@@ -612,7 +677,12 @@ export function Ledger({
         ? prev.filter((t) => t.id !== transactionId)
         : prev.map((t) =>
             t.id === transactionId
-              ? { ...t, transferAccountId: accountId, categoryId: null }
+              ? {
+                  ...t,
+                  transferAccountId: accountId,
+                  categoryId: null,
+                  isCategoryConfirmed: true,
+                }
               : t,
           ),
     );
@@ -621,6 +691,18 @@ export function Ledger({
     applyAssignment(transactionId, categoryId);
     startTransition(async () => {
       await setTransactionCategory({ transactionId, categoryId });
+    });
+  };
+
+  // Ticks a pencilled category: the user agrees with the import's suggestion.
+  const onConfirm = (transactionId: string) => {
+    setItems((prev) =>
+      prev.map((t) =>
+        t.id === transactionId ? { ...t, isCategoryConfirmed: true } : t,
+      ),
+    );
+    startTransition(async () => {
+      await confirmTransactionCategories({ transactionIds: [transactionId] });
     });
   };
 
@@ -703,7 +785,12 @@ export function Ledger({
         ? prev.filter((t) => !selected.has(t.id))
         : prev.map((t) =>
             selected.has(t.id)
-              ? { ...t, categoryId, transferAccountId: null }
+              ? {
+                  ...t,
+                  categoryId,
+                  transferAccountId: null,
+                  isCategoryConfirmed: true,
+                }
               : t,
           ),
     );
@@ -727,7 +814,12 @@ export function Ledger({
         ? prev.filter((t) => !changed.has(t.id))
         : prev.map((t) =>
             changed.has(t.id)
-              ? { ...t, transferAccountId: accountId, categoryId: null }
+              ? {
+                  ...t,
+                  transferAccountId: accountId,
+                  categoryId: null,
+                  isCategoryConfirmed: true,
+                }
               : t,
           ),
     );
@@ -954,21 +1046,46 @@ export function Ledger({
                       {tx.amount.toFixed(2)}
                     </Amount>
                     <Td onClick={(e) => e.stopPropagation()}>
-                      <CategoryCombobox
-                        categories={categories}
-                        transferAccounts={transferAccounts}
-                        value={tx.categoryId}
-                        transferAccountId={tx.transferAccountId}
-                        ownAccountId={tx.accountId}
-                        defaultType={tx.amount < 0 ? "EXPENSE" : "INCOME"}
-                        transfersEnabled={transfersEnabled}
-                        onSelect={(categoryId) => onSelect(tx.id, categoryId)}
-                        onCreate={(input) => onCreateAndAssign(tx.id, input)}
-                        onTransfer={(accountId) => onTransfer(tx.id, accountId)}
-                        onCreateAccount={(name) =>
-                          onCreateAccountAndTransfer(tx.id, name)
+                      <CategoryCell
+                        $pencilled={
+                          tx.categoryId !== null && !tx.isCategoryConfirmed
                         }
-                      />
+                      >
+                        {tx.categoryId !== null && !tx.isCategoryConfirmed ? (
+                          <TickButton
+                            type="button"
+                            aria-label={`Tick the suggested category for ${tx.description}`}
+                            title="Suggested from your history: tick it if it's right"
+                            onClick={() => onConfirm(tx.id)}
+                          >
+                            ✓
+                          </TickButton>
+                        ) : tx.categoryId !== null ||
+                          tx.transferAccountId !== null ? (
+                          <Ticked role="img" aria-label="Checked">
+                            ✓
+                          </Ticked>
+                        ) : (
+                          <Unticked aria-hidden />
+                        )}
+                        <CategoryCombobox
+                          categories={categories}
+                          transferAccounts={transferAccounts}
+                          value={tx.categoryId}
+                          transferAccountId={tx.transferAccountId}
+                          ownAccountId={tx.accountId}
+                          defaultType={tx.amount < 0 ? "EXPENSE" : "INCOME"}
+                          transfersEnabled={transfersEnabled}
+                          onSelect={(categoryId) => onSelect(tx.id, categoryId)}
+                          onCreate={(input) => onCreateAndAssign(tx.id, input)}
+                          onTransfer={(accountId) =>
+                            onTransfer(tx.id, accountId)
+                          }
+                          onCreateAccount={(name) =>
+                            onCreateAccountAndTransfer(tx.id, name)
+                          }
+                        />
+                      </CategoryCell>
                     </Td>
                     <Td onClick={(e) => e.stopPropagation()}>
                       <NoteToggle

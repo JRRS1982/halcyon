@@ -29,6 +29,32 @@ describe("ledgerWhere", () => {
     });
   });
 
+  // The "To check" view. If it is wrong, a pencilled row the user never
+  // ticked drops out of the queue and is never reviewed.
+  test("to check means no category yet, or one not yet ticked", () => {
+    expect(ledgerWhere(USER, { onlyToCheck: true })).toMatchObject({
+      AND: [
+        {
+          OR: [
+            { categoryId: null, transferAccountId: null },
+            { isCategoryConfirmed: false },
+          ],
+        },
+      ],
+    });
+  });
+
+  // amountClause owns the top-level OR for a minimum amount; the queue's OR
+  // must not overwrite it.
+  test("to check keeps a minimum-amount filter intact", () => {
+    const where = ledgerWhere(USER, { onlyToCheck: true, amountMin: 10 });
+    expect(where.OR).toEqual([
+      { amount: { gte: 10 } },
+      { amount: { lte: -10 } },
+    ]);
+    expect(where.AND).toHaveLength(1);
+  });
+
   test("dates bound the range inclusively at UTC midnight", () => {
     expect(
       ledgerWhere(USER, { from: "2026-01-01", to: "2026-03-31" }),

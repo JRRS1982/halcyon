@@ -28,6 +28,8 @@ export type LedgerUrlQuery = {
   page: number;
   search: string;
   onlyUncategorized: boolean;
+  /** Rows that still need the user: no category yet, or a pencilled one. */
+  onlyToCheck: boolean;
   sortColumn: SortColumn;
   sortDir: SortDir;
   /** Inclusive YYYY-MM-DD bounds; already validated as real calendar dates. */
@@ -93,6 +95,7 @@ export function parseLedgerSearchParams(
     page: Number.isFinite(rawPage) && rawPage >= 1 ? rawPage : 1,
     search: (first(params.q) ?? "").slice(0, 200),
     onlyUncategorized: first(params.uncat) === "1",
+    onlyToCheck: first(params.check) === "1",
     sortColumn: SORT_COLUMNS.includes(sort as SortColumn)
       ? (sort as SortColumn)
       : "date",

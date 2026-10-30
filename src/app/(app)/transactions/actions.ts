@@ -275,6 +275,8 @@ export async function commitImport(input: CommitInput): Promise<ImportResult> {
             amount: row.amount as number,
             description: row.description,
             categoryId,
+            // A category from memory is a suggestion: pencilled until ticked.
+            isCategoryConfirmed: categoryId === null,
             // Kept CSV columns, keyed by header label (undefined leaves NULL).
             extra: row.extra ?? undefined,
           };
@@ -406,7 +408,7 @@ export async function setTransactionCategory(
     where: { id: transactionId, userId, deletedAt: null },
     // Category and transfer are mutually exclusive — assigning (or clearing) a
     // category always clears any transfer counterparty.
-    data: { categoryId, transferAccountId: null },
+    data: { categoryId, transferAccountId: null, isCategoryConfirmed: true },
   });
   if (result.count === 0) throw new Error("Transaction not found");
 
@@ -530,13 +532,43 @@ export async function bulkSetTransactionCategory(
 
   const result = await prisma.transaction.updateMany({
     where: { id: { in: transactionIds }, userId, deletedAt: null },
-    data: { categoryId, transferAccountId: null },
+    data: { categoryId, transferAccountId: null, isCategoryConfirmed: true },
   });
 
   revalidatePath("/transactions");
   revalidatePath("/budget");
   revalidatePath("/dashboard");
   return { updated: result.count };
+}
+
+const confirmSchema = z.object({
+  // Omitted: confirm every suggestion the user has. Given: only those rows.
+  transactionIds: z.array(z.string().uuid()).min(1).max(500).optional(),
+});
+
+// Ticks suggested categories: the user agrees with what the import pencilled
+// in, so the rows stop showing as "to check". Only rows that carry a category
+// can be confirmed; ownership-scoped like every mutation. Totals don't move
+// (a suggestion already counted), so only the ledger is revalidated.
+export async function confirmTransactionCategories(
+  input: z.input<typeof confirmSchema> = {},
+): Promise<{ confirmed: number }> {
+  const userId = await requireTransactionsEnabled();
+  const { transactionIds } = confirmSchema.parse(input);
+
+  const result = await prisma.transaction.updateMany({
+    where: {
+      userId,
+      deletedAt: null,
+      isCategoryConfirmed: false,
+      categoryId: { not: null },
+      ...(transactionIds ? { id: { in: transactionIds } } : {}),
+    },
+    data: { isCategoryConfirmed: true },
+  });
+
+  revalidatePath("/transactions");
+  return { confirmed: result.count };
 }
 
 const bulkDeleteSchema = z.object({
@@ -592,7 +624,11 @@ export async function bulkSetTransactionTransfer(
       accountId: { not: accountId },
     },
     // Transfer and category are mutually exclusive — see setTransactionTransfer.
-    data: { transferAccountId: accountId, categoryId: null },
+    data: {
+      transferAccountId: accountId,
+      categoryId: null,
+      isCategoryConfirmed: true,
+    },
   });
 
   revalidatePath("/transactions");
@@ -634,7 +670,11 @@ export async function setTransactionTransfer(
 
   await prisma.transaction.updateMany({
     where: { id: transactionId, userId, deletedAt: null },
-    data: { transferAccountId: accountId, categoryId: null },
+    data: {
+      transferAccountId: accountId,
+      categoryId: null,
+      isCategoryConfirmed: true,
+    },
   });
 
   revalidatePath("/transactions");
@@ -678,7 +718,11 @@ export async function createAccountAndTransfer(
     const result = await tx.transaction.updateMany({
       where: { id: { in: transactionIds }, userId, deletedAt: null },
       // Transfer and category are mutually exclusive — see setTransactionTransfer.
-      data: { transferAccountId: account.id, categoryId: null },
+      data: {
+        transferAccountId: account.id,
+        categoryId: null,
+        isCategoryConfirmed: true,
+      },
     });
     if (result.count === 0) throw new Error("Transaction not found");
 
@@ -732,7 +776,11 @@ export async function createAndAssignCategory(
     const result = await tx.transaction.updateMany({
       where: { id: { in: transactionIds }, userId, deletedAt: null },
       // Category and transfer are mutually exclusive — see setTransactionCategory.
-      data: { categoryId: newCategory.id, transferAccountId: null },
+      data: {
+        categoryId: newCategory.id,
+        transferAccountId: null,
+        isCategoryConfirmed: true,
+      },
     });
     if (result.count === 0) throw new Error("Transaction not found");
 

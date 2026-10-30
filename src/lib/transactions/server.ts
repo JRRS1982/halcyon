@@ -28,6 +28,8 @@ export type LedgerTransaction = {
   amount: number;
   description: string;
   categoryId: string | null;
+  // False while the category is an import's suggestion, not yet ticked.
+  isCategoryConfirmed: boolean;
   transferAccountId: string | null;
   accountId: string;
   accountName: string;
@@ -180,6 +182,7 @@ function serialize(tx: {
   amount: { toString(): string };
   description: string;
   categoryId: string | null;
+  isCategoryConfirmed: boolean;
   transferAccountId: string | null;
   accountId: string;
   account: { name: string };
@@ -192,6 +195,7 @@ function serialize(tx: {
     amount: Number(tx.amount),
     description: tx.description,
     categoryId: tx.categoryId,
+    isCategoryConfirmed: tx.isCategoryConfirmed,
     transferAccountId: tx.transferAccountId,
     accountId: tx.accountId,
     accountName: tx.account.name,
@@ -244,6 +248,7 @@ export async function getTransactionsPage(
         amount: true,
         description: true,
         categoryId: true,
+        isCategoryConfirmed: true,
         transferAccountId: true,
         accountId: true,
         account: { select: { name: true } },
@@ -266,6 +271,18 @@ export async function countUncategorized(userId: string): Promise<number> {
       deletedAt: null,
       categoryId: null,
       transferAccountId: null,
+    },
+  });
+}
+
+// Count of categories an import pencilled in that the user has not ticked yet.
+export async function countSuggested(userId: string): Promise<number> {
+  return prisma.transaction.count({
+    where: {
+      userId,
+      deletedAt: null,
+      isCategoryConfirmed: false,
+      categoryId: { not: null },
     },
   });
 }

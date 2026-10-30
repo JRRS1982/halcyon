@@ -36,6 +36,7 @@ const row = (id: string, amount: number) => ({
   description: id,
   categoryId: null,
   transferAccountId: null,
+  isCategoryConfirmed: true,
   accountId: ACCOUNT,
   accountName: "Current",
   note: null,

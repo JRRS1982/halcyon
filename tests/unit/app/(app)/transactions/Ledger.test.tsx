@@ -53,6 +53,7 @@ const renderLedger = () =>
               description: "Mortgage payment",
               categoryId: null,
               transferAccountId: mortgageAccountId,
+              isCategoryConfirmed: true,
               accountId: currentAccountId,
               accountName: "Current",
               note: null,
