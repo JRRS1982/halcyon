@@ -17,9 +17,10 @@ test.describe("Marketing page for signed-in users", () => {
     await page.goto("/");
 
     await expect(page).toHaveURL(/\/transactions$/);
-    // Page title, not the ledger's section heading of the same name.
+    // The page's h1 is a headline about the ledger's state, so the page is
+    // named by the kicker above it.
     await expect(
-      page.getByRole("heading", { level: 1, name: "Transactions" }),
+      page.getByRole("main").getByText(/^Transactions ·/),
     ).toBeVisible();
   });
 
