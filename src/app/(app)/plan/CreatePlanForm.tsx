@@ -24,6 +24,7 @@ const Panel = styled(Card)`
   text-align: center;
 `;
 const Title = styled.h1`
+  font-family: ${({ theme }) => theme.typography.displayXl.family};
   font-size: ${({ theme }) => theme.typography.displayXl.size};
   font-weight: ${({ theme }) => theme.typography.displayXl.weight};
   letter-spacing: ${({ theme }) => theme.typography.displayXl.letterSpacing};

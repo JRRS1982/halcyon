@@ -3,13 +3,12 @@
 
 import styled from "styled-components";
 
-// Shared bordered-card chrome for the chart and timeline panels. Identical outer
-// box (border + horizontal padding) on both is what makes PLOT_LEFT_INSET /
-// PLOT_RIGHT_INSET line up between them. Other plan panels keep their own styling.
+// Shared section chrome for the chart and timeline panels: a ruled section,
+// like every other plan panel. Identical horizontal padding (none) on both is
+// what makes PLOT_LEFT_INSET / PLOT_RIGHT_INSET line up between them.
 export const PlanCard = styled.section`
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  padding: ${({ theme }) => theme.spacing.lg};
+  border-top: 1px solid ${({ theme }) => theme.colors.ink};
+  padding: ${({ theme }) => theme.spacing.lg} 0;
   display: grid;
   gap: ${({ theme }) => theme.spacing.md};
 `;

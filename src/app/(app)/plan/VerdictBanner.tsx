@@ -5,20 +5,17 @@ import styled from "styled-components";
 import type { BandedVerdict } from "@/lib/plan";
 import { formatAmount, type NumberFormat } from "@/lib/settings/currency";
 
-// The verdict is the page's headline answer ("can I retire, does it last?"), so
-// it reads as a status card: a colour rail + status eyebrow + plain-language
-// headline on the left, and the two numbers that matter pulled out on the right.
+// The verdict is the page's headline answer ("can I retire, does it last?"):
+// a status kicker and the answer set as the page's headline on the left, and
+// the numbers that matter pulled out on the right, between two rules.
 const Card = styled.section<{ $ok: boolean }>`
   display: grid;
   grid-template-columns: 1fr auto;
   align-items: stretch;
   gap: ${({ theme }) => theme.spacing["2xl"]};
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
-  border-left: 3px solid
-    ${({ theme, $ok }) => ($ok ? theme.colors.positive : theme.colors.negative)};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  background: ${({ theme }) => theme.colors.canvas};
-  padding: ${({ theme }) => theme.spacing.xl} ${({ theme }) => theme.spacing["2xl"]};
+  border-top: 2px solid ${({ theme }) => theme.colors.ink};
+  border-bottom: 1px solid ${({ theme }) => theme.colors.ink};
+  padding: ${({ theme }) => theme.spacing.xl} 0;
 
   @media (max-width: 640px) {
     grid-template-columns: 1fr;
@@ -53,7 +50,9 @@ const Status = styled.span<{ $ok: boolean }>`
 `;
 
 const Headline = styled.h2`
-  font-size: ${({ theme }) => theme.typography.amountXl.size};
+  font-family: ${({ theme }) => theme.typography.displayXl.family};
+  font-size: 28px;
+  line-height: 1.2;
   font-weight: ${({ theme }) => theme.typography.amountXl.weight};
   letter-spacing: ${({ theme }) => theme.typography.amountXl.letterSpacing};
   color: ${({ theme }) => theme.colors.ink};

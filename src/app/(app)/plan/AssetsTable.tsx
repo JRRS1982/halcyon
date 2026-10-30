@@ -20,13 +20,13 @@ import { rowMarkerProps, SyncMarker } from "./SyncMarker";
 import type { SerializedPlanAsset } from "./serialized";
 
 const Panel = styled.section`
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  padding: ${({ theme }) => theme.spacing.lg};
+  border-top: 1px solid ${({ theme }) => theme.colors.ink};
+  padding: ${({ theme }) => theme.spacing.lg} 0;
   display: grid;
   gap: ${({ theme }) => theme.spacing.sm};
 `;
 const Heading = styled.h2`
+  font-family: ${({ theme }) => theme.typography.displayLg.family};
   font-size: ${({ theme }) => theme.typography.displayLg.size};
   font-weight: ${({ theme }) => theme.typography.displayLg.weight};
   color: ${({ theme }) => theme.colors.ink};

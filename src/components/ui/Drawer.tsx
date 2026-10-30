@@ -106,6 +106,7 @@ const Eyebrow = styled.div`
 `;
 const Title = styled.h2`
   margin: ${({ theme }) => theme.spacing.xs} 0 0;
+  font-family: ${({ theme }) => theme.typography.amountXl.family};
   font-size: ${({ theme }) => theme.typography.amountXl.size};
   font-weight: ${({ theme }) => theme.typography.amountXl.weight};
   letter-spacing: ${({ theme }) => theme.typography.amountXl.letterSpacing};

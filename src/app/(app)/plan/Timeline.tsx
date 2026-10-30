@@ -45,6 +45,7 @@ const Panel = styled(PlanCard)`
   overflow-x: auto;
 `;
 const Heading = styled.h2`
+  font-family: ${({ theme }) => theme.typography.displayLg.family};
   font-size: ${({ theme }) => theme.typography.displayLg.size};
   font-weight: ${({ theme }) => theme.typography.displayLg.weight};
   color: ${({ theme }) => theme.colors.ink};
