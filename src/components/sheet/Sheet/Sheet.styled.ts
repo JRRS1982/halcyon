@@ -10,10 +10,6 @@ import styled from "styled-components";
 // Collapsing Strategy → Sheet). The category cell stays sticky-left; see
 // SheetRow.styled.
 export const SheetContainer = styled.div`
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
-  border-top: none;
-  border-radius: 0 0 ${({ theme }) => theme.rounded.sm}
-    ${({ theme }) => theme.rounded.sm};
   background: ${({ theme }) => theme.colors.canvas};
   overflow: hidden;
 

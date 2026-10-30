@@ -22,7 +22,6 @@ export const CellWrapper = styled.div<{
 }>`
   ${({ theme }) => css`
     padding: ${theme.spacing.sm} ${theme.spacing.md};
-    border-right: 1px solid ${theme.colors.hairline};
     border-bottom: 1px solid ${theme.colors.hairline};
     background: ${theme.colors.canvas};
     display: flex;

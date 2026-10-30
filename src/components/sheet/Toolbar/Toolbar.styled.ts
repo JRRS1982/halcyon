@@ -7,7 +7,6 @@ export const ToolbarWrapper = styled.div`
     align-items: center;
     gap: ${theme.spacing.sm};
     padding: ${theme.spacing.xs} 0 ${theme.spacing.md};
-    border-bottom: 1px solid ${theme.colors.hairline};
   `}
 `;
 
@@ -70,17 +69,15 @@ export const ToolbarTool = styled.button<{
   $danger?: boolean;
 }>`
   ${({ theme, $active, $danger }) => css`
-    height: 30px;
+    height: 34px;
     padding: 0 ${theme.spacing.md};
     background: ${$active ? theme.colors.primary : theme.colors.canvas};
     color: ${$active ? theme.colors.onPrimary : theme.colors.ink};
-    border: 1px solid ${$active ? theme.colors.primary : theme.colors.hairline};
+    border: 1px solid ${$active ? theme.colors.primary : theme.colors.ink};
     border-radius: ${theme.rounded.sm};
-    font-family: ${theme.typography.monoCaps.family};
-    font-size: ${theme.typography.monoCaps.size};
-    font-weight: ${theme.typography.monoCaps.weight};
-    text-transform: uppercase;
-    letter-spacing: ${theme.typography.monoCaps.letterSpacing};
+    font-family: ${theme.typography.bodyMdStrong.family};
+    font-size: 14px;
+    font-weight: 600;
     line-height: 1;
     white-space: nowrap;
     cursor: pointer;
@@ -124,17 +121,15 @@ export const ToolbarTool = styled.button<{
 // ToolbarTool so a select never reads shorter than the buttons beside it.
 export const ToolbarSelect = styled.select`
   ${({ theme }) => css`
-    height: 30px;
+    height: 34px;
     padding: 0 ${theme.spacing.sm};
-    border: 1px solid ${theme.colors.hairline};
+    border: 1px solid ${theme.colors.ink};
     border-radius: ${theme.rounded.sm};
     background: ${theme.colors.canvas};
     color: ${theme.colors.ink};
-    font-family: ${theme.typography.monoCaps.family};
-    font-size: ${theme.typography.monoCaps.size};
-    font-weight: ${theme.typography.monoCaps.weight};
-    letter-spacing: ${theme.typography.monoCaps.letterSpacing};
-    text-transform: uppercase;
+    font-family: ${theme.typography.bodyMdStrong.family};
+    font-size: 14px;
+    font-weight: 600;
     cursor: pointer;
 
     @media (max-width: 767px) {
@@ -145,7 +140,7 @@ export const ToolbarSelect = styled.select`
 
 // Period chip ("June 2026 ▾") sized to the longest month label so the
 // prev/next arrows don't shift as the user navigates between months.
-// 16ch covers "September 2026 ▾" in the mono face; 26px covers the chip's
+// 16ch covers "September 2026 ▾"; 26px covers the chip's
 // horizontal padding (2 × 12px) and borders.
 export const ToolbarPeriodLabel = styled(ToolbarTool)`
   min-width: calc(16ch + 26px);

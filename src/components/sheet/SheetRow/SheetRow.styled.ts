@@ -43,50 +43,76 @@ const baseRow = css`
   }
 `;
 
+// Cell treatments shared with the balance sheet, which lays its rows on its
+// own three-column grid but sets them exactly as this one does.
+export const sectionCells = css`
+  /* Section heading (Income / Expenses): the serif, set like a page's
+     section head, ruled off in ink beneath. */
+  > div {
+    color: ${({ theme }) => theme.colors.ink};
+    font-family: ${({ theme }) => theme.typography.displayLg.family};
+    font-size: ${({ theme }) => theme.typography.displayLg.size};
+    font-weight: ${({ theme }) => theme.typography.displayLg.weight};
+    border-bottom: 1px solid ${({ theme }) => theme.colors.ink};
+    padding-top: ${({ theme }) => theme.spacing["2xl"]};
+    padding-bottom: ${({ theme }) => theme.spacing.sm};
+  }
+`;
+
+export const subheadCells = css`
+  /* Sub-header (Fixed / Variable / …): serif, a step below the section. */
+  > div {
+    font-family: ${({ theme }) => theme.typography.displayLg.family};
+    font-size: 16px;
+    font-weight: 700;
+    padding-top: ${({ theme }) => theme.spacing.md};
+  }
+  /* Its figures stay in the table's sans so the amount column reads as one. */
+  > div:nth-child(n + 2) {
+    font-family: ${({ theme }) => theme.typography.amountStrong.family};
+    font-size: ${({ theme }) => theme.typography.amountStrong.size};
+    font-weight: 600;
+  }
+`;
+
+export const grandCells = css`
+  /* Grand total ("Left over", "Net worth"): the bottom line, set in the serif
+     at section size between two ink rules. */
+  > div {
+    background: ${({ theme }) => theme.colors.canvasSoft};
+    color: ${({ theme }) => theme.colors.ink};
+    font-family: ${({ theme }) => theme.typography.amountXl.family};
+    font-size: ${({ theme }) => theme.typography.amountXl.size};
+    font-weight: ${({ theme }) => theme.typography.amountXl.weight};
+    border-top: 2px solid ${({ theme }) => theme.colors.ink};
+    border-bottom: 2px solid ${({ theme }) => theme.colors.ink};
+    padding-top: ${({ theme }) => theme.spacing.md};
+    padding-bottom: ${({ theme }) => theme.spacing.md};
+  }
+`;
+
 export const HeadRow = styled.div`
   ${baseRow}
 
-  /* Column-header cells: Inter, medium, dim, on canvas-soft with a stronger
-     bottom hairline (unified single-font sheet — no mono-caps). */
+  /* Column heads as a market-data table sets them: small, muted, closed by a
+     heavy ink rule. */
   > div {
-    background: ${({ theme }) => theme.colors.canvasSoft};
     color: ${({ theme }) => theme.colors.body};
     font-family: ${({ theme }) => theme.typography.bodyMd.family};
-    font-size: ${({ theme }) => theme.typography.bodyMd.size};
-    font-weight: 500;
-    border-bottom: 1px solid ${({ theme }) => theme.colors.hairlineStrong};
+    font-size: 13px;
+    font-weight: 600;
+    border-bottom: 2px solid ${({ theme }) => theme.colors.ink};
   }
 `;
 
 export const SectionRow = styled.div`
   ${baseRow}
-
-  /* Section band (Income / Expenses): Inter semibold on the dark band. */
-  > div {
-    background: ${({ theme }) => theme.colors.band};
-    color: ${({ theme }) => theme.colors.onBand};
-    border-color: ${({ theme }) => theme.colors.hairlineBand};
-    padding-top: ${({ theme }) => theme.spacing.md};
-    padding-bottom: ${({ theme }) => theme.spacing.md};
-    font-weight: 600;
-  }
+  ${sectionCells}
 `;
 
 export const SubheadRow = styled.div`
   ${baseRow}
-
-  /* Sub-header (category sections): Inter medium, label dim. */
-  > div {
-    background: ${({ theme }) => theme.colors.canvasSoft};
-    border-top: 1px solid ${({ theme }) => theme.colors.hairline};
-  }
-  > div:nth-child(1) {
-    color: ${({ theme }) => theme.colors.body};
-    font-weight: 500;
-  }
-  > div:nth-child(n + 2) {
-    font-weight: 500;
-  }
+  ${subheadCells}
 `;
 
 export const ItemRow = styled.div<{ $group?: boolean }>`
@@ -110,10 +136,9 @@ export const TotalsRow = styled.div`
   ${baseRow}
 
   > div {
-    background: ${({ theme }) => theme.colors.canvasSoft};
-    border-top: 1px solid ${({ theme }) => theme.colors.hairlineStrong};
+    border-top: 1px solid ${({ theme }) => theme.colors.ink};
   }
-  /* Subtotal: Inter semibold. */
+  /* Subtotal: semibold. */
   > div:nth-child(1) {
     color: ${({ theme }) => theme.colors.body};
     font-weight: 600;
@@ -125,16 +150,5 @@ export const TotalsRow = styled.div`
 
 export const GrandRow = styled.div`
   ${baseRow}
-
-  /* Grand total ("Left over", "Net worth"): same size as the section headings
-     (Inter 14px), semibold — the dark band carries the emphasis, not an
-     oversized type size. */
-  > div {
-    background: ${({ theme }) => theme.colors.primary};
-    color: ${({ theme }) => theme.colors.onPrimary};
-    border-color: ${({ theme }) => theme.colors.primary};
-    padding-top: ${({ theme }) => theme.spacing.md};
-    padding-bottom: ${({ theme }) => theme.spacing.md};
-    font-weight: 600;
-  }
+  ${grandCells}
 `;
