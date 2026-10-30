@@ -150,10 +150,10 @@ const MiniSelect = styled.select`
 const CreateButton = styled.button`
   padding: ${({ theme }) => theme.spacing.xs}
     ${({ theme }) => theme.spacing.md};
-  border: 1px solid ${({ theme }) => theme.colors.accent};
+  border: 1px solid ${({ theme }) => theme.colors.primary};
   border-radius: ${({ theme }) => theme.rounded.sm};
-  background: ${({ theme }) => theme.colors.accent};
-  color: #fff;
+  background: ${({ theme }) => theme.colors.primary};
+  color: ${({ theme }) => theme.colors.onPrimary};
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
   font-size: 13px;
   cursor: pointer;

@@ -69,3 +69,14 @@ body {
 .app-content:focus {
   outline: none;
 }
+
+/* Form fields sit on the page's paper rather than the browser's white. Zero
+   specificity, so any field that sets its own surface keeps it. */
+:where(
+  input:not([type="checkbox"], [type="radio"], [type="range"]),
+  select,
+  textarea
+) {
+  background-color: var(--c-canvas);
+  color: var(--c-ink);
+}

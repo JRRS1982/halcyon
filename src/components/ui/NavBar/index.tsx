@@ -168,9 +168,7 @@ export function NavBar({ signedIn, transactionsEnabled }: NavBarProps) {
       <RightZone>
         {signedIn ? (
           <form action={signOut}>
-            <Button type="submit" variant="outline">
-              Sign out
-            </Button>
+            <Button type="submit">Sign out</Button>
           </form>
         ) : (
           <RightGroup>
