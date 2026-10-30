@@ -199,6 +199,51 @@ export async function previewImport(
 
 // Step 2 of import: resolves/creates the account and inserts every valid row
 // except the ones the user chose to skip (confirmed duplicates).
+// How the user filed each merchant last time, rebuilt from recent history on
+// every call (nothing stored) and restricted to live categories so a deleted
+// one is never resurrected. Shared by import and the "write a line" box.
+async function loadCategoryMemory(userId: string) {
+  const history = await prisma.transaction.findMany({
+    where: {
+      userId,
+      deletedAt: null,
+      categoryId: { not: null },
+      category: { deletedAt: null },
+    },
+    orderBy: { date: "desc" },
+    take: MEMORY_WINDOW,
+    select: { description: true, categoryId: true, date: true },
+  });
+  return buildCategoryMemory(
+    history.flatMap((tx) =>
+      tx.categoryId
+        ? [
+            {
+              description: tx.description,
+              categoryId: tx.categoryId,
+              date: tx.date,
+            },
+          ]
+        : [],
+    ),
+  );
+}
+
+const suggestSchema = z.object({
+  description: z.string().trim().min(1).max(200),
+});
+
+// The category this description was filed under last time, if any: the
+// "write a line" box offers it in the add form, where the user confirms it.
+export async function suggestCategory(
+  input: z.input<typeof suggestSchema>,
+): Promise<{ categoryId: string | null }> {
+  const userId = await requireTransactionsEnabled();
+  const { description } = suggestSchema.parse(input);
+  const memory = await loadCategoryMemory(userId);
+  return { categoryId: memory.get(descriptionKey(description)) ?? null };
+}
+
 export async function commitImport(input: CommitInput): Promise<ImportResult> {
   const userId = await requireTransactionsEnabled();
   const { accountId, newAccountName, rows, mapping, skipIndexes, fileName } =
@@ -226,32 +271,7 @@ export async function commitImport(input: CommitInput): Promise<ImportResult> {
     }
 
     // Categorisation memory: how the user filed each merchant last time.
-    // Rebuilt from recent history on every import (nothing stored), and
-    // restricted to live categories so a deleted one is never resurrected.
-    const history = await prisma.transaction.findMany({
-      where: {
-        userId,
-        deletedAt: null,
-        categoryId: { not: null },
-        category: { deletedAt: null },
-      },
-      orderBy: { date: "desc" },
-      take: MEMORY_WINDOW,
-      select: { description: true, categoryId: true, date: true },
-    });
-    const memory = buildCategoryMemory(
-      history.flatMap((tx) =>
-        tx.categoryId
-          ? [
-              {
-                description: tx.description,
-                categoryId: tx.categoryId,
-                date: tx.date,
-              },
-            ]
-          : [],
-      ),
-    );
+    const memory = await loadCategoryMemory(userId);
 
     // The batch groups this run's rows so the whole import can be reversed —
     // and is created in the same transaction as them, so a rejected row set

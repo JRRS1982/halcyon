@@ -5,7 +5,8 @@ import { type FormEvent, useMemo, useState, useTransition } from "react";
 import styled from "styled-components";
 import { Button } from "@/components/ui/Button";
 import type { LedgerCategory } from "@/lib/transactions/server";
-import { createTransaction } from "./actions";
+import { parseLine } from "@/lib/transactions/writeLine";
+import { createTransaction, suggestCategory } from "./actions";
 
 type Account = { id: string; name: string };
 
@@ -158,6 +159,35 @@ const Toast = styled.output`
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
+// The "write a line" box: jot a transaction as you would on paper and the add
+// form opens with it filled in, for you to check and save.
+const LineForm = styled.form`
+  display: flex;
+  flex-wrap: wrap;
+  /* Its own full-width row at the head of the actions: the everyday way in. */
+  flex: 1 1 100%;
+  order: -1;
+  min-width: 0;
+  gap: ${({ theme }) => theme.spacing.sm};
+`;
+
+const LineInput = styled.input`
+  flex: 1;
+  min-width: 0;
+  height: 34px;
+  padding: 0 ${({ theme }) => theme.spacing.md};
+  border: 1px solid ${({ theme }) => theme.colors.ink};
+  border-radius: ${({ theme }) => theme.rounded.sm};
+  font-family: ${({ theme }) => theme.typography.bodyMd.family};
+  font-size: 15px;
+`;
+
+const LineError = styled.p`
+  flex-basis: 100%;
+  font-size: 13px;
+  color: ${({ theme }) => theme.colors.negative};
+`;
+
 // One typed-in transaction — cash spend, a mid-month capture — without waiting
 // for the next statement export. The complement of ImportPanel, not a rival:
 // statements stay the bulk path.
@@ -180,6 +210,37 @@ export function QuickAdd({
   const [direction, setDirection] = useState<"out" | "in">("out");
   const [accountId, setAccountId] = useState(accounts[0]?.id ?? "");
   const [categoryId, setCategoryId] = useState("");
+  const [line, setLine] = useState("");
+  const [lineError, setLineError] = useState<string | null>(null);
+
+  const onWriteLine = (event: FormEvent) => {
+    event.preventDefault();
+    const written = parseLine(line, new Date());
+    if (!written) {
+      setLineError(
+        "Write an amount and what it was, for example 4.35 Pret coffee.",
+      );
+      return;
+    }
+    setLineError(null);
+    setDate(written.date);
+    setDescription(written.description);
+    setAmount(written.amount.toFixed(2));
+    setDirection(written.direction);
+    setCategoryId("");
+    setError(null);
+    setSaved(null);
+    setOpen(true);
+    setLine("");
+    // Offer how this description was filed last time; the user can change it.
+    suggestCategory({ description: written.description })
+      .then(({ categoryId: suggested }) => {
+        if (suggested) setCategoryId((current) => current || suggested);
+      })
+      .catch(() => {
+        // No suggestion is fine: the form works without one.
+      });
+  };
 
   // Categories grouped the way the ledger's combobox groups them — by the
   // budget section they roll up into.
@@ -233,6 +294,18 @@ export function QuickAdd({
 
   return (
     <>
+      <LineForm onSubmit={onWriteLine} aria-label="Write a transaction">
+        <LineInput
+          value={line}
+          onChange={(e) => setLine(e.target.value)}
+          placeholder="Write a line: 4.35 Pret coffee"
+          aria-label="Write a transaction, for example 4.35 Pret coffee"
+        />
+        <Button type="submit" variant="outline">
+          Add line
+        </Button>
+        {lineError && <LineError role="alert">{lineError}</LineError>}
+      </LineForm>
       <Button
         type="button"
         variant="outline"
