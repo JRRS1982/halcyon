@@ -146,6 +146,31 @@ export default async function BalancePage(props: PageProps) {
       })
     : [];
 
+  // The last month before this one with any values: what the balance brief
+  // measures this month's movement against.
+  const previousPeriod = await prisma.financialPeriod.findFirst({
+    where: {
+      userId: user.id,
+      granularity: "MONTH",
+      startDate: { lt: range.startDate },
+      balanceItems: { some: { deletedAt: null } },
+    },
+    orderBy: { startDate: "desc" },
+    select: {
+      label: true,
+      balanceItems: {
+        where: { deletedAt: null },
+        orderBy: { createdAt: "desc" },
+        select: { accountId: true, value: true },
+      },
+    },
+  });
+  const previousValues: Record<string, number> = {};
+  for (const item of previousPeriod?.balanceItems ?? []) {
+    if (item.accountId in previousValues) continue;
+    previousValues[item.accountId] = Number(item.value);
+  }
+
   const valueByAccountId = new Map<string, (typeof values)[number]>();
   for (const value of values) {
     if (valueByAccountId.has(value.accountId)) continue;
@@ -232,6 +257,10 @@ export default async function BalancePage(props: PageProps) {
       currency={currency}
       numberFormat={numberFormat}
       monthSummaries={monthSummaries}
+      previous={{
+        label: previousPeriod?.label ?? null,
+        values: previousValues,
+      }}
     />
   );
 }

@@ -11,10 +11,12 @@ import {
   useTransition,
 } from "react";
 import styled, { css } from "styled-components";
+import { MonthBriefPanel } from "@/components/insights/MonthBriefPanel";
 import { Sheet } from "@/components/sheet/Sheet";
 import { SheetCell } from "@/components/sheet/SheetCell";
 import {
   grandCells,
+  headCells,
   sectionCells,
   subheadCells,
 } from "@/components/sheet/SheetRow/SheetRow.styled";
@@ -41,6 +43,11 @@ import {
   previousMonth,
 } from "@/lib/budget/period";
 import { useDebouncedCallback } from "@/lib/hooks/useDebouncedCallback";
+import {
+  type AccountChange,
+  accountChange,
+  balanceBrief,
+} from "@/lib/insights/balanceBrief";
 import {
   formatAmount,
   NUMBER_FORMAT_SPEC,
@@ -182,7 +189,7 @@ const CATEGORY_HELP: Record<
 // 3-column grid: Label (flex), Value (200px right-aligned tabular nums),
 // Notes (flex, slightly wider than label). Different from /budget's 5-column
 // grid because the balance sheet has no Actual / Variance / % columns.
-const GRID = "1fr 200px 1.5fr";
+const GRID = "1fr 180px 160px 1.5fr";
 
 // Below desktop the row keeps a floor width so the Sheet container (a
 // horizontal scroller at the same breakpoints) pans rather than crushing the
@@ -193,8 +200,8 @@ const baseRow = css`
   grid-template-columns: ${GRID};
 
   @media (max-width: 991px) {
-    grid-template-columns: minmax(200px, 1fr) 140px minmax(200px, 1.5fr);
-    min-width: 540px;
+    grid-template-columns: minmax(200px, 1fr) 140px 130px minmax(200px, 1.5fr);
+    min-width: 680px;
 
     > div:nth-child(1) {
       position: sticky;
@@ -204,9 +211,22 @@ const baseRow = css`
   }
 
   @media (max-width: 767px) {
-    grid-template-columns: minmax(180px, 1fr) 120px minmax(180px, 1.5fr);
-    min-width: 480px;
+    grid-template-columns: minmax(180px, 1fr) 120px 120px minmax(180px, 1.5fr);
+    min-width: 600px;
   }
+`;
+
+const HeadRow = styled.div`
+  ${baseRow}
+  ${headCells}
+`;
+
+// How a figure moved since the previous month, coloured by whether it helped.
+const ChangeText = styled.span<{ $favourable: boolean }>`
+  color: ${({ theme, $favourable }) =>
+    $favourable ? theme.colors.positive : theme.colors.negative};
+  font-weight: 600;
+  white-space: nowrap;
 `;
 
 // Top-level section — Assets / Liabilities.
@@ -394,11 +414,6 @@ const PageShell = styled.main`
     padding-left: ${({ theme }) => theme.spacing.lg};
     padding-right: ${({ theme }) => theme.spacing.lg};
   }
-`;
-
-const PeriodLabel = styled.span`
-  color: ${({ theme }) => theme.colors.accent};
-  font-weight: 600;
 `;
 
 // Subhead label cell content: the category name + an info "i" button.
@@ -781,6 +796,7 @@ export function BalanceSheet({
   currency,
   numberFormat,
   monthSummaries = [],
+  previous = { label: null, values: {} },
 }: {
   period: SerializedPeriod;
   initialRows: SerializedAccountRow[];
@@ -789,6 +805,8 @@ export function BalanceSheet({
   currency: string;
   numberFormat: NumberFormat;
   monthSummaries?: BalanceMonthSummary[];
+  // The last earlier month with values, for the brief's "rose/fell since".
+  previous?: { label: string | null; values: Record<string, number> };
 }) {
   const periodYear = year;
   const periodMonth = month;
@@ -796,6 +814,17 @@ export function BalanceSheet({
 
   const [periodState, setPeriodState] = useState(period);
   const [rows, setRows] = useState(initialRows);
+  // Recomputed as values are typed, so the headline follows the sheet.
+  const brief = balanceBrief({
+    rows: rows.map((row) => ({
+      name: row.name,
+      kind: row.kind,
+      value: row.value,
+      previous: previous.values[row.accountId] ?? null,
+    })),
+    previousLabel: previous.label,
+    fmt: (n) => formatAmount(currency, n, numberFormat),
+  });
   const [focusedCell, setFocusedCell] = useState<FocusedCell>(null);
   const pendingSavesRef = useRef(0);
   const [pendingCount, setPendingCount] = useState(0);
@@ -1323,6 +1352,39 @@ export function BalanceSheet({
 
   // ─── Render helpers ───────────────────────────────────────────────────────
 
+  // Movement since the previous month across the accounts that have a value in
+  // both, so an account not yet filled in this month doesn't read as a fall.
+  const totalsWithBoth = (list: SerializedAccountRow[]) => {
+    const both = list.filter(
+      (r) => r.value !== null && previous.values[r.accountId] !== undefined,
+    );
+    if (both.length === 0) return null;
+    return {
+      now: both.reduce((t, r) => t + (r.value ?? 0), 0),
+      before: both.reduce((t, r) => t + (previous.values[r.accountId] ?? 0), 0),
+    };
+  };
+  const changeOf = (kind: AccountKind, list: SerializedAccountRow[]) => {
+    const totals = totalsWithBoth(list);
+    return totals ? accountChange(kind, totals.now, totals.before) : null;
+  };
+  const renderChange = (change: AccountChange | null) =>
+    change ? (
+      <ChangeText $favourable={change.favourable}>
+        {change.rose ? "▲" : "▼"} {fmtAmount(change.amount)}
+      </ChangeText>
+    ) : null;
+  const netChange = (() => {
+    const assets = totalsWithBoth(rows.filter((r) => r.kind === "ASSET"));
+    const debts = totalsWithBoth(rows.filter((r) => r.kind === "LIABILITY"));
+    if (!assets && !debts) return null;
+    return accountChange(
+      "ASSET",
+      (assets?.now ?? 0) - (debts?.now ?? 0),
+      (assets?.before ?? 0) - (debts?.before ?? 0),
+    );
+  })();
+
   const renderItemRow = (row: SerializedAccountRow) => (
     <ItemRow
       key={row.accountId}
@@ -1368,6 +1430,15 @@ export function BalanceSheet({
           }
         />
       </SheetCell>
+      <SheetCell align="right">
+        {renderChange(
+          accountChange(
+            row.kind,
+            row.value,
+            previous.values[row.accountId] ?? null,
+          ),
+        )}
+      </SheetCell>
       <SheetCell
         tone={!row.notes ? "dim" : "default"}
         focused={
@@ -1406,6 +1477,14 @@ export function BalanceSheet({
       <SectionRow role="row">
         <SheetCell role="rowheader">{label}</SheetCell>
         <SheetCell align="right">{fmtAmount(total)}</SheetCell>
+        <SheetCell align="right">
+          {renderChange(
+            changeOf(
+              kind,
+              rows.filter((r) => r.kind === kind),
+            ),
+          )}
+        </SheetCell>
         <SheetCell />
       </SectionRow>
       {sectionOptionsFor(kind).map((c) => {
@@ -1440,6 +1519,9 @@ export function BalanceSheet({
                 </SubheadLabel>
               </SheetCell>
               <SheetCell align="right">{fmtAmount(bucket.subtotal)}</SheetCell>
+              <SheetCell align="right">
+                {renderChange(changeOf(kind, bucket.rows))}
+              </SheetCell>
               <SheetCell />
             </SubheadRow>
             {bucket.rows.map(renderItemRow)}
@@ -1457,13 +1539,11 @@ export function BalanceSheet({
   return (
     <PageShell>
       <PageHeader
-        title={
-          <>
-            Balance Sheet · <PeriodLabel>{periodState.label}</PeriodLabel>
-          </>
-        }
-        lead="Assets and liabilities snapshot for this period."
+        eyebrow={`Balance sheet · ${periodState.label}`}
+        title={brief.headline}
+        lead={brief.standfirst}
       />
+      <MonthBriefPanel fmt={fmtAmount} notes={brief.notes} />
       <Toolbar>
         <ToolbarGroup>
           <PeriodNavWrapper ref={pickerWrapperRef}>
@@ -1616,6 +1696,19 @@ export function BalanceSheet({
           there is no duplicate to suppress here any more. */}
       {saveError && <SheetError role="alert">{saveError}</SheetError>}
       <Sheet data-sheet-scroller role="table" aria-label="Balance sheet">
+        <HeadRow role="row">
+          <SheetCell role="columnheader">Account</SheetCell>
+          <SheetCell role="columnheader" align="right">
+            Value
+          </SheetCell>
+          <SheetCell role="columnheader" align="right">
+            {/* "September 2026" → "Sep 2026", so the head stays one line. */}
+            {previous.label
+              ? `Since ${previous.label.replace(/^(\w{3})\w*/, "$1")}`
+              : "Change"}
+          </SheetCell>
+          <SheetCell role="columnheader">Notes</SheetCell>
+        </HeadRow>
         {renderSection("ASSET", "Assets", assetsTotal)}
         {renderSection("LIABILITY", "Liabilities", liabilitiesTotal)}
         <GrandRow role="row">
@@ -1632,6 +1725,7 @@ export function BalanceSheet({
           >
             {fmtAmount(netWorth)}
           </SheetCell>
+          <SheetCell align="right">{renderChange(netChange)}</SheetCell>
           <SheetCell />
         </GrandRow>
       </Sheet>

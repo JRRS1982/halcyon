@@ -95,11 +95,9 @@ export const grandCells = css`
   }
 `;
 
-export const HeadRow = styled.div`
-  ${baseRow}
-
-  /* Column heads as a market-data table sets them: small, muted, closed by a
-     heavy ink rule. */
+/* Column heads as a market-data table sets them: small, muted, closed by a
+   heavy ink rule. */
+export const headCells = css`
   > div {
     color: ${({ theme }) => theme.colors.body};
     font-family: ${({ theme }) => theme.typography.bodyMd.family};
@@ -107,6 +105,11 @@ export const HeadRow = styled.div`
     font-weight: 600;
     border-bottom: 2px solid ${({ theme }) => theme.colors.ink};
   }
+`;
+
+export const HeadRow = styled.div`
+  ${baseRow}
+  ${headCells}
 `;
 
 export const SectionRow = styled.div`
