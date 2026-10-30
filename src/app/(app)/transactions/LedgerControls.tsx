@@ -51,14 +51,22 @@ const FilterButton = styled.button`
   gap: ${({ theme }) => theme.spacing.sm};
   padding: ${({ theme }) => theme.spacing.sm}
     ${({ theme }) => theme.spacing.md};
-  border: 1px solid ${({ theme }) => theme.colors.hairlineStrong};
+  /* Claret: the accent marks where to look, and the filters are how the
+     ledger is narrowed to what needs attention. */
+  border: 1px solid ${({ theme }) => theme.colors.accent};
   border-radius: ${({ theme }) => theme.rounded.sm};
   background: ${({ theme }) => theme.colors.canvas};
-  color: ${({ theme }) => theme.colors.ink};
-  font-family: ${({ theme }) => theme.typography.bodyMd.family};
-  font-size: 13px;
+  color: ${({ theme }) => theme.colors.accent};
+  font-family: ${({ theme }) => theme.typography.control.family};
+  font-size: ${({ theme }) => theme.typography.control.size};
+  font-weight: ${({ theme }) => theme.typography.control.weight};
   cursor: pointer;
   white-space: nowrap;
+
+  &:hover {
+    background: ${({ theme }) => theme.colors.accent};
+    color: ${({ theme }) => theme.colors.canvas};
+  }
 `;
 
 // The count of active filters. The drawer hides its own state once closed, so
@@ -71,7 +79,7 @@ const FilterBadge = styled.span`
   height: 18px;
   padding: 0 5px;
   border-radius: ${({ theme }) => theme.rounded.full};
-  background: ${({ theme }) => theme.colors.ink};
+  background: ${({ theme }) => theme.colors.accent};
   color: ${({ theme }) => theme.colors.canvas};
   font-size: 11px;
   line-height: 1;
