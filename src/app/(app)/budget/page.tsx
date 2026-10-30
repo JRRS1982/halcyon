@@ -10,6 +10,7 @@ import {
 } from "@/lib/budget/period";
 import type { AnchorAccount } from "@/lib/budget/sections";
 import { monthFlow } from "@/lib/dashboard/series";
+import { getCategoryHistory } from "@/lib/insights/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUserSettings } from "@/lib/settings/server";
 import { getCurrentUser } from "@/lib/supabase/user";
@@ -264,8 +265,26 @@ export default async function BudgetPage(props: PageProps) {
   // key on ym forces a fresh component instance per month, so the
   // client's local state (items, periodState, picker) doesn't leak from
   // the previous month.
+  // Feeds the month brief's "highest since …": each category's earlier months,
+  // limited to the months the user actually recorded.
+  const categoryTypes = new Map(
+    items.flatMap((i) =>
+      i.categoryId ? [[i.categoryId, i.type] as const] : [],
+    ),
+  );
+  const history = await getCategoryHistory({
+    userId: user.id,
+    categoryTypes,
+    priorPeriods: recentPeriods
+      .filter((p) => p.startDate.getTime() < range.startDate.getTime())
+      .reverse(),
+    before: range.startDate,
+    transactionsEnabled,
+  });
+
   return (
     <BudgetSheet
+      history={history}
       key={formatYm(year, month)}
       period={serializedPeriod}
       initialItems={serializedItems}

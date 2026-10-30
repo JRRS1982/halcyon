@@ -63,6 +63,8 @@ import type {
   IncomeSection,
 } from "@/lib/categories/sections";
 import { useDebouncedCallback } from "@/lib/hooks/useDebouncedCallback";
+import type { CategoryHistory } from "@/lib/insights/history";
+import { monthBrief } from "@/lib/insights/monthBrief";
 import {
   caretAfterSignificant,
   formatAmount,
@@ -81,6 +83,7 @@ import {
   listCopyablePeriods,
   updateItem,
 } from "./actions";
+import { MonthBriefPanel } from "./MonthBriefPanel";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -350,11 +353,11 @@ const PageShell = styled.main`
   }
 `;
 
-// Accent-coloured period date in the page eyebrow. Bold + blue — the single
-// orientation moment on the page per DESIGN.md → Do's.
-const PeriodLabel = styled.span`
-  color: ${({ theme }) => theme.colors.accent};
-  font-weight: 600;
+// How to drive the sheet, said once under it rather than over the headline.
+const SheetHint = styled.p`
+  font-size: 13px;
+  color: ${({ theme }) => theme.colors.body};
+  margin-top: ${({ theme }) => theme.spacing.md};
 `;
 
 // Category subhead label cell content: the section name + an info "i" button.
@@ -856,6 +859,7 @@ export function BudgetSheet({
   numberFormat,
   actualsReadOnly = false,
   monthSummaries = [],
+  history = {},
 }: {
   period: SerializedPeriod;
   initialItems: SerializedItem[];
@@ -869,6 +873,7 @@ export function BudgetSheet({
   numberFormat: NumberFormat;
   actualsReadOnly?: boolean;
   monthSummaries?: BudgetMonthSummary[];
+  history?: CategoryHistory;
 }) {
   // Bind currency + number format once so the many call sites stay terse.
   const fmtAmount = (n: number) => formatAmount(currency, n, numberFormat);
@@ -1654,6 +1659,20 @@ export function BudgetSheet({
     );
   };
 
+  // The headline, standfirst and notes, recomputed as the sheet is edited.
+  const brief = monthBrief({
+    rows: items.map((item) => ({
+      label: item.label,
+      type: item.type,
+      direction: item.direction,
+      budget: item.budget,
+      actual: item.actual,
+      history: item.categoryId ? (history[item.categoryId] ?? []) : [],
+    })),
+    monthLabel: periodState.label,
+    fmt: fmtAmount,
+  });
+
   // ─── Render ───────────────────────────────────────────────────────────────
 
   // The section header inside a section: its name, an info popover, and its
@@ -1811,12 +1830,15 @@ export function BudgetSheet({
   return (
     <PageShell>
       <PageHeader
-        title={
-          <>
-            Budget · <PeriodLabel>{periodState.label}</PeriodLabel>
-          </>
-        }
-        lead="Click any cell to edit. Arrows and Tab move around, Enter drops down and adds a row at the end of a section. Totals recalc as you type."
+        eyebrow={`Budget · ${periodState.label}`}
+        title={brief.headline}
+        lead={brief.standfirst}
+      />
+      <MonthBriefPanel
+        leftOver={leftOver.actual}
+        planned={leftOver.budget}
+        fmt={fmtAmount}
+        notes={brief.notes}
       />
 
       <Toolbar data-toolbar>
@@ -2220,6 +2242,10 @@ export function BudgetSheet({
           }}
         />
       </Sheet>
+      <SheetHint>
+        Click any cell to edit. Arrows and Tab move around, Enter drops down and
+        adds a row at the end of a section. Totals recalc as you type.
+      </SheetHint>
 
       {monthSummaries.length > 1 && (
         <SummaryStrip>
