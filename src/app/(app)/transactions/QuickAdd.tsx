@@ -215,6 +215,13 @@ export function QuickAdd({
 
   const onWriteLine = (event: FormEvent) => {
     event.preventDefault();
+    // Nothing written: open the form empty, to fill in field by field.
+    if (line.trim() === "") {
+      setLineError(null);
+      setSaved(null);
+      setOpen(true);
+      return;
+    }
     const written = parseLine(line, new Date());
     if (!written) {
       setLineError(
@@ -302,20 +309,10 @@ export function QuickAdd({
           aria-label="Write a transaction, for example 4.35 Pret coffee"
         />
         <Button type="submit" variant="outline">
-          Add line
+          Add transaction
         </Button>
         {lineError && <LineError role="alert">{lineError}</LineError>}
       </LineForm>
-      <Button
-        type="button"
-        variant="outline"
-        onClick={() => {
-          setSaved(null);
-          setOpen(true);
-        }}
-      >
-        Add transaction
-      </Button>
 
       {open && (
         <Overlay

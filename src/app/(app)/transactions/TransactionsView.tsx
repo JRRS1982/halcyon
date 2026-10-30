@@ -5,6 +5,7 @@ import styled from "styled-components";
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
 import type { NumberFormat } from "@/lib/settings/currency";
+import { importLimitHint } from "@/lib/transactions/limits";
 import type { LedgerUrlQuery } from "@/lib/transactions/pagination";
 import type { LedgerCategory, LedgerPage } from "@/lib/transactions/server";
 import { setCategoryApproval } from "./actions";
@@ -43,6 +44,12 @@ const Actions = styled.div`
   margin-bottom: ${({ theme }) => theme.spacing.xl};
   border-top: 1px solid ${({ theme }) => theme.colors.ink};
   border-bottom: 1px solid ${({ theme }) => theme.colors.hairlineStrong};
+`;
+
+// What an import accepts, said once beside the import controls.
+const ImportHint = styled.span`
+  font-size: 13px;
+  color: ${({ theme }) => theme.colors.dim};
 `;
 
 const plural = (n: number, one: string, many: string) =>
@@ -123,9 +130,10 @@ export function TransactionsView({
               : `Approve all ${suggestedCount.toLocaleString("en-GB")} suggested`}
           </Button>
         )}
-        <ImportPanel accounts={accounts} />
         <QuickAdd accounts={accounts} categories={categories} />
+        <ImportPanel accounts={accounts} />
         <ReverseImport />
+        <ImportHint>{importLimitHint}</ImportHint>
       </Actions>
       <Ledger
         page={page}

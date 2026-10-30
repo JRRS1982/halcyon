@@ -19,7 +19,6 @@ import {
   mapRows,
 } from "@/lib/transactions/import";
 import {
-  importLimitHint,
   MAX_IMPORT_FILE_BYTES,
   MAX_IMPORT_FILE_MB,
   MAX_IMPORT_ROWS,
@@ -82,11 +81,6 @@ const FileButton = styled.span`
 
 // States the import limits up front, so a too-big file is a known boundary
 // rather than a surprise rejection.
-const FileHint = styled.span`
-  font-family: ${({ theme }) => theme.typography.bodyMd.family};
-  font-size: 13px;
-  color: ${({ theme }) => theme.colors.dim};
-`;
 
 const FileName = styled.span`
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
@@ -537,7 +531,6 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
       <FileRow>
         <HiddenFile type="file" accept=".csv,text/csv" onChange={onFile} />
         <FileButton>Import statement…</FileButton>
-        <FileHint>{importLimitHint}</FileHint>
       </FileRow>
 
       {open && (

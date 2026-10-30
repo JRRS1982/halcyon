@@ -137,7 +137,7 @@ describe("QuickAdd", () => {
       screen.getByRole("textbox", { name: /write a transaction/i }),
       { target: { value: "12.40 Supermarket" } },
     );
-    fireEvent.click(screen.getByRole("button", { name: "Add line" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add transaction" }));
 
     expect(screen.getByPlaceholderText("0.00")).toHaveValue(12.4);
     expect(screen.getByDisplayValue("Supermarket")).toBeInTheDocument();
@@ -155,7 +155,7 @@ describe("QuickAdd", () => {
       screen.getByRole("textbox", { name: /write a transaction/i }),
       { target: { value: "Supermarket" } },
     );
-    fireEvent.click(screen.getByRole("button", { name: "Add line" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add transaction" }));
 
     expect(screen.getByRole("alert")).toHaveTextContent(/write an amount/i);
     expect(screen.queryByPlaceholderText("0.00")).not.toBeInTheDocument();
