@@ -1,6 +1,6 @@
 import { TEST_USER_ID } from "@test/support/helpers";
 import {
-  confirmTransactionCategories,
+  setCategoryApproval,
   setTransactionCategory,
 } from "@/app/(app)/transactions/actions";
 import { buildAccountData } from "@/lib/accounts/creation";
@@ -43,19 +43,20 @@ const seedSuggestions = async () => {
   return { account, groceries, suggested };
 };
 
-// "Tick" and "Tick all" on the ledger. If they misfire, a user's checked rows
-// keep asking to be checked, or someone else's rows change.
-describe("confirmTransactionCategories (integration)", () => {
-  test("ticks only the rows it is given", async () => {
+// "Approve" and "Approve all" on the ledger. If they misfire, a user's checked
+// rows keep asking to be checked, or someone else's rows change.
+describe("setCategoryApproval (integration)", () => {
+  test("approves only the rows it is given", async () => {
     const { suggested } = await seedSuggestions();
     const [first, second] = suggested;
     if (!first || !second) throw new Error("seed failed");
 
-    const res = await confirmTransactionCategories({
+    const res = await setCategoryApproval({
       transactionIds: [first.id],
+      approved: true,
     });
 
-    expect(res.confirmed).toBe(1);
+    expect(res.updated).toBe(1);
     const rows = await prisma.transaction.findMany({
       where: { userId: TEST_USER_ID },
       orderBy: { description: "asc" },
@@ -64,7 +65,7 @@ describe("confirmTransactionCategories (integration)", () => {
     expect(rows.map((r) => r.isCategoryConfirmed)).toEqual([true, false]);
   });
 
-  test("with no ids, ticks every suggestion the user has and no one else's", async () => {
+  test("with no ids, approves every suggestion the user has and no one else's", async () => {
     await seedSuggestions();
     await prisma.user.create({ data: { id: OTHER_USER_ID } });
     const theirAccount = await prisma.account.create({
@@ -94,9 +95,9 @@ describe("confirmTransactionCategories (integration)", () => {
       },
     });
 
-    const res = await confirmTransactionCategories();
+    const res = await setCategoryApproval({ approved: true });
 
-    expect(res.confirmed).toBe(2);
+    expect(res.updated).toBe(2);
     const after = await prisma.transaction.findUnique({
       where: { id: theirs.id },
     });
@@ -117,5 +118,28 @@ describe("confirmTransactionCategories (integration)", () => {
       where: { id: first.id },
     });
     expect(after?.isCategoryConfirmed).toBe(true);
+  });
+
+  // Approval has to be undoable: a mis-click must not lock a wrong category in.
+  test("withdrawing approval puts the row back in pencil", async () => {
+    const { suggested } = await seedSuggestions();
+    const [first] = suggested;
+    if (!first) throw new Error("seed failed");
+    await setCategoryApproval({ transactionIds: [first.id], approved: true });
+
+    const res = await setCategoryApproval({
+      transactionIds: [first.id],
+      approved: false,
+    });
+
+    expect(res.updated).toBe(1);
+    const after = await prisma.transaction.findUnique({
+      where: { id: first.id },
+    });
+    expect(after?.isCategoryConfirmed).toBe(false);
+  });
+
+  test("refuses to withdraw approval from every row at once", async () => {
+    await expect(setCategoryApproval({ approved: false })).rejects.toThrow();
   });
 });

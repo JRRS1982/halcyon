@@ -90,6 +90,7 @@ type Account = { id: string; name: string };
 // on Apply, where an empty field simply means "unset".
 type Draft = {
   onlyUncategorized: boolean;
+  onlyToCheck: boolean;
   from: string;
   to: string;
   accountId: string;
@@ -102,6 +103,7 @@ const TRANSFERS = "transfers";
 
 const draftFrom = (query: LedgerUrlQuery): Draft => ({
   onlyUncategorized: query.onlyUncategorized,
+  onlyToCheck: query.onlyToCheck,
   from: query.from ?? "",
   to: query.to ?? "",
   accountId: query.accountId ?? "",
@@ -117,6 +119,7 @@ const draftFrom = (query: LedgerUrlQuery): Draft => ({
 
 const EMPTY_DRAFT: Draft = {
   onlyUncategorized: false,
+  onlyToCheck: false,
   from: "",
   to: "",
   accountId: "",
@@ -129,6 +132,7 @@ const EMPTY_DRAFT: Draft = {
 // cleared filter leaves no trace in the URL.
 const paramsFrom = (draft: Draft): Record<string, string | null> => ({
   uncat: draft.onlyUncategorized ? "1" : null,
+  check: draft.onlyToCheck ? "1" : null,
   from: draft.from || null,
   to: draft.to || null,
   acct: draft.accountId || null,
@@ -157,6 +161,7 @@ export function FilterDrawer({
 }) {
   const [draft, setDraft] = useState<Draft>(() => draftFrom(query));
   const uncategorizedId = useId();
+  const toCheckId = useId();
 
   // Re-seed from the URL each time the drawer *opens*, so an abandoned edit is
   // discarded rather than waiting to surprise the next person to open it.
@@ -209,6 +214,14 @@ export function FilterDrawer({
             type="checkbox"
             checked={draft.onlyUncategorized}
             onChange={(e) => set({ onlyUncategorized: e.target.checked })}
+          />
+        </Field>
+        <Field label="To approve only" htmlFor={toCheckId}>
+          <input
+            id={toCheckId}
+            type="checkbox"
+            checked={draft.onlyToCheck}
+            onChange={(e) => set({ onlyToCheck: e.target.checked })}
           />
         </Field>
       </DrawerSection>

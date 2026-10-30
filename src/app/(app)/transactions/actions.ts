@@ -541,34 +541,40 @@ export async function bulkSetTransactionCategory(
   return { updated: result.count };
 }
 
-const confirmSchema = z.object({
-  // Omitted: confirm every suggestion the user has. Given: only those rows.
-  transactionIds: z.array(z.string().uuid()).min(1).max(500).optional(),
-});
+const approvalSchema = z
+  .object({
+    // Omitted: every suggestion the user has (approving only).
+    transactionIds: z.array(z.string().uuid()).min(1).max(500).optional(),
+    approved: z.boolean(),
+  })
+  .refine((v) => v.approved || v.transactionIds !== undefined, {
+    message: "Withdrawing approval needs the rows it applies to",
+  });
 
-// Ticks suggested categories: the user agrees with what the import pencilled
-// in, so the rows stop showing as "to check". Only rows that carry a category
-// can be confirmed; ownership-scoped like every mutation. Totals don't move
-// (a suggestion already counted), so only the ledger is revalidated.
-export async function confirmTransactionCategories(
-  input: z.input<typeof confirmSchema> = {},
-): Promise<{ confirmed: number }> {
+// Approves a row's category (the user agrees with what the import pencilled
+// in, so the row stops asking to be checked) or withdraws that approval (it
+// goes back to pencil). Only rows that carry a category have an approval to
+// give or take; ownership-scoped like every mutation. Totals don't move, so
+// only the ledger is revalidated.
+export async function setCategoryApproval(
+  input: z.input<typeof approvalSchema>,
+): Promise<{ updated: number }> {
   const userId = await requireTransactionsEnabled();
-  const { transactionIds } = confirmSchema.parse(input);
+  const { transactionIds, approved } = approvalSchema.parse(input);
 
   const result = await prisma.transaction.updateMany({
     where: {
       userId,
       deletedAt: null,
-      isCategoryConfirmed: false,
+      isCategoryConfirmed: !approved,
       categoryId: { not: null },
       ...(transactionIds ? { id: { in: transactionIds } } : {}),
     },
-    data: { isCategoryConfirmed: true },
+    data: { isCategoryConfirmed: approved },
   });
 
   revalidatePath("/transactions");
-  return { confirmed: result.count };
+  return { updated: result.count };
 }
 
 const bulkDeleteSchema = z.object({

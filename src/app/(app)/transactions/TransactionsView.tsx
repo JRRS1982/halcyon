@@ -1,13 +1,13 @@
 "use client";
 
-import Link from "next/link";
 import { useTransition } from "react";
-import styled, { css } from "styled-components";
+import styled from "styled-components";
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
+import type { NumberFormat } from "@/lib/settings/currency";
 import type { LedgerUrlQuery } from "@/lib/transactions/pagination";
 import type { LedgerCategory, LedgerPage } from "@/lib/transactions/server";
-import { confirmTransactionCategories } from "./actions";
+import { setCategoryApproval } from "./actions";
 import { ImportPanel } from "./ImportPanel";
 import { Ledger } from "./Ledger";
 import { QuickAdd } from "./QuickAdd";
@@ -52,8 +52,8 @@ const plural = (n: number, one: string, many: string) =>
 // out of the budget, and pencilled ones are the import's guess until ticked.
 const headlineFor = (toCheck: number) =>
   toCheck === 0
-    ? "Every transaction is checked"
-    : `${plural(toCheck, "transaction", "transactions")} to check`;
+    ? "Every transaction is approved"
+    : `${plural(toCheck, "transaction", "transactions")} to approve`;
 
 const standfirstFor = (uncategorized: number, suggested: number) => {
   if (uncategorized === 0 && suggested === 0) {
@@ -61,33 +61,12 @@ const standfirstFor = (uncategorized: number, suggested: number) => {
   }
   const parts = [
     suggested > 0 &&
-      `${plural(suggested, "was", "were")} filed from your history and ${suggested === 1 ? "is" : "are"} shown in pencil: tick ${suggested === 1 ? "it" : "them"} if right, or pick another category.`,
+      `${plural(suggested, "was", "were")} filed from your history and ${suggested === 1 ? "is" : "are"} shown in pencil: approve ${suggested === 1 ? "it" : "them"} if right, or pick another category.`,
     uncategorized > 0 &&
       `${plural(uncategorized, "has", "have")} no category yet, so ${uncategorized === 1 ? "it is" : "they are"} left out of your budget.`,
   ].filter(Boolean);
   return parts.join(" ");
 };
-
-// To check / All: the review queue, or the whole ledger.
-const Views = styled.nav`
-  display: inline-flex;
-  margin-bottom: ${({ theme }) => theme.spacing.md};
-  border: 1px solid ${({ theme }) => theme.colors.ink};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  overflow: hidden;
-`;
-
-const ViewLink = styled(Link)<{ $current: boolean }>`
-  ${({ theme, $current }) => css`
-    padding: ${theme.spacing.sm} ${theme.spacing.lg};
-    font-family: ${theme.typography.control.family};
-    font-size: ${theme.typography.control.size};
-    font-weight: ${theme.typography.control.weight};
-    text-decoration: none;
-    color: ${$current ? theme.colors.onPrimary : theme.colors.ink};
-    background: ${$current ? theme.colors.primary : "transparent"};
-  `}
-`;
 
 export function TransactionsView({
   accounts,
@@ -98,6 +77,8 @@ export function TransactionsView({
   uncategorizedCount,
   suggestedCount,
   transfersEnabled,
+  currency,
+  numberFormat,
 }: {
   // Importable accounts only (canImportTransactions: true) — the import
   // target picker, quick-add, and the ledger's account filter render from
@@ -114,8 +95,10 @@ export function TransactionsView({
   // Categories an import suggested that the user has not ticked yet.
   suggestedCount: number;
   transfersEnabled: boolean;
+  currency: string;
+  numberFormat: NumberFormat;
 }) {
-  const [isTicking, startTicking] = useTransition();
+  const [isApproving, startApproving] = useTransition();
   const toCheck = uncategorizedCount + suggestedCount;
   return (
     <Shell>
@@ -128,38 +111,22 @@ export function TransactionsView({
         {suggestedCount > 0 && (
           <Button
             type="button"
-            disabled={isTicking}
+            disabled={isApproving}
             onClick={() =>
-              startTicking(async () => {
-                await confirmTransactionCategories();
+              startApproving(async () => {
+                await setCategoryApproval({ approved: true });
               })
             }
           >
-            {isTicking
-              ? "Ticking…"
-              : `Tick all ${suggestedCount.toLocaleString("en-GB")} suggested`}
+            {isApproving
+              ? "Approving…"
+              : `Approve all ${suggestedCount.toLocaleString("en-GB")} suggested`}
           </Button>
         )}
         <ImportPanel accounts={accounts} />
         <QuickAdd accounts={accounts} categories={categories} />
         <ReverseImport />
       </Actions>
-      <Views aria-label="Which transactions to show">
-        <ViewLink
-          href="/transactions?check=1"
-          $current={query.onlyToCheck}
-          aria-current={query.onlyToCheck ? "page" : undefined}
-        >
-          To check · {toCheck.toLocaleString("en-GB")}
-        </ViewLink>
-        <ViewLink
-          href="/transactions"
-          $current={!query.onlyToCheck}
-          aria-current={query.onlyToCheck ? undefined : "page"}
-        >
-          All transactions
-        </ViewLink>
-      </Views>
       <Ledger
         page={page}
         query={query}
@@ -167,6 +134,8 @@ export function TransactionsView({
         transferAccounts={transferAccounts}
         uncategorizedCount={uncategorizedCount}
         transfersEnabled={transfersEnabled}
+        currency={currency}
+        numberFormat={numberFormat}
       />
     </Shell>
   );

@@ -29,7 +29,8 @@ export default async function TransactionsPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const userId = await requireTransactionsEnabled();
-  const { transfersEnabled } = await getCurrentUserSettings();
+  const { transfersEnabled, currency, numberFormat } =
+    await getCurrentUserSettings();
   const query = parseLedgerSearchParams(await searchParams);
 
   const [
@@ -83,6 +84,8 @@ export default async function TransactionsPage({
       uncategorizedCount={uncategorizedCount}
       suggestedCount={suggestedCount}
       transfersEnabled={transfersEnabled}
+      currency={currency}
+      numberFormat={numberFormat}
     />
   );
 }

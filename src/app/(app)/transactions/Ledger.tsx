@@ -5,6 +5,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Fragment, useEffect, useRef, useState, useTransition } from "react";
 import styled, { css } from "styled-components";
 import { useDebouncedCallback } from "@/lib/hooks/useDebouncedCallback";
+import {
+  DEFAULT_NUMBER_FORMAT,
+  formatAmount,
+  type NumberFormat,
+} from "@/lib/settings/currency";
 import { activeFilters } from "@/lib/transactions/activeFilters";
 import {
   type LedgerUrlQuery,
@@ -23,9 +28,9 @@ import {
   bulkDeleteTransactions,
   bulkSetTransactionCategory,
   bulkSetTransactionTransfer,
-  confirmTransactionCategories,
   createAccountAndTransfer,
   createAndAssignCategory,
+  setCategoryApproval,
   setTransactionCategory,
   setTransactionNote,
   setTransactionTransfer,
@@ -130,14 +135,14 @@ const Table = styled.table`
 // In header order. Description is the only `auto` one, so it absorbs whatever
 // the viewport has spare — every other column keeps the width its content
 // actually needs.
-// The category cell: a mark saying where the row stands, then the picker. A
-// suggested category is pencilled (dashed, italic) until it is ticked.
+// The category cell: the picker, then the approval. A suggested category is
+// pencilled (dashed, italic) until it is approved.
 const CategoryCell = styled.div<{ $pencilled: boolean }>`
   display: flex;
   align-items: center;
   gap: ${({ theme }) => theme.spacing.sm};
 
-  > :last-child {
+  > :first-child {
     flex: 1;
     min-width: 0;
   }
@@ -145,7 +150,7 @@ const CategoryCell = styled.div<{ $pencilled: boolean }>`
   ${({ $pencilled, theme }) =>
     $pencilled &&
     css`
-      > :last-child button {
+      > :first-child button {
         border-style: dashed;
         font-style: italic;
         color: ${theme.colors.body};
@@ -153,40 +158,30 @@ const CategoryCell = styled.div<{ $pencilled: boolean }>`
     `}
 `;
 
-const markBox = css`
-  flex: none;
-  width: 26px;
-  height: 26px;
-  display: inline-grid;
-  place-items: center;
-`;
+// Approving is the one thing a suggested row asks for. Unapproved, it is an
+// outlined button in the action colour; approved, it reads "✓ Approved" in the
+// sign green and stays a button, so a mis-click can be undone.
+const Approval = styled.button<{ $approved: boolean }>`
+  ${({ theme, $approved }) => css`
+    flex: none;
+    min-width: 92px;
+    height: 28px;
+    padding: 0 ${theme.spacing.sm};
+    border-radius: ${theme.rounded.sm};
+    font-family: ${theme.typography.control.family};
+    font-size: 13px;
+    font-weight: ${theme.typography.control.weight};
+    cursor: pointer;
+    border: 1px solid ${$approved ? "transparent" : theme.colors.primary};
+    background: transparent;
+    color: ${$approved ? theme.colors.positive : theme.colors.primary};
 
-// Ticking is the one action a suggested row asks for, so it is a real button,
-// outlined in the action colour.
-const TickButton = styled.button`
-  ${markBox}
-  border: 1.5px solid ${({ theme }) => theme.colors.primary};
-  border-radius: ${({ theme }) => theme.rounded.full};
-  background: transparent;
-  color: ${({ theme }) => theme.colors.primary};
-  font-weight: 700;
-  cursor: pointer;
-
-  &:hover {
-    background: ${({ theme }) => theme.colors.primary};
-    color: ${({ theme }) => theme.colors.onPrimary};
-  }
-`;
-
-const Ticked = styled.span`
-  ${markBox}
-  color: ${({ theme }) => theme.colors.positive};
-  font-weight: 700;
-  font-size: 16px;
-`;
-
-const Unticked = styled.span`
-  ${markBox}
+    &:hover {
+      border-color: ${$approved ? theme.colors.hairlineStrong : theme.colors.primary};
+      background: ${$approved ? "transparent" : theme.colors.primary};
+      color: ${$approved ? theme.colors.positive : theme.colors.onPrimary};
+    }
+  `}
 `;
 
 const COLUMN_WIDTHS: [column: string, width: string][] = [
@@ -195,7 +190,7 @@ const COLUMN_WIDTHS: [column: string, width: string][] = [
   ["description", "auto"],
   ["account", "132px"],
   ["amount", "96px"],
-  ["category", "270px"],
+  ["category", "330px"],
   ["note", "76px"],
 ];
 
@@ -527,6 +522,9 @@ type LedgerProps = {
   transferAccounts: LedgerAccount[];
   uncategorizedCount: number;
   transfersEnabled: boolean;
+  // The user's money format, from Settings.
+  currency?: string;
+  numberFormat?: NumberFormat;
 };
 
 export function Ledger({
@@ -536,6 +534,8 @@ export function Ledger({
   transferAccounts: initialTransferAccounts,
   uncategorizedCount,
   transfersEnabled,
+  currency = "GBP",
+  numberFormat = DEFAULT_NUMBER_FORMAT,
 }: LedgerProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -694,15 +694,16 @@ export function Ledger({
     });
   };
 
-  // Ticks a pencilled category: the user agrees with the import's suggestion.
-  const onConfirm = (transactionId: string) => {
+  // Approves a pencilled category, or withdraws an approval so the row goes
+  // back to pencil.
+  const onApprove = (transactionId: string, approved: boolean) => {
     setItems((prev) =>
       prev.map((t) =>
-        t.id === transactionId ? { ...t, isCategoryConfirmed: true } : t,
+        t.id === transactionId ? { ...t, isCategoryConfirmed: approved } : t,
       ),
     );
     startTransition(async () => {
-      await confirmTransactionCategories({ transactionIds: [transactionId] });
+      await setCategoryApproval({ transactionIds: [transactionId], approved });
     });
   };
 
@@ -1043,7 +1044,7 @@ export function Ledger({
                     <Td>{tx.description}</Td>
                     <TdNowrap title={tx.accountName}>{tx.accountName}</TdNowrap>
                     <Amount $negative={tx.amount < 0}>
-                      {tx.amount.toFixed(2)}
+                      {formatAmount(currency, tx.amount, numberFormat)}
                     </Amount>
                     <Td onClick={(e) => e.stopPropagation()}>
                       <CategoryCell
@@ -1051,23 +1052,6 @@ export function Ledger({
                           tx.categoryId !== null && !tx.isCategoryConfirmed
                         }
                       >
-                        {tx.categoryId !== null && !tx.isCategoryConfirmed ? (
-                          <TickButton
-                            type="button"
-                            aria-label={`Tick the suggested category for ${tx.description}`}
-                            title="Suggested from your history: tick it if it's right"
-                            onClick={() => onConfirm(tx.id)}
-                          >
-                            ✓
-                          </TickButton>
-                        ) : tx.categoryId !== null ||
-                          tx.transferAccountId !== null ? (
-                          <Ticked role="img" aria-label="Checked">
-                            ✓
-                          </Ticked>
-                        ) : (
-                          <Unticked aria-hidden />
-                        )}
                         <CategoryCombobox
                           categories={categories}
                           transferAccounts={transferAccounts}
@@ -1085,6 +1069,24 @@ export function Ledger({
                             onCreateAccountAndTransfer(tx.id, name)
                           }
                         />
+                        {tx.categoryId !== null && (
+                          <Approval
+                            type="button"
+                            $approved={tx.isCategoryConfirmed}
+                            aria-pressed={tx.isCategoryConfirmed}
+                            aria-label={`Approve the category for ${tx.description}`}
+                            title={
+                              tx.isCategoryConfirmed
+                                ? "Approved. Click to undo."
+                                : "Suggested from your history. Approve it if it's right."
+                            }
+                            onClick={() =>
+                              onApprove(tx.id, !tx.isCategoryConfirmed)
+                            }
+                          >
+                            {tx.isCategoryConfirmed ? "✓ Approved" : "Approve"}
+                          </Approval>
+                        )}
                       </CategoryCell>
                     </Td>
                     <Td onClick={(e) => e.stopPropagation()}>
@@ -1158,10 +1160,9 @@ export function Ledger({
                     leaving the figure aligned beneath the Amount column. */}
                 <TotalCell colSpan={3}>{footer.label}</TotalCell>
                 <TotalCell />
-                {/* toFixed, matching the rows above it exactly: they render a raw
-                    ASCII-hyphen amount, and the app's typographic minus here
-                    would sit at a different width in the same column. */}
-                <TotalAmount>{footer.net.toFixed(2)}</TotalAmount>
+                <TotalAmount>
+                  {formatAmount(currency, footer.net, numberFormat)}
+                </TotalAmount>
                 <TotalCell />
                 <TotalCell />
               </tr>

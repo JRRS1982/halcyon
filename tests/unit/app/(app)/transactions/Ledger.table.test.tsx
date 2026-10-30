@@ -64,8 +64,8 @@ describe("ledger total row", () => {
   test("nets the rows on screen", () => {
     renderLedger([-12.5, -7.5]);
     expect(screen.getByText("Total · 2 transactions")).toBeInTheDocument();
-    // ASCII hyphen, matching the amount cells this row sums.
-    expect(screen.getByText("-20.00")).toBeInTheDocument();
+    // In the default money format (£, no decimals), as Settings would set it.
+    expect(screen.getByText("−£20")).toBeInTheDocument();
   });
 
   test("says which page it is when the matches spill past it", () => {

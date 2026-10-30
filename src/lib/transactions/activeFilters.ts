@@ -11,7 +11,7 @@
 import type { LedgerUrlQuery } from "./pagination";
 
 export type ActiveFilter = {
-  key: "uncategorized" | "date" | "account" | "category" | "amount";
+  key: "uncategorized" | "toCheck" | "date" | "account" | "category" | "amount";
   label: string;
   /** The searchParams patch that clears this filter. */
   clear: Record<string, null>;
@@ -79,6 +79,14 @@ export function activeFilters(
       key: "uncategorized",
       label: "Uncategorized",
       clear: { uncat: null },
+    });
+  }
+
+  if (query.onlyToCheck) {
+    filters.push({
+      key: "toCheck",
+      label: "To approve",
+      clear: { check: null },
     });
   }
 
