@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { darkPalette, lightPalette } from "@/lib/palette";
 
 // The design system, rendered from DESIGN.md. Public on purpose — the point is
 // being able to hand someone (or something) the link — so the first assertion
@@ -34,8 +35,9 @@ test.describe("design system", () => {
     await expect(
       page.getByText("accent", { exact: true }).first(),
     ).toBeVisible();
-    await expect(page.getByText("#1E5BC6").first()).toBeVisible();
-    await expect(page.getByText("#7FA6FF").first()).toBeVisible();
+    // From the palettes, so a palette change isn't mistaken for a broken page.
+    await expect(page.getByText(lightPalette.accent).first()).toBeVisible();
+    await expect(page.getByText(darkPalette.accent).first()).toBeVisible();
   });
 
   // Located by href rather than by name: the contents links are uppercased in

@@ -51,8 +51,8 @@ const Status = styled.span<{ $ok: boolean }>`
 
 const Headline = styled.h2`
   font-family: ${({ theme }) => theme.typography.displayXl.family};
-  font-size: 28px;
-  line-height: 1.2;
+  font-size: ${({ theme }) => theme.typography.displayXl.size};
+  line-height: ${({ theme }) => theme.typography.displayXl.lineHeight};
   font-weight: ${({ theme }) => theme.typography.amountXl.weight};
   letter-spacing: ${({ theme }) => theme.typography.amountXl.letterSpacing};
   color: ${({ theme }) => theme.colors.ink};

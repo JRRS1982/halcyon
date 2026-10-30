@@ -63,7 +63,7 @@ export const theme = {
     sectionDiscretionary: cssVar("sectionDiscretionary"),
   },
 
-  // Five sizes only. See DESIGN.md → Typography → Hierarchy.
+  // The type tokens. See DESIGN.md → Typography → Hierarchy for the scale.
   typography: {
     displayXl: {
       family: SERIF,

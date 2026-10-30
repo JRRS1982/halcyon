@@ -36,7 +36,7 @@ body {
 }
 
 /* The skip-to-content link. Off-screen until focused, then it lands over the
-   nav as a black mono-caps pill matching button-primary.
+   nav as a pill matching button-primary.
 
    Values are literals rather than theme tokens because this is plain CSS that
    has to render before styled-components hydrates — keep in step with
