@@ -1,9 +1,14 @@
 import styled, { css } from "styled-components";
 
+// An inside page's section head: a heavy ink rule across the page, then the
+// kicker, serif title and standfirst, set left like the rest of the paper.
 export const Wrap = styled.div`
-  max-width: 62ch;
-  margin: 0 auto;
-  text-align: center;
+  border-top: 3px solid ${({ theme }) => theme.colors.ink};
+  padding-top: ${({ theme }) => theme.spacing.md};
+
+  > * {
+    max-width: 62ch;
+  }
 `;
 
 export const Eyebrow = styled.p`
@@ -36,6 +41,7 @@ export const Lead = styled.p`
     font-size: ${theme.typography.bodyMd.size};
     line-height: ${theme.typography.bodyMd.lineHeight};
     color: ${theme.colors.body};
-    margin: ${theme.spacing.md} auto 0;
+    font-size: 17px;
+    margin: ${theme.spacing.md} 0 0;
   `}
 `;

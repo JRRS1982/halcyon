@@ -12,10 +12,7 @@ export const Inner = styled.div`
 
 export const Section = styled.section`
   ${({ theme }) => css`
-    background: ${theme.colors.canvasSoft};
-    border-top: 1px solid ${theme.colors.hairline};
-    border-bottom: 1px solid ${theme.colors.hairline};
-    padding: ${theme.spacing.section} 0;
+    padding: ${theme.spacing["3xl"]} 0 ${theme.spacing.section};
   `}
 `;
 
@@ -28,28 +25,27 @@ export const GroupTitle = styled.h3`
     font-weight: ${theme.typography.kicker.weight};
     text-transform: uppercase;
     letter-spacing: ${theme.typography.kicker.letterSpacing};
-    color: ${theme.colors.body};
-    margin: ${theme.spacing["4xl"]} 0 ${theme.spacing.md};
+    color: ${theme.colors.accent};
+    margin: ${theme.spacing["3xl"]} 0 0;
+    padding-top: ${theme.spacing.sm};
+    border-top: 1px solid ${theme.colors.ink};
   `}
 `;
 
 export const Grid = styled.div`
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 1px;
-  background: ${({ theme }) => theme.colors.hairline};
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  overflow: hidden;
+  column-gap: ${({ theme }) => theme.spacing["2xl"]};
 
   @media (max-width: 760px) {
     grid-template-columns: 1fr;
   }
 `;
 
+// A brief: a short ruled item in its column.
 export const Cell = styled.div`
-  background: ${({ theme }) => theme.colors.canvas};
-  padding: ${({ theme }) => `${theme.spacing.xl} ${theme.spacing.lg}`};
+  padding: ${({ theme }) => `${theme.spacing.md} 0 ${theme.spacing.lg}`};
+  border-bottom: 1px solid ${({ theme }) => theme.colors.hairlineStrong};
 `;
 
 export const Key = styled.p`

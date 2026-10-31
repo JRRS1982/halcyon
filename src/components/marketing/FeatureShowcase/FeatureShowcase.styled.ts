@@ -7,8 +7,9 @@ export const Row = styled.section<{ $imageSide: "left" | "right" }>`
       ? "minmax(0, 7fr) minmax(0, 5fr)"
       : "minmax(0, 5fr) minmax(0, 7fr)"};
   gap: ${({ theme }) => theme.spacing["5xl"]};
-  align-items: center;
-  padding: ${({ theme }) => `${theme.spacing["5xl"]} 0`};
+  align-items: start;
+  padding: ${({ theme }) => `${theme.spacing["2xl"]} 0 ${theme.spacing["3xl"]}`};
+  border-top: 1px solid ${({ theme }) => theme.colors.ink};
 
   @media (max-width: 760px) {
     grid-template-columns: 1fr;

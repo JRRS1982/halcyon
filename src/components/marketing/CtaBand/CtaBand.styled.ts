@@ -13,10 +13,13 @@ export const Inner = styled.div`
 
 export const Band = styled.section`
   ${({ theme }) => css`
-    background: ${theme.colors.band};
-    color: ${theme.colors.onBand};
+    max-width: 720px;
+    margin: 0 auto ${theme.spacing.section};
+    padding: ${theme.spacing["2xl"]};
+    border: 2px solid ${theme.colors.ink};
+    background: ${theme.colors.canvasSoft};
+    color: ${theme.colors.ink};
     text-align: center;
-    padding: ${theme.spacing.section} 0;
   `}
 `;
 
@@ -55,8 +58,7 @@ export const Text = styled.p`
   `}
 `;
 
-// On the dark band the primary CTA inverts to a white fill / ink text — the
-// only place this inversion occurs (see DESIGN.md §6).
+// The sign-up panel's action: the primary button.
 export const InvertedCta = styled(Link)`
   ${({ theme }) => css`
     display: inline-block;
@@ -64,8 +66,8 @@ export const InvertedCta = styled(Link)`
     font-family: ${theme.typography.control.family};
     font-size: ${theme.typography.control.size};
     font-weight: ${theme.typography.control.weight};
-    background: ${theme.colors.canvas};
-    color: ${theme.colors.ink};
+    background: ${theme.colors.primary};
+    color: ${theme.colors.onPrimary};
     border-radius: ${theme.rounded.sm};
     padding: ${theme.spacing.sm} ${theme.spacing.lg};
     text-decoration: none;

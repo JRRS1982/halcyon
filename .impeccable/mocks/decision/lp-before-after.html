@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en-GB"><head><meta charset="utf-8">
+<title>Before & After — Landing</title>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,700&family=Libre+Franklin:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#FCEEE2;--soft:#F6E1CF;--ink:#26211E;--body:#4D443E;--claret:#8E1B3D;--oxford:#1B4E8A;--pos:#0B6A4C;--neg:#A3271F;--hair:#E9D2BE}
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:1440px;height:900px;overflow:hidden;background:var(--paper);font-family:"Libre Franklin",sans-serif;color:var(--ink);font-variant-numeric:tabular-nums}
+.serif{font-family:"Source Serif 4",serif;font-weight:700}
+header{display:flex;align-items:center;justify-content:space-between;padding:16px 48px;border-bottom:1px solid var(--ink)}
+.brand{font-size:26px}
+header nav{display:flex;gap:24px;font-weight:600;font-size:15px}
+.cta{background:var(--oxford);color:#fff;font-weight:600;font-size:14px;padding:9px 16px;border-radius:2px}
+.out{border:1px solid var(--ink);font-weight:600;font-size:14px;padding:8px 16px;border-radius:2px}
+.lede{padding:30px 48px 0;display:flex;align-items:flex-end;justify-content:space-between}
+.kick{color:var(--claret);font-weight:700;font-size:12px;letter-spacing:.04em;text-transform:uppercase}
+h1{font-size:56px;line-height:1.05;margin-top:6px}
+.stand{font-size:18px;color:var(--body);margin-top:10px;max-width:640px;line-height:1.45}
+.acts{display:flex;gap:10px;align-items:center}
+.acts small{font-size:13px;color:var(--body);margin-left:6px}
+.dip{display:grid;grid-template-columns:1fr 64px 1fr;margin:26px 48px 0;height:560px}
+.label{font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--body);margin-bottom:8px}
+.sheet{background:#fff;border:1px solid #C9C9C9;font-family:Arial,sans-serif;font-size:12px;color:#222;height:510px;overflow:hidden}
+.sheet table{border-collapse:collapse;width:100%}
+.sheet td,.sheet th{border:1px solid #E1E1E1;padding:4px 6px;height:24px}
+.sheet th{background:#F1F1F1;color:#666;font-weight:400;font-size:11px}
+.sheet td.n{text-align:right}
+.sheet .f{color:#1a5fb4}
+.sheet .err{color:#C00;font-weight:700}
+.arrow{display:grid;place-items:center;font-family:"Source Serif 4";font-size:40px;color:var(--claret)}
+.page{border-top:2px solid var(--ink);padding-top:14px;height:510px;overflow:hidden}
+.page .k{color:var(--claret);font-weight:700;font-size:11px;letter-spacing:.04em}
+.page h2{font-size:28px;line-height:1.15;margin-top:4px}
+.page p.s{font-size:14px;color:var(--body);margin-top:6px}
+.notes{display:grid;grid-template-columns:120px 1fr 1fr;gap:16px;border-top:1px solid var(--ink);border-bottom:1px solid var(--hair);padding:12px 0;margin-top:12px;font-size:13px;line-height:1.45}
+.notes b{color:var(--claret)}
+.fig{font-family:"Source Serif 4";font-weight:700;font-size:28px;color:var(--pos)}
+.notes small{display:block;font-size:11px;font-weight:700;letter-spacing:.04em;color:var(--body)}
+.t{width:100%;border-collapse:collapse;margin-top:10px;font-size:13px}
+.t th{font-size:11px;color:var(--body);text-align:right;padding:6px;border-bottom:2px solid var(--ink)}
+.t th:first-child,.t td:first-child{text-align:left}
+.t td{padding:6px;text-align:right;border-bottom:1px solid var(--hair)}
+.t tr.sec td{font-family:"Source Serif 4";font-weight:700;font-size:15px;padding-top:10px}
+.t tr.sec td:first-child{box-shadow:inset 3px 0 0 var(--c);padding-left:10px}
+.over{color:var(--neg);font-weight:600}.under{color:var(--pos);font-weight:600}
+.bar{display:inline-block;height:6px;background:var(--c);vertical-align:middle;margin-right:6px}
+</style></head><body>
+<header><span class="brand serif">Balanced Money</span><nav><span>Guide</span><span>How it works</span><span>Engineering</span></nav><span style="display:flex;gap:10px"><span class="out">Sign in</span><span class="cta">Get started</span></span></header>
+<section class="lede">
+  <div><div class="kick">Personal finance, without the spreadsheet</div>
+  <h1 class="serif">Put the spreadsheet down.</h1>
+  <p class="stand">The same month, twice. Your spreadsheet holds the numbers; Balanced reads them back to you: what moved, why, and where the money went.</p></div>
+  <div class="acts"><span class="cta">Get started</span><span class="out">See the guide</span></div>
+</section>
+<section class="dip">
+  <div><div class="label">Your spreadsheet, October</div>
+    <div class="sheet"><table>
+      <tr><th></th><th>A</th><th>B</th><th>C</th><th>D</th></tr>
+      <tr><th>1</th><td><b>Category</b></td><td><b>Budget</b></td><td><b>Actual</b></td><td><b>Diff</b></td></tr>
+      <tr><th>2</th><td>Mortgage</td><td class="n">1250</td><td class="n">1250</td><td class="n f">=C2-B2</td></tr>
+      <tr><th>3</th><td>Council Tax</td><td class="n">180</td><td class="n">180</td><td class="n">0</td></tr>
+      <tr><th>4</th><td>Utilities</td><td class="n">240</td><td class="n">190</td><td class="n">-50</td></tr>
+      <tr><th>5</th><td>Groceries</td><td class="n">450</td><td class="n">384</td><td class="n">-66</td></tr>
+      <tr><th>6</th><td>Fuel</td><td class="n">130</td><td class="n">97</td><td class="n">-33</td></tr>
+      <tr><th>7</th><td>Home &amp; Maint.</td><td class="n">80</td><td class="n">260</td><td class="n">180</td></tr>
+      <tr><th>8</th><td>Dining Out</td><td class="n">140</td><td class="n">105</td><td class="n">-35</td></tr>
+      <tr><th>9</th><td>Holidays</td><td class="n">200</td><td class="n">0</td><td class="n">-200</td></tr>
+      <tr><th>10</th><td></td><td></td><td></td><td></td></tr>
+      <tr><th>11</th><td><b>Total</b></td><td class="n f">=SUM(B2:B9)</td><td class="n err">#REF!</td><td class="n err">#REF!</td></tr>
+      <tr><th>12</th><td>Left over</td><td class="n">1050</td><td class="n">??</td><td></td></tr>
+      <tr><th>13</th><td colspan="4" style="color:#888">tab: Oct · Sep · Aug · Aug (copy) · Aug (copy 2)</td></tr>
+    </table></div></div>
+  <div class="arrow">→</div>
+  <div><div class="label">The same month in Balanced (sample data)</div>
+    <div class="page">
+      <div class="k">BUDGET · OCTOBER 2026</div>
+      <h2 class="serif">Spending came in £505 under plan, led by Holidays</h2>
+      <p class="s">That leaves £1,455 left over, £405 more than the £1,050 you planned.</p>
+      <div class="notes"><div><small>LEFT OVER</small><span class="fig">£1,455</span></div>
+        <div><b>Where it ran over.</b> Home &amp; Maintenance ran £180 over budget, its highest month since April.</div>
+        <div><b>What held.</b> Mortgage and Council Tax landed exactly on budget.</div></div>
+      <table class="t"><tr><th>Category</th><th>Budget</th><th>Actual</th><th>vs budget</th><th>Share of spend</th></tr>
+        <tr class="sec" style="--c:#1B4E8A"><td>Fixed</td><td>£1,740</td><td>£1,642</td><td class="under">£98 under</td><td><span class="bar" style="width:40px"></span>65%</td></tr>
+        <tr><td>Mortgage</td><td>£1,250</td><td>£1,250</td><td>On budget</td><td><span class="bar" style="--c:#1B4E8A;width:30px"></span>49%</td></tr>
+        <tr class="sec" style="--c:#B4530A"><td>Variable</td><td>£820</td><td>£741</td><td class="under">£79 under</td><td><span class="bar" style="width:18px"></span>29%</td></tr>
+        <tr><td>Home &amp; Maintenance</td><td>£80</td><td>£260</td><td class="over">£180 over</td><td><span class="bar" style="--c:#B4530A;width:6px"></span>10%</td></tr>
+      </table>
+    </div></div>
+</section>
+</body></html>
