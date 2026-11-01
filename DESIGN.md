@@ -538,10 +538,10 @@ Dashboard chart panels, settings sections and plan sections each open with a 1px
 The landing page is a financial paper's front page, read in under a minute:
 
 - **Skybox:** three text teasers under the nav, each a visitor's question in 20px serif with one line beneath, linking to the article that answers it. Hidden on a phone, where the headline leads.
-- **Nameplate and dateline:** "Balanced Money" in 900-weight serif, centred, over a 4px double ink rule, then a caps dateline closed by a 1px rule. Both hide on a phone.
-- **Lead story:** two-thirds width, beside a hairline. The h1 at front-page size, a 20px standfirst, Get started and Sign in at 44px, the no-bank-login line, and the lead picture with an italic serif caption.
+- **Dateline:** one caps line under the nav, the edition on the left and "Always working for you" in claret on the right. The nav's wordmark is the only nameplate. The skybox below it closes on a 4px double ink rule. Both hide on a phone.
+- **Lead story:** two-thirds width, beside a hairline. The h1 at front-page size, a 20px standfirst, Get started and Sign in at 44px, the no-bank-login line, and the lead picture with an italic serif caption. Promises are worded as lasting values (you choose what goes in, export or delete any time), never as features the app may later add.
 - **Rail:** "Your month, at a glance", a tinted market-data box under a 2px ink rule with 28px serif figures and their moves coloured by whether they helped, labelled as a sample; then the monthly briefing, four numbered steps.
-- **Inside pages:** each section opens with a 3px ink rule and a 40px serif head. Articles sit in two columns divided by hairlines; the small print is ruled briefs in three columns; the page closes with a ruled story repeating the actions.
+- **Inside pages:** each section opens with a 3px ink rule and a 40px serif head. A full-width chart story (the dashboard's cash-flow chart beside its headline) leads the feature section; articles sit in two columns divided by hairlines; the small print is ruled briefs in three columns; the page closes with a ruled story repeating the actions.
 - **Pictures are plates,** never whole-app screenshots: a crop of one region of a screen, captured at 2x so its text is legible where it is shown, with a separate phone plate for the lead.
 
 ### Forms and Inputs

@@ -12,7 +12,6 @@ import {
   Markets,
   MarketsTable,
   Move,
-  Nameplate,
   Narrow,
   Note,
   OutlineLink,
@@ -73,6 +72,10 @@ const SAMPLE_MONTH = [
 export function Hero() {
   return (
     <Section>
+      <Dateline>
+        <span>The monthly edition · Personal finance</span>
+        <span>Always working for you</span>
+      </Dateline>
       <Skybox aria-label="In this edition">
         {TEASERS.map((teaser) => (
           <Teaser key={teaser.href} href={teaser.href}>
@@ -83,12 +86,6 @@ export function Hero() {
           </Teaser>
         ))}
       </Skybox>
-
-      <Nameplate>Balanced Money</Nameplate>
-      <Dateline>
-        <span>The monthly edition · Personal finance</span>
-        <span>No bank login · No ads · No AI</span>
-      </Dateline>
 
       <Front>
         <Lead>
@@ -103,8 +100,8 @@ export function Hero() {
             <OutlineLink href="/sign-in">Sign in</OutlineLink>
           </CtaRow>
           <Trust>
-            No bank connection, ever. Figures come from a CSV you export
-            yourself, or a line you type. Your data is yours to{" "}
+            You choose what goes in: a statement you export yourself, or a line
+            you type. Your data is yours to{" "}
             <TrustLink href="/guide">export or delete</TrustLink> at any time.
           </Trust>
           <Picture>

@@ -20,10 +20,34 @@ export const SectionHead = styled.h2`
   `}
 `;
 
+// The chart story: headline and text beside the chart, ruled off above the
+// articles like a paper's chart of the day.
+export const Chart = styled.article`
+  ${({ theme }) => css`
+    display: grid;
+    grid-template-columns: minmax(240px, 1fr) minmax(0, 3fr);
+    gap: ${theme.spacing["2xl"]};
+    align-items: start;
+    margin-top: ${theme.spacing.xl};
+    padding: ${theme.spacing.xl} 0 ${theme.spacing["2xl"]};
+    border-top: 1px solid ${theme.colors.ink};
+    scroll-margin-top: ${theme.spacing["3xl"]};
+
+    @media (max-width: 860px) {
+      grid-template-columns: 1fr;
+    }
+  `}
+`;
+
+export const ChartText = styled.div`
+  > :first-child {
+    margin-top: 0;
+  }
+`;
+
 export const Grid = styled.div`
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin-top: ${({ theme }) => theme.spacing.xl};
 
   @media (max-width: 860px) {
     grid-template-columns: 1fr;

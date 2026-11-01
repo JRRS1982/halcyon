@@ -5,12 +5,14 @@ import styled, { css } from "styled-components";
 // teasers under the nav, a double ink rule and dateline, then the lead story
 // beside a rail holding the sample market-data box and the monthly briefing.
 export const Section = styled.section`
-  padding: ${({ theme }) => `${theme.spacing.lg} 0 ${theme.spacing["3xl"]}`};
+  padding: ${({ theme }) => `${theme.spacing.xs} 0 ${theme.spacing["3xl"]}`};
 `;
 
 export const Skybox = styled.nav`
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: ${({ theme }) => theme.spacing.md} 0;
+  border-bottom: 4px double ${({ theme }) => theme.colors.ink};
 
   @media (max-width: 900px) {
     grid-template-columns: 1fr;
@@ -67,35 +69,17 @@ export const TeaserText = styled.span`
   `}
 `;
 
-// The paper's nameplate. Not a heading: the h1 is the lead story's.
-export const Nameplate = styled.p`
-  ${({ theme }) => css`
-    margin-top: ${theme.spacing.lg};
-    padding-top: ${theme.spacing.sm};
-    border-top: 1px solid ${theme.colors.ink};
-    font-family: ${theme.typography.displayXl.family};
-    font-weight: 900;
-    font-size: clamp(36px, 4.2vw, 60px);
-    line-height: 1.05;
-    letter-spacing: -0.015em;
-    text-align: center;
-    color: ${theme.colors.ink};
-
-    @media (max-width: 760px) {
-      display: none;
-    }
-  `}
-`;
-
 export const Dateline = styled.p`
   ${({ theme }) => css`
     display: flex;
     justify-content: space-between;
     gap: ${theme.spacing.lg};
-    margin-top: ${theme.spacing.sm};
     padding: ${theme.spacing.sm} 0;
-    border-top: 4px double ${theme.colors.ink};
-    border-bottom: 1px solid ${theme.colors.ink};
+    border-bottom: 1px solid ${theme.colors.hairlineStrong};
+
+    span:last-child {
+      color: ${theme.colors.accent};
+    }
     font-family: ${theme.typography.kicker.family};
     font-size: ${theme.typography.kicker.size};
     font-weight: ${theme.typography.kicker.weight};

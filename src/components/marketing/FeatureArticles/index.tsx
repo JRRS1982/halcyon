@@ -2,6 +2,8 @@ import { MarketingShot } from "@/components/marketing/MarketingShot";
 import {
   Article,
   Body,
+  Chart,
+  ChartText,
   Grid,
   Section,
   SectionHead,
@@ -50,6 +52,26 @@ export function FeatureArticles() {
   return (
     <Section id="features" aria-labelledby="features-head">
       <SectionHead id="features-head">Inside: what Balanced does</SectionHead>
+      {/* The paper's chart of the day: a year of money in and out, the
+          dashboard's own chart, set across the page above the articles. */}
+      <Chart id="cashflow">
+        <ChartText>
+          <Title>Money in, money out, month by month</Title>
+          <Body>
+            The dashboard draws every month you have kept: what came in, what
+            went out, the gap between them, and the share of your income you
+            kept. A bad month shows up as a bad month, and the year shows
+            whether it was a blip.
+          </Body>
+        </ChartText>
+        <MarketingShot
+          src="/marketing/plates/cashflow.png"
+          alt="The dashboard's cash-flow chart for a sample year: green income and red expense bars for each month from December to October, a net line, and the share of income kept, with August dipping to £754 short"
+          label="Cash flow"
+          aspect="2464 / 648"
+          sizes="(max-width: 860px) 100vw, 1200px"
+        />
+      </Chart>
       <Grid>
         {ARTICLES.map((article) => (
           <Article key={article.id} id={article.id}>
