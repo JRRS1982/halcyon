@@ -18,7 +18,7 @@ import {
 // code (dataActions.ts, sessionTimeout.ts, the reminder in src/lib/email/).
 export function PrivacyPolicy() {
   return (
-    <LegalPage title="Privacy Policy" effectiveDate="27 October 2026">
+    <LegalPage title="Privacy Policy" effectiveDate="1 November 2026">
       <LegalBody>
         Balanced Money exists to help you understand your own money — not to
         monetise your data. This notice explains, as plainly and completely as
@@ -160,6 +160,14 @@ export function PrivacyPolicy() {
           profiling of any kind. Every chart and forecast you see is plain
           arithmetic over the figures you entered, computed only to display to
           you.
+        </LegalBody>
+        <LegalBody>
+          When you import a statement or write a line, the service may suggest a
+          category by matching the description against how you filed the same
+          one before. The suggestion is shown as a suggestion until you approve
+          or change it, and nothing outside your own account is used to make it.
+          The sentences that open your budget, balance sheet and dashboard are
+          written the same way: fixed rules applied to your own figures.
         </LegalBody>
       </LegalSection>
 

@@ -167,10 +167,10 @@ components:
     padding: "{spacing.sm} {spacing.lg}"
 
   button-destructive:
-    description: "Paper fill, red label, hairline border that turns red on hover. Always behind a confirm step."
+    description: "Paper fill, red label and red border; hover fills canvas-soft. Always behind a confirm step, and placed after Cancel."
     backgroundColor: "{colors.canvas}"
     textColor: "{colors.negative}"
-    borderColor: "{colors.hairline}"
+    borderColor: "{colors.negative}"
     typography: "{typography.control}"
     rounded: "{rounded.sm}"
     padding: "{spacing.sm} {spacing.lg}"
@@ -495,7 +495,7 @@ A claret kicker in 12px caps naming the page and its period ("Budget · October 
 - **Shape:** 2px corners, 8px by 16px padding, `control` type (14px semibold, sentence case). Labels never wrap.
 - **Primary:** oxford blue fill, white label. Hover drops to 85% opacity.
 - **Outline:** paper fill, ink label, 1px ink border. Hover fills `canvas-soft`.
-- **Destructive:** paper fill, red label, hairline border that turns red on hover. Always behind a confirm modal or, for account-level actions, a type-to-confirm panel.
+- **Destructive:** paper fill, red label, red border; hover fills `canvas-soft`. A hairline edge read as disabled beside Cancel. Always behind a confirm step or, for account-level actions, a type-to-confirm panel. An inline confirm reads "Remove? **Yes, remove** · Cancel", the yes in red.
 - **Disabled:** 50% opacity, not-allowed cursor.
 
 ### Toolbar
@@ -551,11 +551,17 @@ The public site is a financial paper: articles, each one a link to the next leve
 
 ### Forms and Inputs
 
-Inputs are paper with a 1px strong-hairline border, 2px corners and 8px by 12px padding in `body-md`. Placeholder text is dim. On focus the border turns oxford and a 1px oxford ring is added. Every link, button and field that receives keyboard focus without its own treatment gets a 2px `focus` outline offset 2px; text selection is claret on paper.
+Boxed fields take the `field` fill and a 1px `field-border` edge (3:1 against every surface), 2px corners, at least 36px tall with 8px by 12px padding in `body-md`, wherever they appear: page, drawer or dialog. Labels sit above in `control` type, sentence case. Placeholder text is dim. On focus the border turns oxford and a 1px oxford ring is added. Every link, button and field that receives keyboard focus without its own treatment gets a 2px `focus` outline offset 2px; text selection is claret on paper.
+
+Tick boxes and radios take oxford blue (`accent-color`) and sit before their label on one line. The plan's assumptions are the one written-on-the-line variant: values on a `canvas-soft` strip with a 2px claret rule beneath and no box, so a dense panel of numbers reads as one set of entries.
 
 ### Cards and Overlays
 
 The `Card` primitive is paper with a 1px hairline border, 2px corners and 16px padding, used for auth forms and contained panels. Drawers, popovers and menus are paper with a hairline border and a soft shadow over a light scrim; on a phone a drawer becomes a bottom sheet with a round drag handle.
+
+Every dialog has the same anatomy: an optional claret kicker, a 20px serif title, a close × top right, the fields, then a footer with Cancel first and the action last. Editors that save as you go say so in the footer instead ("Changes save as you go", or "Changes update your plan instantly" in the plan). A row created by an Add button and closed untouched is discarded.
+
+View switches that change what a chart shows (the plan's Net worth · Cash flow · Liquid assets) read like the masthead nav: words on a hairline rule, the chosen one in claret with a 3px claret underline. No frame, no filled pill.
 
 ## Data visualization
 
