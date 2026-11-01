@@ -109,7 +109,7 @@ Reachable without a session.
 | `/reset-password` | Where the emailed link lands (it carries a `token_hash`). Sets a new password, signs the user in and signs out their other sessions. Google-only accounts are refused. |
 | `/auth/callback` | Route handler. Exchanges the one-time `code` from OAuth and email confirmation for a session. Refuses password-recovery codes, which belong at `/reset-password`. |
 | `/features` | The features index: one article per part of the app, each linking to its page. |
-| `/features/<slug>` | One article per feature (`transactions`, `budget`, `balance`, `dashboard`, `plan`), from `src/lib/editorial/features.ts` through one template. The front page's stories link here. |
+| `/features/<slug>` | One article per feature (`transactions`, `budget`, `balance`, `dashboard`, `plan`, `settings`), from `src/lib/editorial/features.ts` through one template. The front page's stories link here. |
 | `/guide` | The guide — what the app is for, the monthly rhythm, and what each section does. Deliberately public: it is the honest answer to "what is this?" before signing up. |
 | `/how-its-built` | The engineering tour — every feature of the build, with what it does, why it matters and how it is implemented. Public on purpose: it is the page to hand to someone who wants to know whether this is trustworthy. |
 | `/design` | The design system, rendered live from `DESIGN.md`: colour tokens, type scale, spacing and component patterns. Public like the guide. |
@@ -152,7 +152,7 @@ import, categorise, budget, balance, then read the result:
 Guide → Transactions → Budget → Balance → Dashboard → Plan → Settings
 ```
 
-Transactions drops out when the Transactions setting is off. Signed out, every page's bar carries Features and Guide, one word each; `/sign-in` and `/sign-up` carry only the brand. App pages share a footer linking the guide, design system, engineering tour and legal pages.
+Transactions drops out when the Transactions setting is off. Signed out, every page's bar carries Features and Guide, one word each; `/sign-in`, `/sign-up`, `/forgot-password` and `/reset-password` carry only the brand. App pages share a footer linking the features, guide, design system, engineering tour and legal pages.
 
 There is deliberately no "Home" entry: signed-in users are redirected away from
 `/`, so it would only ever point at a redirect.

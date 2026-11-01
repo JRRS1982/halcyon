@@ -66,7 +66,7 @@ which enforce the per-user caps.
 | Table | What it's for |
 |---|---|
 | `ImportBatch` | one CSV import into one account, so it can be reversed as a unit |
-| `Transaction` | an imported or manual line: date, signed amount, description, optional category, and an optional counterparty account when it is a transfer |
+| `Transaction` | an imported or manual line: date, signed amount, description, optional category, and an optional counterparty account when it is a transfer. `isCategoryConfirmed` (default `true`) is `false` while an import's suggested category waits for the user to approve it; see [features/transactions.md](../features/transactions.md#approval) |
 
 ### Plan
 

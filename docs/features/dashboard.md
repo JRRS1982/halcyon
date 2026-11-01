@@ -1,17 +1,22 @@
 # Dashboard Charts
 
-**What:** Read-only summary of financial health: a this-month checklist, four KPI tiles and four chart groups drawn from balance and budget data.  
+**What:** Read-only summary of financial health: a computed headline and notes, four KPI tiles, a this-month checklist and four chart groups drawn from balance and budget data.  
 **Route:** `/dashboard`  
 **Key points:**
 - Window: the last 12 monthly periods (`WINDOW_MONTHS` in `page.tsx`)
-- KPI tiles: net worth, surplus, savings rate, spend vs budget, each with a delta against the previous recorded month
+- Headline, standfirst and notes from `overallBrief` (`src/lib/insights/overallBrief.ts`), read across the whole window
+- KPI tiles: net worth, surplus and savings rate with a delta against the previous recorded month; spend vs budget states the money left or overspent instead
 - Four chart groups: income vs expenses, spending by category, balance over time, balance by category
 - Each group can be hidden in Settings → Dashboard charts (`UserSettings.hiddenCharts`)
 - No editing here; all data comes from `/balance`, `/budget` and (in transactions mode) the ledger
 
+## The overall picture
+
+`overallBrief` reads the same series the charts draw. The headline says how net worth has moved across the window (for example "Net worth up £25,591 since Dec 25, to £348,326"), the standfirst says how much income came in and how much was kept, and up to three notes are led `Months in surplus.`, `What's growing.` (or `What's easing.`) and `Best month.`. With nothing to read it returns null and the page falls back to a plain "Dashboard" header.
+
 ## This-month checklist and summary strip
 
-With no chartable data, the page shows a first-run card instead. Otherwise it opens with a card holding the checklist and the four KPI tiles.
+With no chartable data, the page shows a first-run card instead. Otherwise, under the brief, a card holds the four KPI tiles and the checklist.
 
 `monthChecklist` (`src/lib/dashboard/checklist.ts`) derives the monthly loop from data the page already loads. It stores nothing. Items: transactions waiting to be categorised (transactions mode only), a budget sheet for the current month, and balances recorded for the current month.
 
@@ -26,6 +31,8 @@ With no chartable data, the page shows a first-run card instead. Otherwise it op
 
 A delta compares against the previous point in the same series, and is absent when there is no earlier point. A tile shows `—` when its series is empty. `savingsRatePct` is 0 when income is zero. Spend vs budget is `null`, not 0%, when nothing was budgeted. It reads only `EXPENSE` rows, so repayments are not in it.
 
+Spend vs budget shows no month-on-month delta. Its stat carries `leftInBudget` (budget minus actual) and the tile says `£X under budget` in green, or `£X over budget` in red with the percentage itself turned red.
+
 ## Charts
 
 ### Income vs expenses (`cashFlow`)
@@ -35,10 +42,10 @@ Bars for income and expense per month, plus a dashed savings-rate line on a seco
 Three panels (Fixed, Variable, Discretionary), each showing actual, budget and a trailing 6-month average of actual per month. Built from `EXPENSE` rows only, so repayments do not appear here.
 
 ### Balance over time (`balanceTrend`)
-A line chart with one line per bucket, assets above zero and liabilities negated below it, plus a net line. Buckets are current, medium-term, long-term, property (assets only) and other. `accountBalanceSums()` buckets each `BalanceItem` by its account's derived `kindOf(type)` and `section`. `balanceSeries()` negates liabilities and computes net.
+A line chart with one line per bucket, assets above zero and liabilities negated below it, plus a net line. Buckets are current, medium-term, long-term, property (assets only) and other; a bucket that is zero in every month is not drawn. The axis spans the user's own lowest and highest figures on round gridlines (`niceStep` with `amountAxis`, `src/lib/charts/format.ts`), and only the latest net point is labelled. `accountBalanceSums()` buckets each `BalanceItem` by its account's derived `kindOf(type)` and `section`. `balanceSeries()` negates liabilities and computes net.
 
 ### Balance by category (`balanceCategory`)
-Six small panels (current, medium-term and long-term, for assets and for liabilities). Each shows that bucket's balance per month against its 6-month average. Property and other buckets have no panel.
+Up to six small panels (current, medium-term and long-term, for assets and for liabilities); a bucket that is zero in every month gets none. Each shows that bucket's balance per month against its 6-month average. The liability panels start a new row, so debts line up under the assets. Property and other buckets have no panel.
 
 ## Actuals source
 

@@ -1,6 +1,6 @@
 # Ledger filters: a drawer, a badge, and the chips that undo it
 
-**What:** Five filters (date range, account, category, amount, uncategorized) in a drawer beside the search box; every active filter shows as a removable chip.  
+**What:** Six filters (date range, account, category, amount, uncategorised, to approve) in a drawer beside the search box; every active filter shows as a removable chip.  
 **Key points:**
 - All filter state lives in the URL — shareable, bookmarkable, back-button aware
 - Amount filter matches magnitude (absolute value), not sign — £50 matches both debit and credit
@@ -8,7 +8,8 @@
 - `ledgerWhere()` in `src/lib/transactions/` is the single pure predicate composing all filters
 
 A drawer on the toolbar narrows the ledger by month, account, category, size of
-charge or missing category, alongside the search box:
+charge, missing category or a category still to approve, alongside the search
+box:
 
 | Filter | URL | Matches |
 |---|---|---|
@@ -16,12 +17,13 @@ charge or missing category, alongside the search box:
 | Account | `?acct=<uuid>` | the account the row belongs to |
 | Category | `?cat=<uuid>` or `?cat=transfers` | a category, or any transfer |
 | Amount | `?min=&max=` | **magnitude**, either sign |
-| Uncategorized | `?uncat=1` | no category and no transfer |
+| Uncategorised only | `?uncat=1` | no category and no transfer |
+| To approve only | `?check=1` | no category and no transfer, **or** a category still in pencil (`isCategoryConfirmed = false`) |
 
 The search box (`?q=`) is the one filter that stays outside the drawer — it is
 a single gesture, it is debounced, and the controls card gives it a permanent
-home. Everything else, uncategorized included, lives in the drawer and reports
-itself as a chip.
+home. Everything else, both status toggles included, lives in the drawer and
+reports itself as a chip.
 
 ## Amounts match magnitude, not sign
 
@@ -59,8 +61,8 @@ stated twice and drift:
   patch that clears it. The badge count is its `.length` and the chip row is
   its contents, so the badge can never claim more filters than the chips show.
 
-`uncat` is in that list because it lives in the drawer: invisible state that
-hides rows is exactly what the chips exist to prevent. The search box is the
+`uncat` and `check` are in that list because they live in the drawer: invisible
+state that hides rows is exactly what the chips exist to prevent. The search box is the
 one exclusion, since its own input already shows it.
 
 A filter pointing at a since-deleted account or category keeps its chip,
@@ -76,7 +78,7 @@ six times to reach one state. It holds a draft and writes once, on **Apply** —
 and re-seeds from the URL on every open, so an abandoned edit is discarded
 rather than waiting to surprise the next person who opens it.
 
-`Clear all` clears every drawer filter — `uncat` included — and deliberately
+`Clear all` clears every drawer filter — `uncat` and `check` included — and deliberately
 leaves `q` alone: it clears what the drawer owns.
 
 ## Two contradictions the URL can express and the UI cannot
@@ -135,14 +137,14 @@ always mounted, so the table does not jump.
 
 ## The table's own chrome
 
-The header follows the design system's `sheet-row-head`: canvas-soft ground,
-mono-caps labels, `hairline-strong` below.
+The header follows the design system's `sheet-row-head`: semibold labels in the
+body colour, closed by a 2px ink rule.
 
-The footer follows `sheet-row-grand`, the black band that ends a sheet, with
-one deliberate deviation: the spec sets its amount in `amount-xl` (18px), but
-the ledger's amount column is 96px and a five-figure total would overflow it,
-so the band uses `amount-strong`. The band still carries the emphasis, which is
-the point the spec is making.
+The footer follows `sheet-row-grand`, the bottom line on the soft ground
+between two 2px ink rules, with one deliberate deviation: the spec sets its
+amount in `amount-xl`, but the ledger's amount column is 96px and a
+five-figure total would overflow it, so the footer uses `amount-strong`. The
+rules still carry the emphasis, which is the point the spec is making.
 
 ### The total is the page, and says so
 
@@ -163,9 +165,6 @@ constant `PAGE_SIZE` (50) in `pagination.ts`.
 The sum runs in integer pence. `0.1 + 0.2` in floating point is
 `0.30000000000000004`, and a money total nobody typed is a bug people notice.
 
-The figure renders through `toFixed(2)`, matching the amount cells it sums —
-they use a raw ASCII hyphen, and the app's typographic minus (`−`) would sit at
-a different width in the same column. Worth knowing that the ledger's amount
-cells are the one place in the app that bypass
-`src/lib/settings/currency.ts`; the footer matches the column it belongs to
-rather than half-fixing that.
+The figure renders through `formatAmount` (`src/lib/settings/currency.ts`), as
+the amount cells it sums do, so both follow the user's currency and number
+format setting.
