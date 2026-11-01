@@ -38,7 +38,7 @@ export const Field = styled.label`
 `;
 
 export const Input = styled.input`
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
+  border: 1px solid ${({ theme }) => theme.colors.fieldBorder};
   border-radius: ${({ theme }) => theme.rounded.sm};
   padding: ${({ theme }) => theme.spacing.sm};
   font-size: ${({ theme }) => theme.typography.bodyMd.size};
@@ -46,7 +46,7 @@ export const Input = styled.input`
 `;
 
 export const Select = styled.select`
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
+  border: 1px solid ${({ theme }) => theme.colors.fieldBorder};
   border-radius: ${({ theme }) => theme.rounded.sm};
   padding: ${({ theme }) => theme.spacing.sm};
   font-size: ${({ theme }) => theme.typography.bodyMd.size};

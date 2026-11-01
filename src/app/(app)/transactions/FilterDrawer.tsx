@@ -18,9 +18,9 @@ const Input = styled.input`
   width: 100%;
   padding: ${({ theme }) => theme.spacing.sm}
     ${({ theme }) => theme.spacing.md};
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
+  border: 1px solid ${({ theme }) => theme.colors.fieldBorder};
   border-radius: ${({ theme }) => theme.rounded.sm};
-  background: ${({ theme }) => theme.colors.canvas};
+  background: ${({ theme }) => theme.colors.field};
   color: ${({ theme }) => theme.colors.ink};
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
   font-size: 13px;
@@ -30,9 +30,9 @@ const Select = styled.select`
   width: 100%;
   padding: ${({ theme }) => theme.spacing.sm}
     ${({ theme }) => theme.spacing.md};
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
+  border: 1px solid ${({ theme }) => theme.colors.fieldBorder};
   border-radius: ${({ theme }) => theme.rounded.sm};
-  background: ${({ theme }) => theme.colors.canvas};
+  background: ${({ theme }) => theme.colors.field};
   color: ${({ theme }) => theme.colors.ink};
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
   font-size: 13px;
@@ -72,14 +72,15 @@ const FootButton = styled.button<{ $primary?: boolean }>`
     ${({ theme }) => theme.spacing.lg};
   border: 1px solid
     ${({ $primary, theme }) =>
-      $primary ? theme.colors.ink : theme.colors.hairlineStrong};
+      $primary ? theme.colors.primary : theme.colors.ink};
   border-radius: ${({ theme }) => theme.rounded.sm};
   background: ${({ $primary, theme }) =>
-    $primary ? theme.colors.ink : theme.colors.canvas};
+    $primary ? theme.colors.primary : theme.colors.canvas};
   color: ${({ $primary, theme }) =>
-    $primary ? theme.colors.canvas : theme.colors.ink};
-  font-family: ${({ theme }) => theme.typography.bodyMd.family};
-  font-size: ${({ theme }) => theme.typography.bodyMd.size};
+    $primary ? theme.colors.onPrimary : theme.colors.ink};
+  font-family: ${({ theme }) => theme.typography.control.family};
+  font-size: ${({ theme }) => theme.typography.control.size};
+  font-weight: ${({ theme }) => theme.typography.control.weight};
   cursor: pointer;
 `;
 
@@ -257,38 +258,36 @@ export function FilterDrawer({
       </DrawerSection>
 
       <DrawerSection title="Account" defaultOpen>
-        <Field label="Account">
-          <Select
-            value={draft.accountId}
-            onChange={(e) => set({ accountId: e.target.value })}
-          >
-            <option value="">Any account</option>
-            {accounts.map((account) => (
-              <option key={account.id} value={account.id}>
-                {account.name}
-              </option>
-            ))}
-          </Select>
-        </Field>
+        <Select
+          aria-label="Account"
+          value={draft.accountId}
+          onChange={(e) => set({ accountId: e.target.value })}
+        >
+          <option value="">Any account</option>
+          {accounts.map((account) => (
+            <option key={account.id} value={account.id}>
+              {account.name}
+            </option>
+          ))}
+        </Select>
       </DrawerSection>
 
       <DrawerSection title="Category" defaultOpen>
-        <Field label="Category">
-          <Select
-            value={draft.category}
-            onChange={(e) => set({ category: e.target.value })}
-          >
-            <option value="">Any category</option>
-            {transfersEnabled ? (
-              <option value={TRANSFERS}>Transfers</option>
-            ) : null}
-            {categories.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.label}
-              </option>
-            ))}
-          </Select>
-        </Field>
+        <Select
+          aria-label="Category"
+          value={draft.category}
+          onChange={(e) => set({ category: e.target.value })}
+        >
+          <option value="">Any category</option>
+          {transfersEnabled ? (
+            <option value={TRANSFERS}>Transfers</option>
+          ) : null}
+          {categories.map((category) => (
+            <option key={category.id} value={category.id}>
+              {category.label}
+            </option>
+          ))}
+        </Select>
       </DrawerSection>
 
       {/* Amounts are signed in the ledger but matched on magnitude here, so a

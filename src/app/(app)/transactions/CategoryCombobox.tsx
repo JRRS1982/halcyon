@@ -58,7 +58,7 @@ const Popover = styled.div<{ $align: "left" | "right" }>`
 const SearchInput = styled.input`
   width: 100%;
   border: none;
-  border-bottom: 1px solid ${({ theme }) => theme.colors.hairline};
+  border-bottom: 1px solid ${({ theme }) => theme.colors.fieldBorder};
   padding: ${({ theme }) => theme.spacing.sm}
     ${({ theme }) => theme.spacing.md};
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
@@ -141,7 +141,7 @@ const MiniSelect = styled.select`
   flex: 1;
   padding: ${({ theme }) => theme.spacing.xs}
     ${({ theme }) => theme.spacing.sm};
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
+  border: 1px solid ${({ theme }) => theme.colors.fieldBorder};
   border-radius: ${({ theme }) => theme.rounded.sm};
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
   font-size: 13px;

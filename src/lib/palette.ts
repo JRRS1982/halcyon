@@ -21,6 +21,8 @@ export type ColorToken =
   | "hairlineStrong"
   | "canvas"
   | "canvasSoft"
+  | "field"
+  | "fieldBorder"
   | "band"
   | "bandSoft"
   | "onBand"
@@ -76,6 +78,10 @@ export const lightPalette: Palette = {
   hairlineStrong: "#D8BBA2",
   canvas: "#FCEEE2",
   canvasSoft: "#F6E1CF",
+  // Form fields: a slip of brighter paper, edged firmly enough (3:1, WCAG
+  // 1.4.11) that a field reads as something to write in, not part of the page.
+  field: "#FFFAF5",
+  fieldBorder: "#937C6B",
   band: "#EED3BD",
   bandSoft: "#F6E1CF",
   onBand: "#26211E",
@@ -135,6 +141,8 @@ export const darkPalette: Palette = {
   hairlineStrong: "#4A3F37",
   canvas: "#1C1815",
   canvasSoft: "#27211D",
+  field: "#2A231E",
+  fieldBorder: "#837262",
   band: "#352C26",
   bandSoft: "#27211D",
   onBand: "#FFFFFF",

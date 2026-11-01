@@ -36,6 +36,8 @@ export const theme = {
     hairlineStrong: cssVar("hairlineStrong"),
     canvas: cssVar("canvas"),
     canvasSoft: cssVar("canvasSoft"),
+    field: cssVar("field"),
+    fieldBorder: cssVar("fieldBorder"),
     // The sheet's section strips and the marketing bands. Named for the job
     // because the colour inverts between schemes — see palette.ts.
     band: cssVar("band"),

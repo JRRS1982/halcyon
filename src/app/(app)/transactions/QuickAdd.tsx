@@ -37,10 +37,10 @@ const Dialog = styled.dialog`
 
 const DialogTitle = styled.h2`
   margin: 0;
-  font-family: ${({ theme }) => theme.typography.displayLg.family};
-  font-size: ${({ theme }) => theme.typography.displayLg.size};
-  font-weight: ${({ theme }) => theme.typography.displayLg.weight};
-  letter-spacing: ${({ theme }) => theme.typography.displayLg.letterSpacing};
+  font-family: ${({ theme }) => theme.typography.amountXl.family};
+  font-size: ${({ theme }) => theme.typography.amountXl.size};
+  font-weight: ${({ theme }) => theme.typography.amountXl.weight};
+  letter-spacing: ${({ theme }) => theme.typography.amountXl.letterSpacing};
   color: ${({ theme }) => theme.colors.ink};
 `;
 
@@ -59,9 +59,9 @@ const Label = styled.span`
 const Input = styled.input`
   padding: ${({ theme }) => theme.spacing.sm}
     ${({ theme }) => theme.spacing.md};
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
+  border: 1px solid ${({ theme }) => theme.colors.fieldBorder};
   border-radius: ${({ theme }) => theme.rounded.sm};
-  background: ${({ theme }) => theme.colors.canvas};
+  background: ${({ theme }) => theme.colors.field};
   color: ${({ theme }) => theme.colors.ink};
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
   font-size: ${({ theme }) => theme.typography.bodyMd.size};
@@ -70,9 +70,9 @@ const Input = styled.input`
 const Select = styled.select`
   padding: ${({ theme }) => theme.spacing.sm}
     ${({ theme }) => theme.spacing.md};
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
+  border: 1px solid ${({ theme }) => theme.colors.fieldBorder};
   border-radius: ${({ theme }) => theme.rounded.sm};
-  background: ${({ theme }) => theme.colors.canvas};
+  background: ${({ theme }) => theme.colors.field};
   color: ${({ theme }) => theme.colors.ink};
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
   font-size: ${({ theme }) => theme.typography.bodyMd.size};
@@ -91,11 +91,9 @@ const Direction = styled.fieldset`
 const DirectionLegend = styled.legend`
   padding: 0;
   margin-bottom: ${({ theme }) => theme.spacing.sm};
-  font-family: ${({ theme }) => theme.typography.kicker.family};
-  font-size: ${({ theme }) => theme.typography.kicker.size};
-  font-weight: ${({ theme }) => theme.typography.kicker.weight};
-  letter-spacing: ${({ theme }) => theme.typography.kicker.letterSpacing};
-  text-transform: uppercase;
+  font-family: ${({ theme }) => theme.typography.control.family};
+  font-size: ${({ theme }) => theme.typography.control.size};
+  font-weight: ${({ theme }) => theme.typography.control.weight};
   color: ${({ theme }) => theme.colors.body};
 `;
 

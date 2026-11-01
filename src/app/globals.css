@@ -70,14 +70,15 @@ body {
   outline: none;
 }
 
-/* Form fields sit on the page's paper rather than the browser's white. Zero
-   specificity, so any field that sets its own surface keeps it. */
+/* Form fields are a slip of brighter paper with a firm edge, so they stand off
+   the page. Zero specificity, so any field that sets its own surface keeps it. */
 :where(
   input:not([type="checkbox"], [type="radio"], [type="range"]),
   select,
   textarea
 ) {
-  background-color: var(--c-canvas);
+  background-color: var(--c-field);
+  border-color: var(--c-fieldBorder);
   color: var(--c-ink);
 }
 

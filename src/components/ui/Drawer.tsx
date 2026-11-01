@@ -100,9 +100,10 @@ const Head = styled.div`
 const Eyebrow = styled.div`
   font-family: ${({ theme }) => theme.typography.kicker.family};
   font-size: ${({ theme }) => theme.typography.kicker.size};
+  font-weight: ${({ theme }) => theme.typography.kicker.weight};
   letter-spacing: ${({ theme }) => theme.typography.kicker.letterSpacing};
   text-transform: uppercase;
-  color: ${({ theme }) => theme.colors.dim};
+  color: ${({ theme }) => theme.colors.accent};
 `;
 const Title = styled.h2`
   margin: ${({ theme }) => theme.spacing.xs} 0 0;
@@ -172,7 +173,8 @@ const SectionHead = styled.button`
   padding: ${({ theme }) => theme.spacing.md} ${({ theme }) => theme.spacing.xl};
   font-family: ${({ theme }) => theme.typography.control.family};
   font-size: ${({ theme }) => theme.typography.control.size};
-  color: ${({ theme }) => theme.colors.bodyMuted};
+  font-weight: ${({ theme }) => theme.typography.control.weight};
+  color: ${({ theme }) => theme.colors.ink};
 `;
 const SectionBody = styled.div`
   padding: 0 ${({ theme }) => theme.spacing.xl} ${({ theme }) => theme.spacing.lg};
@@ -201,8 +203,19 @@ const SectionMark = styled.span`
 const FieldWrap = styled.label`
   display: grid;
   gap: ${({ theme }) => theme.spacing.xs};
-  font-size: 12px;
+  font-family: ${({ theme }) => theme.typography.control.family};
+  font-size: ${({ theme }) => theme.typography.control.size};
+  font-weight: ${({ theme }) => theme.typography.control.weight};
   color: ${({ theme }) => theme.colors.body};
+`;
+// A checkbox reads box-then-label on one line, as every form convention has it.
+const CheckWrap = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.sm};
+  font-family: ${({ theme }) => theme.typography.bodyMd.family};
+  font-size: ${({ theme }) => theme.typography.bodyMd.size};
+  color: ${({ theme }) => theme.colors.ink};
 `;
 
 export function DrawerSection({
@@ -250,10 +263,10 @@ export function Field({
 }) {
   if (htmlFor) {
     return (
-      <FieldWrap as="div">
-        <label htmlFor={htmlFor}>{label}</label>
+      <CheckWrap>
         {children}
-      </FieldWrap>
+        <label htmlFor={htmlFor}>{label}</label>
+      </CheckWrap>
     );
   }
   return (

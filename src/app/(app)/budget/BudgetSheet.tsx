@@ -609,7 +609,7 @@ const CopyMuted = styled.div`
 // rather than the answer to the choice above. Smaller, muted, and separated
 // by a rule from the group it follows.
 const AddFieldInput = styled.input`
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
+  border: 1px solid ${({ theme }) => theme.colors.fieldBorder};
   border-radius: ${({ theme }) => theme.rounded.sm};
   padding: ${({ theme }) => theme.spacing.sm};
   font: inherit;

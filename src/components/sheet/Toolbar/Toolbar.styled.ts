@@ -125,7 +125,7 @@ export const ToolbarSelect = styled.select`
     padding: 0 ${theme.spacing.sm};
     border: 1px solid ${theme.colors.ink};
     border-radius: ${theme.rounded.sm};
-    background: ${theme.colors.canvas};
+    background: ${theme.colors.field};
     color: ${theme.colors.ink};
     font-family: ${theme.typography.bodyMdStrong.family};
     font-size: 14px;

@@ -29,6 +29,8 @@ colors:
   hairline-strong: "#D8BBA2"
   canvas: "#FCEEE2"
   canvas-soft: "#F6E1CF"
+  field: "#FFFAF5"
+  field-border: "#937C6B"
   band: "#EED3BD"
   band-soft: "#F6E1CF"
   on-band: "#26211E"
@@ -184,10 +186,10 @@ components:
     padding: "0 {spacing.md}"
 
   text-input:
-    description: "Form field. Strong hairline border; on focus the border and a 1px ring turn oxford blue."
-    backgroundColor: "{colors.canvas}"
+    description: "Form field. A slip of brighter paper with a firm edge; on focus the border and a 1px ring turn oxford blue."
+    backgroundColor: "{colors.field}"
     textColor: "{colors.ink}"
-    borderColor: "{colors.hairline-strong}"
+    borderColor: "{colors.field-border}"
     focusBorderColor: "{colors.focus}"
     typography: "{typography.body-md}"
     rounded: "{rounded.sm}"
@@ -293,12 +295,13 @@ A paper-and-ink palette with three working hues: oxford blue for action, claret 
 
 - **Salmon Paper** (`canvas`): the page and every table cell.
 - **Deeper Paper** (`canvas-soft`): the grand-total row, group (parent) rows in a sheet, outline-button hover. `band-soft` shares the value.
+- **Field** (`field`) and **Field Border** (`field-border`): every boxed form field — inputs, selects, text areas — in the app, drawers and dialogs. The fill is a brighter paper than the page so a field reads as somewhere to write; the edge clears 3:1 against the field and every surface, as WCAG asks of an input boundary. Cells edited in place on a sheet stay transparent.
 - **Band** (`band`): the deepest paper tint. In the app it is not used; on the public landing page it fills the call-to-action band and the step markers. It is a tint of the paper, not a dark strip.
 - **Ink** (`ink`): headlines, body figures, every structural rule (masthead, footer, section openers, table head rule, grand-total rules), outline-button borders. `ink-soft` is a half-step lighter for secondary emphasis; `on-band` matches ink.
 - **Body** (`body`): standfirsts, table column heads, caps labels over figures, chart axis ticks. `body-on-band` matches it.
 - **Body Muted** (`body-muted`) and **Dim** (`dim`): quieter text. Dim marks a £0 or empty amount and "On budget"; both clear 4.5:1 on canvas and canvas-soft.
 - **Hairline** (`hairline`): row rules, card and overlay borders, the empty track behind a share bar, chart gridlines.
-- **Hairline Strong** (`hairline-strong`): input borders, the rule closing the brief strip, dividers between index-strip tiles. `hairline-band` shares the value.
+- **Hairline Strong** (`hairline-strong`): the rule closing the brief strip, dividers between index-strip tiles. `hairline-band` shares the value.
 
 ### Semantic
 
@@ -413,6 +416,8 @@ Surfaces rise in the same order in both: `canvas` → `canvas-soft` → `band`. 
 | `hairline-strong` | #4A3F37 |
 | `canvas` | #1C1815 |
 | `canvas-soft` | #27211D |
+| `field` | #2A231E |
+| `field-border` | #837262 |
 | `band` | #352C26 |
 | `band-soft` | #27211D |
 | `on-band` | #FFFFFF |
@@ -452,7 +457,8 @@ The page is flat. Depth is drawn with rules, not light.
 | Weight | Treatment | Use |
 |---|---|---|
 | Hairline | 1px `hairline` | Between sheet rows, chart gridlines, card and overlay borders. |
-| Strong hairline | 1px `hairline-strong` | Input borders, the foot of the brief strip, dividers between index-strip tiles. |
+| Field edge | 1px `field-border` | Every boxed form field. |
+| Strong hairline | 1px `hairline-strong` | The foot of the brief strip, dividers between index-strip tiles. |
 | Ink rule | 1px `ink` | Masthead foot, footer top, under a sheet section row, above a subtotal, above the brief strip, opening every ruled section. |
 | Heavy ink rule | 2px `ink` | Under the table column heads, above the index strip and plan verdict, and both sides of the grand-total row. |
 | Tint | `canvas-soft` fill | Grand-total row and group rows. |

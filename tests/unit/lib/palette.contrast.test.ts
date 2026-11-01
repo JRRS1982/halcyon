@@ -49,7 +49,7 @@ const TEXT_TOKENS = [
   "negative",
 ] as const;
 
-const SURFACES = ["canvas", "canvasSoft"] as const;
+const SURFACES = ["canvas", "canvasSoft", "field"] as const;
 
 describe("colour contrast", () => {
   // Sanity check the maths against two ratios anyone can verify: black on
@@ -105,6 +105,14 @@ describe("colour contrast", () => {
           contrast(palette[token], palette[surface]),
         ).toBeGreaterThanOrEqual(AA_NON_TEXT);
       }
+    });
+
+    // A field the eye cannot find is a form nobody fills in: its edge has to
+    // stand off both its own fill and every surface it is placed on.
+    test.each(SURFACES)("a field's edge is visible on %s", (surface) => {
+      expect(
+        contrast(palette.fieldBorder, palette[surface]),
+      ).toBeGreaterThanOrEqual(AA_NON_TEXT);
     });
 
     // The whole point of the band is that it separates itself from the page.

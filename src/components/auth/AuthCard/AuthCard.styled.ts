@@ -79,8 +79,8 @@ export const Input = styled.input`
     line-height: ${theme.typography.bodyMd.lineHeight};
     color: ${theme.colors.ink};
     padding: ${theme.spacing.sm} ${theme.spacing.md};
-    background: ${theme.colors.canvas};
-    border: 1px solid ${theme.colors.hairlineStrong};
+    background: ${theme.colors.field};
+    border: 1px solid ${theme.colors.fieldBorder};
     border-radius: ${theme.rounded.sm};
     transition: border-color 100ms, box-shadow 100ms;
 

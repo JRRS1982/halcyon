@@ -53,6 +53,7 @@ const groupOf: Record<ColorToken, GroupName> = {
 
   canvas: "surface",
   canvasSoft: "surface",
+  field: "surface",
   band: "surface",
   bandSoft: "surface",
 
@@ -66,6 +67,7 @@ const groupOf: Record<ColorToken, GroupName> = {
 
   hairline: "line",
   hairlineStrong: "line",
+  fieldBorder: "line",
   hairlineBand: "line",
 
   positive: "sign",

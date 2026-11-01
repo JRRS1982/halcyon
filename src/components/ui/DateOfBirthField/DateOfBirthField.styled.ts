@@ -52,7 +52,7 @@ export const PartInput = styled.input<{
 }>`
   width: ${({ $wide, $standalone }) =>
     $standalone ? ($wide ? "5.5em" : "3.75em") : $wide ? "3.4em" : "2.6em"};
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
+  border: 1px solid ${({ theme }) => theme.colors.fieldBorder};
   border-radius: ${({ theme }) => theme.rounded.sm};
   padding: ${({ theme, $standalone }) =>
     $standalone ? theme.spacing.md : theme.spacing.xs};
