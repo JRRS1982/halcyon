@@ -8,6 +8,7 @@
 // it moved into the drawer — invisible state that hides rows is exactly what
 // the chips exist to prevent.
 
+import { humanDate } from "@/lib/date/humanDate";
 import type { LedgerUrlQuery } from "./pagination";
 
 export type ActiveFilter = {
@@ -21,30 +22,6 @@ export type FilterLookup = {
   accounts: { id: string; name: string }[];
   categories: { id: string; label: string }[];
 };
-
-const MONTHS = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-];
-
-// "2026-01-01" → "1 Jan 2026". Hand-rolled rather than Intl for the same
-// reason as src/lib/settings/currency.ts: platform locale data varies, and a
-// chip label that shifts between machines is a test that fails somewhere else.
-function humanDate(isoDate: string, withYear = true): string {
-  const [year = "", month = "", day = ""] = isoDate.split("-");
-  const name = MONTHS[Number(month) - 1] ?? month;
-  return `${Number(day)} ${name}${withYear ? ` ${year}` : ""}`;
-}
 
 function dateLabel(from: string | null, to: string | null): string | null {
   if (from && to) {

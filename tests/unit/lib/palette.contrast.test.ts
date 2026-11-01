@@ -86,6 +86,14 @@ describe("colour contrast", () => {
       ).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
     });
 
+    // A selected accent control (the plan's chart view) sets page-coloured
+    // text on the accent; the label is the only thing saying which view is on.
+    test("page-coloured text clears 4.5:1 on an accent fill", () => {
+      expect(contrast(palette.canvas, palette.accent)).toBeGreaterThanOrEqual(
+        AA_NORMAL_TEXT,
+      );
+    });
+
     // The focus ring is the only thing telling a keyboard user where they are.
     test.each(SURFACES)("the focus ring is visible on %s", (surface) => {
       expect(contrast(palette.focus, palette[surface])).toBeGreaterThanOrEqual(

@@ -53,7 +53,7 @@ const Label = styled.div`
 `;
 
 // The display serif at headline size: these four are the page's index figures.
-const Value = styled.div`
+const Value = styled.div<{ $isOver?: boolean }>`
   ${({ theme }) => css`
     margin-top: ${theme.spacing.sm};
     font-family: ${theme.typography.displayXl.family};
@@ -62,8 +62,9 @@ const Value = styled.div`
     line-height: ${theme.typography.amountXl.lineHeight};
     letter-spacing: ${theme.typography.amountXl.letterSpacing};
     font-variant-numeric: tabular-nums;
-    color: ${theme.colors.ink};
   `}
+  color: ${({ theme, $isOver }) =>
+    $isOver ? theme.colors.negative : theme.colors.ink};
 `;
 
 // Direction is carried by the arrow as well as the colour, so the tile still
@@ -148,11 +149,20 @@ export function SummaryRow({
     <Row aria-label="Key figures">
       {stats.map((stat) => {
         const delta = formatDelta(stat, currency, numberFormat);
+        const left = stat.leftInBudget;
+        const isOver = left != null && left < 0;
         return (
           <Tile key={stat.key}>
             <Label>{stat.label}</Label>
-            <Value>{formatValue(stat, currency, numberFormat)}</Value>
-            {delta ? (
+            <Value $isOver={isOver}>
+              {formatValue(stat, currency, numberFormat)}
+            </Value>
+            {left != null ? (
+              <Delta $tone={isOver ? "negative" : "positive"}>
+                {formatAmount(currency, Math.abs(left), numberFormat)}{" "}
+                {isOver ? "over budget" : "under budget"}
+              </Delta>
+            ) : delta ? (
               <Delta $tone={toneFor(stat)}>
                 {delta} <Muted>{stat.deltaLabel}</Muted>
               </Delta>

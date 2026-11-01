@@ -14,7 +14,7 @@ import {
   YAxis,
 } from "recharts";
 import { useTheme } from "styled-components";
-import { amountAxis, makeAmountTick } from "@/lib/charts/format";
+import { ageTicks, amountAxis, makeAmountTick } from "@/lib/charts/format";
 import type { YearProjection } from "@/lib/plan";
 import {
   liquidDepletionAge,
@@ -32,7 +32,7 @@ import {
   WRAPPER_COLOURS,
   WRAPPER_LABELS,
 } from "./colours";
-import { usePlotLeftInset } from "./usePlotLeftInset";
+import { useIsPhonePlot, usePlotLeftInset } from "./usePlotLeftInset";
 
 export function NetWorthChart({
   low,
@@ -54,6 +54,8 @@ export function NetWorthChart({
   expectedDeathAge: number | null;
 }) {
   const plotLeftInset = usePlotLeftInset();
+  // Every year on a desktop; every five on a phone, where 50 ages won't fit.
+  const isPhone = useIsPhonePlot();
   const theme = useTheme();
   const data = toNetWorthBandData(low, mid, high);
   const wrappers = wrappersPresent(data);
@@ -87,6 +89,7 @@ export function NetWorthChart({
         <CartesianGrid stroke={theme.colors.hairline} vertical={false} />
         <XAxis
           dataKey="age"
+          ticks={isPhone ? ageTicks(data.map((d) => d.age)) : undefined}
           tick={{ fontSize: 11, fill: theme.colors.body }}
           tickLine={false}
           axisLine={{ stroke: theme.colors.hairline }}

@@ -14,7 +14,6 @@ const Card = styled.section<{ $ok: boolean }>`
   align-items: stretch;
   gap: ${({ theme }) => theme.spacing["2xl"]};
   border-top: 2px solid ${({ theme }) => theme.colors.ink};
-  border-bottom: 1px solid ${({ theme }) => theme.colors.ink};
   padding: ${({ theme }) => theme.spacing.xl} 0;
 
   @media (max-width: 640px) {
@@ -26,6 +25,27 @@ const Lead = styled.div`
   display: grid;
   gap: ${({ theme }) => theme.spacing.xs};
   align-content: center;
+`;
+
+// The page's name and the verdict's status share one kicker line, as every
+// other page's kicker does ("BUDGET · NOVEMBER 2026"), rather than stacking
+// two caps labels either side of a rule.
+const KickerRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.sm};
+  font-family: ${({ theme }) => theme.typography.kicker.family};
+  font-size: ${({ theme }) => theme.typography.kicker.size};
+  font-weight: ${({ theme }) => theme.typography.kicker.weight};
+  letter-spacing: ${({ theme }) => theme.typography.kicker.letterSpacing};
+  text-transform: uppercase;
+  color: ${({ theme }) => theme.colors.accent};
+`;
+
+const PageTitle = styled.h1`
+  margin: 0;
+  font: inherit;
 `;
 
 const Status = styled.span<{ $ok: boolean }>`
@@ -145,10 +165,12 @@ const RangeNote = styled.span`
 `;
 
 export function VerdictBanner({
+  title,
   verdict,
   currency,
   numberFormat,
 }: {
+  title: string;
   verdict: BandedVerdict;
   currency: string;
   numberFormat: NumberFormat;
@@ -182,9 +204,13 @@ export function VerdictBanner({
   return (
     <Card $ok={verdict.feasible}>
       <Lead>
-        <Status $ok={verdict.feasible}>
-          {verdict.feasible ? "On track" : "Needs attention"}
-        </Status>
+        <KickerRow>
+          <PageTitle>{title}</PageTitle>
+          <span aria-hidden="true">·</span>
+          <Status $ok={verdict.feasible}>
+            {verdict.feasible ? "On track" : "Needs attention"}
+          </Status>
+        </KickerRow>
         <Headline>{headline}</Headline>
         <Sub>{sub}</Sub>
       </Lead>

@@ -39,3 +39,27 @@ export function amountAxis(min: number, max: number, step: number): AmountAxis {
   const ticks = Array.from({ length: count + 1 }, (_, i) => start + i * step);
   return { domain: [start, end], ticks };
 }
+
+/** Ages on the multiples of `step` within the data's span: 45, 50, 55… */
+export function ageTicks(ages: readonly number[], step = 5): number[] {
+  if (ages.length === 0) return [];
+  const first = Math.ceil(Math.min(...ages) / step) * step;
+  const last = Math.max(...ages);
+  const ticks: number[] = [];
+  for (let age = first; age <= last; age += step) ticks.push(age);
+  return ticks;
+}
+
+/**
+ * A round gridline step (1, 2 or 5 × a power of ten) that splits the span into
+ * about `target` bands, so an axis fitted to someone's own numbers still reads
+ * £100k, £200k… rather than £259.4k.
+ */
+export function niceStep(min: number, max: number, target = 4): number {
+  const span = Math.abs(max - min);
+  if (span === 0) return 1;
+  const raw = span / target;
+  const power = 10 ** Math.floor(Math.log10(raw));
+  const nice = [1, 2, 5, 10].find((m) => m * power >= raw) ?? 10;
+  return nice * power;
+}

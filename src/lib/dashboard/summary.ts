@@ -27,6 +27,12 @@ export type SummaryStat = {
   betterWhen: "higher" | "lower";
   /** Names the comparison, so a delta is never an unexplained number. */
   deltaLabel: string;
+  /**
+   * Spend vs budget only: budget minus actual, in money. Negative is overspend.
+   * The tile states this rather than a month-on-month delta, because "how far
+   * off plan am I" is the question that tile answers.
+   */
+  leftInBudget?: number | null;
 };
 
 const last = <T>(xs: T[]): T | undefined => xs[xs.length - 1];
@@ -55,6 +61,7 @@ export function dashboardSummary({
 
   const spendNow = spendAgainstBudget(last(expenditure));
   const spendBefore = spendAgainstBudget(previous(expenditure));
+  const expenditureNow = last(expenditure);
 
   return [
     {
@@ -92,6 +99,10 @@ export function dashboardSummary({
       delta: change(spendNow ?? undefined, spendBefore ?? undefined),
       betterWhen: "lower",
       deltaLabel: "of budget used",
+      leftInBudget:
+        spendNow === null || !expenditureNow
+          ? null
+          : totalBudget(expenditureNow) - totalActual(expenditureNow),
     },
   ];
 }
@@ -108,11 +119,15 @@ function spendAgainstBudget(
 ): number | null {
   if (!point) return null;
 
-  const actual =
-    point.fixedActual + point.variableActual + point.discretionaryActual;
-  const budget =
-    point.fixedBudget + point.variableBudget + point.discretionaryBudget;
+  const actual = totalActual(point);
+  const budget = totalBudget(point);
 
   if (budget <= 0) return null;
   return (actual / budget) * 100;
 }
+
+const totalActual = (point: ExpenditurePoint) =>
+  point.fixedActual + point.variableActual + point.discretionaryActual;
+
+const totalBudget = (point: ExpenditurePoint) =>
+  point.fixedBudget + point.variableBudget + point.discretionaryBudget;

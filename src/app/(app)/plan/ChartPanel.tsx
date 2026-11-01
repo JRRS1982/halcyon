@@ -52,21 +52,30 @@ const Switcher = styled.fieldset`
   display: inline-flex;
   gap: ${({ theme }) => theme.spacing.xs};
   margin: 0;
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
+  border: 1px solid ${({ theme }) => theme.colors.accent};
   border-radius: ${({ theme }) => theme.rounded.sm};
   padding: ${({ theme }) => theme.spacing.xs};
   width: fit-content;
 `;
+// The view picker takes the accent, as the ledger's Filters button does: the
+// one control on the panel that changes what the chart shows.
 const Tab = styled.button<{ $active: boolean }>`
   border: 0;
   cursor: pointer;
-  font-size: 13px;
+  font-family: ${({ theme }) => theme.typography.control.family};
+  font-size: ${({ theme }) => theme.typography.control.size};
+  font-weight: ${({ theme }) => theme.typography.control.weight};
   padding: ${({ theme }) => theme.spacing.xs} ${({ theme }) => theme.spacing.md};
   border-radius: ${({ theme }) => theme.rounded.sm};
   background: ${({ $active, theme }) =>
-    $active ? theme.colors.ink : "transparent"};
+    $active ? theme.colors.accent : "transparent"};
   color: ${({ $active, theme }) =>
-    $active ? theme.colors.canvas : theme.colors.body};
+    $active ? theme.colors.canvas : theme.colors.accent};
+
+  &:hover {
+    background: ${({ $active, theme }) =>
+      $active ? theme.colors.accent : theme.colors.canvasSoft};
+  }
 `;
 const Caption = styled.p`
   margin: 0;

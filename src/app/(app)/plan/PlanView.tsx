@@ -53,17 +53,6 @@ const Shell = styled.main`
     padding-right: ${({ theme }) => theme.spacing.lg};
   }
 `;
-// The page's name, set as the kicker over the verdict: the verdict is what
-// reads as the headline, as on every other page.
-const Title = styled.h1`
-  font-family: ${({ theme }) => theme.typography.kicker.family};
-  font-size: ${({ theme }) => theme.typography.kicker.size};
-  font-weight: ${({ theme }) => theme.typography.kicker.weight};
-  letter-spacing: ${({ theme }) => theme.typography.kicker.letterSpacing};
-  text-transform: uppercase;
-  color: ${({ theme }) => theme.colors.accent};
-  margin: 0;
-`;
 // All record cards in one responsive grid, at most two across so the cards
 // pair by meaning: assets beside liabilities, income beside expenses, then
 // events. Three across split income from expenses and left a hole. One column
@@ -234,8 +223,8 @@ export function PlanView({
 
   return (
     <Shell>
-      <Title>Your plan</Title>
       <VerdictBanner
+        title="Your plan"
         verdict={liveBand.verdict}
         currency={currency}
         numberFormat={numberFormat}

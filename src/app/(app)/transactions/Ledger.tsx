@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Fragment, useEffect, useRef, useState, useTransition } from "react";
 import styled, { css } from "styled-components";
+import { shortDate } from "@/lib/date/humanDate";
 import { useDebouncedCallback } from "@/lib/hooks/useDebouncedCallback";
 import {
   DEFAULT_NUMBER_FORMAT,
@@ -616,6 +617,7 @@ export function Ledger({
   // Local mirror of the server-rendered rows so mutations can apply
   // optimistically; re-adopted whenever the server re-renders the page.
   const [items, setItems] = useState<LedgerTransaction[]>(page.items);
+  const [today] = useState(() => new Date());
   const [search, setSearch] = useState(query.search);
   const [categories, setCategories] = useState(initialCategories);
   const [transferAccounts, setTransferAccounts] = useState(
@@ -1108,7 +1110,7 @@ export function Ledger({
                         aria-label={`Select ${tx.description}`}
                       />
                     </TdCheck>
-                    <TdNowrap>{tx.date.slice(0, 10)}</TdNowrap>
+                    <TdNowrap>{shortDate(tx.date, today)}</TdNowrap>
                     <Td>{tx.description}</Td>
                     <TdNowrap title={tx.accountName}>{tx.accountName}</TdNowrap>
                     <Amount $negative={tx.amount < 0}>

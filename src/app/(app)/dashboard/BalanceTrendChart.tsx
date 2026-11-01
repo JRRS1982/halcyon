@@ -11,7 +11,7 @@ import {
   YAxis,
 } from "recharts";
 import { useTheme } from "styled-components";
-import { makeAmountTick } from "@/lib/charts/format";
+import { amountAxis, makeAmountTick, niceStep } from "@/lib/charts/format";
 import type { BalancePoint } from "@/lib/dashboard/series";
 import { formatAmount, type NumberFormat } from "@/lib/settings/currency";
 import { theme } from "@/lib/theme";
@@ -122,7 +122,7 @@ export function BalanceTrendChart({
   // row of point labels said nothing at all.
   const fmtNet = makeAmountTick(currency);
 
-  // Net balance marker above each net point: green when net worth is positive,
+  // Net balance marker above the latest net point: green when net worth is positive,
   // red when liabilities outweigh assets. The exact value stays in the tooltip.
   const NetLabel = (props: {
     x?: number | string;
@@ -130,15 +130,18 @@ export function BalanceTrendChart({
     index?: number;
   }) => {
     const { x, y, index } = props;
-    if (x == null || y == null || index == null) return <g />;
+    // Only the latest month is labelled: a chip on every point collided at
+    // the top and ran off the right edge. Earlier months live in the tooltip.
+    if (x == null || y == null || index !== data.length - 1) return <g />;
     const point = data[index];
     if (!point) return <g />;
     const net = point.net;
     const up = net >= 0;
     const text = fmtNet(net);
-    const cx = Number(x);
-    const cy = Number(y) - 10;
     const w = text.length * 6.6 + 10;
+    // Right-aligned to the point so the last chip stays inside the plot.
+    const cx = Number(x) - w / 2 + 4;
+    const cy = Number(y) - 10;
     // Chip background so the marker stays legible over the lines behind it.
     return (
       <g>
@@ -166,6 +169,22 @@ export function BalanceTrendChart({
     );
   };
 
+  // A category the user has never had (no medium-term debt, say) drew a flat
+  // dashed line along zero, nine of them stacked into a smear on the baseline.
+  const series = SERIES.filter((s) => data.some((d) => d[s.key] !== 0));
+
+  // The axis spans this user's own lowest and highest figures, on round
+  // gridlines, rather than Recharts' default range with room to spare.
+  const extent = data.flatMap((d) => [
+    d.net,
+    ...series.map((s) => Number(d[s.key])),
+  ]);
+  const { domain, ticks } = amountAxis(
+    Math.min(...extent),
+    Math.max(...extent),
+    niceStep(Math.min(...extent), Math.max(...extent)),
+  );
+
   return (
     <ResponsiveContainer width="100%" height={320}>
       <LineChart
@@ -185,6 +204,8 @@ export function BalanceTrendChart({
           tickLine={false}
           axisLine={false}
           tickFormatter={tick}
+          domain={domain}
+          ticks={ticks}
         />
         {/* Zero baseline separates assets (above) from debts (below). */}
         <ReferenceLine y={0} stroke={theme.colors.body} strokeWidth={1} />
@@ -202,7 +223,7 @@ export function BalanceTrendChart({
             fontSize: 12,
           }}
         />
-        {SERIES.map((s) => (
+        {series.map((s) => (
           <Line
             key={s.key}
             type="monotone"

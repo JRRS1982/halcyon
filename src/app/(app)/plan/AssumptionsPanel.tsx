@@ -34,23 +34,75 @@ const Heading = styled.h2`
   color: ${({ theme }) => theme.colors.ink};
   margin: 0;
 `;
+// The assumptions are a form you write on, not a row of white boxes: each value
+// sits on a recessed strip of the page's deeper paper, ruled underneath in the
+// accent, so the panel reads as one set of entries and the eye finds the
+// numbers. Reaches into the shared cells (and the date-of-birth parts) from
+// here, so only this panel takes the look.
 const Grid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: ${({ theme }) => theme.spacing.md};
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: ${({ theme }) => theme.spacing.lg} ${({ theme }) => theme.spacing.xl};
+  align-items: end;
+
+  & input:not([type="checkbox"]),
+  & select {
+    min-height: 36px;
+    padding: ${({ theme }) => theme.spacing.sm};
+    border: 0;
+    border-bottom: 2px solid ${({ theme }) => theme.colors.accent};
+    border-radius: 0;
+    background-color: ${({ theme }) => theme.colors.canvasSoft};
+    color: ${({ theme }) => theme.colors.ink};
+    font-family: ${({ theme }) => theme.typography.bodyMd.family};
+    font-size: ${({ theme }) => theme.typography.bodyMd.size};
+    font-variant-numeric: tabular-nums;
+  }
+
+  & input:not([type="checkbox"]):focus,
+  & select:focus {
+    background-color: ${({ theme }) => theme.colors.field};
+  }
+
+  & input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    accent-color: ${({ theme }) => theme.colors.accent};
+  }
+
+  & legend {
+    font-family: ${({ theme }) => theme.typography.control.family};
+    font-size: ${({ theme }) => theme.typography.control.size};
+    font-weight: ${({ theme }) => theme.typography.control.weight};
+    color: ${({ theme }) => theme.colors.body};
+  }
 `;
 const Field = styled.label`
   display: grid;
   gap: ${({ theme }) => theme.spacing.xs};
-  font-size: 13px;
+  font-family: ${({ theme }) => theme.typography.control.family};
+  font-size: ${({ theme }) => theme.typography.control.size};
+  font-weight: ${({ theme }) => theme.typography.control.weight};
   color: ${({ theme }) => theme.colors.body};
 `;
 // Same shape as Field, but a div — see its use below.
 const FieldGroup = styled.div`
   display: grid;
   gap: ${({ theme }) => theme.spacing.xs};
-  font-size: 13px;
+  font-family: ${({ theme }) => theme.typography.control.family};
+  font-size: ${({ theme }) => theme.typography.control.size};
+  font-weight: ${({ theme }) => theme.typography.control.weight};
   color: ${({ theme }) => theme.colors.body};
+`;
+// A yes/no assumption reads box-then-words on one line, level with the
+// written fields' baseline, rather than a lone box under its label.
+const CheckRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.sm};
+  min-height: 36px;
+  color: ${({ theme }) => theme.colors.ink};
 `;
 const BoolLabel = styled.label`
   cursor: pointer;
@@ -200,7 +252,12 @@ export function AssumptionsPanel({
             text, and a label that wrapped it would claim its clicks for the
             checkbox. The label points at the box by id instead. */}
         <FieldGroup>
-          <LabelRow>
+          <CheckRow>
+            <BoolCell
+              id={thresholdsId}
+              value={a.thresholdsInflationLinked}
+              onCommit={(v) => save({ ...a, thresholdsInflationLinked: v })}
+            />
             <BoolLabel htmlFor={thresholdsId}>
               Tax bands rise with inflation
             </BoolLabel>
@@ -209,12 +266,7 @@ export function AssumptionsPanel({
               title="Tax bands rise with inflation"
               body="The income tax bands themselves — the personal allowance and the points where the higher and additional rates start. Published bands only exist up to the current tax year, so beyond it the projection either lifts them each year with your inflation rate, or leaves them frozen at today's figures. Frozen means more of your income crosses into higher bands every year purely because the numbers grew, which over decades swamps every other assumption in the plan."
             />
-          </LabelRow>
-          <BoolCell
-            id={thresholdsId}
-            value={a.thresholdsInflationLinked}
-            onCommit={(v) => save({ ...a, thresholdsInflationLinked: v })}
-          />
+          </CheckRow>
         </FieldGroup>
         <Field>
           State pension age
