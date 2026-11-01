@@ -1,10 +1,12 @@
 /**
  * @jest-environment node
  */
+
 import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 import robots from "@/app/robots";
 import sitemap from "@/app/sitemap";
+import { FEATURES } from "@/lib/editorial/features";
 import { CANONICAL_ORIGIN, PUBLIC_PAGES } from "@/lib/site";
 
 const APP = path.join(process.cwd(), "src/app");
@@ -22,6 +24,16 @@ describe("sitemap", () => {
   // A sitemap entry that 404s is a dead link handed straight to search engines.
   it.each(PUBLIC_PAGES)("lists %s, which has a page", (route) => {
     expect(pageExists(route)).toBe(true);
+  });
+
+  // Feature articles share one template; each must be listed, and the
+  // template must exist to serve it.
+  it("lists every feature article, which the article template serves", () => {
+    const urls = sitemap().map(({ url }) => url);
+    for (const article of FEATURES) {
+      expect(urls).toContain(`${CANONICAL_ORIGIN}/features/${article.slug}`);
+    }
+    expect(pageExists("/features/[slug]")).toBe(true);
   });
 
   it("gives search engines the canonical host, not the redirecting apex", () => {

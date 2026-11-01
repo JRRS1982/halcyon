@@ -27,15 +27,27 @@ test.describe("Landing page", () => {
     await expect(page).toHaveURL(/\/sign-up/);
   });
 
-  test("nav anchor scrolls to How it works", async ({ page }) => {
+  // The front page is articles that link out; the nav's one-word links go to
+  // the pages that hold the detail.
+  test("the nav's Features link opens the features page", async ({ page }) => {
     await page.goto("/");
-    // "How it works" appears in both the nav and the footer; scope to the nav.
     await page
       .getByRole("navigation")
-      .getByRole("link", { name: /how it works/i })
+      .getByRole("link", { name: /^features$/i })
       .click();
-    await expect(page).toHaveURL(/#how/);
-    await expect(page.locator("#how")).toBeVisible();
+    await expect(page).toHaveURL(/\/features$/);
+    await expect(
+      page.getByRole("heading", { level: 1, name: /^features$/i }),
+    ).toBeVisible();
+  });
+
+  test("a feature article opens its own page", async ({ page }) => {
+    await page.goto("/");
+    await page.locator('a[href="/features/budget"]').first().click();
+    await expect(page).toHaveURL(/\/features\/budget$/);
+    await expect(
+      page.getByRole("heading", { level: 1, name: /where did the money go/i }),
+    ).toBeVisible();
   });
 
   test("Sign in navigates to sign-in", async ({ page }) => {
@@ -45,16 +57,6 @@ test.describe("Landing page", () => {
       .first()
       .click();
     await expect(page).toHaveURL(/\/sign-in/);
-  });
-
-  test("Features and Details anchors resolve", async ({ page }) => {
-    await page.goto("/");
-    // These labels appear in both the nav and the footer; scope to the nav.
-    const nav = page.getByRole("navigation");
-    await nav.getByRole("link", { name: /^features$/i }).click();
-    await expect(page.locator("#features")).toBeVisible();
-    await nav.getByRole("link", { name: /^details$/i }).click();
-    await expect(page.locator("#details")).toBeVisible();
   });
 
   test("renders without horizontal overflow on a mobile viewport", async ({
@@ -83,7 +85,7 @@ test.describe("Trust", () => {
 
     await expect(page.getByText(/you choose what goes in/i)).toBeVisible();
     await expect(
-      page.getByRole("link", { name: /export or delete/i }),
+      page.getByRole("link", { name: "export or delete", exact: true }),
     ).toHaveAttribute("href", "/guide");
   });
 });
@@ -100,7 +102,7 @@ test.describe("Footers", () => {
 
     await expect(page.getByRole("contentinfo")).toHaveCount(1);
     await expect(
-      page.getByRole("contentinfo").getByRole("link", { name: /full guide/i }),
+      page.getByRole("contentinfo").getByRole("link", { name: /^guide$/i }),
     ).toBeVisible();
   });
 });

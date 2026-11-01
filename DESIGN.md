@@ -533,15 +533,14 @@ The plan opens with a verdict banner between a 2px ink rule and a 1px one: a sta
 
 Dashboard chart panels, settings sections and plan sections each open with a 1px ink rule and a 20px serif head, with 16px above the content and 20px below. No card, no fill, no shadow.
 
-### The Front Page
+### The Front Page and Articles
 
-The landing page is a financial paper's front page, read in under a minute:
+The public site is a financial paper: articles, each one a link to the next level of detail.
 
-- **Skybox:** three text teasers under the nav, each a visitor's question in 20px serif with one line beneath, linking to the article that answers it. Hidden on a phone, where the headline leads.
-- **Dateline:** one caps line under the nav, the edition on the left and "Always working for you" in claret on the right. The nav's wordmark is the only nameplate. The skybox below it closes on a 4px double ink rule. Both hide on a phone.
-- **Lead story:** two-thirds width, beside a hairline. The h1 at front-page size, a 20px standfirst, Get started and Sign in at 44px, the no-bank-login line, and the lead picture with an italic serif caption. Promises are worded as lasting values (you choose what goes in, export or delete any time), never as features the app may later add.
-- **Rail:** "Your month, at a glance", a tinted market-data box under a 2px ink rule with 28px serif figures and their moves coloured by whether they helped, labelled as a sample; then the monthly briefing, four numbered steps.
-- **Inside pages:** each section opens with a 3px ink rule and a 40px serif head. A full-width chart story (the dashboard's cash-flow chart beside its headline) leads the feature section; articles sit in two columns divided by hairlines; the small print is ruled briefs in three columns; the page closes with a ruled story repeating the actions.
+- **Front page:** the lead article only says what Balanced is: the h1, a standfirst naming it as a monthly check-in for your household's money, Get started and Sign in at 44px, a trust line worded as a lasting value (you choose what goes in, export or delete any time), and the lead picture with an italic caption. Below, an "Inside" section (the dashboard's chart story across the page, then four feature stories in two columns) and a "More" row of three (Settings, the guide, the engineering tour). No sample figures, no in-page jump links.
+- **Stories** are whole-card links: picture, 26px serif headline, two-sentence teaser, and the one-word name of where it goes in claret. Columns are divided by hairlines; each story is ruled off above.
+- **Article pages** (`/features/<slug>`) use one template: headline and standfirst across the page, then a 720px column of ruled sections with pictures and italic captions, "The small print" as ruled briefs in three columns, and the way in. The content is plain data (`src/lib/editorial/features.ts`), so a future blog can reuse the template.
+- **Navigation labels are one word:** Features and Guide in the signed-out bar; the footer's Features, Guide, Engineering, Design, Terms, Privacy, Cookies.
 - **Pictures are plates,** never whole-app screenshots: a crop of one region of a screen, captured at 2x so its text is legible where it is shown, with a separate phone plate for the lead.
 
 ### Forms and Inputs

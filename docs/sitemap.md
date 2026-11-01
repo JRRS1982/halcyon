@@ -2,7 +2,7 @@
 
 **What:** Every route the app serves, derived from `src/app/` and the middleware guard — not a plan.  
 **Key points:**
-- Public pages: `/`, `/sign-in`, `/sign-up`, `/forgot-password`, `/reset-password`, `/guide`, `/how-its-built`, `/design`, `/privacy`, `/cookies`, `/terms`, `/unsubscribe`
+- Public pages: `/`, `/sign-in`, `/sign-up`, `/forgot-password`, `/reset-password`, `/features`, `/features/<slug>`, `/guide`, `/how-its-built`, `/design`, `/privacy`, `/cookies`, `/terms`, `/unsubscribe`
 - Authenticated pages: `/transactions`, `/budget`, `/balance`, `/dashboard`, `/plan`, `/settings`
 - Non-page routes: `/auth/callback`, `/design.md`, `/api/unsubscribe`, `/api/health`, `/api/csp-report`, `/api/cron/monthly-reminder`
 - The six authenticated pages are in the proxy's `protectedPaths` list, and each page re-checks the session itself
@@ -108,6 +108,8 @@ Reachable without a session.
 | `/forgot-password` | Asks for an email address and sends a reset link. The reply is the same whether or not the address has an account. |
 | `/reset-password` | Where the emailed link lands (it carries a `token_hash`). Sets a new password, signs the user in and signs out their other sessions. Google-only accounts are refused. |
 | `/auth/callback` | Route handler. Exchanges the one-time `code` from OAuth and email confirmation for a session. Refuses password-recovery codes, which belong at `/reset-password`. |
+| `/features` | The features index: one article per part of the app, each linking to its page. |
+| `/features/<slug>` | One article per feature (`transactions`, `budget`, `balance`, `dashboard`, `plan`), from `src/lib/editorial/features.ts` through one template. The front page's stories link here. |
 | `/guide` | The guide — what the app is for, the monthly rhythm, and what each section does. Deliberately public: it is the honest answer to "what is this?" before signing up. |
 | `/how-its-built` | The engineering tour — every feature of the build, with what it does, why it matters and how it is implemented. Public on purpose: it is the page to hand to someone who wants to know whether this is trustworthy. |
 | `/design` | The design system, rendered live from `DESIGN.md`: colour tokens, type scale, spacing and component patterns. Public like the guide. |
@@ -150,13 +152,13 @@ import, categorise, budget, balance, then read the result:
 Guide → Transactions → Budget → Balance → Dashboard → Plan → Settings
 ```
 
-Transactions drops out when the Transactions setting is off. Signed out, the landing page's bar carries its section anchors plus Guide, other pages carry Guide alone, and `/guide`, `/sign-in` and `/sign-up` carry only the brand. App pages share a footer linking the guide, design system, engineering tour and legal pages.
+Transactions drops out when the Transactions setting is off. Signed out, every page's bar carries Features and Guide, one word each; `/sign-in` and `/sign-up` carry only the brand. App pages share a footer linking the guide, design system, engineering tour and legal pages.
 
 There is deliberately no "Home" entry: signed-in users are redirected away from
 `/`, so it would only ever point at a redirect.
 
 ## Not built
 
-- **Blog** — was listed here for a long time as planned. Nothing exists, and
-  nothing is scheduled; it is noted only so its absence isn't mistaken for an
-  oversight.
+- **Blog** — not built. The feature articles are plain data rendered by one
+  article template (`src/components/editorial/`), so a blog can reuse both
+  when there are posts to publish.

@@ -51,21 +51,17 @@ const SIGNED_IN_ITEMS: NavEntry[] = [
   { href: "/settings", label: "Settings" },
 ];
 
-// Homepage-only in-page anchors (the sections only exist on "/").
-const MARKETING_ITEMS: NavItem[] = [
-  { href: "#how", label: "How it works" },
-  { href: "#features", label: "Features" },
-  { href: "#details", label: "Details" },
+// Signed out, every page offers the same two places to read, one word each.
+// Both are public: the features' articles and the guide answer "what is this
+// and how would I use it?"
+const PUBLIC_ITEMS: NavItem[] = [
+  { href: "/features", label: "Features" },
+  { href: "/guide", label: "Guide" },
 ];
 
-// /guide is not behind the auth guard, and it is the best answer to "what is
-// this and how would I use it?" — so it stays in the bar signed out too,
-// including on the pages where the homepage anchors above mean nothing.
-const GUIDE_ITEM: NavItem = { href: "/guide", label: "Guide" };
-
 // The exceptions: the auth pages carry one job each, and a link out of the form
-// is a way to abandon it. /guide is one route away via the homepage brand.
-const BARE_NAV_PATHS = new Set(["/guide", "/sign-in", "/sign-up"]);
+// is a way to abandon it.
+const BARE_NAV_PATHS = new Set(["/sign-in", "/sign-up"]);
 
 function HamburgerIcon({ open }: { open: boolean }) {
   return (
@@ -95,14 +91,14 @@ function HamburgerIcon({ open }: { open: boolean }) {
   );
 }
 
+// A section's link stays current on its sub-pages (/features/budget).
+const isCurrent = (pathname: string, href: string) =>
+  pathname === href || pathname.startsWith(`${href}/`);
+
 export function NavBar({ signedIn, transactionsEnabled }: NavBarProps) {
   const pathname = usePathname();
-  const isHome = pathname === "/";
-  // Signed out, GUIDE_ITEM is the whole bar off the homepage — and on the guide
-  // that makes it a link to the page being read. Dropped there and on the auth
-  // pages, leaving the brand. The signed-in bar keeps its Guide entry: it is
-  // primary navigation, and removing one item on one route would shift every
-  // other link sideways.
+  // Signed out, the auth pages drop the links, leaving the brand. The signed-in
+  // bar keeps its Guide entry everywhere: it is primary navigation.
   const isBareNav = BARE_NAV_PATHS.has(pathname);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
@@ -112,11 +108,9 @@ export function NavBar({ signedIn, transactionsEnabled }: NavBarProps) {
   const enabled = { transactions: transactionsEnabled };
   const items: NavItem[] = signedIn
     ? SIGNED_IN_ITEMS.filter((item) => !item.requires || enabled[item.requires])
-    : isHome
-      ? [GUIDE_ITEM, ...MARKETING_ITEMS]
-      : isBareNav
-        ? []
-        : [GUIDE_ITEM];
+    : isBareNav
+      ? []
+      : PUBLIC_ITEMS;
 
   // Navigating away closes the drawer — Next keeps the layout mounted across
   // route changes, so it would otherwise stay open over the new page.
@@ -158,7 +152,7 @@ export function NavBar({ signedIn, transactionsEnabled }: NavBarProps) {
           <NavLink
             key={item.href}
             href={item.href}
-            $active={pathname === item.href}
+            $active={isCurrent(pathname, item.href)}
           >
             {item.label}
           </NavLink>
@@ -199,7 +193,7 @@ export function NavBar({ signedIn, transactionsEnabled }: NavBarProps) {
             <DrawerLink
               key={item.href}
               href={item.href}
-              $active={pathname === item.href}
+              $active={isCurrent(pathname, item.href)}
               onClick={() => setMenuOpen(false)}
             >
               {item.label}

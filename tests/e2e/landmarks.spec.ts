@@ -10,6 +10,8 @@ const SIGNED_OUT = [
   "/sign-in",
   "/sign-up",
   "/guide",
+  "/features",
+  "/features/budget",
   "/privacy",
   "/terms",
 ];

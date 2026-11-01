@@ -25,20 +25,17 @@ describe("NavBar", () => {
     expect(screen.getByText("Balanced Money")).toBeInTheDocument();
   });
 
-  test("signed-out homepage shows marketing anchors + Get started", () => {
+  // One word each: the two places a visitor can read before signing up.
+  test("signed-out, the bar offers Features and Guide, Sign in and Get started", () => {
     mockPathname = "/";
     renderit({ signedIn: false, transactionsEnabled: false });
-    expect(screen.getByRole("link", { name: /how it works/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /^features$/i })).toHaveAttribute(
       "href",
-      "#how",
+      "/features",
     );
-    expect(screen.getByRole("link", { name: /features/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /^guide$/i })).toHaveAttribute(
       "href",
-      "#features",
-    );
-    expect(screen.getByRole("link", { name: /details/i })).toHaveAttribute(
-      "href",
-      "#details",
+      "/guide",
     );
     expect(screen.getByRole("link", { name: /get started/i })).toHaveAttribute(
       "href",
@@ -50,11 +47,11 @@ describe("NavBar", () => {
     );
   });
 
-  test("signed-out non-home hides anchors but keeps Get started", () => {
+  test("the auth pages drop the reading links but keep Get started", () => {
     mockPathname = "/sign-in";
     renderit({ signedIn: false, transactionsEnabled: false });
     expect(
-      screen.queryByRole("link", { name: /how it works/i }),
+      screen.queryByRole("link", { name: /^features$/i }),
     ).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /get started/i })).toHaveAttribute(
       "href",
@@ -63,29 +60,29 @@ describe("NavBar", () => {
   });
 
   // /guide is not behind the auth guard, and it is the honest answer to "what
-  // is this?" — so it is reachable from the bar before signing in, on the
-  // homepage and off it.
-  test.each(["/", "/privacy"])("Guide is in the bar signed out on %s", (at) => {
-    mockPathname = at;
-    renderit({ signedIn: false, transactionsEnabled: false });
-    expect(screen.getByRole("link", { name: /^guide$/i })).toHaveAttribute(
-      "href",
-      "/guide",
-    );
-  });
-
-  // ...but not on the guide itself, where it would point at the current page,
-  // nor on the auth pages, where every link is a way to abandon the form.
-  test.each(["/guide", "/sign-in", "/sign-up"])(
-    "Guide is not in the bar on %s",
+  // is this?" — so it is reachable from the bar before signing in, on every
+  // public page, the guide included (where it marks the current page).
+  test.each(["/", "/privacy", "/guide", "/features/budget"])(
+    "Guide is in the bar signed out on %s",
     (at) => {
       mockPathname = at;
       renderit({ signedIn: false, transactionsEnabled: false });
-      expect(
-        screen.queryByRole("link", { name: /^guide$/i }),
-      ).not.toBeInTheDocument();
+      expect(screen.getByRole("link", { name: /^guide$/i })).toHaveAttribute(
+        "href",
+        "/guide",
+      );
     },
   );
+
+  // ...but not on the auth pages, where every link is a way to abandon the
+  // form.
+  test.each(["/sign-in", "/sign-up"])("Guide is not in the bar on %s", (at) => {
+    mockPathname = at;
+    renderit({ signedIn: false, transactionsEnabled: false });
+    expect(
+      screen.queryByRole("link", { name: /^guide$/i }),
+    ).not.toBeInTheDocument();
+  });
 
   test("signed-in with transactions enabled shows a Transactions link", () => {
     mockPathname = "/dashboard";

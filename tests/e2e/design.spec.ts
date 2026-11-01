@@ -62,7 +62,7 @@ test.describe("design system", () => {
     await page.goto("/");
     await page
       .getByRole("contentinfo")
-      .getByRole("link", { name: "Design system" })
+      .getByRole("link", { name: "Design", exact: true })
       .click();
     await expect(page).toHaveURL(/\/design$/);
   });
