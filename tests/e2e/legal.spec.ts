@@ -35,7 +35,7 @@ test.describe("legal pages", () => {
     await page.goBack();
     await page
       .getByRole("contentinfo")
-      .getByRole("link", { name: "Cookie Policy" })
+      .getByRole("link", { name: "Cookies" })
       .click();
     await expect(page).toHaveURL(/\/cookies$/);
     await page.goBack();
