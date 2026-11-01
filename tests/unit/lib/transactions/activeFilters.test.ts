@@ -26,7 +26,7 @@ describe("activeFilters", () => {
     // drawer it is invisible state, and invisible state that hides rows is
     // exactly what the chips exist to prevent.
     expect(chips({ uncat: "1" })).toEqual([
-      { key: "uncategorized", label: "Uncategorized", clear: { uncat: null } },
+      { key: "uncategorized", label: "Uncategorised", clear: { uncat: null } },
     ]);
   });
 

@@ -71,7 +71,7 @@ test.describe("transactions journey", () => {
 
     // Categorise the imported row via the combobox: type a new name → create.
     const row = page.locator("tr", { hasText: description });
-    await row.getByRole("button", { name: /Uncategorized/ }).click();
+    await row.getByRole("button", { name: /Uncategorised/ }).click();
     await page.getByPlaceholder("Type to search or create…").fill(category);
     await withServerAction(page, () =>
       page.getByRole("button", { name: "Create & assign" }).click(),

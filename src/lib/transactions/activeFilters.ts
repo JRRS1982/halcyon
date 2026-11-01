@@ -77,7 +77,7 @@ export function activeFilters(
   if (query.onlyUncategorized) {
     filters.push({
       key: "uncategorized",
-      label: "Uncategorized",
+      label: "Uncategorised",
       clear: { uncat: null },
     });
   }

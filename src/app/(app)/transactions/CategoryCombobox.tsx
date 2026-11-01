@@ -189,9 +189,9 @@ type Props = {
   defaultType: "EXPENSE" | "INCOME";
   transfersEnabled: boolean;
   disabled?: boolean;
-  // Trigger text when nothing is chosen; defaults to "— Uncategorized —".
+  // Trigger text when nothing is chosen; defaults to "— Uncategorised —".
   placeholder?: string;
-  // Offer the "— Uncategorized —" clear option even when value is null (the
+  // Offer the "— Uncategorised —" clear option even when value is null (the
   // bulk bar always shows it: a mixed selection can still be cleared).
   alwaysClearable?: boolean;
   // Accessible name for the trigger button (e.g. the bulk bar's purpose).
@@ -226,7 +226,7 @@ export function CategoryCombobox({
   defaultType,
   transfersEnabled,
   disabled,
-  placeholder = "— Uncategorized —",
+  placeholder = "— Uncategorised —",
   alwaysClearable = false,
   triggerLabel,
   onSelect,
@@ -341,7 +341,7 @@ export function CategoryCombobox({
           ? [
               {
                 key: "__clear__",
-                label: <span>— Uncategorized —</span>,
+                label: <span>— Uncategorised —</span>,
                 run: () => choose(null),
               },
             ]

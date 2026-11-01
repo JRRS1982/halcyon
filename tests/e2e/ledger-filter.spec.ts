@@ -7,7 +7,7 @@ import {
   withServerAction,
 } from "./_helpers/fixtures";
 
-// Regression: categorising a row while the "Uncategorized only" filter is on
+// Regression: categorising a row while the "Uncategorised only" filter is on
 // must keep the filtered view — the just-categorised row should drop out and
 // stay out. The bug was that setTransactionCategory's revalidatePath re-rendered
 // the page server-side with the *unfiltered* first page, and the ledger's
@@ -47,11 +47,11 @@ test.describe("ledger uncategorized filter", () => {
     // table remains, so the row locators below are unambiguous.
     await page.goto("/transactions");
 
-    // Turn on the "Uncategorized only" filter — both rows are still
+    // Turn on the "Uncategorised only" filter — both rows are still
     // uncategorised. It lives in the filter drawer, not the toolbar.
     await page.getByRole("button", { name: "Filters", exact: true }).click();
     await page
-      .getByRole("checkbox", { name: "Uncategorized only" })
+      .getByRole("checkbox", { name: "Uncategorised only" })
       .check({ force: true });
     await page.getByRole("button", { name: "Apply" }).click();
     const rowA = page.locator("tr", { hasText: descA });
@@ -60,7 +60,7 @@ test.describe("ledger uncategorized filter", () => {
     await expect(rowB).toHaveCount(1);
 
     // Categorise row A (create + assign).
-    await rowA.getByRole("button", { name: /Uncategorized/ }).click();
+    await rowA.getByRole("button", { name: /Uncategorised/ }).click();
     await page.getByPlaceholder("Type to search or create…").fill(category);
     await withServerAction(page, () =>
       page.getByRole("button", { name: "Create & assign" }).click(),

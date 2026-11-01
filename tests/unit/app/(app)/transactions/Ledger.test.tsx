@@ -84,7 +84,7 @@ describe("Ledger transfer display", () => {
     // The row's own combobox trigger (unlike the always-present bulk bar
     // combobox) defaults to this placeholder when it has nothing to show —
     // it must not fall back to it here.
-    expect(screen.queryByText("— Uncategorized —")).not.toBeInTheDocument();
+    expect(screen.queryByText("— Uncategorised —")).not.toBeInTheDocument();
   });
 });
 

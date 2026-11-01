@@ -431,7 +431,7 @@ export function SettingsForm({
               where your money actually goes — but it takes time and effort, and
               it’s entirely your choice whether that’s worth it. Turn this on to
               add the Transactions page and import bank statements; each budget
-              category’s actual is then summed from its categorized transactions
+              category’s actual is then summed from its categorised transactions
               rather than typed by hand. Leave it off to keep entering actuals
               yourself.
             </FieldHint>
@@ -534,7 +534,7 @@ export function SettingsForm({
               <DialogInfo>
                 Adds the Transactions page to the nav, lets you import bank
                 statements, and switches each budget category’s <em>actual</em>{" "}
-                to the sum of its categorized transactions (the actual column
+                to the sum of its categorised transactions (the actual column
                 becomes read-only). Your existing manual actuals are kept, not
                 overwritten.
               </DialogInfo>

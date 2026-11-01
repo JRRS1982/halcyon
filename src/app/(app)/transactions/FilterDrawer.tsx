@@ -208,7 +208,7 @@ export function FilterDrawer({
           here from the toolbar, and appears as a chip so it is never hidden
           state. */}
       <DrawerSection title="Status" defaultOpen>
-        <Field label="Uncategorized only" htmlFor={uncategorizedId}>
+        <Field label="Uncategorised only" htmlFor={uncategorizedId}>
           <input
             id={uncategorizedId}
             type="checkbox"
