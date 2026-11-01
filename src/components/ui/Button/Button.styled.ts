@@ -21,13 +21,15 @@ const variantStyles = {
       background: ${({ theme }) => theme.colors.canvasSoft};
     }
   `,
+  // Edged in the warning colour at rest: with a hairline it read as a
+  // disabled button sitting beside the live Cancel.
   destructive: css`
     background: ${({ theme }) => theme.colors.canvas};
     color: ${({ theme }) => theme.colors.negative};
-    border: 1px solid ${({ theme }) => theme.colors.hairline};
+    border: 1px solid ${({ theme }) => theme.colors.negative};
 
     &:hover:not(:disabled) {
-      border-color: ${({ theme }) => theme.colors.negative};
+      background: ${({ theme }) => theme.colors.canvasSoft};
     }
   `,
 };

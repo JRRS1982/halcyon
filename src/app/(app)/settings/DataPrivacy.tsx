@@ -369,7 +369,7 @@ export function DataPrivacy({ method }: { method: ReauthMethod | null }) {
 
         {mode === "reset" ? (
           <WarningBox role="alertdialog" aria-label="Confirm reset to defaults">
-            <WarningTitle>⚠ Start again from the defaults?</WarningTitle>
+            <WarningTitle>Start again from the defaults?</WarningTitle>
             <WarningText>
               Every account, budget and balance goes — past months included —
               along with your transactions, imports, categories and plans. The
@@ -416,7 +416,7 @@ export function DataPrivacy({ method }: { method: ReauthMethod | null }) {
 
         {mode === "clear" ? (
           <WarningBox role="alertdialog" aria-label="Confirm clear data">
-            <WarningTitle>⚠ Delete all financial records?</WarningTitle>
+            <WarningTitle>Delete all financial records?</WarningTitle>
             <WarningText>
               Your transactions, imports, accounts, budgets, balances, and plans
               will be permanently removed. Your login, settings, and categories
@@ -461,7 +461,7 @@ export function DataPrivacy({ method }: { method: ReauthMethod | null }) {
 
         {mode === "delete" ? (
           <WarningBox role="alertdialog" aria-label="Confirm delete account">
-            <WarningTitle>⚠ Permanently delete your account?</WarningTitle>
+            <WarningTitle>Permanently delete your account?</WarningTitle>
             <WarningText>
               This removes your account and all associated data, including your
               login. This cannot be undone.

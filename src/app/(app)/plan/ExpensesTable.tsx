@@ -183,12 +183,15 @@ export function ExpensesTable({
   numberFormat,
   syncPreview,
   onOpen,
+  onCreated,
 }: {
   expenses: SerializedPlanExpense[];
   currency: string;
   numberFormat: NumberFormat;
   syncPreview: SyncPlan;
   onOpen: (id: string) => void;
+  /** Opens a row this table just created, which closing untouched discards. */
+  onCreated: (id: string) => void;
 }) {
   const router = useRouter();
   const add = async () => {
@@ -196,7 +199,7 @@ export function ExpensesTable({
     // Select before refreshing, not after: router.refresh() runs inside a
     // React transition, and a setState queued behind it waits on the server
     // round trip it starts. The selection does not depend on that payload.
-    onOpen(id);
+    onCreated(id);
     router.refresh();
   };
 

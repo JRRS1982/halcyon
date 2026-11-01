@@ -2,7 +2,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import styled from "styled-components";
 import { Drawer } from "@/components/ui/Drawer";
 import type { BandedProjection } from "@/lib/plan";
@@ -65,6 +65,20 @@ const Cards = styled.div`
   align-items: start;
 `;
 
+const removeRow = ({ kind, id }: { kind: Kind; id: string }) => {
+  const remove =
+    kind === "asset"
+      ? deletePlanAsset
+      : kind === "liability"
+        ? deletePlanLiability
+        : kind === "income"
+          ? deletePlanIncome
+          : kind === "expense"
+            ? deletePlanExpense
+            : deletePlanEvent;
+  return remove({ id });
+};
+
 export function PlanView({
   band,
   plan,
@@ -94,11 +108,28 @@ export function PlanView({
     setStreamOverride,
     commitStream,
   } = usePlanProjection(plan, band, asOfYear);
-  const [selected, setSelected] = useState<{ kind: Kind; id: string } | null>(
-    null,
-  );
+  const [selected, setSelected] = useState<{
+    kind: Kind;
+    id: string;
+    isNew?: boolean;
+  } | null>(null);
   const open = (kind: Kind) => (id: string) => setSelected({ kind, id });
-  const close = () => setSelected(null);
+  // "+ Add" creates the row before its editor opens, so cancelling used to
+  // leave a blank "New expense · £0" behind. A row opened straight after
+  // creation is discarded on close unless something in the editor was typed
+  // into or changed — any input marks it kept, so an edit still saving is
+  // never deleted under it.
+  const isTouched = useRef(false);
+  const created = (kind: Kind) => (id: string) => {
+    isTouched.current = false;
+    setSelected({ kind, id, isNew: true });
+  };
+  const close = () => {
+    const closing = selected;
+    setSelected(null);
+    if (!closing?.isNew || isTouched.current) return;
+    void removeRow(closing).then(() => router.refresh());
+  };
 
   const properties = plan.assets
     .filter((a) => a.wrapper === "PROPERTY")
@@ -193,18 +224,8 @@ export function PlanView({
 
   const onRemove = async () => {
     if (!selected) return;
-    const remove =
-      selected.kind === "asset"
-        ? deletePlanAsset
-        : selected.kind === "liability"
-          ? deletePlanLiability
-          : selected.kind === "income"
-            ? deletePlanIncome
-            : selected.kind === "expense"
-              ? deletePlanExpense
-              : deletePlanEvent;
-    await remove({ id: selected.id });
-    close();
+    await removeRow(selected);
+    setSelected(null);
     router.refresh();
   };
 
@@ -282,6 +303,7 @@ export function PlanView({
           numberFormat={numberFormat}
           syncPreview={preview}
           onOpen={open("income")}
+          onCreated={created("income")}
         />
         <ExpensesTable
           expenses={plan.expenses}
@@ -289,6 +311,7 @@ export function PlanView({
           numberFormat={numberFormat}
           syncPreview={preview}
           onOpen={open("expense")}
+          onCreated={created("expense")}
         />
         <EventsTable
           events={plan.events}
@@ -296,6 +319,7 @@ export function PlanView({
           numberFormat={numberFormat}
           properties={properties}
           onOpen={open("event")}
+          onCreated={created("event")}
         />
       </Cards>
 
@@ -322,42 +346,53 @@ export function PlanView({
             : undefined
         }
       >
-        {propertyAsset ? (
-          <PropertyFields
-            property={propertyAsset}
-            mortgage={propertyMortgage}
-            repayment={propertyRepayment}
-            currentSplit={mortgageSplit}
-          />
-        ) : (
-          <>
-            {asset ? <AssetFields asset={asset} /> : null}
-            {liability ? (
-              <LiabilityFields
-                liability={liability}
-                linkedExpense={plan.expenses.find(
-                  (e) => e.liabilityId === liability.id,
-                )}
-                onOpenExpense={open("expense")}
-              />
-            ) : null}
-            {income ? <IncomeFields income={income} /> : null}
-            {expense ? (
-              <ExpenseFields
-                expense={expense}
-                managedBy={
-                  expense.liabilityId
-                    ? plan.liabilities.find((l) => l.id === expense.liabilityId)
-                    : undefined
-                }
-                onOpenLiability={open("liability")}
-              />
-            ) : null}
-            {event ? (
-              <EventFields event={event} properties={properties} />
-            ) : null}
-          </>
-        )}
+        <div
+          onInputCapture={() => {
+            isTouched.current = true;
+          }}
+          onChangeCapture={() => {
+            isTouched.current = true;
+          }}
+        >
+          {propertyAsset ? (
+            <PropertyFields
+              property={propertyAsset}
+              mortgage={propertyMortgage}
+              repayment={propertyRepayment}
+              currentSplit={mortgageSplit}
+            />
+          ) : (
+            <>
+              {asset ? <AssetFields asset={asset} /> : null}
+              {liability ? (
+                <LiabilityFields
+                  liability={liability}
+                  linkedExpense={plan.expenses.find(
+                    (e) => e.liabilityId === liability.id,
+                  )}
+                  onOpenExpense={open("expense")}
+                />
+              ) : null}
+              {income ? <IncomeFields income={income} /> : null}
+              {expense ? (
+                <ExpenseFields
+                  expense={expense}
+                  managedBy={
+                    expense.liabilityId
+                      ? plan.liabilities.find(
+                          (l) => l.id === expense.liabilityId,
+                        )
+                      : undefined
+                  }
+                  onOpenLiability={open("liability")}
+                />
+              ) : null}
+              {event ? (
+                <EventFields event={event} properties={properties} />
+              ) : null}
+            </>
+          )}
+        </div>
       </Drawer>
     </Shell>
   );

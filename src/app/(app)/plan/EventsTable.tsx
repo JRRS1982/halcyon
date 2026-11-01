@@ -180,12 +180,15 @@ export function EventsTable({
   numberFormat,
   properties,
   onOpen,
+  onCreated,
 }: {
   events: SerializedPlanEvent[];
   currency: string;
   numberFormat: NumberFormat;
   properties: PlanProperty[];
   onOpen: (id: string) => void;
+  /** Opens a row this table just created, which closing untouched discards. */
+  onCreated: (id: string) => void;
 }) {
   const router = useRouter();
   const add = async () => {
@@ -193,7 +196,7 @@ export function EventsTable({
     // Select before refreshing, not after: router.refresh() runs inside a
     // React transition, and a setState queued behind it waits on the server
     // round trip it starts. The selection does not depend on that payload.
-    onOpen(id);
+    onCreated(id);
     router.refresh();
   };
 

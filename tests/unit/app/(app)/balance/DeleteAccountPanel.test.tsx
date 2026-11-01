@@ -44,6 +44,14 @@ describe("DeleteAccountPanel", () => {
     expect(screen.getByText(/6 budget/i)).toBeInTheDocument();
   });
 
+  // If this is wrong, a user reads "and the 0 budget transfers pointing at it".
+  test("leaves out budget transfers when there are none", () => {
+    renderPanel({ counts: { months: 1, budgetRows: 0, linked: null } });
+    expect(
+      screen.getByText("Removes 1 monthly value. This can’t be undone."),
+    ).toBeInTheDocument();
+  });
+
   test("defaults to stop tracking", () => {
     renderPanel();
     expect(screen.getByRole("radio", { name: /stop tracking/i })).toBeChecked();
