@@ -103,19 +103,10 @@ const Option = styled.li<{ $active?: boolean }>`
   }
 `;
 
-// One colour per option kind, so the eye can split income / spend / transfers
-// without reading the metadata column.
-export type OptionTone = "income" | "expense" | "transfer";
-
-const OptionLabel = styled.span<{ $tone?: OptionTone }>`
-  color: ${({ $tone, theme }) =>
-    $tone === "income"
-      ? theme.colors.positive
-      : $tone === "expense"
-        ? theme.colors.negative
-        : $tone === "transfer"
-          ? theme.colors.accent
-          : theme.colors.ink};
+// Names in ink: the group headings already split income, spending and
+// transfers, and a column of red expense names read as a column of errors.
+const OptionLabel = styled.span`
+  color: ${({ theme }) => theme.colors.ink};
 `;
 
 const OptionMeta = styled.span`
@@ -202,12 +193,11 @@ type Props = {
   onCreateAccount: (name: string) => void;
 };
 
-// A row the keyboard can land on, in render order. `label`/`tone`/`meta`
+// A row the keyboard can land on, in render order. `label`/`meta`
 // drive the <Option> below; `run` is what Enter or a click does.
 type NavOption = {
   key: string;
   label: React.ReactNode;
-  tone?: OptionTone;
   meta?: string;
   run: () => void;
 };
@@ -351,7 +341,7 @@ export function CategoryCombobox({
       heading: "Income",
       options: incomeMatches.map((c) => ({
         key: c.id,
-        label: <OptionLabel $tone="income">{c.label}</OptionLabel>,
+        label: <OptionLabel>{c.label}</OptionLabel>,
         meta: c.section,
         run: () => choose(c.id),
       })),
@@ -360,7 +350,7 @@ export function CategoryCombobox({
       heading: "Expenses",
       options: expenseMatches.map((c) => ({
         key: c.id,
-        label: <OptionLabel $tone="expense">{c.label}</OptionLabel>,
+        label: <OptionLabel>{c.label}</OptionLabel>,
         meta: c.section,
         run: () => choose(c.id),
       })),
@@ -370,7 +360,7 @@ export function CategoryCombobox({
       options: [
         ...assetMatches.map((a) => ({
           key: a.id,
-          label: <OptionLabel $tone="transfer">{a.name}</OptionLabel>,
+          label: <OptionLabel>{a.name}</OptionLabel>,
           meta: `transfer ${transferWord}`,
           run: () => chooseAccount(a.id),
         })),
@@ -378,11 +368,7 @@ export function CategoryCombobox({
           ? [
               {
                 key: "__new_account__",
-                label: (
-                  <OptionLabel $tone="transfer">
-                    ＋ New account “{trimmed}”
-                  </OptionLabel>
-                ),
+                label: <OptionLabel>＋ New account “{trimmed}”</OptionLabel>,
                 meta: `transfer ${transferWord}`,
                 run: () => {
                   onCreateAccount(trimmed);
@@ -397,7 +383,7 @@ export function CategoryCombobox({
       heading: "Debt payments",
       options: liabilityMatches.map((a) => ({
         key: a.id,
-        label: <OptionLabel $tone="transfer">{a.name}</OptionLabel>,
+        label: <OptionLabel>{a.name}</OptionLabel>,
         meta: "repay",
         run: () => chooseAccount(a.id),
       })),

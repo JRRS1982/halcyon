@@ -82,6 +82,12 @@ body {
   color: var(--c-ink);
 }
 
+/* Tick boxes, radios and range thumbs take the app's blue rather than the
+   browser's own, so a ticked box matches the buttons beside it. */
+:root {
+  accent-color: var(--c-primary);
+}
+
 /* Keyboard focus, drawn from the palette rather than left to the browser:
    offset so it shows clear of a filled button's own colour. */
 :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {

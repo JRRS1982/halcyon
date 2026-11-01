@@ -61,7 +61,12 @@ const PUBLIC_ITEMS: NavItem[] = [
 
 // The exceptions: the auth pages carry one job each, and a link out of the form
 // is a way to abandon it.
-const BARE_NAV_PATHS = new Set(["/sign-in", "/sign-up"]);
+const BARE_NAV_PATHS = new Set([
+  "/sign-in",
+  "/sign-up",
+  "/forgot-password",
+  "/reset-password",
+]);
 
 function HamburgerIcon({ open }: { open: boolean }) {
   return (

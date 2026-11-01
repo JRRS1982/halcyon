@@ -182,10 +182,13 @@ const Dialog = styled.dialog`
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
 `;
 
-const DialogText = styled.p`
+// The question is the dialog's title, set as every dialog's title is.
+const DialogText = styled.h2`
   margin: 0;
-  font-family: ${({ theme }) => theme.typography.bodyMd.family};
-  font-size: ${({ theme }) => theme.typography.bodyMd.size};
+  font-family: ${({ theme }) => theme.typography.amountXl.family};
+  font-size: ${({ theme }) => theme.typography.amountXl.size};
+  font-weight: ${({ theme }) => theme.typography.amountXl.weight};
+  letter-spacing: ${({ theme }) => theme.typography.amountXl.letterSpacing};
   color: ${({ theme }) => theme.colors.ink};
 `;
 

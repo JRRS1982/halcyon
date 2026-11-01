@@ -552,7 +552,7 @@ const PickerMonth = styled.button<{ $current?: boolean }>`
   ${({ theme, $current }) => `
     background: ${$current ? theme.colors.primary : theme.colors.canvas};
     color: ${$current ? theme.colors.onPrimary : theme.colors.ink};
-    border: 1px solid ${$current ? theme.colors.primary : theme.colors.hairline};
+    border: 1px solid ${$current ? theme.colors.primary : theme.colors.fieldBorder};
     border-radius: ${theme.rounded.sm};
     font-family: ${theme.typography.bodyMd.family};
     font-size: ${theme.typography.bodyMd.size};
@@ -617,9 +617,10 @@ const CopyMuted = styled.div`
 // rather than the answer to the choice above. Smaller, muted, and separated
 // by a rule from the group it follows.
 const AddFieldInput = styled.input`
+  min-height: 36px;
   border: 1px solid ${({ theme }) => theme.colors.fieldBorder};
   border-radius: ${({ theme }) => theme.rounded.sm};
-  padding: ${({ theme }) => theme.spacing.sm};
+  padding: ${({ theme }) => theme.spacing.sm} ${({ theme }) => theme.spacing.md};
   font: inherit;
   color: ${({ theme }) => theme.colors.ink};
   width: 100%;
@@ -627,12 +628,10 @@ const AddFieldInput = styled.input`
 
 const CopySubTitle = styled.div`
   ${({ theme }) => `
-    font-family: ${theme.typography.bodyMd.family};
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-    text-transform: uppercase;
-    color: ${theme.colors.bodyMuted};
+    font-family: ${theme.typography.control.family};
+    font-size: ${theme.typography.control.size};
+    font-weight: ${theme.typography.control.weight};
+    color: ${theme.colors.body};
     padding-top: ${theme.spacing.md};
     margin-top: ${theme.spacing.xs};
     margin-bottom: ${theme.spacing.xs};
@@ -653,7 +652,7 @@ const CopySource = styled.button<{ $selected?: boolean }>`
     text-align: left;
     background: ${$selected ? theme.colors.primary : theme.colors.canvas};
     color: ${$selected ? theme.colors.onPrimary : theme.colors.ink};
-    border: 1px solid ${$selected ? theme.colors.primary : theme.colors.hairline};
+    border: 1px solid ${$selected ? theme.colors.primary : theme.colors.fieldBorder};
     border-radius: ${theme.rounded.sm};
     font-family: ${theme.typography.bodyMd.family};
     font-size: ${theme.typography.bodyMd.size};

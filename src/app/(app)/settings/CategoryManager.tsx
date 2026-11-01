@@ -46,12 +46,13 @@ const Search = styled.input`
   width: 100%;
   margin: ${({ theme }) => theme.spacing.lg} 0
     ${({ theme }) => theme.spacing.sm};
+  min-height: 36px;
   padding: ${({ theme }) => theme.spacing.sm}
     ${({ theme }) => theme.spacing.md};
   border: 1px solid ${({ theme }) => theme.colors.fieldBorder};
   border-radius: ${({ theme }) => theme.rounded.sm};
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.bodyMd.size};
 `;
 
 const TypeHeader = styled.h3`
@@ -93,12 +94,13 @@ const Meta = styled.span`
 const Input = styled.input`
   flex: 1;
   min-width: 120px;
-  padding: ${({ theme }) => theme.spacing.xs}
-    ${({ theme }) => theme.spacing.sm};
+  min-height: 36px;
+  padding: ${({ theme }) => theme.spacing.sm}
+    ${({ theme }) => theme.spacing.md};
   border: 1px solid ${({ theme }) => theme.colors.fieldBorder};
   border-radius: ${({ theme }) => theme.rounded.sm};
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.bodyMd.size};
 `;
 
 const Select = styled.select`

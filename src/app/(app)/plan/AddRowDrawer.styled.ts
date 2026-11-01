@@ -17,15 +17,17 @@ export const Modal = styled.div`
   border: 1px solid ${({ theme }) => theme.colors.hairline};
   border-radius: ${({ theme }) => theme.rounded.sm};
   box-shadow: rgba(15, 17, 22, 0.18) 0px 10px 30px 0px;
-  padding: ${({ theme }) => theme.spacing.lg};
+  padding: ${({ theme }) => theme.spacing.xl};
   display: grid;
-  gap: ${({ theme }) => theme.spacing.md};
+  gap: ${({ theme }) => theme.spacing.lg};
 `;
 
+// Set as every other dialog's title is (see components/ui/Drawer).
 export const Title = styled.h2`
-  font-family: ${({ theme }) => theme.typography.displayLg.family};
-  font-size: ${({ theme }) => theme.typography.displayLg.size};
-  font-weight: ${({ theme }) => theme.typography.displayLg.weight};
+  font-family: ${({ theme }) => theme.typography.amountXl.family};
+  font-size: ${({ theme }) => theme.typography.amountXl.size};
+  font-weight: ${({ theme }) => theme.typography.amountXl.weight};
+  letter-spacing: ${({ theme }) => theme.typography.amountXl.letterSpacing};
   color: ${({ theme }) => theme.colors.ink};
   margin: 0;
 `;
@@ -33,22 +35,28 @@ export const Title = styled.h2`
 export const Field = styled.label`
   display: grid;
   gap: ${({ theme }) => theme.spacing.xs};
-  font-size: 13px;
+  font-family: ${({ theme }) => theme.typography.control.family};
+  font-size: ${({ theme }) => theme.typography.control.size};
+  font-weight: ${({ theme }) => theme.typography.control.weight};
   color: ${({ theme }) => theme.colors.body};
 `;
 
 export const Input = styled.input`
+  min-height: 36px;
   border: 1px solid ${({ theme }) => theme.colors.fieldBorder};
   border-radius: ${({ theme }) => theme.rounded.sm};
-  padding: ${({ theme }) => theme.spacing.sm};
+  padding: ${({ theme }) => theme.spacing.sm} ${({ theme }) => theme.spacing.md};
+  font-weight: 400;
   font-size: ${({ theme }) => theme.typography.bodyMd.size};
   color: ${({ theme }) => theme.colors.ink};
 `;
 
 export const Select = styled.select`
+  min-height: 36px;
   border: 1px solid ${({ theme }) => theme.colors.fieldBorder};
   border-radius: ${({ theme }) => theme.rounded.sm};
-  padding: ${({ theme }) => theme.spacing.sm};
+  padding: ${({ theme }) => theme.spacing.sm} ${({ theme }) => theme.spacing.md};
+  font-weight: 400;
   font-size: ${({ theme }) => theme.typography.bodyMd.size};
   color: ${({ theme }) => theme.colors.ink};
 `;

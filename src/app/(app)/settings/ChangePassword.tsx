@@ -30,7 +30,6 @@ const Fields = styled.div`
   display: flex;
   flex-direction: column;
   gap: ${({ theme }) => theme.spacing.lg};
-  max-width: 320px;
 `;
 
 const Field = styled.div`
@@ -40,18 +39,20 @@ const Field = styled.div`
 `;
 
 const FieldLabel = styled.label`
-  font-family: ${({ theme }) => theme.typography.bodyMd.family};
-  font-size: 13px;
+  font-family: ${({ theme }) => theme.typography.control.family};
+  font-size: ${({ theme }) => theme.typography.control.size};
+  font-weight: ${({ theme }) => theme.typography.control.weight};
   color: ${({ theme }) => theme.colors.body};
 `;
 
 const Input = styled.input`
-  padding: ${({ theme }) => theme.spacing.xs}
-    ${({ theme }) => theme.spacing.sm};
+  min-height: 36px;
+  padding: ${({ theme }) => theme.spacing.sm}
+    ${({ theme }) => theme.spacing.md};
   border: 1px solid ${({ theme }) => theme.colors.fieldBorder};
   border-radius: ${({ theme }) => theme.rounded.sm};
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.bodyMd.size};
 `;
 
 const Hint = styled.p`

@@ -124,9 +124,28 @@ const CloseBtn = styled.button`
   border-radius: ${({ theme }) => theme.rounded.sm};
   &:hover { color: ${({ theme }) => theme.colors.ink}; background: ${({ theme }) => theme.colors.canvasSoft}; }
 `;
+// Every field in a dialog is the same size as the app's other forms, whichever
+// editor supplied it: the plan's inline cells and the account card brought
+// compact 13px boxes that were hard to read and to hit inside a dialog.
 const Body = styled.div`
   flex: 1;
   overflow-y: auto;
+
+  & input:not([type="checkbox"], [type="radio"], [type="range"]),
+  & select,
+  & textarea {
+    min-height: 36px;
+    padding: ${({ theme }) => theme.spacing.sm} ${({ theme }) => theme.spacing.md};
+    font-family: ${({ theme }) => theme.typography.bodyMd.family};
+    font-size: ${({ theme }) => theme.typography.bodyMd.size};
+    color: ${({ theme }) => theme.colors.ink};
+  }
+
+  & input[type="checkbox"],
+  & input[type="radio"] {
+    width: 16px;
+    height: 16px;
+  }
 `;
 const Foot = styled.div`
   display: flex;
@@ -285,6 +304,7 @@ export function Drawer({
   onRemove,
   removeConfirmLabel,
   footer,
+  liveNote = "Changes update your plan instantly",
   children,
 }: {
   open: boolean;
@@ -299,6 +319,12 @@ export function Drawer({
    * Cancel/Add, because a draft has nothing to remove yet.
    */
   footer?: ReactNode;
+  /**
+   * What the default footer says about saving. The plan's editors do update
+   * the plan instantly; the balance sheet's account card saves the account,
+   * and the plan only sees it on the next Sync, so it says so instead.
+   */
+  liveNote?: string;
   children: ReactNode;
 }) {
   const sheetRef = useRef<HTMLDialogElement>(null);
@@ -377,7 +403,7 @@ export function Drawer({
 
   const defaultFooter = (
     <>
-      <Live>Changes update your plan instantly</Live>
+      <Live>{liveNote}</Live>
       {onRemove ? (
         <RemoveCell onConfirm={onRemove} confirmLabel={removeConfirmLabel} />
       ) : null}

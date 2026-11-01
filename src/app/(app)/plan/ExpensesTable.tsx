@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import styled from "styled-components";
 import { DrawerSection, Field } from "@/components/ui/Drawer";
+import { sectionLabel } from "@/lib/categories/sections";
 import type { ExpenseSection } from "@/lib/plan";
 import type { SyncPlan } from "@/lib/plan/sync";
 import { formatAmount, type NumberFormat } from "@/lib/settings/currency";
@@ -23,6 +24,12 @@ const EXPENSE_SECTIONS: ExpenseSection[] = [
   "VARIABLE",
   "DISCRETIONARY",
 ];
+// The stored values are shouty enum keys; the editor and the rows say them
+// the way the budget does ("Variable", not "VARIABLE").
+const SECTION_LABELS: Partial<Record<ExpenseSection, string>> =
+  Object.fromEntries(
+    EXPENSE_SECTIONS.map((section) => [section, sectionLabel(section)]),
+  );
 
 const Panel = styled.section`
   border-top: 1px solid ${({ theme }) => theme.colors.ink};
@@ -120,6 +127,7 @@ export function ExpenseFields({
             <SelectCell
               value={expense.section ?? "FIXED"}
               options={EXPENSE_SECTIONS}
+              labels={SECTION_LABELS}
               onCommit={(v) => save({ ...expense, section: v })}
             />
           </Field>
@@ -203,7 +211,7 @@ export function ExpensesTable({
             <SummaryRow
               key={e.id}
               primary={e.label}
-              secondary={`${e.liabilityId ? "Repayment" : (e.section ?? "Unsectioned")} · ${formatAmount(currency, e.annualAmount, numberFormat)}/yr`}
+              secondary={`${e.liabilityId ? "Repayment" : e.section ? sectionLabel(e.section) : "Unsectioned"} · ${formatAmount(currency, e.annualAmount, numberFormat)}/yr`}
               marker={
                 <SyncMarker
                   {...rowMarkerProps(

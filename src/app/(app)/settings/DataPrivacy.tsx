@@ -96,20 +96,22 @@ const ConfirmField = styled.div`
 `;
 
 const ConfirmLabel = styled.label`
-  font-family: ${({ theme }) => theme.typography.bodyMd.family};
-  font-size: 13px;
+  font-family: ${({ theme }) => theme.typography.control.family};
+  font-size: ${({ theme }) => theme.typography.control.size};
+  font-weight: ${({ theme }) => theme.typography.control.weight};
   color: ${({ theme }) => theme.colors.body};
 `;
 
 const ConfirmInput = styled.input`
-  width: 240px;
+  width: 320px;
   max-width: 100%;
-  padding: ${({ theme }) => theme.spacing.xs}
-    ${({ theme }) => theme.spacing.sm};
+  min-height: 36px;
+  padding: ${({ theme }) => theme.spacing.sm}
+    ${({ theme }) => theme.spacing.md};
   border: 1px solid ${({ theme }) => theme.colors.fieldBorder};
   border-radius: ${({ theme }) => theme.rounded.sm};
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.bodyMd.size};
 `;
 
 const Actions = styled.div`
@@ -316,14 +318,14 @@ export function DataPrivacy({ method }: { method: ReauthMethod | null }) {
       <SettingsCard>
         <SectionHeading>Your data</SectionHeading>
         <Lead>
-          Export, clear, or delete the data Halcyon holds about you. Export and
-          clear affect only your financial records. Deleting your account is
-          permanent and removes everything, including your login.
+          Export, clear, or delete the data Balanced Money holds about you.
+          Export and clear affect only your financial records. Deleting your
+          account is permanent and removes everything, including your login.
         </Lead>
 
         <Group>
           <GroupText>
-            Download everything Halcyon stores about you as JSON.
+            Download everything Balanced Money stores about you as JSON.
           </GroupText>
           <Button
             type="button"
@@ -339,9 +341,9 @@ export function DataPrivacy({ method }: { method: ReauthMethod | null }) {
           <ConfirmBox role="dialog" aria-label="Confirm data export">
             <WarningTitle>Confirm it&rsquo;s you</WarningTitle>
             <WarningText>
-              The file contains everything Halcyon holds about you — every
-              balance, transaction and plan. Anyone who can open it can read
-              your finances, so we ask who you are first.
+              The file contains everything Balanced Money holds about you —
+              every balance, transaction and plan. Anyone who can open it can
+              read your finances, so we ask who you are first.
             </WarningText>
             {renderProof()}
             <Actions>

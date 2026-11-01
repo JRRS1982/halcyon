@@ -591,7 +591,7 @@ const PickerMonth = styled.button<{ $current?: boolean }>`
   ${({ theme, $current }) => `
     background: ${$current ? theme.colors.primary : theme.colors.canvas};
     color: ${$current ? theme.colors.onPrimary : theme.colors.ink};
-    border: 1px solid ${$current ? theme.colors.primary : theme.colors.hairline};
+    border: 1px solid ${$current ? theme.colors.primary : theme.colors.fieldBorder};
     border-radius: ${theme.rounded.sm};
     font-family: ${theme.typography.bodyMd.family};
     font-size: ${theme.typography.bodyMd.size};
@@ -661,7 +661,7 @@ const CopySource = styled.button<{ $selected?: boolean }>`
     text-align: left;
     background: ${$selected ? theme.colors.primary : theme.colors.canvas};
     color: ${$selected ? theme.colors.onPrimary : theme.colors.ink};
-    border: 1px solid ${$selected ? theme.colors.primary : theme.colors.hairline};
+    border: 1px solid ${$selected ? theme.colors.primary : theme.colors.fieldBorder};
     border-radius: ${theme.rounded.sm};
     font-family: ${theme.typography.bodyMd.family};
     font-size: ${theme.typography.bodyMd.size};

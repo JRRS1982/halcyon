@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Fragment, useEffect, useRef, useState, useTransition } from "react";
 import styled, { css } from "styled-components";
+import { Button } from "@/components/ui/Button";
 import { shortDate } from "@/lib/date/humanDate";
 import { useDebouncedCallback } from "@/lib/hooks/useDebouncedCallback";
 import {
@@ -1191,12 +1192,7 @@ export function Ledger({
                                 keep” when this statement was imported.
                               </DetailHint>
                             </>
-                          ) : (
-                            <DetailHint>
-                              No kept import columns — tick columns under “Also
-                              keep” when importing to store them here.
-                            </DetailHint>
-                          )}
+                          ) : null}
                           <NoteRow>
                             <NoteArea
                               value={noteDraft}
@@ -1206,16 +1202,16 @@ export function Ledger({
                             />
                             <GhostButton
                               type="button"
-                              onClick={() => saveNote(tx.id)}
-                            >
-                              Save
-                            </GhostButton>
-                            <GhostButton
-                              type="button"
                               onClick={() => setExpandedId(null)}
                             >
                               Cancel
                             </GhostButton>
+                            <Button
+                              type="button"
+                              onClick={() => saveNote(tx.id)}
+                            >
+                              Save
+                            </Button>
                           </NoteRow>
                         </DetailPanel>
                       </DetailTd>
