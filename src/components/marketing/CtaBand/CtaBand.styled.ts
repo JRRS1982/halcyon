@@ -23,18 +23,6 @@ export const Band = styled.section`
   `}
 `;
 
-export const Eyebrow = styled.p`
-  ${({ theme }) => css`
-    font-family: ${theme.typography.kicker.family};
-    font-size: ${theme.typography.kicker.size};
-    font-weight: ${theme.typography.kicker.weight};
-    text-transform: uppercase;
-    letter-spacing: ${theme.typography.kicker.letterSpacing};
-    color: ${theme.colors.bodyOnBand};
-    margin: 0;
-  `}
-`;
-
 export const Title = styled.h2`
   ${({ theme }) => css`
     font-family: ${theme.typography.displayXl.family};

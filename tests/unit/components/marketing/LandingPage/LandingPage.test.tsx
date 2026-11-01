@@ -13,7 +13,7 @@ const renderit = () =>
   );
 
 describe("LandingPage", () => {
-  test("composes hero, how-it-works, features, details and CTA", () => {
+  test("is set as a front page, inside pages, small print and sign-up", () => {
     renderit();
     expect(
       screen.getByRole("heading", {
@@ -21,34 +21,34 @@ describe("LandingPage", () => {
         name: /make sense of your money/i,
       }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText(/let your statements do the work/i),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", {
-        name: /budget — then learn how you really spend/i,
-      }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: /wealthy, or just spending/i }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", {
-        name: /turn a bank statement into understanding/i,
-      }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: /will the money last/i }),
-    ).toBeInTheDocument();
-    expect(screen.getByText("Transfers aren't spending")).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: /put the spreadsheet down/i }),
-    ).toBeInTheDocument();
+    for (const name of [
+      /your month, at a glance/i,
+      /the monthly briefing/i,
+      /inside: what balanced does/i,
+      /where did the money go\? the budget tells you/i,
+      /wealthy, or just spending/i,
+      /a bank statement in, a sorted month out/i,
+      /will the money last/i,
+      /the small print, in plain english/i,
+      /put the spreadsheet down/i,
+    ]) {
+      expect(screen.getByRole("heading", { name })).toBeInTheDocument();
+    }
   });
 
-  test("features intro carries the #features anchor", () => {
+  // The nav's in-page links and the front page's teasers all land on these.
+  test("carries every anchor the nav and teasers point at", () => {
     const { container } = renderit();
-    expect(container.querySelector("#features")).toBeInTheDocument();
+    for (const id of [
+      "how",
+      "features",
+      "details",
+      "budget",
+      "balance",
+      "plan",
+    ]) {
+      expect(container.querySelector(`#${id}`)).toBeInTheDocument();
+    }
   });
 
   test("the footer is a sibling of main, not nested inside it", () => {

@@ -1,24 +1,72 @@
 import Link from "next/link";
 import styled, { css } from "styled-components";
 
-// The landing page opens as a money section's front: a masthead headline over
-// a double rule, a dateline, then three ruled columns (the method, what you'll
-// read, what Balanced never does) with the sign-up box in the last.
+// The landing page's front page, set as a financial paper's: a skybox of
+// teasers under the nav, a double ink rule and dateline, then the lead story
+// beside a rail holding the sample market-data box and the monthly briefing.
 export const Section = styled.section`
-  padding: ${({ theme }) => `${theme.spacing["2xl"]} 0 ${theme.spacing["3xl"]}`};
+  padding: ${({ theme }) => `${theme.spacing.lg} 0 ${theme.spacing["3xl"]}`};
 `;
 
-export const Masthead = styled.h1`
+export const Skybox = styled.nav`
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
+
+  /* On a phone the headline has to lead; the teasers repeat the articles'
+     headings, which are a scroll away. */
+  @media (max-width: 760px) {
+    display: none;
+  }
+`;
+
+export const Teaser = styled.a`
   ${({ theme }) => css`
-    font-family: ${theme.typography.displayXl.family};
-    font-weight: 900;
-    font-size: clamp(44px, 7vw, 84px);
-    line-height: 1;
-    letter-spacing: -0.015em;
-    text-align: center;
+    display: grid;
+    grid-template-columns: 120px minmax(0, 1fr);
+    gap: ${theme.spacing.md};
+    align-items: center;
+    padding: ${theme.spacing.sm} ${theme.spacing.lg};
+    border-left: 1px solid ${theme.colors.hairlineStrong};
     color: ${theme.colors.ink};
-    padding-bottom: ${theme.spacing.md};
-    border-bottom: 4px double ${theme.colors.ink};
+    text-decoration: none;
+
+    &:first-child {
+      padding-left: 0;
+      border-left: none;
+    }
+
+    &:hover strong {
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
+    @media (max-width: 900px) {
+      padding: ${theme.spacing.sm} 0;
+      border-left: none;
+      & + & {
+        border-top: 1px solid ${theme.colors.hairlineStrong};
+      }
+    }
+  `}
+`;
+
+export const TeaserText = styled.span`
+  ${({ theme }) => css`
+    font-size: 14px;
+    line-height: 1.4;
+    color: ${theme.colors.body};
+
+    strong {
+      display: block;
+      font-family: ${theme.typography.displayLg.family};
+      font-size: 17px;
+      line-height: 1.2;
+      color: ${theme.colors.ink};
+    }
   `}
 `;
 
@@ -27,204 +75,83 @@ export const Dateline = styled.p`
     display: flex;
     justify-content: space-between;
     gap: ${theme.spacing.lg};
+    margin-top: ${theme.spacing.md};
     padding: ${theme.spacing.sm} 0;
+    border-top: 4px double ${theme.colors.ink};
     border-bottom: 1px solid ${theme.colors.ink};
     font-family: ${theme.typography.kicker.family};
     font-size: ${theme.typography.kicker.size};
     font-weight: ${theme.typography.kicker.weight};
     letter-spacing: ${theme.typography.kicker.letterSpacing};
     text-transform: uppercase;
-    color: ${theme.colors.ink};
-
-    span:nth-child(2) {
-      color: ${theme.colors.accent};
-    }
 
     @media (max-width: 760px) {
       flex-direction: column;
       gap: ${theme.spacing.xs};
-      span:nth-child(3) {
-        display: none;
-      }
     }
   `}
 `;
 
-export const Columns = styled.div`
+export const Front = styled.div`
   display: grid;
-  grid-template-columns: 1.05fr 1.5fr 1fr;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
 
   @media (max-width: 1023px) {
-    grid-template-columns: 1fr 1fr;
-  }
-  @media (max-width: 760px) {
     grid-template-columns: 1fr;
   }
 `;
 
-export const Column = styled.div`
+export const Lead = styled.article`
   ${({ theme }) => css`
-    padding: ${theme.spacing.lg} ${theme.spacing.xl};
+    padding: ${theme.spacing.xl} ${theme.spacing["2xl"]} 0 0;
     border-right: 1px solid ${theme.colors.hairlineStrong};
 
-    &:first-child {
-      padding-left: 0;
-    }
-    &:last-child {
+    @media (max-width: 1023px) {
       padding-right: 0;
       border-right: none;
     }
-
-    @media (max-width: 1023px) {
-      &:nth-child(2) {
-        border-right: none;
-        padding-right: 0;
-      }
-      &:last-child {
-        grid-column: 1 / -1;
-        padding-left: 0;
-        border-top: 1px solid ${theme.colors.ink};
-      }
-    }
-    @media (max-width: 760px) {
-      padding: ${theme.spacing.lg} 0;
-      border-right: none;
-      & + & {
-        border-top: 1px solid ${theme.colors.ink};
-      }
-    }
   `}
 `;
 
-export const Kicker = styled.p`
-  ${({ theme }) => css`
-    font-family: ${theme.typography.kicker.family};
-    font-size: ${theme.typography.kicker.size};
-    font-weight: ${theme.typography.kicker.weight};
-    letter-spacing: ${theme.typography.kicker.letterSpacing};
-    text-transform: uppercase;
-    color: ${theme.colors.accent};
-  `}
-`;
-
-export const Lead = styled.h2`
+export const Headline = styled.h1`
   ${({ theme }) => css`
     font-family: ${theme.typography.displayXl.family};
     font-weight: 700;
-    font-size: 34px;
-    line-height: 1.08;
+    font-size: clamp(42px, 5.6vw, 76px);
+    line-height: 1.02;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
     color: ${theme.colors.ink};
-    margin-top: ${theme.spacing.xs};
   `}
 `;
 
-export const Head = styled.h2`
+export const Standfirst = styled.p`
   ${({ theme }) => css`
-    font-family: ${theme.typography.displayLg.family};
-    font-weight: 700;
-    font-size: 24px;
-    line-height: 1.15;
-    color: ${theme.colors.ink};
-    margin: ${theme.spacing.xs} 0 ${theme.spacing.md};
-  `}
-`;
-
-export const Dek = styled.p`
-  ${({ theme }) => css`
-    font-family: ${theme.typography.displayLg.family};
-    font-style: italic;
-    font-weight: 600;
-    font-size: 19px;
-    line-height: 1.35;
+    font-size: 20px;
+    line-height: 1.45;
     color: ${theme.colors.body};
     margin-top: ${theme.spacing.md};
-  `}
-`;
-
-export const Body = styled.p`
-  font-size: 15.5px;
-  line-height: 1.6;
-  margin-top: ${({ theme }) => theme.spacing.md};
-`;
-
-export const Steps = styled.ol`
-  margin-top: ${({ theme }) => theme.spacing.sm};
-  padding-left: 22px;
-  font-size: 15.5px;
-  line-height: 1.8;
-`;
-
-export const Caption = styled.p`
-  ${({ theme }) => css`
-    font-family: ${theme.typography.displayLg.family};
-    font-style: italic;
-    font-size: 14px;
-    color: ${theme.colors.body};
-    margin-top: ${theme.spacing.sm};
-  `}
-`;
-
-export const Never = styled.ul`
-  list-style: none;
-  margin-top: ${({ theme }) => theme.spacing.xs};
-`;
-
-export const NeverItem = styled.li`
-  ${({ theme }) => css`
-    padding: ${theme.spacing.md} 0;
-    border-bottom: 1px solid ${theme.colors.hairlineStrong};
-    font-size: 15px;
-    line-height: 1.5;
-    color: ${theme.colors.body};
-
-    b {
-      display: block;
-      font-family: ${theme.typography.displayLg.family};
-      font-size: 17px;
-      color: ${theme.colors.ink};
-    }
-  `}
-`;
-
-export const TrustLink = styled(Link)`
-  color: ${({ theme }) => theme.colors.accent};
-  text-decoration: underline;
-  text-underline-offset: 2px;
-`;
-
-export const SignUpBox = styled.div`
-  ${({ theme }) => css`
-    margin-top: ${theme.spacing.xl};
-    padding: ${theme.spacing.lg};
-    border: 2px solid ${theme.colors.ink};
-    background: ${theme.colors.canvasSoft};
-  `}
-`;
-
-export const BoxTitle = styled.p`
-  ${({ theme }) => css`
-    font-family: ${theme.typography.displayLg.family};
-    font-weight: 700;
-    font-size: 22px;
-    line-height: 1.2;
+    max-width: 62ch;
   `}
 `;
 
 export const CtaRow = styled.div`
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: ${({ theme }) => theme.spacing.sm};
-  margin-top: ${({ theme }) => theme.spacing.md};
+  margin-top: ${({ theme }) => theme.spacing.xl};
 `;
 
 const linkButton = css`
   ${({ theme }) => css`
     display: inline-flex;
     align-items: center;
-    padding: ${theme.spacing.sm} ${theme.spacing.lg};
+    min-height: 44px;
+    padding: 0 ${theme.spacing.xl};
     border-radius: ${theme.rounded.sm};
     font-family: ${theme.typography.control.family};
-    font-size: 15px;
+    font-size: 16px;
     font-weight: ${theme.typography.control.weight};
     text-decoration: none;
   `}
@@ -235,10 +162,177 @@ export const PrimaryLink = styled(Link)`
   background: ${({ theme }) => theme.colors.primary};
   color: ${({ theme }) => theme.colors.onPrimary};
   border: 1px solid ${({ theme }) => theme.colors.primary};
+
+  &:hover {
+    opacity: 0.88;
+  }
 `;
 
 export const OutlineLink = styled(Link)`
   ${linkButton}
   color: ${({ theme }) => theme.colors.ink};
   border: 1px solid ${({ theme }) => theme.colors.ink};
+
+  &:hover {
+    background: ${({ theme }) => theme.colors.canvasSoft};
+  }
+`;
+
+export const Trust = styled.p`
+  ${({ theme }) => css`
+    font-size: 14.5px;
+    line-height: 1.5;
+    color: ${theme.colors.body};
+    margin-top: ${theme.spacing.md};
+    max-width: 62ch;
+  `}
+`;
+
+export const TrustLink = styled(Link)`
+  color: ${({ theme }) => theme.colors.accent};
+  text-decoration: underline;
+  text-underline-offset: 2px;
+`;
+
+export const Picture = styled.figure`
+  margin-top: ${({ theme }) => theme.spacing["2xl"]};
+`;
+
+export const Caption = styled.figcaption`
+  ${({ theme }) => css`
+    font-family: ${theme.typography.displayLg.family};
+    font-style: italic;
+    font-size: 14px;
+    line-height: 1.4;
+    color: ${theme.colors.body};
+    margin-top: ${theme.spacing.sm};
+  `}
+`;
+
+export const Rail = styled.aside`
+  ${({ theme }) => css`
+    padding: ${theme.spacing.xl} 0 0 ${theme.spacing["2xl"]};
+
+    @media (max-width: 1023px) {
+      padding-left: 0;
+      margin-top: ${theme.spacing["2xl"]};
+      border-top: 1px solid ${theme.colors.ink};
+    }
+  `}
+`;
+
+export const RailHead = styled.h2`
+  ${({ theme }) => css`
+    font-family: ${theme.typography.displayLg.family};
+    font-weight: 700;
+    font-size: 21px;
+    line-height: 1.2;
+    color: ${theme.colors.ink};
+  `}
+`;
+
+// The market-data box, as a paper prints the day's indices: a tinted panel
+// under an ink rule, one figure per line with its move beside it.
+export const Markets = styled.div`
+  ${({ theme }) => css`
+    margin-top: ${theme.spacing.sm};
+    border-top: 2px solid ${theme.colors.ink};
+    background: ${theme.colors.canvasSoft};
+    padding: ${theme.spacing.xs} ${theme.spacing.md} ${theme.spacing.md};
+  `}
+`;
+
+export const MarketsTable = styled.table`
+  ${({ theme }) => css`
+    width: 100%;
+    border-collapse: collapse;
+    font-variant-numeric: tabular-nums;
+
+    th,
+    td {
+      padding: ${theme.spacing.sm} 0;
+      border-bottom: 1px solid ${theme.colors.hairlineStrong};
+      text-align: left;
+      vertical-align: baseline;
+    }
+    th {
+      font-size: 14px;
+      font-weight: 600;
+      color: ${theme.colors.ink};
+    }
+    td {
+      text-align: right;
+    }
+  `}
+`;
+
+export const Figure = styled.span`
+  ${({ theme }) => css`
+    display: block;
+    font-family: ${theme.typography.displayLg.family};
+    font-weight: 700;
+    font-size: 19px;
+    color: ${theme.colors.ink};
+  `}
+`;
+
+export const Move = styled.span`
+  ${({ theme }) => css`
+    font-size: 13px;
+    font-weight: 600;
+    color: ${theme.colors.positive};
+  `}
+`;
+
+export const Note = styled.p`
+  ${({ theme }) => css`
+    font-size: 13px;
+    line-height: 1.45;
+    color: ${theme.colors.body};
+    margin-top: ${theme.spacing.sm};
+  `}
+`;
+
+export const Briefing = styled.section`
+  margin-top: ${({ theme }) => theme.spacing["2xl"]};
+  scroll-margin-top: ${({ theme }) => theme.spacing["3xl"]};
+`;
+
+export const Steps = styled.ol`
+  ${({ theme }) => css`
+    list-style: none;
+    margin-top: ${theme.spacing.sm};
+    border-top: 2px solid ${theme.colors.ink};
+    counter-reset: step;
+
+    li {
+      counter-increment: step;
+      display: grid;
+      grid-template-columns: 28px minmax(0, 1fr);
+      padding: ${theme.spacing.md} 0;
+      border-bottom: 1px solid ${theme.colors.hairlineStrong};
+      font-size: 14.5px;
+      line-height: 1.45;
+      color: ${theme.colors.body};
+    }
+    li::before {
+      content: counter(step);
+      font-family: ${theme.typography.displayLg.family};
+      font-weight: 700;
+      font-size: 19px;
+      line-height: 1.1;
+      color: ${theme.colors.accent};
+    }
+    strong {
+      display: block;
+      color: ${theme.colors.ink};
+    }
+  `}
+`;
+
+export const GuideLink = styled(Link)`
+  display: inline-block;
+  margin-top: ${({ theme }) => theme.spacing.md};
+  font-weight: 600;
+  color: ${({ theme }) => theme.colors.accent};
 `;

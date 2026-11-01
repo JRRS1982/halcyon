@@ -12,39 +12,30 @@ const renderit = () =>
     </ThemeProvider>,
   );
 
+// The landing page's small print. If it drifts, a careful visitor loses the
+// answers that decide whether they trust it with their numbers.
 describe("DetailGrid", () => {
-  test("has a #details anchor", () => {
+  test("has a #details anchor for the nav", () => {
     const { container } = renderit();
     expect(container.querySelector("#details")).toBeInTheDocument();
   });
 
-  test("keeps the original detail items", () => {
+  test("keeps the small print to six plain-English briefs", () => {
     renderit();
+    expect(screen.getAllByRole("heading", { level: 3 })).toHaveLength(6);
     for (const key of [
+      "It learns your merchants",
       "Transfers aren't spending",
-      "Live & in sync",
-      "Duplicate-safe imports",
-      "Reversible imports",
-      "Notes & original detail",
-      "Your data, yours",
+      "A range, not a single number",
     ]) {
       expect(screen.getByText(key)).toBeInTheDocument();
     }
   });
 
-  test("groups fifteen items under five headings", () => {
-    const { container } = renderit();
-    expect(container.querySelectorAll("h3")).toHaveLength(5);
-    // Each group is exactly one row of the three-up grid.
-    expect(screen.getAllByRole("heading", { level: 3 })).toHaveLength(5);
-  });
-
-  test("covers the features the app has grown since launch", () => {
+  test("points to the guide for everything else", () => {
     renderit();
-    expect(screen.getByText("It learns your merchants")).toBeInTheDocument();
-    expect(screen.getByText("Carried-over values say so")).toBeInTheDocument();
     expect(
-      screen.getByText("An email with no numbers in it"),
-    ).toBeInTheDocument();
+      screen.getByRole("link", { name: /every detail is in the guide/i }),
+    ).toHaveAttribute("href", "/guide");
   });
 });

@@ -1,71 +1,66 @@
+import Link from "next/link";
 import styled, { css } from "styled-components";
 
-export const Inner = styled.div`
-  max-width: 1240px;
-  margin: 0 auto;
-  padding: 0 ${({ theme }) => theme.spacing["2xl"]};
-
-  @media (max-width: 760px) {
-    padding: 0 ${({ theme }) => theme.spacing.lg};
-  }
-`;
-
+// The small print, in plain English: six short ruled briefs in three
+// columns, with the rest in the guide.
 export const Section = styled.section`
   ${({ theme }) => css`
-    padding: ${theme.spacing["3xl"]} 0 ${theme.spacing.section};
+    padding: ${theme.spacing["3xl"]} 0;
+    border-top: 3px solid ${theme.colors.ink};
+    scroll-margin-top: ${theme.spacing["3xl"]};
   `}
 `;
 
-// Fifteen cells in one uninterrupted grid is a wall to scan, so each group
-// gets its own labelled block of three — one row at desktop width.
-export const GroupTitle = styled.h3`
+export const SectionHead = styled.h2`
   ${({ theme }) => css`
-    font-family: ${theme.typography.kicker.family};
-    font-size: ${theme.typography.kicker.size};
-    font-weight: ${theme.typography.kicker.weight};
-    text-transform: uppercase;
-    letter-spacing: ${theme.typography.kicker.letterSpacing};
-    color: ${theme.colors.accent};
-    margin: ${theme.spacing["3xl"]} 0 0;
-    padding-top: ${theme.spacing.sm};
-    border-top: 1px solid ${theme.colors.ink};
+    font-family: ${theme.typography.displayXl.family};
+    font-weight: 700;
+    font-size: clamp(28px, 3.2vw, 40px);
+    line-height: 1.1;
+    color: ${theme.colors.ink};
   `}
 `;
 
 export const Grid = styled.div`
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   column-gap: ${({ theme }) => theme.spacing["2xl"]};
+  margin-top: ${({ theme }) => theme.spacing.lg};
 
-  @media (max-width: 760px) {
+  @media (max-width: 860px) {
     grid-template-columns: 1fr;
   }
 `;
 
-// A brief: a short ruled item in its column.
-export const Cell = styled.div`
-  padding: ${({ theme }) => `${theme.spacing.md} 0 ${theme.spacing.lg}`};
-  border-bottom: 1px solid ${({ theme }) => theme.colors.hairlineStrong};
+export const Brief = styled.div`
+  ${({ theme }) => css`
+    padding: ${theme.spacing.md} 0 ${theme.spacing.lg};
+    border-top: 1px solid ${theme.colors.ink};
+  `}
 `;
 
-export const Key = styled.p`
+export const Key = styled.h3`
   ${({ theme }) => css`
-    font-family: ${theme.typography.kicker.family};
-    font-size: ${theme.typography.kicker.size};
-    font-weight: ${theme.typography.kicker.weight};
-    text-transform: uppercase;
-    letter-spacing: ${theme.typography.kicker.letterSpacing};
+    font-family: ${theme.typography.displayLg.family};
+    font-weight: 700;
+    font-size: 18px;
+    line-height: 1.25;
     color: ${theme.colors.ink};
-    margin: 0;
   `}
 `;
 
 export const Text = styled.p`
   ${({ theme }) => css`
-    font-family: ${theme.typography.bodyMd.family};
-    font-size: ${theme.typography.bodyMd.size};
-    line-height: ${theme.typography.bodyMd.lineHeight};
+    font-size: 15px;
+    line-height: 1.55;
     color: ${theme.colors.body};
-    margin: ${theme.spacing.sm} 0 0;
+    margin-top: ${theme.spacing.xs};
   `}
+`;
+
+export const More = styled(Link)`
+  display: inline-block;
+  margin-top: ${({ theme }) => theme.spacing.md};
+  font-weight: 600;
+  color: ${({ theme }) => theme.colors.accent};
 `;

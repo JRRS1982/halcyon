@@ -18,6 +18,14 @@ type MarketingShotProps = {
    * marking everything priority preloads everything and helps nothing.
    */
   priority?: boolean;
+  /** The frame's shape, as a CSS aspect-ratio. A crop of the page, not a squash. */
+  aspect?: string;
+  /** Which part of the screenshot the crop keeps; the top by default. */
+  position?: string;
+  /** The rendered width, for next/image's source selection. */
+  sizes?: string;
+  /** Magnifies the crop around `position`, for a thumbnail of one detail. */
+  zoom?: number;
 };
 
 export function MarketingShot({
@@ -26,17 +34,26 @@ export function MarketingShot({
   label,
   caption,
   priority = false,
+  aspect = "16 / 9",
+  position = "top",
+  sizes = "(max-width: 760px) 100vw, 50vw",
+  zoom = 1,
 }: MarketingShotProps) {
   return (
-    <Frame>
+    <Frame style={{ aspectRatio: aspect }}>
       {src ? (
         <Image
           src={src}
           alt={alt}
           fill
           priority={priority}
-          sizes="(max-width: 760px) 100vw, 50vw"
-          style={{ objectFit: "cover" }}
+          sizes={sizes}
+          style={{
+            objectFit: "cover",
+            objectPosition: position,
+            transform: zoom === 1 ? undefined : `scale(${zoom})`,
+            transformOrigin: position,
+          }}
         />
       ) : (
         <Placeholder>

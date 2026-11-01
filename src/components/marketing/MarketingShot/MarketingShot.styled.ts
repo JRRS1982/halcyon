@@ -3,11 +3,9 @@ import styled, { css } from "styled-components";
 export const Frame = styled.div`
   ${({ theme }) => css`
     position: relative;
-    aspect-ratio: 16 / 9;
     width: 100%;
     background: ${theme.colors.canvasSoft};
-    border: 1px solid ${theme.colors.hairline};
-    border-radius: ${theme.rounded.sm};
+    border: 1px solid ${theme.colors.hairlineStrong};
     overflow: hidden;
   `}
 `;
