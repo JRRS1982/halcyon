@@ -80,7 +80,7 @@ export const FEATURES: Article[] = [
     name: "Transactions",
     headline: "A bank statement in, a sorted month out",
     standfirst:
-      "Bring in the month in a few minutes: import a statement or write a line, then approve what Balanced has filed for you.",
+      "Import a statement or write a line, then approve what Balanced Money has filed for you. A month takes a few minutes.",
     teaser:
       "Drop in a statement and each merchant is filed the way you filed it before, in pencil until you approve it. Paid cash? Write the line as you would jot it.",
     picture: plates.transactions,
@@ -88,15 +88,15 @@ export const FEATURES: Article[] = [
       {
         heading: "Import a statement",
         paragraphs: [
-          "Download a CSV from your bank and drop it in. Balanced works out which column holds the date, the description and the amount, and shows you what it guessed before anything is saved.",
-          "Rows you already have are recognised and skipped, so an export that overlaps last month's is safe.",
+          "Download a CSV from your bank and import it. Balanced Money works out which columns hold the date, the description and the amount, and shows you its guess before anything is saved.",
+          "Rows you already have are recognised and skipped, so it is safe to import an export that overlaps last month's.",
         ],
       },
       {
         heading: "Approve what was filed",
         paragraphs: [
-          "A merchant you have filed before is filed the same way again, and shown in pencil until you approve it. Approve rows one at a time or all at once, or pick another category where the guess is wrong.",
-          "A transaction with no category is left out of your budget, so the page leads with how many are still to approve.",
+          "A merchant you have filed before is filed the same way again and shown in pencil until you approve it. Approve rows one at a time or all at once, or pick another category if the guess is wrong.",
+          "A transaction with no category is left out of your budget, so the page opens by telling you how many are still to approve.",
         ],
         picture: { ...plates.transactions, caption: SAMPLE },
       },
@@ -109,7 +109,7 @@ export const FEATURES: Article[] = [
       {
         heading: "Transfers between your accounts",
         paragraphs: [
-          "Mark money moved between your own accounts as a transfer and it stays out of your spending, so you never look poorer or richer than you are.",
+          "Mark money moved between your own accounts as a transfer and it stays out of your income and spending, so you never look richer or poorer than you are.",
         ],
       },
     ],
@@ -124,7 +124,7 @@ export const FEATURES: Article[] = [
       },
       {
         key: "Whose date order? Yours",
-        text: "03/04 is the 3rd of April to one bank and the 4th of March to another, so Balanced asks which order your statement uses rather than guessing.",
+        text: "03/04 is the 3rd of April to one bank and the 4th of March to another. Balanced Money reads the order from your statement's own dates and shows it for you to check, and assumes day first only when every date could be read either way.",
       },
     ],
   },
@@ -142,15 +142,15 @@ export const FEATURES: Article[] = [
       {
         heading: "A headline for every month",
         paragraphs: [
-          "The budget opens with the month's story in a sentence, such as “Spending came in £570 under plan, led by Holidays”, and what that leaves over against what you planned.",
-          "Beneath it, short notes say where spending ran over, set against that category's own history, where you saved, and what landed exactly on budget.",
+          "The budget opens with the month's story in one sentence, such as “Spending came in £570 under plan, led by Holidays”, and how much that leaves over compared with your plan.",
+          "Beneath it, short notes say where spending ran over (and how that compares with the category's own history), where you saved, and what came in exactly on budget.",
         ],
         picture: { ...plates.budgetLead, caption: SAMPLE },
       },
       {
         heading: "Every row against its plan",
         paragraphs: [
-          "Each row says how far it landed from its budget in plain words, over or under, coloured by whether it helped. A share-of-spend bar shows how much of the month each category took, in its section's colour: Fixed, Variable or Discretionary.",
+          "Each row says in plain words how far it landed from its budget, such as “£88 under” or “£180 over”, in green when it helped and red when it didn't. A bar shows each category's share of the month's spending, in the colour of its section: Fixed, Variable or Discretionary.",
         ],
         picture: { ...plates.budgetShare, caption: SAMPLE },
       },
@@ -172,7 +172,7 @@ export const FEATURES: Article[] = [
       },
       {
         key: "It won't invent a comparison",
-        text: "Every sentence on the page is worked out from your own figures. With nothing to compare against, it compares nothing.",
+        text: "Every sentence on the page is worked out from your own figures. When there is nothing to compare against, it says nothing rather than make something up.",
       },
     ],
   },
@@ -183,20 +183,20 @@ export const FEATURES: Article[] = [
     standfirst:
       "Record what you own and owe once a month, and watch your net worth move, account by account.",
     teaser:
-      "Your bank balance can mislead. The balance sheet tracks what you own and owe, and shows how each account moved since last month.",
+      "Your bank balance can mislead. The balance sheet tracks what you own and owe, and shows how each account has moved since last month.",
     picture: plates.balance,
     sections: [
       {
         heading: "Net worth, explained",
         paragraphs: [
-          "The balance sheet opens with how your net worth moved since the last month you recorded, then names the biggest gain, the biggest drop, and any debt you paid down.",
+          "The balance sheet opens with how your net worth has moved since the last month you recorded, then names the biggest gain, the biggest drop and any debt you paid down.",
         ],
         picture: { ...plates.balance, caption: SAMPLE },
       },
       {
         heading: "Every account, month on month",
         paragraphs: [
-          "Each account shows how far it moved since last month. A falling debt shows in green, because paying it down is progress.",
+          "Each account shows how far it has moved since last month. A falling debt shows in green, because paying it down is progress.",
           "Accounts are grouped by how soon you could reach the money: current, medium-term, long-term and property.",
         ],
       },
@@ -210,7 +210,7 @@ export const FEATURES: Article[] = [
     smallPrint: [
       {
         key: "Still to record, not zero",
-        text: "An account you haven't filled in yet is listed as still to record. It never counts as a fall to nothing.",
+        text: "An account you haven't filled in yet is listed as still to record. It is never counted as a drop to zero.",
       },
       {
         key: "Up isn't always good",
@@ -225,13 +225,13 @@ export const FEATURES: Article[] = [
     standfirst:
       "The overall picture: how your net worth has moved, how much of your income you kept, and which spending is growing.",
     teaser:
-      "The dashboard draws every month you have kept: what came in, what went out, and the share of income you kept. A bad month shows as a bad month, and the year shows whether it was a blip.",
+      "The dashboard charts every month you have recorded: what came in, what went out and the share of income you kept. A bad month shows as a bad month, and the year around it shows whether it was a blip.",
     picture: plates.cashflow,
     sections: [
       {
         heading: "The year in one chart",
         paragraphs: [
-          "Income and spending for each month side by side, the gap between them, and the share of your income you kept.",
+          "Each month's income and spending side by side, the gap between them, and the share of your income you kept.",
         ],
         picture: {
           ...plates.cashflow,
@@ -263,15 +263,15 @@ export const FEATURES: Article[] = [
     name: "Plan",
     headline: "Will the money last?",
     standfirst:
-      "Turn the accounts and budget you already keep into a forecast to age 95, with real UK tax bands.",
+      "Turn the accounts and budget you already keep into a lifetime forecast, with real UK tax bands.",
     teaser:
-      "Give Balanced your date of birth and your accounts and budget become a forecast. Retire a year later or expect less growth, and it tells you plainly whether it still works.",
+      "Add your date of birth and your accounts and budget become a forecast. Retire a year later or expect less growth, and it tells you plainly whether the money still lasts.",
     picture: plates.plan,
     sections: [
       {
         heading: "A verdict, as a range",
         paragraphs: [
-          "The plan answers the question you came with: does the money last? It projects three ways, with returns better, worse and as expected, so the answer is a range rather than a single guess.",
+          "The plan answers the question you came with: will the money last? It projects three ways, with returns better than, worse than and as expected, so the answer is a range rather than a single guess.",
         ],
         picture: {
           ...plates.plan,
@@ -287,18 +287,18 @@ export const FEATURES: Article[] = [
       {
         heading: "Kept in step with your figures",
         paragraphs: [
-          "Sync pulls in your latest balances, the budget's flows into each account, and each account's terms, while keeping the assumptions you have set yourself.",
+          "Press Sync to bring in your latest balances, what your budget pays into each account, and each account's terms, such as its growth rate or interest. The assumptions you have set yourself are kept.",
         ],
       },
     ],
     smallPrint: [
       {
         key: "A range, not a single number",
-        text: "The verdict reads “runs short at 82, between 78 and 91” rather than pretending anyone knows the year.",
+        text: "The verdict reads “Your money runs short at age 82 (between 78 and 91 depending on returns)” rather than pretending anyone knows the year.",
       },
       {
         key: "Real UK tax bands",
-        text: "Income tax is worked out with the real bands for the rest of the UK or Scotland, not a single blended rate.",
+        text: "Income tax is worked out with the real bands for England, Wales and Northern Ireland, or for Scotland, not a single blended rate.",
       },
     ],
   },
@@ -315,7 +315,7 @@ export const FEATURES: Article[] = [
       {
         heading: "Your format, your colours",
         paragraphs: [
-          "Pick your currency and how numbers are written, with or without pennies. Choose light or dark, or let it follow your device.",
+          "Pick your currency and how numbers are written, with or without pence. Choose light or dark, or let it follow your device.",
         ],
         picture: {
           ...plates.settings,
@@ -325,14 +325,14 @@ export const FEATURES: Article[] = [
       {
         heading: "As much detail as you want",
         paragraphs: [
-          "Tracking every transaction gives the fullest picture, but it is your choice. Switch transactions off and type each budget actual yourself instead; switch transfers on to mark money moved between your own accounts.",
+          "Tracking every transaction gives the fullest picture, but it is your choice. Switch transactions off and type each budget actual yourself instead, or switch transfers on to mark money moved between your own accounts.",
           "Categories and accounts are yours to add, rename and retire, and the dashboard's charts can be shown or hidden.",
         ],
       },
       {
         heading: "A nudge, if you want one",
         paragraphs: [
-          "An optional monthly email says your month is ready and nothing more: no balances, no totals, no categories.",
+          "An optional monthly email reminds you that your statement should be ready, and nothing more: no balances, no totals, no categories.",
         ],
       },
       {
@@ -349,7 +349,7 @@ export const FEATURES: Article[] = [
       },
       {
         key: "Deleting means deleting",
-        text: "Deleting your account removes your data, not just hides it.",
+        text: "Deleting your account removes your data rather than just hiding it.",
       },
     ],
   },

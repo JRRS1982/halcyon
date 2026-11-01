@@ -38,7 +38,7 @@ export function Hero() {
             src="/marketing/plates/budget-lead.png"
             priority
             label="Budget"
-            alt="The Balanced budget page for a sample October: the headline 'Spending came in £570 under plan, led by Holidays', the left-over figure, and notes on what ran over and what held"
+            alt="The Balanced Money budget page for a sample October: the headline 'Spending came in £570 under plan, led by Holidays', the left-over figure, and notes on what ran over and what held"
             aspect="2464 / 1736"
             sizes="(max-width: 1023px) 100vw, 680px"
           />
@@ -53,8 +53,8 @@ export function Hero() {
           />
         </Narrow>
         <Caption>
-          A sample month. Balanced writes the headline and notes from your own
-          figures.
+          A sample month. Balanced Money writes the headline and notes from your
+          own figures.
         </Caption>
       </Figure>
     </Section>

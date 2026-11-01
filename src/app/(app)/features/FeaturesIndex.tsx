@@ -13,8 +13,9 @@ export function FeaturesIndex() {
     <Page>
       <Headline>Features</Headline>
       <Standfirst>
-        Five parts, one monthly habit: bring in the month, read the budget,
-        record your balances, and see the year and the years ahead.
+        One monthly habit: bring in the month, read the budget, record your
+        balances, then see the year behind you and the years ahead. Each part
+        has its own page below.
       </Standfirst>
       <ArticleList
         articles={FEATURES}
