@@ -493,7 +493,7 @@ export async function createPlanWithDob(
 
 export async function ensureTransactionsEnabled(page: Page): Promise<void> {
   await page.goto("/settings");
-  const toggle = page.getByRole("checkbox", { name: "Transactions" });
+  const toggle = page.getByRole("checkbox", { name: "Track transactions" });
 
   if (!(await toggle.isChecked())) {
     await toggle.check({ force: true });

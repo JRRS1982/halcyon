@@ -174,7 +174,7 @@ const OutlineLink = styled(PillLink)`
 const SECTIONS: { title: string; body: string }[] = [
   {
     title: "Transactions",
-    body: "Where your real spending arrives. Export a CSV from your bank, drop it in, and tag each row with a category. Imports come in batches you can undo, and duplicate rows are spotted for you.",
+    body: "Where your real spending arrives. Import a CSV from your bank or write a line for cash. Rows you have filed before are filed again for you to approve. Imports come in batches you can undo, and duplicate rows are spotted for you.",
   },
   {
     title: "Budget",
@@ -190,7 +190,7 @@ const SECTIONS: { title: string; body: string }[] = [
   },
   {
     title: "Plan",
-    body: "The long view. Project income, spending, property and pensions decades ahead to see whether the money lasts. Independent of your month-to-month figures.",
+    body: "The long view. Project income, spending, property and pensions decades ahead to see whether the money lasts. It starts from your accounts and budget, and only changes when you press Sync.",
   },
   {
     title: "Settings",
@@ -238,19 +238,21 @@ export function Guide() {
           <Step>
             <StepTitle>Import last month's statement</StepTitle>
             <StepBody>
-              Download a CSV from your bank and drop it into{" "}
-              <InlineLink href="/transactions">Transactions</InlineLink>. Rows
-              you've already imported are detected and skipped, so overlapping
-              exports are safe. If it goes wrong, the whole batch can be undone
-              in one click.
+              Download a CSV from your bank and import it into{" "}
+              <InlineLink href="/transactions">Transactions</InlineLink>, or
+              write a line for anything paid in cash. Rows you've already
+              imported are detected and skipped, so overlapping exports are
+              safe. If it goes wrong, the whole batch can be undone in one
+              click.
             </StepBody>
           </Step>
           <Step>
-            <StepTitle>Categorise what came in</StepTitle>
+            <StepTitle>Approve what was categorised</StepTitle>
             <StepBody>
-              Give each row a category. Filter to "uncategorised only" and work
-              down the list; select several rows and set them together when
-              they're all the same. This is the step everything else depends on
+              Anything you've filed before arrives already filed, shown in
+              italics until you approve it. Approve them one by one or all at
+              once, and give the rest a category; Filters narrows the list to
+              what still needs you. This is the step everything else depends on
               — an uncategorised transaction is invisible to your budget and
               your charts.
             </StepBody>
@@ -314,9 +316,9 @@ export function Guide() {
           has told them what they are.
         </Body>
         <Body>
-          Balance is the exception: it stands alone. Nothing populates it
-          automatically, and nothing else depends on it except the net-worth
-          charts.
+          Balance is the exception: nothing fills it automatically. The
+          net-worth charts read from it, and so does the plan, together with
+          your budget, each time you press Sync.
         </Body>
       </Section>
 

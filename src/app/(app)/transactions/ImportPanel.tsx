@@ -402,7 +402,7 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
     }
     setFileName(file.name);
     setRows(parsed);
-    setMapping(guessMapping(headerRow));
+    setMapping(guessMapping(headerRow, parsed.slice(1)));
     setOpen(true);
   };
 

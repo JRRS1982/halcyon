@@ -27,7 +27,7 @@ test.describe("transactions journey", () => {
     await signIn(page);
     await page.goto("/settings");
 
-    const toggle = page.getByRole("checkbox", { name: "Transactions" });
+    const toggle = page.getByRole("checkbox", { name: "Track transactions" });
     // New accounts start with it on.
     await expect(toggle).toBeChecked();
 

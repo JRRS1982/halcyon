@@ -5,7 +5,7 @@
 // write. A row is importable when its `errors` array is empty.
 
 import { parseAmount } from "./amount";
-import { type DateFormat, parseDate } from "./date";
+import { type DateFormat, guessDateFormat, parseDate } from "./date";
 
 export type ColumnMapping = {
   dateColumn: number;
@@ -59,8 +59,12 @@ function findColumn(
 // the header row, so the import UI can pre-fill the mapping. Falls back to the
 // first three columns. Every unmapped column starts ticked under "Also keep" —
 // discarding data is the choice that should take a deliberate untick. The user
-// always confirms/overrides before importing.
-export function guessMapping(headers: string[]): ColumnMapping {
+// always confirms/overrides before importing. The date format is read off the
+// data rows' date cells, when given.
+export function guessMapping(
+  headers: string[],
+  dataRows: readonly string[][] = [],
+): ColumnMapping {
   const dateColumn = findColumn(headers, DATE_HINTS, 0);
   const descriptionColumn = findColumn(headers, DESCRIPTION_HINTS, 1);
   const amountColumn = findColumn(headers, AMOUNT_HINTS, 2);
@@ -70,7 +74,7 @@ export function guessMapping(headers: string[]): ColumnMapping {
     dateColumn,
     descriptionColumn,
     amountColumn,
-    dateFormat: "DMY",
+    dateFormat: guessDateFormat(dataRows.map((row) => row[dateColumn] ?? "")),
     hasHeader: true,
     extraColumns: headers
       .map((_, i) => i)

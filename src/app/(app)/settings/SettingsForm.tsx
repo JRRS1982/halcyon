@@ -427,20 +427,16 @@ export function SettingsForm({
         <SectionHeading>Transactions</SectionHeading>
         <ToggleField>
           <ToggleText>
+            <FieldLabel>Track transactions</FieldLabel>
             <FieldHint>
-              Tracking every transaction gives you the deepest understanding of
-              where your money actually goes — but it takes time and effort, and
-              it’s entirely your choice whether that’s worth it. Turn this on to
-              add the Transactions page and import bank statements; each budget
-              category’s actual is then summed from its categorised transactions
-              rather than typed by hand. Leave it off to keep entering actuals
-              yourself.
+              Import statements and file each line, and your budget’s actuals
+              add themselves up. Leave it off to type actuals by hand.
             </FieldHint>
           </ToggleText>
           <SwitchControl>
             <SwitchInput
               type="checkbox"
-              aria-label="Transactions"
+              aria-label="Track transactions"
               checked={enabled}
               disabled={togglePending}
               onChange={(event) => onToggle(event.target.checked)}
@@ -453,10 +449,9 @@ export function SettingsForm({
           <ToggleText>
             <FieldLabel>Transfers and saving</FieldLabel>
             <FieldHint>
-              Lets you mark a transaction as money moved between your own
-              accounts (e.g. Current → ISA), so it stays out of income and
-              expenses. Mark it from the Transactions page. Needs Transactions
-              switched on.
+              Mark money moved between your own accounts, such as Current to
+              ISA, so it stays out of income and spending. Needs transactions
+              on.
             </FieldHint>
           </ToggleText>
           <SwitchControl>
@@ -478,10 +473,8 @@ export function SettingsForm({
           <ToggleText>
             <FieldLabel>Monthly reminder email</FieldLabel>
             <FieldHint>
-              One email a month saying your statement should be ready — nothing
-              more. It carries no figures, no balances and no category names;
-              your numbers stay behind your login. Off unless you turn it on,
-              and every email has a one-click way out.
+              One email a month to say your statement is ready. It carries no
+              figures, and every email has a one-click way out.
             </FieldHint>
           </ToggleText>
           <SwitchControl>
