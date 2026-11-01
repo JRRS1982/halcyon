@@ -37,32 +37,32 @@ export type Article = {
 const plates = {
   transactions: {
     src: "/marketing/plates/transactions.png",
-    aspect: "2424 / 1398",
+    aspect: "2464 / 1834",
     alt: "The transactions page: '8 transactions to approve', the write-a-line box, and ledger rows whose suggested categories sit in pencil beside an Approve button",
   },
   budgetLead: {
     src: "/marketing/plates/budget-lead.png",
-    aspect: "2424 / 1154",
+    aspect: "2464 / 1736",
     alt: "The budget page for a sample October: the headline 'Spending came in £570 under plan, led by Holidays', the left-over figure and notes on what ran over and what held",
   },
   budgetShare: {
     src: "/marketing/plates/budget-share.png",
-    aspect: "2464 / 1050",
-    alt: "The budget's expenses: Fixed and Variable rows with how far each landed from budget and its share of the month's spending as a bar",
+    aspect: "2464 / 1376",
+    alt: "The budget's expenses: Fixed, Variable and Discretionary rows with how far each landed from budget and its share of the month's spending as a bar",
   },
   balance: {
     src: "/marketing/plates/balance.png",
-    aspect: "2424 / 1320",
-    alt: "The balance sheet: 'Net worth rose £4,551 to £348,326', the biggest gain and drop, and each account's move since September",
+    aspect: "2464 / 1798",
+    alt: "The balance sheet: 'Net worth rose £4,551 to £348,326', the biggest gain and drop, and every asset with its move since September",
   },
   plan: {
     src: "/marketing/plates/plan.png",
-    aspect: "2424 / 522",
-    alt: "The plan's verdict: 'Your money runs short at age 90 (between 80 and 90 depending on returns)', with the figures at retirement and at 90",
+    aspect: "2464 / 1190",
+    alt: "The plan's net-worth forecast from age 44 to 95: assets stacked by kind, net worth rising to about £1m at retirement then holding, a widening band for how returns might vary, and the age the pots run out marked",
   },
   settings: {
     src: "/marketing/plates/settings.png",
-    aspect: "1424 / 1490",
+    aspect: "1424 / 1612",
     alt: "Settings: currency and number format, the colour scheme, and the switches for transactions and transfers",
   },
   cashflow: {
