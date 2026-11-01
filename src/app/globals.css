@@ -80,3 +80,15 @@ body {
   background-color: var(--c-canvas);
   color: var(--c-ink);
 }
+
+/* Keyboard focus, drawn from the palette rather than left to the browser:
+   offset so it shows clear of a filled button's own colour. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--c-focus);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--c-accent);
+  color: var(--c-canvas);
+}

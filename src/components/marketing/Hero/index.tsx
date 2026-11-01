@@ -12,6 +12,8 @@ import {
   Markets,
   MarketsTable,
   Move,
+  Nameplate,
+  Narrow,
   Note,
   OutlineLink,
   Picture,
@@ -26,6 +28,7 @@ import {
   TeaserText,
   Trust,
   TrustLink,
+  Wide,
 } from "./Hero.styled";
 
 // The questions a visitor arrives with, each pointing at the article below
@@ -33,37 +36,38 @@ import {
 const TEASERS = [
   {
     href: "#budget",
-    src: "/marketing/budget.png",
-    // The month's headline and its left-over figure.
-    position: "12% 20%",
     title: "Where did the money go?",
     text: "Every month read back to you, category by category.",
   },
   {
     href: "#balance",
-    src: "/marketing/balance.png",
-    // "Net worth rose …" and the brief beneath it.
-    position: "12% 20%",
     title: "Am I actually getting richer?",
     text: "Net worth, account by account, month on month.",
   },
   {
     href: "#plan",
-    src: "/marketing/plan.png",
-    // The verdict and its figures.
-    position: "15% 22%",
     title: "Will it last?",
     text: "Your figures projected to age 95, as a range.",
   },
 ];
 
-// A sample month's figures, the same ones the lead picture shows. Labelled as
-// a sample wherever they appear: they illustrate the product, not a user.
+// The sample month the lead picture shows, in figures. Labelled as a sample
+// wherever it appears: it illustrates the product, not a user. `good` says
+// whether the move helped, which sets its colour.
 const SAMPLE_MONTH = [
-  { label: "Left over", figure: "£1,455", move: "▲ £405 on plan" },
-  { label: "Spending", figure: "£2,545", move: "▼ £505 under plan" },
-  { label: "Net worth", figure: "£348,326", move: "▲ £4,551 on Sep" },
-  { label: "Savings rate", figure: "36%", move: "▲ 1 pt on Sep" },
+  { label: "Left over", figure: "£1,520", move: "▲ £470 on plan", good: true },
+  {
+    label: "Spending",
+    figure: "£2,480",
+    move: "▼ £570 under plan",
+    good: true,
+  },
+  {
+    label: "Net worth",
+    figure: "£348,326",
+    move: "▲ £4,551 on September",
+    good: true,
+  },
 ];
 
 export function Hero() {
@@ -72,15 +76,6 @@ export function Hero() {
       <Skybox aria-label="In this edition">
         {TEASERS.map((teaser) => (
           <Teaser key={teaser.href} href={teaser.href}>
-            <MarketingShot
-              src={teaser.src}
-              alt=""
-              label={teaser.title}
-              aspect="16 / 10"
-              position={teaser.position}
-              zoom={3}
-              sizes="360px"
-            />
             <TeaserText>
               <strong>{teaser.title}</strong>
               {teaser.text}
@@ -89,8 +84,9 @@ export function Hero() {
         ))}
       </Skybox>
 
+      <Nameplate>Balanced Money</Nameplate>
       <Dateline>
-        <span>Personal finance, read like the money pages</span>
+        <span>The monthly edition · Personal finance</span>
         <span>No bank login · No ads · No AI</span>
       </Dateline>
 
@@ -112,16 +108,25 @@ export function Hero() {
             <TrustLink href="/guide">export or delete</TrustLink> at any time.
           </Trust>
           <Picture>
-            <MarketingShot
-              src="/marketing/budget.png"
-              priority
-              label="Budget"
-              alt="The Balanced budget page: a headline saying spending came in £505 under plan, notes on what ran over and what held, and the budget table"
-              aspect="16 / 8.5"
-              // Below the app's own masthead: the month's headline leads.
-              position="50% 70%"
-              sizes="(max-width: 1023px) 100vw, 800px"
-            />
+            <Wide>
+              <MarketingShot
+                src="/marketing/plates/budget-lead.png"
+                priority
+                label="Budget"
+                alt="The Balanced budget page for a sample October: the headline 'Spending came in £570 under plan, led by Holidays', the left-over figure, notes on what ran over and what held, and the first rows of the budget"
+                aspect="2424 / 1154"
+                sizes="(max-width: 1023px) 100vw, 800px"
+              />
+            </Wide>
+            <Narrow>
+              <MarketingShot
+                src="/marketing/plates/budget-lead-phone.png"
+                label="Budget"
+                alt="The same budget page on a phone: the month's headline, the left-over figure and the notes"
+                aspect="1170 / 1536"
+                sizes="420px"
+              />
+            </Narrow>
             <Caption>
               A sample month. Balanced writes the headline and the notes from
               your own figures, never by hand and never invented.
@@ -139,15 +144,15 @@ export function Hero() {
                     <th scope="row">{row.label}</th>
                     <td>
                       <Figure>{row.figure}</Figure>
-                      <Move>{row.move}</Move>
+                      <Move $good={row.good}>{row.move}</Move>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </MarketsTable>
             <Note>
-              Sample figures. Yours come from your own statements and balances,
-              and say which way is good.
+              A sample month, the one pictured. Yours come from your own
+              statements and balances, coloured by whether the move helped.
             </Note>
           </Markets>
 

@@ -25,11 +25,8 @@ export const Skybox = styled.nav`
 
 export const Teaser = styled.a`
   ${({ theme }) => css`
-    display: grid;
-    grid-template-columns: 120px minmax(0, 1fr);
-    gap: ${theme.spacing.md};
-    align-items: center;
-    padding: ${theme.spacing.sm} ${theme.spacing.lg};
+    display: block;
+    padding: ${theme.spacing.xs} ${theme.spacing.lg};
     border-left: 1px solid ${theme.colors.hairlineStrong};
     color: ${theme.colors.ink};
     text-decoration: none;
@@ -63,9 +60,29 @@ export const TeaserText = styled.span`
     strong {
       display: block;
       font-family: ${theme.typography.displayLg.family};
-      font-size: 17px;
+      font-size: 20px;
       line-height: 1.2;
       color: ${theme.colors.ink};
+    }
+  `}
+`;
+
+// The paper's nameplate. Not a heading: the h1 is the lead story's.
+export const Nameplate = styled.p`
+  ${({ theme }) => css`
+    margin-top: ${theme.spacing.lg};
+    padding-top: ${theme.spacing.sm};
+    border-top: 1px solid ${theme.colors.ink};
+    font-family: ${theme.typography.displayXl.family};
+    font-weight: 900;
+    font-size: clamp(36px, 4.2vw, 60px);
+    line-height: 1.05;
+    letter-spacing: -0.015em;
+    text-align: center;
+    color: ${theme.colors.ink};
+
+    @media (max-width: 760px) {
+      display: none;
     }
   `}
 `;
@@ -75,7 +92,7 @@ export const Dateline = styled.p`
     display: flex;
     justify-content: space-between;
     gap: ${theme.spacing.lg};
-    margin-top: ${theme.spacing.md};
+    margin-top: ${theme.spacing.sm};
     padding: ${theme.spacing.sm} 0;
     border-top: 4px double ${theme.colors.ink};
     border-bottom: 1px solid ${theme.colors.ink};
@@ -85,9 +102,9 @@ export const Dateline = styled.p`
     letter-spacing: ${theme.typography.kicker.letterSpacing};
     text-transform: uppercase;
 
+    /* On a phone nothing in capitals sits over the headline. */
     @media (max-width: 760px) {
-      flex-direction: column;
-      gap: ${theme.spacing.xs};
+      display: none;
     }
   `}
 `;
@@ -117,7 +134,7 @@ export const Headline = styled.h1`
   ${({ theme }) => css`
     font-family: ${theme.typography.displayXl.family};
     font-weight: 700;
-    font-size: clamp(42px, 5.6vw, 76px);
+    font-size: clamp(40px, 4.8vw, 66px);
     line-height: 1.02;
     letter-spacing: -0.015em;
     text-wrap: balance;
@@ -132,6 +149,10 @@ export const Standfirst = styled.p`
     color: ${theme.colors.body};
     margin-top: ${theme.spacing.md};
     max-width: 62ch;
+
+    @media (max-width: 760px) {
+      font-size: 18px;
+    }
   `}
 `;
 
@@ -164,7 +185,7 @@ export const PrimaryLink = styled(Link)`
   border: 1px solid ${({ theme }) => theme.colors.primary};
 
   &:hover {
-    opacity: 0.88;
+    filter: brightness(0.88);
   }
 `;
 
@@ -180,7 +201,7 @@ export const OutlineLink = styled(Link)`
 
 export const Trust = styled.p`
   ${({ theme }) => css`
-    font-size: 14.5px;
+    font-size: 14px;
     line-height: 1.5;
     color: ${theme.colors.body};
     margin-top: ${theme.spacing.md};
@@ -196,6 +217,23 @@ export const TrustLink = styled(Link)`
 
 export const Picture = styled.figure`
   margin-top: ${({ theme }) => theme.spacing["2xl"]};
+`;
+
+// The lead picture is two plates: the page as a desktop shows it, and as a
+// phone does, each legible at the size it is shown.
+export const Wide = styled.div`
+  @media (max-width: 760px) {
+    display: none;
+  }
+`;
+
+export const Narrow = styled.div`
+  display: none;
+  max-width: 420px;
+
+  @media (max-width: 760px) {
+    display: block;
+  }
 `;
 
 export const Caption = styled.figcaption`
@@ -225,7 +263,7 @@ export const RailHead = styled.h2`
   ${({ theme }) => css`
     font-family: ${theme.typography.displayLg.family};
     font-weight: 700;
-    font-size: 21px;
+    font-size: 20px;
     line-height: 1.2;
     color: ${theme.colors.ink};
   `}
@@ -259,6 +297,7 @@ export const MarketsTable = styled.table`
       font-size: 14px;
       font-weight: 600;
       color: ${theme.colors.ink};
+      vertical-align: middle;
     }
     td {
       text-align: right;
@@ -271,16 +310,17 @@ export const Figure = styled.span`
     display: block;
     font-family: ${theme.typography.displayLg.family};
     font-weight: 700;
-    font-size: 19px;
+    font-size: 28px;
+    line-height: 1.1;
     color: ${theme.colors.ink};
   `}
 `;
 
-export const Move = styled.span`
-  ${({ theme }) => css`
+export const Move = styled.span<{ $good: boolean }>`
+  ${({ theme, $good }) => css`
     font-size: 13px;
     font-weight: 600;
-    color: ${theme.colors.positive};
+    color: ${$good ? theme.colors.positive : theme.colors.negative};
   `}
 `;
 
@@ -311,7 +351,7 @@ export const Steps = styled.ol`
       grid-template-columns: 28px minmax(0, 1fr);
       padding: ${theme.spacing.md} 0;
       border-bottom: 1px solid ${theme.colors.hairlineStrong};
-      font-size: 14.5px;
+      font-size: 14px;
       line-height: 1.45;
       color: ${theme.colors.body};
     }

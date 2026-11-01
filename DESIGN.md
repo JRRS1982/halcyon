@@ -533,9 +533,20 @@ The plan opens with a verdict banner between a 2px ink rule and a 1px one: a sta
 
 Dashboard chart panels, settings sections and plan sections each open with a 1px ink rule and a 20px serif head, with 16px above the content and 20px below. No card, no fill, no shadow.
 
+### The Front Page
+
+The landing page is a financial paper's front page, read in under a minute:
+
+- **Skybox:** three text teasers under the nav, each a visitor's question in 20px serif with one line beneath, linking to the article that answers it. Hidden on a phone, where the headline leads.
+- **Nameplate and dateline:** "Balanced Money" in 900-weight serif, centred, over a 4px double ink rule, then a caps dateline closed by a 1px rule. Both hide on a phone.
+- **Lead story:** two-thirds width, beside a hairline. The h1 at front-page size, a 20px standfirst, Get started and Sign in at 44px, the no-bank-login line, and the lead picture with an italic serif caption.
+- **Rail:** "Your month, at a glance", a tinted market-data box under a 2px ink rule with 28px serif figures and their moves coloured by whether they helped, labelled as a sample; then the monthly briefing, four numbered steps.
+- **Inside pages:** each section opens with a 3px ink rule and a 40px serif head. Articles sit in two columns divided by hairlines; the small print is ruled briefs in three columns; the page closes with a ruled story repeating the actions.
+- **Pictures are plates,** never whole-app screenshots: a crop of one region of a screen, captured at 2x so its text is legible where it is shown, with a separate phone plate for the lead.
+
 ### Forms and Inputs
 
-Inputs are paper with a 1px strong-hairline border, 2px corners and 8px by 12px padding in `body-md`. Placeholder text is dim. On focus the border turns oxford and a 1px oxford ring is added.
+Inputs are paper with a 1px strong-hairline border, 2px corners and 8px by 12px padding in `body-md`. Placeholder text is dim. On focus the border turns oxford and a 1px oxford ring is added. Every link, button and field that receives keyboard focus without its own treatment gets a 2px `focus` outline offset 2px; text selection is claret on paper.
 
 ### Cards and Overlays
 
