@@ -16,7 +16,7 @@ import {
 const TriggerButton = styled.button`
   padding: ${({ theme }) => theme.spacing.sm}
     ${({ theme }) => theme.spacing.lg};
-  border: 1px solid ${({ theme }) => theme.colors.hairlineStrong};
+  border: 1px solid ${({ theme }) => theme.colors.ink};
   border-radius: ${({ theme }) => theme.rounded.sm};
   background: ${({ theme }) => theme.colors.canvas};
   color: ${({ theme }) => theme.colors.ink};
@@ -25,10 +25,6 @@ const TriggerButton = styled.button`
   font-weight: ${({ theme }) => theme.typography.control.weight};
   white-space: nowrap;
   cursor: pointer;
-
-  &:hover {
-    border-color: ${({ theme }) => theme.colors.ink};
-  }
 `;
 
 const Overlay = styled.div`

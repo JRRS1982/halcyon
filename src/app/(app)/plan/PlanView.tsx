@@ -64,13 +64,14 @@ const Title = styled.h1`
   color: ${({ theme }) => theme.colors.accent};
   margin: 0;
 `;
-// All record cards in one responsive grid: as many equal ~320px+ columns as fit
-// (2–3 on desktop, 1 on mobile — no manual breakpoints). align-items: start so
-// each card is only as tall as its own content rather than stretching to match
-// its row neighbour.
+// All record cards in one responsive grid, at most two across so the cards
+// pair by meaning: assets beside liabilities, income beside expenses, then
+// events. Three across split income from expenses and left a hole. One column
+// on mobile — no manual breakpoints. align-items: start so each card is only
+// as tall as its own content rather than stretching to match its neighbour.
 const Cards = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(440px, 100%), 1fr));
   gap: ${({ theme }) => theme.spacing["2xl"]};
   align-items: start;
 `;

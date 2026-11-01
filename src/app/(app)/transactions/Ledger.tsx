@@ -378,9 +378,15 @@ const NoteToggle = styled.button<{ $has: boolean }>`
   white-space: nowrap;
   font-family: ${({ theme }) => theme.typography.control.family};
   font-size: ${({ theme }) => theme.typography.control.size};
-  font-weight: ${({ theme }) => theme.typography.control.weight};
+  /* Bold only once there is a note: fifty bold "+ Note"s outshout the rows. */
+  font-weight: ${({ $has, theme }) =>
+    $has ? theme.typography.control.weight : 400};
   color: ${({ $has, theme }) =>
     $has ? theme.colors.accent : theme.colors.dim};
+
+  &:hover {
+    color: ${({ theme }) => theme.colors.ink};
+  }
 `;
 
 const DetailTd = styled.td`

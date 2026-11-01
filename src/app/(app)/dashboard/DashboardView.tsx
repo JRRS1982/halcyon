@@ -163,8 +163,10 @@ const CategoryGrid = styled.div`
 `;
 
 // Each chart is a ruled section of the page, as a paper sets a chart under a
-// headline, rather than a box floating on it.
-const Panel = styled.section`
+// headline, rather than a box floating on it. `$rowStart` begins a new row, so
+// debts line up under the assets of the same term instead of trailing on.
+const Panel = styled.section<{ $rowStart?: boolean }>`
+  grid-column-start: ${({ $rowStart }) => ($rowStart ? 1 : "auto")};
   border-top: 1px solid ${({ theme }) => theme.colors.ink};
   padding-top: ${({ theme }) => theme.spacing.lg};
 `;
@@ -474,8 +476,11 @@ export function DashboardView({
         )}
         {shown("balanceCategory") && balancePanels.length > 0 && (
           <CategoryGrid>
-            {balancePanels.map((p) => (
-              <Panel key={p.label}>
+            {balancePanels.map((p, i) => (
+              <Panel
+                key={p.label}
+                $rowStart={p.sign === -1 && balancePanels[i - 1]?.sign === 1}
+              >
                 <PanelTitle>{p.label}</PanelTitle>
                 <PanelLead>
                   {p.label} each month, against the 6-month average.

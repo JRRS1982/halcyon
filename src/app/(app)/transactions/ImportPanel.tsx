@@ -69,10 +69,10 @@ const FileButton = styled.span`
   align-items: center;
   padding: ${({ theme }) => theme.spacing.sm}
     ${({ theme }) => theme.spacing.lg};
-  border: 1px solid ${({ theme }) => theme.colors.primary};
+  border: 1px solid ${({ theme }) => theme.colors.ink};
   border-radius: ${({ theme }) => theme.rounded.sm};
-  background: ${({ theme }) => theme.colors.primary};
-  color: ${({ theme }) => theme.colors.onPrimary};
+  background: ${({ theme }) => theme.colors.canvas};
+  color: ${({ theme }) => theme.colors.ink};
   font-family: ${({ theme }) => theme.typography.control.family};
   font-size: ${({ theme }) => theme.typography.control.size};
   font-weight: ${({ theme }) => theme.typography.control.weight};

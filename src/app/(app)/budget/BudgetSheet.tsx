@@ -12,9 +12,17 @@ import {
   useState,
   useTransition,
 } from "react";
-import styled, { css } from "styled-components";
+import styled from "styled-components";
 import { AddAccountDrawer } from "@/app/(app)/balance/AddAccountDrawer";
 import { MonthBriefPanel } from "@/components/insights/MonthBriefPanel";
+import {
+  SummaryHeading,
+  SummaryStrip,
+  SummaryTable,
+  SummaryTd,
+  SummaryTh,
+  SummaryTr,
+} from "@/components/sheet/MonthSummary/MonthSummary.styled";
 import { Sheet } from "@/components/sheet/Sheet";
 import {
   type Insight,
@@ -785,60 +793,6 @@ const LinkBtn = styled.button`
   color: ${({ theme }) => theme.colors.primary};
   text-decoration: underline;
   cursor: pointer;
-`;
-
-const SummaryStrip = styled.div`
-  overflow-x: auto;
-  margin-top: ${({ theme }) => theme.spacing["2xl"]};
-
-  @media (max-width: 767px) {
-    display: none;
-  }
-`;
-
-const SummaryTable = styled.table`
-  width: 100%;
-  border-collapse: collapse;
-`;
-
-const SummaryTh = styled.th<{ $right?: boolean }>`
-  ${({ theme }) => css`
-    padding: ${theme.spacing.xs} ${theme.spacing.md};
-    font-family: ${theme.typography.control.family};
-    font-size: ${theme.typography.control.size};
-    font-weight: ${theme.typography.control.weight};
-    color: ${theme.colors.body};
-    border-bottom: 1px solid ${theme.colors.hairline};
-  `}
-  text-align: ${({ $right }) => ($right ? "right" : "left")};
-  font-weight: normal;
-`;
-
-const SummaryTr = styled.tr<{ $current?: boolean }>`
-  background: ${({ theme, $current }) =>
-    $current ? theme.colors.canvasSoft : "transparent"};
-  font-weight: ${({ $current }) => ($current ? 600 : 400)};
-`;
-
-const SummaryTd = styled.td<{
-  $right?: boolean;
-  $tone?: "positive" | "negative" | "dim";
-}>`
-  ${({ theme, $tone }) => css`
-    padding: ${theme.spacing.xs} ${theme.spacing.md};
-    font-size: 13px;
-    font-variant-numeric: tabular-nums;
-    color: ${
-      $tone === "positive"
-        ? theme.colors.positive
-        : $tone === "negative"
-          ? theme.colors.negative
-          : $tone === "dim"
-            ? theme.colors.dim
-            : theme.colors.ink
-    };
-  `}
-  text-align: ${({ $right }) => ($right ? "right" : "left")};
 `;
 
 const REPAYMENTS_HELP =
@@ -2271,7 +2225,8 @@ export function BudgetSheet({
       </SheetHint>
 
       {monthSummaries.length > 1 && (
-        <SummaryStrip>
+        <SummaryStrip aria-labelledby="past-months">
+          <SummaryHeading id="past-months">Past months</SummaryHeading>
           <SummaryTable>
             <thead>
               <tr>
