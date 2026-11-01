@@ -153,7 +153,7 @@ export const darkPalette: Palette = {
   // Light, so the ring reads against a dark page — the mirror of the light
   // mode's near-black ring on white.
   focus: "#F7EEE6",
-  accent: "#F28FAC",
+  accent: "#D4899A",
   chartRate: "#E9A23B",
   chartBudget: "#8C8177",
   chartCash: "#359DD1",

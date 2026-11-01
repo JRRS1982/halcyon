@@ -426,7 +426,7 @@ Surfaces rise in the same order in both: `canvas` → `canvas-soft` → `band`. 
 | `positive` | #5FC79C |
 | `negative` | #F38E80 |
 | `focus` | #F7EEE6 |
-| `accent` | #F28FAC |
+| `accent` | #D4899A |
 | `chart-rate` | #E9A23B |
 | `chart-budget` | #8C8177 |
 | `chart-cash` | #359DD1 |

@@ -48,33 +48,34 @@ const DESCRIPTIONS: Record<View, string> = {
     "Only the pots you can draw on — pensions, ISAs, GIAs and cash. Property and defined-benefit pensions are excluded. Shows whether your spendable savings last.",
 };
 
+// The view picker reads as the masthead's nav does: words on a rule, the
+// chosen one in the accent and underlined. No frame or filled pill — a box
+// around three words made the control louder than the chart it serves.
 const Switcher = styled.fieldset`
-  display: inline-flex;
-  gap: ${({ theme }) => theme.spacing.xs};
+  display: flex;
+  gap: ${({ theme }) => theme.spacing.xl};
   margin: 0;
-  border: 1px solid ${({ theme }) => theme.colors.accent};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  padding: ${({ theme }) => theme.spacing.xs};
-  width: fit-content;
-`;
-// The view picker takes the accent, as the ledger's Filters button does: the
-// one control on the panel that changes what the chart shows.
-const Tab = styled.button<{ $active: boolean }>`
+  padding: 0;
   border: 0;
+  border-bottom: 1px solid ${({ theme }) => theme.colors.hairline};
+`;
+const Tab = styled.button<{ $active: boolean }>`
+  margin-bottom: -1px;
+  padding: ${({ theme }) => theme.spacing.sm} 0;
+  border: 0;
+  border-bottom: 3px solid
+    ${({ $active, theme }) => ($active ? theme.colors.accent : "transparent")};
+  background: transparent;
   cursor: pointer;
   font-family: ${({ theme }) => theme.typography.control.family};
   font-size: ${({ theme }) => theme.typography.control.size};
   font-weight: ${({ theme }) => theme.typography.control.weight};
-  padding: ${({ theme }) => theme.spacing.xs} ${({ theme }) => theme.spacing.md};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  background: ${({ $active, theme }) =>
-    $active ? theme.colors.accent : "transparent"};
   color: ${({ $active, theme }) =>
-    $active ? theme.colors.canvas : theme.colors.accent};
+    $active ? theme.colors.accent : theme.colors.ink};
 
   &:hover {
-    background: ${({ $active, theme }) =>
-      $active ? theme.colors.accent : theme.colors.canvasSoft};
+    border-bottom-color: ${({ $active, theme }) =>
+      $active ? theme.colors.accent : theme.colors.hairlineStrong};
   }
 `;
 const Caption = styled.p`

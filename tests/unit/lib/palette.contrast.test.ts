@@ -86,8 +86,8 @@ describe("colour contrast", () => {
       ).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
     });
 
-    // A selected accent control (the plan's chart view) sets page-coloured
-    // text on the accent; the label is the only thing saying which view is on.
+    // Selected text (::selection in globals.css) sets page-coloured text on
+    // the accent; a highlight that hides what it highlights is no use.
     test("page-coloured text clears 4.5:1 on an accent fill", () => {
       expect(contrast(palette.canvas, palette.accent)).toBeGreaterThanOrEqual(
         AA_NORMAL_TEXT,
