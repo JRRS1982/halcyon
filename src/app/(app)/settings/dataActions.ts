@@ -101,7 +101,7 @@ export async function exportMyData(
     prisma.user.findUnique({ where: { id: userId } }),
     prisma.userSettings.findUnique({ where: { userId } }),
     prisma.category.findMany({ where: { userId } }),
-    prisma.account.findMany({ where: { userId } }),
+    prisma.account.findMany({ where: { userId }, include: { terms: true } }),
     prisma.financialPeriod.findMany({ where: { userId } }),
     prisma.budgetItem.findMany({ where: { period: { userId } } }),
     prisma.balanceItem.findMany({ where: { period: { userId } } }),
@@ -123,7 +123,9 @@ export async function exportMyData(
   const json = serializeExport({
     exportedAt: new Date().toISOString(),
     // v3 added sentMessages so the user's full communication history is included.
-    schemaVersion: 3,
+    // v4 nests each account's terms (expected return, fees, rates) — figures the
+    // user typed, left out of every export before it.
+    schemaVersion: 4,
     user,
     settings,
     categories,

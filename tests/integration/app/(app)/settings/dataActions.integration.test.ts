@@ -75,6 +75,9 @@ async function seedFinancialData(userId: string) {
       ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
     },
   });
+  await prisma.accountTerms.create({
+    data: { accountId: account.id, expectedReturnPct: 4.5, feePct: 0.25 },
+  });
   const category = await prisma.category.create({
     data: { userId, type: "EXPENSE", section: "VARIABLE", label: "Food" },
   });
@@ -167,6 +170,12 @@ describe("exportMyData (integration)", () => {
 
     expect(dump.user.id).toBe(TEST_USER_ID);
     expect(dump.accounts).toHaveLength(1);
+    // The growth, fee and rate settings typed onto an account are the user's
+    // own figures; an export without them is not everything they entered.
+    expect(dump.accounts[0].terms).toMatchObject({
+      expectedReturnPct: "4.5",
+      feePct: "0.25",
+    });
     expect(dump.categories).toHaveLength(1);
     expect(dump.periods).toHaveLength(1);
     expect(dump.budgetItems).toHaveLength(1);
