@@ -67,7 +67,7 @@ const plates = {
   },
   cashflow: {
     src: "/marketing/plates/cashflow.png",
-    aspect: "2464 / 648",
+    aspect: "2464 / 672",
     alt: "The dashboard's cash-flow chart for a sample year: income and expense bars for each month, a net line, and the share of income kept, with August dipping to £754 short",
   },
 } satisfies Record<string, Picture>;

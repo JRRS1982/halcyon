@@ -18,28 +18,29 @@ or by typing.
 > The repository is named **halcyon**; the product it ships is **Balanced
 > Money**. Same thing — the repo name predates the brand.
 
-![The dashboard](public/marketing/dashboard.png)
+![The budget for a sample month](public/marketing/plates/budget-lead.png)
 
 ## What it does
 
 | | |
 | --- | --- |
-| **Transactions** | Export a CSV from your bank and drop it in. Rows you've already imported are detected and skipped, so overlapping exports are safe, and every import is a batch you can undo in one click. Tag each row with a category. |
+| **Transactions** | Export a CSV from your bank and import it, or write a line for cash. Rows you've already imported are detected and skipped, so overlapping exports are safe, and every import is a batch you can undo in one click. A merchant you've filed before is filed again in pencil until you approve it. |
 | **Budget** | What you meant to spend, month by month, split into Fixed, Variable and Discretionary. Once transactions are categorised the actual column fills itself in beside your plan. Two more kinds of row sit alongside: a **repayment** at a debt you owe, which counts as spending, and a **transfer** into an account you own, which does not — a pension contribution is money you still have. Both feed the long-range plan. |
 | **Balance** | What you own and what you owe, sorted by how soon it matters — current, medium-term, long-term, property. The bottom line is your net worth. |
 | **Dashboard** | Read-only, and derived: cash flow, savings rate, spending by category and net worth over time, all drawn from the months filled in elsewhere. |
-| **Plan** | The long view. Project income, spending, property, mortgages and pensions decades ahead to see whether the money lasts. Independent of the month-to-month figures. |
+| **Plan** | The long view. Project income, spending, property, mortgages and pensions decades ahead to see whether the money lasts. It starts from your accounts and budget, and refreshes from them when you press Sync. |
 | **Settings** | Currency and number format, light/dark/system, which charts appear, categories and accounts — plus a full JSON export of your data and a permanent delete. |
 
-There is a guide at [`/about`](https://balanced.money/about) explaining the
+There is a guide at [`/guide`](https://balanced.money/guide) explaining the
 monthly rhythm the app is built around, reachable without an account.
 
 <details>
 <summary>More screenshots</summary>
 
-![Budget](public/marketing/budget.png)
-![Balance](public/marketing/balance.png)
-![Transactions](public/marketing/transactions.png)
+![The budget's expenses](public/marketing/plates/budget-share.png)
+![The balance sheet](public/marketing/plates/balance.png)
+![Transactions](public/marketing/plates/transactions.png)
+![The plan's forecast](public/marketing/plates/plan.png)
 
 </details>
 
@@ -185,31 +186,15 @@ To seed the local development database, use the following command: `pnpm db:seed
 
 ## Marketing screenshots
 
-Landing-page screenshots live in `public/marketing/` (`dashboard.png`, `budget.png`, `balance.png`, `transactions.png`, `plan.png`).
-
-**Re-capture them whenever the dashboard, budget, balance, transactions or plan UI changes** — they are the first thing a prospect sees, and a stale set advertises a product that no longer exists.
-
-The capture runs entirely locally against the e2e stack: the mock auth server, the `halcyon_test` database, and a dev server. Nothing touches cloud Supabase or production data, and the script signs itself in and seeds its own twelve months of demo data, so there is no session to set up by hand. It then creates the plan through the real form — creating a plan is a Sync against an empty one, so its rows come from the seeded accounts by the same path a user takes — and sets the assumptions a Sync can't know (mortgage rate and repayment, expected returns) before shooting.
-
-It expects the signed-in demo user to be the *only* user in `halcyon_test`; leftovers from an earlier e2e run make it seed one user and photograph another. `TRUNCATE "User" CASCADE` clears them.
+The front page and feature pages show plates: one section of each app screen, in `public/marketing/plates/`. **Re-capture them whenever the budget, balance, transactions, dashboard, plan or settings UI changes** — they are the first thing a visitor sees, and a stale set advertises a product that no longer exists.
 
 ```bash
-make e2e-db                                   # local Postgres, migrated
-node tests/e2e/_mock/supabase.mjs &                 # mock auth on :54321
-
-NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321 \
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_test_anon_key_for_e2e \
-SUPABASE_SECRET_KEY=sb_secret_test_key_for_e2e \
-DATABASE_URL=postgresql://test:test@localhost:5432/halcyon_test \
-DIRECT_URL=postgresql://test:test@localhost:5432/halcyon_test \
-pnpm next dev -p 3100 &
-
+make db-seed                     # the demo account: twelve months ending this one
+make up                          # the app on :3210
 node scripts/capture-shots.mjs
 ```
 
-The script refuses to run against anything but a local `halcyon*` database. Set `CAPTURE_SCHEMES=light,dark` to also produce `-dark.png` variants for design review — the landing page ships the light set only, since it is seen signed-out and serving both would mean downloading both.
-
-Until the files exist the landing page renders labelled placeholders via `MarketingShot`, so the page ships and works correctly without them.
+The script signs in as the seeded demo account and refuses any app that isn't on `localhost`, because the demo password is published in this repo. It shoots the budget and balance on the last complete month. Afterwards, update each plate's `aspect` in `src/lib/editorial/features.ts` (and `budget-lead` in `src/components/marketing/Hero/index.tsx`) to the new pixel sizes, and re-read the alt text there, which quotes that month's figures.
 
 ## Contributing
 
