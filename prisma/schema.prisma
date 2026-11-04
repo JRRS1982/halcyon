@@ -405,25 +405,30 @@ model ImportBatch {
 // aggregate keyed by (userId, categoryId, date-range). categoryId is nullable:
 // uncategorized spend is surfaced, never auto-bucketed. Soft-deleted.
 model Transaction {
-  id                String    @id @default(uuid()) @db.Uuid
-  userId            String    @db.Uuid
-  accountId         String    @db.Uuid
-  categoryId        String?   @db.Uuid
-  transferAccountId String?   @db.Uuid
+  id                  String    @id @default(uuid()) @db.Uuid
+  userId              String    @db.Uuid
+  accountId           String    @db.Uuid
+  categoryId          String?   @db.Uuid
+  transferAccountId   String?   @db.Uuid
   // The import run that created this row; null for pre-batch imports and
   // anything not created by a CSV import.
-  importBatchId     String?   @db.Uuid
-  date              DateTime  @db.Date
-  amount            Decimal   @db.Decimal(14, 2)
-  description       String
-  note              String?
+  importBatchId       String?   @db.Uuid
+  date                DateTime  @db.Date
+  amount              Decimal   @db.Decimal(14, 2)
+  description         String
+  note                String?
   // Extra CSV columns the user chose to keep at import time, keyed by the
   // column's header label (e.g. {"Type": "DD", "Reference": "000123"}).
   // Machine-kept import metadata — `note` stays human-written.
-  extra             Json?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  deletedAt         DateTime?
+  extra               Json?
+  // False only while the category is a suggestion the user has not yet ticked:
+  // an import fills categoryId from how the same description was filed before,
+  // and the ledger shows it in pencil until confirmed. Every category the user
+  // sets themselves, and every row written without a suggestion, is confirmed.
+  isCategoryConfirmed Boolean   @default(true)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  deletedAt           DateTime?
 
   user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   account         Account      @relation("AccountTransactions", fields: [accountId], references: [id], onDelete: Cascade)
