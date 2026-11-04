@@ -11,9 +11,9 @@ const supabaseOrigin = (() => {
   }
 })();
 
-// The policy on trial. Report-only: browsers block nothing and send what they
-// would have blocked to /api/csp-report, which counts it in Upstash. Enforce it
-// (rename the header) once a trial shows only noise such as extensions.
+// The Content-Security-Policy, enforced since 4 Nov 2026 after a week's
+// report-only trial recorded no violations. Browsers block what it forbids and
+// report each block to /api/csp-report, which counts it in Upstash.
 //
 // No nonces, so inline scripts and styles stay allowed: Next and
 // styled-components both emit them, and nonces would force every page —
@@ -21,7 +21,7 @@ const supabaseOrigin = (() => {
 // stops: scripts and styles from other hosts, plugins, <base> hijacking, forms
 // posting elsewhere, and connections to unknown servers. Development adds
 // 'unsafe-eval' (React's dev tooling) and websockets (hot reload).
-const cspReportOnly = [
+const csp = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
   "style-src 'self' 'unsafe-inline'",
@@ -52,23 +52,17 @@ const nextConfig = {
     formats: ["image/avif", "image/webp"],
   },
   // Browser protections the app opts into on every response. HSTS is not
-  // here: Vercel already sends it for the whole domain. The enforced CSP
-  // carries only frame-ancestors, which restricts nothing but framing; the
-  // fuller policy above runs report-only alongside it.
+  // here: Vercel already sends it for the whole domain.
   async headers() {
     return [
       {
         source: "/:path*",
         headers: [
-          // Clickjacking: no other site may load these pages in a frame and
-          // trick a click on "Delete account". frame-ancestors is the modern
-          // control; X-Frame-Options covers older browsers.
-          { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
+          // The policy above. Its frame-ancestors 'none' is the clickjacking
+          // guard: no other site may load these pages in a frame and trick a
+          // click on "Delete account". X-Frame-Options covers older browsers.
+          { key: "Content-Security-Policy", value: csp },
           { key: "X-Frame-Options", value: "DENY" },
-          {
-            key: "Content-Security-Policy-Report-Only",
-            value: cspReportOnly,
-          },
           // Where Chromium sends reports named by `report-to csp`; Firefox
           // and Safari use `report-uri`.
           { key: "Reporting-Endpoints", value: 'csp="/api/csp-report"' },
