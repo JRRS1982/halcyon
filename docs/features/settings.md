@@ -65,7 +65,7 @@ Every action here, export included, takes a step-up proof: a password, or a one-
 
 | Action | What it does |
 |--------|-------------|
-| Export my data | Returns a JSON string (schema version 3) of every user-owned table, including plans with their child rows and `SentMessage`. Rate-limited to 2 exports a minute, per user. |
+| Export my data | Returns a JSON string (schema version 4) of every user-owned table, including each account's `AccountTerms`, plans with their child rows, and `SentMessage`. Rate-limited to 2 exports a minute, per user. |
 | Clear my data | Deletes all financial rows (transactions, budget, balance, accounts, plan, periods). Keeps User, UserSettings, and Categories. |
 | Reset to defaults | Same as clear, plus deletes categories, then re-seeds the starter data (41 categories, 6 accounts, £0 budget sheet). |
 | Delete my account | Deletes all rows including User and UserSettings in one transaction, then erases the Supabase auth identity with the admin client. If that last call fails it returns `orphaned-auth`; the app data is already gone. On success it redirects to `/`. |
