@@ -39,6 +39,17 @@ test("plan: asset fees field round-trips through the drawer", async ({
   await feeField.fill("0.5");
   await feeField.blur();
   await expect(feeField).toHaveValue("0.5");
+  // The field shows what was typed before the save lands; the row proves it
+  // did. Ending on the field let the teardown TRUNCATE race the save's write
+  // (40P01 deadlock on CI, 5 Nov 2026).
+  await expect
+    .poll(async () => {
+      const asset = await db.planAsset.findFirst({
+        where: { plan: { userId: user.id }, label: { contains: "SIPP" } },
+      });
+      return asset?.feePct.toString();
+    })
+    .toBe("0.5");
   await expect(page.getByRole("heading", { name: "Your plan" })).toBeVisible();
 });
 
