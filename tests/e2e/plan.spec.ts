@@ -255,6 +255,10 @@ test("plan: create, edit assumptions/assets, and the data-loss guard holds", asy
     .click();
   await page.getByRole("dialog").getByRole("button", { name: /yes/i }).click();
   await expect(page.getByRole("dialog")).not.toBeVisible();
+  // The remove's refresh has landed once its row is gone. Adding again before
+  // then races that refresh, and under CI load the new dialog can miss its
+  // window.
+  await expect(page.getByRole("button", { name: /^Freelance/ })).toHaveCount(0);
 
   // Add, then close without touching anything: the blank row it created goes
   // with it, rather than staying behind as "New income · £0/yr".
