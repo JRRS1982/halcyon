@@ -7,10 +7,11 @@ import { parseCspReport } from "@/lib/site/cspReport";
 /**
  * Where browsers send Content-Security-Policy violation reports.
  *
- * The policy is report-only for now (see next.config.mjs): nothing is blocked,
- * and these reports say what *would* have been. Each one adds to a count in
- * Upstash under `csp:<directive>:<blocked host>`, kept for 30 days from its
- * first sighting — Vercel's runtime logs expire long before a trial ends.
+ * The policy is enforced (see next.config.mjs), so each report is something a
+ * browser blocked: an extension's injection, or a page of ours the policy
+ * breaks. Each one adds to a count in Upstash under
+ * `csp:<directive>:<blocked host>`, kept for 30 days from its first sighting —
+ * Vercel's runtime logs expire long before anyone looks.
  * Read the counts in the Upstash console's Data Browser.
  */
 
@@ -42,7 +43,7 @@ export async function POST(request: Request) {
   if (violations.length === 0) return empty(400);
 
   for (const violation of violations) {
-    log.warn("CSP violation (report-only)", violation);
+    log.warn("CSP violation blocked", violation);
     await incrementWindow(
       `csp:${violation.directive}:${violation.blocked}`,
       KEEP_SECONDS,
