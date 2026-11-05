@@ -6,7 +6,7 @@
 import { expect, test } from "@playwright/test";
 
 const EXPECTED = {
-  "content-security-policy": "frame-ancestors 'none'",
+  "content-security-policy": expect.stringContaining("frame-ancestors 'none'"),
   "x-frame-options": "DENY",
   "x-content-type-options": "nosniff",
   "referrer-policy": "strict-origin-when-cross-origin",

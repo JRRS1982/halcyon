@@ -1,11 +1,11 @@
 // tests/e2e/csp.spec.ts
 //
-// The report-only Content-Security-Policy against the app's own pages.
+// The enforced Content-Security-Policy against the app's own pages.
 //
-// Before the policy is enforced it must not object to anything the app itself
-// does — an objection here would be a page that breaks the day it is switched
-// on. Browsers raise a `securitypolicyviolation` event for report-only
-// violations too, so each page is loaded with a listener collecting them.
+// The policy must not object to anything the app itself does: an objection
+// here is a script, style or request the browser blocked, which is a page
+// broken in production. Each page is loaded with a listener collecting the
+// `securitypolicyviolation` events the browser raises when it blocks.
 //
 // Not gated to chromium: each engine evaluates CSP itself, and a webkit-only
 // objection is exactly what this exists to catch.
@@ -34,13 +34,15 @@ const violationsOn = async (page: Page, path: string) => {
   return page.evaluate(() => window.__csp ?? []);
 };
 
-test.describe("content security policy (report-only)", () => {
-  test("is sent alongside the enforced framing rule", async ({ request }) => {
+test.describe("content security policy", () => {
+  test("is enforced and still reports what it blocks", async ({ request }) => {
     const headers = (await request.get("/")).headers();
 
-    expect(headers["content-security-policy-report-only"]).toContain(
+    expect(headers["content-security-policy"]).toContain("default-src 'self'");
+    expect(headers["content-security-policy"]).toContain(
       "report-uri /api/csp-report",
     );
+    expect(headers["content-security-policy-report-only"]).toBeUndefined();
     expect(headers["reporting-endpoints"]).toBe('csp="/api/csp-report"');
   });
 
