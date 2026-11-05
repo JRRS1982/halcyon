@@ -5,20 +5,16 @@ import styled from "styled-components";
 import type { BandedVerdict } from "@/lib/plan";
 import { formatAmount, type NumberFormat } from "@/lib/settings/currency";
 
-// The verdict is the page's headline answer ("can I retire, does it last?"), so
-// it reads as a status card: a colour rail + status eyebrow + plain-language
-// headline on the left, and the two numbers that matter pulled out on the right.
+// The verdict is the page's headline answer ("can I retire, does it last?"):
+// a status kicker and the answer set as the page's headline on the left, and
+// the numbers that matter pulled out on the right, between two rules.
 const Card = styled.section<{ $ok: boolean }>`
   display: grid;
   grid-template-columns: 1fr auto;
   align-items: stretch;
   gap: ${({ theme }) => theme.spacing["2xl"]};
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
-  border-left: 3px solid
-    ${({ theme, $ok }) => ($ok ? theme.colors.positive : theme.colors.negative)};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  background: ${({ theme }) => theme.colors.canvas};
-  padding: ${({ theme }) => theme.spacing.xl} ${({ theme }) => theme.spacing["2xl"]};
+  border-top: 2px solid ${({ theme }) => theme.colors.ink};
+  padding: ${({ theme }) => theme.spacing.xl} 0;
 
   @media (max-width: 640px) {
     grid-template-columns: 1fr;
@@ -31,14 +27,35 @@ const Lead = styled.div`
   align-content: center;
 `;
 
+// The page's name and the verdict's status share one kicker line, as every
+// other page's kicker does ("BUDGET · NOVEMBER 2026"), rather than stacking
+// two caps labels either side of a rule.
+const KickerRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.sm};
+  font-family: ${({ theme }) => theme.typography.kicker.family};
+  font-size: ${({ theme }) => theme.typography.kicker.size};
+  font-weight: ${({ theme }) => theme.typography.kicker.weight};
+  letter-spacing: ${({ theme }) => theme.typography.kicker.letterSpacing};
+  text-transform: uppercase;
+  color: ${({ theme }) => theme.colors.accent};
+`;
+
+const PageTitle = styled.h1`
+  margin: 0;
+  font: inherit;
+`;
+
 const Status = styled.span<{ $ok: boolean }>`
   display: inline-flex;
   align-items: center;
   gap: ${({ theme }) => theme.spacing.sm};
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
+  font-family: ${({ theme }) => theme.typography.kicker.family};
+  font-size: ${({ theme }) => theme.typography.kicker.size};
+  font-weight: ${({ theme }) => theme.typography.kicker.weight};
+  letter-spacing: ${({ theme }) => theme.typography.kicker.letterSpacing};
   text-transform: uppercase;
   color: ${({ theme, $ok }) =>
     $ok ? theme.colors.positive : theme.colors.negative};
@@ -53,7 +70,9 @@ const Status = styled.span<{ $ok: boolean }>`
 `;
 
 const Headline = styled.h2`
-  font-size: ${({ theme }) => theme.typography.amountXl.size};
+  font-family: ${({ theme }) => theme.typography.displayXl.family};
+  font-size: ${({ theme }) => theme.typography.displayXl.size};
+  line-height: ${({ theme }) => theme.typography.displayXl.lineHeight};
   font-weight: ${({ theme }) => theme.typography.amountXl.weight};
   letter-spacing: ${({ theme }) => theme.typography.amountXl.letterSpacing};
   color: ${({ theme }) => theme.colors.ink};
@@ -109,10 +128,10 @@ const Stat = styled.div`
 `;
 
 const StatKey = styled.dt`
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
+  font-family: ${({ theme }) => theme.typography.kicker.family};
+  font-size: ${({ theme }) => theme.typography.kicker.size};
+  font-weight: ${({ theme }) => theme.typography.kicker.weight};
+  letter-spacing: ${({ theme }) => theme.typography.kicker.letterSpacing};
   text-transform: uppercase;
   color: ${({ theme }) => theme.colors.dim};
 `;
@@ -146,10 +165,12 @@ const RangeNote = styled.span`
 `;
 
 export function VerdictBanner({
+  title,
   verdict,
   currency,
   numberFormat,
 }: {
+  title: string;
   verdict: BandedVerdict;
   currency: string;
   numberFormat: NumberFormat;
@@ -183,9 +204,13 @@ export function VerdictBanner({
   return (
     <Card $ok={verdict.feasible}>
       <Lead>
-        <Status $ok={verdict.feasible}>
-          {verdict.feasible ? "On track" : "Needs attention"}
-        </Status>
+        <KickerRow>
+          <PageTitle>{title}</PageTitle>
+          <span aria-hidden="true">·</span>
+          <Status $ok={verdict.feasible}>
+            {verdict.feasible ? "On track" : "Needs attention"}
+          </Status>
+        </KickerRow>
         <Headline>{headline}</Headline>
         <Sub>{sub}</Sub>
       </Lead>

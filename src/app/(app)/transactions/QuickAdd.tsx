@@ -4,44 +4,12 @@ import { useRouter } from "next/navigation";
 import { type FormEvent, useMemo, useState, useTransition } from "react";
 import styled from "styled-components";
 import { Button } from "@/components/ui/Button";
+import { Drawer } from "@/components/ui/Drawer";
 import type { LedgerCategory } from "@/lib/transactions/server";
-import { createTransaction } from "./actions";
+import { parseLine } from "@/lib/transactions/writeLine";
+import { createTransaction, suggestCategory } from "./actions";
 
 type Account = { id: string; name: string };
-
-const Overlay = styled.div`
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: ${({ theme }) => theme.spacing["2xl"]};
-  background: rgba(0, 0, 0, 0.4);
-`;
-
-const Dialog = styled.dialog`
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: ${({ theme }) => theme.spacing.lg};
-  width: 100%;
-  max-width: 420px;
-  margin: auto;
-  padding: ${({ theme }) => theme.spacing["2xl"]};
-  background: ${({ theme }) => theme.colors.canvas};
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  position: static;
-`;
-
-const DialogTitle = styled.h2`
-  margin: 0;
-  font-family: ${({ theme }) => theme.typography.displayLg.family};
-  font-size: ${({ theme }) => theme.typography.displayLg.size};
-  font-weight: ${({ theme }) => theme.typography.displayLg.weight};
-  letter-spacing: ${({ theme }) => theme.typography.displayLg.letterSpacing};
-  color: ${({ theme }) => theme.colors.ink};
-`;
 
 const Field = styled.label`
   display: grid;
@@ -49,20 +17,18 @@ const Field = styled.label`
 `;
 
 const Label = styled.span`
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
-  text-transform: uppercase;
+  font-family: ${({ theme }) => theme.typography.control.family};
+  font-size: ${({ theme }) => theme.typography.control.size};
+  font-weight: ${({ theme }) => theme.typography.control.weight};
   color: ${({ theme }) => theme.colors.body};
 `;
 
 const Input = styled.input`
   padding: ${({ theme }) => theme.spacing.sm}
     ${({ theme }) => theme.spacing.md};
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
+  border: 1px solid ${({ theme }) => theme.colors.fieldBorder};
   border-radius: ${({ theme }) => theme.rounded.sm};
-  background: ${({ theme }) => theme.colors.canvas};
+  background: ${({ theme }) => theme.colors.field};
   color: ${({ theme }) => theme.colors.ink};
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
   font-size: ${({ theme }) => theme.typography.bodyMd.size};
@@ -71,9 +37,9 @@ const Input = styled.input`
 const Select = styled.select`
   padding: ${({ theme }) => theme.spacing.sm}
     ${({ theme }) => theme.spacing.md};
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
+  border: 1px solid ${({ theme }) => theme.colors.fieldBorder};
   border-radius: ${({ theme }) => theme.rounded.sm};
-  background: ${({ theme }) => theme.colors.canvas};
+  background: ${({ theme }) => theme.colors.field};
   color: ${({ theme }) => theme.colors.ink};
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
   font-size: ${({ theme }) => theme.typography.bodyMd.size};
@@ -92,11 +58,9 @@ const Direction = styled.fieldset`
 const DirectionLegend = styled.legend`
   padding: 0;
   margin-bottom: ${({ theme }) => theme.spacing.sm};
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
-  text-transform: uppercase;
+  font-family: ${({ theme }) => theme.typography.control.family};
+  font-size: ${({ theme }) => theme.typography.control.size};
+  font-weight: ${({ theme }) => theme.typography.control.weight};
   color: ${({ theme }) => theme.colors.body};
 `;
 
@@ -111,30 +75,23 @@ const DirectionButton = styled.button<{ $active: boolean }>`
     ${({ theme }) => theme.spacing.md};
   border: 1px solid
     ${({ theme, $active }) =>
-      $active ? theme.colors.primary : theme.colors.hairline};
+      $active ? theme.colors.primary : theme.colors.fieldBorder};
   border-radius: ${({ theme }) => theme.rounded.sm};
   background: ${({ theme, $active }) =>
     $active ? theme.colors.primary : theme.colors.canvas};
   color: ${({ theme, $active }) =>
     $active ? theme.colors.onPrimary : theme.colors.ink};
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
-  text-transform: uppercase;
+  font-family: ${({ theme }) => theme.typography.control.family};
+  font-size: ${({ theme }) => theme.typography.control.size};
+  font-weight: ${({ theme }) => theme.typography.control.weight};
   cursor: pointer;
 `;
 
-const FormGrid = styled.div`
+const FormGrid = styled.form`
+  padding: ${({ theme }) => theme.spacing.lg} ${({ theme }) => theme.spacing.xl};
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: ${({ theme }) => theme.spacing.lg};
-`;
-
-const Actions = styled.div`
-  display: flex;
-  justify-content: flex-end;
-  gap: ${({ theme }) => theme.spacing.md};
 `;
 
 const ErrorText = styled.p`
@@ -162,6 +119,35 @@ const Toast = styled.output`
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
+// The "write a line" box: jot a transaction as you would on paper and the add
+// form opens with it filled in, for you to check and save.
+const LineForm = styled.form`
+  display: flex;
+  flex-wrap: wrap;
+  /* Its own full-width row at the head of the actions: the everyday way in. */
+  flex: 1 1 100%;
+  order: -1;
+  min-width: 0;
+  gap: ${({ theme }) => theme.spacing.sm};
+`;
+
+const LineInput = styled.input`
+  flex: 1;
+  min-width: 0;
+  height: 34px;
+  padding: 0 ${({ theme }) => theme.spacing.md};
+  border: 1px solid ${({ theme }) => theme.colors.ink};
+  border-radius: ${({ theme }) => theme.rounded.sm};
+  font-family: ${({ theme }) => theme.typography.bodyMd.family};
+  font-size: 15px;
+`;
+
+const LineError = styled.p`
+  flex-basis: 100%;
+  font-size: 13px;
+  color: ${({ theme }) => theme.colors.negative};
+`;
+
 // One typed-in transaction — cash spend, a mid-month capture — without waiting
 // for the next statement export. The complement of ImportPanel, not a rival:
 // statements stay the bulk path.
@@ -184,6 +170,44 @@ export function QuickAdd({
   const [direction, setDirection] = useState<"out" | "in">("out");
   const [accountId, setAccountId] = useState(accounts[0]?.id ?? "");
   const [categoryId, setCategoryId] = useState("");
+  const [line, setLine] = useState("");
+  const [lineError, setLineError] = useState<string | null>(null);
+
+  const onWriteLine = (event: FormEvent) => {
+    event.preventDefault();
+    // Nothing written: open the form empty, to fill in field by field.
+    if (line.trim() === "") {
+      setLineError(null);
+      setSaved(null);
+      setOpen(true);
+      return;
+    }
+    const written = parseLine(line, new Date());
+    if (!written) {
+      setLineError(
+        "Write an amount and what it was, for example 4.35 Pret coffee.",
+      );
+      return;
+    }
+    setLineError(null);
+    setDate(written.date);
+    setDescription(written.description);
+    setAmount(written.amount.toFixed(2));
+    setDirection(written.direction);
+    setCategoryId("");
+    setError(null);
+    setSaved(null);
+    setOpen(true);
+    setLine("");
+    // Offer how this description was filed last time; the user can change it.
+    suggestCategory({ description: written.description })
+      .then(({ categoryId: suggested }) => {
+        if (suggested) setCategoryId((current) => current || suggested);
+      })
+      .catch(() => {
+        // No suggestion is fine: the form works without one.
+      });
+  };
 
   // Categories grouped the way the ledger's combobox groups them — by the
   // budget section they roll up into.
@@ -237,129 +261,133 @@ export function QuickAdd({
 
   return (
     <>
-      <Button
-        type="button"
-        variant="outline"
-        onClick={() => {
-          setSaved(null);
-          setOpen(true);
-        }}
-      >
-        Add transaction
-      </Button>
+      <LineForm onSubmit={onWriteLine} aria-label="Write a transaction">
+        <LineInput
+          value={line}
+          onChange={(e) => setLine(e.target.value)}
+          placeholder="Write a line: 4.35 Pret coffee"
+          aria-label="Write a transaction, for example 4.35 Pret coffee"
+        />
+        <Button type="submit" variant="outline">
+          Add transaction
+        </Button>
+        {lineError && <LineError role="alert">{lineError}</LineError>}
+      </LineForm>
 
-      {open && (
-        <Overlay
-          onClick={(e) => {
-            if (e.target === e.currentTarget && !pending) setOpen(false);
-          }}
-        >
-          <Dialog open aria-label="Add a transaction">
-            <DialogTitle>Add a transaction</DialogTitle>
-            <form onSubmit={onSubmit}>
-              <FormGrid>
-                <Direction>
-                  <DirectionLegend>Direction</DirectionLegend>
-                  <DirectionRow>
-                    <DirectionButton
-                      type="button"
-                      $active={direction === "out"}
-                      onClick={() => setDirection("out")}
-                    >
-                      Money out
-                    </DirectionButton>
-                    <DirectionButton
-                      type="button"
-                      $active={direction === "in"}
-                      onClick={() => setDirection("in")}
-                    >
-                      Money in
-                    </DirectionButton>
-                  </DirectionRow>
-                </Direction>
-                <Field>
-                  <Label>Amount</Label>
-                  <Input
-                    type="number"
-                    inputMode="decimal"
-                    step="0.01"
-                    min="0.01"
-                    required
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    placeholder="0.00"
-                  />
-                </Field>
-                <Field>
-                  <Label>Description</Label>
-                  <Input
-                    type="text"
-                    required
-                    maxLength={300}
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Corner cafe"
-                  />
-                </Field>
-                <Field>
-                  <Label>Date</Label>
-                  <Input
-                    type="date"
-                    required
-                    value={date}
-                    onChange={(e) => setDate(e.target.value)}
-                  />
-                </Field>
-                <Field>
-                  <Label>Account</Label>
-                  <Select
-                    value={accountId}
-                    onChange={(e) => setAccountId(e.target.value)}
-                  >
-                    {accounts.map((account) => (
-                      <option key={account.id} value={account.id}>
-                        {account.name}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
-                <Field>
-                  <Label>Category</Label>
-                  <Select
-                    value={categoryId}
-                    onChange={(e) => setCategoryId(e.target.value)}
-                  >
-                    <option value="">Uncategorised — decide later</option>
-                    {grouped.map(([section, list]) => (
-                      <optgroup key={section} label={section}>
-                        {list.map((category) => (
-                          <option key={category.id} value={category.id}>
-                            {category.label}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </Select>
-                </Field>
-                {error && <ErrorText>{error}</ErrorText>}
-                <Actions>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setOpen(false)}
-                    disabled={pending}
-                  >
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={pending}>
-                    {pending ? "Saving…" : "Add"}
-                  </Button>
-                </Actions>
-              </FormGrid>
-            </form>
-          </Dialog>
-        </Overlay>
-      )}
+      <Drawer
+        open={open}
+        eyebrow="Transactions"
+        title="Add a transaction"
+        onClose={() => {
+          if (!pending) setOpen(false);
+        }}
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+              disabled={pending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="add-transaction-form"
+              disabled={pending}
+            >
+              {pending ? "Saving…" : "Add"}
+            </Button>
+          </>
+        }
+      >
+        <FormGrid id="add-transaction-form" onSubmit={onSubmit}>
+          <Direction>
+            <DirectionLegend>Direction</DirectionLegend>
+            <DirectionRow>
+              <DirectionButton
+                type="button"
+                $active={direction === "out"}
+                onClick={() => setDirection("out")}
+              >
+                Money out
+              </DirectionButton>
+              <DirectionButton
+                type="button"
+                $active={direction === "in"}
+                onClick={() => setDirection("in")}
+              >
+                Money in
+              </DirectionButton>
+            </DirectionRow>
+          </Direction>
+          <Field>
+            <Label>Amount</Label>
+            <Input
+              type="number"
+              inputMode="decimal"
+              step="0.01"
+              min="0.01"
+              required
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="0.00"
+            />
+          </Field>
+          <Field>
+            <Label>Description</Label>
+            <Input
+              type="text"
+              required
+              maxLength={300}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Corner cafe"
+            />
+          </Field>
+          <Field>
+            <Label>Date</Label>
+            <Input
+              type="date"
+              required
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+            />
+          </Field>
+          <Field>
+            <Label>Account</Label>
+            <Select
+              value={accountId}
+              onChange={(e) => setAccountId(e.target.value)}
+            >
+              {accounts.map((account) => (
+                <option key={account.id} value={account.id}>
+                  {account.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field>
+            <Label>Category</Label>
+            <Select
+              value={categoryId}
+              onChange={(e) => setCategoryId(e.target.value)}
+            >
+              <option value="">Uncategorised — decide later</option>
+              {grouped.map(([section, list]) => (
+                <optgroup key={section} label={section}>
+                  {list.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.label}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </Select>
+          </Field>
+          {error && <ErrorText>{error}</ErrorText>}
+        </FormGrid>
+      </Drawer>
 
       {saved && <Toast aria-live="polite">Added &ldquo;{saved}&rdquo;.</Toast>}
     </>

@@ -75,3 +75,6 @@ pnpm-debug.log*
 
 # Vercel CLI link + build state
 .vercel/
+
+# Impeccable design-hook cache (local runtime state)
+.impeccable/hook.cache.json

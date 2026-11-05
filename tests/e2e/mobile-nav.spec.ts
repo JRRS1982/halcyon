@@ -59,7 +59,7 @@ test.describe("Mobile navigation", () => {
     await openMenu(page);
     const drawer = page.locator("#mobile-nav");
     await expect(
-      drawer.getByRole("link", { name: /how it works/i }),
+      drawer.getByRole("link", { name: /^features$/i }),
     ).toBeVisible();
 
     await page.keyboard.press("Escape");

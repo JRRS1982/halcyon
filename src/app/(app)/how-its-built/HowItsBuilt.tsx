@@ -529,10 +529,12 @@ const sections: Section[] = [
         why: "Bank descriptions repeat every month with only the reference digits changing, so your own past decisions are the best classifier available — and a better one than a generic merchant list.",
         how: (
           <>
-            The memory is rebuilt from your recent categorised transactions at
-            import time rather than saved anywhere, so it always matches what
-            the ledger actually says, and a correction is picked up on the next
-            import with nothing to retrain or clear.
+            The memory is rebuilt from your recent categorised transactions each
+            time you import or write a line, rather than saved anywhere, so it
+            always matches what the ledger actually says, and a correction is
+            picked up next time with nothing to retrain or clear. A remembered
+            category arrives in pencil until you approve it, so a guess never
+            quietly becomes part of your record.
           </>
         ),
       },
@@ -633,7 +635,10 @@ const sections: Section[] = [
           <>
             A standards document in the repository sets the rules the interface
             is held to: semantic landmarks, a proper heading hierarchy, keyboard
-            operability, and a minimum 4.5:1 contrast ratio for body text.
+            operability, and a minimum 4.5:1 contrast ratio for body text. A
+            unit test checks every text colour against every surface in both
+            colour schemes, and holds focus rings, form-field edges, the
+            spending sections’ colours and the plan’s chart colours to 3:1.
           </>
         ),
       },
@@ -667,7 +672,7 @@ const sections: Section[] = [
         why: "Animation can cause real physical discomfort, and the operating system already knows who it affects.",
         how: (
           <>
-            The loading skeletons stop shimmering and the plan drawer stops
+            The loading skeletons stop shimmering and the editing dialogs stop
             sliding under <code>prefers-reduced-motion</code> — the two places
             in the app that animate at all.
           </>
@@ -679,8 +684,9 @@ const sections: Section[] = [
         how: (
           <>
             The sheets pan horizontally with their labels pinned, dialogs fit
-            small screens, and the plan editor becomes a bottom sheet — each
-            with its own phone-viewport tests.
+            small screens, and the editing dialogs become bottom sheets. The
+            sheets, the ledger, the import dialog and the plan editor each have
+            their own phone-viewport tests.
           </>
         ),
       },

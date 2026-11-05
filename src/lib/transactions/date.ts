@@ -47,3 +47,19 @@ export function parseDate(raw: string, format: DateFormat): Date | null {
   }
   return date;
 }
+
+// UK first, so a statement whose dates read either way (01/02/2026) keeps the
+// reading most of this app's users mean. ISO comes before American because a
+// four-digit lead can only be a year.
+const GUESS_ORDER: readonly DateFormat[] = ["DMY", "YMD", "MDY"];
+
+/** Picks the first format that parses every non-blank sample; DMY if none do. */
+export function guessDateFormat(samples: readonly string[]): DateFormat {
+  const filled = samples.filter((sample) => sample.trim() !== "");
+  if (filled.length === 0) return "DMY";
+  return (
+    GUESS_ORDER.find((format) =>
+      filled.every((sample) => parseDate(sample, format) !== null),
+    ) ?? "DMY"
+  );
+}

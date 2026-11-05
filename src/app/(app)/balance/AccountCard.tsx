@@ -122,6 +122,7 @@ export function AccountCard({
       eyebrow="Balance sheet"
       title={account.name}
       onClose={onClose}
+      liveNote="Changes save as you go"
     >
       {error ? <ErrorText role="alert">{error}</ErrorText> : null}
       <DrawerSection title="Account" defaultOpen>

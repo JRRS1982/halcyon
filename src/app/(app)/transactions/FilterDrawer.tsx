@@ -18,9 +18,9 @@ const Input = styled.input`
   width: 100%;
   padding: ${({ theme }) => theme.spacing.sm}
     ${({ theme }) => theme.spacing.md};
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
+  border: 1px solid ${({ theme }) => theme.colors.fieldBorder};
   border-radius: ${({ theme }) => theme.rounded.sm};
-  background: ${({ theme }) => theme.colors.canvas};
+  background: ${({ theme }) => theme.colors.field};
   color: ${({ theme }) => theme.colors.ink};
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
   font-size: 13px;
@@ -30,9 +30,9 @@ const Select = styled.select`
   width: 100%;
   padding: ${({ theme }) => theme.spacing.sm}
     ${({ theme }) => theme.spacing.md};
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
+  border: 1px solid ${({ theme }) => theme.colors.fieldBorder};
   border-radius: ${({ theme }) => theme.rounded.sm};
-  background: ${({ theme }) => theme.colors.canvas};
+  background: ${({ theme }) => theme.colors.field};
   color: ${({ theme }) => theme.colors.ink};
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
   font-size: 13px;
@@ -72,14 +72,15 @@ const FootButton = styled.button<{ $primary?: boolean }>`
     ${({ theme }) => theme.spacing.lg};
   border: 1px solid
     ${({ $primary, theme }) =>
-      $primary ? theme.colors.ink : theme.colors.hairlineStrong};
+      $primary ? theme.colors.primary : theme.colors.ink};
   border-radius: ${({ theme }) => theme.rounded.sm};
   background: ${({ $primary, theme }) =>
-    $primary ? theme.colors.ink : theme.colors.canvas};
+    $primary ? theme.colors.primary : theme.colors.canvas};
   color: ${({ $primary, theme }) =>
-    $primary ? theme.colors.canvas : theme.colors.ink};
-  font-family: ${({ theme }) => theme.typography.bodyMd.family};
-  font-size: ${({ theme }) => theme.typography.bodyMd.size};
+    $primary ? theme.colors.onPrimary : theme.colors.ink};
+  font-family: ${({ theme }) => theme.typography.control.family};
+  font-size: ${({ theme }) => theme.typography.control.size};
+  font-weight: ${({ theme }) => theme.typography.control.weight};
   cursor: pointer;
 `;
 
@@ -90,6 +91,7 @@ type Account = { id: string; name: string };
 // on Apply, where an empty field simply means "unset".
 type Draft = {
   onlyUncategorized: boolean;
+  onlyToCheck: boolean;
   from: string;
   to: string;
   accountId: string;
@@ -102,6 +104,7 @@ const TRANSFERS = "transfers";
 
 const draftFrom = (query: LedgerUrlQuery): Draft => ({
   onlyUncategorized: query.onlyUncategorized,
+  onlyToCheck: query.onlyToCheck,
   from: query.from ?? "",
   to: query.to ?? "",
   accountId: query.accountId ?? "",
@@ -117,6 +120,7 @@ const draftFrom = (query: LedgerUrlQuery): Draft => ({
 
 const EMPTY_DRAFT: Draft = {
   onlyUncategorized: false,
+  onlyToCheck: false,
   from: "",
   to: "",
   accountId: "",
@@ -129,6 +133,7 @@ const EMPTY_DRAFT: Draft = {
 // cleared filter leaves no trace in the URL.
 const paramsFrom = (draft: Draft): Record<string, string | null> => ({
   uncat: draft.onlyUncategorized ? "1" : null,
+  check: draft.onlyToCheck ? "1" : null,
   from: draft.from || null,
   to: draft.to || null,
   acct: draft.accountId || null,
@@ -157,6 +162,7 @@ export function FilterDrawer({
 }) {
   const [draft, setDraft] = useState<Draft>(() => draftFrom(query));
   const uncategorizedId = useId();
+  const toCheckId = useId();
 
   // Re-seed from the URL each time the drawer *opens*, so an abandoned edit is
   // discarded rather than waiting to surprise the next person to open it.
@@ -203,12 +209,20 @@ export function FilterDrawer({
           here from the toolbar, and appears as a chip so it is never hidden
           state. */}
       <DrawerSection title="Status" defaultOpen>
-        <Field label="Uncategorized only" htmlFor={uncategorizedId}>
+        <Field label="Uncategorised only" htmlFor={uncategorizedId}>
           <input
             id={uncategorizedId}
             type="checkbox"
             checked={draft.onlyUncategorized}
             onChange={(e) => set({ onlyUncategorized: e.target.checked })}
+          />
+        </Field>
+        <Field label="To approve only" htmlFor={toCheckId}>
+          <input
+            id={toCheckId}
+            type="checkbox"
+            checked={draft.onlyToCheck}
+            onChange={(e) => set({ onlyToCheck: e.target.checked })}
           />
         </Field>
       </DrawerSection>
@@ -244,38 +258,36 @@ export function FilterDrawer({
       </DrawerSection>
 
       <DrawerSection title="Account" defaultOpen>
-        <Field label="Account">
-          <Select
-            value={draft.accountId}
-            onChange={(e) => set({ accountId: e.target.value })}
-          >
-            <option value="">Any account</option>
-            {accounts.map((account) => (
-              <option key={account.id} value={account.id}>
-                {account.name}
-              </option>
-            ))}
-          </Select>
-        </Field>
+        <Select
+          aria-label="Account"
+          value={draft.accountId}
+          onChange={(e) => set({ accountId: e.target.value })}
+        >
+          <option value="">Any account</option>
+          {accounts.map((account) => (
+            <option key={account.id} value={account.id}>
+              {account.name}
+            </option>
+          ))}
+        </Select>
       </DrawerSection>
 
       <DrawerSection title="Category" defaultOpen>
-        <Field label="Category">
-          <Select
-            value={draft.category}
-            onChange={(e) => set({ category: e.target.value })}
-          >
-            <option value="">Any category</option>
-            {transfersEnabled ? (
-              <option value={TRANSFERS}>Transfers</option>
-            ) : null}
-            {categories.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.label}
-              </option>
-            ))}
-          </Select>
-        </Field>
+        <Select
+          aria-label="Category"
+          value={draft.category}
+          onChange={(e) => set({ category: e.target.value })}
+        >
+          <option value="">Any category</option>
+          {transfersEnabled ? (
+            <option value={TRANSFERS}>Transfers</option>
+          ) : null}
+          {categories.map((category) => (
+            <option key={category.id} value={category.id}>
+              {category.label}
+            </option>
+          ))}
+        </Select>
       </DrawerSection>
 
       {/* Amounts are signed in the ledger but matched on magnitude here, so a

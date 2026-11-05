@@ -6,6 +6,7 @@
 - Net worth = asset totals − liability totals, computed in `BalanceSheet.tsx` from the displayed rows
 - Account type (`CURRENT_ACCOUNT`, `SAVINGS`, `MORTGAGE`, …) drives kind and wrapper through `kindOf()`/`wrapperOf()`. Neither is stored.
 - Value and notes edit in place; name, type, section and terms edit in the account card
+- The page opens with a headline and notes computed from the month (`balanceBrief`, `src/lib/insights/balanceBrief.ts`)
 - Add, archive and delete accounts from the sheet's Add drawer and delete panel
 
 The registry model behind the sheet is documented in [`accounts.md`](accounts.md). This page covers the sheet itself.
@@ -14,7 +15,11 @@ The registry model behind the sheet is documented in [`accounts.md`](accounts.md
 
 The page lists the user's live accounts and left-joins the month's `BalanceItem` onto them (`page.tsx`). An account with no value this month still has a row with an empty cell. A blank cell is not £0: clearing a value (`clearBalanceValue`) soft-deletes the observation, and the footer counts accounts still without one. An archived account shows only on past months where it recorded a value.
 
-Rows group by `Account.section`, then `sortOrder`. Columns are account name, value and notes. A strip below the sheet summarises assets, liabilities and net worth for recent months.
+Rows group by `Account.section`, then `sortOrder`. Columns are account name, value, `Since <previous month>` and notes. The change column comes from `accountChange` (`src/lib/insights/balanceBrief.ts`): how far the account moved since the previous recorded month, green when it helped, so a falling debt shows green. Movements under £1 and accounts without a value in both months show nothing. A "Past months" table under the sheet lists assets, liabilities and net worth for each recorded month.
+
+## The brief
+
+`balanceBrief` writes the headline (where net worth stands and how it moved since the last recorded month), the standfirst (`You own £X and owe £Y.`) and notes led `Biggest gain.`, `Debt paid down.`, `Biggest drop.` and `Still to record.`. Movement is measured only across accounts with a value in both months, so an account not yet filled in reads as still to record, never as a fall to zero.
 
 ## Account type drives everything
 
@@ -32,7 +37,7 @@ The Add drawer (`AddAccountDrawer.tsx`) asks for type, section, name and value, 
 ## Editing
 
 - **Value and notes** edit in place (`upsertBalanceValue` in `actions.ts`, debounced). Editing the value clears the row's `carriedOver` flag. A note alone cannot create a row: it needs a value first.
-- **Name, type, section and terms** edit in the account card (`AccountCard.tsx`).
+- **Name, type, section and terms** edit in the account card (`AccountCard.tsx`). Each field saves as you leave it; the card's footer says "Changes save as you go", because the plan only picks the change up on its next Sync.
 - **Fill from another month** (`copyBalancePeriodFrom`) copies the source month's values into the target as provisional `carriedOver` rows. Archived accounts are not carried over.
 
 Changing `type` changes `kindOf`/`wrapperOf` everywhere at once. Changing between asset and liability is refused.

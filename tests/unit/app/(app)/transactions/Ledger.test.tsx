@@ -53,6 +53,7 @@ const renderLedger = () =>
               description: "Mortgage payment",
               categoryId: null,
               transferAccountId: mortgageAccountId,
+              isCategoryConfirmed: true,
               accountId: currentAccountId,
               accountName: "Current",
               note: null,
@@ -70,7 +71,6 @@ const renderLedger = () =>
             kind: "LIABILITY",
           },
         ]}
-        uncategorizedCount={0}
         transfersEnabled={true}
       />
     </ThemeProvider>,
@@ -84,7 +84,7 @@ describe("Ledger transfer display", () => {
     // The row's own combobox trigger (unlike the always-present bulk bar
     // combobox) defaults to this placeholder when it has nothing to show —
     // it must not fall back to it here.
-    expect(screen.queryByText("— Uncategorized —")).not.toBeInTheDocument();
+    expect(screen.queryByText("— Uncategorised —")).not.toBeInTheDocument();
   });
 });
 
@@ -102,7 +102,6 @@ describe("Ledger search box", () => {
           query={queryWith({ q: search })}
           categories={[]}
           transferAccounts={[]}
-          uncategorizedCount={0}
           transfersEnabled={true}
         />
       </ThemeProvider>,
@@ -132,7 +131,6 @@ describe("Ledger search box", () => {
             query={queryWith({ q: "coffee" })}
             categories={[]}
             transferAccounts={[]}
-            uncategorizedCount={0}
             transfersEnabled={true}
           />
         </ThemeProvider>,
@@ -156,7 +154,6 @@ describe("Ledger search box", () => {
           query={queryWith({ q: "rent" })}
           categories={[]}
           transferAccounts={[]}
-          uncategorizedCount={0}
           transfersEnabled={true}
         />
       </ThemeProvider>,

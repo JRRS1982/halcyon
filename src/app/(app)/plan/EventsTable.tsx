@@ -22,13 +22,13 @@ const EVENT_KINDS: EventKind[] = ["MANUAL", "PROPERTY_SALE"];
 type PlanProperty = { id: string; label: string };
 
 const Panel = styled.section`
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  padding: ${({ theme }) => theme.spacing.lg};
+  border-top: 1px solid ${({ theme }) => theme.colors.ink};
+  padding: ${({ theme }) => theme.spacing.lg} 0;
   display: grid;
   gap: ${({ theme }) => theme.spacing.sm};
 `;
 const Heading = styled.h2`
+  font-family: ${({ theme }) => theme.typography.displayLg.family};
   font-size: ${({ theme }) => theme.typography.displayLg.size};
   font-weight: ${({ theme }) => theme.typography.displayLg.weight};
   color: ${({ theme }) => theme.colors.ink};
@@ -54,7 +54,7 @@ const Hint = styled.p`
 // toggle but not for a property, whose id isn't fit for display.
 const PropertySelect = styled.select`
   width: 100%;
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
+  border: 1px solid ${({ theme }) => theme.colors.fieldBorder};
   border-radius: ${({ theme }) => theme.rounded.sm};
   padding: ${({ theme }) => theme.spacing.xs};
   font-size: 13px;
@@ -180,12 +180,15 @@ export function EventsTable({
   numberFormat,
   properties,
   onOpen,
+  onCreated,
 }: {
   events: SerializedPlanEvent[];
   currency: string;
   numberFormat: NumberFormat;
   properties: PlanProperty[];
   onOpen: (id: string) => void;
+  /** Opens a row this table just created, which closing untouched discards. */
+  onCreated: (id: string) => void;
 }) {
   const router = useRouter();
   const add = async () => {
@@ -193,7 +196,7 @@ export function EventsTable({
     // Select before refreshing, not after: router.refresh() runs inside a
     // React transition, and a setState queued behind it waits on the server
     // round trip it starts. The selection does not depend on that payload.
-    onOpen(id);
+    onCreated(id);
     router.refresh();
   };
 

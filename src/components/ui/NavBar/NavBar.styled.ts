@@ -1,14 +1,19 @@
 import Link from "next/link";
 import styled, { css } from "styled-components";
 
+// A two-tier masthead on desktop: the serif wordmark and account actions on top,
+// the section links on a row beneath, closed by a full-strength ink rule that
+// the active link's claret underline sits on.
 export const Bar = styled.nav`
   ${({ theme }) => css`
-    height: 56px;
-    border-bottom: 1px solid ${theme.colors.hairline};
+    border-bottom: 1px solid ${theme.colors.ink};
     display: grid;
-    grid-template-columns: 1fr auto 1fr;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "brand right"
+      "links links";
     align-items: center;
-    padding: 0 ${theme.spacing["2xl"]};
+    padding: ${theme.spacing.lg} ${theme.spacing["5xl"]} 0;
     column-gap: ${theme.spacing["2xl"]};
     background: ${theme.colors.canvas};
     position: sticky;
@@ -18,7 +23,8 @@ export const Bar = styled.nav`
     /* Brand left, hamburger right — the link row and action cluster move into
        the drawer. Hidden children leave the grid, so two columns suffice. */
     @media (max-width: 767px) {
-      grid-template-columns: 1fr auto;
+      height: 56px;
+      grid-template-areas: "brand right";
       padding: 0 ${theme.spacing.lg};
     }
   `}
@@ -26,19 +32,26 @@ export const Bar = styled.nav`
 
 export const Brand = styled(Link)`
   ${({ theme }) => css`
-    font-family: ${theme.typography.bodyMd.family};
-    font-size: 14px;
-    font-weight: 600;
-    letter-spacing: -0.005em;
+    grid-area: brand;
+    font-family: ${theme.typography.displayLg.family};
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 1.1;
+
+    @media (max-width: 767px) {
+      font-size: 21px;
+    }
     color: ${theme.colors.ink};
     text-decoration: none;
   `}
 `;
 
 export const Links = styled.div`
+  grid-area: links;
   display: flex;
-  justify-self: center;
   gap: ${({ theme }) => theme.spacing["2xl"]};
+  padding-top: ${({ theme }) => theme.spacing.md};
 
   @media (max-width: 767px) {
     display: none;
@@ -47,23 +60,23 @@ export const Links = styled.div`
 
 export const NavLink = styled(Link)<{ $active: boolean }>`
   ${({ theme, $active }) => css`
-    font-family: ${theme.typography.monoCaps.family};
-    font-size: 12px;
-    font-weight: ${$active ? 700 : theme.typography.monoCaps.weight};
-    text-transform: uppercase;
-    letter-spacing: ${theme.typography.monoCaps.letterSpacing};
-    color: ${$active ? theme.colors.ink : theme.colors.body};
+    font-family: ${theme.typography.bodyMd.family};
+    font-size: 15px;
+    font-weight: 600;
+    color: ${$active ? theme.colors.accent : theme.colors.ink};
     text-decoration: none;
-    padding-bottom: 2px;
-    border-bottom: 2px solid ${$active ? theme.colors.ink : "transparent"};
+    padding-bottom: ${theme.spacing.md};
+    border-bottom: 4px solid ${$active ? theme.colors.accent : "transparent"};
+    margin-bottom: -1px;
 
     &:hover {
-      color: ${theme.colors.ink};
+      border-bottom-color: ${$active ? theme.colors.accent : theme.colors.hairlineStrong};
     }
   `}
 `;
 
 export const RightZone = styled.div`
+  grid-area: right;
   display: flex;
   align-items: center;
   justify-self: end;
@@ -77,15 +90,21 @@ export const RightGroup = styled.div`
   display: flex;
   align-items: center;
   gap: ${({ theme }) => theme.spacing.lg};
+
+  /* Sign in shares NavLink's look but not its underline slot: it sits on the
+     wordmark's row, away from the rule. */
+  ${NavLink} {
+    padding-bottom: 0;
+    margin-bottom: 0;
+    border-bottom: 0;
+  }
 `;
 
 export const PillLink = styled(Link)`
   ${({ theme }) => css`
-    font-family: ${theme.typography.monoCaps.family};
-    font-size: ${theme.typography.monoCaps.size};
-    font-weight: ${theme.typography.monoCaps.weight};
-    text-transform: uppercase;
-    letter-spacing: ${theme.typography.monoCaps.letterSpacing};
+    font-family: ${theme.typography.bodyMdStrong.family};
+    font-size: 14px;
+    font-weight: 600;
     background: ${theme.colors.primary};
     color: ${theme.colors.onPrimary};
     border-radius: ${theme.rounded.sm};
@@ -112,6 +131,7 @@ export const MenuButton = styled.button`
     align-items: center;
     justify-content: center;
     justify-self: end;
+    grid-area: right;
     margin-right: -${theme.spacing.md};
     background: none;
     border: none;
@@ -157,12 +177,12 @@ export const DrawerLink = styled(Link)<{ $active: boolean }>`
     min-height: 44px;
     padding: ${theme.spacing.md} 0;
     border-bottom: 1px solid ${theme.colors.hairline};
-    font-family: ${theme.typography.monoCaps.family};
-    font-size: 13px;
-    font-weight: ${$active ? 700 : theme.typography.monoCaps.weight};
-    text-transform: uppercase;
-    letter-spacing: ${theme.typography.monoCaps.letterSpacing};
-    color: ${$active ? theme.colors.ink : theme.colors.body};
+    font-family: ${theme.typography.bodyMd.family};
+    font-size: 17px;
+    font-weight: 600;
+    color: ${$active ? theme.colors.accent : theme.colors.ink};
+    box-shadow: ${$active ? `inset 4px 0 0 ${theme.colors.accent}` : "none"};
+    padding-left: ${$active ? theme.spacing.md : "0"};
     text-decoration: none;
 
     &:focus-visible {

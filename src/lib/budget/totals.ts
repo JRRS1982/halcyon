@@ -92,3 +92,47 @@ export function surplus(
   }
   return total;
 }
+
+export type Variance = {
+  amount: number;
+  word: "over" | "under" | "above" | "below" | "more" | "less";
+  favourable: boolean;
+};
+
+// Below half a penny, a difference is float noise rather than money.
+const PENNY_TOLERANCE = 0.005;
+
+/**
+ * How far a row's actual landed from its budget, in the words its kind uses:
+ * spending runs over or under, income comes in above or below, and money moved
+ * to or from an account is more or less. Null when the row is on budget.
+ */
+export function describeVariance(
+  item: Pick<ItemForTotals, "type" | "direction">,
+  amounts: ItemAmounts,
+): Variance | null {
+  const difference = amounts.actual - amounts.budget;
+  if (Math.abs(difference) < PENNY_TOLERANCE) return null;
+  const amount = Math.abs(difference);
+  const favourable = favourableVariance(item, amounts) > 0;
+  const isMore = difference > 0;
+  if (item.type === "EXPENSE") {
+    return { amount, word: isMore ? "over" : "under", favourable };
+  }
+  if (item.type === "INCOME") {
+    return { amount, word: isMore ? "above" : "below", favourable };
+  }
+  return { amount, word: isMore ? "more" : "less", favourable };
+}
+
+/**
+ * A row's share of the month's actual spending (expenses and repayments) as a
+ * fraction, or null when nothing has been spent to take a share of.
+ */
+export function shareOfSpend(
+  actual: number,
+  totalSpend: number,
+): number | null {
+  if (totalSpend <= 0) return null;
+  return actual / totalSpend;
+}

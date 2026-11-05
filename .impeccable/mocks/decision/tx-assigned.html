@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=390">
+<title>Playslip — Transactions</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#FFFDF8;--print:#C8441E;--printText:#B5381A;--ink:#1C2B6B;--pencil:#8A8F98;--body:#22242A;--muted:#5D626B;--fixed:#2F7FD0;--var:#E0A100;--disc:#8A1E5C;--rule:#F3C9BB}
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:390px;height:844px;overflow:hidden;background:var(--paper);font-family:Barlow,sans-serif;color:var(--body);font-variant-numeric:tabular-nums;position:relative}
+.cond{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;letter-spacing:.04em}
+header{background:var(--print);color:#fff;padding:14px 16px 14px}
+.top{display:flex;justify-content:space-between;align-items:center}
+.brand{font-weight:700;font-size:15px}
+.menu{width:22px;height:14px;border-top:2px solid #fff;border-bottom:2px solid #fff;position:relative}
+.menu:after{content:"";position:absolute;left:0;right:0;top:4px;border-top:2px solid #fff}
+h1{font-family:"Barlow Condensed";font-weight:700;font-size:34px;line-height:1;margin-top:14px;text-transform:uppercase;letter-spacing:.01em}
+.slip{display:flex;gap:6px;margin-top:10px}
+.slip div{flex:1;background:rgba(0,0,0,.16);border-radius:6px;padding:6px 8px}
+.slip b{display:block;font-size:20px;font-weight:700}
+.slip span{font-size:12px;font-family:"Barlow Condensed";text-transform:uppercase;letter-spacing:.05em}
+.band{position:sticky;top:0;display:flex;justify-content:space-between;align-items:center;background:var(--ink);color:#fff;padding:10px 16px}
+.band b{font-size:15px}.band span{font-size:13px;opacity:.85}
+.band button{background:#fff;color:var(--ink);border:0;border-radius:999px;font:600 13px Barlow;padding:7px 12px}
+.write{margin:12px 16px 4px;display:flex;align-items:center;gap:8px;border:1.5px solid var(--print);border-radius:10px;padding:10px 12px;background:#fff}
+.write .plus{width:24px;height:24px;border-radius:50%;background:var(--print);color:#fff;font-weight:700;display:grid;place-items:center;font-size:18px;line-height:1}
+.write span{color:var(--muted);font-size:15px}
+.day{padding:10px 16px 4px;color:var(--printText);font-size:13px;font-weight:600;border-bottom:1px solid var(--rule)}
+.row{padding:10px 16px 11px;border-bottom:1px solid var(--rule)}
+.r1{display:flex;justify-content:space-between;align-items:baseline}
+.desc{font-weight:600;font-size:15px}
+.amt{font-weight:600;font-size:15px}
+.amt.in{color:#1E7B45}
+.src{font-size:12px;color:var(--muted);margin-top:2px}
+.lz{display:flex;gap:6px;margin-top:8px}
+.lz span{flex:1;font-size:12.5px;font-weight:500;text-align:center;padding:6px 4px;border-radius:999px;border:1.5px solid var(--rule);color:var(--printText);background:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;position:relative}
+.lz span.code{padding-left:16px}.lz span.code:before{content:"";position:absolute;left:6px;top:50%;width:6px;height:6px;margin-top:-3px;border-radius:50%;background:var(--c)}
+.lz .pencil{border-color:var(--pencil);color:var(--body);background:repeating-linear-gradient(135deg,#E6E7EA 0 3px,#F4F4F6 3px 6px)}
+.lz .inked{background:var(--ink);border-color:var(--ink);color:#fff}
+.lz .more{flex:0 0 40px;color:var(--muted);border-style:dashed}
+.state{font-family:"Barlow Condensed";font-size:12px;letter-spacing:.06em;text-transform:uppercase;font-weight:600;padding:2px 6px;border-radius:4px;margin-left:6px}
+.s-pen{background:#ECEDF0;color:#4A4F57}.s-ink{background:#E6EAF5;color:var(--ink)}.s-you{background:#FCE6DE;color:var(--printText)}
+nav{position:absolute;left:0;right:0;bottom:0;height:72px;background:#fff;border-top:1px solid var(--rule);display:flex;padding:8px 6px 16px}
+nav a{flex:1;text-align:center;font-size:11px;color:var(--muted);text-decoration:none;display:flex;flex-direction:column;align-items:center;gap:4px}
+nav i{width:22px;height:22px;border-radius:6px;border:2px solid currentColor;display:block}
+nav a.on{color:var(--printText);font-weight:700}
+</style></head><body>
+<header>
+  <div class="top"><span class="brand">Balanced Money</span><span class="menu"></span></div>
+  <h1>October slip</h1>
+  <div class="slip">
+    <div><b>26</b><span>Inked from history</span></div>
+    <div><b>9</b><span>Pencilled</span></div>
+    <div><b>3</b><span>Need you</span></div>
+  </div>
+</header>
+<div class="band"><div><b>12 to check</b> <span>· about 2 minutes</span></div><button>Ink all 9 pencilled</button></div>
+<div class="write"><span class="plus">+</span><span>Write a line: “4.35 Pret coffee”</span></div>
+
+<div class="day">Mon 27 Oct</div>
+<div class="row">
+  <div class="r1"><span class="desc">PRET A MANGER 2210<span class="state s-pen">Pencilled</span></span><span class="amt">−£4.35</span></div>
+  <div class="src">Current Account · suggested</div>
+  <div class="lz"><span class="pencil code" style="--c:var(--disc)">Coffee &amp; Snacks</span><span class="code" style="--c:var(--disc)">Meals Out</span><span class="code" style="--c:var(--var)">Groceries</span><span class="more">···</span></div>
+</div>
+<div class="row">
+  <div class="r1"><span class="desc">TFL TRAVEL CH<span class="state s-ink">Inked</span></span><span class="amt">−£8.90</span></div>
+  <div class="src">Current Account · from your history</div>
+  <div class="lz"><span class="inked">Public Transport</span><span class="more">···</span></div>
+</div>
+<div class="day">Sat 25 Oct</div>
+<div class="row">
+  <div class="r1"><span class="desc">AMZN MKTP UK*2K4<span class="state s-you">Needs you</span></span><span class="amt">−£23.99</span></div>
+  <div class="src">Current Account · no confident match</div>
+  <div class="lz"><span class="code" style="--c:var(--var)">Household</span><span class="code" style="--c:var(--disc)">Gifts</span><span class="code" style="--c:var(--disc)">Hobbies</span><span class="more">···</span></div>
+</div>
+<div class="row">
+  <div class="r1"><span class="desc">PAYROLL OCT<span class="state s-ink">Inked</span></span><span class="amt in">+£2,850.00</span></div>
+  <div class="src">Current Account · from your history</div>
+  <div class="lz"><span class="inked">Salary</span><span class="more">···</span></div>
+</div>
+<div class="row">
+  <div class="r1"><span class="desc">DELIVEROO<span class="state s-pen">Pencilled</span></span><span class="amt">−£27.40</span></div>
+  <div class="src">Joint Account · suggested</div>
+  <div class="lz"><span class="pencil code" style="--c:var(--disc)">Takeaways</span><span class="code" style="--c:var(--disc)">Meals Out</span><span class="code" style="--c:var(--var)">Groceries</span><span class="more">···</span></div>
+</div>
+<nav>
+  <a><i></i>Home</a><a class="on"><i></i>Money in/out</a><a><i></i>Budget</a><a><i></i>Balance</a><a><i></i>Plan</a>
+</nav>
+</body></html>

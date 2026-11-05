@@ -16,21 +16,15 @@ import {
 const TriggerButton = styled.button`
   padding: ${({ theme }) => theme.spacing.sm}
     ${({ theme }) => theme.spacing.lg};
-  border: 1px solid ${({ theme }) => theme.colors.hairlineStrong};
+  border: 1px solid ${({ theme }) => theme.colors.ink};
   border-radius: ${({ theme }) => theme.rounded.sm};
   background: ${({ theme }) => theme.colors.canvas};
   color: ${({ theme }) => theme.colors.ink};
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
-  text-transform: uppercase;
+  font-family: ${({ theme }) => theme.typography.control.family};
+  font-size: ${({ theme }) => theme.typography.control.size};
+  font-weight: ${({ theme }) => theme.typography.control.weight};
   white-space: nowrap;
   cursor: pointer;
-
-  &:hover {
-    border-color: ${({ theme }) => theme.colors.ink};
-  }
 `;
 
 const Overlay = styled.div`
@@ -59,11 +53,11 @@ const Dialog = styled.dialog`
 
 const DialogTitle = styled.h2`
   margin: 0;
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  text-transform: uppercase;
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
-  color: ${({ theme }) => theme.colors.dim};
+  font-family: ${({ theme }) => theme.typography.amountXl.family};
+  font-size: ${({ theme }) => theme.typography.amountXl.size};
+  font-weight: ${({ theme }) => theme.typography.amountXl.weight};
+  letter-spacing: ${({ theme }) => theme.typography.amountXl.letterSpacing};
+  color: ${({ theme }) => theme.colors.ink};
 `;
 
 const Note = styled.p`
@@ -76,9 +70,9 @@ const Note = styled.p`
 const BatchSelect = styled.select`
   padding: ${({ theme }) => theme.spacing.sm}
     ${({ theme }) => theme.spacing.md};
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
+  border: 1px solid ${({ theme }) => theme.colors.fieldBorder};
   border-radius: ${({ theme }) => theme.rounded.sm};
-  background: ${({ theme }) => theme.colors.canvas};
+  background: ${({ theme }) => theme.colors.field};
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
   font-size: 13px;
 `;
@@ -92,12 +86,13 @@ const DialogActions = styled.div`
 const GhostButton = styled.button`
   padding: ${({ theme }) => theme.spacing.sm}
     ${({ theme }) => theme.spacing.lg};
-  border: 1px solid ${({ theme }) => theme.colors.hairlineStrong};
+  border: 1px solid ${({ theme }) => theme.colors.ink};
   border-radius: ${({ theme }) => theme.rounded.sm};
   background: ${({ theme }) => theme.colors.canvas};
   color: ${({ theme }) => theme.colors.ink};
-  font-family: ${({ theme }) => theme.typography.bodyMd.family};
-  font-size: ${({ theme }) => theme.typography.bodyMd.size};
+  font-family: ${({ theme }) => theme.typography.control.family};
+  font-size: ${({ theme }) => theme.typography.control.size};
+  font-weight: ${({ theme }) => theme.typography.control.weight};
   cursor: pointer;
 `;
 
@@ -109,11 +104,9 @@ const DangerButton = styled.button`
   border-radius: ${({ theme }) => theme.rounded.sm};
   background: ${({ theme }) => theme.colors.canvas};
   color: ${({ theme }) => theme.colors.negative};
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
-  text-transform: uppercase;
+  font-family: ${({ theme }) => theme.typography.control.family};
+  font-size: ${({ theme }) => theme.typography.control.size};
+  font-weight: ${({ theme }) => theme.typography.control.weight};
   cursor: pointer;
 
   &:disabled {

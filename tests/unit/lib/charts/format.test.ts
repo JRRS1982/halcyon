@@ -1,4 +1,9 @@
-import { amountAxis, makeAmountTick } from "@/lib/charts/format";
+import {
+  ageTicks,
+  amountAxis,
+  makeAmountTick,
+  niceStep,
+} from "@/lib/charts/format";
 
 describe("makeAmountTick", () => {
   const tick = makeAmountTick("GBP");
@@ -65,5 +70,32 @@ describe("amountAxis", () => {
       domain: [0, 250_000],
       ticks: [0, 250_000],
     });
+  });
+});
+
+// If this is wrong, a phone user reads a forecast axis of 18 crowded ages, or
+// one that starts or ends at an age the plan never reaches.
+describe("ageTicks", () => {
+  test("lands on the multiples of five within the plan's ages", () => {
+    expect(ageTicks([44, 45, 46, 60, 71])).toEqual([45, 50, 55, 60, 65, 70]);
+  });
+
+  test("takes a wider step, and gives nothing for no data", () => {
+    expect(ageTicks([44, 95], 10)).toEqual([50, 60, 70, 80, 90]);
+    expect(ageTicks([])).toEqual([]);
+  });
+});
+
+// If this is wrong, the dashboard's balance axis reads £259.4k, £385.8k — real
+// gridlines that no one can read a value off.
+describe("niceStep", () => {
+  test("rounds to 1, 2 or 5 times a power of ten", () => {
+    expect(niceStep(-173_000, 350_000)).toBe(200_000);
+    expect(niceStep(0, 9_000)).toBe(5_000);
+    expect(niceStep(400, 1_000)).toBe(200);
+  });
+
+  test("survives a flat series", () => {
+    expect(niceStep(5, 5)).toBe(1);
   });
 });

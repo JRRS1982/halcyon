@@ -20,13 +20,13 @@ export const HeaderLeft = styled.div`
 
 export const Eyebrow = styled.div`
   ${({ theme }) => css`
-    font-family: ${theme.typography.monoCaps.family};
-    font-size: ${theme.typography.monoCaps.size};
-    font-weight: ${theme.typography.monoCaps.weight};
-    line-height: ${theme.typography.monoCaps.lineHeight};
+    font-family: ${theme.typography.kicker.family};
+    font-size: ${theme.typography.kicker.size};
+    font-weight: ${theme.typography.kicker.weight};
+    line-height: ${theme.typography.kicker.lineHeight};
     text-transform: uppercase;
-    letter-spacing: ${theme.typography.monoCaps.letterSpacing};
-    color: ${theme.colors.body};
+    letter-spacing: ${theme.typography.kicker.letterSpacing};
+    color: ${theme.colors.accent};
   `}
 `;
 
@@ -45,12 +45,12 @@ export const Title = styled.h1`
 export const Lead = styled.p`
   ${({ theme }) => css`
     font-family: ${theme.typography.bodyMd.family};
-    font-size: ${theme.typography.bodyMd.size};
+    font-size: 17px;
     font-weight: ${theme.typography.bodyMd.weight};
-    line-height: ${theme.typography.bodyMd.lineHeight};
+    line-height: 1.45;
     color: ${theme.colors.body};
     margin: ${theme.spacing.sm} 0 0 0;
-    max-width: 540px;
+    max-width: 720px;
   `}
 `;
 

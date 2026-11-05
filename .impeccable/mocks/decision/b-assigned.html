@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en-GB"><head><meta charset="utf-8">
+<title>Plain Service — Budget</title>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#0B0C0C;--muted:#505A5F;--link:#1D70B8;--focus:#FFDD00;--ok:#00703C;--bad:#D4351C;--grey:#F3F2F1;--rule:#B1B4B6;--fixed:#1D70B8;--var:#B45309;--disc:#4C2C92}
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:1440px;height:900px;overflow:hidden;background:#fff;font-family:"Public Sans",sans-serif;color:var(--ink);font-variant-numeric:tabular-nums}
+header{background:var(--ink);color:#fff;height:60px;display:flex;align-items:center;padding:0 48px;gap:40px;border-bottom:8px solid var(--link)}
+.brand{font-weight:800;font-size:20px}
+nav{display:flex;gap:28px;font-size:16px;font-weight:600}
+nav a{color:#fff;text-decoration:underline;text-underline-offset:4px}
+nav a.on{text-decoration-thickness:3px}
+.acct{margin-left:auto;font-size:16px;text-decoration:underline}
+main{display:grid;grid-template-columns:1fr 360px;gap:48px;padding:28px 48px 0}
+.cap{font-size:19px;color:var(--muted)}
+h1{font-size:40px;font-weight:800;line-height:1.1;margin-top:2px}
+.verdict{display:flex;align-items:baseline;gap:20px;margin-top:14px}
+.verdict b{font-size:64px;font-weight:800;color:var(--ok);letter-spacing:-.02em}
+.verdict span{font-size:19px;max-width:440px;line-height:1.4}
+.bar{display:flex;align-items:center;gap:12px;margin-top:20px;padding:12px 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+.btn{background:var(--ok);color:#fff;font-weight:700;font-size:16px;padding:9px 16px;box-shadow:0 2px 0 #002D18}
+.btn2{background:var(--grey);color:var(--ink);font-weight:600;font-size:16px;padding:9px 16px;box-shadow:0 2px 0 #929191}
+.month{font-size:16px;font-weight:600;margin-left:8px}
+.month a{color:var(--link);text-decoration:underline;margin:0 6px}
+.del{margin-left:auto;color:var(--bad);font-weight:600;font-size:16px;text-decoration:underline}
+table{width:100%;border-collapse:collapse;margin-top:8px;font-size:16px}
+th{text-align:left;font-weight:700;padding:10px 8px;border-bottom:2px solid var(--ink)}
+th.n,td.n{text-align:right}
+td{padding:9px 8px;border-bottom:1px solid var(--rule);vertical-align:middle}
+tr.sec td{font-weight:700;font-size:17px;padding-top:16px;border-bottom:2px solid var(--ink)}
+tr.sec td:first-child{border-left:6px solid var(--c);padding-left:12px}
+td.cat{padding-left:20px}
+td a{color:var(--link);text-decoration:underline;font-size:15px}
+.diff.bad{color:var(--bad);font-weight:700}.diff.ok{color:var(--ok);font-weight:600}
+.meter{position:relative;width:150px;height:10px;background:var(--grey)}
+.meter i{position:absolute;left:0;top:0;bottom:0;background:var(--c)}
+.meter u{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink);left:120px}
+.meter s{position:absolute;top:0;bottom:0;background:var(--bad);text-decoration:none}
+tr.focus td{background:var(--focus)}tr.focus .diff.bad{color:var(--ink)}
+aside h2{font-size:24px;font-weight:800;margin-top:6px}
+.inset{border-left:10px solid var(--rule);padding:14px 18px;margin-top:14px;font-size:17px;line-height:1.45}
+.inset b{display:block;font-size:19px;margin-bottom:4px}
+.rank{margin-top:22px}
+.rank h3{font-size:19px;font-weight:700;margin-bottom:8px}
+.rk{display:grid;grid-template-columns:22px 1fr 70px;gap:8px;align-items:center;font-size:16px;padding:6px 0;border-bottom:1px solid var(--rule)}
+.rk em{font-style:normal;color:var(--muted)}
+.rk b{text-align:right}
+.rk i{grid-column:2/4;height:6px;background:var(--c);display:block}
+.tag{display:inline-block;font-size:14px;font-weight:700;padding:2px 8px;background:#FCD6C3;color:#6E3619;margin-left:8px}
+</style></head><body>
+<header><span class="brand">Balanced Money</span>
+<nav><a>Guide</a><a>Transactions</a><a class="on">Budget</a><a>Balance</a><a>Dashboard</a><a>Plan</a><a>Settings</a></nav>
+<span class="acct">Sign out</span></header>
+<main>
+<section>
+  <div class="cap">Budget</div>
+  <h1>October 2026</h1>
+  <div class="verdict"><b>£1,235</b><span>left over this month. That is £160 less than you planned, because Variable and Discretionary ran over.</span></div>
+  <div class="bar"><span class="btn">Add a row</span><span class="btn2">Fill from another month</span><span class="month"><a>‹ September</a> · <a>November ›</a></span><span class="del">Delete selected row</span></div>
+  <table>
+    <tr><th>Category</th><th class="n">Budget</th><th class="n">Actual</th><th class="n">Difference</th><th>Against budget</th><th></th></tr>
+    <tr class="sec" style="--c:var(--fixed)"><td>Fixed</td><td class="n">£1,430</td><td class="n">£1,441</td><td class="n diff bad">£11 over</td><td></td><td></td></tr>
+    <tr><td class="cat">Mortgage</td><td class="n">£1,250</td><td class="n">£1,250</td><td class="n diff ok">On budget</td><td><div class="meter" style="--c:var(--fixed)"><i style="width:120px"></i><u></u></div></td><td><a>Change</a></td></tr>
+    <tr><td class="cat">Utilities</td><td class="n">£180</td><td class="n">£191</td><td class="n diff bad">£11 over</td><td><div class="meter" style="--c:var(--fixed)"><i style="width:120px"></i><s style="left:120px;width:7px"></s><u></u></div></td><td><a>Change</a></td></tr>
+    <tr class="sec" style="--c:var(--var)"><td>Variable</td><td class="n">£580</td><td class="n">£662</td><td class="n diff bad">£82 over</td><td></td><td></td></tr>
+    <tr class="focus"><td class="cat">Groceries <span class="tag">Biggest overspend</span></td><td class="n">£420</td><td class="n">£492</td><td class="n diff bad">£72 over</td><td><div class="meter" style="--c:var(--var)"><i style="width:120px"></i><s style="left:120px;width:21px"></s><u></u></div></td><td><a>Change</a></td></tr>
+    <tr><td class="cat">Transport</td><td class="n">£160</td><td class="n">£170</td><td class="n diff bad">£10 over</td><td><div class="meter" style="--c:var(--var)"><i style="width:120px"></i><s style="left:120px;width:8px"></s><u></u></div></td><td><a>Change</a></td></tr>
+    <tr class="sec" style="--c:var(--disc)"><td>Discretionary</td><td class="n">£245</td><td class="n">£327</td><td class="n diff bad">£82 over</td><td></td><td></td></tr>
+    <tr><td class="cat">Meals Out</td><td class="n">£120</td><td class="n">£176</td><td class="n diff bad">£56 over</td><td><div class="meter" style="--c:var(--disc)"><i style="width:120px"></i><s style="left:120px;width:28px"></s><u></u></div></td><td><a>Change</a></td></tr>
+    <tr><td class="cat">Subscriptions</td><td class="n">£45</td><td class="n">£45</td><td class="n diff ok">On budget</td><td><div class="meter" style="--c:var(--disc)"><i style="width:120px"></i><u></u></div></td><td><a>Change</a></td></tr>
+  </table>
+</section>
+<aside>
+  <h2>Where October went</h2>
+  <div class="inset"><b>Groceries ran £72 over</b>Your 14 grocery transactions averaged £35. Four shops over £60 made up half the total.</div>
+  <div class="rank"><h3>Spending, largest first</h3>
+    <div class="rk" style="--c:var(--fixed)"><em>1</em>Mortgage<b>£1,250</b><i style="width:100%"></i></div>
+    <div class="rk" style="--c:var(--var)"><em>2</em>Groceries<b>£492</b><i style="width:39%"></i></div>
+    <div class="rk" style="--c:var(--fixed)"><em>3</em>Utilities<b>£191</b><i style="width:15%"></i></div>
+    <div class="rk" style="--c:var(--disc)"><em>4</em>Meals Out<b>£176</b><i style="width:14%"></i></div>
+    <div class="rk" style="--c:var(--var)"><em>5</em>Transport<b>£170</b><i style="width:14%"></i></div>
+  </div>
+</aside>
+</main>
+</body></html>

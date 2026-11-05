@@ -4,6 +4,13 @@
 
 import { type ColorToken, cssVariableName } from "./palette";
 
+// Two faces: an editorial serif for headlines, section rows and the big
+// figures, and a sturdy grotesk for tables and controls. Both are loaded by
+// next/font in the root layout and reached through these variables.
+const SANS =
+  "var(--font-sans), system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif";
+const SERIF = "var(--font-serif), Georgia, 'Times New Roman', serif";
+
 // Colours resolve to CSS custom properties rather than to literal hex, so a
 // single set of styled components serves both schemes and the browser does the
 // switching. The values behind these live in palette.ts, and which set applies
@@ -29,6 +36,8 @@ export const theme = {
     hairlineStrong: cssVar("hairlineStrong"),
     canvas: cssVar("canvas"),
     canvasSoft: cssVar("canvasSoft"),
+    field: cssVar("field"),
+    fieldBorder: cssVar("fieldBorder"),
     // The sheet's section strips and the marketing bands. Named for the job
     // because the colour inverts between schemes — see palette.ts.
     band: cssVar("band"),
@@ -51,79 +60,84 @@ export const theme = {
     chartOtherAsset: cssVar("chartOtherAsset"),
     chartPension: cssVar("chartPension"),
     chartDbPension: cssVar("chartDbPension"),
+    sectionFixed: cssVar("sectionFixed"),
+    sectionVariable: cssVar("sectionVariable"),
+    sectionDiscretionary: cssVar("sectionDiscretionary"),
   },
 
-  // Five sizes only. See DESIGN.md → Typography → Hierarchy.
+  // The type tokens. See DESIGN.md → Typography → Hierarchy for the scale.
   typography: {
     displayXl: {
-      family:
-        "Inter, system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif",
-      size: "28px",
-      weight: 500,
-      lineHeight: 1.1,
-      letterSpacing: "-0.02em",
+      family: SERIF,
+      size: "32px",
+      weight: 700,
+      lineHeight: 1.12,
+      letterSpacing: "-0.01em",
     },
     displayLg: {
-      family:
-        "Inter, system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif",
-      size: "18px",
-      weight: 500,
-      lineHeight: 1.3,
-      letterSpacing: "-0.012em",
+      family: SERIF,
+      size: "20px",
+      weight: 700,
+      lineHeight: 1.25,
+      letterSpacing: "-0.005em",
     },
     bodyMd: {
-      family:
-        "Inter, system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif",
+      family: SANS,
       size: "14px",
       weight: 400,
       lineHeight: 1.5,
       letterSpacing: "-0.003em",
     },
     bodyMdStrong: {
-      family:
-        "Inter, system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif",
+      family: SANS,
       size: "14px",
       weight: 500,
       lineHeight: 1.5,
       letterSpacing: "-0.003em",
     },
     amount: {
-      family:
-        "Inter, system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif",
+      family: SANS,
       size: "14px",
       weight: 400,
       lineHeight: 1.5,
       letterSpacing: "0",
     },
     amountStrong: {
-      family:
-        "Inter, system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif",
+      family: SANS,
       size: "14px",
       weight: 500,
       lineHeight: 1.5,
       letterSpacing: "0",
     },
     amountXl: {
-      family:
-        "Inter, system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif",
-      size: "18px",
-      weight: 500,
-      lineHeight: 1.3,
-      letterSpacing: "-0.012em",
+      family: SERIF,
+      size: "20px",
+      weight: 700,
+      lineHeight: 1.25,
+      letterSpacing: "0",
     },
-    monoCaps: {
-      family: "ui-monospace, 'SF Mono', Menlo, Consolas, monospace",
-      size: "11px",
-      weight: 500,
+    // Buttons, toolbar tools, selects and table column heads: sentence case,
+    // the one weight a control is set in everywhere.
+    control: {
+      family: SANS,
+      size: "14px",
+      weight: 600,
+      lineHeight: 1.15,
+      letterSpacing: "0",
+    },
+    kicker: {
+      family: SANS,
+      size: "12px",
+      weight: 700,
       lineHeight: 1.2,
-      letterSpacing: "0.055em",
+      letterSpacing: "0.04em",
       textTransform: "uppercase" as const,
     },
   },
 
   rounded: {
     none: "0px",
-    sm: "4px",
+    sm: "2px",
     full: "9999px",
   },
 

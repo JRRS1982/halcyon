@@ -45,6 +45,7 @@ const Panel = styled(PlanCard)`
   overflow-x: auto;
 `;
 const Heading = styled.h2`
+  font-family: ${({ theme }) => theme.typography.displayLg.family};
   font-size: ${({ theme }) => theme.typography.displayLg.size};
   font-weight: ${({ theme }) => theme.typography.displayLg.weight};
   color: ${({ theme }) => theme.colors.ink};
@@ -73,11 +74,11 @@ const Rows = styled.div`
 // nothing to close.
 const GroupLabel = styled.div<{ $first: boolean }>`
   grid-column: 1 / -1;
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
-  line-height: ${({ theme }) => theme.typography.monoCaps.lineHeight};
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
+  font-family: ${({ theme }) => theme.typography.kicker.family};
+  font-size: ${({ theme }) => theme.typography.kicker.size};
+  font-weight: ${({ theme }) => theme.typography.kicker.weight};
+  line-height: ${({ theme }) => theme.typography.kicker.lineHeight};
+  letter-spacing: ${({ theme }) => theme.typography.kicker.letterSpacing};
   text-transform: uppercase;
   color: ${({ theme }) => theme.colors.dim};
   ${({ $first, theme }) =>
@@ -101,24 +102,26 @@ const Track = styled.div`
   position: relative;
   height: 18px;
 `;
+// Each stream is a thin line between two dots, so the lanes read as spans of
+// time rather than as a bar chart of amounts.
 const Bar = styled.div`
   position: absolute;
-  top: 2px;
-  height: 14px;
-  border-radius: 3px;
+  top: 8px;
+  height: 2px;
   min-width: 2px;
 `;
+// The dot at each end of a stream, filled in the stream's colour; dragging it
+// moves that end.
 const Handle = styled.div`
   position: absolute;
-  top: 0;
-  width: 10px;
-  height: 18px;
+  top: 3px;
+  width: 12px;
+  height: 12px;
   transform: translateX(-50%);
   cursor: ew-resize;
   touch-action: none;
-  border-radius: 3px;
-  background: ${({ theme }) => theme.colors.canvas};
-  border: 1px solid ${({ theme }) => theme.colors.ink};
+  border-radius: ${({ theme }) => theme.rounded.full};
+  border: 2px solid ${({ theme }) => theme.colors.canvas};
   &:focus-visible {
     outline: 2px solid ${({ theme }) => theme.colors.accent};
     outline-offset: 2px;
@@ -220,8 +223,10 @@ function BarHandle({
   maxAge,
   onInput,
   onCommit,
+  colour,
 }: {
   bar: TimelineBar;
+  colour: string;
   edge: "start" | "end";
   minAge: number;
   maxAge: number;
@@ -250,7 +255,11 @@ function BarHandle({
       // Position-aware centring: translateX slides from 0% at the left edge to
       // -100% at the right edge (still -50% mid-track), so an edge grip at 0% or
       // 100% stays fully on-track and grabbable instead of hanging half off it.
-      style={{ left: `${pct}%`, transform: `translateX(-${pct}%)` }}
+      style={{
+        left: `${pct}%`,
+        transform: `translateX(-${pct}%)`,
+        background: colour,
+      }}
       role="slider"
       tabIndex={0}
       aria-label={`${bar.label} ${edge} age`}
@@ -465,6 +474,7 @@ export function Timeline({
                       />
                       <BarHandle
                         bar={b}
+                        colour={barColour(b)}
                         edge="start"
                         minAge={minAge}
                         maxAge={maxAge}
@@ -473,6 +483,7 @@ export function Timeline({
                       />
                       <BarHandle
                         bar={b}
+                        colour={barColour(b)}
                         edge="end"
                         minAge={minAge}
                         maxAge={maxAge}

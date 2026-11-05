@@ -31,11 +31,9 @@ const PillLink = styled(Link)`
     color: ${theme.colors.onPrimary};
     border-radius: ${theme.rounded.sm};
     padding: ${theme.spacing.sm} ${theme.spacing.lg};
-    font-family: ${theme.typography.monoCaps.family};
-    font-size: ${theme.typography.monoCaps.size};
-    font-weight: ${theme.typography.monoCaps.weight};
-    letter-spacing: ${theme.typography.monoCaps.letterSpacing};
-    text-transform: uppercase;
+    font-family: ${theme.typography.control.family};
+    font-size: ${theme.typography.control.size};
+    font-weight: ${theme.typography.control.weight};
     text-decoration: none;
 
     &:hover {

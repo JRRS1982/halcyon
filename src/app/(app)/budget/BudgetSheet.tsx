@@ -12,10 +12,20 @@ import {
   useState,
   useTransition,
 } from "react";
-import styled, { css } from "styled-components";
+import styled from "styled-components";
 import { AddAccountDrawer } from "@/app/(app)/balance/AddAccountDrawer";
+import { MonthBriefPanel } from "@/components/insights/MonthBriefPanel";
+import {
+  SummaryHeading,
+  SummaryStrip,
+  SummaryTable,
+  SummaryTd,
+  SummaryTh,
+  SummaryTr,
+} from "@/components/sheet/MonthSummary/MonthSummary.styled";
 import { Sheet } from "@/components/sheet/Sheet";
 import {
+  type Insight,
   SheetGrandRow,
   SheetHeadRow,
   SheetItemRow,
@@ -49,7 +59,10 @@ import {
 } from "@/lib/budget/sections";
 import {
   computeRollups,
+  describeVariance,
   type ItemAmounts,
+  type ItemForTotals,
+  shareOfSpend,
   sumAmounts,
   surplus,
 } from "@/lib/budget/totals";
@@ -59,6 +72,8 @@ import type {
   IncomeSection,
 } from "@/lib/categories/sections";
 import { useDebouncedCallback } from "@/lib/hooks/useDebouncedCallback";
+import type { CategoryHistory } from "@/lib/insights/history";
+import { monthBrief } from "@/lib/insights/monthBrief";
 import {
   caretAfterSignificant,
   formatAmount,
@@ -70,6 +85,7 @@ import {
   parseEditable,
   significantBefore,
 } from "@/lib/settings/currency";
+import { theme } from "@/lib/theme";
 import {
   copyPeriodFrom,
   createItemForMonth,
@@ -296,6 +312,49 @@ function AmountInput({
   );
 }
 
+const VarianceText = styled.span<{ $favourable: boolean }>`
+  color: ${({ theme, $favourable }) =>
+    $favourable ? theme.colors.positive : theme.colors.negative};
+  font-weight: 600;
+  white-space: nowrap;
+`;
+
+const OnBudget = styled.span`
+  color: ${({ theme }) => theme.colors.dim};
+`;
+
+const Share = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.sm};
+  font-size: 13px;
+`;
+
+// The bar is the share drawn to scale: a full track is the whole month.
+const ShareTrack = styled.span`
+  width: 64px;
+  height: 8px;
+  background: ${({ theme }) => theme.colors.hairline};
+`;
+
+const ShareFill = styled.span<{ $color: string }>`
+  display: block;
+  height: 100%;
+  background: ${({ $color }) => $color};
+`;
+
+// Each spending section's colour code, shared with the dashboard's charts.
+const SECTION_COLOR: Partial<Record<string, string>> = {
+  FIXED: theme.colors.sectionFixed,
+  VARIABLE: theme.colors.sectionVariable,
+  DISCRETIONARY: theme.colors.sectionDiscretionary,
+};
+
+type VarianceKind = Pick<ItemForTotals, "type" | "direction">;
+const INCOME_KIND: VarianceKind = { type: "INCOME", direction: null };
+const EXPENSE_KIND: VarianceKind = { type: "EXPENSE", direction: null };
+const REPAYMENT_KIND: VarianceKind = { type: "REPAYMENT", direction: null };
+
 const PageShell = styled.main`
   max-width: 1240px;
   margin: 0 auto;
@@ -310,11 +369,11 @@ const PageShell = styled.main`
   }
 `;
 
-// Accent-coloured period date in the page eyebrow. Bold + blue — the single
-// orientation moment on the page per DESIGN.md → Do's.
-const PeriodLabel = styled.span`
-  color: ${({ theme }) => theme.colors.accent};
-  font-weight: 600;
+// How to drive the sheet, said once under it rather than over the headline.
+const SheetHint = styled.p`
+  font-size: 13px;
+  color: ${({ theme }) => theme.colors.body};
+  margin-top: ${({ theme }) => theme.spacing.md};
 `;
 
 // Category subhead label cell content: the section name + an info "i" button.
@@ -493,7 +552,7 @@ const PickerMonth = styled.button<{ $current?: boolean }>`
   ${({ theme, $current }) => `
     background: ${$current ? theme.colors.primary : theme.colors.canvas};
     color: ${$current ? theme.colors.onPrimary : theme.colors.ink};
-    border: 1px solid ${$current ? theme.colors.primary : theme.colors.hairline};
+    border: 1px solid ${$current ? theme.colors.primary : theme.colors.fieldBorder};
     border-radius: ${theme.rounded.sm};
     font-family: ${theme.typography.bodyMd.family};
     font-size: ${theme.typography.bodyMd.size};
@@ -558,9 +617,10 @@ const CopyMuted = styled.div`
 // rather than the answer to the choice above. Smaller, muted, and separated
 // by a rule from the group it follows.
 const AddFieldInput = styled.input`
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
+  min-height: 36px;
+  border: 1px solid ${({ theme }) => theme.colors.fieldBorder};
   border-radius: ${({ theme }) => theme.rounded.sm};
-  padding: ${({ theme }) => theme.spacing.sm};
+  padding: ${({ theme }) => theme.spacing.sm} ${({ theme }) => theme.spacing.md};
   font: inherit;
   color: ${({ theme }) => theme.colors.ink};
   width: 100%;
@@ -568,12 +628,10 @@ const AddFieldInput = styled.input`
 
 const CopySubTitle = styled.div`
   ${({ theme }) => `
-    font-family: ${theme.typography.bodyMd.family};
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-    text-transform: uppercase;
-    color: ${theme.colors.bodyMuted};
+    font-family: ${theme.typography.control.family};
+    font-size: ${theme.typography.control.size};
+    font-weight: ${theme.typography.control.weight};
+    color: ${theme.colors.body};
     padding-top: ${theme.spacing.md};
     margin-top: ${theme.spacing.xs};
     margin-bottom: ${theme.spacing.xs};
@@ -594,7 +652,7 @@ const CopySource = styled.button<{ $selected?: boolean }>`
     text-align: left;
     background: ${$selected ? theme.colors.primary : theme.colors.canvas};
     color: ${$selected ? theme.colors.onPrimary : theme.colors.ink};
-    border: 1px solid ${$selected ? theme.colors.primary : theme.colors.hairline};
+    border: 1px solid ${$selected ? theme.colors.primary : theme.colors.fieldBorder};
     border-radius: ${theme.rounded.sm};
     font-family: ${theme.typography.bodyMd.family};
     font-size: ${theme.typography.bodyMd.size};
@@ -736,62 +794,6 @@ const LinkBtn = styled.button`
   cursor: pointer;
 `;
 
-const SummaryStrip = styled.div`
-  overflow-x: auto;
-  margin-top: ${({ theme }) => theme.spacing["2xl"]};
-
-  @media (max-width: 767px) {
-    display: none;
-  }
-`;
-
-const SummaryTable = styled.table`
-  width: 100%;
-  border-collapse: collapse;
-`;
-
-const SummaryTh = styled.th<{ $right?: boolean }>`
-  ${({ theme }) => css`
-    padding: ${theme.spacing.xs} ${theme.spacing.md};
-    font-family: ${theme.typography.monoCaps.family};
-    font-size: ${theme.typography.monoCaps.size};
-    font-weight: ${theme.typography.monoCaps.weight};
-    letter-spacing: ${theme.typography.monoCaps.letterSpacing};
-    text-transform: uppercase;
-    color: ${theme.colors.body};
-    border-bottom: 1px solid ${theme.colors.hairline};
-  `}
-  text-align: ${({ $right }) => ($right ? "right" : "left")};
-  font-weight: normal;
-`;
-
-const SummaryTr = styled.tr<{ $current?: boolean }>`
-  background: ${({ theme, $current }) =>
-    $current ? theme.colors.canvasSoft : "transparent"};
-  font-weight: ${({ $current }) => ($current ? 600 : 400)};
-`;
-
-const SummaryTd = styled.td<{
-  $right?: boolean;
-  $tone?: "positive" | "negative" | "dim";
-}>`
-  ${({ theme, $tone }) => css`
-    padding: ${theme.spacing.xs} ${theme.spacing.md};
-    font-size: 13px;
-    font-variant-numeric: tabular-nums;
-    color: ${
-      $tone === "positive"
-        ? theme.colors.positive
-        : $tone === "negative"
-          ? theme.colors.negative
-          : $tone === "dim"
-            ? theme.colors.dim
-            : theme.colors.ink
-    };
-  `}
-  text-align: ${({ $right }) => ($right ? "right" : "left")};
-`;
-
 const REPAYMENTS_HELP =
   "Money paid at a debt you owe — a mortgage, a loan, a credit card. It counts as spending here because it left your account; the plan works out how much of it cleared the debt.";
 
@@ -818,6 +820,7 @@ export function BudgetSheet({
   numberFormat,
   actualsReadOnly = false,
   monthSummaries = [],
+  history = {},
 }: {
   period: SerializedPeriod;
   initialItems: SerializedItem[];
@@ -831,11 +834,14 @@ export function BudgetSheet({
   numberFormat: NumberFormat;
   actualsReadOnly?: boolean;
   monthSummaries?: BudgetMonthSummary[];
+  history?: CategoryHistory;
 }) {
   // Bind currency + number format once so the many call sites stay terse.
   const fmtAmount = (n: number) => formatAmount(currency, n, numberFormat);
   const fmtSigned = (n: number) =>
     formatSignedAmount(currency, n, numberFormat);
+  const fmtShare = (fraction: number) =>
+    `${Math.round(fraction * 100).toLocaleString("en-GB")}%`;
   // periodState carries the period's DB id once it's been materialised.
   // A virtual period (no row in DB yet) starts with id="". The first
   // onAddRow call ensures the DB row exists and flips id to the real uuid.
@@ -1582,6 +1588,59 @@ export function BudgetSheet({
         ? `Saved ${formatRelative(lastSavedAt, now)}`
         : "Up to date";
 
+  // The two read-only columns: how far a row landed from its budget, and — for
+  // spending — its share of everything spent this month.
+  const insightFor = (
+    kind: VarianceKind,
+    amounts: ItemAmounts,
+    color: string = theme.colors.accent,
+  ): Insight => {
+    const isSpend = kind.type === "EXPENSE" || kind.type === "REPAYMENT";
+    const share = isSpend
+      ? shareOfSpend(amounts.actual, expenseTotals.actual)
+      : null;
+    return {
+      variance: renderVariance(kind, amounts),
+      share:
+        share === null || amounts.actual <= 0 ? undefined : (
+          <Share>
+            <ShareTrack>
+              <ShareFill
+                $color={color}
+                style={{ width: `${Math.min(share, 1) * 100}%` }}
+              />
+            </ShareTrack>
+            {fmtShare(share)}
+          </Share>
+        ),
+    };
+  };
+
+  const renderVariance = (kind: VarianceKind, amounts: ItemAmounts) => {
+    if (amounts.budget === 0 && amounts.actual === 0) return undefined;
+    const variance = describeVariance(kind, amounts);
+    if (!variance) return <OnBudget>On budget</OnBudget>;
+    return (
+      <VarianceText $favourable={variance.favourable}>
+        {fmtAmount(variance.amount)} {variance.word}
+      </VarianceText>
+    );
+  };
+
+  // The headline, standfirst and notes, recomputed as the sheet is edited.
+  const brief = monthBrief({
+    rows: items.map((item) => ({
+      label: item.label,
+      type: item.type,
+      direction: item.direction,
+      budget: item.budget,
+      actual: item.actual,
+      history: item.categoryId ? (history[item.categoryId] ?? []) : [],
+    })),
+    monthLabel: periodState.label,
+    fmt: fmtAmount,
+  });
+
   // ─── Render ───────────────────────────────────────────────────────────────
 
   // The section header inside a section: its name, an info popover, and its
@@ -1590,8 +1649,12 @@ export function BudgetSheet({
     label: string,
     help: string,
     totals: ItemAmounts,
+    kind: VarianceKind,
+    accent?: string,
   ) => (
     <SheetSubheadRow
+      accent={accent}
+      insight={insightFor(kind, totals, accent)}
       label={
         <SubheadLabel>
           {label}
@@ -1622,6 +1685,11 @@ export function BudgetSheet({
   );
 
   const renderItemRow = (item: SerializedItem) => {
+    const insight = insightFor(
+      item,
+      { budget: item.budget, actual: item.actual },
+      SECTION_COLOR[item.section ?? ""],
+    );
     // What an anchored row points at, said from the user's side: "To Vanguard
     // ISA", never the stored INFLOW.
     const accountName = item.accountId
@@ -1705,6 +1773,7 @@ export function BudgetSheet({
             tone: item.actual === 0 ? "dim" : "default",
           },
         }}
+        insight={insight}
         notes={{
           value: (
             <CellInput
@@ -1732,12 +1801,14 @@ export function BudgetSheet({
   return (
     <PageShell>
       <PageHeader
-        title={
-          <>
-            Budget · <PeriodLabel>{periodState.label}</PeriodLabel>
-          </>
-        }
-        lead="Click any cell to edit. Arrows and Tab move around, Enter drops down and adds a row at the end of a section. Totals recalc as you type."
+        eyebrow={`Budget · ${periodState.label}`}
+        title={brief.headline}
+        lead={brief.standfirst}
+      />
+      <MonthBriefPanel
+        figure={{ leftOver: leftOver.actual, planned: leftOver.budget }}
+        fmt={fmtAmount}
+        notes={brief.notes}
       />
 
       <Toolbar data-toolbar>
@@ -2085,6 +2156,7 @@ export function BudgetSheet({
 
         <SheetSectionRow
           label="Income"
+          insight={insightFor(INCOME_KIND, incomeTotals)}
           amounts={{
             budget: fmtAmount(incomeTotals.budget),
             actual: fmtAmount(incomeTotals.actual),
@@ -2092,13 +2164,15 @@ export function BudgetSheet({
         />
         {incomeSections.map(({ cat, rows, totals }) => (
           <div key={cat.key}>
-            {renderSectionSubhead(cat.label, cat.help, totals)}
+            {renderSectionSubhead(cat.label, cat.help, totals, INCOME_KIND)}
             {rows.map((item) => renderItemRow(item))}
           </div>
         ))}
 
         <SheetSectionRow
           label="Expenses"
+          // Every expense is 100% of itself; the section shows only its variance.
+          insight={{ variance: renderVariance(EXPENSE_KIND, expenseTotals) }}
           amounts={{
             budget: fmtAmount(expenseTotals.budget),
             actual: fmtAmount(expenseTotals.actual),
@@ -2106,7 +2180,13 @@ export function BudgetSheet({
         />
         {expenseSections.map(({ cat, rows, totals }) => (
           <div key={cat.key}>
-            {renderSectionSubhead(cat.label, cat.help, totals)}
+            {renderSectionSubhead(
+              cat.label,
+              cat.help,
+              totals,
+              EXPENSE_KIND,
+              SECTION_COLOR[cat.key],
+            )}
             {rows.map((item) => renderItemRow(item))}
           </div>
         ))}
@@ -2115,6 +2195,7 @@ export function BudgetSheet({
             "Debt payments",
             REPAYMENTS_HELP,
             repaymentTotals,
+            REPAYMENT_KIND,
           )}
           {repaymentRows.map((item) => renderItemRow(item))}
         </div>
@@ -2130,15 +2211,21 @@ export function BudgetSheet({
 
         <SheetGrandRow
           label="Left over"
+          insight={insightFor(INCOME_KIND, leftOver)}
           amounts={{
             budget: fmtSigned(leftOver.budget),
             actual: fmtSigned(leftOver.actual),
           }}
         />
       </Sheet>
+      <SheetHint>
+        Click any cell to edit. Arrows and Tab move around, Enter drops down and
+        adds a row at the end of a section. Totals recalc as you type.
+      </SheetHint>
 
       {monthSummaries.length > 1 && (
-        <SummaryStrip>
+        <SummaryStrip aria-labelledby="past-months">
+          <SummaryHeading id="past-months">Past months</SummaryHeading>
           <SummaryTable>
             <thead>
               <tr>

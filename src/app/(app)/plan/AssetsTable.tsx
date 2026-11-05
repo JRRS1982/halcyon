@@ -12,6 +12,7 @@ import { formatAmount, type NumberFormat } from "@/lib/settings/currency";
 import { AddAssetDrawer } from "./AddAssetDrawer";
 import { Muted } from "./AddRowDrawer.styled";
 import { updatePlanAsset } from "./actions";
+import { WRAPPER_LABELS } from "./colours";
 import { NumberCell, SelectCell, TextCell } from "./EditableCell";
 import { MortgageBadge } from "./MortgageBadge";
 import { AddRowButton } from "./RowControls";
@@ -20,13 +21,13 @@ import { rowMarkerProps, SyncMarker } from "./SyncMarker";
 import type { SerializedPlanAsset } from "./serialized";
 
 const Panel = styled.section`
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  padding: ${({ theme }) => theme.spacing.lg};
+  border-top: 1px solid ${({ theme }) => theme.colors.ink};
+  padding: ${({ theme }) => theme.spacing.lg} 0;
   display: grid;
   gap: ${({ theme }) => theme.spacing.sm};
 `;
 const Heading = styled.h2`
+  font-family: ${({ theme }) => theme.typography.displayLg.family};
   font-size: ${({ theme }) => theme.typography.displayLg.size};
   font-weight: ${({ theme }) => theme.typography.displayLg.weight};
   color: ${({ theme }) => theme.colors.ink};
@@ -84,6 +85,7 @@ export function AssetFields({ asset }: { asset: SerializedPlanAsset }) {
           <SelectCell
             value={asset.wrapper}
             options={WRAPPERS}
+            labels={WRAPPER_LABELS}
             onCommit={(v) => save({ ...asset, wrapper: v })}
           />
         </Field>
@@ -218,7 +220,7 @@ export function AssetsTable({
             <SummaryRow
               key={a.id}
               primary={a.label}
-              secondary={`${a.wrapper} · ${formatAmount(currency, a.openingValue, numberFormat)}`}
+              secondary={`${WRAPPER_LABELS[a.wrapper]} · ${formatAmount(currency, a.openingValue, numberFormat)}`}
               badge={
                 a.wrapper === "PROPERTY" ? (
                   <MortgageBadge>Property</MortgageBadge>

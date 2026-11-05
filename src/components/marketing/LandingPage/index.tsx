@@ -1,104 +1,91 @@
 "use client";
 
-import { CtaBand } from "@/components/marketing/CtaBand";
-import { DetailGrid } from "@/components/marketing/DetailGrid";
-import { FeatureShowcase } from "@/components/marketing/FeatureShowcase";
+import { ArticleList } from "@/components/editorial/ArticleList";
+import {
+  More,
+  SectionHead,
+  Stories,
+  Story,
+  StoryText,
+  StoryTitle,
+} from "@/components/editorial/Editorial.styled";
 import { Hero } from "@/components/marketing/Hero";
-import { HowItWorks } from "@/components/marketing/HowItWorks";
 import { MarketingFooter } from "@/components/marketing/MarketingFooter";
-import { SectionHeading } from "@/components/marketing/SectionHeading";
-import { Container, FeaturesIntro } from "./LandingPage.styled";
+import { MarketingShot } from "@/components/marketing/MarketingShot";
+import { FEATURES, featureBySlug } from "@/lib/editorial/features";
+import { Container, Inside, Lead } from "./LandingPage.styled";
 
+// The front page is articles and nothing else: the lead says what Balanced is
+// and offers the way in; every story below links to its own page, where the
+// detail lives.
 export function LandingPage() {
+  const dashboard = featureBySlug("dashboard");
+  const settings = featureBySlug("settings");
+  // The four that answer a visitor's money questions; the dashboard leads
+  // above them and settings closes the page with the guide.
+  const others = FEATURES.filter(
+    (article) => article.slug !== "dashboard" && article.slug !== "settings",
+  );
+
   return (
     <>
       <main>
         <Container>
           <Hero />
-          <HowItWorks />
 
-          <FeaturesIntro id="features">
-            <SectionHeading
-              eyebrow="Features"
-              title="Structure where you'd otherwise wing it."
-              lead="No more rolling your own tabs and formulas. Balanced gives every part of your money a proper home — and guides you to what actually matters."
+          <Inside aria-labelledby="inside-head">
+            <SectionHead id="inside-head">Inside</SectionHead>
+            {dashboard && (
+              <Lead href="/features/dashboard">
+                <div>
+                  <StoryTitle>{dashboard.headline}</StoryTitle>
+                  <StoryText>{dashboard.teaser}</StoryText>
+                  <More>{dashboard.name}</More>
+                </div>
+                <MarketingShot
+                  src={dashboard.picture.src}
+                  alt=""
+                  label={dashboard.name}
+                  aspect={dashboard.picture.aspect}
+                  sizes="(max-width: 860px) 100vw, 900px"
+                />
+              </Lead>
+            )}
+            <ArticleList
+              articles={others}
+              hrefFor={(article) => `/features/${article.slug}`}
             />
-          </FeaturesIntro>
+          </Inside>
 
-          <FeatureShowcase
-            imageSide="left"
-            eyebrow="Budget"
-            title="Budget — then learn how you really spend."
-            body="Set a budget for each category, then watch your categorised spending fill in beside it. The gap between the plan and the reality is the lesson: Balanced makes it impossible to ignore where your money is actually going."
-            shot={{
-              src: "/marketing/budget.png",
-              label: "Budget",
-              alt: "The Balanced budget sheet showing budgeted vs actual by category",
-              caption:
-                "Budgeted vs. actual by category, once spending is sorted",
-            }}
-          />
-          <FeatureShowcase
-            imageSide="right"
-            eyebrow="Balance"
-            title="Wealthy, or just spending?"
-            body="Your bank balance lies. Big pension contributions can leave you feeling broke while your net worth quietly climbs; a month of treats can feel rich while your assets go nowhere. Balanced sorts what you own and owe across short, medium and long-term horizons — so you can see whether you're truly getting ahead, and think past this month."
-            shot={{
-              src: "/marketing/balance.png",
-              label: "Balance",
-              alt: "The Balanced balance sheet showing assets and liabilities by term",
-              caption:
-                "Assets & liabilities by short / medium / long term → net worth",
-            }}
-          />
-          <FeatureShowcase
-            imageSide="left"
-            eyebrow="Transactions"
-            title="Turn a bank statement into understanding."
-            body="This is where Balanced earns its keep. Switch transactions on, drop in a statement, and a wall of cryptic bank rows becomes a clear, categorised picture of your month — and from there, every chart, budget and balance fills itself in."
-            bullets={[
-              {
-                key: "Import",
-                text: "Drop in a CSV statement and Balanced maps the columns for you.",
-              },
-              {
-                key: "Auto-sort",
-                text: "Each transaction lands in the right category, ready to review.",
-              },
-              {
-                key: "Bulk edits",
-                text: "Re-categorise or clear dozens of rows in one go — no row-by-row slog.",
-              },
-              {
-                key: "Safe by default",
-                text: "Duplicate-aware on import, and any import can be reversed in one click.",
-              },
-            ]}
-            shot={{
-              src: "/marketing/transactions.png",
-              label: "Transactions",
-              alt: "The Balanced transactions ledger with an imported statement sorted into categories",
-              caption:
-                "An imported statement, sorted into categories in the ledger",
-            }}
-          />
-          <FeatureShowcase
-            imageSide="right"
-            eyebrow="Plan"
-            title="Will the money last?"
-            body="Give Balanced your date of birth and it turns the accounts and budget you already keep into a forecast: what you're worth each year, when the mortgage finally clears, whether the pension outlives you. Retire a year later, sell the flat at seventy-five, expect a point less growth — the whole projection moves while you watch, and tells you plainly whether it still works."
-            shot={{
-              src: "/marketing/plan.png",
-              label: "Plan",
-              alt: "The Balanced plan page: an on-track verdict above a chart projecting net worth from today to age 95",
-              caption:
-                "Your net worth projected to age 95, from figures you already keep",
-            }}
-          />
+          <Inside aria-labelledby="more-head">
+            <SectionHead id="more-head">More</SectionHead>
+            <Stories $columns={3} data-columns="3">
+              {settings && (
+                <Story href="/features/settings">
+                  <StoryTitle>{settings.headline}</StoryTitle>
+                  <StoryText>{settings.teaser}</StoryText>
+                  <More>{settings.name}</More>
+                </Story>
+              )}
+              <Story href="/guide">
+                <StoryTitle>How a month works</StoryTitle>
+                <StoryText>
+                  Five steps, always in the same order, and about ten minutes a
+                  month once you are set up.
+                </StoryText>
+                <More>Guide</More>
+              </Story>
+              <Story href="/how-its-built">
+                <StoryTitle>Built to be used and trusted</StoryTitle>
+                <StoryText>
+                  What is in the app, why each piece is there, and how your data
+                  is kept yours.
+                </StoryText>
+                <More>Engineering</More>
+              </Story>
+            </Stories>
+          </Inside>
         </Container>
-
-        <DetailGrid />
-        <CtaBand />
       </main>
       <MarketingFooter />
     </>

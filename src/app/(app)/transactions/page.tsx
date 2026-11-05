@@ -8,6 +8,7 @@ import {
   parseLedgerSearchParams,
 } from "@/lib/transactions/pagination";
 import {
+  countSuggested,
   countUncategorized,
   getLedgerAccounts,
   getOrProvisionCategories,
@@ -28,41 +29,50 @@ export default async function TransactionsPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const userId = await requireTransactionsEnabled();
-  const { transfersEnabled } = await getCurrentUserSettings();
+  const { transfersEnabled, currency, numberFormat } =
+    await getCurrentUserSettings();
   const query = parseLedgerSearchParams(await searchParams);
 
-  const [accounts, transferAccounts, categories, page, uncategorizedCount] =
-    await Promise.all([
-      // Importable accounts only — the import target picker and quick-add
-      // render from this list. The ledger's own account *filter* does not:
-      // it uses the full list below, so it can never fail to name an account
-      // that owns rows but has imports switched off.
-      prisma.account.findMany({
-        where: { userId, deletedAt: null, canImportTransactions: true },
-        orderBy: { name: "asc" },
-        select: { id: true, name: true },
-      }),
-      // The full account list, unfiltered by canImportTransactions. Transfer
-      // targets, resolving a row's transferAccountId to a display name, and
-      // the filter drawer's account picker must all include accounts (e.g. a
-      // mortgage) that are excluded from import — see CategoryCombobox.
-      getLedgerAccounts(userId),
-      getOrProvisionCategories(userId),
-      getTransactionsPage(userId, {
-        offset: (query.page - 1) * PAGE_SIZE,
-        search: query.search,
-        onlyUncategorized: query.onlyUncategorized,
-        sortColumn: query.sortColumn,
-        sortDir: query.sortDir,
-        from: query.from,
-        to: query.to,
-        accountId: query.accountId,
-        category: query.category,
-        amountMin: query.amountMin,
-        amountMax: query.amountMax,
-      }),
-      countUncategorized(userId),
-    ]);
+  const [
+    accounts,
+    transferAccounts,
+    categories,
+    page,
+    uncategorizedCount,
+    suggestedCount,
+  ] = await Promise.all([
+    // Importable accounts only — the import target picker and quick-add
+    // render from this list. The ledger's own account *filter* does not:
+    // it uses the full list below, so it can never fail to name an account
+    // that owns rows but has imports switched off.
+    prisma.account.findMany({
+      where: { userId, deletedAt: null, canImportTransactions: true },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
+    // The full account list, unfiltered by canImportTransactions. Transfer
+    // targets, resolving a row's transferAccountId to a display name, and
+    // the filter drawer's account picker must all include accounts (e.g. a
+    // mortgage) that are excluded from import — see CategoryCombobox.
+    getLedgerAccounts(userId),
+    getOrProvisionCategories(userId),
+    getTransactionsPage(userId, {
+      offset: (query.page - 1) * PAGE_SIZE,
+      search: query.search,
+      onlyUncategorized: query.onlyUncategorized,
+      onlyToCheck: query.onlyToCheck,
+      sortColumn: query.sortColumn,
+      sortDir: query.sortDir,
+      from: query.from,
+      to: query.to,
+      accountId: query.accountId,
+      category: query.category,
+      amountMin: query.amountMin,
+      amountMax: query.amountMax,
+    }),
+    countUncategorized(userId),
+    countSuggested(userId),
+  ]);
 
   return (
     <TransactionsView
@@ -72,7 +82,10 @@ export default async function TransactionsPage({
       page={page}
       query={query}
       uncategorizedCount={uncategorizedCount}
+      suggestedCount={suggestedCount}
       transfersEnabled={transfersEnabled}
+      currency={currency}
+      numberFormat={numberFormat}
     />
   );
 }

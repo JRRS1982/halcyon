@@ -46,12 +46,13 @@ const Search = styled.input`
   width: 100%;
   margin: ${({ theme }) => theme.spacing.lg} 0
     ${({ theme }) => theme.spacing.sm};
+  min-height: 36px;
   padding: ${({ theme }) => theme.spacing.sm}
     ${({ theme }) => theme.spacing.md};
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
+  border: 1px solid ${({ theme }) => theme.colors.fieldBorder};
   border-radius: ${({ theme }) => theme.rounded.sm};
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.bodyMd.size};
 `;
 
 const TypeHeader = styled.h3`
@@ -59,10 +60,10 @@ const TypeHeader = styled.h3`
     ${({ theme }) => theme.spacing.sm};
   padding-bottom: ${({ theme }) => theme.spacing.xs};
   border-bottom: 2px solid ${({ theme }) => theme.colors.ink};
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
+  font-family: ${({ theme }) => theme.typography.kicker.family};
   font-size: 13px;
   text-transform: uppercase;
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
+  letter-spacing: ${({ theme }) => theme.typography.kicker.letterSpacing};
   color: ${({ theme }) => theme.colors.ink};
 `;
 
@@ -93,20 +94,21 @@ const Meta = styled.span`
 const Input = styled.input`
   flex: 1;
   min-width: 120px;
-  padding: ${({ theme }) => theme.spacing.xs}
-    ${({ theme }) => theme.spacing.sm};
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
+  min-height: 36px;
+  padding: ${({ theme }) => theme.spacing.sm}
+    ${({ theme }) => theme.spacing.md};
+  border: 1px solid ${({ theme }) => theme.colors.fieldBorder};
   border-radius: ${({ theme }) => theme.rounded.sm};
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
-  font-size: 13px;
+  font-size: ${({ theme }) => theme.typography.bodyMd.size};
 `;
 
 const Select = styled.select`
   padding: ${({ theme }) => theme.spacing.xs}
     ${({ theme }) => theme.spacing.sm};
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
+  border: 1px solid ${({ theme }) => theme.colors.fieldBorder};
   border-radius: ${({ theme }) => theme.rounded.sm};
-  background: ${({ theme }) => theme.colors.canvas};
+  background: ${({ theme }) => theme.colors.field};
   color: ${({ theme }) => theme.colors.ink};
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
   font-size: 13px;

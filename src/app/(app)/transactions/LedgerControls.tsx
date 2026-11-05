@@ -18,10 +18,7 @@ import type { ActiveFilter } from "@/lib/transactions/activeFilters";
 const Card = styled.section`
   display: grid;
   gap: ${({ theme }) => theme.spacing.md};
-  padding: ${({ theme }) => theme.spacing.md};
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  background: ${({ theme }) => theme.colors.canvas};
+  padding: ${({ theme }) => theme.spacing.md} 0;
 `;
 
 const Row = styled.div`
@@ -39,10 +36,10 @@ const Slot = styled.div`
 `;
 
 const SelectionCount = styled.span`
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
+  font-family: ${({ theme }) => theme.typography.kicker.family};
+  font-size: ${({ theme }) => theme.typography.kicker.size};
+  font-weight: ${({ theme }) => theme.typography.kicker.weight};
+  letter-spacing: ${({ theme }) => theme.typography.kicker.letterSpacing};
   text-transform: uppercase;
   color: ${({ theme }) => theme.colors.ink};
   white-space: nowrap;
@@ -54,14 +51,22 @@ const FilterButton = styled.button`
   gap: ${({ theme }) => theme.spacing.sm};
   padding: ${({ theme }) => theme.spacing.sm}
     ${({ theme }) => theme.spacing.md};
-  border: 1px solid ${({ theme }) => theme.colors.hairlineStrong};
+  /* Claret: the accent marks where to look, and the filters are how the
+     ledger is narrowed to what needs attention. */
+  border: 1px solid ${({ theme }) => theme.colors.accent};
   border-radius: ${({ theme }) => theme.rounded.sm};
   background: ${({ theme }) => theme.colors.canvas};
-  color: ${({ theme }) => theme.colors.ink};
-  font-family: ${({ theme }) => theme.typography.bodyMd.family};
-  font-size: 13px;
+  color: ${({ theme }) => theme.colors.accent};
+  font-family: ${({ theme }) => theme.typography.control.family};
+  font-size: ${({ theme }) => theme.typography.control.size};
+  font-weight: ${({ theme }) => theme.typography.control.weight};
   cursor: pointer;
   white-space: nowrap;
+
+  &:hover {
+    background: ${({ theme }) => theme.colors.accent};
+    color: ${({ theme }) => theme.colors.canvas};
+  }
 `;
 
 // The count of active filters. The drawer hides its own state once closed, so
@@ -74,7 +79,7 @@ const FilterBadge = styled.span`
   height: 18px;
   padding: 0 5px;
   border-radius: ${({ theme }) => theme.rounded.full};
-  background: ${({ theme }) => theme.colors.ink};
+  background: ${({ theme }) => theme.colors.accent};
   color: ${({ theme }) => theme.colors.canvas};
   font-size: 11px;
   line-height: 1;
@@ -84,7 +89,7 @@ const Search = styled.input`
   width: 100%;
   padding: ${({ theme }) => theme.spacing.sm}
     ${({ theme }) => theme.spacing.md};
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
+  border: 1px solid ${({ theme }) => theme.colors.fieldBorder};
   border-radius: ${({ theme }) => theme.rounded.sm};
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
   font-size: 13px;
@@ -135,10 +140,8 @@ const DangerButton = styled.button`
   border-radius: ${({ theme }) => theme.rounded.sm};
   background: ${({ theme }) => theme.colors.canvas};
   color: ${({ theme }) => theme.colors.negative};
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
-  text-transform: uppercase;
+  font-family: ${({ theme }) => theme.typography.control.family};
+  font-size: ${({ theme }) => theme.typography.control.size};
   cursor: pointer;
   white-space: nowrap;
 `;
@@ -146,12 +149,13 @@ const DangerButton = styled.button`
 const GhostButton = styled.button`
   padding: ${({ theme }) => theme.spacing.sm}
     ${({ theme }) => theme.spacing.lg};
-  border: 1px solid ${({ theme }) => theme.colors.hairlineStrong};
+  border: 1px solid ${({ theme }) => theme.colors.ink};
   border-radius: ${({ theme }) => theme.rounded.sm};
   background: ${({ theme }) => theme.colors.canvas};
   color: ${({ theme }) => theme.colors.ink};
-  font-family: ${({ theme }) => theme.typography.bodyMd.family};
-  font-size: ${({ theme }) => theme.typography.bodyMd.size};
+  font-family: ${({ theme }) => theme.typography.control.family};
+  font-size: ${({ theme }) => theme.typography.control.size};
+  font-weight: ${({ theme }) => theme.typography.control.weight};
   cursor: pointer;
   white-space: nowrap;
 `;

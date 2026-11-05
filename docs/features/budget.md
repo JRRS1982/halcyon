@@ -4,9 +4,21 @@
 **Route:** `/budget`  
 **Key points:**
 - Four row kinds: `INCOME`, `EXPENSE`, `TRANSFER`, `REPAYMENT`. Each keys on a `Category` or an `Account`.
-- Columns are Budget, Actual and Notes. A "Left over" footer shows the surplus for both Budget and Actual.
+- Columns are Category, Budget, Actual, vs budget, Share of spend and Notes. A "Left over" footer shows the surplus for both Budget and Actual.
+- The page opens with a headline and a month-in-brief strip computed from the rows (`monthBrief`, `src/lib/insights/monthBrief.ts`).
 - Transactions mode off: Actual is a number you type. Transactions mode on: Actual is read-only and computed from transactions.
 - `REPAYMENT` rows render inside Expenses and count in that total. `TRANSFER` rows get their own section and do not count as spending.
+
+## The month in brief
+
+`monthBrief` turns the month's rows into a headline (for example "Spending came in £570 under plan, led by Holidays"), a standfirst, the left-over figure against plan, and up to three notes led `Where it ran over.`, `Where you saved.`, `What held.` or `Where it goes.`. Every sentence is computed from the user's own rows, and a row has to move past a threshold before it earns one. A run-over note can compare the category with its own earlier months, read by `getCategoryHistory` (`src/lib/insights/server.ts`) from the months the user actually recorded.
+
+## Variance and share of spend
+
+- **vs budget:** `describeVariance` (`src/lib/budget/totals.ts`) says how far a row landed from its budget in its kind's words: spending runs `over`/`under`, income comes in `above`/`below`, transfers move `more`/`less`. Green when the variance helped, red when it didn't, `On budget` when level.
+- **Share of spend:** expense and repayment rows show their share of the month's actual spending (`shareOfSpend`) as a bar in their section's colour. Each expense section has one colour wherever it appears (`sectionFixed`, `sectionVariable`, `sectionDiscretionary` in `src/lib/palette.ts`), including the dashboard's charts.
+
+A "Past months" table under the sheet lists income, expenses and net for each recorded month.
 
 ## Four row kinds
 

@@ -9,7 +9,21 @@ import {
   TotalsRow,
 } from "./SheetRow.styled";
 
-// Column header row — Category · Budget · Actual · Notes.
+// The two read-only columns between Actual and Notes: how far the row landed
+// from its budget, and its share of the month's spending. Either may be empty.
+export type Insight = { variance?: ReactNode; share?: ReactNode };
+
+function InsightCells({ insight }: { insight?: Insight }) {
+  return (
+    <>
+      <SheetCell align="right">{insight?.variance}</SheetCell>
+      <SheetCell align="right">{insight?.share}</SheetCell>
+    </>
+  );
+}
+
+// Column header row — Category · Budget · Actual · vs budget · Share of spend
+// · Notes.
 export function SheetHeadRow() {
   return (
     <HeadRow role="row">
@@ -19,6 +33,12 @@ export function SheetHeadRow() {
       </SheetCell>
       <SheetCell role="columnheader" align="right">
         Actual
+      </SheetCell>
+      <SheetCell role="columnheader" align="right">
+        vs budget
+      </SheetCell>
+      <SheetCell role="columnheader" align="right">
+        Share of spend
       </SheetCell>
       <SheetCell role="columnheader">Notes</SheetCell>
     </HeadRow>
@@ -34,15 +54,18 @@ type AmountCells = {
 export function SheetSectionRow({
   label,
   amounts,
+  insight,
 }: {
   label: ReactNode;
   amounts: AmountCells;
+  insight?: Insight;
 }) {
   return (
     <SectionRow role="row">
       <SheetCell role="rowheader">{label}</SheetCell>
       <SheetCell align="right">{amounts.budget}</SheetCell>
       <SheetCell align="right">{amounts.actual}</SheetCell>
+      <InsightCells insight={insight} />
       <SheetCell />
     </SectionRow>
   );
@@ -54,15 +77,21 @@ export function SheetSectionRow({
 export function SheetSubheadRow({
   label,
   amounts,
+  insight,
+  accent,
 }: {
   label: ReactNode;
   amounts: AmountCells;
+  insight?: Insight;
+  // The section's colour code, when it has one.
+  accent?: string;
 }) {
   return (
-    <SubheadRow role="row">
+    <SubheadRow role="row" $accent={accent}>
       <SheetCell role="rowheader">{label}</SheetCell>
       <SheetCell align="right">{amounts.budget}</SheetCell>
       <SheetCell align="right">{amounts.actual}</SheetCell>
+      <InsightCells insight={insight} />
       <SheetCell />
     </SubheadRow>
   );
@@ -78,6 +107,7 @@ export function SheetItemRow({
   label,
   amounts,
   notes,
+  insight,
   focusedCell,
   onSelect,
   variant = "default",
@@ -95,6 +125,7 @@ export function SheetItemRow({
     };
   };
   notes?: { value: ReactNode; tone?: "default" | "dim" };
+  insight?: Insight;
   focusedCell?: "label" | "budget" | "actual" | "notes";
   // Fires on mousedown on any part of the row. Inputs' onFocus will fire
   // afterwards and override the focused cell to the specific field — so this
@@ -130,6 +161,7 @@ export function SheetItemRow({
       >
         {amounts.actual.value}
       </SheetCell>
+      <InsightCells insight={insight} />
       {notes !== undefined ? (
         <SheetCell
           tone={notes.tone ?? "default"}
@@ -148,15 +180,18 @@ export function SheetItemRow({
 export function SheetTotalsRow({
   label,
   amounts,
+  insight,
 }: {
   label: ReactNode;
   amounts: AmountCells;
+  insight?: Insight;
 }) {
   return (
     <TotalsRow role="row">
       <SheetCell role="rowheader">{label}</SheetCell>
       <SheetCell align="right">{amounts.budget}</SheetCell>
       <SheetCell align="right">{amounts.actual}</SheetCell>
+      <InsightCells insight={insight} />
       <SheetCell />
     </TotalsRow>
   );
@@ -167,15 +202,18 @@ export function SheetTotalsRow({
 export function SheetGrandRow({
   label,
   amounts,
+  insight,
 }: {
   label: ReactNode;
   amounts: AmountCells;
+  insight?: Insight;
 }) {
   return (
     <GrandRow role="row">
       <SheetCell role="rowheader">{label}</SheetCell>
       <SheetCell align="right">{amounts.budget}</SheetCell>
       <SheetCell align="right">{amounts.actual}</SheetCell>
+      <InsightCells insight={insight} />
       <SheetCell />
     </GrandRow>
   );

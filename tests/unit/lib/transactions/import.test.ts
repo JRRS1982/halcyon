@@ -133,6 +133,19 @@ describe("guessMapping", () => {
     expect(guess.extraColumns).toHaveLength(20);
     expect(guess.extraColumns?.[0]).toBe(3);
   });
+
+  // The date column is found by its header, then its cells pick the format —
+  // so an ISO statement previews cleanly instead of every row "Invalid date".
+  test("reads the date format off the date column it found", () => {
+    const guess = guessMapping(
+      ["Description", "Amount", "Date"],
+      [
+        ["Tesco", "-23.40", "2026-10-30"],
+        ["Salary", "2100", "2026-10-31"],
+      ],
+    );
+    expect(guess.dateFormat).toBe("YMD");
+  });
 });
 
 describe("mapRows extra columns", () => {

@@ -44,10 +44,10 @@ See [accounts.md](accounts.md). `AccountManager.tsx` renames an account, toggles
 
 | Toggle | `UserSettings` column | What it gates |
 |--------|----------------------|--------------|
-| Transactions | `transactionsEnabled` | Hides the Transactions nav item and page; budget actuals are then typed by hand instead of summed from transactions |
+| Track transactions | `transactionsEnabled` | Hides the Transactions nav item and page; budget actuals are then typed by hand instead of summed from transactions |
 | Transfers and saving | `transfersEnabled` | Shows the Transfers option in the ledger's category picker and filter drawer. The switch is disabled while Transactions is off |
 
-Both persist the moment they are switched. There is no Plan toggle: the Plan tab is always visible.
+Track transactions opens a confirm dialog that says what the change does; the switch moves at once, Confirm persists it and Cancel moves it back. Transfers and saving persists the moment it is switched. There is no Plan toggle: the Plan tab is always visible.
 
 The budget page does not read `transfersEnabled`. TRANSFER and REPAYMENT budget rows show regardless; see [budget-transfers.md](budget-transfers.md).
 

@@ -199,6 +199,51 @@ export async function previewImport(
 
 // Step 2 of import: resolves/creates the account and inserts every valid row
 // except the ones the user chose to skip (confirmed duplicates).
+// How the user filed each merchant last time, rebuilt from recent history on
+// every call (nothing stored) and restricted to live categories so a deleted
+// one is never resurrected. Shared by import and the "write a line" box.
+async function loadCategoryMemory(userId: string) {
+  const history = await prisma.transaction.findMany({
+    where: {
+      userId,
+      deletedAt: null,
+      categoryId: { not: null },
+      category: { deletedAt: null },
+    },
+    orderBy: { date: "desc" },
+    take: MEMORY_WINDOW,
+    select: { description: true, categoryId: true, date: true },
+  });
+  return buildCategoryMemory(
+    history.flatMap((tx) =>
+      tx.categoryId
+        ? [
+            {
+              description: tx.description,
+              categoryId: tx.categoryId,
+              date: tx.date,
+            },
+          ]
+        : [],
+    ),
+  );
+}
+
+const suggestSchema = z.object({
+  description: z.string().trim().min(1).max(200),
+});
+
+// The category this description was filed under last time, if any: the
+// "write a line" box offers it in the add form, where the user confirms it.
+export async function suggestCategory(
+  input: z.input<typeof suggestSchema>,
+): Promise<{ categoryId: string | null }> {
+  const userId = await requireTransactionsEnabled();
+  const { description } = suggestSchema.parse(input);
+  const memory = await loadCategoryMemory(userId);
+  return { categoryId: memory.get(descriptionKey(description)) ?? null };
+}
+
 export async function commitImport(input: CommitInput): Promise<ImportResult> {
   const userId = await requireTransactionsEnabled();
   const { accountId, newAccountName, rows, mapping, skipIndexes, fileName } =
@@ -226,32 +271,7 @@ export async function commitImport(input: CommitInput): Promise<ImportResult> {
     }
 
     // Categorisation memory: how the user filed each merchant last time.
-    // Rebuilt from recent history on every import (nothing stored), and
-    // restricted to live categories so a deleted one is never resurrected.
-    const history = await prisma.transaction.findMany({
-      where: {
-        userId,
-        deletedAt: null,
-        categoryId: { not: null },
-        category: { deletedAt: null },
-      },
-      orderBy: { date: "desc" },
-      take: MEMORY_WINDOW,
-      select: { description: true, categoryId: true, date: true },
-    });
-    const memory = buildCategoryMemory(
-      history.flatMap((tx) =>
-        tx.categoryId
-          ? [
-              {
-                description: tx.description,
-                categoryId: tx.categoryId,
-                date: tx.date,
-              },
-            ]
-          : [],
-      ),
-    );
+    const memory = await loadCategoryMemory(userId);
 
     // The batch groups this run's rows so the whole import can be reversed —
     // and is created in the same transaction as them, so a rejected row set
@@ -275,6 +295,8 @@ export async function commitImport(input: CommitInput): Promise<ImportResult> {
             amount: row.amount as number,
             description: row.description,
             categoryId,
+            // A category from memory is a suggestion: pencilled until ticked.
+            isCategoryConfirmed: categoryId === null,
             // Kept CSV columns, keyed by header label (undefined leaves NULL).
             extra: row.extra ?? undefined,
           };
@@ -406,7 +428,7 @@ export async function setTransactionCategory(
     where: { id: transactionId, userId, deletedAt: null },
     // Category and transfer are mutually exclusive — assigning (or clearing) a
     // category always clears any transfer counterparty.
-    data: { categoryId, transferAccountId: null },
+    data: { categoryId, transferAccountId: null, isCategoryConfirmed: true },
   });
   if (result.count === 0) throw new Error("Transaction not found");
 
@@ -530,12 +552,48 @@ export async function bulkSetTransactionCategory(
 
   const result = await prisma.transaction.updateMany({
     where: { id: { in: transactionIds }, userId, deletedAt: null },
-    data: { categoryId, transferAccountId: null },
+    data: { categoryId, transferAccountId: null, isCategoryConfirmed: true },
   });
 
   revalidatePath("/transactions");
   revalidatePath("/budget");
   revalidatePath("/dashboard");
+  return { updated: result.count };
+}
+
+const approvalSchema = z
+  .object({
+    // Omitted: every suggestion the user has (approving only).
+    transactionIds: z.array(z.string().uuid()).min(1).max(500).optional(),
+    approved: z.boolean(),
+  })
+  .refine((v) => v.approved || v.transactionIds !== undefined, {
+    message: "Withdrawing approval needs the rows it applies to",
+  });
+
+// Approves a row's category (the user agrees with what the import pencilled
+// in, so the row stops asking to be checked) or withdraws that approval (it
+// goes back to pencil). Only rows that carry a category have an approval to
+// give or take; ownership-scoped like every mutation. Totals don't move, so
+// only the ledger is revalidated.
+export async function setCategoryApproval(
+  input: z.input<typeof approvalSchema>,
+): Promise<{ updated: number }> {
+  const userId = await requireTransactionsEnabled();
+  const { transactionIds, approved } = approvalSchema.parse(input);
+
+  const result = await prisma.transaction.updateMany({
+    where: {
+      userId,
+      deletedAt: null,
+      isCategoryConfirmed: !approved,
+      categoryId: { not: null },
+      ...(transactionIds ? { id: { in: transactionIds } } : {}),
+    },
+    data: { isCategoryConfirmed: approved },
+  });
+
+  revalidatePath("/transactions");
   return { updated: result.count };
 }
 
@@ -592,7 +650,11 @@ export async function bulkSetTransactionTransfer(
       accountId: { not: accountId },
     },
     // Transfer and category are mutually exclusive — see setTransactionTransfer.
-    data: { transferAccountId: accountId, categoryId: null },
+    data: {
+      transferAccountId: accountId,
+      categoryId: null,
+      isCategoryConfirmed: true,
+    },
   });
 
   revalidatePath("/transactions");
@@ -634,7 +696,11 @@ export async function setTransactionTransfer(
 
   await prisma.transaction.updateMany({
     where: { id: transactionId, userId, deletedAt: null },
-    data: { transferAccountId: accountId, categoryId: null },
+    data: {
+      transferAccountId: accountId,
+      categoryId: null,
+      isCategoryConfirmed: true,
+    },
   });
 
   revalidatePath("/transactions");
@@ -678,7 +744,11 @@ export async function createAccountAndTransfer(
     const result = await tx.transaction.updateMany({
       where: { id: { in: transactionIds }, userId, deletedAt: null },
       // Transfer and category are mutually exclusive — see setTransactionTransfer.
-      data: { transferAccountId: account.id, categoryId: null },
+      data: {
+        transferAccountId: account.id,
+        categoryId: null,
+        isCategoryConfirmed: true,
+      },
     });
     if (result.count === 0) throw new Error("Transaction not found");
 
@@ -732,7 +802,11 @@ export async function createAndAssignCategory(
     const result = await tx.transaction.updateMany({
       where: { id: { in: transactionIds }, userId, deletedAt: null },
       // Category and transfer are mutually exclusive — see setTransactionCategory.
-      data: { categoryId: newCategory.id, transferAccountId: null },
+      data: {
+        categoryId: newCategory.id,
+        transferAccountId: null,
+        isCategoryConfirmed: true,
+      },
     });
     if (result.count === 0) throw new Error("Transaction not found");
 

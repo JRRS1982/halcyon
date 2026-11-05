@@ -27,7 +27,7 @@ test.describe("transactions journey", () => {
     await signIn(page);
     await page.goto("/settings");
 
-    const toggle = page.getByRole("checkbox", { name: "Transactions" });
+    const toggle = page.getByRole("checkbox", { name: "Track transactions" });
     // New accounts start with it on.
     await expect(toggle).toBeChecked();
 
@@ -71,7 +71,7 @@ test.describe("transactions journey", () => {
 
     // Categorise the imported row via the combobox: type a new name → create.
     const row = page.locator("tr", { hasText: description });
-    await row.getByRole("button", { name: /Uncategorized/ }).click();
+    await row.getByRole("button", { name: /Uncategorised/ }).click();
     await page.getByPlaceholder("Type to search or create…").fill(category);
     await withServerAction(page, () =>
       page.getByRole("button", { name: "Create & assign" }).click(),

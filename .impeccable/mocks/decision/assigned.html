@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en-GB"><head><meta charset="utf-8"><title>Balanced Money · This month</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap" rel="stylesheet">
+<style>
+:root{--leaf:#1F7A3A;--mari:#F2A900;--tom:#E0412E;--tomt:#B42A1A;--beet:#8A1E5C;--sky:#2F7FD0;--ground:#EEF6E8;--ink:#14261A;
+--n0:#FBFDF9;--n1:#DCE8D4;--n2:#B5C8AC;--n3:#4E6352;--n4:#2C4032}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1440px;height:900px;overflow:hidden}
+body{font:400 14px/1.45 Archivo,system-ui,sans-serif;font-stretch:100%;background:var(--ground);color:var(--ink);display:grid;grid-template-columns:232px minmax(0,1fr)}
+.num{font-variant-numeric:tabular-nums lining-nums}
+.disp{font-stretch:68%;font-weight:800;letter-spacing:-.01em;line-height:.92}
+.cap{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--n3)}
+/* rail */
+nav{background:var(--leaf);color:#fff;padding:28px 16px 24px;display:flex;flex-direction:column}
+.brand{display:flex;align-items:center;gap:10px;padding:0 10px 28px;font-stretch:72%;font-weight:800;font-size:23px;line-height:1;letter-spacing:.01em}
+nav a{display:flex;align-items:center;gap:12px;color:#fff;text-decoration:none;font-weight:500;font-size:15px;padding:10px 12px;border-radius:8px;margin-bottom:2px}
+nav a i{width:8px;height:8px;border-radius:2px;background:rgba(255,255,255,.55)}
+nav a.on{background:var(--mari);color:var(--ink);font-weight:700}nav a.on i{background:var(--ink)}
+nav .low{margin-top:auto;border-top:1px solid rgba(255,255,255,.28);padding-top:14px}
+nav .quiet{font-size:13px;opacity:.92}
+/* main */
+main{padding:24px 40px 28px;display:grid;grid-template-rows:40px auto auto minmax(0,1fr);gap:18px;min-width:0;min-height:0}
+.top{display:flex;align-items:center;gap:16px}
+.btn{font:inherit;font-size:14px;font-weight:600;height:36px;padding:0 14px;border-radius:8px;border:1px solid var(--n2);background:var(--n0);color:var(--ink);display:inline-flex;align-items:center;gap:8px}
+.btn.sq{width:36px;padding:0;justify-content:center;font-size:16px}
+.btn.pri{background:var(--leaf);border-color:var(--leaf);color:#fff}
+select{font:inherit;font-stretch:80%;font-weight:800;font-size:20px;height:36px;padding:0 34px 0 12px;border:1px solid var(--n2);border-radius:8px;color:var(--ink);appearance:none;
+background:var(--n0) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%2314261A' stroke-width='2'/%3E%3C/svg%3E") no-repeat right 12px center}
+.status{margin-left:auto;display:flex;gap:14px;font-size:13px;color:var(--n3)}
+.status b{color:var(--leaf);font-weight:700}.status span::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--leaf);margin-right:6px;vertical-align:1px}
+/* hero */
+.hero{display:grid;grid-template-columns:minmax(0,1fr) 420px;gap:40px;align-items:end;padding-bottom:4px}
+.hero h1{font-size:42px;margin:6px 0 4px;color:var(--leaf)}
+.big{display:flex;align-items:baseline;gap:14px}
+.big strong{font-size:100px;color:var(--ink)}.big em{font-style:normal;font-stretch:80%;font-weight:700;font-size:26px;color:var(--n4)}
+.sub{font-size:15px;color:var(--n3);margin-top:8px}.sub b{color:var(--ink);font-weight:600}
+.split .bar{display:flex;height:28px;border-radius:6px;overflow:hidden;margin:10px 0 12px;gap:2px}
+.leg{display:grid;grid-template-columns:1fr 1fr;gap:6px 20px;font-size:13px}
+.leg div{display:flex;align-items:center;gap:8px}.leg .num{margin-left:auto;font-weight:600}
+.sw{width:10px;height:10px;border-radius:2px;flex:none}
+.acts{display:flex;gap:8px;margin-top:16px;justify-content:flex-end}
+/* card */
+.card{background:var(--n0);border:1px solid var(--n1);border-radius:12px}
+/* strip */
+.strip{padding:16px 20px 14px}
+.sh{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.sh h2{font-size:22px}.sh p{font-size:13px;color:var(--n3)}
+.tabs{margin-left:auto;display:flex;border:1px solid var(--n2);border-radius:8px;padding:2px;background:var(--ground)}
+.tabs span{font-size:13px;font-weight:600;padding:5px 12px;border-radius:6px;color:var(--n4)}.tabs .on{background:var(--n0);color:var(--ink);box-shadow:0 1px 0 var(--n2)}
+.cal{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));border-top:2px solid var(--ink)}
+.m{position:relative;padding:8px 6px 6px;border-right:1px solid var(--n1);text-align:center}.m:last-child{border-right:0}
+.m .lb{font-stretch:75%;font-weight:800;font-size:15px;letter-spacing:.02em}.m .lb small{font-weight:600;color:var(--n3);font-size:12px;margin-left:2px}
+.plot{position:relative;height:96px;margin:6px 0 4px}
+.plot::after{content:"";position:absolute;left:-6px;right:-6px;top:72px;border-top:1px solid var(--n2)}
+.b{position:absolute;left:50%;width:30px;margin-left:-15px;border-radius:3px 3px 0 0;background:var(--leaf)}
+.b.up{bottom:24px}.b.dn{top:72px;background:var(--tom);border-radius:0 0 3px 3px}
+.amt{font-size:13px;font-weight:700}.amt.neg{color:var(--tomt)}
+.st{display:inline-block;margin-top:6px;font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--n3);border:1.5px solid var(--n2);border-radius:3px;padding:2px 4px;transform:rotate(-4deg)}
+.m.now{background:#FFF4D6;box-shadow:inset 0 0 0 2px var(--mari)}
+.m.now .st{color:var(--ink);border-color:var(--mari);background:var(--mari);transform:none}
+/* bottom row */
+.row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) 280px;gap:16px;min-height:0}
+.sec{overflow:hidden;display:flex;flex-direction:column}
+.sec .band{height:8px}
+.sec .in{padding:16px 18px;display:flex;flex-direction:column;gap:10px;flex:1}
+.chip{display:inline-flex;align-items:center;height:24px;gap:7px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.sec .v{display:flex;align-items:baseline;gap:8px}.sec .v strong{font-size:42px}.sec .v span{color:var(--n3);font-size:14px}
+.track{height:10px;background:var(--n1);border-radius:5px;position:relative}
+.track i{position:absolute;inset:0 auto 0 0;border-radius:5px}
+.track b{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink)}
+.meta{display:flex;justify-content:space-between;font-size:13px;color:var(--n3)}.meta .num{color:var(--ink);font-weight:600}
+.lines{margin-top:auto;border-top:1px solid var(--n1);padding-top:10px;font-size:13px}
+.lines div{display:flex;justify-content:space-between;padding:3px 0}.lines .num{font-weight:600}
+.alert{border-color:var(--tom);box-shadow:0 0 0 1px var(--tom)}
+.flag{margin-left:auto;font-size:12px;font-weight:700;color:#fff;background:var(--tomt);border-radius:999px;padding:0 9px;line-height:22px;letter-spacing:.02em}
+.over{color:var(--tomt)!important}
+.kpis{display:grid;grid-template-rows:repeat(3,1fr);gap:12px;min-height:0}
+.kpi{padding:12px 16px;display:flex;flex-direction:column;justify-content:center;gap:2px}
+.kpi strong{font-size:32px}.kpi p{font-size:13px;color:var(--n3)}.kpi .up{color:var(--leaf);font-weight:700}
+.kpi.plan{background:var(--leaf);border-color:var(--leaf);color:#fff}.kpi.plan .cap,.kpi.plan p{color:#fff}
+</style></head><body>
+<nav aria-label="Main">
+  <div class="brand"><svg width="22" height="26" viewBox="0 0 22 26" aria-hidden="true"><path d="M11 26V12" stroke="#fff" stroke-width="2.4"/><path d="M11 13C11 6 6 2 1 2c0 6 4 11 10 11z" fill="#F2A900"/><path d="M11 15c0-6 4-10 10-10 0 6-4 10-10 10z" fill="#fff"/></svg>Balanced Money</div>
+  <a class="on" href="#"><i></i>This month</a><a href="#"><i></i>Budget</a><a href="#"><i></i>Balance</a><a href="#"><i></i>Transactions</a><a href="#"><i></i>Plan</a><a href="#"><i></i>Settings</a>
+  <div class="low"><a href="#"><i></i>Guide</a><a class="quiet" href="#">Sign out</a></div>
+</nav>
+<main>
+  <div class="top">
+    <button class="btn sq" aria-label="Previous month">‹</button>
+    <select aria-label="Month"><option>October 2026</option></select>
+    <button class="btn sq" aria-label="Next month">›</button>
+    <div class="status"><b>All caught up</b><span>nothing to categorise</span><span>budget in place</span><span>balances recorded</span></div>
+  </div>
+
+  <section class="hero">
+    <div>
+      <div class="cap">This month · 3 days still to grow</div>
+      <h1 class="disp">October: a good harvest</h1>
+      <div class="big"><strong class="disp num">£1,235</strong><em>left over</em></div>
+      <p class="sub num"><b>£60 less than September</b> · income <b>£3,665</b> · spent <b>£2,430</b></p>
+    </div>
+    <div class="split">
+      <div class="cap">Where October’s income went</div>
+      <div class="bar"><i style="width:39.3%;background:var(--sky)"></i><i style="width:18.1%;background:var(--mari)"></i><i style="width:8.9%;background:var(--beet)"></i><i style="flex:1;background:var(--leaf)"></i></div>
+      <div class="leg num">
+        <div><i class="sw" style="background:var(--sky)"></i>Fixed<span class="num">£1,441</span></div>
+        <div><i class="sw" style="background:var(--mari)"></i>Variable<span class="num">£662</span></div>
+        <div><i class="sw" style="background:var(--beet)"></i>Discretionary<span class="num">£327</span></div>
+        <div><i class="sw" style="background:var(--leaf)"></i>Left over<span class="num">£1,235</span></div>
+      </div>
+      <div class="acts"><button class="btn">Export</button><button class="btn pri">Open October budget</button></div>
+    </div>
+  </section>
+
+  <section class="card strip">
+    <div class="sh"><h2 class="disp">Sow &amp; harvest</h2><p>Left over each month, Nov 2025 – Oct 2026 · 10 of 12 in surplus</p>
+      <div class="tabs" role="tablist"><span class="on" role="tab">Left over</span><span role="tab">Spent</span><span role="tab">Income</span></div></div>
+    <div class="cal num">
+      <div class="m"><div class="lb">Nov<small>25</small></div><div class="plot"><div class="b up" style="height:42px"></div></div><div class="amt">£820</div><span class="st">Harvested</span></div>
+      <div class="m"><div class="lb">Dec<small>25</small></div><div class="plot"><div class="b dn" style="height:10px"></div></div><div class="amt neg">−£180</div><span class="st">Harvested</span></div>
+      <div class="m"><div class="lb">Jan<small>26</small></div><div class="plot"><div class="b up" style="height:33px"></div></div><div class="amt">£640</div><span class="st">Harvested</span></div>
+      <div class="m"><div class="lb">Feb<small>26</small></div><div class="plot"><div class="b up" style="height:47px"></div></div><div class="amt">£910</div><span class="st">Harvested</span></div>
+      <div class="m"><div class="lb">Mar<small>26</small></div><div class="plot"><div class="b up" style="height:54px"></div></div><div class="amt">£1,050</div><span class="st">Harvested</span></div>
+      <div class="m"><div class="lb">Apr<small>26</small></div><div class="plot"><div class="b up" style="height:39px"></div></div><div class="amt">£760</div><span class="st">Harvested</span></div>
+      <div class="m"><div class="lb">May<small>26</small></div><div class="plot"><div class="b up" style="height:58px"></div></div><div class="amt">£1,120</div><span class="st">Harvested</span></div>
+      <div class="m"><div class="lb">Jun<small>26</small></div><div class="plot"><div class="b up" style="height:50px"></div></div><div class="amt">£980</div><span class="st">Harvested</span></div>
+      <div class="m"><div class="lb">Jul<small>26</small></div><div class="plot"><div class="b up" style="height:69px"></div></div><div class="amt">£1,340</div><span class="st">Harvested</span></div>
+      <div class="m"><div class="lb">Aug<small>26</small></div><div class="plot"><div class="b dn" style="height:5px"></div></div><div class="amt neg">−£95</div><span class="st">Harvested</span></div>
+      <div class="m"><div class="lb">Sep<small>26</small></div><div class="plot"><div class="b up" style="height:67px"></div></div><div class="amt">£1,295</div><span class="st">Harvested</span></div>
+      <div class="m now" aria-current="true"><div class="lb">Oct<small>26</small></div><div class="plot"><div class="b up" style="height:64px"></div></div><div class="amt">£1,235</div><span class="st">Growing</span></div>
+    </div>
+  </section>
+
+  <section class="row">
+    <article class="card sec"><div class="band" style="background:var(--sky)"></div><div class="in">
+      <span class="chip"><i class="sw" style="background:var(--sky)"></i>Fixed</span>
+      <div class="v num"><strong class="disp">£1,441</strong><span>of £1,430</span></div>
+      <div class="track"><i style="width:100%;background:var(--sky)"></i><b style="left:99.2%"></b></div>
+      <div class="meta"><span>9 rows · all paid</span><span class="num over">£11 over</span></div>
+      <div class="lines num"><div><span>Mortgage</span><span class="num">£985</span></div><div><span>Council tax</span><span class="num">£186</span></div><div><span>Energy</span><span class="num">£270</span></div></div>
+    </div></article>
+    <article class="card sec alert"><div class="band" style="background:var(--mari)"></div><div class="in">
+      <span class="chip" style="width:100%"><i class="sw" style="background:var(--mari)"></i>Variable<span class="flag num">Over by £82</span></span>
+      <div class="v num"><strong class="disp">£662</strong><span>of £580</span></div>
+      <div class="track"><i style="width:100%;background:var(--mari)"></i><b style="left:87.6%"></b></div>
+      <div class="meta"><span>2 rows over budget</span><span class="num over">114%</span></div>
+      <div class="lines num"><div class="over"><span><b>Groceries</b></span><span class="num over">£492 of £420</span></div><div><span>Fuel</span><span class="num">£118 of £120</span></div><div><span>Household</span><span class="num">£52 of £40</span></div></div>
+    </div></article>
+    <article class="card sec"><div class="band" style="background:var(--beet)"></div><div class="in">
+      <span class="chip"><i class="sw" style="background:var(--beet)"></i>Discretionary</span>
+      <div class="v num"><strong class="disp">£327</strong><span>of £245</span></div>
+      <div class="track"><i style="width:100%;background:var(--beet)"></i><b style="left:74.9%"></b></div>
+      <div class="meta"><span>6 rows</span><span class="num over">£82 over</span></div>
+      <div class="lines num"><div><span>Eating out</span><span class="num">£146</span></div><div><span>Garden</span><span class="num">£64</span></div><div><span>Hobbies</span><span class="num">£117</span></div></div>
+    </div></article>
+    <div class="kpis">
+      <div class="card kpi"><span class="cap">Net worth · as of 31 Oct</span><strong class="disp num">£155,140</strong><p class="num"><span class="up">+£2,260</span> vs last month</p></div>
+      <div class="card kpi"><span class="cap">Savings rate</span><strong class="disp num">34%</strong><p>of October’s income kept</p></div>
+      <div class="card kpi plan"><span class="cap">Plan · on track</span><strong class="disp num">£911,844</strong><p>projected at 67</p></div>
+    </div>
+  </section>
+</main>
+</body></html>

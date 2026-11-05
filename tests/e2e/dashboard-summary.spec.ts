@@ -325,7 +325,10 @@ test.describe("Dashboard summary", () => {
       });
     }
     await page.goto("/dashboard");
-    await expect(page.getByText("Net worth")).toBeVisible();
+    // Scoped, because the page's headline also talks about net worth.
+    await expect(
+      page.getByRole("region", { name: "Key figures" }).getByText("Net worth"),
+    ).toBeVisible();
 
     expect(errors.filter((e) => /hydration/i.test(e))).toEqual([]);
   });

@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en-GB"><head><meta charset="utf-8">
+<title>The Brief, Written — Landing</title>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,700;1,8..60,600&family=Libre+Franklin:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#FCEEE2;--soft:#F6E1CF;--ink:#26211E;--body:#4D443E;--claret:#8E1B3D;--oxford:#1B4E8A;--pos:#0B6A4C;--neg:#A3271F;--hair:#E9D2BE}
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:1440px;height:900px;overflow:hidden;background:var(--paper);font-family:"Libre Franklin",sans-serif;color:var(--ink);font-variant-numeric:tabular-nums}
+.serif{font-family:"Source Serif 4",serif;font-weight:700}
+header{display:flex;align-items:center;justify-content:space-between;padding:16px 48px;border-bottom:1px solid var(--ink)}
+.brand{font-size:26px}
+header nav{display:flex;gap:24px;font-weight:600;font-size:15px}
+.cta{background:var(--oxford);color:#fff;font-weight:600;font-size:15px;padding:11px 20px;border-radius:2px}
+.out{border:1px solid var(--ink);font-weight:600;font-size:14px;padding:8px 16px;border-radius:2px}
+main{display:grid;grid-template-columns:1fr 300px;gap:56px;padding:40px 48px 0 160px}
+.kick{color:var(--claret);font-weight:700;font-size:13px;letter-spacing:.04em;text-transform:uppercase}
+.kick span{color:var(--body);font-weight:600}
+h1{font-size:68px;line-height:1.04;margin-top:10px;letter-spacing:-.01em}
+.stand{font-size:21px;color:var(--body);margin-top:16px;line-height:1.45}
+.strip{display:grid;grid-template-columns:170px repeat(3,1fr);gap:24px;border-top:1px solid var(--ink);border-bottom:1px solid var(--hair);padding:18px 0;margin-top:26px;font-size:15px;line-height:1.5}
+.strip small{display:block;font-size:12px;font-weight:700;letter-spacing:.04em;color:var(--body)}
+.fig{font-family:"Source Serif 4";font-weight:700;font-size:40px;color:var(--pos);line-height:1.1}
+.strip b{color:var(--claret)}
+.peek{margin-top:22px;opacity:.55}
+.peek table{width:100%;border-collapse:collapse;font-size:14px}
+.peek th{font-size:12px;color:var(--body);text-align:right;padding:6px 8px;border-bottom:2px solid var(--ink)}
+.peek th:first-child,.peek td:first-child{text-align:left}
+.peek td{padding:8px;text-align:right;border-bottom:1px solid var(--hair)}
+.peek tr.sec td{font-family:"Source Serif 4";font-weight:700;font-size:17px}
+aside{border-left:1px solid var(--ink);padding-left:24px;margin-top:40px}
+.margin{font-family:"Source Serif 4";font-style:italic;font-weight:600;font-size:20px;line-height:1.35;color:var(--claret)}
+aside p{font-size:15px;line-height:1.55;color:var(--body);margin-top:14px}
+aside ul{list-style:none;margin-top:18px;font-size:14px;line-height:1.9}
+aside li:before{content:"— ";color:var(--claret)}
+.acts{display:flex;flex-direction:column;gap:10px;margin-top:24px}
+.acts .cta{text-align:center}
+.acts small{font-size:13px;color:var(--body)}
+.under{color:var(--pos);font-weight:600}.over{color:var(--neg);font-weight:600}
+</style></head><body>
+<header><span class="brand serif">Balanced Money</span><nav><span>Guide</span><span>How it works</span><span>Engineering</span></nav><span style="display:flex;gap:10px"><span class="out">Sign in</span><span class="cta" style="font-size:14px;padding:9px 16px">Get started</span></span></header>
+<main>
+  <section>
+    <div class="kick">A sample month · October 2026 <span>· sample figures</span></div>
+    <h1 class="serif">Spending came in £505 under plan, led by Holidays</h1>
+    <p class="stand">That leaves £1,455 left over, £405 more than the £1,050 you planned.</p>
+    <div class="strip">
+      <div><small>LEFT OVER</small><div class="fig">£1,455</div><small style="font-weight:500;letter-spacing:0">£1,050 planned</small></div>
+      <div><b>Where it ran over.</b> Home &amp; Maintenance ran £180 over budget, its highest month since April.</div>
+      <div><b>Where you saved.</b> Holidays came in £200 under budget.</div>
+      <div><b>What held.</b> Mortgage and Council Tax landed exactly on budget.</div>
+    </div>
+    <div class="peek"><table>
+      <tr><th>Category</th><th>Budget</th><th>Actual</th><th>vs budget</th></tr>
+      <tr class="sec"><td>Fixed</td><td>£1,740</td><td>£1,642</td><td class="under">£98 under</td></tr>
+      <tr><td>Mortgage</td><td>£1,250</td><td>£1,250</td><td>On budget</td></tr>
+      <tr><td>Home &amp; Maintenance</td><td>£80</td><td>£260</td><td class="over">£180 over</td></tr>
+    </table></div>
+  </section>
+  <aside>
+    <div class="margin">Balanced wrote this headline from the month's numbers. Yours will be about your month.</div>
+    <p>Balanced Money replaces your budgeting spreadsheet: import a bank statement or type a line, and each month reads back like the money pages, with what moved and why.</p>
+    <ul><li>No bank login, ever: CSV in</li><li>Every sentence computed, none invented</li><li>Export or delete everything, any time</li></ul>
+    <div class="acts"><span class="cta">Get started</span><small>Already have an account? Sign in</small></div>
+  </aside>
+</main>
+</body></html>

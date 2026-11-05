@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en-GB"><head><meta charset="utf-8">
+<title>The Money Section — Landing</title>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,700;0,8..60,900;1,8..60,600&family=Libre+Franklin:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#FCEEE2;--soft:#F6E1CF;--ink:#26211E;--body:#4D443E;--claret:#8E1B3D;--oxford:#1B4E8A;--pos:#0B6A4C;--neg:#A3271F;--hair:#E9D2BE}
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:1440px;height:900px;overflow:hidden;background:var(--paper);font-family:"Libre Franklin",sans-serif;color:var(--ink);font-variant-numeric:tabular-nums}
+.serif{font-family:"Source Serif 4",serif;font-weight:700}
+.top{display:flex;justify-content:space-between;align-items:center;padding:10px 48px;font-size:13px;font-weight:600;color:var(--body);border-bottom:1px solid var(--hair)}
+.top span.a{display:flex;gap:18px}
+.mast{text-align:center;padding:14px 0 10px;border-bottom:4px double var(--ink);margin:0 48px}
+.mast h1{font-family:"Source Serif 4";font-weight:900;font-size:76px;letter-spacing:-.01em;line-height:1}
+.date{display:flex;justify-content:space-between;margin:0 48px;padding:7px 0;border-bottom:1px solid var(--ink);font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.date .c{color:var(--claret)}
+.cols{display:grid;grid-template-columns:1.1fr 1.5fr 1fr;gap:0;margin:0 48px}
+.col{padding:18px 22px;border-right:1px solid var(--hair)}
+.col:first-child{padding-left:0}.col:last-child{border-right:none;padding-right:0}
+.kick{color:var(--claret);font-weight:700;font-size:12px;letter-spacing:.04em;text-transform:uppercase}
+h2{font-size:34px;line-height:1.08;margin-top:6px}
+h3{font-size:22px;line-height:1.15;margin-top:6px}
+p{font-size:14.5px;line-height:1.55;color:var(--ink);margin-top:10px}
+p.dek{font-family:"Source Serif 4";font-style:italic;font-weight:600;font-size:18px;color:var(--body);line-height:1.35}
+ol{margin-top:10px;padding-left:20px;font-size:14px;line-height:1.7}
+.shot{border-top:2px solid var(--ink);margin-top:10px;padding-top:10px}
+.shot .k{color:var(--claret);font-weight:700;font-size:10px;letter-spacing:.04em}
+.shot .h{font-family:"Source Serif 4";font-weight:700;font-size:21px;line-height:1.15;margin-top:3px}
+.shot table{width:100%;border-collapse:collapse;font-size:12px;margin-top:10px}
+.shot th{font-size:10px;color:var(--body);text-align:right;padding:4px;border-bottom:2px solid var(--ink)}
+.shot th:first-child,.shot td:first-child{text-align:left}
+.shot td{padding:5px 4px;text-align:right;border-bottom:1px solid var(--hair)}
+.shot tr.sec td{font-family:"Source Serif 4";font-weight:700;font-size:14px}
+.cap{font-size:12px;color:var(--body);margin-top:8px;font-style:italic}
+.never{list-style:none;margin-top:10px}
+.never li{padding:9px 0;border-bottom:1px solid var(--hair);font-size:14px}
+.never li b{display:block;font-family:"Source Serif 4";font-size:16px}
+.box{margin-top:16px;border:2px solid var(--ink);padding:14px;background:var(--soft)}
+.box .serif{font-size:20px}
+.box p{font-size:13.5px;margin-top:6px}
+.cta{display:inline-block;margin-top:10px;background:var(--oxford);color:#fff;font-weight:600;font-size:14px;padding:9px 16px;border-radius:2px}
+.under{color:var(--pos);font-weight:600}.over{color:var(--neg);font-weight:600}
+</style></head><body>
+<div class="top"><span>Guide · How it's built · Design · Privacy</span><span class="a"><span>Sign in</span><span style="color:var(--oxford)">Get started</span></span></div>
+<div class="mast"><h1>Balanced Money</h1></div>
+<div class="date"><span>Personal finance, read like the money pages</span><span class="c">The monthly edition</span><span>No bank login · no ads · no AI</span></div>
+<div class="cols">
+  <article class="col">
+    <div class="kick">The method</div>
+    <h2 class="serif">A few minutes a month, and the spreadsheet can go</h2>
+    <p class="dek">Most budgets die around month three. Balanced keeps the part that works and does the rest.</p>
+    <p>Each month runs the same four steps:</p>
+    <ol><li>Import a statement, or write a line</li><li>Approve what Balanced filed for you</li><li>Read the budget against your plan</li><li>Update balances and see where you stand</li></ol>
+    <p>Then the plan carries it forward, decades ahead, with real UK tax bands.</p>
+  </article>
+  <article class="col">
+    <div class="kick">What you'll read</div>
+    <h3 class="serif">Every month comes back with a headline</h3>
+    <div class="shot">
+      <div class="k">BUDGET · OCTOBER 2026 · SAMPLE</div>
+      <div class="h">Spending came in £505 under plan, led by Holidays</div>
+      <table><tr><th>Category</th><th>Budget</th><th>Actual</th><th>vs budget</th></tr>
+        <tr class="sec"><td>Fixed</td><td>£1,740</td><td>£1,642</td><td class="under">£98 under</td></tr>
+        <tr><td>Mortgage</td><td>£1,250</td><td>£1,250</td><td>On budget</td></tr>
+        <tr><td>Home &amp; Maintenance</td><td>£80</td><td>£260</td><td class="over">£180 over</td></tr>
+        <tr class="sec"><td>Discretionary</td><td>£490</td><td>£162</td><td class="under">£328 under</td></tr>
+      </table>
+      <p class="cap">Written from the numbers by Balanced, never by hand and never invented.</p>
+    </div>
+  </article>
+  <aside class="col">
+    <div class="kick">What we never do</div>
+    <ul class="never">
+      <li><b>Ask for your bank login</b>Statements come in as CSV you export yourself.</li>
+      <li><b>Sell or share your data</b>No analytics, no advertising, no tracking.</li>
+      <li><b>Keep you from leaving</b>Export or delete everything from Settings.</li>
+    </ul>
+    <div class="box"><div class="serif">Start your own edition</div><p>Set up once with sensible defaults, then a few minutes each month.</p><span class="cta">Get started</span></div>
+  </aside>
+</div>
+</body></html>

@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en-GB"><head><meta charset="utf-8">
+<title>Category standard — Budget</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#F6F7F9;--card:#fff;--text:#0F172A;--muted:#55607A;--blue:#2563EB;--green:#15803D;--red:#B91C1C;--line:#E2E8F0}
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:1440px;height:900px;overflow:hidden;background:var(--bg);font-family:Inter,sans-serif;color:var(--text);font-variant-numeric:tabular-nums;display:flex}
+aside{width:232px;background:var(--card);border-right:1px solid var(--line);padding:22px 16px}
+.brand{font-weight:700;font-size:17px;padding:0 10px 22px}
+aside a{display:block;padding:9px 10px;border-radius:8px;font-size:14.5px;color:var(--muted);font-weight:500}
+aside a.on{background:#EFF4FF;color:var(--blue);font-weight:600}
+main{flex:1;padding:26px 36px}
+.head{display:flex;justify-content:space-between;align-items:center}
+h1{font-size:26px;font-weight:700}
+.head div{display:flex;gap:10px}
+.head span{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:8px 14px;font-size:14px;font-weight:500}
+.head span.p{background:var(--blue);color:#fff;border-color:var(--blue)}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:20px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+.kpi small{font-size:13px;color:var(--muted)}
+.kpi b{display:block;font-size:26px;margin-top:4px}
+.kpi span{font-size:13px}
+.tbl{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-top:20px;overflow:hidden}
+table{width:100%;border-collapse:collapse;font-size:14.5px}
+th{text-align:left;font-size:13px;color:var(--muted);font-weight:500;padding:12px 18px;border-bottom:1px solid var(--line);background:#FAFBFC}
+td{padding:11px 18px;border-bottom:1px solid var(--line)}
+.n{text-align:right}
+tr.s td{font-weight:600;background:#FAFBFC}
+.pb{width:180px;height:8px;border-radius:4px;background:#EEF2F7;overflow:hidden}
+.pb i{display:block;height:100%;background:var(--blue);border-radius:4px}
+.pb.over i{background:var(--red)}
+.r{color:var(--red)}.g{color:var(--green)}
+</style></head><body>
+<aside><div class="brand">Balanced Money</div><a>Dashboard</a><a>Transactions</a><a class="on">Budget</a><a>Balance</a><a>Plan</a><a>Settings</a><a>Guide</a></aside>
+<main>
+  <div class="head"><h1>Budget · October 2026</h1><div><span>‹ Sep</span><span>Nov ›</span><span>Fill from…</span><span class="p">+ Add row</span></div></div>
+  <div class="kpis">
+    <div class="kpi"><small>Income</small><b>£3,665</b><span class="g">+£15 vs budget</span></div>
+    <div class="kpi"><small>Spent</small><b>£2,430</b><span class="r">£175 over budget</span></div>
+    <div class="kpi"><small>Left over</small><b>£1,235</b><span class="r">£160 below plan</span></div>
+  </div>
+  <div class="tbl"><table>
+    <tr><th>Category</th><th class="n">Budget</th><th class="n">Actual</th><th>Progress</th><th class="n">Remaining</th></tr>
+    <tr class="s"><td>Fixed</td><td class="n">£1,430</td><td class="n">£1,441</td><td></td><td class="n r">−£11</td></tr>
+    <tr><td>Mortgage</td><td class="n">£1,250</td><td class="n">£1,250</td><td><div class="pb"><i style="width:100%"></i></div></td><td class="n">£0</td></tr>
+    <tr><td>Utilities</td><td class="n">£180</td><td class="n">£191</td><td><div class="pb over"><i style="width:100%"></i></div></td><td class="n r">−£11</td></tr>
+    <tr class="s"><td>Variable</td><td class="n">£580</td><td class="n">£662</td><td></td><td class="n r">−£82</td></tr>
+    <tr><td>Groceries</td><td class="n">£420</td><td class="n">£492</td><td><div class="pb over"><i style="width:100%"></i></div></td><td class="n r">−£72</td></tr>
+    <tr><td>Transport</td><td class="n">£160</td><td class="n">£170</td><td><div class="pb over"><i style="width:100%"></i></div></td><td class="n r">−£10</td></tr>
+    <tr class="s"><td>Discretionary</td><td class="n">£245</td><td class="n">£327</td><td></td><td class="n r">−£82</td></tr>
+    <tr><td>Meals Out</td><td class="n">£120</td><td class="n">£176</td><td><div class="pb over"><i style="width:100%"></i></div></td><td class="n r">−£56</td></tr>
+    <tr><td>Subscriptions</td><td class="n">£45</td><td class="n">£45</td><td><div class="pb"><i style="width:100%"></i></div></td><td class="n">£0</td></tr>
+  </table></div>
+</main>
+</body></html>

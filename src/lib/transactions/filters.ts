@@ -9,6 +9,8 @@ import type { CategoryFilter } from "./pagination";
 export type LedgerFilters = {
   search?: string;
   onlyUncategorized?: boolean;
+  /** No category yet, or a category an import suggested that is not ticked. */
+  onlyToCheck?: boolean;
   /** Inclusive YYYY-MM-DD bounds, as validated by parseLedgerSearchParams. */
   from?: string | null;
   to?: string | null;
@@ -92,5 +94,18 @@ export function ledgerWhere(
     // left to whichever clause happens to be spread last.
     ...(filters.onlyUncategorized ? {} : categoryClause(filters.category)),
     ...amountClause(filters.amountMin, filters.amountMax),
+    // Under AND, because amountClause can already own the top-level OR.
+    ...(filters.onlyToCheck
+      ? {
+          AND: [
+            {
+              OR: [
+                { categoryId: null, transferAccountId: null },
+                { isCategoryConfirmed: false },
+              ],
+            },
+          ],
+        }
+      : {}),
   };
 }

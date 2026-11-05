@@ -8,6 +8,7 @@ export const CANONICAL_ORIGIN = "https://www.balanced.money";
 // the OAuth callback) only make sense from an email or a redirect.
 export const PUBLIC_PAGES = [
   "/",
+  "/features",
   "/guide",
   "/how-its-built",
   "/design",

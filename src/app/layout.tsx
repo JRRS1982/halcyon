@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Libre_Franklin, Source_Serif_4 } from "next/font/google";
 import { StyledComponentsRegistry } from "@/lib/styled";
 import { themeCss } from "@/lib/themeCss";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"] });
+// Exposed as CSS variables rather than classes so theme.ts can name them in
+// every font stack: next/font gives each face a hashed family name, which a
+// literal "Libre Franklin" in a stylesheet would never match.
+const sans = Libre_Franklin({ subsets: ["latin"], variable: "--font-sans" });
+const serif = Source_Serif_4({ subsets: ["latin"], variable: "--font-serif" });
 
 export const metadata: Metadata = {
   title: "Balanced Money",
@@ -31,7 +35,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${sans.variable} ${serif.variable}`}>
       <head>
         {/* Generated from the palettes rather than a static stylesheet, so the
             two never drift. Inline in <head> so the variables exist before the
@@ -39,7 +43,7 @@ export default function RootLayout({
         {/* biome-ignore lint/security/noDangerouslySetInnerHtml: generated from a typed palette in this repo, never from user input. */}
         <style dangerouslySetInnerHTML={{ __html: themeCss }} />
       </head>
-      <body className={inter.className}>
+      <body>
         {/* First focusable thing on the page, so a keyboard or screen-reader
             user can jump the nav instead of tabbing through it on every route.
             Plain CSS and a plain anchor rather than a styled component: it has

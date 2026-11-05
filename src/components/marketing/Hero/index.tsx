@@ -1,48 +1,62 @@
-import { MarketingShot } from "@/components/marketing/MarketingShot";
+import Link from "next/link";
 import {
+  Caption,
   CtaRow,
-  Eyebrow,
-  Grid,
-  Lead,
+  Figure,
+  Headline,
   OutlineLink,
   PrimaryLink,
-  Section,
-  Title,
-  TrustLink,
-  TrustNote,
-} from "./Hero.styled";
+  Standfirst,
+  Trust,
+} from "@/components/editorial/Editorial.styled";
+import { MarketingShot } from "@/components/marketing/MarketingShot";
+import { Narrow, Section, Wide } from "./Hero.styled";
 
 export function Hero() {
   return (
     <Section>
-      <Grid>
-        <div>
-          <Eyebrow>Personal finance, made clear</Eyebrow>
-          <Title>Make sense of your money.</Title>
-          <Lead>
-            Balanced takes the place of the messy spreadsheet you&apos;ve been
-            meaning to keep. It gives you the structure — and the gentle
-            guidance — to track what you have, understand where it goes, and
-            learn how you really spend.
-          </Lead>
-          <CtaRow>
-            <PrimaryLink href="/sign-up">Get started</PrimaryLink>
-            <OutlineLink href="/sign-in">Sign in</OutlineLink>
-          </CtaRow>
-          <TrustNote>
-            No bank connection, ever. Balanced never asks for your banking login
-            — figures come from a CSV you export yourself. Your data is yours to{" "}
-            <TrustLink href="/guide">export or delete</TrustLink> at any time.
-          </TrustNote>
-        </div>
-        <MarketingShot
-          src="/marketing/dashboard.png"
-          priority
-          label="Dashboard"
-          caption="Spending by category, cash flow, balance trend, net worth — at a glance"
-          alt="The Balanced dashboard showing spending and net-worth charts"
-        />
-      </Grid>
+      <div>
+        <Headline>Make sense of your money.</Headline>
+        <Standfirst>
+          Balanced Money is a monthly check-in for your household&apos;s money.
+          Bring in your bank statement, see where it went, watch your savings
+          and net worth grow, and plan for your future.
+        </Standfirst>
+        <CtaRow>
+          <PrimaryLink href="/sign-up">Get started</PrimaryLink>
+          <OutlineLink href="/sign-in">Sign in</OutlineLink>
+        </CtaRow>
+        <Trust>
+          You choose what goes in: a statement you export yourself, or a line
+          you type. Your data is yours to{" "}
+          <Link href="/guide">export or delete</Link> at any time.
+        </Trust>
+      </div>
+      <Figure>
+        <Wide>
+          <MarketingShot
+            src="/marketing/plates/budget-lead.png"
+            priority
+            label="Budget"
+            alt="The Balanced Money budget page for a sample October: the headline 'Spending came in £570 under plan, led by Holidays', the left-over figure, and notes on what ran over and what held"
+            aspect="2464 / 1736"
+            sizes="(max-width: 1023px) 100vw, 680px"
+          />
+        </Wide>
+        <Narrow>
+          <MarketingShot
+            src="/marketing/plates/budget-lead-phone.png"
+            label="Budget"
+            alt="The same budget page on a phone: the month's headline, the left-over figure and the notes"
+            aspect="1170 / 1536"
+            sizes="420px"
+          />
+        </Narrow>
+        <Caption>
+          A sample month. Balanced Money writes the headline and notes from your
+          own figures.
+        </Caption>
+      </Figure>
     </Section>
   );
 }

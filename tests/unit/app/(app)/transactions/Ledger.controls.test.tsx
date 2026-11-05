@@ -44,6 +44,7 @@ const renderLedger = (search = "") => {
               description: "Greggs",
               categoryId: null,
               transferAccountId: null,
+              isCategoryConfirmed: true,
               accountId: ACCOUNT,
               accountName: "Current",
               note: null,
@@ -56,6 +57,7 @@ const renderLedger = (search = "") => {
               description: "Tesco",
               categoryId: null,
               transferAccountId: null,
+              isCategoryConfirmed: true,
               accountId: ACCOUNT,
               accountName: "Current",
               note: null,
@@ -76,7 +78,6 @@ const renderLedger = (search = "") => {
           },
         ]}
         transferAccounts={[{ id: ACCOUNT, name: "Current", kind: "ASSET" }]}
-        uncategorizedCount={0}
         transfersEnabled={true}
       />
     </ThemeProvider>,
@@ -105,11 +106,11 @@ describe("ledger controls card", () => {
   test("the uncategorized toggle has moved into the drawer", () => {
     renderLedger();
     expect(
-      screen.queryByRole("checkbox", { name: "Uncategorized only" }),
+      screen.queryByRole("checkbox", { name: "Uncategorised only" }),
     ).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Filters" }));
     expect(
-      screen.getByRole("checkbox", { name: "Uncategorized only" }),
+      screen.getByRole("checkbox", { name: "Uncategorised only" }),
     ).toBeInTheDocument();
   });
 

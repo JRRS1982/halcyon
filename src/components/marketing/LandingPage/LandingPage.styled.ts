@@ -1,8 +1,7 @@
-import styled from "styled-components";
+import Link from "next/link";
+import styled, { css } from "styled-components";
 
-// Constrains the in-flow sections to the 1240px container with page gutters.
-// Full-bleed sections (DetailGrid band, CtaBand) render their own background
-// edge-to-edge and place a Container inside themselves where needed.
+// Constrains the page to the 1240px container with page gutters.
 export const Container = styled.div`
   max-width: 1240px;
   margin: 0 auto;
@@ -13,6 +12,39 @@ export const Container = styled.div`
   }
 `;
 
-export const FeaturesIntro = styled.section`
-  padding: ${({ theme }) => `${theme.spacing.section} 0 0`};
+// A section of stories, opened by a heavy ink rule and a one-word head.
+export const Inside = styled.section`
+  ${({ theme }) => css`
+    padding: ${theme.spacing.lg} 0 ${theme.spacing["3xl"]};
+    border-top: 3px solid ${theme.colors.ink};
+  `}
+`;
+
+// The lead story across the page: the dashboard's chart beside its text.
+export const Lead = styled(Link)`
+  ${({ theme }) => css`
+    display: grid;
+    grid-template-columns: minmax(240px, 1fr) minmax(0, 3fr);
+    gap: ${theme.spacing["2xl"]};
+    align-items: start;
+    margin-top: ${theme.spacing.lg};
+    padding: ${theme.spacing.xl} 0 ${theme.spacing["2xl"]};
+    border-top: 1px solid ${theme.colors.ink};
+    color: ${theme.colors.ink};
+    text-decoration: none;
+
+    h3 {
+      margin-top: 0;
+    }
+    &:hover h3,
+    &:focus-visible h3 {
+      text-decoration: underline;
+      text-decoration-thickness: 2px;
+      text-underline-offset: 4px;
+    }
+
+    @media (max-width: 860px) {
+      grid-template-columns: 1fr;
+    }
+  `}
 `;

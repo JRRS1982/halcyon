@@ -19,7 +19,6 @@ import {
   mapRows,
 } from "@/lib/transactions/import";
 import {
-  importLimitHint,
   MAX_IMPORT_FILE_BYTES,
   MAX_IMPORT_FILE_MB,
   MAX_IMPORT_ROWS,
@@ -44,12 +43,10 @@ const ModalBody = styled.div`
 `;
 
 const Label = styled.span`
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
-  text-transform: uppercase;
-  color: ${({ theme }) => theme.colors.dim};
+  font-family: ${({ theme }) => theme.typography.control.family};
+  font-size: ${({ theme }) => theme.typography.control.size};
+  font-weight: ${({ theme }) => theme.typography.control.weight};
+  color: ${({ theme }) => theme.colors.body};
 `;
 
 const FileRow = styled.label`
@@ -72,25 +69,18 @@ const FileButton = styled.span`
   align-items: center;
   padding: ${({ theme }) => theme.spacing.sm}
     ${({ theme }) => theme.spacing.lg};
-  border: 1px solid ${({ theme }) => theme.colors.primary};
+  border: 1px solid ${({ theme }) => theme.colors.ink};
   border-radius: ${({ theme }) => theme.rounded.sm};
-  background: ${({ theme }) => theme.colors.primary};
-  color: ${({ theme }) => theme.colors.onPrimary};
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
-  text-transform: uppercase;
+  background: ${({ theme }) => theme.colors.canvas};
+  color: ${({ theme }) => theme.colors.ink};
+  font-family: ${({ theme }) => theme.typography.control.family};
+  font-size: ${({ theme }) => theme.typography.control.size};
+  font-weight: ${({ theme }) => theme.typography.control.weight};
   white-space: nowrap;
 `;
 
 // States the import limits up front, so a too-big file is a known boundary
 // rather than a surprise rejection.
-const FileHint = styled.span`
-  font-family: ${({ theme }) => theme.typography.bodyMd.family};
-  font-size: 13px;
-  color: ${({ theme }) => theme.colors.dim};
-`;
 
 const FileName = styled.span`
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
@@ -112,9 +102,9 @@ const Field = styled.label`
 const Select = styled.select`
   padding: ${({ theme }) => theme.spacing.sm}
     ${({ theme }) => theme.spacing.md};
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
+  border: 1px solid ${({ theme }) => theme.colors.fieldBorder};
   border-radius: ${({ theme }) => theme.rounded.sm};
-  background: ${({ theme }) => theme.colors.canvas};
+  background: ${({ theme }) => theme.colors.field};
   color: ${({ theme }) => theme.colors.ink};
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
   font-size: ${({ theme }) => theme.typography.bodyMd.size};
@@ -123,9 +113,9 @@ const Select = styled.select`
 const Input = styled.input`
   padding: ${({ theme }) => theme.spacing.sm}
     ${({ theme }) => theme.spacing.md};
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
+  border: 1px solid ${({ theme }) => theme.colors.fieldBorder};
   border-radius: ${({ theme }) => theme.rounded.sm};
-  background: ${({ theme }) => theme.colors.canvas};
+  background: ${({ theme }) => theme.colors.field};
   color: ${({ theme }) => theme.colors.ink};
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
   font-size: ${({ theme }) => theme.typography.bodyMd.size};
@@ -278,11 +268,11 @@ const Toast = styled.div`
 
 const DialogTitle = styled.h2`
   margin: 0;
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  text-transform: uppercase;
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
-  color: ${({ theme }) => theme.colors.dim};
+  font-family: ${({ theme }) => theme.typography.amountXl.family};
+  font-size: ${({ theme }) => theme.typography.amountXl.size};
+  font-weight: ${({ theme }) => theme.typography.amountXl.weight};
+  letter-spacing: ${({ theme }) => theme.typography.amountXl.letterSpacing};
+  color: ${({ theme }) => theme.colors.ink};
 `;
 
 const DupList = styled.div`
@@ -315,12 +305,13 @@ const DialogActions = styled.div`
 const GhostButton = styled.button`
   padding: ${({ theme }) => theme.spacing.sm}
     ${({ theme }) => theme.spacing.lg};
-  border: 1px solid ${({ theme }) => theme.colors.hairlineStrong};
+  border: 1px solid ${({ theme }) => theme.colors.ink};
   border-radius: ${({ theme }) => theme.rounded.sm};
   background: ${({ theme }) => theme.colors.canvas};
   color: ${({ theme }) => theme.colors.ink};
-  font-family: ${({ theme }) => theme.typography.bodyMd.family};
-  font-size: ${({ theme }) => theme.typography.bodyMd.size};
+  font-family: ${({ theme }) => theme.typography.control.family};
+  font-size: ${({ theme }) => theme.typography.control.size};
+  font-weight: ${({ theme }) => theme.typography.control.weight};
   cursor: pointer;
 `;
 
@@ -411,7 +402,7 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
     }
     setFileName(file.name);
     setRows(parsed);
-    setMapping(guessMapping(headerRow));
+    setMapping(guessMapping(headerRow, parsed.slice(1)));
     setOpen(true);
   };
 
@@ -541,7 +532,6 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
       <FileRow>
         <HiddenFile type="file" accept=".csv,text/csv" onChange={onFile} />
         <FileButton>Import statement…</FileButton>
-        <FileHint>{importLimitHint}</FileHint>
       </FileRow>
 
       {open && (

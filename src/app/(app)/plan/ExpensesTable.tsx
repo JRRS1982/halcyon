@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import styled from "styled-components";
 import { DrawerSection, Field } from "@/components/ui/Drawer";
+import { sectionLabel } from "@/lib/categories/sections";
 import type { ExpenseSection } from "@/lib/plan";
 import type { SyncPlan } from "@/lib/plan/sync";
 import { formatAmount, type NumberFormat } from "@/lib/settings/currency";
@@ -23,15 +24,21 @@ const EXPENSE_SECTIONS: ExpenseSection[] = [
   "VARIABLE",
   "DISCRETIONARY",
 ];
+// The stored values are shouty enum keys; the editor and the rows say them
+// the way the budget does ("Variable", not "VARIABLE").
+const SECTION_LABELS: Partial<Record<ExpenseSection, string>> =
+  Object.fromEntries(
+    EXPENSE_SECTIONS.map((section) => [section, sectionLabel(section)]),
+  );
 
 const Panel = styled.section`
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  padding: ${({ theme }) => theme.spacing.lg};
+  border-top: 1px solid ${({ theme }) => theme.colors.ink};
+  padding: ${({ theme }) => theme.spacing.lg} 0;
   display: grid;
   gap: ${({ theme }) => theme.spacing.sm};
 `;
 const Heading = styled.h2`
+  font-family: ${({ theme }) => theme.typography.displayLg.family};
   font-size: ${({ theme }) => theme.typography.displayLg.size};
   font-weight: ${({ theme }) => theme.typography.displayLg.weight};
   color: ${({ theme }) => theme.colors.ink};
@@ -120,6 +127,7 @@ export function ExpenseFields({
             <SelectCell
               value={expense.section ?? "FIXED"}
               options={EXPENSE_SECTIONS}
+              labels={SECTION_LABELS}
               onCommit={(v) => save({ ...expense, section: v })}
             />
           </Field>
@@ -175,12 +183,15 @@ export function ExpensesTable({
   numberFormat,
   syncPreview,
   onOpen,
+  onCreated,
 }: {
   expenses: SerializedPlanExpense[];
   currency: string;
   numberFormat: NumberFormat;
   syncPreview: SyncPlan;
   onOpen: (id: string) => void;
+  /** Opens a row this table just created, which closing untouched discards. */
+  onCreated: (id: string) => void;
 }) {
   const router = useRouter();
   const add = async () => {
@@ -188,7 +199,7 @@ export function ExpensesTable({
     // Select before refreshing, not after: router.refresh() runs inside a
     // React transition, and a setState queued behind it waits on the server
     // round trip it starts. The selection does not depend on that payload.
-    onOpen(id);
+    onCreated(id);
     router.refresh();
   };
 
@@ -203,7 +214,7 @@ export function ExpensesTable({
             <SummaryRow
               key={e.id}
               primary={e.label}
-              secondary={`${e.liabilityId ? "Repayment" : (e.section ?? "Unsectioned")} · ${formatAmount(currency, e.annualAmount, numberFormat)}/yr`}
+              secondary={`${e.liabilityId ? "Repayment" : e.section ? sectionLabel(e.section) : "Unsectioned"} · ${formatAmount(currency, e.annualAmount, numberFormat)}/yr`}
               marker={
                 <SyncMarker
                   {...rowMarkerProps(

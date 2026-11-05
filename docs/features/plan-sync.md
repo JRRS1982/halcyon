@@ -544,6 +544,10 @@ unpinned, so check the actual field, not the list.
   property. The confirmation names all of it. The plan-side mortgage drawer
   duplicates the balance sheet's and yields worse data; retiring it is Not yet
   built.
+  `+ Add income`, `+ Add expense` and `+ Add event` create the row before its
+  editor opens; closing that editor without typing into or changing anything
+  deletes the row again (`PlanView.tsx`), so an abandoned add leaves nothing
+  behind for Sync to offer.
 - **`deletePlanAsset` does not take the property's sale events with it.** It
   cascades to the linked mortgage and that mortgage's repayment expense, but a
   `PROPERTY_SALE` event survives its property, pointing at a soft-deleted asset

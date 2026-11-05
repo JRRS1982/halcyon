@@ -26,13 +26,13 @@ const INCOME_KINDS: IncomeKind[] = [
 const GROWTH_KINDS: GrowthKind[] = ["INFLATION", "FIXED", "NONE"];
 
 const Panel = styled.section`
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  padding: ${({ theme }) => theme.spacing.lg};
+  border-top: 1px solid ${({ theme }) => theme.colors.ink};
+  padding: ${({ theme }) => theme.spacing.lg} 0;
   display: grid;
   gap: ${({ theme }) => theme.spacing.sm};
 `;
 const Heading = styled.h2`
+  font-family: ${({ theme }) => theme.typography.displayLg.family};
   font-size: ${({ theme }) => theme.typography.displayLg.size};
   font-weight: ${({ theme }) => theme.typography.displayLg.weight};
   color: ${({ theme }) => theme.colors.ink};
@@ -166,12 +166,15 @@ export function IncomesTable({
   numberFormat,
   syncPreview,
   onOpen,
+  onCreated,
 }: {
   incomes: SerializedPlanIncome[];
   currency: string;
   numberFormat: NumberFormat;
   syncPreview: SyncPlan;
   onOpen: (id: string) => void;
+  /** Opens a row this table just created, which closing untouched discards. */
+  onCreated: (id: string) => void;
 }) {
   const router = useRouter();
   const add = async () => {
@@ -179,7 +182,7 @@ export function IncomesTable({
     // Select before refreshing, not after: router.refresh() runs inside a
     // React transition, and a setState queued behind it waits on the server
     // round trip it starts. The selection does not depend on that payload.
-    onOpen(id);
+    onCreated(id);
     router.refresh();
   };
   const span = (i: SerializedPlanIncome) =>

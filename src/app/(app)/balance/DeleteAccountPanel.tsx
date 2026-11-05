@@ -45,12 +45,15 @@ const Box = styled.div`
   border-radius: ${({ theme }) => theme.rounded.sm};
 `;
 
-const Title = styled.p`
+// Titled as every dialog is; the red edge and the Delete button already carry
+// the warning.
+const Title = styled.h2`
   margin: 0;
-  font-family: ${({ theme }) => theme.typography.bodyMd.family};
-  font-weight: 600;
-  font-size: 14px;
-  color: ${({ theme }) => theme.colors.negative};
+  font-family: ${({ theme }) => theme.typography.amountXl.family};
+  font-size: ${({ theme }) => theme.typography.amountXl.size};
+  font-weight: ${({ theme }) => theme.typography.amountXl.weight};
+  letter-spacing: ${({ theme }) => theme.typography.amountXl.letterSpacing};
+  color: ${({ theme }) => theme.colors.ink};
 `;
 
 const Text = styled.p`
@@ -119,14 +122,16 @@ const ConfirmInput = styled.input`
   max-width: 100%;
   padding: ${({ theme }) => theme.spacing.xs}
     ${({ theme }) => theme.spacing.sm};
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
+  border: 1px solid ${({ theme }) => theme.colors.fieldBorder};
   border-radius: ${({ theme }) => theme.rounded.sm};
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
   font-size: 13px;
 `;
 
+// Cancel first, the action last, as in every other dialog.
 const Actions = styled.div`
   display: flex;
+  justify-content: flex-end;
   gap: ${({ theme }) => theme.spacing.sm};
   flex-wrap: wrap;
 `;
@@ -218,9 +223,11 @@ export function DeleteAccountPanel({
             Delete it everywhere
           </RadioLabel>
           <Text>
-            Removes all {counts.months} monthly values, and the{" "}
-            {counts.budgetRows} budget transfers pointing at it. This
-            can&rsquo;t be undone.
+            {`Removes ${plural(counts.months, "monthly value")}${
+              counts.budgetRows > 0
+                ? ` and the ${plural(counts.budgetRows, "budget transfer")} pointing at it`
+                : ""
+            }. This can’t be undone.`}
           </Text>
         </RadioOption>
       </RadioFieldset>
@@ -279,19 +286,19 @@ export function DeleteAccountPanel({
       <Actions>
         <Button
           type="button"
-          variant="destructive"
-          onClick={onSubmit}
-          disabled={!canSubmit}
-        >
-          Delete
-        </Button>
-        <Button
-          type="button"
           variant="outline"
           onClick={onClose}
           disabled={pending}
         >
           Cancel
+        </Button>
+        <Button
+          type="button"
+          variant="destructive"
+          onClick={onSubmit}
+          disabled={!canSubmit}
+        >
+          Delete
         </Button>
       </Actions>
     </Box>

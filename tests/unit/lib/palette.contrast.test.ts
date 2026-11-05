@@ -49,7 +49,7 @@ const TEXT_TOKENS = [
   "negative",
 ] as const;
 
-const SURFACES = ["canvas", "canvasSoft"] as const;
+const SURFACES = ["canvas", "canvasSoft", "field"] as const;
 
 describe("colour contrast", () => {
   // Sanity check the maths against two ratios anyone can verify: black on
@@ -86,11 +86,41 @@ describe("colour contrast", () => {
       ).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
     });
 
+    // Selected text (::selection in globals.css) sets page-coloured text on
+    // the accent; a highlight that hides what it highlights is no use.
+    test("page-coloured text clears 4.5:1 on an accent fill", () => {
+      expect(contrast(palette.canvas, palette.accent)).toBeGreaterThanOrEqual(
+        AA_NORMAL_TEXT,
+      );
+    });
+
     // The focus ring is the only thing telling a keyboard user where they are.
     test.each(SURFACES)("the focus ring is visible on %s", (surface) => {
       expect(contrast(palette.focus, palette[surface])).toBeGreaterThanOrEqual(
         AA_NON_TEXT,
       );
+    });
+
+    // A section's colour is how a user tells Fixed from Variable at a glance;
+    // a bar that fades into the page tells them nothing.
+    test.each([
+      "sectionFixed",
+      "sectionVariable",
+      "sectionDiscretionary",
+    ] as const)("%s is visible on every surface", (token) => {
+      for (const surface of SURFACES) {
+        expect(
+          contrast(palette[token], palette[surface]),
+        ).toBeGreaterThanOrEqual(AA_NON_TEXT);
+      }
+    });
+
+    // A field the eye cannot find is a form nobody fills in: its edge has to
+    // stand off both its own fill and every surface it is placed on.
+    test.each(SURFACES)("a field's edge is visible on %s", (surface) => {
+      expect(
+        contrast(palette.fieldBorder, palette[surface]),
+      ).toBeGreaterThanOrEqual(AA_NON_TEXT);
     });
 
     // The whole point of the band is that it separates itself from the page.

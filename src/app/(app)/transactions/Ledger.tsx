@@ -4,7 +4,14 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Fragment, useEffect, useRef, useState, useTransition } from "react";
 import styled, { css } from "styled-components";
+import { Button } from "@/components/ui/Button";
+import { shortDate } from "@/lib/date/humanDate";
 import { useDebouncedCallback } from "@/lib/hooks/useDebouncedCallback";
+import {
+  DEFAULT_NUMBER_FORMAT,
+  formatAmount,
+  type NumberFormat,
+} from "@/lib/settings/currency";
 import { activeFilters } from "@/lib/transactions/activeFilters";
 import {
   type LedgerUrlQuery,
@@ -25,6 +32,7 @@ import {
   bulkSetTransactionTransfer,
   createAccountAndTransfer,
   createAndAssignCategory,
+  setCategoryApproval,
   setTransactionCategory,
   setTransactionNote,
   setTransactionTransfer,
@@ -45,47 +53,34 @@ const Section = styled.section`
   gap: ${({ theme }) => theme.spacing.lg};
 `;
 
-const Head = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: ${({ theme }) => theme.spacing.lg};
-  flex-wrap: wrap;
-`;
-
+// Visually hidden: it names the section in the document outline.
 const Title = styled.h2`
-  margin: 0;
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  text-transform: uppercase;
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
-  color: ${({ theme }) => theme.colors.dim};
-`;
-
-const Nudge = styled.span`
-  font-family: ${({ theme }) => theme.typography.bodyMd.family};
-  font-size: 13px;
-  color: ${({ theme }) => theme.colors.body};
-`;
-
-// DESIGN.md → sheet-row-grand: the black band that ends the table. The spec
-// sets its amount in amount-xl (18px), but the ledger's amount column is 96px
-// and a five-figure total would overflow it, so this uses amount-strong — the
-// band still carries the emphasis, which is the point the spec makes.
-const TotalCell = styled.td`
-  padding: ${({ theme }) => theme.spacing.md};
-  background: ${({ theme }) => theme.colors.band};
-  color: ${({ theme }) => theme.colors.onBand};
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
-  text-transform: uppercase;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
   white-space: nowrap;
 `;
 
-// Always monochrome — DESIGN.md is explicit that a grand-total row takes no
-// positive/negative colouring, because the band is already the heaviest
-// treatment on the page and colour fights it.
+// The ledger's amount column is 96px and a five-figure total in amount-xl
+// would overflow it, so the total uses amount-strong; the rules carry the
+// emphasis.
+// The table's bottom line, set like the budget's grand total: between two ink
+// rules on the soft ground.
+const TotalCell = styled.td`
+  padding: ${({ theme }) => theme.spacing.md};
+  background: ${({ theme }) => theme.colors.canvasSoft};
+  color: ${({ theme }) => theme.colors.ink};
+  border-top: 2px solid ${({ theme }) => theme.colors.ink};
+  border-bottom: 2px solid ${({ theme }) => theme.colors.ink};
+  font-family: ${({ theme }) => theme.typography.control.family};
+  font-size: ${({ theme }) => theme.typography.control.size};
+  white-space: nowrap;
+`;
+
+// Always monochrome: a grand total takes no positive/negative colouring, so it
+// never competes with the rows' signs.
 const TotalAmount = styled(TotalCell)`
   text-align: right;
   font-family: ${({ theme }) => theme.typography.amountStrong.family};
@@ -119,41 +114,108 @@ const Table = styled.table`
   table-layout: fixed;
   border-collapse: collapse;
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
-  font-size: 13px;
+  font-size: 14px;
 
-  @media (max-width: 991px) {
+  /* A tablet keeps the columns and pans them. */
+  @media (max-width: 991px) and (min-width: 768px) {
     min-width: 940px;
+  }
+
+  /* A phone reads the ledger as statement lines instead (see Row): no column
+     heads, no panning, every row's amount and category on screen. */
+  @media (max-width: 767px) {
+    display: block;
+
+    colgroup,
+    thead {
+      display: none;
+    }
+    tbody,
+    tfoot {
+      display: block;
+    }
+    tfoot tr {
+      display: flex;
+      justify-content: space-between;
+    }
+    tfoot td:empty {
+      display: none;
+    }
   }
 `;
 
 // In header order. Description is the only `auto` one, so it absorbs whatever
 // the viewport has spare — every other column keeps the width its content
 // actually needs.
+// The category cell: the picker, then the approval. A suggested category is
+// pencilled (dashed, italic) until it is approved.
+const CategoryCell = styled.div<{ $pencilled: boolean }>`
+  display: flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.sm};
+
+  > :first-child {
+    flex: 1;
+    min-width: 0;
+  }
+
+  ${({ $pencilled, theme }) =>
+    $pencilled &&
+    css`
+      > :first-child button {
+        border-style: dashed;
+        font-style: italic;
+        color: ${theme.colors.body};
+      }
+    `}
+`;
+
+// Approving is the one thing a suggested row asks for. Unapproved, it is an
+// outlined button in the action colour; approved, it reads "✓ Approved" in the
+// sign green and stays a button, so a mis-click can be undone.
+const Approval = styled.button<{ $approved: boolean }>`
+  ${({ theme, $approved }) => css`
+    flex: none;
+    min-width: 92px;
+    height: 28px;
+    padding: 0 ${theme.spacing.sm};
+    border-radius: ${theme.rounded.sm};
+    font-family: ${theme.typography.control.family};
+    font-size: 13px;
+    font-weight: ${theme.typography.control.weight};
+    cursor: pointer;
+    border: 1px solid ${$approved ? "transparent" : theme.colors.primary};
+    background: transparent;
+    color: ${$approved ? theme.colors.positive : theme.colors.primary};
+
+    &:hover {
+      border-color: ${$approved ? theme.colors.hairlineStrong : theme.colors.primary};
+      background: ${$approved ? "transparent" : theme.colors.primary};
+      color: ${$approved ? theme.colors.positive : theme.colors.onPrimary};
+    }
+  `}
+`;
+
 const COLUMN_WIDTHS: [column: string, width: string][] = [
   ["select", "36px"],
   ["date", "100px"],
   ["description", "auto"],
   ["account", "132px"],
   ["amount", "96px"],
-  ["category", "236px"],
+  ["category", "330px"],
   ["note", "76px"],
 ];
 
-// DESIGN.md → sheet-row-head: canvas-soft ground, mono-caps labels, and a
-// hairline-strong rule below. The ledger's header used to be plain bold body
-// text on canvas over an ordinary hairline, which is why it read as a row of
-// slightly heavier data rather than as the head of the table.
+// Set as the budget sheet's head: small muted labels closed by a heavy ink
+// rule, so the ledger reads as the same kind of table.
 const Th = styled.th<{ $align?: "right" }>`
   text-align: ${({ $align }) => ($align === "right" ? "right" : "left")};
   padding: ${({ theme }) => theme.spacing.sm};
-  background: ${({ theme }) => theme.colors.canvasSoft};
-  border-bottom: 1px solid ${({ theme }) => theme.colors.hairlineStrong};
+  border-bottom: 2px solid ${({ theme }) => theme.colors.ink};
   color: ${({ theme }) => theme.colors.body};
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
-  text-transform: uppercase;
+  font-family: ${({ theme }) => theme.typography.control.family};
+  font-size: 13px;
+  font-weight: ${({ theme }) => theme.typography.control.weight};
   cursor: pointer;
   user-select: none;
   white-space: nowrap;
@@ -164,16 +226,74 @@ const Th = styled.th<{ $align?: "right" }>`
 // what the click was aimed at. The three things that own their own click (the
 // checkbox, the category combobox, the details toggle) stop the event so a
 // click there still does only its own job.
+// On a phone each transaction is a statement line: date and account small on
+// top, the description and its amount, then the category with its approval
+// and the note toggle. Cells keep their table order (select, date,
+// description, account, amount, category, note) and are placed by area.
 const Row = styled.tr`
   cursor: pointer;
 
   &:hover {
     background: ${({ theme }) => theme.colors.canvasSoft};
   }
+
+  @media (max-width: 767px) {
+    display: grid;
+    grid-template-columns: 32px auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "check date account account"
+      "check description description amount"
+      "check category category note";
+    align-items: center;
+    column-gap: ${({ theme }) => theme.spacing.sm};
+    row-gap: ${({ theme }) => theme.spacing.xs};
+    padding: ${({ theme }) => theme.spacing.md} 0;
+    border-bottom: 1px solid ${({ theme }) => theme.colors.hairline};
+
+    > td {
+      border-bottom: none;
+      padding: 0;
+      position: static;
+      background: transparent;
+    }
+    > td:nth-child(1) {
+      grid-area: check;
+      align-self: start;
+      padding-top: 2px;
+    }
+    > td:nth-child(2),
+    > td:nth-child(4) {
+      font-size: 12px;
+      color: ${({ theme }) => theme.colors.body};
+    }
+    > td:nth-child(2) {
+      grid-area: date;
+    }
+    > td:nth-child(3) {
+      grid-area: description;
+      font-size: 15px;
+      font-weight: 600;
+    }
+    > td:nth-child(4) {
+      grid-area: account;
+    }
+    > td:nth-child(5) {
+      grid-area: amount;
+      font-size: 16px;
+    }
+    > td:nth-child(6) {
+      grid-area: category;
+      padding-top: ${({ theme }) => theme.spacing.xs};
+    }
+    > td:nth-child(7) {
+      grid-area: note;
+      padding-top: ${({ theme }) => theme.spacing.xs};
+    }
+  }
 `;
 
 const Td = styled.td`
-  padding: ${({ theme }) => theme.spacing.sm};
+  padding: ${({ theme }) => theme.spacing.md} ${({ theme }) => theme.spacing.sm};
   border-bottom: 1px solid ${({ theme }) => theme.colors.hairline};
   color: ${({ theme }) => theme.colors.ink};
   vertical-align: middle;
@@ -191,7 +311,8 @@ const TdNowrap = styled(Td)`
 `;
 
 const Amount = styled.td<{ $negative: boolean }>`
-  padding: ${({ theme }) => theme.spacing.sm};
+  padding: ${({ theme }) => theme.spacing.md} ${({ theme }) => theme.spacing.sm};
+  font-weight: 600;
   border-bottom: 1px solid ${({ theme }) => theme.colors.hairline};
   text-align: right;
   font-variant-numeric: tabular-nums;
@@ -219,7 +340,7 @@ const EmptyLink = styled(Link)`
 // same sticky-left treatment the budget/balance sheets give their category
 // cell (SheetRow.styled). Opaque background so panning columns slide under it.
 const stickySelect = css`
-  @media (max-width: 991px) {
+  @media (max-width: 991px) and (min-width: 768px) {
     position: sticky;
     left: 0;
     z-index: 1;
@@ -233,8 +354,7 @@ const stickySelect = css`
 const ThCheck = styled.th`
   width: 28px;
   padding: ${({ theme }) => theme.spacing.sm};
-  background: ${({ theme }) => theme.colors.canvasSoft};
-  border-bottom: 1px solid ${({ theme }) => theme.colors.hairlineStrong};
+  border-bottom: 2px solid ${({ theme }) => theme.colors.ink};
 `;
 
 // Select-all header cell; pins with its column, see stickySelect.
@@ -258,13 +378,17 @@ const NoteToggle = styled.button<{ $has: boolean }>`
   padding: 0;
   cursor: pointer;
   white-space: nowrap;
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
-  text-transform: uppercase;
+  font-family: ${({ theme }) => theme.typography.control.family};
+  font-size: ${({ theme }) => theme.typography.control.size};
+  /* Bold only once there is a note: fifty bold "+ Note"s outshout the rows. */
+  font-weight: ${({ $has, theme }) =>
+    $has ? theme.typography.control.weight : 400};
   color: ${({ $has, theme }) =>
     $has ? theme.colors.accent : theme.colors.dim};
+
+  &:hover {
+    color: ${({ theme }) => theme.colors.ink};
+  }
 `;
 
 const DetailTd = styled.td`
@@ -291,10 +415,10 @@ const ExtraPair = styled.span`
 `;
 
 const ExtraKey = styled.span`
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
+  font-family: ${({ theme }) => theme.typography.kicker.family};
+  font-size: ${({ theme }) => theme.typography.kicker.size};
+  font-weight: ${({ theme }) => theme.typography.kicker.weight};
+  letter-spacing: ${({ theme }) => theme.typography.kicker.letterSpacing};
   text-transform: uppercase;
   color: ${({ theme }) => theme.colors.dim};
   margin-right: ${({ theme }) => theme.spacing.xs};
@@ -333,9 +457,9 @@ const PageButton = styled.button<{ $current?: boolean }>`
     ${({ $current, theme }) =>
       $current ? theme.colors.primary : theme.colors.hairline};
   border-radius: ${({ theme }) => theme.rounded.sm};
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
+  font-family: ${({ theme }) => theme.typography.control.family};
+  font-size: ${({ theme }) => theme.typography.control.size};
+  font-weight: ${({ theme }) => theme.typography.control.weight};
   cursor: pointer;
 
   &:hover:not(:disabled) {
@@ -351,8 +475,8 @@ const PageButton = styled.button<{ $current?: boolean }>`
 const PageGap = styled.span`
   padding: 0 ${({ theme }) => theme.spacing.xs};
   color: ${({ theme }) => theme.colors.dim};
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
+  font-family: ${({ theme }) => theme.typography.kicker.family};
+  font-size: ${({ theme }) => theme.typography.kicker.size};
 `;
 
 const NoteArea = styled.textarea`
@@ -361,7 +485,7 @@ const NoteArea = styled.textarea`
   min-height: 36px;
   padding: ${({ theme }) => theme.spacing.sm}
     ${({ theme }) => theme.spacing.md};
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
+  border: 1px solid ${({ theme }) => theme.colors.fieldBorder};
   border-radius: ${({ theme }) => theme.rounded.sm};
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
   font-size: 13px;
@@ -380,11 +504,9 @@ const DangerButton = styled.button`
   border-radius: ${({ theme }) => theme.rounded.sm};
   background: ${({ theme }) => theme.colors.canvas};
   color: ${({ theme }) => theme.colors.negative};
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
-  text-transform: uppercase;
+  font-family: ${({ theme }) => theme.typography.control.family};
+  font-size: ${({ theme }) => theme.typography.control.size};
+  font-weight: ${({ theme }) => theme.typography.control.weight};
   cursor: pointer;
 
   &:disabled {
@@ -396,12 +518,13 @@ const DangerButton = styled.button`
 const GhostButton = styled.button`
   padding: ${({ theme }) => theme.spacing.sm}
     ${({ theme }) => theme.spacing.lg};
-  border: 1px solid ${({ theme }) => theme.colors.hairlineStrong};
+  border: 1px solid ${({ theme }) => theme.colors.ink};
   border-radius: ${({ theme }) => theme.rounded.sm};
   background: ${({ theme }) => theme.colors.canvas};
   color: ${({ theme }) => theme.colors.ink};
-  font-family: ${({ theme }) => theme.typography.bodyMd.family};
-  font-size: ${({ theme }) => theme.typography.bodyMd.size};
+  font-family: ${({ theme }) => theme.typography.control.family};
+  font-size: ${({ theme }) => theme.typography.control.size};
+  font-weight: ${({ theme }) => theme.typography.control.weight};
   cursor: pointer;
 
   &:disabled {
@@ -436,10 +559,10 @@ const Dialog = styled.dialog`
 
 const DialogTitle = styled.h3`
   margin: 0;
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
+  font-family: ${({ theme }) => theme.typography.kicker.family};
+  font-size: ${({ theme }) => theme.typography.kicker.size};
   text-transform: uppercase;
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
+  letter-spacing: ${({ theme }) => theme.typography.kicker.letterSpacing};
   color: ${({ theme }) => theme.colors.dim};
 `;
 
@@ -474,8 +597,10 @@ type LedgerProps = {
   // a display name; deliberately not the importable-only list the page also
   // queries for the import picker and quick-add.
   transferAccounts: LedgerAccount[];
-  uncategorizedCount: number;
   transfersEnabled: boolean;
+  // The user's money format, from Settings.
+  currency?: string;
+  numberFormat?: NumberFormat;
 };
 
 export function Ledger({
@@ -483,8 +608,9 @@ export function Ledger({
   query,
   categories: initialCategories,
   transferAccounts: initialTransferAccounts,
-  uncategorizedCount,
   transfersEnabled,
+  currency = "GBP",
+  numberFormat = DEFAULT_NUMBER_FORMAT,
 }: LedgerProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -492,6 +618,7 @@ export function Ledger({
   // Local mirror of the server-rendered rows so mutations can apply
   // optimistically; re-adopted whenever the server re-renders the page.
   const [items, setItems] = useState<LedgerTransaction[]>(page.items);
+  const [today] = useState(() => new Date());
   const [search, setSearch] = useState(query.search);
   const [categories, setCategories] = useState(initialCategories);
   const [transferAccounts, setTransferAccounts] = useState(
@@ -608,7 +735,12 @@ export function Ledger({
         ? prev.filter((t) => t.id !== transactionId)
         : prev.map((t) =>
             t.id === transactionId
-              ? { ...t, categoryId, transferAccountId: null }
+              ? {
+                  ...t,
+                  categoryId,
+                  transferAccountId: null,
+                  isCategoryConfirmed: true,
+                }
               : t,
           ),
     );
@@ -621,7 +753,12 @@ export function Ledger({
         ? prev.filter((t) => t.id !== transactionId)
         : prev.map((t) =>
             t.id === transactionId
-              ? { ...t, transferAccountId: accountId, categoryId: null }
+              ? {
+                  ...t,
+                  transferAccountId: accountId,
+                  categoryId: null,
+                  isCategoryConfirmed: true,
+                }
               : t,
           ),
     );
@@ -630,6 +767,19 @@ export function Ledger({
     applyAssignment(transactionId, categoryId);
     startTransition(async () => {
       await setTransactionCategory({ transactionId, categoryId });
+    });
+  };
+
+  // Approves a pencilled category, or withdraws an approval so the row goes
+  // back to pencil.
+  const onApprove = (transactionId: string, approved: boolean) => {
+    setItems((prev) =>
+      prev.map((t) =>
+        t.id === transactionId ? { ...t, isCategoryConfirmed: approved } : t,
+      ),
+    );
+    startTransition(async () => {
+      await setCategoryApproval({ transactionIds: [transactionId], approved });
     });
   };
 
@@ -712,7 +862,12 @@ export function Ledger({
         ? prev.filter((t) => !selected.has(t.id))
         : prev.map((t) =>
             selected.has(t.id)
-              ? { ...t, categoryId, transferAccountId: null }
+              ? {
+                  ...t,
+                  categoryId,
+                  transferAccountId: null,
+                  isCategoryConfirmed: true,
+                }
               : t,
           ),
     );
@@ -736,7 +891,12 @@ export function Ledger({
         ? prev.filter((t) => !changed.has(t.id))
         : prev.map((t) =>
             changed.has(t.id)
-              ? { ...t, transferAccountId: accountId, categoryId: null }
+              ? {
+                  ...t,
+                  transferAccountId: accountId,
+                  categoryId: null,
+                  isCategoryConfirmed: true,
+                }
               : t,
           ),
     );
@@ -836,14 +996,9 @@ export function Ledger({
 
   return (
     <Section>
-      <Head>
-        <Title>Transactions</Title>
-        {uncategorizedCount > 0 && (
-          <Nudge>
-            {uncategorizedCount} uncategorized — assign a category below
-          </Nudge>
-        )}
-      </Head>
+      {/* The page headline above already says what needs doing, so the
+          ledger's heading is for assistive tech's outline only. */}
+      <Title>Transactions</Title>
 
       <LedgerControls
         search={search}
@@ -956,28 +1111,54 @@ export function Ledger({
                         aria-label={`Select ${tx.description}`}
                       />
                     </TdCheck>
-                    <TdNowrap>{tx.date.slice(0, 10)}</TdNowrap>
+                    <TdNowrap>{shortDate(tx.date, today)}</TdNowrap>
                     <Td>{tx.description}</Td>
                     <TdNowrap title={tx.accountName}>{tx.accountName}</TdNowrap>
                     <Amount $negative={tx.amount < 0}>
-                      {tx.amount.toFixed(2)}
+                      {formatAmount(currency, tx.amount, numberFormat)}
                     </Amount>
                     <Td onClick={(e) => e.stopPropagation()}>
-                      <CategoryCombobox
-                        categories={categories}
-                        transferAccounts={transferAccounts}
-                        value={tx.categoryId}
-                        transferAccountId={tx.transferAccountId}
-                        ownAccountId={tx.accountId}
-                        defaultType={tx.amount < 0 ? "EXPENSE" : "INCOME"}
-                        transfersEnabled={transfersEnabled}
-                        onSelect={(categoryId) => onSelect(tx.id, categoryId)}
-                        onCreate={(input) => onCreateAndAssign(tx.id, input)}
-                        onTransfer={(accountId) => onTransfer(tx.id, accountId)}
-                        onCreateAccount={(name) =>
-                          onCreateAccountAndTransfer(tx.id, name)
+                      <CategoryCell
+                        $pencilled={
+                          tx.categoryId !== null && !tx.isCategoryConfirmed
                         }
-                      />
+                      >
+                        <CategoryCombobox
+                          categories={categories}
+                          transferAccounts={transferAccounts}
+                          value={tx.categoryId}
+                          transferAccountId={tx.transferAccountId}
+                          ownAccountId={tx.accountId}
+                          defaultType={tx.amount < 0 ? "EXPENSE" : "INCOME"}
+                          transfersEnabled={transfersEnabled}
+                          onSelect={(categoryId) => onSelect(tx.id, categoryId)}
+                          onCreate={(input) => onCreateAndAssign(tx.id, input)}
+                          onTransfer={(accountId) =>
+                            onTransfer(tx.id, accountId)
+                          }
+                          onCreateAccount={(name) =>
+                            onCreateAccountAndTransfer(tx.id, name)
+                          }
+                        />
+                        {tx.categoryId !== null && (
+                          <Approval
+                            type="button"
+                            $approved={tx.isCategoryConfirmed}
+                            aria-pressed={tx.isCategoryConfirmed}
+                            aria-label={`Approve the category for ${tx.description}`}
+                            title={
+                              tx.isCategoryConfirmed
+                                ? "Approved. Click to undo."
+                                : "Suggested from your history. Approve it if it's right."
+                            }
+                            onClick={() =>
+                              onApprove(tx.id, !tx.isCategoryConfirmed)
+                            }
+                          >
+                            {tx.isCategoryConfirmed ? "✓ Approved" : "Approve"}
+                          </Approval>
+                        )}
+                      </CategoryCell>
                     </Td>
                     <Td onClick={(e) => e.stopPropagation()}>
                       <NoteToggle
@@ -1011,12 +1192,7 @@ export function Ledger({
                                 keep” when this statement was imported.
                               </DetailHint>
                             </>
-                          ) : (
-                            <DetailHint>
-                              No kept import columns — tick columns under “Also
-                              keep” when importing to store them here.
-                            </DetailHint>
-                          )}
+                          ) : null}
                           <NoteRow>
                             <NoteArea
                               value={noteDraft}
@@ -1026,16 +1202,16 @@ export function Ledger({
                             />
                             <GhostButton
                               type="button"
-                              onClick={() => saveNote(tx.id)}
-                            >
-                              Save
-                            </GhostButton>
-                            <GhostButton
-                              type="button"
                               onClick={() => setExpandedId(null)}
                             >
                               Cancel
                             </GhostButton>
+                            <Button
+                              type="button"
+                              onClick={() => saveNote(tx.id)}
+                            >
+                              Save
+                            </Button>
                           </NoteRow>
                         </DetailPanel>
                       </DetailTd>
@@ -1050,10 +1226,9 @@ export function Ledger({
                     leaving the figure aligned beneath the Amount column. */}
                 <TotalCell colSpan={3}>{footer.label}</TotalCell>
                 <TotalCell />
-                {/* toFixed, matching the rows above it exactly: they render a raw
-                    ASCII-hyphen amount, and the app's typographic minus here
-                    would sit at a different width in the same column. */}
-                <TotalAmount>{footer.net.toFixed(2)}</TotalAmount>
+                <TotalAmount>
+                  {formatAmount(currency, footer.net, numberFormat)}
+                </TotalAmount>
                 <TotalCell />
                 <TotalCell />
               </tr>

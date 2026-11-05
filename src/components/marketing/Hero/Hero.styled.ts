@@ -1,111 +1,34 @@
-import Link from "next/link";
 import styled, { css } from "styled-components";
 
+// The front page's lead article: what Balanced is and the way in, beside the
+// product doing it. The lead picture is two plates, the page as a desktop
+// shows it and as a phone does, each legible at the size it is shown.
 export const Section = styled.section`
-  padding: ${({ theme }) => `${theme.spacing.section} 0`};
+  ${({ theme }) => css`
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+    gap: ${theme.spacing["3xl"]};
+    align-items: center;
+    padding: ${theme.spacing["2xl"]} 0 ${theme.spacing["3xl"]};
+
+    @media (max-width: 1023px) {
+      grid-template-columns: 1fr;
+      gap: ${theme.spacing["2xl"]};
+    }
+  `}
 `;
 
-export const Grid = styled.div`
-  display: grid;
-  grid-template-columns: 0.9fr 1.1fr;
-  gap: ${({ theme }) => theme.spacing.section};
-  align-items: center;
+export const Wide = styled.div`
+  @media (max-width: 760px) {
+    display: none;
+  }
+`;
+
+export const Narrow = styled.div`
+  display: none;
+  max-width: 420px;
 
   @media (max-width: 760px) {
-    grid-template-columns: 1fr;
-    gap: ${({ theme }) => theme.spacing["3xl"]};
+    display: block;
   }
-`;
-
-export const Eyebrow = styled.p`
-  ${({ theme }) => css`
-    font-family: ${theme.typography.monoCaps.family};
-    font-size: ${theme.typography.monoCaps.size};
-    font-weight: ${theme.typography.monoCaps.weight};
-    text-transform: uppercase;
-    letter-spacing: ${theme.typography.monoCaps.letterSpacing};
-    color: ${theme.colors.body};
-    margin: 0;
-  `}
-`;
-
-export const Title = styled.h1`
-  ${({ theme }) => css`
-    font-family: ${theme.typography.displayXl.family};
-    font-size: ${theme.typography.displayXl.size};
-    font-weight: ${theme.typography.displayXl.weight};
-    line-height: ${theme.typography.displayXl.lineHeight};
-    letter-spacing: ${theme.typography.displayXl.letterSpacing};
-    color: ${theme.colors.ink};
-    margin: ${theme.spacing.md} 0 0;
-  `}
-`;
-
-export const Lead = styled.p`
-  ${({ theme }) => css`
-    font-family: ${theme.typography.bodyMd.family};
-    font-size: ${theme.typography.bodyMd.size};
-    line-height: ${theme.typography.bodyMd.lineHeight};
-    color: ${theme.colors.body};
-    max-width: 50ch;
-    margin: ${theme.spacing.md} 0 0;
-  `}
-`;
-
-// Sits under the CTAs, where the eye lands after deciding whether to click.
-// The first objection any personal-finance app meets is "what are you going to
-// do with my bank access", and the honest answer — there isn't any — was
-// buried in /guide and the privacy notice while the page that has to overcome
-// the objection said nothing.
-export const TrustNote = styled.p`
-  ${({ theme }) => css`
-    font-family: ${theme.typography.bodyMd.family};
-    font-size: 13px;
-    line-height: 1.5;
-    color: ${theme.colors.body};
-    max-width: 46ch;
-    margin: ${theme.spacing.lg} 0 0;
-  `}
-`;
-
-export const TrustLink = styled(Link)`
-  color: ${({ theme }) => theme.colors.accent};
-  text-decoration: none;
-
-  &:hover {
-    text-decoration: underline;
-  }
-`;
-
-export const CtaRow = styled.div`
-  display: flex;
-  gap: ${({ theme }) => theme.spacing.md};
-  margin-top: ${({ theme }) => theme.spacing["3xl"]};
-`;
-
-const buttonBase = css`
-  ${({ theme }) => css`
-    font-family: ${theme.typography.monoCaps.family};
-    font-size: ${theme.typography.monoCaps.size};
-    font-weight: ${theme.typography.monoCaps.weight};
-    text-transform: uppercase;
-    letter-spacing: ${theme.typography.monoCaps.letterSpacing};
-    border-radius: ${theme.rounded.sm};
-    padding: ${theme.spacing.sm} ${theme.spacing.lg};
-    white-space: nowrap;
-    text-decoration: none;
-  `}
-`;
-
-export const PrimaryLink = styled(Link)`
-  ${buttonBase}
-  background: ${({ theme }) => theme.colors.primary};
-  color: ${({ theme }) => theme.colors.onPrimary};
-`;
-
-export const OutlineLink = styled(Link)`
-  ${buttonBase}
-  background: ${({ theme }) => theme.colors.canvas};
-  color: ${({ theme }) => theme.colors.ink};
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
 `;

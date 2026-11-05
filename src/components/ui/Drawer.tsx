@@ -98,14 +98,16 @@ const Head = styled.div`
   border-bottom: 1px solid ${({ theme }) => theme.colors.hairline};
 `;
 const Eyebrow = styled.div`
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
+  font-family: ${({ theme }) => theme.typography.kicker.family};
+  font-size: ${({ theme }) => theme.typography.kicker.size};
+  font-weight: ${({ theme }) => theme.typography.kicker.weight};
+  letter-spacing: ${({ theme }) => theme.typography.kicker.letterSpacing};
   text-transform: uppercase;
-  color: ${({ theme }) => theme.colors.dim};
+  color: ${({ theme }) => theme.colors.accent};
 `;
 const Title = styled.h2`
   margin: ${({ theme }) => theme.spacing.xs} 0 0;
+  font-family: ${({ theme }) => theme.typography.amountXl.family};
   font-size: ${({ theme }) => theme.typography.amountXl.size};
   font-weight: ${({ theme }) => theme.typography.amountXl.weight};
   letter-spacing: ${({ theme }) => theme.typography.amountXl.letterSpacing};
@@ -122,9 +124,28 @@ const CloseBtn = styled.button`
   border-radius: ${({ theme }) => theme.rounded.sm};
   &:hover { color: ${({ theme }) => theme.colors.ink}; background: ${({ theme }) => theme.colors.canvasSoft}; }
 `;
+// Every field in a dialog is the same size as the app's other forms, whichever
+// editor supplied it: the plan's inline cells and the account card brought
+// compact 13px boxes that were hard to read and to hit inside a dialog.
 const Body = styled.div`
   flex: 1;
   overflow-y: auto;
+
+  & input:not([type="checkbox"], [type="radio"], [type="range"]),
+  & select,
+  & textarea {
+    min-height: 36px;
+    padding: ${({ theme }) => theme.spacing.sm} ${({ theme }) => theme.spacing.md};
+    font-family: ${({ theme }) => theme.typography.bodyMd.family};
+    font-size: ${({ theme }) => theme.typography.bodyMd.size};
+    color: ${({ theme }) => theme.colors.ink};
+  }
+
+  & input[type="checkbox"],
+  & input[type="radio"] {
+    width: 16px;
+    height: 16px;
+  }
 `;
 const Foot = styled.div`
   display: flex;
@@ -169,11 +190,10 @@ const SectionHead = styled.button`
   border: 0;
   cursor: pointer;
   padding: ${({ theme }) => theme.spacing.md} ${({ theme }) => theme.spacing.xl};
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
-  text-transform: uppercase;
-  color: ${({ theme }) => theme.colors.bodyMuted};
+  font-family: ${({ theme }) => theme.typography.control.family};
+  font-size: ${({ theme }) => theme.typography.control.size};
+  font-weight: ${({ theme }) => theme.typography.control.weight};
+  color: ${({ theme }) => theme.colors.ink};
 `;
 const SectionBody = styled.div`
   padding: 0 ${({ theme }) => theme.spacing.xl} ${({ theme }) => theme.spacing.lg};
@@ -202,8 +222,19 @@ const SectionMark = styled.span`
 const FieldWrap = styled.label`
   display: grid;
   gap: ${({ theme }) => theme.spacing.xs};
-  font-size: 12px;
+  font-family: ${({ theme }) => theme.typography.control.family};
+  font-size: ${({ theme }) => theme.typography.control.size};
+  font-weight: ${({ theme }) => theme.typography.control.weight};
   color: ${({ theme }) => theme.colors.body};
+`;
+// A checkbox reads box-then-label on one line, as every form convention has it.
+const CheckWrap = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.sm};
+  font-family: ${({ theme }) => theme.typography.bodyMd.family};
+  font-size: ${({ theme }) => theme.typography.bodyMd.size};
+  color: ${({ theme }) => theme.colors.ink};
 `;
 
 export function DrawerSection({
@@ -251,10 +282,10 @@ export function Field({
 }) {
   if (htmlFor) {
     return (
-      <FieldWrap as="div">
-        <label htmlFor={htmlFor}>{label}</label>
+      <CheckWrap>
         {children}
-      </FieldWrap>
+        <label htmlFor={htmlFor}>{label}</label>
+      </CheckWrap>
     );
   }
   return (
@@ -273,6 +304,7 @@ export function Drawer({
   onRemove,
   removeConfirmLabel,
   footer,
+  liveNote = "Changes update your plan instantly",
   children,
 }: {
   open: boolean;
@@ -287,6 +319,12 @@ export function Drawer({
    * Cancel/Add, because a draft has nothing to remove yet.
    */
   footer?: ReactNode;
+  /**
+   * What the default footer says about saving. The plan's editors do update
+   * the plan instantly; the balance sheet's account card saves the account,
+   * and the plan only sees it on the next Sync, so it says so instead.
+   */
+  liveNote?: string;
   children: ReactNode;
 }) {
   const sheetRef = useRef<HTMLDialogElement>(null);
@@ -365,7 +403,7 @@ export function Drawer({
 
   const defaultFooter = (
     <>
-      <Live>Changes update your plan instantly</Live>
+      <Live>{liveNote}</Live>
       {onRemove ? (
         <RemoveCell onConfirm={onRemove} confirmLabel={removeConfirmLabel} />
       ) : null}

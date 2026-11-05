@@ -46,7 +46,7 @@ const renderit = (overrides: Record<string, unknown> = {}) => {
 };
 
 const openPopup = () => {
-  fireEvent.click(screen.getByRole("button", { name: /uncategorized/i }));
+  fireEvent.click(screen.getByRole("button", { name: /uncategorised/i }));
   return screen.getByRole("combobox");
 };
 

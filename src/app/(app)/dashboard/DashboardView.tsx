@@ -3,6 +3,7 @@
 import nextDynamic from "next/dynamic";
 import Link from "next/link";
 import styled, { css } from "styled-components";
+import { MonthBriefPanel } from "@/components/insights/MonthBriefPanel";
 import { ChartFallback } from "@/components/ui/ChartFallback";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { WhenVisible } from "@/components/ui/WhenVisible";
@@ -13,7 +14,8 @@ import {
   trailingAverageSeries,
 } from "@/lib/dashboard/series";
 import { dashboardSummary } from "@/lib/dashboard/summary";
-import type { NumberFormat } from "@/lib/settings/currency";
+import { overallBrief } from "@/lib/insights/overallBrief";
+import { formatAmount, type NumberFormat } from "@/lib/settings/currency";
 import { theme } from "@/lib/theme";
 import type { BalancePoint } from "./BalanceTrendChart";
 import { MonthChecklist } from "./MonthChecklist";
@@ -110,7 +112,7 @@ const CATEGORY_PANELS: {
 }[] = [
   {
     label: "Fixed",
-    color: theme.colors.positive,
+    color: theme.colors.sectionFixed,
     lead: "Fixed costs each month — actual vs budget vs the 6-month average.",
     actualKey: "fixedActual",
     budgetKey: "fixedBudget",
@@ -118,7 +120,7 @@ const CATEGORY_PANELS: {
   },
   {
     label: "Variable",
-    color: theme.colors.accent,
+    color: theme.colors.sectionVariable,
     lead: "Variable spending each month — actual vs budget vs the 6-month average.",
     actualKey: "variableActual",
     budgetKey: "variableBudget",
@@ -126,7 +128,7 @@ const CATEGORY_PANELS: {
   },
   {
     label: "Discretionary",
-    color: theme.colors.chartRate,
+    color: theme.colors.sectionDiscretionary,
     lead: "Discretionary spending each month — actual vs budget vs the 6-month average.",
     actualKey: "discretionaryActual",
     budgetKey: "discretionaryBudget",
@@ -160,28 +162,29 @@ const CategoryGrid = styled.div`
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
 `;
 
-const Panel = styled.section`
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  background: ${({ theme }) => theme.colors.canvas};
-  padding: ${({ theme }) => theme.spacing.xl};
+// Each chart is a ruled section of the page, as a paper sets a chart under a
+// headline, rather than a box floating on it. `$rowStart` begins a new row, so
+// debts line up under the assets of the same term instead of trailing on.
+const Panel = styled.section<{ $rowStart?: boolean }>`
+  grid-column-start: ${({ $rowStart }) => ($rowStart ? 1 : "auto")};
+  border-top: 1px solid ${({ theme }) => theme.colors.ink};
+  padding-top: ${({ theme }) => theme.spacing.lg};
 `;
 
 const PanelTitle = styled.h2`
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
-  text-transform: uppercase;
-  color: ${({ theme }) => theme.colors.body};
-  margin: 0 0 ${({ theme }) => theme.spacing.sm};
+  font-family: ${({ theme }) => theme.typography.displayLg.family};
+  font-size: ${({ theme }) => theme.typography.displayLg.size};
+  font-weight: ${({ theme }) => theme.typography.displayLg.weight};
+  line-height: ${({ theme }) => theme.typography.displayLg.lineHeight};
+  color: ${({ theme }) => theme.colors.ink};
+  margin: 0 0 ${({ theme }) => theme.spacing.xs};
 `;
 
 const PanelLead = styled.p`
   margin: 0 0 ${({ theme }) => theme.spacing.lg};
   max-width: 70ch;
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.5;
   color: ${({ theme }) => theme.colors.body};
 `;
@@ -189,11 +192,7 @@ const PanelLead = styled.p`
 // Unified card for the "this month" section: checklist status + KPI tiles
 // together so the period context (the card header) covers both.
 const CurrentMonthCard = styled.section`
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  background: ${({ theme }) => theme.colors.canvas};
-  padding: ${({ theme }) => theme.spacing.lg};
-  margin-top: ${({ theme }) => theme.spacing["2xl"]};
+  margin: ${({ theme }) => theme.spacing.xl} 0 ${({ theme }) => theme.spacing["3xl"]};
 `;
 
 // Shown only when the whole dashboard has nothing in it — see `nothingToChart`.
@@ -238,11 +237,9 @@ const FirstRunPrimary = styled(Link)`
     color: ${theme.colors.onPrimary};
     border-radius: ${theme.rounded.sm};
     padding: ${theme.spacing.sm} ${theme.spacing.lg};
-    font-family: ${theme.typography.monoCaps.family};
-    font-size: ${theme.typography.monoCaps.size};
-    font-weight: ${theme.typography.monoCaps.weight};
-    letter-spacing: ${theme.typography.monoCaps.letterSpacing};
-    text-transform: uppercase;
+    font-family: ${theme.typography.control.family};
+    font-size: ${theme.typography.control.size};
+    font-weight: ${theme.typography.control.weight};
     text-decoration: none;
 
     &:hover {
@@ -364,6 +361,22 @@ export function DashboardView({
     balanceData.length === 0 &&
     expenditurePanels.length === 0;
 
+  // The page's headline is the whole window, not a month: the budget page
+  // tells each month's story.
+  const brief = overallBrief({
+    balance: balanceData,
+    cashFlow: cashFlowData,
+    expenditure: expenditureData,
+    fmt: (n) => formatAmount(currency, n, numberFormat),
+  });
+  const span =
+    cashFlowData.length > 0
+      ? {
+          first: cashFlowData[0]?.month ?? "",
+          last: cashFlowData.at(-1)?.month ?? "",
+        }
+      : null;
+
   const summary = dashboardSummary({
     balance: balanceData,
     cashFlow: cashFlowData,
@@ -373,20 +386,28 @@ export function DashboardView({
   return (
     <Shell>
       <PageHeader
-        eyebrow="Overview"
-        title="Dashboard"
-        lead="Trends across your tracked months."
+        eyebrow={
+          span ? `Dashboard · ${span.first} to ${span.last}` : "Dashboard"
+        }
+        title={brief ? brief.headline : "Dashboard"}
+        lead={brief?.standfirst || "Trends across your tracked months."}
       />
+      {brief && (
+        <MonthBriefPanel
+          fmt={(n) => formatAmount(currency, n, numberFormat)}
+          notes={brief.notes}
+        />
+      )}
       {/* Suppressed on a first run: four dashes over an empty-state card would
           be noise, and the card already says what to do. */}
       {!nothingToChart && (
         <CurrentMonthCard aria-label={`This month · ${checklistMonth}`}>
-          <MonthChecklist checklist={checklist} monthLabel={checklistMonth} />
           <SummaryRow
             stats={summary}
             currency={currency}
             numberFormat={numberFormat}
           />
+          <MonthChecklist checklist={checklist} monthLabel={checklistMonth} />
         </CurrentMonthCard>
       )}
       {nothingToChart && (
@@ -455,8 +476,11 @@ export function DashboardView({
         )}
         {shown("balanceCategory") && balancePanels.length > 0 && (
           <CategoryGrid>
-            {balancePanels.map((p) => (
-              <Panel key={p.label}>
+            {balancePanels.map((p, i) => (
+              <Panel
+                key={p.label}
+                $rowStart={p.sign === -1 && balancePanels[i - 1]?.sign === 1}
+              >
                 <PanelTitle>{p.label}</PanelTitle>
                 <PanelLead>
                   {p.label} each month, against the 6-month average.

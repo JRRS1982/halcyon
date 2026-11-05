@@ -206,7 +206,7 @@ test.describe("budget transfers and repayments", () => {
     // the popover renders inside it, and the account name also appears as an
     // <option> in the import account select.
     const ledgerRow = page.locator("tr", { hasText: description });
-    await ledgerRow.getByRole("button", { name: /Uncategorized/ }).click();
+    await ledgerRow.getByRole("button", { name: /Uncategorised/ }).click();
     await withServerAction(page, () =>
       ledgerRow.getByRole("option", { name: ISA }).click(),
     );

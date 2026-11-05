@@ -22,25 +22,18 @@ export function MarketingFooter() {
           </div>
           <div>
             <ColTitle>Product</ColTitle>
-            <FootLink href="#how">How it works</FootLink>
-            <FootLink href="#features">Features</FootLink>
-            <FootLink href="#details">Details</FootLink>
-            {/* The pitch above is a summary; this is the actual manual. */}
-            <FootLink href="/guide">Full guide</FootLink>
-            {/* For the readers who want the engineering, not the pitch.
-                Labelled "Engineering" rather than by its page title: "How
-                it's built" one line under "How it works" reads as the same
-                link twice. */}
+            <FootLink href="/features">Features</FootLink>
+            <FootLink href="/guide">Guide</FootLink>
             <FootLink href="/how-its-built">Engineering</FootLink>
             {/* The design system, rendered from DESIGN.md. Sits under Product
                 rather than Legal: it is the thing itself, not a policy. */}
-            <FootLink href="/design">Design system</FootLink>
+            <FootLink href="/design">Design</FootLink>
           </div>
           <div>
             <ColTitle>Legal</ColTitle>
-            <FootLink href="/terms">Terms of Service</FootLink>
-            <FootLink href="/privacy">Privacy Policy</FootLink>
-            <FootLink href="/cookies">Cookie Policy</FootLink>
+            <FootLink href="/terms">Terms</FootLink>
+            <FootLink href="/privacy">Privacy</FootLink>
+            <FootLink href="/cookies">Cookies</FootLink>
           </div>
         </Grid>
       </Inner>

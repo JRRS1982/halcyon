@@ -58,7 +58,7 @@ const Popover = styled.div<{ $align: "left" | "right" }>`
 const SearchInput = styled.input`
   width: 100%;
   border: none;
-  border-bottom: 1px solid ${({ theme }) => theme.colors.hairline};
+  border-bottom: 1px solid ${({ theme }) => theme.colors.fieldBorder};
   padding: ${({ theme }) => theme.spacing.sm}
     ${({ theme }) => theme.spacing.md};
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
@@ -103,19 +103,10 @@ const Option = styled.li<{ $active?: boolean }>`
   }
 `;
 
-// One colour per option kind, so the eye can split income / spend / transfers
-// without reading the metadata column.
-export type OptionTone = "income" | "expense" | "transfer";
-
-const OptionLabel = styled.span<{ $tone?: OptionTone }>`
-  color: ${({ $tone, theme }) =>
-    $tone === "income"
-      ? theme.colors.positive
-      : $tone === "expense"
-        ? theme.colors.negative
-        : $tone === "transfer"
-          ? theme.colors.accent
-          : theme.colors.ink};
+// Names in ink: the group headings already split income, spending and
+// transfers, and a column of red expense names read as a column of errors.
+const OptionLabel = styled.span`
+  color: ${({ theme }) => theme.colors.ink};
 `;
 
 const OptionMeta = styled.span`
@@ -141,7 +132,7 @@ const MiniSelect = styled.select`
   flex: 1;
   padding: ${({ theme }) => theme.spacing.xs}
     ${({ theme }) => theme.spacing.sm};
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
+  border: 1px solid ${({ theme }) => theme.colors.fieldBorder};
   border-radius: ${({ theme }) => theme.rounded.sm};
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
   font-size: 13px;
@@ -150,10 +141,10 @@ const MiniSelect = styled.select`
 const CreateButton = styled.button`
   padding: ${({ theme }) => theme.spacing.xs}
     ${({ theme }) => theme.spacing.md};
-  border: 1px solid ${({ theme }) => theme.colors.accent};
+  border: 1px solid ${({ theme }) => theme.colors.primary};
   border-radius: ${({ theme }) => theme.rounded.sm};
-  background: ${({ theme }) => theme.colors.accent};
-  color: #fff;
+  background: ${({ theme }) => theme.colors.primary};
+  color: ${({ theme }) => theme.colors.onPrimary};
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
   font-size: 13px;
   cursor: pointer;
@@ -189,9 +180,9 @@ type Props = {
   defaultType: "EXPENSE" | "INCOME";
   transfersEnabled: boolean;
   disabled?: boolean;
-  // Trigger text when nothing is chosen; defaults to "— Uncategorized —".
+  // Trigger text when nothing is chosen; defaults to "— Uncategorised —".
   placeholder?: string;
-  // Offer the "— Uncategorized —" clear option even when value is null (the
+  // Offer the "— Uncategorised —" clear option even when value is null (the
   // bulk bar always shows it: a mixed selection can still be cleared).
   alwaysClearable?: boolean;
   // Accessible name for the trigger button (e.g. the bulk bar's purpose).
@@ -202,12 +193,11 @@ type Props = {
   onCreateAccount: (name: string) => void;
 };
 
-// A row the keyboard can land on, in render order. `label`/`tone`/`meta`
+// A row the keyboard can land on, in render order. `label`/`meta`
 // drive the <Option> below; `run` is what Enter or a click does.
 type NavOption = {
   key: string;
   label: React.ReactNode;
-  tone?: OptionTone;
   meta?: string;
   run: () => void;
 };
@@ -226,7 +216,7 @@ export function CategoryCombobox({
   defaultType,
   transfersEnabled,
   disabled,
-  placeholder = "— Uncategorized —",
+  placeholder = "— Uncategorised —",
   alwaysClearable = false,
   triggerLabel,
   onSelect,
@@ -341,7 +331,7 @@ export function CategoryCombobox({
           ? [
               {
                 key: "__clear__",
-                label: <span>— Uncategorized —</span>,
+                label: <span>— Uncategorised —</span>,
                 run: () => choose(null),
               },
             ]
@@ -351,7 +341,7 @@ export function CategoryCombobox({
       heading: "Income",
       options: incomeMatches.map((c) => ({
         key: c.id,
-        label: <OptionLabel $tone="income">{c.label}</OptionLabel>,
+        label: <OptionLabel>{c.label}</OptionLabel>,
         meta: c.section,
         run: () => choose(c.id),
       })),
@@ -360,7 +350,7 @@ export function CategoryCombobox({
       heading: "Expenses",
       options: expenseMatches.map((c) => ({
         key: c.id,
-        label: <OptionLabel $tone="expense">{c.label}</OptionLabel>,
+        label: <OptionLabel>{c.label}</OptionLabel>,
         meta: c.section,
         run: () => choose(c.id),
       })),
@@ -370,7 +360,7 @@ export function CategoryCombobox({
       options: [
         ...assetMatches.map((a) => ({
           key: a.id,
-          label: <OptionLabel $tone="transfer">{a.name}</OptionLabel>,
+          label: <OptionLabel>{a.name}</OptionLabel>,
           meta: `transfer ${transferWord}`,
           run: () => chooseAccount(a.id),
         })),
@@ -378,11 +368,7 @@ export function CategoryCombobox({
           ? [
               {
                 key: "__new_account__",
-                label: (
-                  <OptionLabel $tone="transfer">
-                    ＋ New account “{trimmed}”
-                  </OptionLabel>
-                ),
+                label: <OptionLabel>＋ New account “{trimmed}”</OptionLabel>,
                 meta: `transfer ${transferWord}`,
                 run: () => {
                   onCreateAccount(trimmed);
@@ -397,7 +383,7 @@ export function CategoryCombobox({
       heading: "Debt payments",
       options: liabilityMatches.map((a) => ({
         key: a.id,
-        label: <OptionLabel $tone="transfer">{a.name}</OptionLabel>,
+        label: <OptionLabel>{a.name}</OptionLabel>,
         meta: "repay",
         run: () => chooseAccount(a.id),
       })),

@@ -111,10 +111,10 @@ test.describe("sign-in", () => {
     // Importing a statement is the fastest route to a filled-in app, so that
     // is where sign-in lands when no ?next= asked for somewhere else.
     await page.waitForURL("**/transactions");
-    // The page title and the ledger's section heading are both "Transactions",
-    // so pin to the h1.
+    // The page's h1 is a headline about the ledger's state, so the page is
+    // named by the kicker above it.
     await expect(
-      page.getByRole("heading", { level: 1, name: "Transactions" }),
+      page.getByRole("main").getByText(/^Transactions ·/),
     ).toBeVisible();
   });
 

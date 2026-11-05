@@ -4,53 +4,67 @@ import styled, { css } from "styled-components";
 import type { SummaryStat } from "@/lib/dashboard/summary";
 import { formatAmount, type NumberFormat } from "@/lib/settings/currency";
 
-// Four tiles across on a wide screen, folding to two and then two-by-two.
-// Hairline boxes on canvas — the same chrome as the chart panels below, so the
-// row reads as part of the page rather than a banner stuck on top.
+// Four figures across, set like a markets page's index strip: ruled above and
+// below, divided by hairlines, no boxes. Folds to two-by-two on a phone.
 const Row = styled.section`
   display: grid;
-  gap: ${({ theme }) => theme.spacing.lg};
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  margin-top: ${({ theme }) => theme.spacing.lg};
+  border-top: 2px solid ${({ theme }) => theme.colors.ink};
+  border-bottom: 1px solid ${({ theme }) => theme.colors.ink};
+  margin-bottom: ${({ theme }) => theme.spacing.lg};
 
   /* The 180px floor only fits one column on a phone, and four stacked tiles
      each holding a single number push the charts a whole screen down. Two-up
      halves that. */
   @media (max-width: 767px) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: ${({ theme }) => theme.spacing.sm};
   }
 `;
 
 const Tile = styled.div`
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
-  border-radius: ${({ theme }) => theme.rounded.sm};
   padding: ${({ theme }) => theme.spacing.lg};
+  border-left: 1px solid ${({ theme }) => theme.colors.hairlineStrong};
+
+  &:first-child {
+    border-left: none;
+    padding-left: 0;
+  }
+
+  /* Two-by-two on a phone: each row starts flush left, and the second row is
+     ruled off from the first. */
+  @media (max-width: 767px) {
+    &:nth-child(odd) {
+      border-left: none;
+      padding-left: 0;
+    }
+    &:nth-child(n + 3) {
+      border-top: 1px solid ${({ theme }) => theme.colors.hairlineStrong};
+    }
+  }
 `;
 
 const Label = styled.div`
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
+  font-family: ${({ theme }) => theme.typography.kicker.family};
+  font-size: ${({ theme }) => theme.typography.kicker.size};
+  font-weight: ${({ theme }) => theme.typography.kicker.weight};
+  letter-spacing: ${({ theme }) => theme.typography.kicker.letterSpacing};
   text-transform: uppercase;
   color: ${({ theme }) => theme.colors.body};
 `;
 
-// amount-xl, which DESIGN.md already assigns to the grand-total row. A bigger
-// "hero" size would read well here but would mean a sixth entry on a type
-// scale the design system deliberately keeps to five.
-const Value = styled.div`
+// The display serif at headline size: these four are the page's index figures.
+const Value = styled.div<{ $isOver?: boolean }>`
   ${({ theme }) => css`
     margin-top: ${theme.spacing.sm};
-    font-family: ${theme.typography.amountXl.family};
-    font-size: ${theme.typography.amountXl.size};
+    font-family: ${theme.typography.displayXl.family};
+    font-size: ${theme.typography.displayXl.size};
     font-weight: ${theme.typography.amountXl.weight};
     line-height: ${theme.typography.amountXl.lineHeight};
     letter-spacing: ${theme.typography.amountXl.letterSpacing};
     font-variant-numeric: tabular-nums;
-    color: ${theme.colors.ink};
   `}
+  color: ${({ theme, $isOver }) =>
+    $isOver ? theme.colors.negative : theme.colors.ink};
 `;
 
 // Direction is carried by the arrow as well as the colour, so the tile still
@@ -135,11 +149,20 @@ export function SummaryRow({
     <Row aria-label="Key figures">
       {stats.map((stat) => {
         const delta = formatDelta(stat, currency, numberFormat);
+        const left = stat.leftInBudget;
+        const isOver = left != null && left < 0;
         return (
           <Tile key={stat.key}>
             <Label>{stat.label}</Label>
-            <Value>{formatValue(stat, currency, numberFormat)}</Value>
-            {delta ? (
+            <Value $isOver={isOver}>
+              {formatValue(stat, currency, numberFormat)}
+            </Value>
+            {left != null ? (
+              <Delta $tone={isOver ? "negative" : "positive"}>
+                {formatAmount(currency, Math.abs(left), numberFormat)}{" "}
+                {isOver ? "over budget" : "under budget"}
+              </Delta>
+            ) : delta ? (
               <Delta $tone={toneFor(stat)}>
                 {delta} <Muted>{stat.deltaLabel}</Muted>
               </Delta>

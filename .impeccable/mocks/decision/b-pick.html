@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en-GB"><head><meta charset="utf-8">
+<title>Market Pages — Budget</title>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&family=Libre+Franklin:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#FFF1E5;--ink:#33302E;--muted:#5E5752;--claret:#990F3D;--oxford:#0F5499;--teal:#0D7680;--up:#0A6B47;--down:#B3261E;--rule:#E6D2C0;--card:#FFF7EF;--fixed:#0F5499;--var:#B45309;--disc:#990F3D}
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:1440px;height:900px;overflow:hidden;background:var(--paper);font-family:"Libre Franklin",sans-serif;color:var(--ink);font-variant-numeric:tabular-nums}
+.serif{font-family:"Source Serif 4",serif}
+header{padding:16px 56px 0;border-bottom:1px solid var(--ink)}
+.mast{display:flex;align-items:baseline;justify-content:space-between}
+.brand{font-family:"Source Serif 4";font-weight:700;font-size:26px}
+.acct{font-size:14px;font-weight:600}
+nav{display:flex;gap:26px;font-size:15px;font-weight:600;padding:12px 0 0}
+nav a{padding-bottom:10px}
+nav a.on{border-bottom:4px solid var(--claret);color:var(--claret)}
+main{padding:22px 56px 0;display:grid;grid-template-columns:1fr 340px;gap:40px}
+.kick{color:var(--claret);font-weight:700;font-size:14px;letter-spacing:.02em}
+h1{font-family:"Source Serif 4";font-size:40px;font-weight:700;line-height:1.1;margin-top:4px}
+.stand{font-size:19px;color:var(--muted);margin-top:8px;max-width:760px;line-height:1.4}
+.tools{display:flex;gap:10px;align-items:center;margin-top:18px}
+.tools span{font-size:14px;font-weight:600;padding:8px 14px;border:1px solid var(--ink);border-radius:2px;background:var(--card)}
+.tools .p{background:var(--oxford);border-color:var(--oxford);color:#fff}
+.tools .m{margin-left:auto;border:0;background:none;font-size:15px}
+table{width:100%;border-collapse:collapse;margin-top:14px;font-size:15px}
+th{font-size:13px;color:var(--muted);font-weight:600;text-align:right;padding:8px 10px;border-bottom:2px solid var(--ink)}
+th:first-child,td:first-child{text-align:left}
+td{padding:9px 10px;text-align:right;border-bottom:1px solid var(--rule)}
+tr.sec td{font-weight:700;font-family:"Source Serif 4";font-size:18px;padding-top:16px;border-bottom:1px solid var(--ink)}
+tr.sec td:first-child{box-shadow:inset 4px 0 0 var(--c);padding-left:14px}
+td.c{padding-left:14px;font-weight:500}
+.up{color:var(--up);font-weight:600}.dn{color:var(--down);font-weight:600}
+svg{display:block;margin-left:auto}
+.share{display:flex;align-items:center;gap:8px;justify-content:flex-end}
+.share i{display:block;height:8px;background:var(--c)}
+tr.hl td{background:#FCE4D3}
+aside{border-left:1px solid var(--rule);padding-left:28px}
+aside h2{font-family:"Source Serif 4";font-size:22px;font-weight:700}
+.big{margin-top:14px;padding-bottom:14px;border-bottom:1px solid var(--rule)}
+.big small{font-size:13px;color:var(--muted);font-weight:600}
+.big b{display:block;font-family:"Source Serif 4";font-size:46px;font-weight:700;color:var(--up)}
+.big span{font-size:14px}
+.note{margin-top:14px;font-size:15.5px;line-height:1.5}
+.note b{color:var(--claret)}
+.note p+p{margin-top:10px}
+</style></head><body>
+<header><div class="mast"><span class="brand">Balanced Money</span><span class="acct">Sign out</span></div>
+<nav><a>Guide</a><a>Transactions</a><a class="on">Budget</a><a>Balance</a><a>Dashboard</a><a>Plan</a><a>Settings</a></nav></header>
+<main>
+<section>
+  <div class="kick">BUDGET · OCTOBER 2026</div>
+  <h1>Groceries and eating out pushed spending £175 past plan</h1>
+  <div class="stand">Fixed costs held steady. Variable and Discretionary each ran £82 over, leaving £1,235 rather than the £1,395 you budgeted.</div>
+  <div class="tools"><span class="p">+ Add row</span><span>Fill from September</span><span>Sort: largest spend</span><span class="m">‹ Sep &nbsp; October 2026 &nbsp; Nov ›</span></div>
+  <table>
+    <tr><th>Category</th><th>Budget</th><th>Actual</th><th>vs budget</th><th>6 months</th><th>Share of spend</th></tr>
+    <tr class="sec" style="--c:var(--fixed)"><td>Fixed</td><td>£1,430</td><td>£1,441</td><td class="dn">▲ £11</td><td></td><td></td></tr>
+    <tr><td class="c">Mortgage</td><td>£1,250</td><td>£1,250</td><td>—</td><td><svg width="90" height="20"><polyline points="0,10 18,10 36,10 54,10 72,10 90,10" fill="none" stroke="#0F5499" stroke-width="1.5"/></svg></td><td><div class="share" style="--c:var(--fixed)"><i style="width:90px"></i>51%</div></td></tr>
+    <tr><td class="c">Utilities</td><td>£180</td><td>£191</td><td class="dn">▲ £11</td><td><svg width="90" height="20"><polyline points="0,14 18,13 36,12 54,9 72,8 90,5" fill="none" stroke="#0F5499" stroke-width="1.5"/></svg></td><td><div class="share" style="--c:var(--fixed)"><i style="width:14px"></i>8%</div></td></tr>
+    <tr class="sec" style="--c:var(--var)"><td>Variable</td><td>£580</td><td>£662</td><td class="dn">▲ £82</td><td></td><td></td></tr>
+    <tr class="hl"><td class="c">Groceries</td><td>£420</td><td>£492</td><td class="dn">▲ £72</td><td><svg width="90" height="20"><polyline points="0,12 18,11 36,13 54,9 72,8 90,2" fill="none" stroke="#B45309" stroke-width="1.5"/><circle cx="90" cy="2" r="2.5" fill="#B3261E"/></svg></td><td><div class="share" style="--c:var(--var)"><i style="width:36px"></i>20%</div></td></tr>
+    <tr><td class="c">Transport</td><td>£160</td><td>£170</td><td class="dn">▲ £10</td><td><svg width="90" height="20"><polyline points="0,9 18,11 36,10 54,10 72,9 90,8" fill="none" stroke="#B45309" stroke-width="1.5"/></svg></td><td><div class="share" style="--c:var(--var)"><i style="width:12px"></i>7%</div></td></tr>
+    <tr class="sec" style="--c:var(--disc)"><td>Discretionary</td><td>£245</td><td>£327</td><td class="dn">▲ £82</td><td></td><td></td></tr>
+    <tr><td class="c">Meals Out</td><td>£120</td><td>£176</td><td class="dn">▲ £56</td><td><svg width="90" height="20"><polyline points="0,15 18,12 36,14 54,10 72,7 90,4" fill="none" stroke="#990F3D" stroke-width="1.5"/></svg></td><td><div class="share" style="--c:var(--disc)"><i style="width:13px"></i>7%</div></td></tr>
+    <tr><td class="c">Subscriptions</td><td>£45</td><td>£45</td><td>—</td><td><svg width="90" height="20"><polyline points="0,12 18,12 36,12 54,12 72,12 90,12" fill="none" stroke="#990F3D" stroke-width="1.5"/></svg></td><td><div class="share" style="--c:var(--disc)"><i style="width:4px"></i>2%</div></td></tr>
+  </table>
+</section>
+<aside>
+  <h2>The month in brief</h2>
+  <div class="big"><small>LEFT OVER</small><b>£1,235</b><span class="dn">£160 below plan</span> · <span>£1,395 budgeted</span></div>
+  <div class="note">
+    <p><b>Why groceries rose.</b> Fourteen shops averaged £35; four over £60 made up half the month. It is your highest grocery month since May.</p>
+    <p><b>What held.</b> Mortgage and subscriptions landed exactly on budget, as they have for six months.</p>
+  </div>
+</aside>
+</main>
+</body></html>

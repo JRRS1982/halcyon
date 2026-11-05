@@ -21,6 +21,8 @@ export type ColorToken =
   | "hairlineStrong"
   | "canvas"
   | "canvasSoft"
+  | "field"
+  | "fieldBorder"
   | "band"
   | "bandSoft"
   | "onBand"
@@ -45,7 +47,13 @@ export type ColorToken =
   | "chartProperty"
   | "chartOtherAsset"
   | "chartPension"
-  | "chartDbPension";
+  | "chartDbPension"
+  // One colour per spending section (Fixed / Variable / Discretionary), used
+  // wherever that section appears: its budget heading, its share bars, its
+  // dashboard chart. Graphics, so 3:1 against the page.
+  | "sectionFixed"
+  | "sectionVariable"
+  | "sectionDiscretionary";
 
 export type Palette = Record<ColorToken, string>;
 
@@ -57,44 +65,51 @@ export type Palette = Record<ColorToken, string>;
  * it used to be — would be a lie in half the app.
  */
 export const lightPalette: Palette = {
-  primary: "#000000",
+  primary: "#1B4E8A",
   onPrimary: "#FFFFFF",
-  ink: "#000000",
-  inkSoft: "#1B1B1B",
-  body: "#525252",
+  ink: "#26211E",
+  inkSoft: "#38302B",
+  body: "#4D443E",
   // bodyMuted and dim carry real text — muted labels, £0 amounts, chart axis
   // ticks — at 11-13px, so both clear 4.5:1 against canvas *and* canvasSoft.
-  bodyMuted: "#6E6E6E",
-  dim: "#717171",
-  hairline: "#E5E5E5",
-  hairlineStrong: "#D4D4D4",
-  canvas: "#FFFFFF",
-  canvasSoft: "#F7F7F7",
-  band: "#0F1116",
-  bandSoft: "#1A1D23",
-  onBand: "#FFFFFF",
-  bodyOnBand: "#A8AFBC",
-  hairlineBand: "#1F242C",
+  bodyMuted: "#5E544C",
+  dim: "#62574F",
+  hairline: "#E9D2BE",
+  hairlineStrong: "#D8BBA2",
+  canvas: "#FCEEE2",
+  canvasSoft: "#F6E1CF",
+  // Form fields: a slip of brighter paper, edged firmly enough (3:1, WCAG
+  // 1.4.11) that a field reads as something to write in, not part of the page.
+  field: "#FFFAF5",
+  fieldBorder: "#937C6B",
+  band: "#EED3BD",
+  bandSoft: "#F6E1CF",
+  onBand: "#26211E",
+  bodyOnBand: "#4D443E",
+  hairlineBand: "#D8BBA2",
   // Sign colours double as text on amount cells, so they answer to the same
   // 4.5:1 floor.
-  positive: "#1A7A43",
-  negative: "#B33B3B",
-  focus: "#0F1116",
+  positive: "#0B6A4C",
+  negative: "#A3271F",
+  focus: "#1B4E8A",
   // The single highlight accent. Used sparingly — period dates in eyebrows,
   // selected rows, anything the user should locate at a glance.
-  accent: "#1E5BC6",
-  chartRate: "#D97706",
+  accent: "#8E1B3D",
+  chartRate: "#B4530A",
   // The budget reference line. Was #9CA3AF, which came to 2.54:1 on white and
   // failed the 3:1 non-text rule — the line a user is meant to compare against
   // was the faintest thing on the chart.
-  chartBudget: "#7E8794",
-  chartCash: "#0E8AA8",
+  chartBudget: "#776C63",
+  chartCash: "#0E7C96",
   chartIsa: "#15803D",
   chartGia: "#7C3AED",
-  chartProperty: "#B87700",
+  chartProperty: "#A66A00",
   chartOtherAsset: "#BE185D",
   chartPension: "#1D4ED8",
   chartDbPension: "#C2410C",
+  sectionFixed: "#1B4E8A",
+  sectionVariable: "#B4530A",
+  sectionDiscretionary: "#8E1B3D",
 };
 
 /**
@@ -115,30 +130,32 @@ export const lightPalette: Palette = {
  */
 export const darkPalette: Palette = {
   // The black CTA pill becomes a light one; its label goes dark to match.
-  primary: "#F2F4F7",
-  onPrimary: "#0F1116",
-  ink: "#F2F4F7",
-  inkSoft: "#E4E7EC",
-  body: "#B9C0CC",
-  bodyMuted: "#9AA3B2",
-  dim: "#8B95A5",
-  hairline: "#262B33",
-  hairlineStrong: "#333A44",
-  canvas: "#0F1116",
-  canvasSoft: "#1A1D23",
-  band: "#262B33",
-  bandSoft: "#1A1D23",
+  primary: "#9DC1F0",
+  onPrimary: "#141A22",
+  ink: "#F7EEE6",
+  inkSoft: "#EADFD5",
+  body: "#D3C5B8",
+  bodyMuted: "#B8A99B",
+  dim: "#AE9F91",
+  hairline: "#362E28",
+  hairlineStrong: "#4A3F37",
+  canvas: "#1C1815",
+  canvasSoft: "#27211D",
+  field: "#2A231E",
+  fieldBorder: "#837262",
+  band: "#352C26",
+  bandSoft: "#27211D",
   onBand: "#FFFFFF",
-  bodyOnBand: "#B9C0CC",
-  hairlineBand: "#333A44",
-  positive: "#4CAF7D",
-  negative: "#F1837B",
+  bodyOnBand: "#D3C5B8",
+  hairlineBand: "#4A3F37",
+  positive: "#5FC79C",
+  negative: "#F38E80",
   // Light, so the ring reads against a dark page — the mirror of the light
   // mode's near-black ring on white.
-  focus: "#F2F4F7",
-  accent: "#7FA6FF",
+  focus: "#F7EEE6",
+  accent: "#D4899A",
   chartRate: "#E9A23B",
-  chartBudget: "#828C99",
+  chartBudget: "#8C8177",
   chartCash: "#359DD1",
   chartIsa: "#5AA33F",
   chartGia: "#9B7BE0",
@@ -146,6 +163,9 @@ export const darkPalette: Palette = {
   chartOtherAsset: "#D06B95",
   chartPension: "#5B8DEF",
   chartDbPension: "#D96A45",
+  sectionFixed: "#7FA9E6",
+  sectionVariable: "#E39A4F",
+  sectionDiscretionary: "#E58AA6",
 };
 
 export const cssVariableName = (token: string) => `--c-${token}`;

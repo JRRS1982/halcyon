@@ -2,7 +2,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import styled from "styled-components";
 import { Drawer } from "@/components/ui/Drawer";
 import type { BandedProjection } from "@/lib/plan";
@@ -53,22 +53,31 @@ const Shell = styled.main`
     padding-right: ${({ theme }) => theme.spacing.lg};
   }
 `;
-const Title = styled.h1`
-  font-size: ${({ theme }) => theme.typography.displayXl.size};
-  font-weight: ${({ theme }) => theme.typography.displayXl.weight};
-  color: ${({ theme }) => theme.colors.ink};
-  margin: 0;
-`;
-// All record cards in one responsive grid: as many equal ~320px+ columns as fit
-// (2–3 on desktop, 1 on mobile — no manual breakpoints). align-items: start so
-// each card is only as tall as its own content rather than stretching to match
-// its row neighbour.
+// All record cards in one responsive grid, at most two across so the cards
+// pair by meaning: assets beside liabilities, income beside expenses, then
+// events. Three across split income from expenses and left a hole. One column
+// on mobile — no manual breakpoints. align-items: start so each card is only
+// as tall as its own content rather than stretching to match its neighbour.
 const Cards = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(440px, 100%), 1fr));
   gap: ${({ theme }) => theme.spacing["2xl"]};
   align-items: start;
 `;
+
+const removeRow = ({ kind, id }: { kind: Kind; id: string }) => {
+  const remove =
+    kind === "asset"
+      ? deletePlanAsset
+      : kind === "liability"
+        ? deletePlanLiability
+        : kind === "income"
+          ? deletePlanIncome
+          : kind === "expense"
+            ? deletePlanExpense
+            : deletePlanEvent;
+  return remove({ id });
+};
 
 export function PlanView({
   band,
@@ -99,11 +108,28 @@ export function PlanView({
     setStreamOverride,
     commitStream,
   } = usePlanProjection(plan, band, asOfYear);
-  const [selected, setSelected] = useState<{ kind: Kind; id: string } | null>(
-    null,
-  );
+  const [selected, setSelected] = useState<{
+    kind: Kind;
+    id: string;
+    isNew?: boolean;
+  } | null>(null);
   const open = (kind: Kind) => (id: string) => setSelected({ kind, id });
-  const close = () => setSelected(null);
+  // "+ Add" creates the row before its editor opens, so cancelling used to
+  // leave a blank "New expense · £0" behind. A row opened straight after
+  // creation is discarded on close unless something in the editor was typed
+  // into or changed — any input marks it kept, so an edit still saving is
+  // never deleted under it.
+  const isTouched = useRef(false);
+  const created = (kind: Kind) => (id: string) => {
+    isTouched.current = false;
+    setSelected({ kind, id, isNew: true });
+  };
+  const close = () => {
+    const closing = selected;
+    setSelected(null);
+    if (!closing?.isNew || isTouched.current) return;
+    void removeRow(closing).then(() => router.refresh());
+  };
 
   const properties = plan.assets
     .filter((a) => a.wrapper === "PROPERTY")
@@ -198,18 +224,8 @@ export function PlanView({
 
   const onRemove = async () => {
     if (!selected) return;
-    const remove =
-      selected.kind === "asset"
-        ? deletePlanAsset
-        : selected.kind === "liability"
-          ? deletePlanLiability
-          : selected.kind === "income"
-            ? deletePlanIncome
-            : selected.kind === "expense"
-              ? deletePlanExpense
-              : deletePlanEvent;
-    await remove({ id: selected.id });
-    close();
+    await removeRow(selected);
+    setSelected(null);
     router.refresh();
   };
 
@@ -228,8 +244,8 @@ export function PlanView({
 
   return (
     <Shell>
-      <Title>Your plan</Title>
       <VerdictBanner
+        title="Your plan"
         verdict={liveBand.verdict}
         currency={currency}
         numberFormat={numberFormat}
@@ -287,6 +303,7 @@ export function PlanView({
           numberFormat={numberFormat}
           syncPreview={preview}
           onOpen={open("income")}
+          onCreated={created("income")}
         />
         <ExpensesTable
           expenses={plan.expenses}
@@ -294,6 +311,7 @@ export function PlanView({
           numberFormat={numberFormat}
           syncPreview={preview}
           onOpen={open("expense")}
+          onCreated={created("expense")}
         />
         <EventsTable
           events={plan.events}
@@ -301,6 +319,7 @@ export function PlanView({
           numberFormat={numberFormat}
           properties={properties}
           onOpen={open("event")}
+          onCreated={created("event")}
         />
       </Cards>
 
@@ -327,42 +346,53 @@ export function PlanView({
             : undefined
         }
       >
-        {propertyAsset ? (
-          <PropertyFields
-            property={propertyAsset}
-            mortgage={propertyMortgage}
-            repayment={propertyRepayment}
-            currentSplit={mortgageSplit}
-          />
-        ) : (
-          <>
-            {asset ? <AssetFields asset={asset} /> : null}
-            {liability ? (
-              <LiabilityFields
-                liability={liability}
-                linkedExpense={plan.expenses.find(
-                  (e) => e.liabilityId === liability.id,
-                )}
-                onOpenExpense={open("expense")}
-              />
-            ) : null}
-            {income ? <IncomeFields income={income} /> : null}
-            {expense ? (
-              <ExpenseFields
-                expense={expense}
-                managedBy={
-                  expense.liabilityId
-                    ? plan.liabilities.find((l) => l.id === expense.liabilityId)
-                    : undefined
-                }
-                onOpenLiability={open("liability")}
-              />
-            ) : null}
-            {event ? (
-              <EventFields event={event} properties={properties} />
-            ) : null}
-          </>
-        )}
+        <div
+          onInputCapture={() => {
+            isTouched.current = true;
+          }}
+          onChangeCapture={() => {
+            isTouched.current = true;
+          }}
+        >
+          {propertyAsset ? (
+            <PropertyFields
+              property={propertyAsset}
+              mortgage={propertyMortgage}
+              repayment={propertyRepayment}
+              currentSplit={mortgageSplit}
+            />
+          ) : (
+            <>
+              {asset ? <AssetFields asset={asset} /> : null}
+              {liability ? (
+                <LiabilityFields
+                  liability={liability}
+                  linkedExpense={plan.expenses.find(
+                    (e) => e.liabilityId === liability.id,
+                  )}
+                  onOpenExpense={open("expense")}
+                />
+              ) : null}
+              {income ? <IncomeFields income={income} /> : null}
+              {expense ? (
+                <ExpenseFields
+                  expense={expense}
+                  managedBy={
+                    expense.liabilityId
+                      ? plan.liabilities.find(
+                          (l) => l.id === expense.liabilityId,
+                        )
+                      : undefined
+                  }
+                  onOpenLiability={open("liability")}
+                />
+              ) : null}
+              {event ? (
+                <EventFields event={event} properties={properties} />
+              ) : null}
+            </>
+          )}
+        </div>
       </Drawer>
     </Shell>
   );

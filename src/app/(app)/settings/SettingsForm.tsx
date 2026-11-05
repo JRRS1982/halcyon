@@ -41,11 +41,9 @@ const Shell = styled.section`
 `;
 
 const FieldLabel = styled.span`
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
-  text-transform: ${({ theme }) => theme.typography.monoCaps.textTransform};
+  font-family: ${({ theme }) => theme.typography.control.family};
+  font-size: ${({ theme }) => theme.typography.control.size};
+  font-weight: ${({ theme }) => theme.typography.control.weight};
   color: ${({ theme }) => theme.colors.dim};
 `;
 
@@ -58,9 +56,9 @@ const Field = styled.label`
 const Select = styled.select`
   padding: ${({ theme }) => theme.spacing.sm}
     ${({ theme }) => theme.spacing.md};
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
+  border: 1px solid ${({ theme }) => theme.colors.fieldBorder};
   border-radius: ${({ theme }) => theme.rounded.sm};
-  background: ${({ theme }) => theme.colors.canvas};
+  background: ${({ theme }) => theme.colors.field};
   color: ${({ theme }) => theme.colors.ink};
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
   font-size: ${({ theme }) => theme.typography.bodyMd.size};
@@ -74,11 +72,11 @@ const Row = styled.div`
 `;
 
 const SavedNote = styled.span`
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
-  text-transform: ${({ theme }) => theme.typography.monoCaps.textTransform};
+  font-family: ${({ theme }) => theme.typography.kicker.family};
+  font-size: ${({ theme }) => theme.typography.kicker.size};
+  font-weight: ${({ theme }) => theme.typography.kicker.weight};
+  letter-spacing: ${({ theme }) => theme.typography.kicker.letterSpacing};
+  text-transform: ${({ theme }) => theme.typography.kicker.textTransform};
   color: ${({ theme }) => theme.colors.dim};
 `;
 
@@ -184,10 +182,13 @@ const Dialog = styled.dialog`
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
 `;
 
-const DialogText = styled.p`
+// The question is the dialog's title, set as every dialog's title is.
+const DialogText = styled.h2`
   margin: 0;
-  font-family: ${({ theme }) => theme.typography.bodyMd.family};
-  font-size: ${({ theme }) => theme.typography.bodyMd.size};
+  font-family: ${({ theme }) => theme.typography.amountXl.family};
+  font-size: ${({ theme }) => theme.typography.amountXl.size};
+  font-weight: ${({ theme }) => theme.typography.amountXl.weight};
+  letter-spacing: ${({ theme }) => theme.typography.amountXl.letterSpacing};
   color: ${({ theme }) => theme.colors.ink};
 `;
 
@@ -212,12 +213,13 @@ const DialogActions = styled.div`
 const GhostButton = styled.button`
   padding: ${({ theme }) => theme.spacing.sm}
     ${({ theme }) => theme.spacing.lg};
-  border: 1px solid ${({ theme }) => theme.colors.hairlineStrong};
+  border: 1px solid ${({ theme }) => theme.colors.ink};
   border-radius: ${({ theme }) => theme.rounded.sm};
   background: ${({ theme }) => theme.colors.canvas};
   color: ${({ theme }) => theme.colors.ink};
-  font-family: ${({ theme }) => theme.typography.bodyMd.family};
-  font-size: ${({ theme }) => theme.typography.bodyMd.size};
+  font-family: ${({ theme }) => theme.typography.control.family};
+  font-size: ${({ theme }) => theme.typography.control.size};
+  font-weight: ${({ theme }) => theme.typography.control.weight};
   cursor: pointer;
 `;
 
@@ -428,20 +430,16 @@ export function SettingsForm({
         <SectionHeading>Transactions</SectionHeading>
         <ToggleField>
           <ToggleText>
+            <FieldLabel>Track transactions</FieldLabel>
             <FieldHint>
-              Tracking every transaction gives you the deepest understanding of
-              where your money actually goes — but it takes time and effort, and
-              it’s entirely your choice whether that’s worth it. Turn this on to
-              add the Transactions page and import bank statements; each budget
-              category’s actual is then summed from its categorized transactions
-              rather than typed by hand. Leave it off to keep entering actuals
-              yourself.
+              Import statements and file each line, and your budget’s actuals
+              add themselves up. Leave it off to type actuals by hand.
             </FieldHint>
           </ToggleText>
           <SwitchControl>
             <SwitchInput
               type="checkbox"
-              aria-label="Transactions"
+              aria-label="Track transactions"
               checked={enabled}
               disabled={togglePending}
               onChange={(event) => onToggle(event.target.checked)}
@@ -454,10 +452,9 @@ export function SettingsForm({
           <ToggleText>
             <FieldLabel>Transfers and saving</FieldLabel>
             <FieldHint>
-              Lets you mark a transaction as money moved between your own
-              accounts (e.g. Current → ISA), so it stays out of income and
-              expenses. Mark it from the Transactions page. Needs Transactions
-              switched on.
+              Mark money moved between your own accounts, such as Current to
+              ISA, so it stays out of income and spending. Needs transactions
+              on.
             </FieldHint>
           </ToggleText>
           <SwitchControl>
@@ -479,10 +476,8 @@ export function SettingsForm({
           <ToggleText>
             <FieldLabel>Monthly reminder email</FieldLabel>
             <FieldHint>
-              One email a month saying your statement should be ready — nothing
-              more. It carries no figures, no balances and no category names;
-              your numbers stay behind your login. Off unless you turn it on,
-              and every email has a one-click way out.
+              One email a month to say your statement is ready. It carries no
+              figures, and every email has a one-click way out.
             </FieldHint>
           </ToggleText>
           <SwitchControl>
@@ -536,7 +531,7 @@ export function SettingsForm({
               <DialogInfo>
                 Adds the Transactions page to the nav, lets you import bank
                 statements, and switches each budget category’s <em>actual</em>{" "}
-                to the sum of its categorized transactions (the actual column
+                to the sum of its categorised transactions (the actual column
                 becomes read-only). Your existing manual actuals are kept, not
                 overwritten.
               </DialogInfo>

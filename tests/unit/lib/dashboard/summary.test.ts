@@ -162,4 +162,14 @@ describe("dashboardSummary", () => {
       statFor("spendVsBudget", { ...empty, expenditure: [point] }).value,
     ).toBe(100);
   });
+
+  // If this is wrong, a user over budget sees a calm percentage and a green
+  // arrow instead of being told how much they overspent.
+  test("states how far spending sits under or over the budget, in money", () => {
+    const under = { ...empty, expenditure: [spendPoint("Jan", 800, 1000)] };
+    const over = { ...empty, expenditure: [spendPoint("Jan", 1150, 1000)] };
+    expect(statFor("spendVsBudget", under).leftInBudget).toBe(200);
+    expect(statFor("spendVsBudget", over).leftInBudget).toBe(-150);
+    expect(statFor("netWorth", under).leftInBudget).toBeUndefined();
+  });
 });

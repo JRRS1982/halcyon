@@ -11,8 +11,23 @@ import {
   useTransition,
 } from "react";
 import styled, { css } from "styled-components";
+import { MonthBriefPanel } from "@/components/insights/MonthBriefPanel";
+import {
+  SummaryHeading,
+  SummaryStrip,
+  SummaryTable,
+  SummaryTd,
+  SummaryTh,
+  SummaryTr,
+} from "@/components/sheet/MonthSummary/MonthSummary.styled";
 import { Sheet } from "@/components/sheet/Sheet";
 import { SheetCell } from "@/components/sheet/SheetCell";
+import {
+  grandCells,
+  headCells,
+  sectionCells,
+  subheadCells,
+} from "@/components/sheet/SheetRow/SheetRow.styled";
 import {
   Toolbar,
   ToolbarGroup,
@@ -36,6 +51,11 @@ import {
   previousMonth,
 } from "@/lib/budget/period";
 import { useDebouncedCallback } from "@/lib/hooks/useDebouncedCallback";
+import {
+  type AccountChange,
+  accountChange,
+  balanceBrief,
+} from "@/lib/insights/balanceBrief";
 import {
   formatAmount,
   NUMBER_FORMAT_SPEC,
@@ -177,7 +197,7 @@ const CATEGORY_HELP: Record<
 // 3-column grid: Label (flex), Value (200px right-aligned tabular nums),
 // Notes (flex, slightly wider than label). Different from /budget's 5-column
 // grid because the balance sheet has no Actual / Variance / % columns.
-const GRID = "1fr 200px 1.5fr";
+const GRID = "1fr 180px 160px 1.5fr";
 
 // Below desktop the row keeps a floor width so the Sheet container (a
 // horizontal scroller at the same breakpoints) pans rather than crushing the
@@ -188,8 +208,8 @@ const baseRow = css`
   grid-template-columns: ${GRID};
 
   @media (max-width: 991px) {
-    grid-template-columns: minmax(200px, 1fr) 140px minmax(200px, 1.5fr);
-    min-width: 540px;
+    grid-template-columns: minmax(200px, 1fr) 140px 130px minmax(200px, 1.5fr);
+    min-width: 680px;
 
     > div:nth-child(1) {
       position: sticky;
@@ -199,42 +219,34 @@ const baseRow = css`
   }
 
   @media (max-width: 767px) {
-    grid-template-columns: minmax(180px, 1fr) 120px minmax(180px, 1.5fr);
-    min-width: 480px;
+    grid-template-columns: minmax(180px, 1fr) 120px 120px minmax(180px, 1.5fr);
+    min-width: 600px;
   }
 `;
 
-// Top-level band — Assets / Liabilities. Dark canvas, Inter semibold label.
+const HeadRow = styled.div`
+  ${baseRow}
+  ${headCells}
+`;
+
+// How a figure moved since the previous month, coloured by whether it helped.
+const ChangeText = styled.span<{ $favourable: boolean }>`
+  color: ${({ theme, $favourable }) =>
+    $favourable ? theme.colors.positive : theme.colors.negative};
+  font-weight: 600;
+  white-space: nowrap;
+`;
+
+// Top-level section — Assets / Liabilities.
 const SectionRow = styled.div`
   ${baseRow}
-
-  > div {
-    background: ${({ theme }) => theme.colors.band};
-    color: ${({ theme }) => theme.colors.onBand};
-    border-color: ${({ theme }) => theme.colors.hairlineBand};
-    padding-top: ${({ theme }) => theme.spacing.md};
-    padding-bottom: ${({ theme }) => theme.spacing.md};
-    font-weight: 600;
-  }
+  ${sectionCells}
 `;
 
-// Sub-section band for the three category buckets. Softer than the section
-// band so the visual hierarchy reads Section > Subhead > Item.
+// Sub-section for the category buckets, a step below the section.
 const SubheadRow = styled.div`
   ${baseRow}
-
-  > div {
-    background: ${({ theme }) => theme.colors.canvasSoft};
-    color: ${({ theme }) => theme.colors.body};
-    border-top: 1px solid ${({ theme }) => theme.colors.hairline};
-  }
-  > div:nth-child(1) {
-    color: ${({ theme }) => theme.colors.body};
-    font-weight: 500;
-  }
-  > div:nth-child(n + 2) {
-    font-weight: 500;
-  }
+  ${subheadCells}
 `;
 
 const ItemRow = styled.div`
@@ -243,17 +255,7 @@ const ItemRow = styled.div`
 
 const GrandRow = styled.div`
   ${baseRow}
-
-  /* Grand total (Net worth): same size as the section headings (Inter 14px),
-     semibold — the dark band carries the emphasis, not an oversized type size. */
-  > div {
-    background: ${({ theme }) => theme.colors.primary};
-    color: ${({ theme }) => theme.colors.onPrimary};
-    border-color: ${({ theme }) => theme.colors.primary};
-    padding-top: ${({ theme }) => theme.spacing.md};
-    padding-bottom: ${({ theme }) => theme.spacing.md};
-    font-weight: 600;
-  }
+  ${grandCells}
 `;
 
 // ─── Styled in-cell inputs ──────────────────────────────────────────────────
@@ -420,11 +422,6 @@ const PageShell = styled.main`
     padding-left: ${({ theme }) => theme.spacing.lg};
     padding-right: ${({ theme }) => theme.spacing.lg};
   }
-`;
-
-const PeriodLabel = styled.span`
-  color: ${({ theme }) => theme.colors.accent};
-  font-weight: 600;
 `;
 
 // Subhead label cell content: the category name + an info "i" button.
@@ -594,7 +591,7 @@ const PickerMonth = styled.button<{ $current?: boolean }>`
   ${({ theme, $current }) => `
     background: ${$current ? theme.colors.primary : theme.colors.canvas};
     color: ${$current ? theme.colors.onPrimary : theme.colors.ink};
-    border: 1px solid ${$current ? theme.colors.primary : theme.colors.hairline};
+    border: 1px solid ${$current ? theme.colors.primary : theme.colors.fieldBorder};
     border-radius: ${theme.rounded.sm};
     font-family: ${theme.typography.bodyMd.family};
     font-size: ${theme.typography.bodyMd.size};
@@ -664,7 +661,7 @@ const CopySource = styled.button<{ $selected?: boolean }>`
     text-align: left;
     background: ${$selected ? theme.colors.primary : theme.colors.canvas};
     color: ${$selected ? theme.colors.onPrimary : theme.colors.ink};
-    border: 1px solid ${$selected ? theme.colors.primary : theme.colors.hairline};
+    border: 1px solid ${$selected ? theme.colors.primary : theme.colors.fieldBorder};
     border-radius: ${theme.rounded.sm};
     font-family: ${theme.typography.bodyMd.family};
     font-size: ${theme.typography.bodyMd.size};
@@ -722,62 +719,6 @@ const CopyButton = styled.button<{ $primary?: boolean }>`
   `}
 `;
 
-const SummaryStrip = styled.div`
-  overflow-x: auto;
-  margin-top: ${({ theme }) => theme.spacing["2xl"]};
-
-  @media (max-width: 767px) {
-    display: none;
-  }
-`;
-
-const SummaryTable = styled.table`
-  width: 100%;
-  border-collapse: collapse;
-`;
-
-const SummaryTh = styled.th<{ $right?: boolean }>`
-  ${({ theme }) => css`
-    padding: ${theme.spacing.xs} ${theme.spacing.md};
-    font-family: ${theme.typography.monoCaps.family};
-    font-size: ${theme.typography.monoCaps.size};
-    font-weight: ${theme.typography.monoCaps.weight};
-    letter-spacing: ${theme.typography.monoCaps.letterSpacing};
-    text-transform: uppercase;
-    color: ${theme.colors.body};
-    border-bottom: 1px solid ${theme.colors.hairline};
-  `}
-  text-align: ${({ $right }) => ($right ? "right" : "left")};
-  font-weight: normal;
-`;
-
-const SummaryTr = styled.tr<{ $current?: boolean }>`
-  background: ${({ theme, $current }) =>
-    $current ? theme.colors.canvasSoft : "transparent"};
-  font-weight: ${({ $current }) => ($current ? 600 : 400)};
-`;
-
-const SummaryTd = styled.td<{
-  $right?: boolean;
-  $tone?: "positive" | "negative" | "dim";
-}>`
-  ${({ theme, $tone }) => css`
-    padding: ${theme.spacing.xs} ${theme.spacing.md};
-    font-size: 13px;
-    font-variant-numeric: tabular-nums;
-    color: ${
-      $tone === "positive"
-        ? theme.colors.positive
-        : $tone === "negative"
-          ? theme.colors.negative
-          : $tone === "dim"
-            ? theme.colors.dim
-            : theme.colors.ink
-    };
-  `}
-  text-align: ${({ $right }) => ($right ? "right" : "left")};
-`;
-
 // ─── Save pip text helper ───────────────────────────────────────────────────
 
 const pipState = (
@@ -809,6 +750,7 @@ export function BalanceSheet({
   currency,
   numberFormat,
   monthSummaries = [],
+  previous = { label: null, values: {} },
 }: {
   period: SerializedPeriod;
   initialRows: SerializedAccountRow[];
@@ -817,6 +759,8 @@ export function BalanceSheet({
   currency: string;
   numberFormat: NumberFormat;
   monthSummaries?: BalanceMonthSummary[];
+  // The last earlier month with values, for the brief's "rose/fell since".
+  previous?: { label: string | null; values: Record<string, number> };
 }) {
   const periodYear = year;
   const periodMonth = month;
@@ -824,6 +768,17 @@ export function BalanceSheet({
 
   const [periodState, setPeriodState] = useState(period);
   const [rows, setRows] = useState(initialRows);
+  // Recomputed as values are typed, so the headline follows the sheet.
+  const brief = balanceBrief({
+    rows: rows.map((row) => ({
+      name: row.name,
+      kind: row.kind,
+      value: row.value,
+      previous: previous.values[row.accountId] ?? null,
+    })),
+    previousLabel: previous.label,
+    fmt: (n) => formatAmount(currency, n, numberFormat),
+  });
   const [focusedCell, setFocusedCell] = useState<FocusedCell>(null);
   const pendingSavesRef = useRef(0);
   const [pendingCount, setPendingCount] = useState(0);
@@ -1351,6 +1306,39 @@ export function BalanceSheet({
 
   // ─── Render helpers ───────────────────────────────────────────────────────
 
+  // Movement since the previous month across the accounts that have a value in
+  // both, so an account not yet filled in this month doesn't read as a fall.
+  const totalsWithBoth = (list: SerializedAccountRow[]) => {
+    const both = list.filter(
+      (r) => r.value !== null && previous.values[r.accountId] !== undefined,
+    );
+    if (both.length === 0) return null;
+    return {
+      now: both.reduce((t, r) => t + (r.value ?? 0), 0),
+      before: both.reduce((t, r) => t + (previous.values[r.accountId] ?? 0), 0),
+    };
+  };
+  const changeOf = (kind: AccountKind, list: SerializedAccountRow[]) => {
+    const totals = totalsWithBoth(list);
+    return totals ? accountChange(kind, totals.now, totals.before) : null;
+  };
+  const renderChange = (change: AccountChange | null) =>
+    change ? (
+      <ChangeText $favourable={change.favourable}>
+        {change.rose ? "▲" : "▼"} {fmtAmount(change.amount)}
+      </ChangeText>
+    ) : null;
+  const netChange = (() => {
+    const assets = totalsWithBoth(rows.filter((r) => r.kind === "ASSET"));
+    const debts = totalsWithBoth(rows.filter((r) => r.kind === "LIABILITY"));
+    if (!assets && !debts) return null;
+    return accountChange(
+      "ASSET",
+      (assets?.now ?? 0) - (debts?.now ?? 0),
+      (assets?.before ?? 0) - (debts?.before ?? 0),
+    );
+  })();
+
   const renderItemRow = (row: SerializedAccountRow) => (
     <ItemRow
       key={row.accountId}
@@ -1396,6 +1384,15 @@ export function BalanceSheet({
           }
         />
       </SheetCell>
+      <SheetCell align="right">
+        {renderChange(
+          accountChange(
+            row.kind,
+            row.value,
+            previous.values[row.accountId] ?? null,
+          ),
+        )}
+      </SheetCell>
       <SheetCell
         tone={!row.notes ? "dim" : "default"}
         focused={
@@ -1434,6 +1431,14 @@ export function BalanceSheet({
       <SectionRow role="row">
         <SheetCell role="rowheader">{label}</SheetCell>
         <SheetCell align="right">{fmtAmount(total)}</SheetCell>
+        <SheetCell align="right">
+          {renderChange(
+            changeOf(
+              kind,
+              rows.filter((r) => r.kind === kind),
+            ),
+          )}
+        </SheetCell>
         <SheetCell />
       </SectionRow>
       {sectionOptionsFor(kind).map((c) => {
@@ -1468,6 +1473,9 @@ export function BalanceSheet({
                 </SubheadLabel>
               </SheetCell>
               <SheetCell align="right">{fmtAmount(bucket.subtotal)}</SheetCell>
+              <SheetCell align="right">
+                {renderChange(changeOf(kind, bucket.rows))}
+              </SheetCell>
               <SheetCell />
             </SubheadRow>
             {bucket.rows.map(renderItemRow)}
@@ -1485,13 +1493,11 @@ export function BalanceSheet({
   return (
     <PageShell>
       <PageHeader
-        title={
-          <>
-            Balance Sheet · <PeriodLabel>{periodState.label}</PeriodLabel>
-          </>
-        }
-        lead="Assets and liabilities snapshot for this period."
+        eyebrow={`Balance sheet · ${periodState.label}`}
+        title={brief.headline}
+        lead={brief.standfirst}
       />
+      <MonthBriefPanel fmt={fmtAmount} notes={brief.notes} />
       <Toolbar>
         <ToolbarGroup>
           <PeriodNavWrapper ref={pickerWrapperRef}>
@@ -1644,6 +1650,19 @@ export function BalanceSheet({
           there is no duplicate to suppress here any more. */}
       {saveError && <SheetError role="alert">{saveError}</SheetError>}
       <Sheet data-sheet-scroller role="table" aria-label="Balance sheet">
+        <HeadRow role="row">
+          <SheetCell role="columnheader">Account</SheetCell>
+          <SheetCell role="columnheader" align="right">
+            Value
+          </SheetCell>
+          <SheetCell role="columnheader" align="right">
+            {/* "September 2026" → "Sep 2026", so the head stays one line. */}
+            {previous.label
+              ? `Since ${previous.label.replace(/^(\w{3})\w*/, "$1")}`
+              : "Change"}
+          </SheetCell>
+          <SheetCell role="columnheader">Notes</SheetCell>
+        </HeadRow>
         {renderSection("ASSET", "Assets", assetsTotal)}
         {renderSection("LIABILITY", "Liabilities", liabilitiesTotal)}
         <GrandRow role="row">
@@ -1660,6 +1679,7 @@ export function BalanceSheet({
           >
             {fmtAmount(netWorth)}
           </SheetCell>
+          <SheetCell align="right">{renderChange(netChange)}</SheetCell>
           <SheetCell />
         </GrandRow>
       </Sheet>
@@ -1671,14 +1691,15 @@ export function BalanceSheet({
         </MissingNote>
       )}
       {monthSummaries.length > 1 && (
-        <SummaryStrip>
+        <SummaryStrip aria-labelledby="past-months">
+          <SummaryHeading id="past-months">Past months</SummaryHeading>
           <SummaryTable>
             <thead>
               <tr>
                 <SummaryTh>Month</SummaryTh>
                 <SummaryTh $right>Assets</SummaryTh>
                 <SummaryTh $right>Liabilities</SummaryTh>
-                <SummaryTh $right>Net Worth</SummaryTh>
+                <SummaryTh $right>Net worth</SummaryTh>
               </tr>
             </thead>
             <tbody>

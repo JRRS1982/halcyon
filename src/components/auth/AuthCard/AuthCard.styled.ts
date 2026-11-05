@@ -11,12 +11,12 @@ export const Page = styled.main`
 
 export const Eyebrow = styled.p`
   ${({ theme }) => css`
-    font-family: ${theme.typography.monoCaps.family};
-    font-size: ${theme.typography.monoCaps.size};
-    font-weight: ${theme.typography.monoCaps.weight};
+    font-family: ${theme.typography.kicker.family};
+    font-size: ${theme.typography.kicker.size};
+    font-weight: ${theme.typography.kicker.weight};
     text-transform: uppercase;
-    letter-spacing: ${theme.typography.monoCaps.letterSpacing};
-    color: ${theme.colors.body};
+    letter-spacing: ${theme.typography.kicker.letterSpacing};
+    color: ${theme.colors.accent};
     margin: 0;
   `}
 `;
@@ -65,11 +65,9 @@ export const Field = styled.label`
 
 export const Label = styled.span`
   ${({ theme }) => css`
-    font-family: ${theme.typography.monoCaps.family};
-    font-size: ${theme.typography.monoCaps.size};
-    font-weight: ${theme.typography.monoCaps.weight};
-    text-transform: uppercase;
-    letter-spacing: ${theme.typography.monoCaps.letterSpacing};
+    font-family: ${theme.typography.control.family};
+    font-size: ${theme.typography.control.size};
+    font-weight: ${theme.typography.control.weight};
     color: ${theme.colors.body};
   `}
 `;
@@ -81,8 +79,8 @@ export const Input = styled.input`
     line-height: ${theme.typography.bodyMd.lineHeight};
     color: ${theme.colors.ink};
     padding: ${theme.spacing.sm} ${theme.spacing.md};
-    background: ${theme.colors.canvas};
-    border: 1px solid ${theme.colors.hairlineStrong};
+    background: ${theme.colors.field};
+    border: 1px solid ${theme.colors.fieldBorder};
     border-radius: ${theme.rounded.sm};
     transition: border-color 100ms, box-shadow 100ms;
 
@@ -104,11 +102,11 @@ export const Divider = styled.div`
     align-items: center;
     gap: ${theme.spacing.md};
     margin: ${theme.spacing.sm} 0;
-    font-family: ${theme.typography.monoCaps.family};
-    font-size: ${theme.typography.monoCaps.size};
-    font-weight: ${theme.typography.monoCaps.weight};
+    font-family: ${theme.typography.kicker.family};
+    font-size: ${theme.typography.kicker.size};
+    font-weight: ${theme.typography.kicker.weight};
     text-transform: uppercase;
-    letter-spacing: ${theme.typography.monoCaps.letterSpacing};
+    letter-spacing: ${theme.typography.kicker.letterSpacing};
     color: ${theme.colors.dim};
 
     &::before,

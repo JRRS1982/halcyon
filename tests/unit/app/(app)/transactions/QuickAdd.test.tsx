@@ -11,8 +11,10 @@ jest.mock("next/navigation", () => ({
 }));
 
 const createTransaction = jest.fn().mockResolvedValue({ id: "t1" });
+const suggestCategory = jest.fn().mockResolvedValue({ categoryId: null });
 jest.mock("@/app/(app)/transactions/actions", () => ({
   createTransaction: (input: unknown) => createTransaction(input),
+  suggestCategory: (input: unknown) => suggestCategory(input),
 }));
 
 const accounts = [
@@ -121,5 +123,41 @@ describe("QuickAdd", () => {
       await screen.findByText(/amount greater than zero/i),
     ).toBeInTheDocument();
     expect(createTransaction).not.toHaveBeenCalled();
+  });
+
+  // The "write a line" box: what was jotted lands in the add form for the user
+  // to check, with the remembered category offered, and nothing saved yet.
+  test("a written line opens the add form filled in, with the remembered category", async () => {
+    suggestCategory.mockResolvedValueOnce({
+      categoryId: "33333333-3333-3333-3333-333333333333",
+    });
+    renderQuickAdd();
+
+    fireEvent.change(
+      screen.getByRole("textbox", { name: /write a transaction/i }),
+      { target: { value: "12.40 Supermarket" } },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Add transaction" }));
+
+    expect(screen.getByPlaceholderText("0.00")).toHaveValue(12.4);
+    expect(screen.getByDisplayValue("Supermarket")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByRole("combobox", { name: /category/i })).toHaveValue(
+        "33333333-3333-3333-3333-333333333333",
+      ),
+    );
+    expect(createTransaction).not.toHaveBeenCalled();
+  });
+
+  test("a line with no amount asks for one instead of opening the form", () => {
+    renderQuickAdd();
+    fireEvent.change(
+      screen.getByRole("textbox", { name: /write a transaction/i }),
+      { target: { value: "Supermarket" } },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Add transaction" }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent(/write an amount/i);
+    expect(screen.queryByPlaceholderText("0.00")).not.toBeInTheDocument();
   });
 });

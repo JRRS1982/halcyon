@@ -79,7 +79,7 @@ const Input = styled.input`
   min-width: 120px;
   padding: ${({ theme }) => theme.spacing.xs}
     ${({ theme }) => theme.spacing.sm};
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
+  border: 1px solid ${({ theme }) => theme.colors.fieldBorder};
   border-radius: ${({ theme }) => theme.rounded.sm};
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
   font-size: 13px;

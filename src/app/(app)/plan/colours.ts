@@ -50,9 +50,11 @@ export const OUTFLOW_COLOURS: Record<
   ExpenseSection | "TAX" | "REPAYMENT",
   string
 > = {
-  FIXED: theme.colors.negative,
-  VARIABLE: theme.colors.chartRate,
-  DISCRETIONARY: theme.colors.chartProperty,
+  // The spending sections' own colour codes, as on the budget and dashboard.
+  // Fixed used to be "negative" red, which already means "bad".
+  FIXED: theme.colors.sectionFixed,
+  VARIABLE: theme.colors.sectionVariable,
+  DISCRETIONARY: theme.colors.sectionDiscretionary,
   TAX: theme.colors.chartBudget,
   REPAYMENT: theme.colors.chartDbPension,
 };

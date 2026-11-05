@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>Balanced Money — Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#F6F7F9;--card:#FFFFFF;--ink:#0F172A;--sub:#475569;--mute:#64748B;--line:#E2E8F0;--blue:#2563EB;--green:#16A34A;--red:#DC2626}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1440px;height:900px;overflow:hidden;background:var(--bg);color:var(--ink);font:14px/1.45 Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.num{font-variant-numeric:tabular-nums}
+.app{display:flex;height:900px}
+aside{width:240px;background:var(--card);border-right:1px solid var(--line);padding:24px 16px;display:flex;flex-direction:column}
+.brand{display:flex;align-items:center;gap:10px;padding:0 8px 28px;font-weight:700;font-size:16px;letter-spacing:-.01em}
+.mark{width:28px;height:28px;border-radius:8px;background:var(--blue);display:grid;place-items:center}
+nav a{display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:8px;color:var(--sub);text-decoration:none;font-weight:500;margin-bottom:2px}
+nav a svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
+nav a.on{background:#EFF4FF;color:var(--blue)}
+.foot{margin-top:auto;border-top:1px solid var(--line);padding-top:16px}
+.user{display:flex;align-items:center;gap:10px;padding:0 12px 12px;font-size:13px}
+.av{width:30px;height:30px;border-radius:50%;background:#E2E8F0;display:grid;place-items:center;font-weight:600;font-size:12px;color:var(--sub)}
+main{flex:1;padding:28px 32px;display:flex;flex-direction:column;gap:20px}
+header{display:flex;align-items:center;gap:16px;height:44px}
+h1{font-size:24px;font-weight:600;letter-spacing:-.02em;margin-right:auto}
+.select{display:flex;align-items:center;gap:8px;height:38px;padding:0 12px 0 14px;background:var(--card);border:1px solid var(--line);border-radius:10px;font-weight:500}
+.badge{display:flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:999px;background:#F0FDF4;color:#15803D;font-size:13px;font-weight:500;border:1px solid #DCFCE7}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--green)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:20px}
+.kpi{padding:20px 22px}
+.kl{color:var(--sub);font-size:13px;font-weight:500}
+.kv{font-size:28px;font-weight:600;letter-spacing:-.02em;margin:6px 0 8px}
+.kd{font-size:13px;color:var(--mute)}
+.up{color:#15803D;font-weight:600}.dn{color:var(--red);font-weight:600}
+.row{display:grid;grid-template-columns:1fr 372px;gap:20px;height:452px}
+.ch{padding:20px 22px}
+.ct{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px}
+h2{font-size:16px;font-weight:600;letter-spacing:-.01em}
+.legend{display:flex;gap:16px;font-size:13px;color:var(--sub)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.cs{color:var(--mute);font-size:13px}
+.sec{padding:16px 0;border-bottom:1px solid var(--line)}.sec:last-child{border:0}
+.sr{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
+.sn{font-weight:500}.sv{font-size:13px;color:var(--sub)}.sv b{color:var(--ink);font-weight:600}
+.bar{height:8px;border-radius:999px;background:#EEF2F6;overflow:hidden;position:relative}
+.bar span{position:absolute;inset:0 auto 0 0;border-radius:999px}
+.sm{display:flex;justify-content:space-between;font-size:12px;color:var(--mute);margin-top:8px}
+.plan{display:flex;align-items:center;gap:14px;padding:0 22px;height:64px}
+.pi{width:32px;height:32px;border-radius:8px;background:#F0FDF4;display:grid;place-items:center}
+.link{margin-left:auto;color:var(--blue);font-weight:500;text-decoration:none}
+</style>
+</head>
+<body>
+<div class="app">
+<aside>
+  <div class="brand"><span class="mark"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M2 8h12M5 4.5h6M5 11.5h6"/></svg></span>Balanced Money</div>
+  <nav>
+    <a class="on" href="#"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>Dashboard</a>
+    <a href="#"><svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16M8 15v-4M12 15V8M16 15v-6"/></svg>Budget</a>
+    <a href="#"><svg viewBox="0 0 24 24"><path d="M12 3v18M5 7h14M3 14l2-7 2 7a2 2 0 0 1-4 0zM17 14l2-7 2 7a2 2 0 0 1-4 0z"/></svg>Balance</a>
+    <a href="#"><svg viewBox="0 0 24 24"><path d="M7 4 3 8l4 4M3 8h14M17 12l4 4-4 4M21 16H7"/></svg>Transactions</a>
+    <a href="#"><svg viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg>Plan</a>
+    <a href="#"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Settings</a>
+  </nav>
+  <div class="foot">
+    <div class="user"><span class="av">JS</span><span>Jeremy Smith</span></div>
+    <nav><a href="#"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>Sign out</a></nav>
+  </div>
+</aside>
+<main>
+  <header>
+    <h1>Dashboard</h1>
+    <span class="badge"><span class="dot"></span>All caught up</span>
+    <span class="select">October 2026<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg></span>
+  </header>
+  <section class="kpis">
+    <div class="card kpi"><div class="kl">Net worth</div><div class="kv num">£155,140</div><div class="kd num"><span class="up">▲ +£2,260</span> vs September</div></div>
+    <div class="card kpi"><div class="kl">Left over</div><div class="kv num">£1,235</div><div class="kd num"><span class="dn">▼ −£60</span> vs September</div></div>
+    <div class="card kpi"><div class="kl">Savings rate</div><div class="kv num">34%</div><div class="kd num"><span class="dn">▼ −2 pts</span> vs September</div></div>
+    <div class="card kpi"><div class="kl">Spend vs budget</div><div class="kv num">108%</div><div class="kd num"><span class="dn">£185 over</span> £2,255 budgeted</div></div>
+  </section>
+  <section class="row">
+    <div class="card ch">
+      <div class="ct"><h2>Income vs spending</h2><div class="legend"><span><i style="background:#2563EB"></i>Income</span><span><i style="background:#94A3B8"></i>Spending</span></div></div>
+      <div class="cs num">Last 12 months · average surplus £1,290 a month</div>
+      <svg width="736" height="360" viewBox="0 0 736 360" class="num" style="margin-top:14px;font-size:12px" fill="#64748B">
+        <g stroke="#EEF2F6"><path d="M48 290h680M48 222.5h680M48 155h680M48 87.5h680M48 20h680"/></g>
+        <g text-anchor="end"><text x="38" y="294">£0</text><text x="38" y="226.5">£1k</text><text x="38" y="159">£2k</text><text x="38" y="91.5">£3k</text><text x="38" y="24">£4k</text></g>
+        <g fill="#2563EB">
+          <rect x="60" y="47" width="18" height="243" rx="3"/><rect x="116" y="47" width="18" height="243" rx="3"/><rect x="172" y="43.6" width="18" height="246.4" rx="3"/><rect x="228" y="47" width="18" height="243" rx="3"/><rect x="284" y="47" width="18" height="243" rx="3"/><rect x="340" y="47" width="18" height="243" rx="3"/>
+          <rect x="396" y="40.3" width="18" height="249.7" rx="3"/><rect x="452" y="47" width="18" height="243" rx="3"/><rect x="508" y="47" width="18" height="243" rx="3"/><rect x="564" y="47" width="18" height="243" rx="3"/><rect x="620" y="43.6" width="18" height="246.4" rx="3"/><rect x="676" y="47" width="18" height="243" rx="3"/>
+        </g>
+        <g fill="#94A3B8">
+          <rect x="80" y="138.1" width="18" height="151.9" rx="3"/><rect x="136" y="129.3" width="18" height="160.7" rx="3"/><rect x="192" y="128" width="18" height="162" rx="3"/><rect x="248" y="141.5" width="18" height="148.5" rx="3"/><rect x="304" y="134.1" width="18" height="155.9" rx="3"/><rect x="360" y="137.4" width="18" height="152.6" rx="3"/>
+          <rect x="416" y="131.4" width="18" height="158.6" rx="3"/><rect x="472" y="136.1" width="18" height="153.9" rx="3"/><rect x="528" y="128" width="18" height="162" rx="3"/><rect x="584" y="132.7" width="18" height="157.3" rx="3"/><rect x="640" y="135.4" width="18" height="154.6" rx="3"/><rect x="696" y="130.4" width="18" height="159.6" rx="3"/>
+        </g>
+        <g text-anchor="middle"><text x="79" y="314">Nov 25</text><text x="135" y="314">Dec</text><text x="191" y="314">Jan 26</text><text x="247" y="314">Feb</text><text x="303" y="314">Mar</text><text x="359" y="314">Apr</text><text x="415" y="314">May</text><text x="471" y="314">Jun</text><text x="527" y="314">Jul</text><text x="583" y="314">Aug</text><text x="639" y="314">Sep</text><text x="695" y="314" fill="#0F172A" font-weight="600">Oct</text></g>
+        <g font-size="13"><text x="48" y="346">Oct income <tspan fill="#0F172A" font-weight="600">£3,600</tspan></text><text x="210" y="346">Oct spending <tspan fill="#0F172A" font-weight="600">£2,365</tspan></text></g>
+      </svg>
+    </div>
+    <div class="card ch">
+      <div class="ct"><h2>Budget by section</h2><span class="cs">October</span></div>
+      <div class="sec">
+        <div class="sr"><span class="sn">Fixed</span><span class="sv num"><b>£1,441</b> / £1,430</span></div>
+        <div class="bar"><span style="width:100%;background:var(--blue)"></span></div>
+        <div class="sm num"><span>101% spent</span><span>£11 over</span></div>
+      </div>
+      <div class="sec">
+        <div class="sr"><span class="sn">Variable</span><span class="sv num"><b>£662</b> / £580</span></div>
+        <div class="bar"><span style="width:100%;background:var(--red)"></span></div>
+        <div class="sm num"><span>114% spent</span><span class="dn">£82 over</span></div>
+      </div>
+      <div class="sec">
+        <div class="sr"><span class="sn">Discretionary</span><span class="sv num"><b>£327</b> / £245</span></div>
+        <div class="bar"><span style="width:100%;background:var(--red)"></span></div>
+        <div class="sm num"><span>133% spent</span><span class="dn">£82 over</span></div>
+      </div>
+      <div class="sec" style="display:flex;justify-content:space-between;padding-top:18px"><span class="sn">Total</span><span class="sv num"><b>£2,430</b> / £2,255</span></div>
+    </div>
+  </section>
+  <section class="card plan">
+    <span class="pi"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg></span>
+    <span><b style="font-weight:600">Plan: on track</b> <span style="color:var(--sub)">— projected net worth of</span> <b class="num" style="font-weight:600">£911,844</b> <span style="color:var(--sub)">at 67</span></span>
+    <a class="link" href="#">View plan →</a>
+  </section>
+</main>
+</div>
+</body>
+</html>

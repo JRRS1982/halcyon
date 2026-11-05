@@ -1,4 +1,8 @@
-import { DATE_FORMATS, parseDate } from "@/lib/transactions/date";
+import {
+  DATE_FORMATS,
+  guessDateFormat,
+  parseDate,
+} from "@/lib/transactions/date";
 
 describe("parseDate", () => {
   test("parses DMY with the day first", () => {
@@ -84,5 +88,27 @@ describe("parseDate year bounds", () => {
     expect(parseDate("01/01/0001", "DMY")?.toISOString()).toBe(
       "2001-01-01T00:00:00.000Z",
     );
+  });
+});
+
+// If this is wrong, a user importing an ISO-dated or American statement sees
+// every row marked "Invalid date" until they find the format menu.
+describe("guessDateFormat", () => {
+  test("reads ISO dates as year-month-day", () => {
+    expect(guessDateFormat(["2026-10-30", "2026-10-31"])).toBe("YMD");
+  });
+
+  test("reads a day above 12 in second place as American", () => {
+    expect(guessDateFormat(["10/02/2026", "10/30/2026"])).toBe("MDY");
+  });
+
+  test("keeps the UK reading when every date would parse either way", () => {
+    expect(guessDateFormat(["01/02/2026", "03/04/2026"])).toBe("DMY");
+  });
+
+  test("ignores blank cells and falls back to the UK reading when nothing fits", () => {
+    expect(guessDateFormat(["", "30/10/2026"])).toBe("DMY");
+    expect(guessDateFormat(["not a date"])).toBe("DMY");
+    expect(guessDateFormat([])).toBe("DMY");
   });
 });

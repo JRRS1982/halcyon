@@ -13,7 +13,7 @@ const renderit = () =>
   );
 
 describe("LandingPage", () => {
-  test("composes hero, how-it-works, features, details and CTA", () => {
+  test("leads with what Balanced is and the way in", () => {
     renderit();
     expect(
       screen.getByRole("heading", {
@@ -22,33 +22,40 @@ describe("LandingPage", () => {
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/let your statements do the work/i),
+      screen.getByText(/a monthly check-in for your household/i),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", {
-        name: /budget — then learn how you really spend/i,
-      }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: /wealthy, or just spending/i }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", {
-        name: /turn a bank statement into understanding/i,
-      }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: /will the money last/i }),
-    ).toBeInTheDocument();
-    expect(screen.getByText("Transfers aren't spending")).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: /put the spreadsheet down/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /get started/i })).toHaveAttribute(
+      "href",
+      "/sign-up",
+    );
   });
 
-  test("features intro carries the #features anchor", () => {
-    const { container } = renderit();
-    expect(container.querySelector("#features")).toBeInTheDocument();
+  // The front page is articles that link out; the detail lives a click away.
+  test("every feature article links to its own page", () => {
+    renderit();
+    for (const slug of [
+      "transactions",
+      "budget",
+      "balance",
+      "dashboard",
+      "plan",
+    ]) {
+      expect(
+        screen
+          .getAllByRole("link")
+          .some((link) => link.getAttribute("href") === `/features/${slug}`),
+      ).toBe(true);
+    }
+  });
+
+  test("closes with the guide and the engineering tour", () => {
+    renderit();
+    expect(
+      screen.getByRole("link", { name: /how a month works/i }),
+    ).toHaveAttribute("href", "/guide");
+    expect(
+      screen.getByRole("link", { name: /built to be used and trusted/i }),
+    ).toHaveAttribute("href", "/how-its-built");
   });
 
   test("the footer is a sibling of main, not nested inside it", () => {

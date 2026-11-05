@@ -51,10 +51,10 @@ export const LegalSubHeading = styled.h3`
 export const LegalMinorHeading = styled.h4`
   margin: ${({ theme }) => theme.spacing.lg} 0
     ${({ theme }) => theme.spacing.sm};
-  font-family: ${({ theme }) => theme.typography.monoCaps.family};
-  font-size: ${({ theme }) => theme.typography.monoCaps.size};
-  font-weight: ${({ theme }) => theme.typography.monoCaps.weight};
-  letter-spacing: ${({ theme }) => theme.typography.monoCaps.letterSpacing};
+  font-family: ${({ theme }) => theme.typography.kicker.family};
+  font-size: ${({ theme }) => theme.typography.kicker.size};
+  font-weight: ${({ theme }) => theme.typography.kicker.weight};
+  letter-spacing: ${({ theme }) => theme.typography.kicker.letterSpacing};
   text-transform: uppercase;
   color: ${({ theme }) => theme.colors.dim};
 `;
@@ -76,7 +76,7 @@ export const LegalBody = styled.p`
   }
 
   code {
-    font-family: ${({ theme }) => theme.typography.monoCaps.family};
+    font-family: ${({ theme }) => theme.typography.kicker.family};
     font-size: 0.85em;
   }
 `;
@@ -124,10 +124,10 @@ export const LegalTable = styled.table`
     color: ${theme.colors.body};
 
     th {
-      font-family: ${theme.typography.monoCaps.family};
-      font-size: ${theme.typography.monoCaps.size};
-      font-weight: ${theme.typography.monoCaps.weight};
-      letter-spacing: ${theme.typography.monoCaps.letterSpacing};
+      font-family: ${theme.typography.kicker.family};
+      font-size: ${theme.typography.kicker.size};
+      font-weight: ${theme.typography.kicker.weight};
+      letter-spacing: ${theme.typography.kicker.letterSpacing};
       text-transform: uppercase;
       text-align: left;
       color: ${theme.colors.dim};
@@ -148,7 +148,7 @@ export const LegalTable = styled.table`
     }
 
     code {
-      font-family: ${theme.typography.monoCaps.family};
+      font-family: ${theme.typography.kicker.family};
       font-size: 0.85em;
       white-space: nowrap;
     }

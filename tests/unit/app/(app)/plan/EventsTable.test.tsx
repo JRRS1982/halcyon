@@ -154,6 +154,7 @@ describe("EventsTable", () => {
         numberFormat="COMMA_0"
         properties={properties}
         onOpen={jest.fn()}
+        onCreated={jest.fn()}
       />,
     );
     expect(screen.getByText(/sale of home/i)).toBeInTheDocument();
@@ -167,6 +168,7 @@ describe("EventsTable", () => {
         numberFormat="COMMA_0"
         properties={properties}
         onOpen={jest.fn()}
+        onCreated={jest.fn()}
       />,
     );
     expect(screen.getByText(/−.*5,000/)).toBeInTheDocument();

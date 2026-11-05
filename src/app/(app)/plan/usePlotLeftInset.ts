@@ -12,17 +12,21 @@ import {
 // to the desktop inset and corrected in an effect so server and first client
 // render agree (the charts are client-only, but the hook stays hydration-safe
 // for any future SSR'd consumer).
-export function usePlotLeftInset(): number {
-  const [inset, setInset] = useState(PLOT_LEFT_INSET);
+/** True while the plan's charts are laid out for a phone (PHONE_PLOT_QUERY). */
+export function useIsPhonePlot(): boolean {
+  const [isPhone, setIsPhone] = useState(false);
 
   useEffect(() => {
     const mq = window.matchMedia(PHONE_PLOT_QUERY);
-    const update = () =>
-      setInset(mq.matches ? PLOT_LEFT_INSET_PHONE : PLOT_LEFT_INSET);
+    const update = () => setIsPhone(mq.matches);
     update();
     mq.addEventListener("change", update);
     return () => mq.removeEventListener("change", update);
   }, []);
 
-  return inset;
+  return isPhone;
+}
+
+export function usePlotLeftInset(): number {
+  return useIsPhonePlot() ? PLOT_LEFT_INSET_PHONE : PLOT_LEFT_INSET;
 }

@@ -15,6 +15,7 @@ body {
 /* Sticky footer: body fills the viewport, the content area grows, so the
    footer sits at the bottom on short pages and flows below on long ones. */
 body {
+  font-family: var(--font-sans), system-ui, sans-serif;
   display: flex;
   flex-direction: column;
   min-height: 100vh;
@@ -35,7 +36,7 @@ body {
 }
 
 /* The skip-to-content link. Off-screen until focused, then it lands over the
-   nav as a black mono-caps pill matching button-primary.
+   nav as a pill matching button-primary.
 
    Values are literals rather than theme tokens because this is plain CSS that
    has to render before styled-components hydrates — keep in step with
@@ -48,13 +49,13 @@ body {
   /* Moved rather than display:none — a hidden element cannot take focus. */
   transform: translateY(-200%);
   padding: 8px 16px;
-  background: #000000;
-  color: #ffffff;
-  border-radius: 4px;
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.055em;
+  background: var(--c-primary);
+  color: var(--c-onPrimary);
+  border-radius: 2px;
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   text-decoration: none;
 }
@@ -67,4 +68,34 @@ body {
    moved here, they are not navigating to it as a control. */
 .app-content:focus {
   outline: none;
+}
+
+/* Form fields are a slip of brighter paper with a firm edge, so they stand off
+   the page. Zero specificity, so any field that sets its own surface keeps it. */
+:where(
+  input:not([type="checkbox"], [type="radio"], [type="range"]),
+  select,
+  textarea
+) {
+  background-color: var(--c-field);
+  border-color: var(--c-fieldBorder);
+  color: var(--c-ink);
+}
+
+/* Tick boxes, radios and range thumbs take the app's blue rather than the
+   browser's own, so a ticked box matches the buttons beside it. */
+:root {
+  accent-color: var(--c-primary);
+}
+
+/* Keyboard focus, drawn from the palette rather than left to the browser:
+   offset so it shows clear of a filled button's own colour. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--c-focus);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--c-accent);
+  color: var(--c-canvas);
 }

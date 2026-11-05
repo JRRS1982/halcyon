@@ -13,7 +13,7 @@ import {
   YAxis,
 } from "recharts";
 import { useTheme } from "styled-components";
-import { amountAxis, makeAmountTick } from "@/lib/charts/format";
+import { ageTicks, amountAxis, makeAmountTick } from "@/lib/charts/format";
 import type { YearProjection } from "@/lib/plan";
 import {
   liquidDepletionAge,
@@ -26,7 +26,7 @@ import { ChartTextures, wrapperFill } from "./ChartTextures";
 import { ageReferenceLines } from "./chartRefLines";
 import { StackedTooltip } from "./chartTooltip";
 import { NET_WORTH_COLOUR, WRAPPER_COLOURS, WRAPPER_LABELS } from "./colours";
-import { usePlotLeftInset } from "./usePlotLeftInset";
+import { useIsPhonePlot, usePlotLeftInset } from "./usePlotLeftInset";
 
 // Drawdownable pots stacked over time, with a total line so depletion in
 // retirement is legible. Same wrapper colours as the net-worth chart.
@@ -50,6 +50,8 @@ export function LiquidAssetsChart({
   expectedDeathAge: number | null;
 }) {
   const plotLeftInset = usePlotLeftInset();
+  // Every year on a desktop; every five on a phone, where 50 ages won't fit.
+  const isPhone = useIsPhonePlot();
   const theme = useTheme();
   const data = toLiquidAssetsBandData(low, mid, high);
   const wrappers = liquidWrappersPresent(data);
@@ -80,6 +82,7 @@ export function LiquidAssetsChart({
         <CartesianGrid stroke={theme.colors.hairline} vertical={false} />
         <XAxis
           dataKey="age"
+          ticks={isPhone ? ageTicks(data.map((d) => d.age)) : undefined}
           tick={{ fontSize: 11, fill: theme.colors.body }}
           tickLine={false}
           axisLine={{ stroke: theme.colors.hairline }}

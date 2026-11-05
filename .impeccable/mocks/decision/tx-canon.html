@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=390">
+<title>Category standard — Transactions</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#F4F5F7;--card:#fff;--text:#111827;--muted:#5B6270;--blue:#2563EB;--green:#16A34A;--line:#E5E7EB}
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:390px;height:844px;overflow:hidden;background:var(--bg);font-family:Inter,sans-serif;color:var(--text);font-variant-numeric:tabular-nums;position:relative}
+.top{padding:16px 16px 8px;display:flex;justify-content:space-between;align-items:center}
+h1{font-size:26px;font-weight:700}
+.av{width:34px;height:34px;border-radius:50%;background:#DBE4FF}
+.search{margin:4px 16px 12px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:11px 14px;color:var(--muted);font-size:15px}
+.review{margin:0 16px 12px;background:var(--blue);color:#fff;border-radius:14px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center}
+.review b{font-size:16px}.review p{font-size:13px;opacity:.85;margin-top:2px}
+.review span{background:#fff;color:var(--blue);font-weight:600;font-size:14px;border-radius:999px;padding:8px 14px}
+.day{padding:8px 16px 6px;font-size:13px;font-weight:600;color:var(--muted)}
+.group{margin:0 16px 8px;background:var(--card);border-radius:14px;overflow:hidden}
+.tx{display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.tx:last-child{border-bottom:0}
+.ic{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-size:17px}
+.t{flex:1}.t b{display:block;font-size:15px;font-weight:600}.t span{font-size:13px;color:var(--muted)}
+.t span.s{color:var(--blue);font-weight:500}
+.a{font-weight:600;font-size:15px}.a.in{color:var(--green)}
+.fab{position:absolute;right:16px;bottom:88px;width:56px;height:56px;border-radius:50%;background:var(--blue);color:#fff;font-size:28px;display:grid;place-items:center;box-shadow:0 6px 16px rgba(37,99,235,.35)}
+nav{position:absolute;left:0;right:0;bottom:0;height:72px;background:#fff;border-top:1px solid var(--line);display:flex;padding:8px 6px 16px}
+nav a{flex:1;text-align:center;font-size:11px;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:4px}
+nav i{width:22px;height:22px;border-radius:6px;border:2px solid currentColor;display:block}
+nav a.on{color:var(--blue);font-weight:600}
+</style></head><body>
+<div class="top"><h1>Transactions</h1><span class="av"></span></div>
+<div class="search">Search transactions</div>
+<div class="review"><div><b>Review 12 transactions</b><p>9 suggested · 3 need a category</p></div><span>Review</span></div>
+<div class="day">Monday 27 October</div>
+<div class="group">
+  <div class="tx"><span class="ic" style="background:#FCE7F3">☕</span><div class="t"><b>Pret A Manger</b><span class="s">Suggested: Coffee &amp; Snacks</span></div><span class="a">−£4.35</span></div>
+  <div class="tx"><span class="ic" style="background:#DBEAFE">🚇</span><div class="t"><b>TfL Travel</b><span>Public Transport</span></div><span class="a">−£8.90</span></div>
+</div>
+<div class="day">Saturday 25 October</div>
+<div class="group">
+  <div class="tx"><span class="ic" style="background:#F3F4F6">?</span><div class="t"><b>Amazon Marketplace</b><span class="s">Needs a category</span></div><span class="a">−£23.99</span></div>
+  <div class="tx"><span class="ic" style="background:#DCFCE7">£</span><div class="t"><b>Payroll Oct</b><span>Salary</span></div><span class="a in">+£2,850.00</span></div>
+  <div class="tx"><span class="ic" style="background:#FCE7F3">🍔</span><div class="t"><b>Deliveroo</b><span class="s">Suggested: Takeaways</span></div><span class="a">−£27.40</span></div>
+</div>
+<div class="fab">+</div>
+<nav><a><i></i>Home</a><a class="on"><i></i>Transactions</a><a><i></i>Budget</a><a><i></i>Balance</a><a><i></i>Plan</a></nav>
+</body></html>

@@ -14,7 +14,7 @@ import {
   YAxis,
 } from "recharts";
 import styled, { useTheme } from "styled-components";
-import { amountAxis, makeAmountTick } from "@/lib/charts/format";
+import { ageTicks, amountAxis, makeAmountTick } from "@/lib/charts/format";
 import type { YearProjection } from "@/lib/plan";
 import {
   type CashFlowDatum,
@@ -47,7 +47,7 @@ import {
   NET_WORTH_COLOUR,
   OUTFLOW_COLOURS,
 } from "./colours";
-import { usePlotLeftInset } from "./usePlotLeftInset";
+import { useIsPhonePlot, usePlotLeftInset } from "./usePlotLeftInset";
 
 const TipNet = styled(TipRow)<{ $negative: boolean }>`
   font-weight: 600;
@@ -164,6 +164,8 @@ export function CashFlowChart({
   expectedDeathAge: number | null;
 }) {
   const plotLeftInset = usePlotLeftInset();
+  // Every year on a desktop; every five on a phone, where 50 ages won't fit.
+  const isPhone = useIsPhonePlot();
   const theme = useTheme();
   const data = toCashFlowChartData(years);
   const { income, outflow, withdrawals, contributions } = cashFlowKeysPresent(
@@ -230,6 +232,7 @@ export function CashFlowChart({
         <CartesianGrid stroke={theme.colors.hairline} vertical={false} />
         <XAxis
           dataKey="age"
+          ticks={isPhone ? ageTicks(data.map((d) => d.age)) : undefined}
           tick={{ fontSize: 11, fill: theme.colors.body }}
           tickLine={false}
           axisLine={{ stroke: theme.colors.hairline }}
