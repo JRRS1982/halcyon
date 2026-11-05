@@ -161,14 +161,14 @@ Then the running app. Two workflows do this automatically:
 |---|---|---|
 | `health.yml` | is production alive? | daily, 08:00 UTC |
 | `smoke.yml` | did *this deployment* work? | `deployment_status` |
-| `lighthouse-badges.yml` | how does production score? | weekly, Mondays 07:00 UTC |
+| `lighthouse-badges.yml` | how does production score? | `deployment_status` |
 
-Both probe `GET /api/health` (bearer-gated, `SELECT 1`) expecting
+The first two probe `GET /api/health` (bearer-gated, `SELECT 1`) expecting
 `200 {"ok":true}`.
 
-`lighthouse-badges.yml` runs Lighthouse (mobile, three runs) against
-production and writes the median scores to the `badges` branch, which the
-README's badges read. It never fails on a low score. Regressions are the job
+After each Production deploy, `lighthouse-badges.yml` runs Lighthouse
+(mobile, three runs) against production and writes the median scores to the
+`badges` branch, which the README's badges read. It never fails on a low score. Regressions are the job
 of the `lighthouse` job in `ci.yml`, which builds the PR and fails it if a
 public page drops below the scores in `lighthouserc.json`. That job is not a
 required check yet.

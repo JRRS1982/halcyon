@@ -1,19 +1,29 @@
 name: lighthouse badges
 
-# Lighthouse against production once a week, for the README's score badges.
-# It reports; it never fails on a low score. Regressions are caught earlier, by
+# Every deploy status change creates a run; say in the list why most skip.
+run-name: >-
+  ${{ (github.event_name == 'workflow_dispatch'
+       || (github.event.deployment_status.environment == 'Production'
+           && github.event.deployment_status.state == 'success'))
+      && 'Lighthouse badges → Production'
+      || format('Skipped — {0} deploy {1} (badges update only on a Production success)',
+                github.event.deployment_status.environment,
+                github.event.deployment_status.state) }}
+
+# Lighthouse against production after each successful Production deploy, for
+# the README's score badges: the scores change exactly when the site does. It
+# reports; it never fails on a low score. Regressions are caught earlier, by
 # the `lighthouse` job in ci.yml, on the PR that causes them.
 #
 # The scores go to a separate `badges` branch, not master: master's ruleset
 # only accepts merges whose checks have passed, and a badge is not worth a PR.
 # The README reads them through shields.io's endpoint badge.
 #
-# Weekly, because a lab score moves a few points from run to run, and the
-# badge is a summary, not an alarm. `workflow_dispatch` refreshes it by hand,
-# for example after a release that should move it.
+# deployment_status fires for every preview and every state change too (see
+# smoke.yml), so the job's `if:` keeps only a Production success.
+# `workflow_dispatch` runs it by hand, e.g. to create the branch the first time.
 on:
-  schedule:
-    - cron: "0 7 * * 1" # Mondays 07:00 UTC
+  deployment_status:
   workflow_dispatch:
 
 permissions:
@@ -21,6 +31,10 @@ permissions:
 
 jobs:
   badges:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.deployment_status.state == 'success' &&
+       github.event.deployment_status.environment == 'Production')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
