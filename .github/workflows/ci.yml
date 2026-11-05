@@ -132,6 +132,59 @@ jobs:
       - name: Audit dependencies
         run: pnpm audit --audit-level high
 
+  # Lighthouse against this PR's production build: the public pages must keep
+  # the scores in lighthouserc.json (performance 80, the rest 90). It measures
+  # the build, not the network, so it catches what code changes do: a heavy
+  # script, an unsized image, a missing label. Not a required check (like
+  # security-audit), so a noisy run can never block a merge; promote it once
+  # it has proved stable.
+  #
+  # Lighthouse CI runs pinned through npx rather than as a devDependency: it
+  # brings ~2,200 lockfile lines, one of them failing the high-level audit
+  # above, for a tool only this job uses. The values below exist to pass the
+  # env check at startup; the public pages read neither Supabase nor Postgres.
+  lighthouse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: lighthouse
+      SUPABASE_SECRET_KEY: lighthouse
+      DATABASE_URL: postgresql://none:none@127.0.0.1:1/none
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: ".nvmrc"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      # Three runs per page; the assertions read the representative one.
+      # Chrome is preinstalled on the runner.
+      - name: Run Lighthouse
+        run: npx -y @lhci/cli@0.15.1 autorun
+
+      # The full HTML reports, for when the scores alone don't say why.
+      - name: Upload the reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: lighthouse-reports
+          path: .lighthouseci/reports
+          retention-days: 14
+
   integration-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 10
