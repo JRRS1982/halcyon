@@ -47,9 +47,12 @@ jobs:
           node-version-file: ".nvmrc"
 
       # Mobile, three runs: what PageSpeed Insights leads with.
+      # --no-lighthouserc: lhci otherwise finds the repo's lighthouserc.json,
+      # which belongs to ci.yml's job and starts a local `pnpm start` server.
       - name: Run Lighthouse on production
         run: >-
           npx -y @lhci/cli@0.15.1 collect
+          --no-lighthouserc
           --url=https://www.balanced.money/
           --numberOfRuns=3
           --settings.chromeFlags="--headless=new --no-sandbox"
