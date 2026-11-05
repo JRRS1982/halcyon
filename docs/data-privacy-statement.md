@@ -21,7 +21,8 @@ contradicted the live policy, which in a public repo is itself a risk.
 
 - The only personal data held is the account email address and the financial
   figures the user enters (including, if they use Plan, their date of birth).
-- No analytics, tracking, advertising, profiling, or AI anywhere.
+- No advertising or profiling. Analytics or AI would each add a processor:
+  name it in the Privacy Policy before shipping, as below.
 - Processors: Supabase (DB + auth), Vercel (hosting), Resend (outbound email —
   address only, opt-in reminder only), ImprovMX (inbound contact-email
   forwarding — see [`contact-email.md`](engineering/contact-email.md)). Name any new processor

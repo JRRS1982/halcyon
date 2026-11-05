@@ -1,3 +1,4 @@
+import { getImageProps } from "next/image";
 import Link from "next/link";
 import {
   Caption,
@@ -9,8 +10,31 @@ import {
   Standfirst,
   Trust,
 } from "@/components/editorial/Editorial.styled";
-import { MarketingShot } from "@/components/marketing/MarketingShot";
-import { Narrow, Section, Wide } from "./Hero.styled";
+import { Section, Shot } from "./Hero.styled";
+
+const alt =
+  "The Balanced Money budget page for a sample October: the headline 'Spending came in £570 under plan, led by Holidays', the left-over figure, and notes on what ran over and what held";
+
+// Desktop and phone each get the plate legible at the size it is shown. One
+// <picture> lets the browser fetch only the plate that matches, and fetch it
+// first: it is the page's Largest Contentful Paint.
+const {
+  props: { srcSet: wideSrcSet, sizes: wideSizes },
+} = getImageProps({
+  alt,
+  fill: true,
+  src: "/marketing/plates/budget-lead.png",
+  sizes: "(max-width: 1023px) 100vw, 680px",
+});
+const { props: phone } = getImageProps({
+  alt,
+  fill: true,
+  src: "/marketing/plates/budget-lead-phone.png",
+  sizes: "420px",
+  loading: "eager",
+  fetchPriority: "high",
+  style: { objectFit: "cover", objectPosition: "top" },
+});
 
 export function Hero() {
   return (
@@ -33,25 +57,16 @@ export function Hero() {
         </Trust>
       </div>
       <Figure>
-        <Wide>
-          <MarketingShot
-            src="/marketing/plates/budget-lead.png"
-            priority
-            label="Budget"
-            alt="The Balanced Money budget page for a sample October: the headline 'Spending came in £570 under plan, led by Holidays', the left-over figure, and notes on what ran over and what held"
-            aspect="2464 / 1736"
-            sizes="(max-width: 1023px) 100vw, 680px"
-          />
-        </Wide>
-        <Narrow>
-          <MarketingShot
-            src="/marketing/plates/budget-lead-phone.png"
-            label="Budget"
-            alt="The same budget page on a phone: the month's headline, the left-over figure and the notes"
-            aspect="1170 / 1536"
-            sizes="420px"
-          />
-        </Narrow>
+        <Shot>
+          <picture>
+            <source
+              media="(min-width: 761px)"
+              srcSet={wideSrcSet}
+              sizes={wideSizes}
+            />
+            <img {...phone} alt={alt} />
+          </picture>
+        </Shot>
         <Caption>
           A sample month. Balanced Money writes the headline and notes from your
           own figures.

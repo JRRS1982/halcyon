@@ -20,6 +20,7 @@ export function FeaturesIndex() {
       <ArticleList
         articles={FEATURES}
         hrefFor={(article) => `/features/${article.slug}`}
+        titleLevel="h2"
       />
     </Page>
   );

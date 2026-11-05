@@ -12,9 +12,11 @@ import {
 export function ArticleList({
   articles,
   hrefFor,
+  titleLevel = "h3",
 }: {
   articles: Article[];
   hrefFor: (article: Article) => string;
+  titleLevel?: "h2" | "h3";
 }) {
   return (
     <Stories>
@@ -27,7 +29,7 @@ export function ArticleList({
             aspect={article.picture.aspect}
             sizes="(max-width: 860px) 100vw, 600px"
           />
-          <StoryTitle>{article.headline}</StoryTitle>
+          <StoryTitle as={titleLevel}>{article.headline}</StoryTitle>
           <StoryText>{article.teaser}</StoryText>
           <More>{article.name}</More>
         </Story>

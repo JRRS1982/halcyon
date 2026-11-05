@@ -435,14 +435,13 @@ const sections: Section[] = [
         ),
       },
       {
-        what: "No analytics, no trackers, no third-party pixels",
-        why: "Nobody needs a record of which parts of your budget you looked at. It also means there is no consent banner to click, because there is nothing to consent to.",
+        what: "No advertising, no third-party pixels",
+        why: "Every cookie the site sets is needed to run it, so there is no consent banner to click, because there is nothing to consent to.",
         how: (
           <>
-            No measurement scripts, no advertising or retargeting tags, no
-            session recording, no third-party embeds. The only cookies set are
-            the ones that keep you signed in — each named and explained in the
-            cookie policy.
+            No advertising or retargeting tags, no session recording, no
+            third-party embeds. The only cookies set are the ones that keep you
+            signed in — each named and explained in the cookie policy.
           </>
         ),
       },
@@ -775,8 +774,8 @@ export function HowItsBuilt() {
         <LegalBody>
           It is also a deliberately small stack, maintained by one person. Where
           a choice looks conservative — no bank connections, as few dependencies
-          as the job allows, no analytics — that is usually the point rather
-          than a compromise.
+          as the job allows — that is usually the point rather than a
+          compromise.
         </LegalBody>
       </LegalSection>
 
