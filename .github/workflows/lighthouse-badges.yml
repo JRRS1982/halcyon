@@ -1,0 +1,67 @@
+name: lighthouse badges
+
+# Lighthouse against production once a week, for the README's score badges.
+# It reports; it never fails on a low score. Regressions are caught earlier, by
+# the `lighthouse` job in ci.yml, on the PR that causes them.
+#
+# The scores go to a separate `badges` branch, not master: master's ruleset
+# only accepts merges whose checks have passed, and a badge is not worth a PR.
+# The README reads them through shields.io's endpoint badge.
+#
+# Weekly, because a lab score moves a few points from run to run, and the
+# badge is a summary, not an alarm. `workflow_dispatch` refreshes it by hand,
+# for example after a release that should move it.
+on:
+  schedule:
+    - cron: "0 7 * * 1" # Mondays 07:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  badges:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: ".nvmrc"
+
+      # Mobile, three runs: what PageSpeed Insights leads with.
+      - name: Run Lighthouse on production
+        run: >-
+          npx -y @lhci/cli@0.15.1 collect
+          --url=https://www.balanced.money/
+          --numberOfRuns=3
+          --settings.chromeFlags="--headless=new --no-sandbox"
+
+      - name: Write the badges
+        run: |
+          git fetch origin badges || true
+          if git rev-parse --verify --quiet origin/badges >/dev/null; then
+            git worktree add out origin/badges
+          else
+            git worktree add --detach out
+            git -C out checkout --orphan badges
+            git -C out rm -rfq .
+          fi
+          mkdir -p out/lighthouse
+          node scripts/lighthouse-badges.mjs .lighthouseci out/lighthouse
+
+      - name: Publish to the badges branch
+        working-directory: out
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lighthouse
+          if git diff --cached --quiet; then
+            echo "Scores unchanged."
+            exit 0
+          fi
+          git commit -m "Lighthouse scores $(date -u +%F)"
+          git push origin HEAD:badges

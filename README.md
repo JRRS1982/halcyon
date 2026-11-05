@@ -2,6 +2,10 @@
 
 [![CI](https://github.com/JRRS1982/halcyon/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/JRRS1982/halcyon/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Lighthouse performance](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/JRRS1982/halcyon/badges/lighthouse/performance.json)](https://github.com/JRRS1982/halcyon/actions/workflows/lighthouse-badges.yml)
+[![Lighthouse accessibility](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/JRRS1982/halcyon/badges/lighthouse/accessibility.json)](https://github.com/JRRS1982/halcyon/actions/workflows/lighthouse-badges.yml)
+[![Lighthouse best practices](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/JRRS1982/halcyon/badges/lighthouse/best-practices.json)](https://github.com/JRRS1982/halcyon/actions/workflows/lighthouse-badges.yml)
+[![Lighthouse SEO](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/JRRS1982/halcyon/badges/lighthouse/seo.json)](https://github.com/JRRS1982/halcyon/actions/workflows/lighthouse-badges.yml)
 
 **Personal finance, made clear.** Live at **<https://balanced.money>**.
 

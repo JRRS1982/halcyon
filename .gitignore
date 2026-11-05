@@ -9,6 +9,7 @@
 # Testing
 /coverage
 /playwright-report
+/.lighthouseci
 /test-results
 /blob-report
 /playwright/.cache

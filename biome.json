@@ -10,6 +10,7 @@
       "!**/*.min.js",
       "!**/coverage",
       "!**/playwright-report",
+      "!**/.lighthouseci",
       "!**/test-results",
       "!**/.claude",
       "!**/.agents",
