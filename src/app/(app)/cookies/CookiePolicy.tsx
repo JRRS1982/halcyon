@@ -17,7 +17,7 @@ import {
 // sessionTimeout.ts), and the transient PKCE cookie during OAuth sign-in.
 export function CookiePolicy() {
   return (
-    <LegalPage title="Cookie Policy" effectiveDate="18 August 2026">
+    <LegalPage title="Cookie Policy" effectiveDate="5 November 2026">
       <LegalBody>
         Cookies are small text files a website stores in your browser. This page
         lists every cookie Balanced Money sets, what each one is for, and how
@@ -30,10 +30,10 @@ export function CookiePolicy() {
         <LegalBody>
           We set only strictly-necessary, first-party cookies — the ones that
           keep you signed in and sign you out again when your session should
-          end. There are no analytics cookies, no advertising cookies, and no
-          third-party tracking of any kind. Because every cookie we set is
-          essential to providing the service, UK law does not require a consent
-          banner for them — which is why you never see one.
+          end. There are no advertising cookies and no third-party tracking
+          cookies. Because every cookie we set is essential to providing the
+          service, UK law does not require a consent banner for them — which is
+          why you never see one.
         </LegalBody>
       </LegalSection>
 
@@ -100,11 +100,10 @@ export function CookiePolicy() {
       <LegalSection>
         <LegalHeading>What we don&rsquo;t use</LegalHeading>
         <LegalBody>
-          No analytics or measurement cookies (no Google Analytics or
-          equivalent), no advertising or retargeting pixels, no social-media
-          embeds that set their own cookies, no A/B-testing tools, no session
-          recording, and no local-storage tracking workarounds. Signed out, on
-          the marketing pages, we set no cookies at all.
+          No advertising or retargeting pixels, no social-media embeds that set
+          their own cookies, no A/B-testing tools, no session recording, and no
+          local-storage tracking workarounds. Signed out, on the marketing
+          pages, we set no cookies at all.
         </LegalBody>
       </LegalSection>
 

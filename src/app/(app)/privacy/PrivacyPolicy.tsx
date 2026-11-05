@@ -18,7 +18,7 @@ import {
 // code (dataActions.ts, sessionTimeout.ts, the reminder in src/lib/email/).
 export function PrivacyPolicy() {
   return (
-    <LegalPage title="Privacy Policy" effectiveDate="1 November 2026">
+    <LegalPage title="Privacy Policy" effectiveDate="5 November 2026">
       <LegalBody>
         Balanced Money exists to help you understand your own money — not to
         monetise your data. This notice explains, as plainly and completely as
@@ -36,8 +36,8 @@ export function PrivacyPolicy() {
             to enter. Nothing else identifies you.
           </li>
           <li>
-            We use no analytics, no tracking, no advertising, and no AI. We
-            never sell or share your data for marketing.
+            We use no advertising, and we never sell or share your data for
+            marketing.
           </li>
           <li>
             Five service providers process data on our behalf — Supabase,
@@ -106,11 +106,11 @@ export function PrivacyPolicy() {
           to identify or profile you.
         </LegalBody>
         <LegalBody>
-          <strong>What we do not collect:</strong> no analytics or usage
-          tracking, no advertising identifiers, no device fingerprinting, no
-          location data, no contacts, no data bought from or enriched by third
-          parties, and no connection to your real bank accounts — the service
-          only ever knows the figures you type or import yourself.
+          <strong>What we do not collect:</strong> no advertising identifiers,
+          no device fingerprinting, no location data, no contacts, no data
+          bought from or enriched by third parties, and no connection to your
+          real bank accounts — the service only ever knows the figures you type
+          or import yourself.
         </LegalBody>
       </LegalSection>
 
@@ -152,12 +152,10 @@ export function PrivacyPolicy() {
       </LegalSection>
 
       <LegalSection>
-        <LegalHeading>AI and automated decision-making</LegalHeading>
+        <LegalHeading>Automated decision-making</LegalHeading>
         <LegalBody>
-          We do not use artificial intelligence anywhere in the service. Your
-          data is never used to train AI or machine-learning models, never sent
-          to an AI provider, and never subject to automated decision-making or
-          profiling of any kind. Every chart and forecast you see is plain
+          We make no automated decisions about you that have legal or similarly
+          significant effects. Every chart and forecast you see is plain
           arithmetic over the figures you entered, computed only to display to
           you.
         </LegalBody>
@@ -328,10 +326,10 @@ export function PrivacyPolicy() {
         <LegalBody>
           Balanced Money sets only strictly-necessary first-party cookies — the
           Supabase authentication session that keeps you signed in, and a small
-          activity cookie that enforces the session time limits above. We use no
-          analytics, tracking, or advertising cookies, which is why you see no
-          cookie-consent banner: there is nothing to consent to. The full list,
-          with names and lifetimes, is in the{" "}
+          activity cookie that enforces the session time limits above. Because
+          every cookie is strictly necessary, you see no cookie-consent banner:
+          there is nothing to consent to. The full list, with names and
+          lifetimes, is in the{" "}
           <LegalLink href="/cookies">Cookie Policy</LegalLink>.
         </LegalBody>
       </LegalSection>
