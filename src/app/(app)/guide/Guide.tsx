@@ -120,11 +120,8 @@ const PanelBody = styled.p`
 
 const InlineLink = styled(Link)`
   color: ${({ theme }) => theme.colors.accent};
-  text-decoration: none;
-
-  &:hover {
-    text-decoration: underline;
-  }
+  text-decoration: underline;
+  text-underline-offset: 2px;
 `;
 
 const Actions = styled.div`

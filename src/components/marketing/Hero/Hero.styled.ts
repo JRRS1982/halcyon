@@ -1,4 +1,5 @@
 import styled, { css } from "styled-components";
+import { Frame } from "@/components/marketing/MarketingShot/MarketingShot.styled";
 
 // The front page's lead article: what Balanced is and the way in, beside the
 // product doing it. The lead picture is two plates, the page as a desktop
@@ -18,17 +19,11 @@ export const Section = styled.section`
   `}
 `;
 
-export const Wide = styled.div`
-  @media (max-width: 760px) {
-    display: none;
-  }
-`;
-
-export const Narrow = styled.div`
-  display: none;
-  max-width: 420px;
+export const Shot = styled(Frame)`
+  aspect-ratio: 2464 / 1736;
 
   @media (max-width: 760px) {
-    display: block;
+    aspect-ratio: 1170 / 1536;
+    max-width: 420px;
   }
 `;

@@ -157,11 +157,8 @@ export const LegalTable = styled.table`
 
 const linkStyles = css`
   color: ${({ theme }) => theme.colors.accent};
-  text-decoration: none;
-
-  &:hover {
-    text-decoration: underline;
-  }
+  text-decoration: underline;
+  text-underline-offset: 2px;
 `;
 
 export const LegalLink = styled(Link)`

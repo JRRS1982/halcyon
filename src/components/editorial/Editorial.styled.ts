@@ -170,8 +170,8 @@ export const Story = styled(Link)`
       }
     }
 
-    &:hover h3,
-    &:focus-visible h3 {
+    &:hover :is(h2, h3),
+    &:focus-visible :is(h2, h3) {
       text-decoration: underline;
       text-decoration-thickness: 2px;
       text-underline-offset: 4px;
