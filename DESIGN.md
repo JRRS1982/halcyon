@@ -134,7 +134,7 @@ components:
     backgroundColor: "{colors.canvas}"
     textColor: "{colors.ink}"
     borderBottom: "1px solid {colors.ink}"
-    padding: "{spacing.lg} {spacing.5xl} 0"
+    padding: "{spacing.lg} {spacing.2xl} 0"
 
   nav-link:
     description: "A link in the masthead's lower tier. Active page in claret with a 4px claret underline sitting on the ink rule."
@@ -147,7 +147,7 @@ components:
     description: "A single ruled line of links under a 1px ink rule. Links hover to claret."
     textColor: "{colors.ink}"
     borderTop: "1px solid {colors.ink}"
-    padding: "{spacing.2xl} {spacing.5xl}"
+    padding: "{spacing.2xl}"
 
   button-primary:
     description: "Oxford blue fill. The primary action of a view (Add, Save, Get started)."
@@ -364,11 +364,11 @@ Every right-aligned cell sets `tabular-nums`, so a column of amounts lines up di
 
 ### Spacing
 
-A 4px base. Tokens run `xxs` 2px to `5xl` 48px, plus `section` 80px. Page shells use `3xl` 32px top, `2xl` 24px sides and `5xl` 48px bottom; sides drop to `lg` 16px on a phone. The masthead and footer use `5xl` 48px sides on desktop and `lg` 16px on a phone.
+A 4px base. Tokens run `xxs` 2px to `5xl` 48px, plus `section` 80px. Page shells use `3xl` 32px top, `2xl` 24px sides and `5xl` 48px bottom; sides drop to `lg` 16px on a phone. The masthead and footer contents sit in the same column, with `2xl` 24px sides on desktop and `lg` 16px on a phone, so the wordmark lines up with the headline beneath it.
 
 ### Container
 
-Page content caps at 1240px and centres. The masthead and footer run full width.
+Page content caps at 1240px and centres. The masthead and footer rules run full width; their contents keep to the same 1240px column.
 
 ### The sheet grid
 

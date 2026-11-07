@@ -1,6 +1,6 @@
 "use client";
 
-import { Copy, FooterBar, FooterLink } from "./Footer.styled";
+import { Copy, FooterBar, FooterLink, FooterRow } from "./Footer.styled";
 
 // Rendered by the (app) layout only. It used to check usePathname and return
 // null on "/" to avoid doubling up with the landing page's own MarketingFooter
@@ -15,17 +15,19 @@ import { Copy, FooterBar, FooterLink } from "./Footer.styled";
 export function Footer() {
   return (
     <FooterBar>
-      <Copy>Balanced Money</Copy>
-      {/* Present on every app page: the guide is reference material, and the
-          moment someone needs it is the moment something confused them. */}
-      <FooterLink href="/features">Features</FooterLink>
-      <FooterLink href="/guide">Guide</FooterLink>
-      {/* Public, like the guide — no session needed to read either. */}
-      <FooterLink href="/design">Design</FooterLink>
-      <FooterLink href="/how-its-built">Engineering</FooterLink>
-      <FooterLink href="/privacy">Privacy</FooterLink>
-      <FooterLink href="/cookies">Cookies</FooterLink>
-      <FooterLink href="/terms">Terms</FooterLink>
+      <FooterRow>
+        <Copy>Balanced Money</Copy>
+        {/* Present on every app page: the guide is reference material, and the
+            moment someone needs it is the moment something confused them. */}
+        <FooterLink href="/features">Features</FooterLink>
+        <FooterLink href="/guide">Guide</FooterLink>
+        {/* Public, like the guide — no session needed to read either. */}
+        <FooterLink href="/design">Design</FooterLink>
+        <FooterLink href="/how-its-built">Engineering</FooterLink>
+        <FooterLink href="/privacy">Privacy</FooterLink>
+        <FooterLink href="/cookies">Cookies</FooterLink>
+        <FooterLink href="/terms">Terms</FooterLink>
+      </FooterRow>
     </FooterBar>
   );
 }

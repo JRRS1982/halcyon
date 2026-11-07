@@ -1,16 +1,23 @@
 import Link from "next/link";
 import styled from "styled-components";
 
+// The rule runs full width; the links keep to the page's column, as the
+// masthead's do.
 export const FooterBar = styled.footer`
   border-top: 1px solid ${({ theme }) => theme.colors.ink};
-  padding: ${({ theme }) => theme.spacing["2xl"]} ${({ theme }) => theme.spacing["5xl"]};
+`;
+
+export const FooterRow = styled.div`
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: ${({ theme }) => theme.spacing["2xl"]};
   display: flex;
+  flex-wrap: wrap;
   gap: ${({ theme }) => theme.spacing["2xl"]};
 
   @media (max-width: 767px) {
     padding: ${({ theme }) => theme.spacing.xl} ${({ theme }) => theme.spacing.lg};
   }
-  flex-wrap: wrap;
 `;
 
 export const FooterLink = styled(Link)`

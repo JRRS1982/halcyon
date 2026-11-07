@@ -119,7 +119,7 @@ describe("NavBar", () => {
       transactionsEnabled: true,
     });
 
-    const hrefs = [...container.querySelectorAll("nav > div a")].map((a) =>
+    const hrefs = [...container.querySelectorAll("nav > div > div:first-of-type a")].map((a) =>
       a.getAttribute("href"),
     );
 
@@ -141,7 +141,7 @@ describe("NavBar", () => {
       transactionsEnabled: false,
     });
 
-    const hrefs = [...container.querySelectorAll("nav > div a")].map((a) =>
+    const hrefs = [...container.querySelectorAll("nav > div > div:first-of-type a")].map((a) =>
       a.getAttribute("href"),
     );
 
