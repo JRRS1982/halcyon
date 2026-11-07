@@ -1,15 +1,21 @@
-import type { AccountType } from "@prisma/client";
+import type { AccountSection, AccountType } from "@prisma/client";
 import { z } from "zod";
 import { calendarYear } from "@/lib/budget/period";
 import { money14 } from "@/lib/money/bounds";
 
-export const accountSectionSchema = z.enum([
-  "CURRENT",
-  "MEDIUM_TERM",
-  "LONG_TERM",
-  "PROPERTY",
-  "OTHER",
-]);
+// Compile-time exhaustiveness, same reason as ALL_ACCOUNT_TYPES below: a new
+// AccountSection fails here until the schema learns it, rather than becoming a
+// grouping no drawer can select and no action can set.
+const ALL_ACCOUNT_SECTIONS = {
+  CURRENT: true,
+  MEDIUM_TERM: true,
+  LONG_TERM: true,
+  PROPERTY: true,
+  OTHER: true,
+} satisfies Record<AccountSection, true>;
+export const accountSectionSchema = z.enum(
+  Object.keys(ALL_ACCOUNT_SECTIONS) as [AccountSection, ...AccountSection[]],
+);
 
 export const copyBalancePeriodFromSchema = z.object({
   sourcePeriodId: z.string().uuid(),
