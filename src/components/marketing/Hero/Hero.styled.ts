@@ -23,7 +23,7 @@ export const Shot = styled(Frame)`
   aspect-ratio: 2464 / 1736;
 
   @media (max-width: 760px) {
-    aspect-ratio: 1170 / 1536;
+    aspect-ratio: 1170 / 1608;
     max-width: 420px;
   }
 `;

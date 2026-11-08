@@ -1,5 +1,11 @@
 import Image, { getImageProps } from "next/image";
-import { Caption, Frame, Label, Placeholder } from "./MarketingShot.styled";
+import {
+  Caption,
+  Frame,
+  Label,
+  Placeholder,
+  Scheme,
+} from "./MarketingShot.styled";
 
 type MarketingShotProps = {
   /** Public path e.g. "/marketing/dashboard.png". Omit to show a placeholder. */
@@ -32,10 +38,50 @@ type MarketingShotProps = {
    * is too small to read.
    */
   phone?: { src: string; aspect: string };
+  /** The same plates shot in the dark scheme, shown whenever the page is dark. */
+  dark?: Variant;
 };
+
+type Variant = { src: string; phone?: string };
 
 // Wide enough for the desktop plate, so a phone never downloads it.
 const DESKTOP = "(min-width: 761px)";
+const COVER_TOP = { objectFit: "cover", objectPosition: "top" } as const;
+
+/** One scheme's plate: the desktop one, swapped for the phone one below 761px. */
+function Plate({
+  variant,
+  alt,
+  sizes,
+}: {
+  variant: Variant;
+  alt: string;
+  sizes: string;
+}) {
+  if (!variant.phone) {
+    return (
+      <Image src={variant.src} alt={alt} fill sizes={sizes} style={COVER_TOP} />
+    );
+  }
+  const wide = getImageProps({ alt, fill: true, src: variant.src, sizes });
+  const narrow = getImageProps({
+    alt,
+    fill: true,
+    src: variant.phone,
+    sizes: "100vw",
+    style: COVER_TOP,
+  });
+  return (
+    <picture>
+      <source
+        media={DESKTOP}
+        srcSet={wide.props.srcSet}
+        sizes={wide.props.sizes}
+      />
+      <img {...narrow.props} alt={alt} />
+    </picture>
+  );
+}
 
 export function MarketingShot({
   src,
@@ -48,26 +94,24 @@ export function MarketingShot({
   sizes = "(max-width: 760px) 100vw, 50vw",
   zoom = 1,
   phone,
+  dark,
 }: MarketingShotProps) {
-  if (src && phone) {
-    const wide = getImageProps({ alt, fill: true, src, sizes });
-    const narrow = getImageProps({
-      alt,
-      fill: true,
-      src: phone.src,
-      sizes: "100vw",
-      style: { objectFit: "cover", objectPosition: "top" },
-    });
+  if (src && (phone || dark)) {
+    const light = { src, phone: phone?.src };
     return (
-      <Frame $aspect={aspect} $phoneAspect={phone.aspect}>
-        <picture>
-          <source
-            media={DESKTOP}
-            srcSet={wide.props.srcSet}
-            sizes={wide.props.sizes}
-          />
-          <img {...narrow.props} alt={alt} />
-        </picture>
+      <Frame $aspect={aspect} $phoneAspect={phone?.aspect}>
+        {dark ? (
+          <>
+            <Scheme $scheme="light">
+              <Plate variant={light} alt={alt} sizes={sizes} />
+            </Scheme>
+            <Scheme $scheme="dark">
+              <Plate variant={dark} alt={alt} sizes={sizes} />
+            </Scheme>
+          </>
+        ) : (
+          <Plate variant={light} alt={alt} sizes={sizes} />
+        )}
       </Frame>
     );
   }

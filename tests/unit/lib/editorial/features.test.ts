@@ -13,8 +13,21 @@ describe("feature articles", () => {
       article.picture,
       ...article.sections.flatMap((s) => (s.picture ? [s.picture] : [])),
     ]);
-    for (const picture of pictures) {
-      expect(existsSync(path.join(PUBLIC, picture.src))).toBe(true);
+    // Each plate's phone and dark variants too: those are swapped in by the
+    // visitor's screen and scheme, so a missing one breaks only some visitors.
+    const files = pictures.flatMap((picture) =>
+      [
+        picture.src,
+        picture.phone?.src,
+        picture.dark?.src,
+        picture.dark?.phone,
+      ].filter((file) => file !== undefined),
+    );
+    for (const file of files) {
+      expect({ file, exists: existsSync(path.join(PUBLIC, file)) }).toEqual({
+        file,
+        exists: true,
+      });
     }
   });
 

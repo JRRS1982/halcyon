@@ -48,14 +48,17 @@ describe("LandingPage", () => {
     }
   });
 
-  test("closes with the guide and the engineering tour", () => {
+  test("closes with what you need to start, the guide and settings", () => {
     renderit();
+    expect(
+      screen.getByRole("link", { name: /what you need to start/i }),
+    ).toHaveAttribute("href", "/sign-up");
     expect(
       screen.getByRole("link", { name: /how a month works/i }),
     ).toHaveAttribute("href", "/guide");
     expect(
-      screen.getByRole("link", { name: /built to be used and trusted/i }),
-    ).toHaveAttribute("href", "/how-its-built");
+      screen.getByRole("link", { name: /set it up your way/i }),
+    ).toHaveAttribute("href", "/features/settings");
   });
 
   test("the footer is a sibling of main, not nested inside it", () => {
