@@ -12,8 +12,15 @@ import {
 } from "recharts";
 import { useTheme } from "styled-components";
 import { ChartLegend } from "@/app/(app)/dashboard/ChartLegend";
+import {
+  AMOUNT_AXIS_WIDTH,
+  CHART_MARGIN,
+  KEEP_SERIES_ORDER,
+  LINE_X_PADDING,
+  MONTH_INTERVAL,
+} from "@/app/(app)/dashboard/chartGeometry";
 import { makeAmountTick } from "@/lib/charts/format";
-import { padAxisMax, padAxisMin } from "@/lib/dashboard/axis";
+import { fittedAxis } from "@/lib/dashboard/axis";
 import type { ValueAvgPoint } from "@/lib/dashboard/series";
 import { formatAmount, type NumberFormat } from "@/lib/settings/currency";
 
@@ -36,26 +43,31 @@ export function BalanceCategoryChart({
   // same label on different gridlines — "£2k" twice in a row on the category
   // panels — which is the whole reason the shared formatter keeps a decimal.
   const tick = makeAmountTick(currency);
+  const { domain, ticks } = fittedAxis(data.flatMap((d) => [d.value, d.avg]));
 
   return (
     <ResponsiveContainer width="100%" height={240}>
-      <LineChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: 4 }}>
+      <LineChart data={data} margin={CHART_MARGIN}>
         <CartesianGrid stroke={theme.colors.hairline} vertical={false} />
         <XAxis
           dataKey="month"
+          interval={MONTH_INTERVAL}
+          padding={LINE_X_PADDING}
           tick={{ fontSize: 11, fill: theme.colors.body }}
           tickLine={false}
           axisLine={{ stroke: theme.colors.hairline }}
         />
         <YAxis
-          width={56}
+          width={AMOUNT_AXIS_WIDTH}
           tick={{ fontSize: 11, fill: theme.colors.body }}
           tickLine={false}
           axisLine={false}
           tickFormatter={tick}
-          domain={[padAxisMin, padAxisMax]}
+          domain={domain}
+          ticks={ticks}
         />
         <Tooltip
+          itemSorter={KEEP_SERIES_ORDER}
           formatter={(value, name) => [
             formatAmount(currency, Number(value), numberFormat),
             name,
@@ -66,7 +78,11 @@ export function BalanceCategoryChart({
             fontSize: 12,
           }}
         />
-        <Legend wrapperStyle={{ fontSize: 12 }} content={<ChartLegend />} />
+        <Legend
+          wrapperStyle={{ fontSize: 12 }}
+          itemSorter={null}
+          content={<ChartLegend />}
+        />
         <Line
           type="monotone"
           dataKey="value"
