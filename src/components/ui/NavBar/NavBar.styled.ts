@@ -3,22 +3,32 @@ import styled, { css } from "styled-components";
 
 // A two-tier masthead on desktop: the serif wordmark and account actions on top,
 // the section links on a row beneath, closed by a full-strength ink rule that
-// the active link's claret underline sits on.
+// the active link's claret underline sits on. The bar and its rule run full
+// width; what sits on it keeps to the page's own column, so the wordmark lines
+// up with the headline below and the account actions with the content's right
+// edge, at every width.
 export const Bar = styled.nav`
   ${({ theme }) => css`
     border-bottom: 1px solid ${theme.colors.ink};
+    background: ${theme.colors.canvas};
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  `}
+`;
+
+export const Inner = styled.div`
+  ${({ theme }) => css`
     display: grid;
     grid-template-columns: 1fr auto;
     grid-template-areas:
       "brand right"
       "links links";
     align-items: center;
-    padding: ${theme.spacing.lg} ${theme.spacing["5xl"]} 0;
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: ${theme.spacing.lg} ${theme.spacing["2xl"]} 0;
     column-gap: ${theme.spacing["2xl"]};
-    background: ${theme.colors.canvas};
-    position: sticky;
-    top: 0;
-    z-index: 10;
 
     /* Brand left, hamburger right — the link row and action cluster move into
        the drawer. Hidden children leave the grid, so two columns suffice. */

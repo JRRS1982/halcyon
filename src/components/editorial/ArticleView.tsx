@@ -101,6 +101,8 @@ export function ArticleView({ article }: { article: Article }) {
                   alt={section.picture.alt}
                   label={section.heading}
                   aspect={section.picture.aspect}
+                  phone={section.picture.phone}
+                  dark={section.picture.dark}
                   sizes="(max-width: 760px) 100vw, 720px"
                 />
                 {section.picture.caption && (

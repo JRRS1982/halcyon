@@ -8,6 +8,11 @@ import {
   StoryTitle,
 } from "./Editorial.styled";
 
+// One frame for every story, so pictures side by side share a height and the
+// headlines beneath them line up. Wide enough that the widest plate (the plan
+// chart) keeps its axes; taller plates lose rows from the bottom.
+const STORY_ASPECT = "2 / 1";
+
 /** Articles as a paper lists them: picture, headline, teaser, each a link. */
 export function ArticleList({
   articles,
@@ -26,7 +31,9 @@ export function ArticleList({
             src={article.picture.src}
             alt=""
             label={article.name}
-            aspect={article.picture.aspect}
+            aspect={STORY_ASPECT}
+            phone={article.picture.phone}
+            dark={article.picture.dark}
             sizes="(max-width: 860px) 100vw, 600px"
           />
           <StoryTitle as={titleLevel}>{article.headline}</StoryTitle>

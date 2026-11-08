@@ -10,6 +10,7 @@ import {
   Drawer,
   DrawerActions,
   DrawerLink,
+  Inner,
   Links,
   MenuButton,
   NavLink,
@@ -148,86 +149,88 @@ export function NavBar({ signedIn, transactionsEnabled }: NavBarProps) {
 
   return (
     <Bar>
-      <Brand href="/">Balanced Money</Brand>
+      <Inner>
+        <Brand href="/">Balanced Money</Brand>
 
-      <Links>
-        {/* The in-page anchors never match a pathname, so they are never marked
-            active without needing to say so. */}
-        {items.map((item) => (
-          <NavLink
-            key={item.href}
-            href={item.href}
-            $active={isCurrent(pathname, item.href)}
-          >
-            {item.label}
-          </NavLink>
-        ))}
-      </Links>
-
-      <RightZone>
-        {signedIn ? (
-          <form action={signOut}>
-            <Button type="submit">Sign out</Button>
-          </form>
-        ) : (
-          <RightGroup>
-            {/* Never marked active: signed out, "Sign in" is the only
-                destination, so highlighting it carries no information. */}
-            <NavLink href="/sign-in" $active={false}>
-              Sign in
-            </NavLink>
-            <PillLink href="/sign-up">Get started</PillLink>
-          </RightGroup>
-        )}
-      </RightZone>
-
-      <MenuButton
-        ref={menuButtonRef}
-        type="button"
-        aria-label={menuOpen ? "Close menu" : "Open menu"}
-        aria-expanded={menuOpen}
-        aria-controls="mobile-nav"
-        onClick={() => setMenuOpen((open) => !open)}
-      >
-        <HamburgerIcon open={menuOpen} />
-      </MenuButton>
-
-      {menuOpen && (
-        <Drawer id="mobile-nav">
+        <Links>
+          {/* The in-page anchors never match a pathname, so they are never marked
+              active without needing to say so. */}
           {items.map((item) => (
-            <DrawerLink
+            <NavLink
               key={item.href}
               href={item.href}
               $active={isCurrent(pathname, item.href)}
-              onClick={() => setMenuOpen(false)}
             >
               {item.label}
-            </DrawerLink>
+            </NavLink>
           ))}
+        </Links>
 
-          <DrawerActions>
-            {signedIn ? (
-              <form action={signOut}>
-                <Button type="submit">Sign out</Button>
-              </form>
-            ) : (
-              <>
-                <PillLink href="/sign-up" onClick={() => setMenuOpen(false)}>
-                  Get started
-                </PillLink>
-                {/* Not marked active, matching the inline nav above. */}
-                <NavLink
-                  href="/sign-in"
-                  $active={false}
-                  onClick={() => setMenuOpen(false)}
-                >
-                  Sign in
-                </NavLink>
-              </>
-            )}
-          </DrawerActions>
-        </Drawer>
-      )}
+        <RightZone>
+          {signedIn ? (
+            <form action={signOut}>
+              <Button type="submit">Sign out</Button>
+            </form>
+          ) : (
+            <RightGroup>
+              {/* Never marked active: signed out, "Sign in" is the only
+                  destination, so highlighting it carries no information. */}
+              <NavLink href="/sign-in" $active={false}>
+                Sign in
+              </NavLink>
+              <PillLink href="/sign-up">Get started</PillLink>
+            </RightGroup>
+          )}
+        </RightZone>
+
+        <MenuButton
+          ref={menuButtonRef}
+          type="button"
+          aria-label={menuOpen ? "Close menu" : "Open menu"}
+          aria-expanded={menuOpen}
+          aria-controls="mobile-nav"
+          onClick={() => setMenuOpen((open) => !open)}
+        >
+          <HamburgerIcon open={menuOpen} />
+        </MenuButton>
+
+        {menuOpen && (
+          <Drawer id="mobile-nav">
+            {items.map((item) => (
+              <DrawerLink
+                key={item.href}
+                href={item.href}
+                $active={isCurrent(pathname, item.href)}
+                onClick={() => setMenuOpen(false)}
+              >
+                {item.label}
+              </DrawerLink>
+            ))}
+
+            <DrawerActions>
+              {signedIn ? (
+                <form action={signOut}>
+                  <Button type="submit">Sign out</Button>
+                </form>
+              ) : (
+                <>
+                  <PillLink href="/sign-up" onClick={() => setMenuOpen(false)}>
+                    Get started
+                  </PillLink>
+                  {/* Not marked active, matching the inline nav above. */}
+                  <NavLink
+                    href="/sign-in"
+                    $active={false}
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Sign in
+                  </NavLink>
+                </>
+              )}
+            </DrawerActions>
+          </Drawer>
+        )}
+      </Inner>
     </Bar>
   );
 }

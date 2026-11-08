@@ -17,6 +17,10 @@ export const Inside = styled.section`
   ${({ theme }) => css`
     padding: ${theme.spacing.lg} 0 ${theme.spacing["3xl"]};
     border-top: 3px solid ${theme.colors.ink};
+
+    > h2 {
+      margin-bottom: ${theme.spacing.lg};
+    }
   `}
 `;
 
@@ -27,7 +31,6 @@ export const Lead = styled(Link)`
     grid-template-columns: minmax(240px, 1fr) minmax(0, 3fr);
     gap: ${theme.spacing["2xl"]};
     align-items: start;
-    margin-top: ${theme.spacing.lg};
     padding: ${theme.spacing.xl} 0 ${theme.spacing["2xl"]};
     border-top: 1px solid ${theme.colors.ink};
     color: ${theme.colors.ink};
@@ -43,8 +46,14 @@ export const Lead = styled(Link)`
       text-underline-offset: 4px;
     }
 
+    /* Stacked, the picture leads, as it does in every other story. */
     @media (max-width: 860px) {
       grid-template-columns: 1fr;
+      gap: ${theme.spacing.lg};
+
+      > :last-child {
+        order: -1;
+      }
     }
   `}
 `;
