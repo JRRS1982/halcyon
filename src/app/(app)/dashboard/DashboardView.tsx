@@ -155,11 +155,20 @@ const Panels = styled.div`
 `;
 
 // The dedicated per-category panels sit side by side on wide screens and wrap
-// down to one column when there isn't room.
+// down to one column when there isn't room. Where two fit across, a lone last
+// panel takes the whole row rather than leaving half of it empty.
 const CategoryGrid = styled.div`
   display: grid;
   gap: ${({ theme }) => theme.spacing["2xl"]};
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+
+  @media (min-width: 700px) and (max-width: 1079px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+
+    > :last-child:nth-child(odd) {
+      grid-column: 1 / -1;
+    }
+  }
 `;
 
 // Each chart is a ruled section of the page, as a paper sets a chart under a
@@ -456,9 +465,9 @@ export function DashboardView({
           <Panel>
             <PanelTitle>Balance over time</PanelTitle>
             <PanelLead>
-              Assets (green) sit above zero and debts (red) below; hover a point
-              to see each category. The solid line is your net balance — total
-              assets minus what you owe.
+              Assets (green) sit above zero and debts (red) below; tap or hover
+              a point to see each category. The solid line is your net balance —
+              total assets minus what you owe.
             </PanelLead>
             {balanceData.length > 0 ? (
               <BalanceTrendChart

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Bar,
   CartesianGrid,
@@ -13,7 +14,15 @@ import {
 } from "recharts";
 import { useTheme } from "styled-components";
 import { ChartLegend } from "@/app/(app)/dashboard/ChartLegend";
+import {
+  AMOUNT_AXIS_WIDTH,
+  KEEP_SERIES_ORDER,
+  LABELLED_CHART_MARGIN,
+  MONTH_INTERVAL,
+  RATE_AXIS_WIDTH,
+} from "@/app/(app)/dashboard/chartGeometry";
 import { makeAmountTick } from "@/lib/charts/format";
+import { labelledMonths } from "@/lib/dashboard/netLabels";
 import type { CashFlowPoint } from "@/lib/dashboard/series";
 import { formatAmount, type NumberFormat } from "@/lib/settings/currency";
 import { theme } from "@/lib/theme";
@@ -49,6 +58,22 @@ export function CashFlowChart({
   // row of point labels said nothing at all.
   const fmtNet = makeAmountTick(currency);
 
+  // A chip per month only while each month's band is wider than the widest
+  // chip; on a phone they overlapped into an unreadable row.
+  const [width, setWidth] = useState(0);
+  const chipWidth = (net: number) => fmtNet(net).length * 6.6 + 10;
+  const widestChip = Math.max(0, ...data.map((d) => chipWidth(d.net)));
+  const plotWidth =
+    width -
+    LABELLED_CHART_MARGIN.left -
+    LABELLED_CHART_MARGIN.right -
+    AMOUNT_AXIS_WIDTH -
+    RATE_AXIS_WIDTH;
+  const labelled = labelledMonths(
+    data.map((d) => d.net),
+    { roomForAll: plotWidth / Math.max(1, data.length) >= widestChip + 6 },
+  );
+
   // Net figure marker above each net point: green when the month ran a surplus,
   // red when it ran a deficit. The exact value stays in the tooltip.
   const NetLabel = (props: {
@@ -58,14 +83,21 @@ export function CashFlowChart({
   }) => {
     const { x, y, index } = props;
     if (x == null || y == null || index == null) return <g />;
+    if (!labelled.has(index)) return <g />;
     const point = data[index];
     if (!point) return <g />;
     const net = point.net;
     const up = net >= 0;
     const text = fmtNet(net);
-    const cx = Number(x);
+    const w = chipWidth(net);
+    // Kept inside the plot: centred on the latest month, the chip ran over the
+    // savings-rate axis on the right.
+    const plotLeft = LABELLED_CHART_MARGIN.left + AMOUNT_AXIS_WIDTH;
+    const cx = Math.min(
+      Math.max(Number(x), plotLeft + w / 2),
+      plotLeft + plotWidth - w / 2,
+    );
     const cy = Number(y) - 10;
-    const w = text.length * 6.6 + 10;
     // Chip background so the marker stays legible over the bars behind it.
     return (
       <g>
@@ -94,21 +126,23 @@ export function CashFlowChart({
   };
 
   return (
-    <ResponsiveContainer width="100%" height={320}>
-      <ComposedChart
-        data={data}
-        margin={{ top: 28, right: 16, bottom: 0, left: 8 }}
-      >
+    <ResponsiveContainer
+      width="100%"
+      height={320}
+      onResize={(w) => setWidth(w)}
+    >
+      <ComposedChart data={data} margin={LABELLED_CHART_MARGIN}>
         <CartesianGrid stroke={theme.colors.hairline} vertical={false} />
         <XAxis
           dataKey="month"
+          interval={MONTH_INTERVAL}
           tick={{ fontSize: 11, fill: theme.colors.body }}
           tickLine={false}
           axisLine={{ stroke: theme.colors.hairline }}
         />
         <YAxis
           yAxisId="amount"
-          width={64}
+          width={AMOUNT_AXIS_WIDTH}
           tick={{ fontSize: 11, fill: theme.colors.body }}
           tickLine={false}
           axisLine={false}
@@ -117,13 +151,14 @@ export function CashFlowChart({
         <YAxis
           yAxisId="rate"
           orientation="right"
-          width={48}
+          width={RATE_AXIS_WIDTH}
           tick={{ fontSize: 11, fill: theme.colors.dim }}
           tickLine={false}
           axisLine={false}
           tickFormatter={(v: number) => `${Math.round(v)}%`}
         />
         <Tooltip
+          itemSorter={KEEP_SERIES_ORDER}
           formatter={(value, name) =>
             name === SAVINGS_RATE_NAME
               ? [`${Number(value).toFixed(0)}%`, name]
@@ -135,7 +170,11 @@ export function CashFlowChart({
             fontSize: 12,
           }}
         />
-        <Legend wrapperStyle={{ fontSize: 12 }} content={<ChartLegend />} />
+        <Legend
+          wrapperStyle={{ fontSize: 12 }}
+          itemSorter={null}
+          content={<ChartLegend />}
+        />
         <Bar
           yAxisId="amount"
           dataKey="income"

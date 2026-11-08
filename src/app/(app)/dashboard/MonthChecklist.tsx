@@ -26,6 +26,7 @@ const Items = styled.ul`
 
   @media (max-width: 767px) {
     flex-direction: column;
+    gap: 0;
   }
 `;
 
@@ -62,6 +63,13 @@ const DoneLabel = styled.span`
 const TodoLink = styled(Link)`
   color: ${({ theme }) => theme.colors.accent};
   text-decoration: none;
+
+  /* A full-height row to tap on a phone, where the list stacks. */
+  @media (max-width: 767px) {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
 
   &:hover {
     text-decoration: underline;

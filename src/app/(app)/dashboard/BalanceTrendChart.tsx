@@ -11,6 +11,12 @@ import {
   YAxis,
 } from "recharts";
 import { useTheme } from "styled-components";
+import {
+  AMOUNT_AXIS_WIDTH,
+  LABELLED_CHART_MARGIN,
+  LINE_X_PADDING,
+  MONTH_INTERVAL,
+} from "@/app/(app)/dashboard/chartGeometry";
 import { amountAxis, makeAmountTick, niceStep } from "@/lib/charts/format";
 import type { BalancePoint } from "@/lib/dashboard/series";
 import { formatAmount, type NumberFormat } from "@/lib/settings/currency";
@@ -187,19 +193,18 @@ export function BalanceTrendChart({
 
   return (
     <ResponsiveContainer width="100%" height={320}>
-      <LineChart
-        data={data}
-        margin={{ top: 28, right: 16, bottom: 0, left: 8 }}
-      >
+      <LineChart data={data} margin={LABELLED_CHART_MARGIN}>
         <CartesianGrid stroke={theme.colors.hairline} vertical={false} />
         <XAxis
           dataKey="month"
+          interval={MONTH_INTERVAL}
+          padding={LINE_X_PADDING}
           tick={{ fontSize: 11, fill: theme.colors.body }}
           tickLine={false}
           axisLine={{ stroke: theme.colors.hairline }}
         />
         <YAxis
-          width={64}
+          width={AMOUNT_AXIS_WIDTH}
           tick={{ fontSize: 11, fill: theme.colors.body }}
           tickLine={false}
           axisLine={false}
