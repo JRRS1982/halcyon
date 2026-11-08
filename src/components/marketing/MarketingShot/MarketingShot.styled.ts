@@ -1,12 +1,23 @@
 import styled, { css } from "styled-components";
 
-export const Frame = styled.div`
-  ${({ theme }) => css`
+// The shape is a CSS aspect ratio; a phone variant takes its own below 761px.
+export const Frame = styled.div<{ $aspect?: string; $phoneAspect?: string }>`
+  ${({ theme, $aspect, $phoneAspect }) => css`
     position: relative;
     width: 100%;
     background: ${theme.colors.canvasSoft};
     border: 1px solid ${theme.colors.hairlineStrong};
     overflow: hidden;
+    ${$aspect && `aspect-ratio: ${$aspect};`}
+
+    ${
+      $phoneAspect &&
+      css`
+      @media (max-width: 760px) {
+        aspect-ratio: ${$phoneAspect};
+      }
+    `
+    }
   `}
 `;
 

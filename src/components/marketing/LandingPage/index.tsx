@@ -46,6 +46,7 @@ export function LandingPage() {
                   alt=""
                   label={dashboard.name}
                   aspect={dashboard.picture.aspect}
+                  phone={dashboard.picture.phone}
                   sizes="(max-width: 860px) 100vw, 900px"
                 />
               </Lead>

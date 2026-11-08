@@ -558,7 +558,7 @@ The public site is a financial paper: articles, each one a link to the next leve
 - **Stories** are whole-card links: picture, 26px serif headline 16px below it, two-sentence teaser, and the one-word name of where it goes in claret. Every story picture sits in the same 2:1 frame, cropped from the top, so pictures side by side share a height and their headlines line up; an article page shows the plate whole. Stacked on a phone, the dashboard lead puts its picture first like the rest. Columns are divided by hairlines; each story is ruled off above.
 - **Article pages** (`/features/<slug>`) use one template: headline and standfirst across the page, then a 720px column of ruled sections with pictures and italic captions, "The small print" as ruled briefs in three columns, and the way in. The content is plain data (`src/lib/editorial/features.ts`), so a future blog can reuse the template.
 - **Navigation labels are one word:** Features and Guide in the signed-out bar; the footer's Features, Guide, Engineering, Design, Terms, Privacy, Cookies.
-- **Pictures are plates,** never whole-app screenshots: a crop of one region of a screen, captured at 2x so its text is legible where it is shown, with a separate phone plate for the lead.
+- **Pictures are plates,** never whole-app screenshots: a crop of one region of a screen, captured at 2x so its text is legible where it is shown, with a phone plate beside each one: the same section as a phone renders it, swapped in below 761px and shown whole, so a phone downloads only the plate it can read.
 
 ### Forms and Inputs
 
