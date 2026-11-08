@@ -12,7 +12,7 @@ const List = styled.ul<{ $vertical: boolean }>`
   display: flex;
   flex-direction: ${({ $vertical }) => ($vertical ? "column" : "row")};
   flex-wrap: wrap;
-  justify-content: ${({ $vertical }) => ($vertical ? "flex-start" : "center")};
+  justify-content: flex-start;
   gap: ${({ $vertical }) => ($vertical ? "4px" : "4px 16px")};
   list-style: none;
   margin: 0;

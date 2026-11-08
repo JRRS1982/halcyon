@@ -550,6 +550,15 @@ The plan opens with a verdict banner between a 2px ink rule and a 1px one: a sta
 
 Dashboard chart panels, settings sections and plan sections each open with a 1px ink rule and a 20px serif head, with 16px above the content and 20px below. No card, no fill, no shadow.
 
+Dashboard charts read as one column, so they share their geometry (`dashboard/chartGeometry.ts`):
+
+- **One amount-axis gutter** (56px) on every chart, so the plots stacked down a phone start on the same line.
+- **Round gridlines.** Every amount axis steps 1, 2 or 5 × a power of ten. A per-category axis is fitted to the user's figures padded by a tenth of their size, so a small move on a large balance stays small.
+- **Months evenly spaced,** always keeping the latest. Line charts keep their first and last points off the axis ends.
+- **Legends and tooltips in series order** (Actual, Budget, 6-month avg; Income, Expense, Net, Savings rate), and legends left-aligned under the plot, not centred.
+- **Point labels only where they fit.** The cash-flow chart labels every month's surplus while each month's band is wider than its widest chip; on a phone it labels the latest, best and worst months. Chips stay inside the plot. Every value is a tap away in the tooltip.
+- Where two panels fit across, a lone last panel takes the whole row.
+
 ### The Front Page and Articles
 
 The public site is a financial paper: articles, each one a link to the next level of detail.
