@@ -19,7 +19,11 @@ export default function MarketingLayout({
 }) {
   return (
     <>
-      <NavBar signedIn={false} transactionsEnabled={false} />
+      <NavBar
+        signedIn={false}
+        transactionsEnabled={false}
+        planEnabled={false}
+      />
       <div className="app-content" id="main-content" tabIndex={-1}>
         {children}
       </div>

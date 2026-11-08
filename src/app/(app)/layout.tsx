@@ -24,9 +24,8 @@ export default async function AppLayout({
   // the very first paint: deciding it on the client would mean rendering light,
   // hydrating, then repainting dark — the flash every dark-mode implementation
   // is judged by.
-  const { transactionsEnabled, themePreference } = await getLayoutSettings(
-    user?.id,
-  );
+  const { transactionsEnabled, planEnabled, themePreference } =
+    await getLayoutSettings(user?.id);
   const theme = themeAttribute(themePreference);
 
   // The scheme sits on a wrapper rather than on <html>, because <html> belongs
@@ -43,7 +42,11 @@ export default async function AppLayout({
       data-theme={theme}
       style={theme ? { colorScheme: theme } : undefined}
     >
-      <NavBar signedIn={!!user} transactionsEnabled={transactionsEnabled} />
+      <NavBar
+        signedIn={!!user}
+        transactionsEnabled={transactionsEnabled}
+        planEnabled={planEnabled}
+      />
       {/* tabIndex -1 makes the skip link's target programmatically focusable,
           so the jump moves focus rather than only scrolling. */}
       <div className="app-content" id="main-content" tabIndex={-1}>

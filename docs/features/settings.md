@@ -4,7 +4,7 @@
 **Route:** `/settings`  
 **Key points:**
 - Preferences: currency, number format, theme — saved to `UserSettings`
-- Feature toggles: Transactions (hides the nav item and page) and Transfers and saving (gates the ledger's Transfer option). There is no Plan toggle.
+- Feature toggles: Transactions (hides the nav item and page) and Transfers and saving (gates the ledger's Transfer option), and Show Plan (hides the nav item and page).
 - Category management: create, edit, soft-delete, merge (merge repoints transactions and budget rows, then soft-deletes the source)
 - Change password: shown only to accounts that sign in with a password
 - Data privacy actions (export, clear, reset, delete account) all require step-up re-authentication: a password, or a one-time emailed code for an account that has none
@@ -46,8 +46,9 @@ See [accounts.md](accounts.md). `AccountManager.tsx` renames an account, toggles
 |--------|----------------------|--------------|
 | Track transactions | `transactionsEnabled` | Hides the Transactions nav item and page; budget actuals are then typed by hand instead of summed from transactions |
 | Transfers and saving | `transfersEnabled` | Shows the Transfers option in the ledger's category picker and filter drawer. The switch is disabled while Transactions is off |
+| Show Plan | `planEnabled` | The Plan nav item, and `/plan` itself, which redirects to `/dashboard` while it is off. On by default. Nothing is deleted: switched back on, the plan is as it was |
 
-Track transactions opens a confirm dialog that says what the change does; the switch moves at once, Confirm persists it and Cancel moves it back. Transfers and saving persists the moment it is switched. There is no Plan toggle: the Plan tab is always visible.
+Track transactions opens a confirm dialog that says what the change does; the switch moves at once, Confirm persists it and Cancel moves it back. Transfers and saving and Show Plan persist the moment they are switched. Only the `/plan` page is gated, not the plan's server actions: hiding Plan is a preference about what the menus show, not a permission, and the plan's data is the user's own either way.
 
 The budget page does not read `transfersEnabled`. TRANSFER and REPAYMENT budget rows show regardless; see [budget-transfers.md](budget-transfers.md).
 

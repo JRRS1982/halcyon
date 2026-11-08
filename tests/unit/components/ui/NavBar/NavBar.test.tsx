@@ -11,10 +11,17 @@ jest.mock("next/navigation", () => ({
 }));
 jest.mock("@/app/actions", () => ({ signOut: jest.fn() }));
 
-const renderit = (props: { signedIn: boolean; transactionsEnabled: boolean }) =>
+const renderit = ({
+  planEnabled = true,
+  ...props
+}: {
+  signedIn: boolean;
+  transactionsEnabled: boolean;
+  planEnabled?: boolean;
+}) =>
   render(
     <ThemeProvider theme={theme}>
-      <NavBar {...props} />
+      <NavBar {...props} planEnabled={planEnabled} />
     </ThemeProvider>,
   );
 
@@ -91,6 +98,23 @@ describe("NavBar", () => {
       "href",
       "/transactions",
     );
+  });
+
+  // Planning is the upsell, so Plan shows until someone switches it off; then
+  // it leaves the menu entirely rather than lingering as a dead end.
+  test("signed-in shows Plan unless it is switched off", () => {
+    mockPathname = "/dashboard";
+    const { unmount } = renderit({ signedIn: true, transactionsEnabled: true });
+    expect(screen.getByRole("link", { name: /^plan$/i })).toHaveAttribute(
+      "href",
+      "/plan",
+    );
+    unmount();
+
+    renderit({ signedIn: true, transactionsEnabled: true, planEnabled: false });
+    expect(
+      screen.queryByRole("link", { name: /^plan$/i }),
+    ).not.toBeInTheDocument();
   });
 
   test("signed-in shows app links without 'Home' and a Sign out button", () => {

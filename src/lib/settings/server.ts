@@ -149,6 +149,7 @@ export const getCurrentUserSettings = cache(
     numberFormat: NumberFormat;
     transactionsEnabled: boolean;
     transfersEnabled: boolean;
+    planEnabled: boolean;
     hiddenCharts: string[];
     themePreference: ThemePreference;
     monthlyReminderEnabled: boolean;
@@ -169,6 +170,7 @@ export const getCurrentUserSettings = cache(
         : DEFAULT_NUMBER_FORMAT,
       transactionsEnabled: row.transactionsEnabled,
       transfersEnabled: row.transfersEnabled,
+      planEnabled: row.planEnabled,
       hiddenCharts: row.hiddenCharts,
       themePreference: isThemePreference(row.themePreference)
         ? row.themePreference
@@ -217,11 +219,13 @@ export async function isTransactionsEnabled(userId: string): Promise<boolean> {
  */
 export async function getLayoutSettings(userId: string | undefined): Promise<{
   transactionsEnabled: boolean;
+  planEnabled: boolean;
   themePreference: ThemePreference;
 }> {
   if (!userId)
     return {
       transactionsEnabled: false,
+      planEnabled: false,
       themePreference: DEFAULT_THEME_PREFERENCE,
     };
 
@@ -236,11 +240,13 @@ export async function getLayoutSettings(userId: string | undefined): Promise<{
       where: { userId },
       select: {
         transactionsEnabled: true,
+        planEnabled: true,
         themePreference: true,
       },
     })) ?? (await provisionUserSettings(userId));
   return {
     transactionsEnabled: row?.transactionsEnabled ?? false,
+    planEnabled: row?.planEnabled ?? true,
     themePreference: isThemePreference(row?.themePreference)
       ? row.themePreference
       : DEFAULT_THEME_PREFERENCE,
