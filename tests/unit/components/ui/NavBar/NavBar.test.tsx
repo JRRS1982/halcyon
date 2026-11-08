@@ -119,9 +119,9 @@ describe("NavBar", () => {
       transactionsEnabled: true,
     });
 
-    const hrefs = [...container.querySelectorAll("nav > div > div:first-of-type a")].map((a) =>
-      a.getAttribute("href"),
-    );
+    const hrefs = [
+      ...container.querySelectorAll("nav > div > div:first-of-type a"),
+    ].map((a) => a.getAttribute("href"));
 
     expect(hrefs).toEqual([
       "/guide",
@@ -141,9 +141,9 @@ describe("NavBar", () => {
       transactionsEnabled: false,
     });
 
-    const hrefs = [...container.querySelectorAll("nav > div > div:first-of-type a")].map((a) =>
-      a.getAttribute("href"),
-    );
+    const hrefs = [
+      ...container.querySelectorAll("nav > div > div:first-of-type a"),
+    ].map((a) => a.getAttribute("href"));
 
     expect(hrefs).toEqual([
       "/guide",

@@ -348,6 +348,17 @@ Sizes outside the tokens, each used in one role:
 - **17px sans** for the standfirst under a page headline, capped at 720px wide.
 - **16px serif** for sheet subhead rows (Fixed, Variable, Discretionary).
 - **15px sans** semibold for nav links, and regular for brief notes.
+
+The public pages (front page, features, articles) set larger, as a paper's front page does. These sizes live in `src/components/editorial/Editorial.styled.ts` and are used nowhere in the app:
+
+- **38–64px serif** (fluid, `clamp(38px, 4.8vw, 64px)`), line height 1.04, for the front-page and article headline.
+- **26–36px serif** (fluid) for section heads ("Inside", "More").
+- **26px serif** for story headlines.
+- **20px sans** (18px on a phone), line height 1.45, for the editorial standfirst, capped at 60ch.
+- **16px sans**, line height 1.6, for story teasers, and for the call-to-action links at 44px tall.
+- **14px serif italic** for picture captions; **14px sans** for the trust line under the actions.
+
+Headlines use `text-wrap: balance`; standfirsts, teasers, captions and the trust line use `text-wrap: pretty`, so no line ends on a lone word at any width.
 - **13px sans** for table column heads (semibold), deltas, share-of-spend percentages and dense UI.
 
 ### Figures
@@ -484,7 +495,7 @@ Two tiers on a paper ground, sticky to the top. The upper tier is the "Balanced 
 
 ### Footer
 
-One ruled line: a 1px ink rule above, "Balanced Money" in 13px dim, then links in 14px ink (Guide, Design, Engineering, Privacy, Cookies, Terms) that turn claret and underline on hover.
+One ruled line: a 1px ink rule above, "Balanced Money" in 13px dim, then links in 14px ink (Features, Guide, Design, Engineering, Privacy, Cookies, Terms) that turn claret and underline on hover. On a phone each link is a 44px-tall target and the wrapped rows close up, so the footer stays short. The public pages' footer stacks its links in two columns, each a 44px row on a phone.
 
 ### Page Header
 
@@ -543,7 +554,7 @@ Dashboard chart panels, settings sections and plan sections each open with a 1px
 
 The public site is a financial paper: articles, each one a link to the next level of detail.
 
-- **Front page:** the lead article only says what Balanced is: the h1, a standfirst naming it as a monthly check-in for your household's money, Get started and Sign in at 44px, a trust line worded as a lasting value (you choose what goes in, export or delete any time), and the lead picture with an italic caption. Below, an "Inside" section (the dashboard's chart story across the page, then four feature stories in two columns) and a "More" row of three (Settings, the guide, the engineering tour). No sample figures, no in-page jump links.
+- **Front page:** the lead article only says what Balanced is: the h1, a standfirst that leads with the spender's payoff (bring in a statement, see where your money went) and offers the budget, savings and plan as what comes next, Get started and Sign in at 44px, a trust line worded as a lasting value (you choose what goes in, export or delete any time), and the lead picture with an italic caption. Below, an "Inside" section (the dashboard's chart story across the page, then four feature stories in two columns) and a "More" row of three (Settings, the guide, the engineering tour). No sample figures, no in-page jump links.
 - **Stories** are whole-card links: picture, 26px serif headline, two-sentence teaser, and the one-word name of where it goes in claret. Columns are divided by hairlines; each story is ruled off above.
 - **Article pages** (`/features/<slug>`) use one template: headline and standfirst across the page, then a 720px column of ruled sections with pictures and italic captions, "The small print" as ruled briefs in three columns, and the way in. The content is plain data (`src/lib/editorial/features.ts`), so a future blog can reuse the template.
 - **Navigation labels are one word:** Features and Guide in the signed-out bar; the footer's Features, Guide, Engineering, Design, Terms, Privacy, Cookies.

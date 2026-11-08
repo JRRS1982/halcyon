@@ -16,8 +16,7 @@ export function MarketingFooter() {
           <div>
             <Brand>Balanced Money</Brand>
             <Blurb>
-              Personal finance, made clear. Track what you have, understand
-              where it goes.
+              See where your money went, then plan where it goes next.
             </Blurb>
           </div>
           <div>

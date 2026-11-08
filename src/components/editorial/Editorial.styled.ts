@@ -31,6 +31,7 @@ export const Headline = styled.h1`
 
 export const Standfirst = styled.p`
   ${({ theme }) => css`
+    text-wrap: pretty;
     font-size: 20px;
     line-height: 1.45;
     color: ${theme.colors.body};
@@ -69,6 +70,7 @@ export const Caption = styled.figcaption`
     font-style: italic;
     font-size: 14px;
     line-height: 1.4;
+    text-wrap: pretty;
     color: ${theme.colors.body};
     margin-top: ${theme.spacing.sm};
   `}
@@ -118,6 +120,7 @@ export const OutlineLink = styled(Link)`
 
 export const Trust = styled.p`
   ${({ theme }) => css`
+    text-wrap: pretty;
     font-size: 14px;
     line-height: 1.5;
     color: ${theme.colors.body};
@@ -200,6 +203,7 @@ export const StoryTitle = styled.h3`
 
 export const StoryText = styled.p`
   ${({ theme }) => css`
+    text-wrap: pretty;
     font-size: 16px;
     line-height: 1.6;
     color: ${theme.colors.body};

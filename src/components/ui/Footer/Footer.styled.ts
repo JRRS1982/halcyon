@@ -13,10 +13,14 @@ export const FooterRow = styled.div`
   padding: ${({ theme }) => theme.spacing["2xl"]};
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: ${({ theme }) => theme.spacing["2xl"]};
 
+  /* Links become 44px targets on a phone; the row gap closes up so the
+     wrapped rows do not double the footer's height. */
   @media (max-width: 767px) {
-    padding: ${({ theme }) => theme.spacing.xl} ${({ theme }) => theme.spacing.lg};
+    padding: ${({ theme }) => theme.spacing.md} ${({ theme }) => theme.spacing.lg};
+    gap: 0 ${({ theme }) => theme.spacing.xl};
   }
 `;
 
@@ -26,6 +30,12 @@ export const FooterLink = styled(Link)`
   font-weight: 500;
   color: ${({ theme }) => theme.colors.ink};
   text-decoration: none;
+
+  @media (max-width: 767px) {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
 
   &:hover {
     color: ${({ theme }) => theme.colors.accent};

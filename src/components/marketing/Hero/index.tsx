@@ -42,9 +42,9 @@ export function Hero() {
       <div>
         <Headline>Make sense of your money.</Headline>
         <Standfirst>
-          Balanced Money is a monthly check-in for your household&apos;s money.
-          Bring in your bank statement, see where it went, watch your savings
-          and net worth grow, and plan for your future.
+          Bring in your bank statement and see where your money went, category
+          by category. When you want more, set a budget, track your savings and
+          plan ahead.
         </Standfirst>
         <CtaRow>
           <PrimaryLink href="/sign-up">Get started</PrimaryLink>

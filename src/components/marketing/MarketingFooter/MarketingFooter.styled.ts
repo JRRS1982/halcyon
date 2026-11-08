@@ -79,5 +79,14 @@ export const FootLink = styled(Link)`
     color: ${theme.colors.ink};
     text-decoration: none;
     margin-bottom: ${theme.spacing.sm};
+
+    /* A full 44px row per link on a phone, so a thumb cannot land between
+       two of them; the rows touch, so the margin goes. */
+    @media (max-width: 760px) {
+      display: flex;
+      align-items: center;
+      min-height: 44px;
+      margin-bottom: 0;
+    }
   `}
 `;

@@ -7,8 +7,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Balanced Money",
     short_name: "Balanced",
-    description:
-      "Personal finance, made clear. Track what you have, understand where it goes.",
+    description: "See where your money went, then plan where it goes next.",
     start_url: "/",
     display: "standalone",
     background_color: "#FCEEE2",
