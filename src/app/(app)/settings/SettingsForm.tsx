@@ -19,6 +19,7 @@ import {
   setMonthlyReminderDay,
   setThemePreference,
   toggleMonthlyReminder,
+  togglePlan,
   toggleTransactions,
   toggleTransfers,
 } from "./actions";
@@ -233,6 +234,7 @@ export function SettingsForm({
   numberFormatOptions,
   transactionsEnabled,
   transfersEnabled,
+  planEnabled,
   themePreference,
   monthlyReminderEnabled,
   monthlyReminderDay,
@@ -244,6 +246,7 @@ export function SettingsForm({
   numberFormatOptions: SelectOption[];
   transactionsEnabled: boolean;
   transfersEnabled: boolean;
+  planEnabled: boolean;
   themePreference: ThemePreference;
   monthlyReminderEnabled: boolean;
   monthlyReminderDay: number;
@@ -306,6 +309,18 @@ export function SettingsForm({
     setTransfersOn(next);
     startTransfers(async () => {
       await toggleTransfers(next);
+      router.refresh();
+    });
+  };
+
+  // Hiding Plan deletes nothing, so like transfers it persists at once, with
+  // no confirm dialog.
+  const [planOn, setPlanOn] = useState(planEnabled);
+  const [planPending, startPlan] = useTransition();
+  const onTogglePlan = (next: boolean) => {
+    setPlanOn(next);
+    startPlan(async () => {
+      await togglePlan(next);
       router.refresh();
     });
   };
@@ -464,6 +479,30 @@ export function SettingsForm({
               checked={transfersOn}
               disabled={transfersPending || !enabled}
               onChange={(event) => onToggleTransfers(event.target.checked)}
+            />
+            <SwitchTrack />
+          </SwitchControl>
+        </ToggleField>
+      </SettingsCard>
+
+      <SettingsCard>
+        <SectionHeading>Plan</SectionHeading>
+        <ToggleField>
+          <ToggleText>
+            <FieldLabel>Show Plan</FieldLabel>
+            <FieldHint>
+              Your accounts and budget projected forward, to see whether the
+              money lasts. Switched off, Plan leaves the menus and your plan is
+              kept until you switch it back on.
+            </FieldHint>
+          </ToggleText>
+          <SwitchControl>
+            <SwitchInput
+              type="checkbox"
+              aria-label="Show Plan"
+              checked={planOn}
+              disabled={planPending}
+              onChange={(event) => onTogglePlan(event.target.checked)}
             />
             <SwitchTrack />
           </SwitchControl>

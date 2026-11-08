@@ -81,6 +81,18 @@ export async function toggleTransactions(enabled: boolean) {
   revalidatePath("/", "layout");
 }
 
+// Shows or hides Plan. Nothing is deleted: switched back on, the plan is as it
+// was. The nav link lives in the layout, so the whole layout revalidates.
+export async function togglePlan(enabled: boolean) {
+  const userId = await requireUserId("/settings");
+  await prisma.userSettings.upsert({
+    where: { userId },
+    update: { planEnabled: enabled },
+    create: { userId, planEnabled: enabled },
+  });
+  revalidatePath("/", "layout");
+}
+
 // Flips the budget Transfers section on/off. Only affects the budget page's
 // rendering and the ledger's Transfer option, so revalidate those.
 export async function toggleTransfers(enabled: boolean) {

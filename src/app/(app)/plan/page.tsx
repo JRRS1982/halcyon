@@ -21,10 +21,14 @@ export default async function PlanPage() {
   // to Supabase Auth) before its own query, which used to wait behind the
   // settings read for no reason. getCurrentUser above stays sequential — it is
   // the gate both of these are behind, and it is memoised per request.
-  const [{ currency, numberFormat }, plan] = await Promise.all([
+  const [{ currency, numberFormat, planEnabled }, plan] = await Promise.all([
     getCurrentUserSettings(),
     getPrimaryPlan(),
   ]);
+
+  // Switched off in Settings, Plan is hidden rather than locked: the menus drop
+  // it, and an old bookmark lands on the dashboard, as /transactions does.
+  if (!planEnabled) redirect("/dashboard");
 
   if (!plan) {
     return <CreatePlanForm />;

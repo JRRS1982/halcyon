@@ -4,6 +4,7 @@ import {
   setMonthlyReminderDay,
   setThemePreference,
   toggleMonthlyReminder,
+  togglePlan,
   toggleTransfers,
   updateSettings,
 } from "@/app/(app)/settings/actions";
@@ -75,6 +76,16 @@ describe("settings actions (integration)", () => {
     await toggleTransfers(false);
 
     expect((await settings()).transfersEnabled).toBe(false);
+  });
+
+  // Hiding Plan is a preference, not a delete: the plan must survive the
+  // round trip so switching back on finds it as it was.
+  test("hides Plan and brings it back without touching the plan", async () => {
+    await togglePlan(false);
+    expect((await settings()).planEnabled).toBe(false);
+
+    await togglePlan(true);
+    expect((await settings()).planEnabled).toBe(true);
   });
 
   describe("theme", () => {

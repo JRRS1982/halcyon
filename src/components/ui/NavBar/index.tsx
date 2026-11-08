@@ -22,6 +22,7 @@ import {
 type NavBarProps = {
   signedIn: boolean;
   transactionsEnabled: boolean;
+  planEnabled: boolean;
 };
 
 type NavItem = { href: string; label: string };
@@ -39,7 +40,7 @@ type NavItem = { href: string; label: string };
 // so a Home tab would only ever point at a redirect.
 type NavEntry = NavItem & {
   /** Optional entries appear only when their feature is switched on. */
-  requires?: "transactions";
+  requires?: "transactions" | "plan";
 };
 
 const SIGNED_IN_ITEMS: NavEntry[] = [
@@ -48,7 +49,7 @@ const SIGNED_IN_ITEMS: NavEntry[] = [
   { href: "/budget", label: "Budget" },
   { href: "/balance", label: "Balance" },
   { href: "/dashboard", label: "Dashboard" },
-  { href: "/plan", label: "Plan" },
+  { href: "/plan", label: "Plan", requires: "plan" },
   { href: "/settings", label: "Settings" },
 ];
 
@@ -101,7 +102,11 @@ function HamburgerIcon({ open }: { open: boolean }) {
 const isCurrent = (pathname: string, href: string) =>
   pathname === href || pathname.startsWith(`${href}/`);
 
-export function NavBar({ signedIn, transactionsEnabled }: NavBarProps) {
+export function NavBar({
+  signedIn,
+  transactionsEnabled,
+  planEnabled,
+}: NavBarProps) {
   const pathname = usePathname();
   // Signed out, the auth pages drop the links, leaving the brand. The signed-in
   // bar keeps its Guide entry everywhere: it is primary navigation.
@@ -111,7 +116,7 @@ export function NavBar({ signedIn, transactionsEnabled }: NavBarProps) {
 
   // Filtered rather than spliced, so the declared order above is the order
   // rendered and switching a feature on drops it into place.
-  const enabled = { transactions: transactionsEnabled };
+  const enabled = { transactions: transactionsEnabled, plan: planEnabled };
   const items: NavItem[] = signedIn
     ? SIGNED_IN_ITEMS.filter((item) => !item.requires || enabled[item.requires])
     : isBareNav

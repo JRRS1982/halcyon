@@ -38,6 +38,7 @@ export default async function SettingsPage() {
     numberFormat,
     transactionsEnabled,
     transfersEnabled,
+    planEnabled,
     hiddenCharts,
     themePreference,
     monthlyReminderEnabled,
@@ -171,6 +172,7 @@ export default async function SettingsPage() {
         numberFormatOptions={numberFormatOptions}
         transactionsEnabled={transactionsEnabled}
         transfersEnabled={transfersEnabled}
+        planEnabled={planEnabled}
         themePreference={themePreference}
         monthlyReminderEnabled={monthlyReminderEnabled}
         monthlyReminderDay={monthlyReminderDay}
