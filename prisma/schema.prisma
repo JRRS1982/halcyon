@@ -61,6 +61,10 @@ model UserSettings {
   // moved between your own accounts is the first thing that misreads as income
   // or expense, so the section that nets it out should already be there.
   transfersEnabled    Boolean  @default(true)
+  // Defaults true: Plan is how the app grows from spending into the future,
+  // so a new user should meet it. Switching it off hides Plan from the menus
+  // for someone who only wants their spending or balances.
+  planEnabled         Boolean  @default(true)
   // Dashboard chart keys the user has switched off (empty = all shown).
   hiddenCharts        String[] @default([])
   // SYSTEM | LIGHT | DARK. Stored as text rather than an enum to match the
