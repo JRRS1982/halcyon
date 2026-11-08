@@ -4,7 +4,6 @@ import { ArticleList } from "@/components/editorial/ArticleList";
 import {
   More,
   SectionHead,
-  Stories,
   Story,
   StoryText,
   StoryTitle,
@@ -13,7 +12,7 @@ import { Hero } from "@/components/marketing/Hero";
 import { MarketingFooter } from "@/components/marketing/MarketingFooter";
 import { MarketingShot } from "@/components/marketing/MarketingShot";
 import { FEATURES, featureBySlug } from "@/lib/editorial/features";
-import { Container, Inside, Lead } from "./LandingPage.styled";
+import { Container, Inside, Lead, MoreStories } from "./LandingPage.styled";
 
 // The front page is articles and nothing else: the lead says what Balanced is
 // and offers the way in; every story below links to its own page, where the
@@ -59,7 +58,7 @@ export function LandingPage() {
 
           <Inside aria-labelledby="more-head">
             <SectionHead id="more-head">More</SectionHead>
-            <Stories $columns={3} data-columns="3">
+            <MoreStories $columns={3} data-columns="3">
               {settings && (
                 <Story href="/features/settings">
                   <StoryTitle>{settings.headline}</StoryTitle>
@@ -83,7 +82,7 @@ export function LandingPage() {
                 </StoryText>
                 <More>Engineering</More>
               </Story>
-            </Stories>
+            </MoreStories>
           </Inside>
         </Container>
       </main>

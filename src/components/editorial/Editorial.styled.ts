@@ -173,6 +173,11 @@ export const Story = styled(Link)`
       }
     }
 
+    /* A headline under a picture stands a step clear of it. */
+    > :is(h2, h3):not(:first-child) {
+      margin-top: ${theme.spacing.lg};
+    }
+
     &:hover :is(h2, h3),
     &:focus-visible :is(h2, h3) {
       text-decoration: underline;
