@@ -30,4 +30,23 @@ describe("MarketingShot", () => {
       screen.getByRole("img", { name: "Balanced dashboard" }),
     ).toBeInTheDocument();
   });
+
+  // A desktop plate at a phone's width is too small to read.
+  test("shows the phone plate on a phone and the desktop plate above 760px", () => {
+    const { container } = renderit({
+      src: "/marketing/plates/balance.png",
+      phone: {
+        src: "/marketing/plates/balance-phone.png",
+        aspect: "1170 / 960",
+      },
+      label: "Balance",
+      alt: "The balance sheet",
+    });
+    const img = screen.getByRole("img", { name: "The balance sheet" });
+    expect(img.getAttribute("src")).toContain("balance-phone.png");
+    const source = container.querySelector("source");
+    expect(source).toHaveAttribute("media", "(min-width: 761px)");
+    expect(source?.getAttribute("srcset")).toContain("balance.png");
+    expect(source?.getAttribute("srcset")).not.toContain("balance-phone.png");
+  });
 });

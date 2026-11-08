@@ -1,4 +1,4 @@
-import Image from "next/image";
+import Image, { getImageProps } from "next/image";
 import { Caption, Frame, Label, Placeholder } from "./MarketingShot.styled";
 
 type MarketingShotProps = {
@@ -26,7 +26,16 @@ type MarketingShotProps = {
   sizes?: string;
   /** Magnifies the crop around `position`, for a thumbnail of one detail. */
   zoom?: number;
+  /**
+   * The same section as a phone renders it. Below 761px it replaces `src`,
+   * shown whole in its own shape: a desktop plate shrunk to a phone's width
+   * is too small to read.
+   */
+  phone?: { src: string; aspect: string };
 };
+
+// Wide enough for the desktop plate, so a phone never downloads it.
+const DESKTOP = "(min-width: 761px)";
 
 export function MarketingShot({
   src,
@@ -38,9 +47,33 @@ export function MarketingShot({
   position = "top",
   sizes = "(max-width: 760px) 100vw, 50vw",
   zoom = 1,
+  phone,
 }: MarketingShotProps) {
+  if (src && phone) {
+    const wide = getImageProps({ alt, fill: true, src, sizes });
+    const narrow = getImageProps({
+      alt,
+      fill: true,
+      src: phone.src,
+      sizes: "100vw",
+      style: { objectFit: "cover", objectPosition: "top" },
+    });
+    return (
+      <Frame $aspect={aspect} $phoneAspect={phone.aspect}>
+        <picture>
+          <source
+            media={DESKTOP}
+            srcSet={wide.props.srcSet}
+            sizes={wide.props.sizes}
+          />
+          <img {...narrow.props} alt={alt} />
+        </picture>
+      </Frame>
+    );
+  }
+
   return (
-    <Frame style={{ aspectRatio: aspect }}>
+    <Frame $aspect={aspect}>
       {src ? (
         <Image
           src={src}
