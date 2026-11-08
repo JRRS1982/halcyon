@@ -34,8 +34,8 @@ Public name "Balanced Money" at balanced.money ("Balanced" in running prose); "H
 Real app screenshots ("plates") in public/marketing/plates/, shot from the demo account by scripts/capture-shots.mjs (Nov 2026): the budget lead (desktop and phone), budget share of spend, cash flow, transactions, balance, plan and settings. Light-mode captures only. No testimonials, user counts, press or pricing; do not fabricate any.
 
 ## Direction (owner, 8 Nov 2026)
-- **Learn**, eventually: short, clear, educational articles for people who neither understand nor care about money yet. What an ISA or a SIPP is, why and at what stage of life to pay into each, the platform, fund and activity fees providers charge and their impact on a retirement pot; financial independence in the spirit of Mr Money Mustache and the FIRE movement, with interactive graphs. The article template behind /features/<slug> is meant to be reused for this.
-- **Plan can be switched off:** a user who only wants spending, or only balances, should be able to hide Plan, and then it leaves the menus. Not built yet (Transactions already works this way).
+- **Learn**, eventually: short, clear, educational articles for people who neither understand nor care about money yet. What an ISA or a SIPP is, why and at what stage of life to pay into each, the platform, fund and activity fees providers charge and their impact on a retirement pot; financial independence and early retirement (FIRE): saving rate, compounding and the point where investments cover spending, with interactive graphs. Write it from first principles and name no individual authors or blogs. The article template behind /features/<slug> is meant to be reused for this.
+- **Plan can be switched off:** a user who only wants spending, or only balances, should be able to hide Plan, and then it leaves the menus. On by default: Plan is the upsell, so it stays visible. Not built yet (Transactions already works this way).
 
 ## Product Principles
 1. Numbers tell the truth: never invent a comparison, show ranges where the future is uncertain.
