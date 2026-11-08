@@ -1,6 +1,5 @@
 import Link from "next/link";
 import styled, { css } from "styled-components";
-import { Stories } from "@/components/editorial/Editorial.styled";
 
 // Constrains the page to the 1240px container with page gutters.
 export const Container = styled.div`
@@ -18,6 +17,10 @@ export const Inside = styled.section`
   ${({ theme }) => css`
     padding: ${theme.spacing.lg} 0 ${theme.spacing["3xl"]};
     border-top: 3px solid ${theme.colors.ink};
+
+    > h2 {
+      margin-bottom: ${theme.spacing.lg};
+    }
   `}
 `;
 
@@ -28,7 +31,6 @@ export const Lead = styled(Link)`
     grid-template-columns: minmax(240px, 1fr) minmax(0, 3fr);
     gap: ${theme.spacing["2xl"]};
     align-items: start;
-    margin-top: ${theme.spacing.lg};
     padding: ${theme.spacing.xl} 0 ${theme.spacing["2xl"]};
     border-top: 1px solid ${theme.colors.ink};
     color: ${theme.colors.ink};
@@ -54,9 +56,4 @@ export const Lead = styled(Link)`
       }
     }
   `}
-`;
-
-// The "More" row, set clear of its section head as the lead story is.
-export const MoreStories = styled(Stories)`
-  margin-top: ${({ theme }) => theme.spacing.lg};
 `;

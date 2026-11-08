@@ -15,16 +15,29 @@ import { Section, Shot } from "./Hero.styled";
 const alt =
   "The Balanced Money budget page for a sample October: the headline 'Spending came in £570 under plan, led by Holidays', the left-over figure, and notes on what ran over and what held";
 
-// Desktop and phone each get the plate legible at the size it is shown. One
-// <picture> lets the browser fetch only the plate that matches, and fetch it
-// first: it is the page's Largest Contentful Paint.
+// Desktop and phone each get the plate legible at the size it is shown, light
+// or dark to match the page. One <picture> lets the browser fetch only the
+// plate that matches, and fetch it first: it is the page's Largest Contentful
+// Paint. The OS scheme alone decides here: this page has no session, so no
+// stored preference can disagree with it.
+const DARK = "(prefers-color-scheme: dark)";
+const WIDE = "(min-width: 761px)";
+const wideProps = (src: string) =>
+  getImageProps({
+    alt,
+    fill: true,
+    src,
+    sizes: "(max-width: 1023px) 100vw, 680px",
+  }).props;
+const wide = wideProps("/marketing/plates/budget-lead.png");
+const wideDark = wideProps("/marketing/plates/budget-lead-dark.png");
 const {
-  props: { srcSet: wideSrcSet, sizes: wideSizes },
+  props: { srcSet: phoneDarkSrcSet },
 } = getImageProps({
   alt,
   fill: true,
-  src: "/marketing/plates/budget-lead.png",
-  sizes: "(max-width: 1023px) 100vw, 680px",
+  src: "/marketing/plates/budget-lead-phone-dark.png",
+  sizes: "420px",
 });
 const { props: phone } = getImageProps({
   alt,
@@ -60,10 +73,12 @@ export function Hero() {
         <Shot>
           <picture>
             <source
-              media="(min-width: 761px)"
-              srcSet={wideSrcSet}
-              sizes={wideSizes}
+              media={`${DARK} and ${WIDE}`}
+              srcSet={wideDark.srcSet}
+              sizes={wideDark.sizes}
             />
+            <source media={WIDE} srcSet={wide.srcSet} sizes={wide.sizes} />
+            <source media={DARK} srcSet={phoneDarkSrcSet} sizes="420px" />
             <img {...phone} alt={alt} />
           </picture>
         </Shot>

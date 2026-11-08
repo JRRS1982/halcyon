@@ -33,6 +33,7 @@ export function ArticleList({
             label={article.name}
             aspect={STORY_ASPECT}
             phone={article.picture.phone}
+            dark={article.picture.dark}
             sizes="(max-width: 860px) 100vw, 600px"
           />
           <StoryTitle as={titleLevel}>{article.headline}</StoryTitle>
