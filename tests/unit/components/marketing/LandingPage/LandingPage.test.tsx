@@ -22,7 +22,7 @@ describe("LandingPage", () => {
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/a monthly check-in for your household/i),
+      screen.getByText(/see where your money went, category by category/i),
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /get started/i })).toHaveAttribute(
       "href",

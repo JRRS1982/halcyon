@@ -181,4 +181,70 @@ await m.screenshot({
 });
 console.log("plate budget-lead-phone.png");
 
+// The story plates as a phone renders each screen: one short, legible section,
+// across the full width of the phone's main column.
+// Sections sit below the phone's fold, so this shoots the full page, measured
+// from the top (scrolled to 0, a bounding box is a page coordinate).
+async function shootPhone(file, from, to, { top = 0, bottom = 0 } = {}) {
+  await m.evaluate(() => window.scrollTo(0, 0));
+  const col = await m.locator("main").first().boundingBox();
+  const a = await from.boundingBox();
+  const b = await to.boundingBox();
+  await m.screenshot({
+    path: OUT + file,
+    fullPage: true,
+    clip: {
+      x: col.x,
+      y: a.y - top,
+      width: col.width,
+      height: b.y + b.height - a.y + top + bottom,
+    },
+  });
+  console.log("plate", file);
+}
+const phoneRow = (name) =>
+  m.getByRole("rowheader", { name: new RegExp(`^${name}`) }).first();
+
+// Expenses through Fixed to the first Variable line.
+await shootPhone(
+  "budget-share-phone.png",
+  phoneRow("Expenses"),
+  phoneRow("Groceries"),
+  { bottom: 2 },
+);
+
+await open(m, `/balance?ym=${ym}`);
+// The headline and its brief: what moved, legible at a glance.
+await shootPhone(
+  "balance-phone.png",
+  m.locator("main h1").first(),
+  m.locator('[aria-label="The month in brief"]').first(),
+  { top: 40, bottom: 12 },
+);
+
+await open(m, "/transactions");
+// The first three ledger lines: suggested categories in pencil, Approve beside.
+await shootPhone(
+  "transactions-phone.png",
+  m.locator("tbody tr").nth(0),
+  m.locator("tbody tr").nth(2),
+  { top: 8, bottom: 2 },
+);
+
+await open(m, "/plan");
+// The verdict: whether the money lasts, and the figures behind it.
+const verdict = m.locator("main section").first();
+await shootPhone("plan-phone.png", verdict, verdict, { top: 8, bottom: 8 });
+
+await open(m, "/dashboard");
+const phoneCashflow = m
+  .locator("section", {
+    has: m.getByRole("heading", { name: "Income vs expenses" }),
+  })
+  .first();
+await shootPhone("cashflow-phone.png", phoneCashflow, phoneCashflow, {
+  top: 8,
+  bottom: 8,
+});
+
 await browser.close();

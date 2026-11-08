@@ -12,8 +12,7 @@ const serif = Source_Serif_4({ subsets: ["latin"], variable: "--font-serif" });
 
 export const metadata: Metadata = {
   title: "Balanced Money",
-  description:
-    "Personal finance, made clear. Track what you have, understand where it goes.",
+  description: "See where your money went, then plan where it goes next.",
 };
 
 /**

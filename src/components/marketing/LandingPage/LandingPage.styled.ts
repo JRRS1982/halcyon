@@ -1,5 +1,6 @@
 import Link from "next/link";
 import styled, { css } from "styled-components";
+import { Stories } from "@/components/editorial/Editorial.styled";
 
 // Constrains the page to the 1240px container with page gutters.
 export const Container = styled.div`
@@ -43,8 +44,19 @@ export const Lead = styled(Link)`
       text-underline-offset: 4px;
     }
 
+    /* Stacked, the picture leads, as it does in every other story. */
     @media (max-width: 860px) {
       grid-template-columns: 1fr;
+      gap: ${theme.spacing.lg};
+
+      > :last-child {
+        order: -1;
+      }
     }
   `}
+`;
+
+// The "More" row, set clear of its section head as the lead story is.
+export const MoreStories = styled(Stories)`
+  margin-top: ${({ theme }) => theme.spacing.lg};
 `;

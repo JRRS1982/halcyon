@@ -13,6 +13,8 @@ export type Picture = {
   aspect: string;
   alt: string;
   caption?: string;
+  // The same section as a phone renders it, shown in its place below 761px.
+  phone?: { src: string; aspect: string };
 };
 
 export type ArticleSection = {
@@ -39,26 +41,40 @@ const plates = {
     src: "/marketing/plates/transactions.png",
     aspect: "2464 / 1834",
     alt: "The transactions page: '8 transactions to approve', the write-a-line box, and ledger rows whose suggested categories sit in pencil beside an Approve button",
+    phone: {
+      src: "/marketing/plates/transactions-phone.png",
+      aspect: "1170 / 957",
+    },
   },
   budgetLead: {
     src: "/marketing/plates/budget-lead.png",
     aspect: "2464 / 1736",
     alt: "The budget page for a sample October: the headline 'Spending came in £570 under plan, led by Holidays', the left-over figure and notes on what ran over and what held",
+    phone: {
+      src: "/marketing/plates/budget-lead-phone.png",
+      aspect: "1170 / 1536",
+    },
   },
   budgetShare: {
     src: "/marketing/plates/budget-share.png",
     aspect: "2464 / 1376",
     alt: "The budget's expenses: Fixed, Variable and Discretionary rows with how far each landed from budget and its share of the month's spending as a bar",
+    phone: {
+      src: "/marketing/plates/budget-share-phone.png",
+      aspect: "1170 / 1179",
+    },
   },
   balance: {
     src: "/marketing/plates/balance.png",
     aspect: "2464 / 1798",
     alt: "The balance sheet: 'Net worth rose £4,551 to £348,326', the biggest gain and drop, and every asset with its move since September",
+    phone: { src: "/marketing/plates/balance-phone.png", aspect: "1170 / 960" },
   },
   plan: {
     src: "/marketing/plates/plan.png",
     aspect: "2464 / 1190",
     alt: "The plan's net-worth forecast from age 44 to 95: assets stacked by kind, net worth rising to about £1m at retirement then holding, a widening band for how returns might vary, and the age the pots run out marked",
+    phone: { src: "/marketing/plates/plan-phone.png", aspect: "1170 / 900" },
   },
   settings: {
     src: "/marketing/plates/settings.png",
@@ -69,6 +85,10 @@ const plates = {
     src: "/marketing/plates/cashflow.png",
     aspect: "2464 / 672",
     alt: "The dashboard's cash-flow chart for a sample year: income and expense bars for each month, a net line, and the share of income kept, with August dipping to £754 short",
+    phone: {
+      src: "/marketing/plates/cashflow-phone.png",
+      aspect: "1170 / 1446",
+    },
   },
 } satisfies Record<string, Picture>;
 
