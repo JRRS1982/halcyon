@@ -15,6 +15,8 @@ export type Picture = {
   caption?: string;
   // The same section as a phone renders it, shown in its place below 761px.
   phone?: { src: string; aspect: string };
+  // The same plates shot in the dark scheme, shown whenever the page is dark.
+  dark?: { src: string; phone?: string };
 };
 
 export type ArticleSection = {
@@ -45,6 +47,10 @@ const plates = {
       src: "/marketing/plates/transactions-phone.png",
       aspect: "1170 / 957",
     },
+    dark: {
+      src: "/marketing/plates/transactions-dark.png",
+      phone: "/marketing/plates/transactions-phone-dark.png",
+    },
   },
   budgetLead: {
     src: "/marketing/plates/budget-lead.png",
@@ -52,7 +58,11 @@ const plates = {
     alt: "The budget page for a sample October: the headline 'Spending came in £570 under plan, led by Holidays', the left-over figure and notes on what ran over and what held",
     phone: {
       src: "/marketing/plates/budget-lead-phone.png",
-      aspect: "1170 / 1536",
+      aspect: "1170 / 1608",
+    },
+    dark: {
+      src: "/marketing/plates/budget-lead-dark.png",
+      phone: "/marketing/plates/budget-lead-phone-dark.png",
     },
   },
   budgetShare: {
@@ -63,23 +73,38 @@ const plates = {
       src: "/marketing/plates/budget-share-phone.png",
       aspect: "1170 / 1179",
     },
+    dark: {
+      src: "/marketing/plates/budget-share-dark.png",
+      phone: "/marketing/plates/budget-share-phone-dark.png",
+    },
   },
   balance: {
     src: "/marketing/plates/balance.png",
     aspect: "2464 / 1798",
     alt: "The balance sheet: 'Net worth rose £4,551 to £348,326', the biggest gain and drop, and every asset with its move since September",
     phone: { src: "/marketing/plates/balance-phone.png", aspect: "1170 / 960" },
+    dark: {
+      src: "/marketing/plates/balance-dark.png",
+      phone: "/marketing/plates/balance-phone-dark.png",
+    },
   },
   plan: {
     src: "/marketing/plates/plan.png",
     aspect: "2464 / 1190",
     alt: "The plan's net-worth forecast from age 44 to 95: assets stacked by kind, net worth rising to about £1m at retirement then holding, a widening band for how returns might vary, and the age the pots run out marked",
     phone: { src: "/marketing/plates/plan-phone.png", aspect: "1170 / 900" },
+    dark: {
+      src: "/marketing/plates/plan-dark.png",
+      phone: "/marketing/plates/plan-phone-dark.png",
+    },
   },
   settings: {
     src: "/marketing/plates/settings.png",
     aspect: "1424 / 1612",
     alt: "Settings: currency and number format, the colour scheme, and the switches for transactions and transfers",
+    dark: {
+      src: "/marketing/plates/settings-dark.png",
+    },
   },
   cashflow: {
     src: "/marketing/plates/cashflow.png",
@@ -88,6 +113,10 @@ const plates = {
     phone: {
       src: "/marketing/plates/cashflow-phone.png",
       aspect: "1170 / 1446",
+    },
+    dark: {
+      src: "/marketing/plates/cashflow-dark.png",
+      phone: "/marketing/plates/cashflow-phone-dark.png",
     },
   },
 } satisfies Record<string, Picture>;
