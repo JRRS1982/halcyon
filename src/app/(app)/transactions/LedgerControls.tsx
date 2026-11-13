@@ -13,6 +13,7 @@
 
 import type { ReactNode, RefObject } from "react";
 import styled from "styled-components";
+import { Button } from "@/components/ui/Button";
 import type { ActiveFilter } from "@/lib/transactions/activeFilters";
 
 const Card = styled.section`
@@ -132,35 +133,6 @@ const ChipRemove = styled.button`
   }
 `;
 
-// Destructive per DESIGN.md: outline with red text, never one-click.
-const DangerButton = styled.button`
-  padding: ${({ theme }) => theme.spacing.sm}
-    ${({ theme }) => theme.spacing.lg};
-  border: 1px solid ${({ theme }) => theme.colors.negative};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  background: ${({ theme }) => theme.colors.canvas};
-  color: ${({ theme }) => theme.colors.negative};
-  font-family: ${({ theme }) => theme.typography.control.family};
-  font-size: ${({ theme }) => theme.typography.control.size};
-  font-weight: ${({ theme }) => theme.typography.control.weight};
-  cursor: pointer;
-  white-space: nowrap;
-`;
-
-const GhostButton = styled.button`
-  padding: ${({ theme }) => theme.spacing.sm}
-    ${({ theme }) => theme.spacing.lg};
-  border: 1px solid ${({ theme }) => theme.colors.ink};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  background: ${({ theme }) => theme.colors.canvas};
-  color: ${({ theme }) => theme.colors.ink};
-  font-family: ${({ theme }) => theme.typography.control.family};
-  font-size: ${({ theme }) => theme.typography.control.size};
-  font-weight: ${({ theme }) => theme.typography.control.weight};
-  cursor: pointer;
-  white-space: nowrap;
-`;
-
 export function LedgerControls({
   search,
   searchRef,
@@ -225,12 +197,12 @@ export function LedgerControls({
 
         {hasSelection ? (
           <>
-            <DangerButton type="button" onClick={onDelete}>
+            <Button variant="destructive" type="button" onClick={onDelete}>
               Delete…
-            </DangerButton>
-            <GhostButton type="button" onClick={onClearSelection}>
+            </Button>
+            <Button variant="outline" type="button" onClick={onClearSelection}>
               Clear
-            </GhostButton>
+            </Button>
           </>
         ) : null}
       </Row>

@@ -4,6 +4,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import styled from "styled-components";
+import { Button } from "@/components/ui/Button";
 import { DrawerSection, Field } from "@/components/ui/Drawer";
 import type { SyncPlan } from "@/lib/plan/sync";
 import { formatAmount, type NumberFormat } from "@/lib/settings/currency";
@@ -51,14 +52,7 @@ const LinkedRow = styled.div`
   gap: ${({ theme }) => theme.spacing.sm};
   align-items: center;
 `;
-const LinkedButton = styled.button`
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  background: transparent;
-  color: ${({ theme }) => theme.colors.body};
-  font-size: 12px;
-  padding: ${({ theme }) => theme.spacing.xs} ${({ theme }) => theme.spacing.sm};
-  cursor: pointer;
+const LinkedButton = styled(Button)`
   width: fit-content;
 `;
 
@@ -164,12 +158,13 @@ export function LiabilityFields({
           <Field label="Repayment (managed by expense)">
             <LinkedRow>
               <LinkedButton
+                variant="outline"
                 type="button"
                 onClick={() => onOpenExpense(linkedExpense.id)}
               >
                 {`${Math.round(linkedExpense.annualAmount / 12)}/mo — edit expense`}
               </LinkedButton>
-              <LinkedButton type="button" onClick={unlink}>
+              <LinkedButton variant="outline" type="button" onClick={unlink}>
                 Unlink
               </LinkedButton>
             </LinkedRow>
@@ -187,7 +182,7 @@ export function LiabilityFields({
                 }
               />
             </Field>
-            <LinkedButton type="button" onClick={link}>
+            <LinkedButton variant="outline" type="button" onClick={link}>
               Track repayment as an expense
             </LinkedButton>
           </>

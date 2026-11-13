@@ -4,6 +4,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import styled from "styled-components";
+import { Button } from "@/components/ui/Button";
 import { DrawerSection, Field } from "@/components/ui/Drawer";
 import {
   createMortgageForProperty,
@@ -24,14 +25,7 @@ const Err = styled.p`
   font-size: 13px;
   margin: 0 ${({ theme }) => theme.spacing.xl} ${({ theme }) => theme.spacing.md};
 `;
-const ActionButton = styled.button`
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
-  background: transparent;
-  color: ${({ theme }) => theme.colors.ink};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  font-size: 13px;
-  padding: ${({ theme }) => theme.spacing.xs} ${({ theme }) => theme.spacing.md};
-  cursor: pointer;
+const ActionButton = styled(Button)`
   width: fit-content;
 `;
 const ReadoutSpan = styled.span`
@@ -251,6 +245,7 @@ export function PropertyFields({
           </Field>
           <ActionButton
             type="button"
+            variant="destructive"
             disabled={actionPending}
             onClick={() =>
               runAction(() => deletePlanLiability({ id: mortgage.id }))
@@ -263,6 +258,7 @@ export function PropertyFields({
         <DrawerSection title="Mortgage" defaultOpen>
           <ActionButton
             type="button"
+            variant="outline"
             disabled={actionPending}
             onClick={() =>
               runAction(() =>

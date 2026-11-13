@@ -496,43 +496,6 @@ const NoteArea = styled.textarea`
   }
 `;
 
-// Destructive per DESIGN.md: outline with red text, never one-click.
-const DangerButton = styled.button`
-  padding: ${({ theme }) => theme.spacing.sm}
-    ${({ theme }) => theme.spacing.lg};
-  border: 1px solid ${({ theme }) => theme.colors.negative};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  background: ${({ theme }) => theme.colors.canvas};
-  color: ${({ theme }) => theme.colors.negative};
-  font-family: ${({ theme }) => theme.typography.control.family};
-  font-size: ${({ theme }) => theme.typography.control.size};
-  font-weight: ${({ theme }) => theme.typography.control.weight};
-  cursor: pointer;
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-`;
-
-const GhostButton = styled.button`
-  padding: ${({ theme }) => theme.spacing.sm}
-    ${({ theme }) => theme.spacing.lg};
-  border: 1px solid ${({ theme }) => theme.colors.ink};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  background: ${({ theme }) => theme.colors.canvas};
-  color: ${({ theme }) => theme.colors.ink};
-  font-family: ${({ theme }) => theme.typography.control.family};
-  font-size: ${({ theme }) => theme.typography.control.size};
-  font-weight: ${({ theme }) => theme.typography.control.weight};
-  cursor: pointer;
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-`;
-
 const Overlay = styled.div`
   position: fixed;
   inset: 0;
@@ -1214,12 +1177,13 @@ export function Ledger({
                               placeholder="Add a note…"
                               aria-label={`Note for ${tx.description}`}
                             />
-                            <GhostButton
+                            <Button
+                              variant="outline"
                               type="button"
                               onClick={() => setExpandedId(null)}
                             >
                               Cancel
-                            </GhostButton>
+                            </Button>
                             <Button
                               type="button"
                               onClick={() => saveNote(tx.id)}
@@ -1305,15 +1269,20 @@ export function Ledger({
               history stays accurate.
             </DialogText>
             <DialogActions>
-              <GhostButton
+              <Button
+                variant="outline"
                 type="button"
                 onClick={() => setConfirmDelete(false)}
               >
                 Keep them
-              </GhostButton>
-              <DangerButton type="button" onClick={onBulkDelete}>
+              </Button>
+              <Button
+                variant="destructive"
+                type="button"
+                onClick={onBulkDelete}
+              >
                 Delete {selected.size} transaction(s)
-              </DangerButton>
+              </Button>
             </DialogActions>
           </Dialog>
         </Overlay>

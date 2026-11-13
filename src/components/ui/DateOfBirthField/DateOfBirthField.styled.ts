@@ -71,7 +71,7 @@ export const PickerButton = styled.button<{ $standalone?: boolean }>`
   justify-content: center;
   padding: ${({ theme, $standalone }) =>
     $standalone ? theme.spacing.md : theme.spacing.xs};
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
+  border: 1px solid ${({ theme }) => theme.colors.fieldBorder};
   border-radius: ${({ theme }) => theme.rounded.sm};
   background: none;
   color: ${({ theme }) => theme.colors.body};

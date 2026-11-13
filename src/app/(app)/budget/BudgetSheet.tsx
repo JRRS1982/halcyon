@@ -39,6 +39,7 @@ import {
   ToolbarSpacer,
   ToolbarTool,
 } from "@/components/sheet/Toolbar";
+import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusPip, type StatusPipState } from "@/components/ui/StatusPip";
 import {
@@ -525,7 +526,7 @@ const PickerYearLabel = styled.span`
 const PickerYearButton = styled.button`
   ${({ theme }) => `
     background: ${theme.colors.canvas};
-    border: 1px solid ${theme.colors.hairline};
+    border: 1px solid ${theme.colors.fieldBorder};
     border-radius: ${theme.rounded.sm};
     width: 24px;
     height: 24px;
@@ -687,27 +688,6 @@ const CopyActions = styled.div`
   display: flex;
   justify-content: flex-end;
   gap: ${({ theme }) => theme.spacing.sm};
-`;
-
-const CopyButton = styled.button<{ $primary?: boolean }>`
-  ${({ theme, $primary }) => `
-    background: ${$primary ? theme.colors.primary : theme.colors.canvas};
-    color: ${$primary ? theme.colors.onPrimary : theme.colors.ink};
-    border: 1px solid ${$primary ? theme.colors.primary : theme.colors.hairline};
-    border-radius: ${theme.rounded.sm};
-    font-family: ${theme.typography.bodyMd.family};
-    font-size: ${theme.typography.bodyMd.size};
-    padding: ${theme.spacing.xs} ${theme.spacing.md};
-    cursor: pointer;
-
-    &:hover:not(:disabled) {
-      border-color: ${theme.colors.ink};
-    }
-    &:disabled {
-      opacity: 0.5;
-      cursor: default;
-    }
-  `}
 `;
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -2041,17 +2021,20 @@ export function BudgetSheet({
                 />
 
                 <CopyActions>
-                  <CopyButton type="button" onClick={() => setAddOpen(false)}>
-                    Cancel
-                  </CopyButton>
-                  <CopyButton
+                  <Button
+                    variant="outline"
                     type="button"
-                    $primary
+                    onClick={() => setAddOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
                     onClick={confirmAdd}
                     disabled={!addComplete}
                   >
                     Add
-                  </CopyButton>
+                  </Button>
                 </CopyActions>
               </CopyPopover>
             )}
@@ -2100,21 +2083,21 @@ export function BudgetSheet({
                       Budgeted amounts carry over; actuals reset to 0.
                     </CopyConfirmText>
                     <CopyActions>
-                      <CopyButton
+                      <Button
+                        variant="outline"
                         type="button"
                         onClick={() => setCopyOpen(false)}
                         disabled={copyBusy}
                       >
                         Cancel
-                      </CopyButton>
-                      <CopyButton
+                      </Button>
+                      <Button
                         type="button"
-                        $primary
                         onClick={confirmCopy}
                         disabled={copyBusy}
                       >
                         {copyBusy ? "Filling…" : "Fill"}
-                      </CopyButton>
+                      </Button>
                     </CopyActions>
                   </CopyConfirm>
                 )}
