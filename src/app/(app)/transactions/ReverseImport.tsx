@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, useTransition } from "react";
 import styled from "styled-components";
 import { Button } from "@/components/ui/Button";
+import { appear } from "@/lib/motion";
 import {
   type ImportBatchSummary,
   listImportBatches,
@@ -50,6 +51,7 @@ const Dialog = styled.dialog`
   border: none;
   border-radius: ${({ theme }) => theme.rounded.sm};
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+  ${appear}
 `;
 
 const DialogTitle = styled.h2`

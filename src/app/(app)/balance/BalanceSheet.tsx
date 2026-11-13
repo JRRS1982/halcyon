@@ -57,6 +57,7 @@ import {
   accountChange,
   balanceBrief,
 } from "@/lib/insights/balanceBrief";
+import { appear } from "@/lib/motion";
 import {
   formatAmount,
   NUMBER_FORMAT_SPEC,
@@ -528,6 +529,7 @@ const DeleteModal = styled.div`
 `;
 
 const PickerPopover = styled.div`
+  ${appear}
   ${({ theme }) => `
     position: absolute;
     top: calc(100% + ${theme.spacing.xs});
@@ -614,6 +616,7 @@ const CopyWrapper = styled.div`
 `;
 
 const CopyPopover = styled.div`
+  ${appear}
   ${({ theme }) => `
     position: absolute;
     top: calc(100% + ${theme.spacing.xs});
@@ -696,6 +699,7 @@ const CopyConfirmText = styled.div`
 const CopyActions = styled.div`
   display: flex;
   justify-content: flex-end;
+  margin-top: ${({ theme }) => theme.spacing.md};
   gap: ${({ theme }) => theme.spacing.sm};
 `;
 

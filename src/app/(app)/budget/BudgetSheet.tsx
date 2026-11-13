@@ -75,6 +75,7 @@ import type {
 import { useDebouncedCallback } from "@/lib/hooks/useDebouncedCallback";
 import type { CategoryHistory } from "@/lib/insights/history";
 import { monthBrief } from "@/lib/insights/monthBrief";
+import { appear } from "@/lib/motion";
 import {
   caretAfterSignificant,
   formatAmount,
@@ -218,6 +219,21 @@ const CellInput = styled.input<{ $align?: "left" | "right" }>`
 
   &::placeholder {
     color: ${({ theme }) => theme.colors.dim};
+  }
+`;
+
+// "Notes (optional)" on every line outshouts the figures. With a pointer the
+// prompt shows only on the row in hand; touch has no hover, so it stays put.
+const NotesInput = styled(CellInput)`
+  @media (hover: hover) {
+    &::placeholder {
+      color: transparent;
+    }
+
+    [role="row"]:hover &::placeholder,
+    &:focus::placeholder {
+      color: ${({ theme }) => theme.colors.dim};
+    }
   }
 `;
 
@@ -489,6 +505,7 @@ const PeriodNavWrapper = styled.div`
 `;
 
 const PickerPopover = styled.div`
+  ${appear}
   ${({ theme }) => `
     position: absolute;
     top: calc(100% + ${theme.spacing.xs});
@@ -577,6 +594,7 @@ const CopyWrapper = styled.div`
 `;
 
 const CopyPopover = styled.div`
+  ${appear}
   ${({ theme }) => `
     position: absolute;
     top: calc(100% + ${theme.spacing.xs});
@@ -687,6 +705,7 @@ const CopyConfirmText = styled.div`
 const CopyActions = styled.div`
   display: flex;
   justify-content: flex-end;
+  margin-top: ${({ theme }) => theme.spacing.md};
   gap: ${({ theme }) => theme.spacing.sm};
 `;
 
@@ -1756,7 +1775,7 @@ export function BudgetSheet({
         insight={insight}
         notes={{
           value: (
-            <CellInput
+            <NotesInput
               ref={registerCell(`${item.id}:notes`)}
               value={item.notes ?? ""}
               placeholder="Notes (optional)"

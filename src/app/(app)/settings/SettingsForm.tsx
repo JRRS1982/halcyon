@@ -10,6 +10,7 @@ import {
   REMINDER_DAYS,
   type ReminderDay,
 } from "@/lib/email/reminder";
+import { appear } from "@/lib/motion";
 import {
   THEME_PREFERENCE_LABELS,
   THEME_PREFERENCES,
@@ -181,6 +182,7 @@ const Dialog = styled.dialog`
   border: none;
   border-radius: ${({ theme }) => theme.rounded.sm};
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+  ${appear}
 `;
 
 // The question is the dialog's title, set as every dialog's title is.

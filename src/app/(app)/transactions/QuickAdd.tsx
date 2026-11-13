@@ -140,6 +140,11 @@ const LineInput = styled.input`
   border-radius: ${({ theme }) => theme.rounded.sm};
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
   font-size: 15px;
+
+  /* Beside the button a phone leaves it too narrow to show its own example. */
+  @media (max-width: 767px) {
+    flex-basis: 100%;
+  }
 `;
 
 const LineError = styled.p`

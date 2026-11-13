@@ -7,6 +7,7 @@ import styled, { css } from "styled-components";
 import { Button } from "@/components/ui/Button";
 import { shortDate } from "@/lib/date/humanDate";
 import { useDebouncedCallback } from "@/lib/hooks/useDebouncedCallback";
+import { appear, LEAVE_MS, leaving } from "@/lib/motion";
 import {
   DEFAULT_NUMBER_FORMAT,
   formatAmount,
@@ -187,6 +188,7 @@ const Approval = styled.button<{ $approved: boolean }>`
     border: 1px solid ${$approved ? "transparent" : theme.colors.primary};
     background: transparent;
     color: ${$approved ? theme.colors.positive : theme.colors.primary};
+    transition: color 120ms, background-color 120ms, border-color 120ms;
 
     &:hover {
       border-color: ${$approved ? theme.colors.hairlineStrong : theme.colors.primary};
@@ -230,8 +232,9 @@ const Th = styled.th<{ $align?: "right" }>`
 // top, the description and its amount, then the category with its approval
 // and the note toggle. Cells keep their table order (select, date,
 // description, account, amount, category, note) and are placed by area.
-const Row = styled.tr`
+const Row = styled.tr<{ $leaving: boolean }>`
   cursor: pointer;
+  ${({ $leaving }) => $leaving && leaving}
 
   &:hover {
     background: ${({ theme }) => theme.colors.canvasSoft};
@@ -239,11 +242,13 @@ const Row = styled.tr`
 
   @media (max-width: 767px) {
     display: grid;
-    grid-template-columns: 32px auto minmax(0, 1fr) auto;
+    /* The note has a fixed track of its own: sharing the amount's meant the
+       category box ended wherever that line's amount happened to. */
+    grid-template-columns: 32px auto minmax(0, 1fr) auto 3.25rem;
     grid-template-areas:
-      "check date account account"
-      "check description description amount"
-      "check category category note";
+      "check date account account account"
+      "check description description amount amount"
+      "check category category category note";
     align-items: center;
     column-gap: ${({ theme }) => theme.spacing.sm};
     row-gap: ${({ theme }) => theme.spacing.xs};
@@ -287,6 +292,7 @@ const Row = styled.tr`
     }
     > td:nth-child(7) {
       grid-area: note;
+      justify-self: end;
       padding-top: ${({ theme }) => theme.spacing.xs};
     }
   }
@@ -518,6 +524,7 @@ const Dialog = styled.dialog`
   border: none;
   border-radius: ${({ theme }) => theme.rounded.sm};
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+  ${appear}
 `;
 
 const DialogTitle = styled.h3`
@@ -588,6 +595,7 @@ export function Ledger({
     initialTransferAccounts,
   );
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [leavingIds, setLeavingIds] = useState<Set<string>>(new Set());
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -690,41 +698,63 @@ export function Ledger({
   const goToPage = (n: number) =>
     updateParams({ page: n <= 1 ? null : String(n) }, "push");
 
+  // Rows that no longer belong on screen fade before they go, so the eye can
+  // follow what a categorise or a delete just did. The server's next render
+  // drops them for good; this only covers the moment in between.
+  const dismissRows = (ids: string[]) => {
+    setLeavingIds((prev) => new Set([...prev, ...ids]));
+    setTimeout(() => {
+      setItems((prev) => prev.filter((t) => !ids.includes(t.id)));
+      setLeavingIds(
+        (prev) => new Set([...prev].filter((id) => !ids.includes(id))),
+      );
+    }, LEAVE_MS);
+  };
+
   // Optimistically reflect a category assignment; clears any transfer. Drops the
   // row if it no longer matches the "uncategorized only" filter.
-  const applyAssignment = (transactionId: string, categoryId: string | null) =>
+  const applyAssignment = (
+    transactionId: string,
+    categoryId: string | null,
+  ) => {
+    if (onlyUncategorized && categoryId !== null) {
+      dismissRows([transactionId]);
+      return;
+    }
     setItems((prev) =>
-      onlyUncategorized && categoryId !== null
-        ? prev.filter((t) => t.id !== transactionId)
-        : prev.map((t) =>
-            t.id === transactionId
-              ? {
-                  ...t,
-                  categoryId,
-                  transferAccountId: null,
-                  isCategoryConfirmed: true,
-                }
-              : t,
-          ),
+      prev.map((t) =>
+        t.id === transactionId
+          ? {
+              ...t,
+              categoryId,
+              transferAccountId: null,
+              isCategoryConfirmed: true,
+            }
+          : t,
+      ),
     );
+  };
 
   // Optimistically reflect a transfer; clears any category. A transfer is no
   // longer "uncategorized", so drop it under that filter.
-  const applyTransfer = (transactionId: string, accountId: string) =>
+  const applyTransfer = (transactionId: string, accountId: string) => {
+    if (onlyUncategorized) {
+      dismissRows([transactionId]);
+      return;
+    }
     setItems((prev) =>
-      onlyUncategorized
-        ? prev.filter((t) => t.id !== transactionId)
-        : prev.map((t) =>
-            t.id === transactionId
-              ? {
-                  ...t,
-                  transferAccountId: accountId,
-                  categoryId: null,
-                  isCategoryConfirmed: true,
-                }
-              : t,
-          ),
+      prev.map((t) =>
+        t.id === transactionId
+          ? {
+              ...t,
+              transferAccountId: accountId,
+              categoryId: null,
+              isCategoryConfirmed: true,
+            }
+          : t,
+      ),
     );
+  };
 
   const onSelect = (transactionId: string, categoryId: string | null) => {
     applyAssignment(transactionId, categoryId);
@@ -820,20 +850,22 @@ export function Ledger({
   // "uncategorized only" filter: newly categorised rows leave the list.
   const onBulkCategorise = (categoryId: string | null) => {
     const ids = Array.from(selected);
-    setItems((prev) =>
-      onlyUncategorized && categoryId !== null
-        ? prev.filter((t) => !selected.has(t.id))
-        : prev.map((t) =>
-            selected.has(t.id)
-              ? {
-                  ...t,
-                  categoryId,
-                  transferAccountId: null,
-                  isCategoryConfirmed: true,
-                }
-              : t,
-          ),
-    );
+    if (onlyUncategorized && categoryId !== null) {
+      dismissRows(ids);
+    } else {
+      setItems((prev) =>
+        prev.map((t) =>
+          selected.has(t.id)
+            ? {
+                ...t,
+                categoryId,
+                transferAccountId: null,
+                isCategoryConfirmed: true,
+              }
+            : t,
+        ),
+      );
+    }
     setSelected(new Set());
     startTransition(async () => {
       await bulkSetTransactionCategory({ transactionIds: ids, categoryId });
@@ -849,20 +881,22 @@ export function Ledger({
       .filter((t) => selected.has(t.id) && t.accountId !== accountId)
       .map((t) => t.id);
     const changed = new Set(ids);
-    setItems((prev) =>
-      onlyUncategorized
-        ? prev.filter((t) => !changed.has(t.id))
-        : prev.map((t) =>
-            changed.has(t.id)
-              ? {
-                  ...t,
-                  transferAccountId: accountId,
-                  categoryId: null,
-                  isCategoryConfirmed: true,
-                }
-              : t,
-          ),
-    );
+    if (onlyUncategorized) {
+      dismissRows(ids);
+    } else {
+      setItems((prev) =>
+        prev.map((t) =>
+          changed.has(t.id)
+            ? {
+                ...t,
+                transferAccountId: accountId,
+                categoryId: null,
+                isCategoryConfirmed: true,
+              }
+            : t,
+        ),
+      );
+    }
     setSelected(new Set());
     if (ids.length > 0) {
       startTransition(async () => {
@@ -888,14 +922,16 @@ export function Ledger({
             a.type.localeCompare(b.type) || a.label.localeCompare(b.label),
         ),
       );
+      if (onlyUncategorized) {
+        dismissRows(ids);
+        return;
+      }
       setItems((prev) =>
-        onlyUncategorized
-          ? prev.filter((t) => !ids.includes(t.id))
-          : prev.map((t) =>
-              ids.includes(t.id)
-                ? { ...t, categoryId: created.id, transferAccountId: null }
-                : t,
-            ),
+        prev.map((t) =>
+          ids.includes(t.id)
+            ? { ...t, categoryId: created.id, transferAccountId: null }
+            : t,
+        ),
       );
     });
     resetSearchForNextBatch();
@@ -912,14 +948,16 @@ export function Ledger({
       setTransferAccounts((prev) =>
         [...prev, created].sort((a, b) => a.name.localeCompare(b.name)),
       );
+      if (onlyUncategorized) {
+        dismissRows(ids);
+        return;
+      }
       setItems((prev) =>
-        onlyUncategorized
-          ? prev.filter((t) => !ids.includes(t.id))
-          : prev.map((t) =>
-              ids.includes(t.id)
-                ? { ...t, transferAccountId: created.id, categoryId: null }
-                : t,
-            ),
+        prev.map((t) =>
+          ids.includes(t.id)
+            ? { ...t, transferAccountId: created.id, categoryId: null }
+            : t,
+        ),
       );
     });
     resetSearchForNextBatch();
@@ -949,7 +987,7 @@ export function Ledger({
 
   const onBulkDelete = () => {
     const ids = Array.from(selected);
-    setItems((prev) => prev.filter((t) => !selected.has(t.id)));
+    dismissRows(ids);
     setSelected(new Set());
     setConfirmDelete(false);
     startTransition(async () => {
@@ -1062,7 +1100,10 @@ export function Ledger({
             <tbody>
               {items.map((tx) => (
                 <Fragment key={tx.id}>
-                  <Row onClick={() => toggleRow(tx.id)}>
+                  <Row
+                    $leaving={leavingIds.has(tx.id)}
+                    onClick={() => toggleRow(tx.id)}
+                  >
                     <TdCheck>
                       <input
                         type="checkbox"

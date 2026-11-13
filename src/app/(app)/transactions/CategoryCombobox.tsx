@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import styled from "styled-components";
 import type { CategorySection } from "@/lib/categories/sections";
 import { sectionsFor } from "@/lib/categories/sections";
+import { appear } from "@/lib/motion";
 import type { LedgerCategory } from "@/lib/transactions/server";
 
 const Wrap = styled.div`
@@ -53,6 +54,7 @@ const Popover = styled.div<{ $align: "left" | "right" }>`
   border-radius: ${({ theme }) => theme.rounded.sm};
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
   overflow: hidden;
+  ${appear}
 `;
 
 const SearchInput = styled.input`
