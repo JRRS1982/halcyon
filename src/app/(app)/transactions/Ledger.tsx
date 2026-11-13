@@ -500,7 +500,7 @@ const NoteArea = styled.textarea`
 const DangerButton = styled.button`
   padding: ${({ theme }) => theme.spacing.sm}
     ${({ theme }) => theme.spacing.lg};
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
+  border: 1px solid ${({ theme }) => theme.colors.negative};
   border-radius: ${({ theme }) => theme.rounded.sm};
   background: ${({ theme }) => theme.colors.canvas};
   color: ${({ theme }) => theme.colors.negative};
@@ -1131,13 +1131,27 @@ export function Ledger({
                           ownAccountId={tx.accountId}
                           defaultType={tx.amount < 0 ? "EXPENSE" : "INCOME"}
                           transfersEnabled={transfersEnabled}
-                          onSelect={(categoryId) => onSelect(tx.id, categoryId)}
-                          onCreate={(input) => onCreateAndAssign(tx.id, input)}
+                          // A ticked row speaks for the whole selection: its
+                          // category box does what the controls card's does.
+                          onSelect={(categoryId) =>
+                            selected.has(tx.id)
+                              ? onBulkCategorise(categoryId)
+                              : onSelect(tx.id, categoryId)
+                          }
+                          onCreate={(input) =>
+                            selected.has(tx.id)
+                              ? onBulkCreateAndAssign(input)
+                              : onCreateAndAssign(tx.id, input)
+                          }
                           onTransfer={(accountId) =>
-                            onTransfer(tx.id, accountId)
+                            selected.has(tx.id)
+                              ? onBulkTransfer(accountId)
+                              : onTransfer(tx.id, accountId)
                           }
                           onCreateAccount={(name) =>
-                            onCreateAccountAndTransfer(tx.id, name)
+                            selected.has(tx.id)
+                              ? onBulkCreateAccountAndTransfer(name)
+                              : onCreateAccountAndTransfer(tx.id, name)
                           }
                         />
                         {tx.categoryId !== null && (

@@ -3,8 +3,12 @@
 // search box becomes the categorize box, because once rows are selected you
 // have already found them and the box's job changes.
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { ThemeProvider } from "styled-components";
+import {
+  bulkSetTransactionCategory,
+  setTransactionCategory,
+} from "@/app/(app)/transactions/actions";
 import { Ledger } from "@/app/(app)/transactions/Ledger";
 import { theme } from "@/lib/theme";
 import { parseLedgerSearchParams } from "@/lib/transactions/pagination";
@@ -89,7 +93,25 @@ const selectRow = (description: string) =>
     screen.getByRole("checkbox", { name: `Select ${description}` }),
   );
 
-beforeEach(() => replace.mockClear());
+const FOOD = "33333333-3333-3333-3333-333333333333";
+
+// Picks Food from the category box on one row, not from the controls card.
+const categoriseOnRow = (description: string) => {
+  const row = screen.getByRole("row", { name: new RegExp(description) });
+  fireEvent.click(
+    within(row).getByRole("button", { name: "— Uncategorised —" }),
+  );
+  // The pick starts a transition around the server action; act lets it settle.
+  return act(async () => {
+    fireEvent.click(within(row).getByRole("option", { name: /Food/ }));
+  });
+};
+
+beforeEach(() => {
+  replace.mockClear();
+  jest.mocked(bulkSetTransactionCategory).mockClear();
+  jest.mocked(setTransactionCategory).mockClear();
+});
 
 describe("ledger controls card", () => {
   test("with no selection it offers only filtering and search", () => {
@@ -162,5 +184,34 @@ describe("ledger controls card", () => {
     expect(screen.getByPlaceholderText("Search description…")).toHaveValue(
       "greg",
     );
+  });
+
+  test("categorising on a selected row categorises the whole selection", async () => {
+    // Ticking five rows and then picking a category on one of them used to
+    // file only that one, leaving the other four ticked and untouched.
+    renderLedger();
+    selectRow("Greggs");
+    selectRow("Tesco");
+    await categoriseOnRow("Greggs");
+
+    expect(bulkSetTransactionCategory).toHaveBeenCalledWith({
+      transactionIds: ["tx1", "tx2"],
+      categoryId: FOOD,
+    });
+    expect(setTransactionCategory).not.toHaveBeenCalled();
+    expect(screen.queryByText("2 selected")).toBeNull();
+  });
+
+  test("categorising on a row outside the selection touches only that row", async () => {
+    renderLedger();
+    selectRow("Greggs");
+    await categoriseOnRow("Tesco");
+
+    expect(setTransactionCategory).toHaveBeenCalledWith({
+      transactionId: "tx2",
+      categoryId: FOOD,
+    });
+    expect(bulkSetTransactionCategory).not.toHaveBeenCalled();
+    expect(screen.getByText("1 selected")).toBeInTheDocument();
   });
 });
