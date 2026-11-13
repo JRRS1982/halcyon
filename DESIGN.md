@@ -487,6 +487,18 @@ Corners are near-square. `sm` 2px is the radius for buttons, toolbar tools, inpu
 
 Lines are horizontal. Tables have no vertical rules; columns are held apart by alignment and padding. The only vertical marks are the hairline dividers between index-strip and verdict figures, and the 4px colour bar on a subhead row or the active item in the mobile menu.
 
+## Motion
+
+The page is still. Motion is used only where it says what just happened, and it is brief.
+
+- **Arriving surfaces** (popovers, pickers, panels, confirm dialogs): fade in and rise 4px over 120ms, ease-out. The side drawer slides, as before.
+- **Leaving rows**: a ledger row that a categorise or delete removes fades over 160ms before it goes.
+- **State changes on a control** (button hover, Approve turning to Approved, a switch): colour or opacity over 100–150ms.
+- **Reduced motion**: arriving and leaving animations are dropped when the system asks for reduced motion.
+- **Never:** charts (see Data visualization), figures counting up, anything that loops other than the loading skeleton's slow pulse.
+
+The helpers live in `src/lib/motion.ts`.
+
 ## Components
 
 ### Masthead

@@ -40,6 +40,7 @@ describe("DESIGN.md", () => {
       "colour-schemes",
       "elevation-depth",
       "shapes",
+      "motion",
       "components",
       "data-visualization",
       "do-s-and-don-ts",

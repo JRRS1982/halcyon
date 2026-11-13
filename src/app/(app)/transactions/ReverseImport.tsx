@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, useTransition } from "react";
 import styled from "styled-components";
+import { Button } from "@/components/ui/Button";
+import { appear } from "@/lib/motion";
 import {
   type ImportBatchSummary,
   listImportBatches,
@@ -49,6 +51,7 @@ const Dialog = styled.dialog`
   border: none;
   border-radius: ${({ theme }) => theme.rounded.sm};
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+  ${appear}
 `;
 
 const DialogTitle = styled.h2`
@@ -81,38 +84,6 @@ const DialogActions = styled.div`
   display: flex;
   justify-content: flex-end;
   gap: ${({ theme }) => theme.spacing.md};
-`;
-
-const GhostButton = styled.button`
-  padding: ${({ theme }) => theme.spacing.sm}
-    ${({ theme }) => theme.spacing.lg};
-  border: 1px solid ${({ theme }) => theme.colors.ink};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  background: ${({ theme }) => theme.colors.canvas};
-  color: ${({ theme }) => theme.colors.ink};
-  font-family: ${({ theme }) => theme.typography.control.family};
-  font-size: ${({ theme }) => theme.typography.control.size};
-  font-weight: ${({ theme }) => theme.typography.control.weight};
-  cursor: pointer;
-`;
-
-// Destructive per DESIGN.md: outline with red text, never one-click.
-const DangerButton = styled.button`
-  padding: ${({ theme }) => theme.spacing.sm}
-    ${({ theme }) => theme.spacing.lg};
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  background: ${({ theme }) => theme.colors.canvas};
-  color: ${({ theme }) => theme.colors.negative};
-  font-family: ${({ theme }) => theme.typography.control.family};
-  font-size: ${({ theme }) => theme.typography.control.size};
-  font-weight: ${({ theme }) => theme.typography.control.weight};
-  cursor: pointer;
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
 `;
 
 const Toast = styled.div`
@@ -255,11 +226,12 @@ export function ReverseImport() {
             )}
             {error && <Note>{error}</Note>}
             <DialogActions>
-              <GhostButton type="button" onClick={close}>
+              <Button variant="outline" type="button" onClick={close}>
                 {batches?.length === 0 ? "Close" : "Keep them"}
-              </GhostButton>
+              </Button>
               {selected && (
-                <DangerButton
+                <Button
+                  variant="destructive"
                   type="button"
                   onClick={onConfirm}
                   disabled={pending}
@@ -267,7 +239,7 @@ export function ReverseImport() {
                   {pending
                     ? "Reversing…"
                     : `Reverse import (delete ${selected.count})`}
-                </DangerButton>
+                </Button>
               )}
             </DialogActions>
           </Dialog>

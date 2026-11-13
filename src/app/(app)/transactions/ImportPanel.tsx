@@ -11,6 +11,7 @@ import {
 } from "react";
 import styled from "styled-components";
 import { Button } from "@/components/ui/Button";
+import { appear } from "@/lib/motion";
 import { parseCsv } from "@/lib/transactions/csv";
 import { DATE_FORMATS, type DateFormat } from "@/lib/transactions/date";
 import {
@@ -224,6 +225,7 @@ const Dialog = styled.dialog`
   border: none;
   border-radius: ${({ theme }) => theme.rounded.sm};
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+  ${appear}
 `;
 
 // The import flow is a task, not page furniture — it gets a wide working
