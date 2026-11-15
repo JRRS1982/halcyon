@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, useTransition } from "react";
-import styled from "styled-components";
+import styled, { css } from "styled-components";
 import { Button } from "@/components/ui/Button";
 import { appear } from "@/lib/motion";
 import {
@@ -42,6 +42,9 @@ const Overlay = styled.div`
 
 const Dialog = styled.dialog`
   display: grid;
+  /* One column that never grows past the dialog: a long file name used to
+     widen the track and carry the text out past the dialog's edge. */
+  grid-template-columns: minmax(0, 1fr);
   gap: ${({ theme }) => theme.spacing.lg};
   width: 100%;
   max-width: 480px;
@@ -70,14 +73,56 @@ const Note = styled.p`
   color: ${({ theme }) => theme.colors.body};
 `;
 
-const BatchSelect = styled.select`
-  padding: ${({ theme }) => theme.spacing.sm}
-    ${({ theme }) => theme.spacing.md};
-  border: 1px solid ${({ theme }) => theme.colors.fieldBorder};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  background: ${({ theme }) => theme.colors.field};
-  font-family: ${({ theme }) => theme.typography.bodyMd.family};
+// A list rather than a select: an option cannot wrap, and a statement's file
+// name is often the longest thing in it.
+const BatchList = styled.div`
+  display: grid;
+  gap: ${({ theme }) => theme.spacing.sm};
+  max-height: 280px;
+  overflow-y: auto;
+`;
+
+const BatchOption = styled.label<{ $selected: boolean }>`
+  ${({ theme, $selected }) => css`
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: ${theme.spacing.sm};
+    align-items: start;
+    padding: ${theme.spacing.sm} ${theme.spacing.md};
+    border: 1px solid ${$selected ? theme.colors.primary : theme.colors.fieldBorder};
+    box-shadow: ${$selected ? `inset 0 0 0 1px ${theme.colors.primary}` : "none"};
+    border-radius: ${theme.rounded.sm};
+    background: ${theme.colors.field};
+    font-family: ${theme.typography.bodyMd.family};
+    cursor: pointer;
+
+    input {
+      margin: 3px 0 0;
+      accent-color: ${theme.colors.primary};
+    }
+  `}
+`;
+
+const BatchLines = styled.span`
+  display: grid;
+  min-width: 0;
+`;
+
+const BatchWhen = styled.span`
+  font-size: 14px;
+  color: ${({ theme }) => theme.colors.ink};
+
+  strong {
+    font-weight: 600;
+  }
+`;
+
+const BatchFile = styled.span`
   font-size: 13px;
+  color: ${({ theme }) => theme.colors.body};
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 `;
 
 const DialogActions = styled.div`
@@ -102,17 +147,18 @@ const Toast = styled.div`
   color: ${({ theme }) => theme.colors.ink};
 `;
 
-const batchLabel = (b: ImportBatchSummary) => {
-  const when = new Date(b.createdAt).toLocaleString(undefined, {
+// UK order, as everywhere else in the app: "15 Nov 2026, 20:13".
+const importedAt = (b: ImportBatchSummary) =>
+  new Date(b.createdAt).toLocaleString("en-GB", {
     day: "numeric",
     month: "short",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
   });
-  const file = b.fileName ? ` · ${b.fileName}` : "";
-  return `${when} · ${b.count} transactions → ${b.accountName}${file}`;
-};
+
+const transactionCount = (n: number) =>
+  `${n.toLocaleString("en-GB")} transaction${n === 1 ? "" : "s"}`;
 
 export function ReverseImport() {
   const router = useRouter();
@@ -211,17 +257,28 @@ export function ReverseImport() {
                   notes you added to those rows are lost with them, and there is
                   no un-reverse.
                 </Note>
-                <BatchSelect
-                  value={selectedId}
-                  onChange={(e) => setSelectedId(e.target.value)}
-                  aria-label="Import to reverse"
-                >
+                <BatchList role="radiogroup" aria-label="Import to reverse">
                   {batches.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {batchLabel(b)}
-                    </option>
+                    <BatchOption key={b.id} $selected={b.id === selectedId}>
+                      <input
+                        type="radio"
+                        name="import-to-reverse"
+                        value={b.id}
+                        checked={b.id === selectedId}
+                        onChange={() => setSelectedId(b.id)}
+                      />
+                      <BatchLines>
+                        <BatchWhen>
+                          <strong>{importedAt(b)}</strong> · {b.accountName}
+                        </BatchWhen>
+                        <BatchFile title={b.fileName ?? undefined}>
+                          {transactionCount(b.count)}
+                          {b.fileName ? ` · ${b.fileName}` : ""}
+                        </BatchFile>
+                      </BatchLines>
+                    </BatchOption>
                   ))}
-                </BatchSelect>
+                </BatchList>
               </>
             )}
             {error && <Note>{error}</Note>}
@@ -238,7 +295,7 @@ export function ReverseImport() {
                 >
                   {pending
                     ? "Reversing…"
-                    : `Reverse import (delete ${selected.count})`}
+                    : `Reverse import (delete ${selected.count.toLocaleString("en-GB")})`}
                 </Button>
               )}
             </DialogActions>
