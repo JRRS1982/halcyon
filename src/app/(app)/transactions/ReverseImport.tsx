@@ -82,6 +82,16 @@ const BatchList = styled.div`
   overflow-y: auto;
 `;
 
+// The list scrolls once it outgrows its box; the count says there is more
+// than the rows in view.
+const ListCaption = styled.p`
+  margin: 0 0 -${({ theme }) => theme.spacing.sm};
+  font-family: ${({ theme }) => theme.typography.bodyMd.family};
+  font-size: 13px;
+  font-weight: 600;
+  color: ${({ theme }) => theme.colors.ink};
+`;
+
 const BatchOption = styled.label<{ $selected: boolean }>`
   ${({ theme, $selected }) => css`
     display: grid;
@@ -257,6 +267,11 @@ export function ReverseImport() {
                   notes you added to those rows are lost with them, and there is
                   no un-reverse.
                 </Note>
+                <ListCaption>
+                  {batches.length === 1
+                    ? "1 import"
+                    : `${batches.length} imports, newest first`}
+                </ListCaption>
                 <BatchList role="radiogroup" aria-label="Import to reverse">
                   {batches.map((b) => (
                     <BatchOption key={b.id} $selected={b.id === selectedId}>
