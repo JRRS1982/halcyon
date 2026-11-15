@@ -115,9 +115,13 @@ The `+ Add` button on the Balance page opens `AddAccountDrawer.tsx`. It asks "Wh
 `DeleteAccountPanel.tsx` offers two modes. Counts are fetched first (`accountDeletionCounts`), so the panel says "removes 14 monthly values", not "are you sure?".
 
 - **Stop tracking it** (default): `archiveAccount` sets `Account.deletedAt` and soft-deletes the account's `BalanceItem`s from the current month onward. Earlier months keep their values, so the account still shows on those past sheets. It drops out of pickers and reappears with a Restore button in Settings → Accounts. Restore brings back the account only, not the months archived with it. No confirmation needed.
-- **Delete it everywhere**: `deleteAccountEverywhere`, gated on typing `DELETE`. One `$transaction` deletes the account's `Transaction`s and `ImportBatch`es, its live `BalanceItem`s and `BudgetItem`s, clears links to it, then deletes the account. It refuses if a live transaction on a *surviving* account names this account as its transfer counterparty.
+- **Delete it everywhere**: `deleteAccountEverywhere`, gated on typing `DELETE`. One `$transaction` removes its live `BalanceItem`s and `BudgetItem`s, clears links to it, then deletes the account. Its transactions are the user's choice, asked only when it has live ones:
+  - **Move them to another account** (`moveTransactionsTo`): every `Transaction` and `ImportBatch` moves, so Undo import still works. Another account's transfer to it now points at the destination; a transfer between the two accounts stops being a transfer. No destination is preselected. This is how a duplicate account is merged into the real one.
+  - **Delete them with the account**: its `Transaction`s and `ImportBatch`es go, and another account's transfer to it stops being a transfer (left uncategorised for the user to file).
 
-Settings → Accounts has a third, narrower path: `deleteAccount` soft-deletes an account only when no live transaction owns it or names it as a counterparty.
+  The panel says how many transfers on other accounts will change, and the button names the outcome ("Move 582 and delete", "Delete with 582 transactions").
+
+Settings → Accounts opens the same panel in place of the row; there is no separate Settings delete.
 
 **Linked pairs prompt symmetrically, default asymmetrically.** When the account has a `linkedAccountId` partner (either direction, via `resolveLinkedPartnerId`), the panel always shows a second checkbox for it. Deleting the **property** pre-ticks the mortgage (you rarely keep a debt secured on a house you no longer hold). Deleting the **mortgage** leaves the property unticked (the commoner reason is that it's paid off). A property panel also points at the plan's `PROPERTY_SALE` event, so a sold house isn't purged and its proceeds lost from history.
 

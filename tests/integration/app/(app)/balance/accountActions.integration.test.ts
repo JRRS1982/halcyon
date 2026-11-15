@@ -268,7 +268,10 @@ describe("account actions (integration)", () => {
     ).toBeNull();
   });
 
-  it("refuses to delete an account still named as another transaction's transfer counterparty", async () => {
+  // It used to refuse here, leaving the user to hunt down every transfer
+  // that named the account. A transfer whose counterparty is gone is simply
+  // no longer a transfer: the row stays, untagged, for the user to file.
+  it("untags other accounts' transfers to a deleted account rather than refusing", async () => {
     const { accountId } = await createAccount(isaInput);
     const other = await prisma.account.create({
       data: {
@@ -289,18 +292,16 @@ describe("account actions (integration)", () => {
       },
     });
 
-    await expect(
-      deleteAccountEverywhere({ accountId, alsoLinked: false }),
-    ).rejects.toThrow(
-      "This account still has transactions. Reassign or remove them first.",
-    );
+    await deleteAccountEverywhere({ accountId, alsoLinked: false });
 
     expect(
       await prisma.account.findUnique({ where: { id: accountId } }),
-    ).not.toBeNull();
-    expect(
-      await prisma.transaction.findUnique({ where: { id: transferTxn.id } }),
-    ).not.toBeNull();
+    ).toBeNull();
+    const survivor = await prisma.transaction.findUniqueOrThrow({
+      where: { id: transferTxn.id },
+    });
+    expect(survivor.transferAccountId).toBeNull();
+    expect(survivor.deletedAt).toBeNull();
   });
 
   it("does not block deleting a linked pair over a transfer transaction between them", async () => {

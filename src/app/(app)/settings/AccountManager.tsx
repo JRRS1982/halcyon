@@ -4,17 +4,18 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import styled from "styled-components";
 import { AddAccountDrawer } from "@/app/(app)/balance/AddAccountDrawer";
-import { restoreAccount } from "@/app/(app)/balance/accountActions";
+import {
+  accountDeletionCounts,
+  restoreAccount,
+} from "@/app/(app)/balance/accountActions";
+import { DeleteAccountPanel } from "@/app/(app)/balance/DeleteAccountPanel";
 import { Button } from "@/components/ui/Button";
 import {
   type AccountTypeId,
   accountTypeById,
 } from "@/lib/accounts/accountDraft";
-import {
-  deleteAccount,
-  renameAccount,
-  setAccountImports,
-} from "./accountActions";
+import type { AccountDeletionCounts } from "@/lib/accounts/schemas";
+import { renameAccount, setAccountImports } from "./accountActions";
 import { SectionHeading, SettingsCard } from "./SectionHeading";
 
 export type ManagedAccount = {
@@ -133,6 +134,18 @@ const CreateRow = styled.div`
   margin-bottom: ${({ theme }) => theme.spacing.lg};
 `;
 
+// The delete panel takes the row's place, with room around it.
+const PanelRow = styled.div`
+  padding: ${({ theme }) => theme.spacing.md} 0;
+  border-bottom: 1px solid ${({ theme }) => theme.colors.hairline};
+`;
+
+const DeleteError = styled.p`
+  margin: 0 0 ${({ theme }) => theme.spacing.md};
+  font-size: 13px;
+  color: ${({ theme }) => theme.colors.negative};
+`;
+
 const Empty = styled.p`
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
   font-size: 13px;
@@ -160,6 +173,28 @@ export function AccountManager({
   const now = new Date();
   const thisMonth = { year: now.getUTCFullYear(), month: now.getUTCMonth() };
   const [editName, setEditName] = useState("");
+  // The same panel the balance sheet opens, so deleting an account offers the
+  // same choices wherever it starts: stop tracking it, or delete it and move
+  // or delete its transactions.
+  const [deleteCounts, setDeleteCounts] =
+    useState<AccountDeletionCounts | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const openDelete = (accountId: string) =>
+    startTransition(async () => {
+      setDeleteError(null);
+      try {
+        setDeleteCounts(await accountDeletionCounts({ accountId }));
+        setMode({ kind: "delete", id: accountId });
+      } catch {
+        setDeleteError("Couldn't load what deleting it would remove.");
+      }
+    });
+
+  const closeDelete = () => {
+    setMode(null);
+    setDeleteCounts(null);
+  };
 
   const run = (fn: () => Promise<unknown>) =>
     startTransition(async () => {
@@ -194,35 +229,26 @@ export function AccountManager({
       );
     }
 
-    if (mode?.kind === "delete" && mode.id === a.id) {
+    if (mode?.kind === "delete" && mode.id === a.id && deleteCounts) {
       return (
-        <Row key={a.id}>
-          <Grow>
-            {referenced > 0 ? (
-              <>
-                <strong>{a.name}</strong> still has {referenced} transaction(s).
-                Reassign or remove them before deleting.
-              </>
-            ) : (
-              <>
-                Remove <strong>{a.name}</strong>?
-              </>
-            )}
-          </Grow>
-          {referenced === 0 && (
-            <TextButton
-              type="button"
-              $danger
-              disabled={pending}
-              onClick={() => run(() => deleteAccount({ accountId: a.id }))}
-            >
-              Remove
-            </TextButton>
-          )}
-          <TextButton type="button" onClick={() => setMode(null)}>
-            Cancel
-          </TextButton>
-        </Row>
+        <PanelRow key={a.id}>
+          <DeleteAccountPanel
+            accountId={a.id}
+            name={a.name}
+            counts={deleteCounts}
+            isProperty={a.type === "PROPERTY"}
+            moveTargets={accounts
+              .filter((other) => other.id !== a.id)
+              .map((other) => ({ id: other.id, name: other.name }))}
+            year={thisMonth.year}
+            month={thisMonth.month}
+            onClose={closeDelete}
+            onDone={() => {
+              closeDelete();
+              router.refresh();
+            }}
+          />
+        </PanelRow>
       );
     }
 
@@ -260,7 +286,8 @@ export function AccountManager({
           <TextButton
             type="button"
             $danger
-            onClick={() => setMode({ kind: "delete", id: a.id })}
+            disabled={pending}
+            onClick={() => openDelete(a.id)}
           >
             Delete
           </TextButton>
@@ -276,7 +303,6 @@ export function AccountManager({
         <Lead>
           Accounts are where your money sits — current, savings, ISA, SIPP.
           Import statements against them, and name them when tagging a transfer.
-          An account can’t be deleted while it still has transactions.
         </Lead>
 
         {/* The same drawer the balance sheet uses. Adding a name alone made
@@ -303,6 +329,8 @@ export function AccountManager({
             router.refresh();
           }}
         />
+
+        {deleteError && <DeleteError role="alert">{deleteError}</DeleteError>}
 
         {accounts.length === 0 ? (
           <Empty>

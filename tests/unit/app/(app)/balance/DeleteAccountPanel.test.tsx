@@ -140,7 +140,173 @@ describe("DeleteAccountPanel", () => {
       expect(deleteEverywhere).toHaveBeenCalledWith({
         accountId: "a1",
         alsoLinked: true,
+        moveTransactionsTo: null,
       }),
     );
+  });
+
+  describe("an account that still has transactions", () => {
+    const withLedger = {
+      months: 3,
+      budgetRows: 0,
+      liveTransactions: 582,
+      incomingTransfers: 2,
+      linked: null,
+    };
+    const targets = [
+      { id: "joint", name: "Joint Account" },
+      { id: "savings", name: "Savings Account" },
+    ];
+    const deleteWithConfirm = () => {
+      fireEvent.click(
+        screen.getByRole("radio", { name: /delete it everywhere/i }),
+      );
+      fireEvent.change(screen.getByLabelText(/type delete to confirm/i), {
+        target: { value: "DELETE" },
+      });
+    };
+
+    // It used to say "Reassign or remove them first" and stop there.
+    // No account is preselected: guessing would file 582 rows under
+    // whichever account happens to sort first.
+    test("offers to move them, and waits for an account to be chosen", () => {
+      renderPanel({ counts: withLedger, moveTargets: targets });
+      deleteWithConfirm();
+
+      expect(
+        screen.getByRole("radio", { name: /move them to another account/i }),
+      ).toBeChecked();
+      const picker = screen.getByRole("combobox", {
+        name: /account to move them to/i,
+      });
+      expect(picker).toHaveValue("");
+      const submit = screen.getByRole("button", {
+        name: "Move 582 and delete",
+      });
+      expect(submit).toBeDisabled();
+
+      fireEvent.change(picker, { target: { value: "joint" } });
+      expect(submit).toBeEnabled();
+    });
+
+    test("moves them to the account chosen", async () => {
+      renderPanel({ counts: withLedger, moveTargets: targets });
+      deleteWithConfirm();
+      fireEvent.change(
+        screen.getByRole("combobox", { name: /account to move them to/i }),
+        { target: { value: "savings" } },
+      );
+      fireEvent.click(
+        screen.getByRole("button", { name: "Move 582 and delete" }),
+      );
+
+      await waitFor(() =>
+        expect(deleteEverywhere).toHaveBeenCalledWith({
+          accountId: "a1",
+          alsoLinked: false,
+          moveTransactionsTo: "savings",
+        }),
+      );
+    });
+
+    test("deleting them says so on the button, and moves nothing", async () => {
+      renderPanel({ counts: withLedger, moveTargets: targets });
+      deleteWithConfirm();
+      fireEvent.click(
+        screen.getByRole("radio", { name: /delete them with the account/i }),
+      );
+      fireEvent.click(
+        screen.getByRole("button", { name: "Delete with 582 transactions" }),
+      );
+
+      await waitFor(() =>
+        expect(deleteEverywhere).toHaveBeenCalledWith({
+          accountId: "a1",
+          alsoLinked: false,
+          moveTransactionsTo: null,
+        }),
+      );
+    });
+
+    // If this is wrong, a user deletes Current Account and finds two
+    // transfers on another account quietly changed with no word of warning.
+    test("says what happens to other accounts' transfers that name it", () => {
+      renderPanel({ counts: withLedger, moveTargets: targets });
+      deleteWithConfirm();
+      fireEvent.change(
+        screen.getByRole("combobox", { name: /account to move them to/i }),
+        { target: { value: "joint" } },
+      );
+      expect(
+        screen.getByText(
+          "2 transfers from other accounts will point to Joint Account instead.",
+        ),
+      ).toBeInTheDocument();
+
+      fireEvent.click(
+        screen.getByRole("radio", { name: /delete them with the account/i }),
+      );
+      expect(
+        screen.getByText(
+          "2 transfers from other accounts will no longer be marked as transfers.",
+        ),
+      ).toBeInTheDocument();
+    });
+
+    test("counts read with a thousands separator", () => {
+      renderPanel({
+        counts: { ...withLedger, liveTransactions: 1326 },
+        moveTargets: targets,
+      });
+      deleteWithConfirm();
+      expect(screen.getByText(/It has 1,326 transactions/)).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Move 1,326 and delete" }),
+      ).toBeInTheDocument();
+    });
+
+    test("with nowhere to move them, only deleting is offered", () => {
+      renderPanel({ counts: withLedger, moveTargets: [] });
+      deleteWithConfirm();
+      expect(
+        screen.queryByRole("radio", { name: /move them/i }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Delete with 582 transactions" }),
+      ).toBeEnabled();
+    });
+
+    // A partner leaving with it cannot also be where the rows go.
+    test("never offers a partner that is being deleted too as the destination", () => {
+      renderPanel({
+        name: "Home",
+        isProperty: true,
+        counts: {
+          ...withLedger,
+          linked: {
+            accountId: "m1",
+            name: "Halifax mortgage",
+            latestValue: 184200,
+            liveTransactions: 10,
+          },
+        },
+        moveTargets: [{ id: "m1", name: "Halifax mortgage" }, ...targets],
+      });
+      deleteWithConfirm();
+
+      const options = Array.from(
+        screen
+          .getByRole("combobox", { name: /account to move them to/i })
+          .querySelectorAll("option"),
+      ).map((o) => o.textContent);
+      expect(options).toEqual([
+        "Choose an account…",
+        "Joint Account",
+        "Savings Account",
+      ]);
+      expect(
+        screen.getByRole("button", { name: "Move 592 and delete" }),
+      ).toBeInTheDocument();
+    });
   });
 });

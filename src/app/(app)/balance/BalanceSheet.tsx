@@ -1763,6 +1763,9 @@ export function BalanceSheet({
               name={deletePanel.name}
               counts={deletePanel.counts}
               isProperty={deletePanel.isProperty}
+              moveTargets={rows
+                .filter((r) => r.accountId !== deletePanel.accountId)
+                .map((r) => ({ id: r.accountId, name: r.name }))}
               onClose={closeDeletePanel}
               onDone={onDeleteDone}
             />
