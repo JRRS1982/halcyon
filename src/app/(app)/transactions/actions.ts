@@ -6,6 +6,7 @@ import { z } from "zod";
 import { kindOf } from "@/lib/accounts/accountDraft";
 import { createAccountWithinCap } from "@/lib/accounts/createWithinCap";
 import { buildAccountData } from "@/lib/accounts/creation";
+import { findAccountNamed } from "@/lib/accounts/uniqueName";
 import { calendarDate } from "@/lib/budget/period";
 import { categorySectionSchema } from "@/lib/budget/schemas";
 import { createCategoryWithinCap } from "@/lib/categories/createWithinCap";
@@ -106,6 +107,10 @@ async function resolveAccount(
 
   const name = cleanLabel(newAccountName ?? "");
   if (!name) throw new Error("An account is required to import");
+  // A name typed as "new" that the user already has means that account — and
+  // its transactions are what the duplicate check has to see.
+  const existing = await findAccountNamed(prisma.account, userId, name);
+  if (existing) return existing;
   const created = await createAccountWithinCap(prisma.account, {
     userId,
     name,
@@ -126,70 +131,75 @@ function splitRows(rows: string[][], mapping: ColumnMapping) {
 
 // Step 1 of import: flags which valid rows look like duplicates of existing
 // transactions in the chosen account, so the user can confirm before committing.
-// A brand-new account has nothing to match against, so never flags anything.
+// A genuinely new account has nothing to match against, so flags nothing.
 // Does NOT write — no account is created here.
 export async function previewImport(
   input: ImportInput,
 ): Promise<ImportPreview> {
   const userId = await requireTransactionsEnabled();
-  const { accountId, rows, mapping } = importSchema.parse(input);
+  const { accountId, newAccountName, rows, mapping } =
+    importSchema.parse(input);
   const { valid, invalidCount } = splitRows(rows, mapping as ColumnMapping);
 
   const duplicates: DuplicateRow[] = [];
-  if (accountId && valid.length > 0) {
-    const account = await prisma.account.findFirst({
-      where: { id: accountId, userId, deletedAt: null },
-      select: { id: true },
+  // A typed new-account name that matches an existing account resolves to it
+  // at commit, so the preview checks that account too.
+  const account = accountId
+    ? await prisma.account.findFirst({
+        where: { id: accountId, userId, deletedAt: null },
+        select: { id: true },
+      })
+    : newAccountName
+      ? await findAccountNamed(prisma.account, userId, newAccountName)
+      : null;
+  if (account && valid.length > 0) {
+    // Look only at the dates the CSV actually names, not the span between
+    // its earliest and latest. A duplicate has to share a date with one of
+    // these rows — the fingerprint includes the date — so the span was never
+    // doing work the `in` list does not, and it loaded every transaction in
+    // between. With a wide-enough CSV that is the whole ledger, in a route
+    // that writes nothing and so is bounded by no cap.
+    //
+    // `take` is the second fence: distinct dates are bounded by
+    // MAX_IMPORT_ROWS, but a single date can hold many transactions, and the
+    // only thing this read feeds is a fingerprint set.
+    const dates = [
+      ...new Set(valid.map((row) => (row.date as Date).getTime())),
+    ].map((time) => new Date(time));
+    const existing = await prisma.transaction.findMany({
+      where: {
+        userId,
+        accountId: account.id,
+        deletedAt: null,
+        date: { in: dates },
+      },
+      select: { date: true, amount: true, description: true },
+      take: MAX_IMPORT_ROWS * 2,
     });
-    if (account) {
-      // Look only at the dates the CSV actually names, not the span between
-      // its earliest and latest. A duplicate has to share a date with one of
-      // these rows — the fingerprint includes the date — so the span was never
-      // doing work the `in` list does not, and it loaded every transaction in
-      // between. With a wide-enough CSV that is the whole ledger, in a route
-      // that writes nothing and so is bounded by no cap.
-      //
-      // `take` is the second fence: distinct dates are bounded by
-      // MAX_IMPORT_ROWS, but a single date can hold many transactions, and the
-      // only thing this read feeds is a fingerprint set.
-      const dates = [
-        ...new Set(valid.map((row) => (row.date as Date).getTime())),
-      ].map((time) => new Date(time));
-      const existing = await prisma.transaction.findMany({
-        where: {
-          userId,
-          accountId,
-          deletedAt: null,
-          date: { in: dates },
-        },
-        select: { date: true, amount: true, description: true },
-        take: MAX_IMPORT_ROWS * 2,
+    const seen = new Set(
+      existing.map((tx) =>
+        transactionFingerprint({
+          accountId: account.id,
+          date: tx.date,
+          amount: Number(tx.amount),
+          description: tx.description,
+        }),
+      ),
+    );
+    for (const row of valid) {
+      const fp = transactionFingerprint({
+        accountId: account.id,
+        date: row.date as Date,
+        amount: row.amount as number,
+        description: row.description,
       });
-      const seen = new Set(
-        existing.map((tx) =>
-          transactionFingerprint({
-            accountId,
-            date: tx.date,
-            amount: Number(tx.amount),
-            description: tx.description,
-          }),
-        ),
-      );
-      for (const row of valid) {
-        const fp = transactionFingerprint({
-          accountId,
-          date: row.date as Date,
-          amount: row.amount as number,
+      if (seen.has(fp)) {
+        duplicates.push({
+          index: row.index,
+          date: (row.date as Date).toISOString(),
           description: row.description,
+          amount: row.amount as number,
         });
-        if (seen.has(fp)) {
-          duplicates.push({
-            index: row.index,
-            date: (row.date as Date).toISOString(),
-            description: row.description,
-            amount: row.amount as number,
-          });
-        }
       }
     }
   }

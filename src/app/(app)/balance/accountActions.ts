@@ -27,6 +27,7 @@ import {
   disallowedTerms,
   setAccountTermsSchema,
 } from "@/lib/accounts/schemas";
+import { assertAccountNameFree } from "@/lib/accounts/uniqueName";
 import { requireUserId } from "@/lib/auth/requireUserId";
 import { createBalanceItemWithinCap } from "@/lib/balance/createWithinCap";
 import { isValidBalanceCategory } from "@/lib/balance/reorder";
@@ -367,6 +368,7 @@ export async function renameAccount(input: RenameAccountInput): Promise<void> {
   const label = cleanLabel(name);
 
   await prisma.$transaction(async (tx) => {
+    await assertAccountNameFree(tx.account, userId, label, accountId);
     const result = await tx.account.updateMany({
       where: { id: accountId, userId, deletedAt: null },
       data: { name: label },
@@ -481,6 +483,14 @@ export async function restoreAccount(input: AccountIdInput): Promise<void> {
     where: { userId, deletedAt: null },
   });
   if (live >= MAX_ACCOUNTS_PER_USER) throw accountLimitError();
+
+  // While it was archived its name was free, and may since have been taken.
+  const archived = await prisma.account.findFirst({
+    where: { id: accountId, userId },
+    select: { name: true },
+  });
+  if (!archived) throw new Error("Account not found");
+  await assertAccountNameFree(prisma.account, userId, archived.name, accountId);
 
   const result = await prisma.account.updateMany({
     where: { id: accountId, userId },

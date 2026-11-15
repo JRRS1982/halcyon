@@ -1,13 +1,14 @@
 import type { Account, Prisma } from "@prisma/client";
 import { assertRoom } from "@/lib/limits/ceilings";
 import { accountLimitError, MAX_ACCOUNTS_PER_USER } from "./limits";
+import { type AccountNameLookup, assertAccountNameFree } from "./uniqueName";
 
 // The only place in the app that creates an Account. See the header on
 // categories/createWithinCap.ts for why this is a function rather than a
 // convention — there were four create sites and two of them checked the cap,
 // both inside the same transaction, so the import paths created accounts with
 // no ceiling at all.
-export type AccountDelegate = {
+export type AccountDelegate = AccountNameLookup & {
   // deletedAt optional so the same delegate serves both counts: omitted means
   // every row, including tombstones.
   count(args: { where: { userId: string; deletedAt?: null } }): Promise<number>;
@@ -29,6 +30,7 @@ export async function createAccountWithinCap(
     liveMax: MAX_ACCOUNTS_PER_USER,
     liveError: accountLimitError,
   });
+  await assertAccountNameFree(db, data.userId, data.name);
 
   return db.create({ data });
 }
