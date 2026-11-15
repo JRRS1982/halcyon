@@ -241,3 +241,58 @@ describe("import (integration)", () => {
     expect(preview.duplicates).toHaveLength(2);
   });
 });
+
+describe("importing into a new account named like an existing one", () => {
+  // The bug in production: a statement imported twice into "Joint Account",
+  // where one import had typed the name as a new account, made a second
+  // account of the same name — and the duplicate check, per account, found
+  // nothing to match. Typing an existing name now means that account.
+  test("previewImport checks the existing account for duplicates", async () => {
+    const account = await prisma.account.create({
+      data: {
+        userId: TEST_USER_ID,
+        name: "Joint Account",
+        ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+      },
+    });
+    await commitImport({
+      accountId: account.id,
+      newAccountName: null,
+      rows,
+      mapping,
+      skipIndexes: [],
+    });
+
+    const preview = await previewImport({
+      accountId: null,
+      newAccountName: "joint account",
+      rows,
+      mapping,
+    });
+    expect(preview.duplicates.map((d) => d.index)).toEqual([0, 1]);
+  });
+
+  test("commitImport adds to the existing account rather than creating a second", async () => {
+    const account = await prisma.account.create({
+      data: {
+        userId: TEST_USER_ID,
+        name: "Joint Account",
+        ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+      },
+    });
+
+    const res = await commitImport({
+      accountId: null,
+      newAccountName: " Joint  Account ",
+      rows,
+      mapping,
+      skipIndexes: [],
+    });
+
+    expect(res.accountName).toBe("Joint Account");
+    expect(
+      await prisma.account.count({ where: { userId: TEST_USER_ID } }),
+    ).toBe(1);
+    expect(await countTxns(account.id)).toBe(2);
+  });
+});

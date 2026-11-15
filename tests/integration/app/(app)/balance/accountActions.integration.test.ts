@@ -386,7 +386,15 @@ describe("account actions (integration)", () => {
 
   it("takes both sides when asked", async () => {
     await createAccount(homeWithMortgageInput);
-    const { accountId } = await createAccount(homeWithMortgageInput);
+    // A second pair under its own names: two accounts may not share one.
+    const { accountId } = await createAccount({
+      ...homeWithMortgageInput,
+      name: "Flat",
+      mortgage: {
+        ...homeWithMortgageInput.mortgage,
+        name: "Nationwide mortgage",
+      },
+    });
 
     await deleteAccountEverywhere({ accountId, alsoLinked: true });
 
