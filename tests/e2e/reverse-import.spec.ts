@@ -44,8 +44,8 @@ test.describe("reverse import", () => {
     const picker = page.getByLabel("Import to reverse");
     await expect(picker).toBeVisible();
     await expect(
-      picker.locator("option", { hasText: "reverse-me.csv" }),
-    ).toHaveCount(1);
+      picker.getByRole("radio", { name: /reverse-me\.csv/ }),
+    ).toBeChecked();
     await withServerAction(page, () =>
       page.getByRole("button", { name: /Reverse import/ }).click(),
     );
