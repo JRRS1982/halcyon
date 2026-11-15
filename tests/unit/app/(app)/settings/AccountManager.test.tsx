@@ -20,7 +20,6 @@ jest.mock("@/app/(app)/balance/AddAccountDrawer", () => ({
 
 const setImports = jest.fn();
 jest.mock("@/app/(app)/settings/accountActions", () => ({
-  deleteAccount: jest.fn(),
   renameAccount: jest.fn(),
   setAccountImports: (...a: unknown[]) => setImports(...a),
 }));

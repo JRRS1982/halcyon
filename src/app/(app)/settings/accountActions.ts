@@ -7,13 +7,8 @@ import { requireUserId } from "@/lib/auth/requireUserId";
 import { prisma } from "@/lib/prisma";
 
 // Accounts are managed in Settings and exist independently of the transactions
-// feature toggle, so these gate on auth only.
-function revalidateAll() {
-  revalidatePath("/settings");
-  revalidatePath("/transactions");
-  revalidatePath("/budget");
-  revalidatePath("/balance");
-}
+// feature toggle, so these gate on auth only. Deleting goes through the balance
+// sheet's deleteAccountEverywhere/archiveAccount, from the same panel.
 
 // One implementation, shared with the balance sheet's own rename entry point
 // (src/app/(app)/balance/accountActions.ts) — it also propagates the name
@@ -41,34 +36,4 @@ export async function setAccountImports(
   revalidatePath("/settings");
   revalidatePath("/transactions");
   revalidatePath("/balance");
-}
-
-// Soft-delete, but only when the account is unreferenced: it must own no
-// transactions and not be named as a transfer counterparty by any transaction.
-// The user reassigns/clears those first (mirrors how categories block delete).
-export async function deleteAccount(
-  input: z.input<typeof idSchema>,
-): Promise<void> {
-  const userId = await requireUserId("/settings");
-  const { accountId } = idSchema.parse(input);
-
-  const referenced = await prisma.transaction.count({
-    where: {
-      userId,
-      deletedAt: null,
-      OR: [{ accountId }, { transferAccountId: accountId }],
-    },
-  });
-  if (referenced > 0) {
-    throw new Error(
-      "This account still has transactions. Reassign or remove them first.",
-    );
-  }
-
-  const result = await prisma.account.updateMany({
-    where: { id: accountId, userId, deletedAt: null },
-    data: { deletedAt: new Date() },
-  });
-  if (result.count === 0) throw new Error("Account not found");
-  revalidateAll();
 }

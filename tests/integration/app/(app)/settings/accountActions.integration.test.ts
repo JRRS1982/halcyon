@@ -1,6 +1,5 @@
 import { TEST_USER_ID } from "@test/support/helpers";
 import {
-  deleteAccount,
   renameAccount,
   setAccountImports,
 } from "@/app/(app)/settings/accountActions";
@@ -26,71 +25,6 @@ describe("account CRUD (integration)", () => {
       where: { id: created.id },
     });
     expect(renamed.name).toBe("ISA");
-  });
-
-  test("soft-deletes an unreferenced account", async () => {
-    const acct = await prisma.account.create({
-      data: {
-        userId: TEST_USER_ID,
-        name: "Spare",
-        ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
-      },
-    });
-    await deleteAccount({ accountId: acct.id });
-    const after = await prisma.account.findUniqueOrThrow({
-      where: { id: acct.id },
-    });
-    expect(after.deletedAt).not.toBeNull();
-  });
-
-  test("blocks delete while the account owns transactions", async () => {
-    const acct = await prisma.account.create({
-      data: {
-        userId: TEST_USER_ID,
-        name: "Owns txns",
-        ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
-      },
-    });
-    await prisma.transaction.create({
-      data: {
-        userId: TEST_USER_ID,
-        accountId: acct.id,
-        date: new Date("2026-03-01"),
-        amount: -5,
-        description: "x",
-      },
-    });
-    await expect(deleteAccount({ accountId: acct.id })).rejects.toThrow();
-  });
-
-  test("blocks delete while the account is a transfer counterparty", async () => {
-    const owner = await prisma.account.create({
-      data: {
-        userId: TEST_USER_ID,
-        name: "Owner",
-        ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
-      },
-    });
-    const counterparty = await prisma.account.create({
-      data: {
-        userId: TEST_USER_ID,
-        name: "Counterparty",
-        ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
-      },
-    });
-    await prisma.transaction.create({
-      data: {
-        userId: TEST_USER_ID,
-        accountId: owner.id,
-        transferAccountId: counterparty.id,
-        date: new Date("2026-03-02"),
-        amount: -5,
-        description: "x",
-      },
-    });
-    await expect(
-      deleteAccount({ accountId: counterparty.id }),
-    ).rejects.toThrow();
   });
 
   test("turns imports on for an account, changeable after creation", async () => {

@@ -80,12 +80,15 @@ export const deleteAccountEverywhereSchema = accountIdSchema.extend({
   // The linked property or mortgage goes too. Always an explicit choice —
   // never inferred, never hidden when a link exists.
   alsoLinked: z.boolean(),
+  // Where the account's transactions go instead of being deleted with it.
+  // Null deletes them.
+  moveTransactionsTo: z.string().uuid().nullable().default(null),
 });
 
 export type CreateAccountInput = z.infer<typeof createAccountSchema>;
 export type AccountIdInput = z.infer<typeof accountIdSchema>;
 export type ArchiveAccountInput = z.infer<typeof archiveAccountSchema>;
-export type DeleteAccountEverywhereInput = z.infer<
+export type DeleteAccountEverywhereInput = z.input<
   typeof deleteAccountEverywhereSchema
 >;
 
@@ -151,6 +154,10 @@ export type AccountDeletionCounts = {
   budgetRows: number;
   transactions: number;
   importBatches: number;
+  // What the panel tells the user: the account's own transactions that are
+  // still live, and other accounts' transfers that name it as counterparty.
+  liveTransactions: number;
+  incomingTransfers: number;
   // The linked property/mortgage's own rows — deleteAccountEverywhere with
   // alsoLinked:true destroys these too, so a caller stating the size of that
   // delete needs them alongside the primary account's counts above.
@@ -162,5 +169,6 @@ export type AccountDeletionCounts = {
     budgetRows: number;
     transactions: number;
     importBatches: number;
+    liveTransactions: number;
   } | null;
 };

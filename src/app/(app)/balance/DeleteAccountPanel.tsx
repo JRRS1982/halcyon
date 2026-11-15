@@ -15,20 +15,29 @@ import { archiveAccount, deleteAccountEverywhere } from "./accountActions";
 export type DeleteAccountPanelCounts = {
   months: number;
   budgetRows: number;
+  liveTransactions?: number;
+  incomingTransfers?: number;
   linked: {
     accountId: string;
     name: string;
     latestValue: number;
     months?: number;
     budgetRows?: number;
+    liveTransactions?: number;
   } | null;
 };
+
+export type MoveTarget = { id: string; name: string };
+
+type Ledger = "move" | "delete";
 
 type DeleteAccountPanelProps = {
   accountId: string;
   name: string;
   counts: DeleteAccountPanelCounts;
   isProperty: boolean;
+  /** Accounts its transactions can be moved to; the account itself excluded. */
+  moveTargets?: MoveTarget[];
   /** The month whose sheet this was opened from — see archiveAccount. */
   year: number;
   month: number;
@@ -136,13 +145,35 @@ const Actions = styled.div`
   flex-wrap: wrap;
 `;
 
+const Select = styled.select`
+  width: 100%;
+  margin-top: ${({ theme }) => theme.spacing.xs};
+  padding: ${({ theme }) => theme.spacing.xs} ${({ theme }) => theme.spacing.sm};
+  border: 1px solid ${({ theme }) => theme.colors.fieldBorder};
+  border-radius: ${({ theme }) => theme.rounded.sm};
+  background: ${({ theme }) => theme.colors.field};
+  font-family: ${({ theme }) => theme.typography.bodyMd.family};
+  font-size: 14px;
+  color: ${({ theme }) => theme.colors.ink};
+`;
+
+const Legend = styled.legend`
+  padding: 0;
+  margin-bottom: ${({ theme }) => theme.spacing.xs};
+  font-family: ${({ theme }) => theme.typography.bodyMd.family};
+  font-size: 14px;
+  font-weight: 600;
+  color: ${({ theme }) => theme.colors.ink};
+`;
+
 const Alert = styled.p`
   margin: 0;
   color: ${({ theme }) => theme.colors.negative};
   font-size: 13px;
 `;
 
-const plural = (n: number, noun: string) => `${n} ${noun}${n === 1 ? "" : "s"}`;
+const plural = (n: number, noun: string) =>
+  `${n.toLocaleString("en-GB")} ${noun}${n === 1 ? "" : "s"}`;
 
 // The panel doesn't receive the user's currency/number-format settings (its
 // props are just the account and its counts), so the partner's latest value
@@ -154,6 +185,7 @@ export function DeleteAccountPanel({
   name,
   counts,
   isProperty,
+  moveTargets = [],
   year,
   month,
   onClose,
@@ -166,7 +198,38 @@ export function DeleteAccountPanel({
   const [error, setError] = useState<string | null>(null);
 
   const { linked } = counts;
-  const canSubmit = canConfirmDeletion(mode, confirmText) && !pending;
+  // A partner that is going too cannot also be where the rows go.
+  const targets = moveTargets.filter(
+    (t) => !(alsoLinked && t.id === linked?.accountId),
+  );
+  const [ledger, setLedger] = useState<Ledger>(
+    targets.length > 0 ? "move" : "delete",
+  );
+  // No default: the first account alphabetically is as likely to be wrong as
+  // right, and a wrong guess files every row under it.
+  const [chosenTarget, setChosenTarget] = useState("");
+  const moveTo = targets.some((t) => t.id === chosenTarget) ? chosenTarget : "";
+  const moveToName = targets.find((t) => t.id === moveTo)?.name ?? "";
+
+  const transactions =
+    (counts.liveTransactions ?? 0) +
+    (alsoLinked ? (linked?.liveTransactions ?? 0) : 0);
+  const incoming = counts.incomingTransfers ?? 0;
+  const deletingEverywhere = mode === "everywhere";
+  const moving = deletingEverywhere && transactions > 0 && ledger === "move";
+
+  const canSubmit =
+    canConfirmDeletion(mode, confirmText) &&
+    !pending &&
+    (!moving || moveTo !== "");
+
+  // The button says what will happen to the ledger, not just "Delete".
+  const submitLabel =
+    !deletingEverywhere || transactions === 0
+      ? "Delete"
+      : moving
+        ? `Move ${transactions.toLocaleString("en-GB")} and delete`
+        : `Delete with ${plural(transactions, "transaction")}`;
 
   const onSubmit = async () => {
     setError(null);
@@ -180,7 +243,11 @@ export function DeleteAccountPanel({
           fromMonth: month,
         });
       } else {
-        await deleteAccountEverywhere({ accountId, alsoLinked });
+        await deleteAccountEverywhere({
+          accountId,
+          alsoLinked,
+          moveTransactionsTo: moving ? moveTo : null,
+        });
       }
       onDone();
     } catch (e) {
@@ -259,6 +326,67 @@ export function DeleteAccountPanel({
         </PartnerBlock>
       )}
 
+      {deletingEverywhere && transactions > 0 && (
+        <RadioFieldset>
+          <Legend>
+            It has {plural(transactions, "transaction")}. What should happen to
+            them?
+          </Legend>
+          {targets.length > 0 && (
+            <RadioOption>
+              <RadioLabel>
+                <input
+                  type="radio"
+                  name="delete-ledger"
+                  checked={ledger === "move"}
+                  onChange={() => setLedger("move")}
+                />
+                Move them to another account
+              </RadioLabel>
+              <Text>They keep their dates, amounts, categories and notes.</Text>
+              {ledger === "move" && (
+                <Select
+                  aria-label="Account to move them to"
+                  value={moveTo}
+                  onChange={(e) => setChosenTarget(e.target.value)}
+                >
+                  <option value="" disabled>
+                    Choose an account…
+                  </option>
+                  {targets.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </RadioOption>
+          )}
+          <RadioOption>
+            <RadioLabel>
+              <input
+                type="radio"
+                name="delete-ledger"
+                checked={ledger === "delete"}
+                onChange={() => setLedger("delete")}
+              />
+              Delete them with the account
+            </RadioLabel>
+            <Text>
+              Your budget actuals for those months drop by their amounts.
+            </Text>
+          </RadioOption>
+        </RadioFieldset>
+      )}
+
+      {deletingEverywhere && incoming > 0 && (
+        <Text>
+          {moving
+            ? `${plural(incoming, "transfer")} from other accounts will point to ${moveToName || "that account"} instead.`
+            : `${plural(incoming, "transfer")} from other accounts will no longer be marked as transfers.`}
+        </Text>
+      )}
+
       {isProperty && (
         <Text>
           Sold it? Record a property sale on your plan instead — deleting loses
@@ -298,7 +426,7 @@ export function DeleteAccountPanel({
           onClick={onSubmit}
           disabled={!canSubmit}
         >
-          Delete
+          {submitLabel}
         </Button>
       </Actions>
     </Box>

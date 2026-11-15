@@ -510,18 +510,40 @@ export async function accountDeletionCounts(
   const { accountId } = accountIdSchema.parse(input);
   await requireOwnedAccount(userId, accountId);
 
-  const [months, budgetRows, transactions, importBatches, partnerId] =
-    await Promise.all([
-      prisma.balanceItem.count({ where: { accountId, deletedAt: null } }),
-      prisma.budgetItem.count({ where: { accountId, deletedAt: null } }),
-      prisma.transaction.count({ where: { accountId } }),
-      prisma.importBatch.count({ where: { accountId } }),
-      resolveLinkedPartnerId(userId, accountId),
-    ]);
+  const [
+    months,
+    budgetRows,
+    transactions,
+    importBatches,
+    liveTransactions,
+    incomingTransfers,
+    partnerId,
+  ] = await Promise.all([
+    prisma.balanceItem.count({ where: { accountId, deletedAt: null } }),
+    prisma.budgetItem.count({ where: { accountId, deletedAt: null } }),
+    prisma.transaction.count({ where: { accountId } }),
+    prisma.importBatch.count({ where: { accountId } }),
+    prisma.transaction.count({ where: { accountId, deletedAt: null } }),
+    prisma.transaction.count({
+      where: {
+        userId,
+        deletedAt: null,
+        transferAccountId: accountId,
+        accountId: { not: accountId },
+      },
+    }),
+    resolveLinkedPartnerId(userId, accountId),
+  ]);
+  const own = {
+    months,
+    budgetRows,
+    transactions,
+    importBatches,
+    liveTransactions,
+    incomingTransfers,
+  };
 
-  if (!partnerId) {
-    return { months, budgetRows, transactions, importBatches, linked: null };
-  }
+  if (!partnerId) return { ...own, linked: null };
 
   const [
     partner,
@@ -530,6 +552,7 @@ export async function accountDeletionCounts(
     partnerBudgetRows,
     partnerTransactions,
     partnerImportBatches,
+    partnerLiveTransactions,
   ] = await Promise.all([
     prisma.account.findFirstOrThrow({
       where: { id: partnerId, userId },
@@ -550,13 +573,13 @@ export async function accountDeletionCounts(
     }),
     prisma.transaction.count({ where: { accountId: partnerId } }),
     prisma.importBatch.count({ where: { accountId: partnerId } }),
+    prisma.transaction.count({
+      where: { accountId: partnerId, deletedAt: null },
+    }),
   ]);
 
   return {
-    months,
-    budgetRows,
-    transactions,
-    importBatches,
+    ...own,
     linked: {
       accountId: partner.id,
       name: partner.name,
@@ -565,6 +588,7 @@ export async function accountDeletionCounts(
       budgetRows: partnerBudgetRows,
       transactions: partnerTransactions,
       importBatches: partnerImportBatches,
+      liveTransactions: partnerLiveTransactions,
     },
   };
 }
@@ -576,19 +600,19 @@ export async function accountDeletionCounts(
  * clears its link rather than leaving it pointing at a row that no longer
  * exists.
  *
- * Refuses outright if some other account's transaction still names this
- * account (or the partner, when deleting both) as its transfer counterparty:
- * deleting that reference would either destroy a ledger the user never asked
- * to touch, or hit the `Restrict` the schema puts on
- * `Transaction.transferAccount` specifically so this can't happen silently.
- * A transaction that belongs to one of the accounts being deleted doesn't
- * count — it's leaving too.
+ * The ledger is the user's choice: deleted with the account, or moved to
+ * `moveTransactionsTo` (imports and all), which is how a duplicate account is
+ * merged into the real one. Another account's transfer that names a deleted
+ * account follows its rows to the new account, or — when they are deleted —
+ * stops being a transfer and is left for the user to file. Either way it
+ * never reaches the `Restrict` the schema puts on `Transaction.transferAccount`.
  */
 export async function deleteAccountEverywhere(
   input: DeleteAccountEverywhereInput,
 ): Promise<void> {
   const userId = await requireUserId("/balance");
-  const { accountId, alsoLinked } = deleteAccountEverywhereSchema.parse(input);
+  const { accountId, alsoLinked, moveTransactionsTo } =
+    deleteAccountEverywhereSchema.parse(input);
   await requireOwnedAccount(userId, accountId);
 
   const partnerId = alsoLinked
@@ -596,45 +620,61 @@ export async function deleteAccountEverywhere(
     : null;
   const ids = partnerId ? [accountId, partnerId] : [accountId];
 
-  const blockingTransfers = await prisma.transaction.count({
-    where: {
-      userId,
-      deletedAt: null,
-      transferAccountId: { in: ids },
-      accountId: { notIn: ids },
-    },
-  });
-  if (blockingTransfers > 0) {
-    throw new Error(
-      "This account still has transactions. Reassign or remove them first.",
-    );
+  if (moveTransactionsTo) {
+    if (ids.includes(moveTransactionsTo)) {
+      throw new Error("Choose an account that is staying");
+    }
+    // Live as well as owned: rows moved into an archived account would vanish
+    // from every picker with it.
+    const target = await prisma.account.findFirst({
+      where: { id: moveTransactionsTo, userId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!target) throw new Error("Account not found");
   }
 
   await prisma.$transaction(async (tx) => {
-    // The account's own ledger goes too — "delete it everywhere" means it,
-    // not just the balance sheet. Deleted explicitly (rather than left to the
-    // schema's Cascade) so accountDeletionCounts above can report the size of
-    // what's about to happen.
-    await tx.transaction.deleteMany({
-      where: { accountId: { in: ids }, userId },
-    });
-    await tx.importBatch.deleteMany({
-      where: { accountId: { in: ids }, userId },
-    });
-    // A soft-deleted transaction on some other, surviving account can still
-    // carry a transferAccountId pointing at one of these ids — reverseImport
-    // soft-deletes without clearing it. The refusal above only ever fires on
-    // a live one, so any survivor here is already soft-deleted; clear the
-    // reference rather than let it hit the schema's Restrict on the account
-    // delete below.
-    await tx.transaction.updateMany({
-      where: {
-        userId,
-        transferAccountId: { in: ids },
-        accountId: { notIn: ids },
-      },
-      data: { transferAccountId: null },
-    });
+    if (moveTransactionsTo) {
+      // Every row moves, soft-deleted ones included: a reversed import's
+      // rows belong to a batch that moves too, so Undo import still works.
+      await tx.transaction.updateMany({
+        where: { accountId: { in: ids }, userId },
+        data: { accountId: moveTransactionsTo },
+      });
+      await tx.importBatch.updateMany({
+        where: { accountId: { in: ids }, userId },
+        data: { accountId: moveTransactionsTo },
+      });
+      await tx.transaction.updateMany({
+        where: { userId, transferAccountId: { in: ids } },
+        data: { transferAccountId: moveTransactionsTo },
+      });
+      // A transfer between the two accounts is now within one.
+      await tx.transaction.updateMany({
+        where: {
+          userId,
+          accountId: moveTransactionsTo,
+          transferAccountId: moveTransactionsTo,
+        },
+        data: { transferAccountId: null },
+      });
+    } else {
+      // Deleted explicitly (rather than left to the schema's Cascade) so
+      // accountDeletionCounts above can report the size of what's about to
+      // happen.
+      await tx.transaction.deleteMany({
+        where: { accountId: { in: ids }, userId },
+      });
+      await tx.importBatch.deleteMany({
+        where: { accountId: { in: ids }, userId },
+      });
+      // Live or soft-deleted (reverseImport does not clear it), a transfer
+      // whose counterparty is going stops being a transfer.
+      await tx.transaction.updateMany({
+        where: { userId, transferAccountId: { in: ids } },
+        data: { transferAccountId: null },
+      });
+    }
     // Only the live rows are deleted explicitly — they are the ones
     // accountDeletionCounts counted for the confirmation panel, so what the
     // user was told is going is exactly what these two statements remove.
