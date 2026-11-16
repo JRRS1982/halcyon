@@ -1,4 +1,4 @@
-FROM node:22-slim
+FROM node:24-slim
 
 WORKDIR /app
 
@@ -9,8 +9,8 @@ RUN apt-get update && apt-get install -y \
 
 # Install pnpm. Pin the exact version (not @latest) for reproducible builds and
 # keep it in sync with package.json's packageManager field + CI. pnpm 11 needs
-# Node >=20; this image is node:22-slim, so it's fine.
-RUN corepack enable && corepack prepare pnpm@11.13.0 --activate
+# Node >=20; this image is node:24-slim, so it's fine.
+RUN corepack enable && corepack prepare pnpm@11.20.0 --activate
 
 # Set up Prisma
 ENV PRISMA_CLI_QUERY_ENGINE_TYPE=library
