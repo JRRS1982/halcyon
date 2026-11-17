@@ -58,7 +58,7 @@ export type ImportInput = z.input<typeof importSchema>;
 const commitSchema = importSchema.extend({
   // Data-row indexes the user chose NOT to import: flagged duplicates they
   // confirmed are true re-uploads, and rows they left out (pot transfers).
-  skipIndexes: z.array(z.number().int()).default([]),
+  skipIndexes: z.array(z.number().int()).max(MAX_IMPORT_ROWS).default([]),
   // Shown in the reverse-import picker to identify the batch.
   fileName: z.string().trim().max(200).nullable().optional(),
 });

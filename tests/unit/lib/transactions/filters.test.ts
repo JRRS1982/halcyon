@@ -1,4 +1,4 @@
-import { ledgerWhere } from "@/lib/transactions/filters";
+import { escapeLike, ledgerWhere } from "@/lib/transactions/filters";
 
 const USER = "user-1";
 
@@ -179,5 +179,19 @@ describe("ledgerWhere", () => {
       categoryId: "c-1",
       amount: { gte: -900, lte: 900 },
     });
+  });
+});
+
+describe("escapeLike", () => {
+  test("a typed % or _ is matched literally, not as a wildcard", () => {
+    expect(escapeLike("50% off_now")).toBe("50\\% off\\_now");
+  });
+
+  test("a backslash is escaped before anything else", () => {
+    expect(escapeLike("a\\b")).toBe("a\\\\b");
+  });
+
+  test("ordinary text passes through unchanged", () => {
+    expect(escapeLike("Tesco Metro")).toBe("Tesco Metro");
   });
 });

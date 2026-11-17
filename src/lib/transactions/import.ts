@@ -224,20 +224,29 @@ export function pairOpposites(rows: readonly MappedRow[]): {
     (a, b) =>
       (a.date?.getTime() ?? 0) - (b.date?.getTime() ?? 0) || a.index - b.index,
   );
+  // Rows bucketed by amount, each bucket in date order, so a row looks only at
+  // rows of the opposite amount rather than rescanning the whole list.
+  const byCents = new Map<number, MappedRow[]>();
+  for (const row of byDate) {
+    const bucket = byCents.get(cents(row.amount)) ?? [];
+    bucket.push(row);
+    byCents.set(cents(row.amount), bucket);
+  }
+
   const paired = new Set<number>();
   const pairs: [MappedRow, MappedRow][] = [];
+  const position = new Map(byDate.map((row, i) => [row.index, i]));
 
-  for (const [i, row] of byDate.entries()) {
+  for (const row of byDate) {
     if (paired.has(row.index) || cents(row.amount) === 0) continue;
-    const match = byDate
-      .slice(i + 1)
-      .find(
-        (other) =>
-          !paired.has(other.index) &&
-          cents(other.amount) === -cents(row.amount) &&
-          (other.date?.getTime() ?? 0) - (row.date?.getTime() ?? 0) <=
-            PAIR_WINDOW_DAYS * DAY_MS,
-      );
+    const at = position.get(row.index) ?? 0;
+    const match = (byCents.get(-cents(row.amount)) ?? []).find(
+      (other) =>
+        !paired.has(other.index) &&
+        (position.get(other.index) ?? 0) > at &&
+        (other.date?.getTime() ?? 0) - (row.date?.getTime() ?? 0) <=
+          PAIR_WINDOW_DAYS * DAY_MS,
+    );
     if (!match) continue;
     paired.add(row.index);
     paired.add(match.index);

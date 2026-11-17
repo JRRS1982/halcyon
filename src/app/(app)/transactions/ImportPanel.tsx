@@ -464,12 +464,16 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
   const filledCount = valid.filter(
     (row) => row.isDescriptionFromFallback,
   ).length;
+  // Keyed on the column, not the rule: ticking a value must not recount the
+  // file.
+  const leaveOutColumn = leaveOut?.column ?? null;
+  const hasHeader = mapping?.hasHeader ?? true;
   const leaveOutValues = useMemo(
     () =>
-      mapping && leaveOut
-        ? columnValues(rows, leaveOut.column, mapping.hasHeader)
-        : null,
-    [rows, mapping, leaveOut],
+      leaveOutColumn === null
+        ? null
+        : columnValues(rows, leaveOutColumn, hasHeader),
+    [rows, leaveOutColumn, hasHeader],
   );
 
   const onFile = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -1122,7 +1126,9 @@ function LeftOutList({
 }) {
   const indexes = rows.map((row) => row.index);
   const isAllOut = indexes.every((index) => skip.has(index));
-  const { pairs, singles } = pairOpposites(rows);
+  // Memoised: every checkbox tick re-renders this list, and the rows only
+  // change when the review opens.
+  const { pairs, singles } = useMemo(() => pairOpposites(rows), [rows]);
   const singlesNet = singles.reduce((sum, row) => sum + (row.amount ?? 0), 0);
 
   return (

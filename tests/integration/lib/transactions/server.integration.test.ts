@@ -134,6 +134,16 @@ describe("ledger queries (integration)", () => {
     expect(byCategory.items.map((t) => t.description)).toEqual(["Tesco"]);
   });
 
+  test("a % or _ in the search is matched literally", async () => {
+    await seedTxns();
+    const percent = await getTransactionsPage(TEST_USER_ID, { search: "%" });
+    expect(percent.items).toHaveLength(0);
+    const underscore = await getTransactionsPage(TEST_USER_ID, {
+      search: "_",
+    });
+    expect(underscore.items).toHaveLength(0);
+  });
+
   test("sorts by amount ascending", async () => {
     await seedTxns();
     const page = await getTransactionsPage(TEST_USER_ID, {
