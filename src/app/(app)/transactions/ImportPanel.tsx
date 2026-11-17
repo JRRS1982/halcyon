@@ -37,6 +37,7 @@ import {
   type ImportResult,
   previewImport,
 } from "./actions";
+import { ExtraColumns } from "./ExtraColumns";
 
 type Account = { id: string; name: string };
 
@@ -332,58 +333,6 @@ const SectionHead = styled.h3`
   color: ${({ theme }) => theme.colors.ink};
 `;
 
-// One statement row laid out as column → value, so the user can see what each
-// column actually holds before mapping it.
-const SampleCard = styled.div`
-  display: grid;
-  gap: ${({ theme }) => theme.spacing.sm};
-  padding: ${({ theme }) => theme.spacing.lg};
-  border: 1px solid ${({ theme }) => theme.colors.hairline};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-`;
-
-const SampleHead = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: ${({ theme }) => theme.spacing.md};
-`;
-
-const SampleList = styled.dl`
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr) max-content;
-  gap: ${({ theme }) => theme.spacing.xs} ${({ theme }) => theme.spacing.lg};
-  margin: 0;
-  font-family: ${({ theme }) => theme.typography.bodyMd.family};
-  font-size: 13px;
-
-  dt {
-    color: ${({ theme }) => theme.colors.dim};
-  }
-  dd {
-    margin: 0;
-    color: ${({ theme }) => theme.colors.ink};
-    overflow-wrap: anywhere;
-  }
-`;
-
-const Role = styled.span<{ $isUsed: boolean }>`
-  color: ${({ $isUsed, theme }) => ($isUsed ? theme.colors.ink : theme.colors.dim)};
-  font-weight: ${({ $isUsed }) => ($isUsed ? 600 : 400)};
-`;
-
-const LinkButton = styled.button`
-  padding: 0;
-  border: none;
-  background: none;
-  color: ${({ theme }) => theme.colors.ink};
-  font-family: ${({ theme }) => theme.typography.bodyMd.family};
-  font-size: 13px;
-  text-decoration: underline;
-  cursor: pointer;
-`;
-
 // A pair of left-out rows that cancel each other, set apart as one unit.
 const PairGroup = styled.div`
   display: grid;
@@ -410,6 +359,44 @@ const SingleRow = styled(DupRow)`
   > span:first-of-type {
     flex: 1;
   }
+`;
+
+const DetailsToggle = styled.button`
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: ${({ theme }) => theme.colors.accent};
+  font-family: ${({ theme }) => theme.typography.control.family};
+  font-size: 13px;
+  font-weight: ${({ theme }) => theme.typography.control.weight};
+
+  &:hover {
+    color: ${({ theme }) => theme.colors.ink};
+  }
+`;
+
+// The opened row's kept columns. Wraps, unlike the nowrap cells above it, so a
+// wide statement reads as lines rather than one long pan.
+const DetailTd = styled.td`
+  display: table-cell;
+  padding: ${({ theme }) => theme.spacing.md};
+  border-bottom: 1px solid ${({ theme }) => theme.colors.hairline};
+  background: ${({ theme }) => theme.colors.canvasSoft};
+  white-space: normal;
+
+  > * + * {
+    margin-top: ${({ theme }) => theme.spacing.sm};
+  }
+`;
+
+const VisuallyHidden = styled.span`
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 `;
 
 const NEW_ACCOUNT = "__new__";
@@ -456,6 +443,9 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
   const [confirm, setConfirm] = useState<Review | null>(null);
   const [skip, setSkip] = useState<Set<number>>(new Set());
   const [leaveOut, setLeaveOut] = useState<LeaveOutRule | null>(null);
+  // The preview row whose kept columns are showing. Starts on the first row,
+  // so what "Also keep" saves is visible without hunting for it.
+  const [openRow, setOpenRow] = useState<number | null>(0);
 
   const columnCount = useMemo(
     () => rows.reduce((max, row) => Math.max(max, row.length), 0),
@@ -526,6 +516,7 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
     setRows(parsed);
     setMapping(guessMapping(headerRow, parsed.slice(1)));
     setLeaveOut(guessLeaveOut(headerRow, parsed.slice(1)));
+    setOpenRow(0);
     setOpen(true);
   };
 
@@ -701,12 +692,6 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
                   />
                   First row is a header
                 </CheckRow>
-
-                <SampleRow
-                  rows={rows}
-                  mapping={mapping}
-                  leaveOutColumn={leaveOut?.column ?? null}
-                />
 
                 <MapGrid>
                   <Field>
@@ -942,29 +927,60 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
                           <Th>Description</Th>
                           <Th>Amount</Th>
                           <Th>Status</Th>
+                          <Th>
+                            <VisuallyHidden>Details</VisuallyHidden>
+                          </Th>
                         </tr>
                       </thead>
                       <tbody>
                         {preview.slice(0, PREVIEW_LIMIT).map((row) => {
                           const bad = row.errors.length > 0;
                           const out = !bad && isLeftOut(row, leaveOut);
+                          const isOpen = openRow === row.index;
                           return (
-                            <tr key={row.index}>
-                              <Td $bad={bad}>
-                                {row.date
-                                  ? row.date.toISOString().slice(0, 10)
-                                  : "—"}
-                              </Td>
-                              <Td $bad={bad}>{row.description || "—"}</Td>
-                              <Td $bad={bad}>{row.amount ?? "—"}</Td>
-                              <Td $bad={bad || out}>
-                                {bad
-                                  ? row.errors.join(", ")
-                                  : out
-                                    ? "Skipped"
-                                    : "Ready"}
-                              </Td>
-                            </tr>
+                            <Fragment key={row.index}>
+                              <tr>
+                                <Td $bad={bad}>
+                                  {row.date
+                                    ? row.date.toISOString().slice(0, 10)
+                                    : "—"}
+                                </Td>
+                                <Td $bad={bad}>{row.description || "—"}</Td>
+                                <Td $bad={bad}>{row.amount ?? "—"}</Td>
+                                <Td $bad={bad || out}>
+                                  {bad
+                                    ? row.errors.join(", ")
+                                    : out
+                                      ? "Skipped"
+                                      : "Ready"}
+                                </Td>
+                                <Td>
+                                  {row.extra && (
+                                    <DetailsToggle
+                                      type="button"
+                                      aria-expanded={isOpen}
+                                      onClick={() =>
+                                        setOpenRow(isOpen ? null : row.index)
+                                      }
+                                    >
+                                      Details
+                                    </DetailsToggle>
+                                  )}
+                                </Td>
+                              </tr>
+                              {isOpen && row.extra && (
+                                <tr>
+                                  <DetailTd colSpan={5}>
+                                    <ExtraColumns extra={row.extra} />
+                                    <Note>
+                                      What this row's Details will show in the
+                                      ledger — the columns ticked under “Also
+                                      keep”.
+                                    </Note>
+                                  </DetailTd>
+                                </tr>
+                              )}
+                            </Fragment>
                           );
                         })}
                       </tbody>
@@ -1082,66 +1098,6 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
         </ConfirmOverlay>
       )}
     </>
-  );
-}
-
-// One statement row, column by column, with what the import will do with
-// each value. Cycles through the file's rows so a blank cell on one row (an
-// empty Description on a pot transfer) can be compared with another.
-function SampleRow({
-  rows,
-  mapping,
-  leaveOutColumn,
-}: {
-  rows: string[][];
-  mapping: ColumnMapping;
-  leaveOutColumn: number | null;
-}) {
-  const dataRows = mapping.hasHeader ? rows.slice(1) : rows;
-  const [at, setAt] = useState(0);
-  const row = dataRows[at % Math.max(dataRows.length, 1)] ?? [];
-  const width = rows.reduce((max, r) => Math.max(max, r.length), 0);
-
-  const roleOf = (i: number): string => {
-    if (i === mapping.dateColumn) return "Date";
-    if (i === mapping.descriptionColumn) return "Description";
-    if (i === mapping.amountColumn) return "Amount";
-    if (i === mapping.fallbackDescriptionColumn) return "Description if empty";
-    if (i === leaveOutColumn) return "Kind of row";
-    if (mapping.extraColumns?.includes(i)) return "Kept in Details";
-    return "Discarded";
-  };
-
-  if (dataRows.length === 0) return null;
-  return (
-    <SampleCard>
-      <SampleHead>
-        <Label>
-          Example row {(at % dataRows.length) + 1} of {dataRows.length}
-        </Label>
-        {dataRows.length > 1 && (
-          <LinkButton type="button" onClick={() => setAt((n) => n + 1)}>
-            Show another
-          </LinkButton>
-        )}
-      </SampleHead>
-      <SampleList>
-        {Array.from({ length: width }, (_, n) => n).map((i) => {
-          const role = roleOf(i);
-          return (
-            <Fragment key={i}>
-              <dt>{columnLabel(rows, mapping.hasHeader, i)}</dt>
-              <dd>{row[i]?.trim() || "—"}</dd>
-              <Role
-                $isUsed={role !== "Discarded" && role !== "Kept in Details"}
-              >
-                {role}
-              </Role>
-            </Fragment>
-          );
-        })}
-      </SampleList>
-    </SampleCard>
   );
 }
 
