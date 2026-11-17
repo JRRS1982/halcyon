@@ -131,7 +131,11 @@ export function TransactionsView({
           </Button>
         )}
         <QuickAdd accounts={accounts} categories={categories} />
-        <ImportPanel accounts={accounts} />
+        <ImportPanel
+          accounts={accounts}
+          currency={currency}
+          numberFormat={numberFormat}
+        />
         <ReverseImport />
         <ImportHint>{importLimitHint}</ImportHint>
       </Actions>

@@ -22,6 +22,7 @@ Amount filters match **magnitude**, not sign: filtering for £50 matches a £50 
 
 Pipeline: parse the file in the browser, `previewImport`, user reviews left-out rows and duplicates, `commitImport`.
 
+- **Folded settings:** the card leads with the destination account, then three one-line settings (Columns, Details, Skipping), each a summary of the current choice with a Change link that opens its controls in place. Columns opens by itself when the guess leaves rows unreadable. The preview below formats dates and amounts the way the ledger does.
 - **Preview details:** each preview row has a Details toggle, the first open by default, showing the kept columns with the same `ExtraColumns` component the ledger's Details panel uses, so the preview shows exactly what the ledger will.
 - **Column and date guess** (`guessMapping` in `src/lib/transactions/import.ts`): the header names pick the date, description and amount columns, and `guessDateFormat` (`src/lib/transactions/date.ts`) reads the date order off that column's cells: the first of day-month-year, year-month-day or month-day-year that parses every row, falling back to day first. The user sees and can change both before anything is written.
 - **Description fallback** (`fallbackDescriptionColumn`): read when the description cell is empty. A column headed exactly `Name` is guessed, because some banks leave Description blank on pot transfers and put the payee there. The card says how many rows it filled, so the choice is confirmed against the preview.

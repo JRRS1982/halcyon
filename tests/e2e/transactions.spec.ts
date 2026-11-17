@@ -127,8 +127,8 @@ test.describe("transactions journey", () => {
     await accountSelect.selectOption("__new__");
     await page.getByPlaceholder("e.g. Current account").fill(`Joint ${token}`);
 
-    await expect(page.getByText(/1 ready to import.*1 skipped/)).toBeVisible();
-    await expect(page.getByText(/2 had no description/)).toBeVisible();
+    await expect(page.getByText(/1 to import, 1 skipped/)).toBeVisible();
+    await expect(page.getByText(/2 described from Name/)).toBeVisible();
     await page.getByRole("button", { name: /Review 1 skipped/ }).click();
 
     const review = page.getByRole("dialog", { name: "Check before importing" });

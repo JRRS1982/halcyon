@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import {
   type ChangeEvent,
   Fragment,
+  type ReactNode,
   useCallback,
   useEffect,
   useMemo,
@@ -12,7 +13,13 @@ import {
 } from "react";
 import styled from "styled-components";
 import { Button } from "@/components/ui/Button";
+import { shortDate } from "@/lib/date/humanDate";
 import { appear } from "@/lib/motion";
+import {
+  DEFAULT_NUMBER_FORMAT,
+  formatAmount,
+  type NumberFormat,
+} from "@/lib/settings/currency";
 import { parseCsv } from "@/lib/transactions/csv";
 import { DATE_FORMATS, type DateFormat } from "@/lib/transactions/date";
 import {
@@ -158,10 +165,11 @@ const Th = styled.th`
 // nowrap: the preview shows statement rows as records — a date broken across
 // two lines reads as noise. The table keeps its natural width and pans inside
 // PreviewScroll instead.
-const Td = styled.td<{ $bad?: boolean }>`
+const Td = styled.td<{ $bad?: boolean; $isStruck?: boolean }>`
   padding: ${({ theme }) => theme.spacing.sm};
   border-bottom: 1px solid ${({ theme }) => theme.colors.hairline};
   color: ${({ $bad, theme }) => ($bad ? theme.colors.dim : theme.colors.ink)};
+  text-decoration: ${({ $isStruck }) => ($isStruck ? "line-through" : "none")};
   white-space: nowrap;
 `;
 
@@ -399,6 +407,121 @@ const VisuallyHidden = styled.span`
   white-space: nowrap;
 `;
 
+// The import's settings, each folded to one summary line until changed.
+const SettingList = styled.div`
+  display: grid;
+  border-top: 1px solid ${({ theme }) => theme.colors.hairline};
+`;
+
+// Open, the row is shaded and barred in the accent, so its controls read as
+// belonging to that line rather than as a new section.
+const SettingItem = styled.div<{ $isOpen: boolean }>`
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr) auto;
+  gap: ${({ theme }) => theme.spacing.md};
+  align-items: baseline;
+  padding: ${({ theme }) => theme.spacing.sm} 0;
+  border-bottom: 1px solid ${({ theme }) => theme.colors.hairline};
+  font-family: ${({ theme }) => theme.typography.bodyMd.family};
+  font-size: 14px;
+  color: ${({ theme }) => theme.colors.ink};
+
+  ${({ $isOpen, theme }) =>
+    $isOpen
+      ? `
+    padding: ${theme.spacing.sm} ${theme.spacing.md} ${theme.spacing.md};
+    background: ${theme.colors.canvasSoft};
+    border-left: 3px solid ${theme.colors.accent};
+  `
+      : ""}
+
+  @media (max-width: 560px) {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+`;
+
+const SettingLabel = styled.span<{ $isOpen: boolean }>`
+  font-family: ${({ theme }) => theme.typography.kicker.family};
+  font-size: ${({ theme }) => theme.typography.kicker.size};
+  font-weight: ${({ theme }) => theme.typography.kicker.weight};
+  letter-spacing: ${({ theme }) => theme.typography.kicker.letterSpacing};
+  text-transform: uppercase;
+  color: ${({ $isOpen, theme }) => ($isOpen ? theme.colors.accent : theme.colors.dim)};
+
+  @media (max-width: 560px) {
+    grid-column: 1 / -1;
+  }
+`;
+
+const SettingToggle = styled.button`
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  white-space: nowrap;
+  color: ${({ theme }) => theme.colors.accent};
+  font-family: ${({ theme }) => theme.typography.control.family};
+  font-size: 13px;
+  font-weight: ${({ theme }) => theme.typography.control.weight};
+
+  &:hover {
+    color: ${({ theme }) => theme.colors.ink};
+  }
+`;
+
+// Indented under the summary, not the label, behind a dashed rule.
+const SettingPanel = styled.div`
+  grid-column: 2 / -1;
+  display: grid;
+  gap: ${({ theme }) => theme.spacing.md};
+  margin-top: ${({ theme }) => theme.spacing.xs};
+  padding-top: ${({ theme }) => theme.spacing.md};
+  border-top: 1px dashed ${({ theme }) => theme.colors.hairlineStrong};
+
+  @media (max-width: 560px) {
+    grid-column: 1 / -1;
+  }
+`;
+
+const NarrowSelect = styled(Select)`
+  max-width: 220px;
+`;
+
+const ThNum = styled(Th)`
+  text-align: right;
+`;
+
+const TdNum = styled(Td)`
+  text-align: right;
+`;
+
+const Tag = styled.td`
+  padding: ${({ theme }) => theme.spacing.sm};
+  border-bottom: 1px solid ${({ theme }) => theme.colors.hairline};
+  color: ${({ theme }) => theme.colors.dim};
+  font-size: 12px;
+  white-space: nowrap;
+`;
+
+type Setting = "columns" | "details" | "skipping";
+
+const DATE_FORMAT_LABEL = {
+  DMY: "Day / Month / Year",
+  MDY: "Month / Day / Year",
+  YMD: "Year / Month / Day",
+} satisfies Record<DateFormat, string>;
+
+const DATE_FORMAT_SHORT = {
+  DMY: "day/month/year",
+  MDY: "month/day/year",
+  YMD: "year/month/day",
+} satisfies Record<DateFormat, string>;
+
+const SKIP_REASON = "Moves between your own pots aren't spending or income";
+
+// How many kept columns the folded Details line names before "+N".
+const SUMMARY_COLUMNS = 4;
+
 const NEW_ACCOUNT = "__new__";
 const NO_COLUMN = "";
 const PREVIEW_LIMIT = 8;
@@ -422,7 +545,15 @@ function columnLabel(
   return header ? header : `Column ${index + 1}`;
 }
 
-export function ImportPanel({ accounts }: { accounts: Account[] }) {
+export function ImportPanel({
+  accounts,
+  currency = "GBP",
+  numberFormat = DEFAULT_NUMBER_FORMAT,
+}: {
+  accounts: Account[];
+  currency?: string;
+  numberFormat?: NumberFormat;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   // The import flow runs in a modal: picking a file opens it, finishing (or
@@ -446,6 +577,9 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
   // The preview row whose kept columns are showing. Starts on the first row,
   // so what "Also keep" saves is visible without hunting for it.
   const [openRow, setOpenRow] = useState<number | null>(0);
+  // The one setting open for editing. Every setting starts folded to a
+  // summary line, except Columns when the guess left rows unreadable.
+  const [openSetting, setOpenSetting] = useState<Setting | null>(null);
 
   const columnCount = useMemo(
     () => rows.reduce((max, row) => Math.max(max, row.length), 0),
@@ -518,9 +652,15 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
     }
     setFileName(file.name);
     setRows(parsed);
-    setMapping(guessMapping(headerRow, parsed.slice(1)));
+    const guess = guessMapping(headerRow, parsed.slice(1));
+    setMapping(guess);
     setLeaveOut(guessLeaveOut(headerRow, parsed.slice(1)));
     setOpenRow(0);
+    setOpenSetting(
+      mapRows(parsed, guess).some((row) => row.errors.length > 0)
+        ? "columns"
+        : null,
+    );
     setOpen(true);
   };
 
@@ -657,6 +797,55 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
     { length: columnCount },
     (_, index) => index,
   );
+  const label = (index: number): string => columnLabel(rows, hasHeader, index);
+  const toggleSetting = (setting: Setting) =>
+    setOpenSetting((current) => (current === setting ? null : setting));
+  const fallbackColumn = mapping?.fallbackDescriptionColumn ?? null;
+
+  const columnsSummary = mapping
+    ? [
+        label(mapping.dateColumn),
+        fallbackColumn === null
+          ? label(mapping.descriptionColumn)
+          : `${label(mapping.descriptionColumn)}, else ${label(fallbackColumn)}`,
+        label(mapping.amountColumn),
+        DATE_FORMAT_SHORT[mapping.dateFormat],
+        ...(hasHeader ? [] : ["no header row"]),
+      ].join(" · ")
+    : "";
+
+  const core = mapping
+    ? [mapping.dateColumn, mapping.descriptionColumn, mapping.amountColumn]
+    : [];
+  const kept = (mapping?.extraColumns ?? [])
+    .filter((i) => !core.includes(i))
+    .map(label);
+  const detailsSummary =
+    kept.length === 0
+      ? "Keeping no other columns"
+      : `Keeping ${kept.length} column${kept.length === 1 ? "" : "s"}: ${kept
+          .slice(0, SUMMARY_COLUMNS)
+          .join(", ")}${
+          kept.length > SUMMARY_COLUMNS
+            ? `, +${kept.length - SUMMARY_COLUMNS}`
+            : ""
+        }`;
+
+  const skippedKinds = (leaveOut?.values ?? []).map((value) => {
+    const count = leftOut.filter(
+      (row) => (row.raw[leaveOut?.column ?? -1] ?? "").trim() === value,
+    ).length;
+    return `${value} (${count})`;
+  });
+  const skippingSummary =
+    openSetting === "skipping"
+      ? SKIP_REASON
+      : skippedKinds.length > 0
+        ? `${skippedKinds.join(", ")} — ${SKIP_REASON.toLowerCase()}`
+        : "Nothing skipped";
+
+  const today = new Date();
+
   const accountReady =
     accountChoice !== NEW_ACCOUNT || newAccountName.trim().length > 0;
   // Spelled out wherever the import is described, so a wrong default account
@@ -681,221 +870,18 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
         >
           <ImportDialog open aria-label="Import a statement">
             <DialogTitle>Import a statement</DialogTitle>
-            {fileName && <FileName>{fileName}</FileName>}
+            {fileName && (
+              <FileName>
+                {fileName}
+                {preview.length > 0
+                  ? ` · ${preview.length.toLocaleString()} rows`
+                  : ""}
+              </FileName>
+            )}
             {error && <Note>{error}</Note>}
 
             {mapping && (
               <ModalBody>
-                <CheckRow>
-                  <input
-                    type="checkbox"
-                    checked={mapping.hasHeader}
-                    onChange={(e) =>
-                      patchMapping({ hasHeader: e.target.checked })
-                    }
-                  />
-                  First row is a header
-                </CheckRow>
-
-                <MapGrid>
-                  <Field>
-                    <Label>Date column</Label>
-                    <Select
-                      value={mapping.dateColumn}
-                      onChange={(e) =>
-                        patchMapping({ dateColumn: Number(e.target.value) })
-                      }
-                    >
-                      {columnOptions.map((i) => (
-                        <option key={i} value={i}>
-                          {columnLabel(rows, mapping.hasHeader, i)}
-                        </option>
-                      ))}
-                    </Select>
-                  </Field>
-
-                  <Field>
-                    <Label>Description column</Label>
-                    <Select
-                      value={mapping.descriptionColumn}
-                      onChange={(e) =>
-                        patchMapping({
-                          descriptionColumn: Number(e.target.value),
-                        })
-                      }
-                    >
-                      {columnOptions.map((i) => (
-                        <option key={i} value={i}>
-                          {columnLabel(rows, mapping.hasHeader, i)}
-                        </option>
-                      ))}
-                    </Select>
-                  </Field>
-
-                  <Field>
-                    <Label>If description is empty, use</Label>
-                    <Select
-                      value={mapping.fallbackDescriptionColumn ?? NO_COLUMN}
-                      onChange={(e) =>
-                        patchMapping({
-                          fallbackDescriptionColumn:
-                            e.target.value === NO_COLUMN
-                              ? null
-                              : Number(e.target.value),
-                        })
-                      }
-                    >
-                      <option value={NO_COLUMN}>— leave it empty —</option>
-                      {columnOptions
-                        .filter((i) => i !== mapping.descriptionColumn)
-                        .map((i) => (
-                          <option key={i} value={i}>
-                            {columnLabel(rows, mapping.hasHeader, i)}
-                          </option>
-                        ))}
-                    </Select>
-                  </Field>
-
-                  <Field>
-                    <Label>Amount column</Label>
-                    <Select
-                      value={mapping.amountColumn}
-                      onChange={(e) =>
-                        patchMapping({ amountColumn: Number(e.target.value) })
-                      }
-                    >
-                      {columnOptions.map((i) => (
-                        <option key={i} value={i}>
-                          {columnLabel(rows, mapping.hasHeader, i)}
-                        </option>
-                      ))}
-                    </Select>
-                  </Field>
-
-                  <Field>
-                    <Label>Date format</Label>
-                    <Select
-                      value={mapping.dateFormat}
-                      onChange={(e) =>
-                        patchMapping({
-                          dateFormat: e.target.value as DateFormat,
-                        })
-                      }
-                    >
-                      {DATE_FORMATS.map((fmt) => (
-                        <option key={fmt} value={fmt}>
-                          {fmt === "DMY"
-                            ? "Day / Month / Year"
-                            : fmt === "MDY"
-                              ? "Month / Day / Year"
-                              : "Year / Month / Day"}
-                        </option>
-                      ))}
-                    </Select>
-                  </Field>
-                </MapGrid>
-
-                {columnOptions.some(
-                  (i) =>
-                    i !== mapping.dateColumn &&
-                    i !== mapping.descriptionColumn &&
-                    i !== mapping.amountColumn,
-                ) && (
-                  <div>
-                    <Label>Also keep</Label>
-                    <KeepRow>
-                      {columnOptions
-                        .filter(
-                          (i) =>
-                            i !== mapping.dateColumn &&
-                            i !== mapping.descriptionColumn &&
-                            i !== mapping.amountColumn,
-                        )
-                        .map((i) => (
-                          <CheckRow key={i}>
-                            <input
-                              type="checkbox"
-                              checked={
-                                mapping.extraColumns?.includes(i) ?? false
-                              }
-                              onChange={() => toggleExtraColumn(i)}
-                            />
-                            {columnLabel(rows, mapping.hasHeader, i)}
-                          </CheckRow>
-                        ))}
-                    </KeepRow>
-                    <Note>
-                      Only the columns you tick here are saved — they appear
-                      under each transaction's Details in the ledger (useful for
-                      bank reference or type codes). Unticked columns are
-                      discarded.
-                    </Note>
-                  </div>
-                )}
-
-                <div>
-                  <SectionHead>
-                    Skip rows that aren't spending or income
-                  </SectionHead>
-                  <Note>
-                    Some rows only move money between your own pots or accounts,
-                    so they aren't spending or income. Imported, they clutter
-                    the ledger and inflate its in and out totals. Choose the
-                    column that says what kind each row is, then tick the kinds
-                    to skip. You'll see every skipped row before anything is
-                    imported.
-                  </Note>
-                  <KeepRow>
-                    <Field>
-                      <Label>Kind of row is in</Label>
-                      <Select
-                        value={leaveOut?.column ?? NO_COLUMN}
-                        onChange={(e) =>
-                          setLeaveOut(
-                            e.target.value === NO_COLUMN
-                              ? null
-                              : { column: Number(e.target.value), values: [] },
-                          )
-                        }
-                      >
-                        <option value={NO_COLUMN}>— skip nothing —</option>
-                        {columnOptions.map((i) => (
-                          <option key={i} value={i}>
-                            {columnLabel(rows, mapping.hasHeader, i)}
-                          </option>
-                        ))}
-                      </Select>
-                    </Field>
-                  </KeepRow>
-                  {leaveOut && leaveOutValues && (
-                    <KeepRow>
-                      {leaveOutValues.map(({ value, count }) => (
-                        <CheckRow key={value}>
-                          <input
-                            type="checkbox"
-                            checked={leaveOut.values.includes(value)}
-                            onChange={(e) =>
-                              setLeaveOut({
-                                ...leaveOut,
-                                values: e.target.checked
-                                  ? [...leaveOut.values, value]
-                                  : leaveOut.values.filter((v) => v !== value),
-                              })
-                            }
-                          />
-                          {value} ({count})
-                        </CheckRow>
-                      ))}
-                    </KeepRow>
-                  )}
-                  {leaveOut && !leaveOutValues && (
-                    <Note>
-                      That column has too many different values to pick from —
-                      choose one that holds a kind of row, like Type.
-                    </Note>
-                  )}
-                </div>
-
                 <DestinationCard>
                   <Label>Import into</Label>
                   <DestinationLine>
@@ -921,16 +907,186 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
                   </DestinationLine>
                 </DestinationCard>
 
+                <SettingList>
+                  <SettingRow
+                    label="Columns"
+                    summary={columnsSummary}
+                    isOpen={openSetting === "columns"}
+                    onToggle={() => toggleSetting("columns")}
+                  >
+                    <CheckRow>
+                      <input
+                        type="checkbox"
+                        checked={mapping.hasHeader}
+                        onChange={(e) =>
+                          patchMapping({ hasHeader: e.target.checked })
+                        }
+                      />
+                      First row is a header
+                    </CheckRow>
+                    <MapGrid>
+                      <ColumnSelect
+                        label="Date"
+                        value={mapping.dateColumn}
+                        options={columnOptions}
+                        optionLabel={label}
+                        onChange={(i) => patchMapping({ dateColumn: i })}
+                      />
+                      <ColumnSelect
+                        label="Description"
+                        value={mapping.descriptionColumn}
+                        options={columnOptions}
+                        optionLabel={label}
+                        onChange={(i) => patchMapping({ descriptionColumn: i })}
+                      />
+                      <Field>
+                        <Label>If description is empty, use</Label>
+                        <Select
+                          value={fallbackColumn ?? NO_COLUMN}
+                          onChange={(e) =>
+                            patchMapping({
+                              fallbackDescriptionColumn:
+                                e.target.value === NO_COLUMN
+                                  ? null
+                                  : Number(e.target.value),
+                            })
+                          }
+                        >
+                          <option value={NO_COLUMN}>— leave it empty —</option>
+                          {columnOptions
+                            .filter((i) => i !== mapping.descriptionColumn)
+                            .map((i) => (
+                              <option key={i} value={i}>
+                                {label(i)}
+                              </option>
+                            ))}
+                        </Select>
+                      </Field>
+                      <ColumnSelect
+                        label="Amount"
+                        value={mapping.amountColumn}
+                        options={columnOptions}
+                        optionLabel={label}
+                        onChange={(i) => patchMapping({ amountColumn: i })}
+                      />
+                      <Field>
+                        <Label>Date format</Label>
+                        <Select
+                          value={mapping.dateFormat}
+                          onChange={(e) => {
+                            const format = DATE_FORMATS.find(
+                              (f) => f === e.target.value,
+                            );
+                            if (format) patchMapping({ dateFormat: format });
+                          }}
+                        >
+                          {DATE_FORMATS.map((fmt) => (
+                            <option key={fmt} value={fmt}>
+                              {DATE_FORMAT_LABEL[fmt]}
+                            </option>
+                          ))}
+                        </Select>
+                      </Field>
+                    </MapGrid>
+                  </SettingRow>
+
+                  <SettingRow
+                    label="Details"
+                    summary={detailsSummary}
+                    isOpen={openSetting === "details"}
+                    onToggle={() => toggleSetting("details")}
+                  >
+                    <KeepRow>
+                      {columnOptions
+                        .filter((i) => !core.includes(i))
+                        .map((i) => (
+                          <CheckRow key={i}>
+                            <input
+                              type="checkbox"
+                              checked={
+                                mapping.extraColumns?.includes(i) ?? false
+                              }
+                              onChange={() => toggleExtraColumn(i)}
+                            />
+                            {label(i)}
+                          </CheckRow>
+                        ))}
+                    </KeepRow>
+                    <Note>
+                      Ticked columns show under each transaction's Details in
+                      the ledger. The rest are discarded.
+                    </Note>
+                  </SettingRow>
+
+                  <SettingRow
+                    label="Skipping"
+                    summary={skippingSummary}
+                    isOpen={openSetting === "skipping"}
+                    onToggle={() => toggleSetting("skipping")}
+                  >
+                    <Field>
+                      <Label>Kind of row is in</Label>
+                      <NarrowSelect
+                        value={leaveOut?.column ?? NO_COLUMN}
+                        onChange={(e) =>
+                          setLeaveOut(
+                            e.target.value === NO_COLUMN
+                              ? null
+                              : { column: Number(e.target.value), values: [] },
+                          )
+                        }
+                      >
+                        <option value={NO_COLUMN}>— skip nothing —</option>
+                        {columnOptions.map((i) => (
+                          <option key={i} value={i}>
+                            {label(i)}
+                          </option>
+                        ))}
+                      </NarrowSelect>
+                    </Field>
+                    {leaveOut && leaveOutValues && (
+                      <KeepRow>
+                        {leaveOutValues.map(({ value, count }) => (
+                          <CheckRow key={value}>
+                            <input
+                              type="checkbox"
+                              checked={leaveOut.values.includes(value)}
+                              onChange={(e) =>
+                                setLeaveOut({
+                                  ...leaveOut,
+                                  values: e.target.checked
+                                    ? [...leaveOut.values, value]
+                                    : leaveOut.values.filter(
+                                        (v) => v !== value,
+                                      ),
+                                })
+                              }
+                            />
+                            {value} ({count})
+                          </CheckRow>
+                        ))}
+                      </KeepRow>
+                    )}
+                    {leaveOut && !leaveOutValues && (
+                      <Note>
+                        That column has too many different values to pick from —
+                        choose one that holds a kind of row, like Type.
+                      </Note>
+                    )}
+                  </SettingRow>
+                </SettingList>
+
                 <div>
-                  <Label>Preview</Label>
                   <PreviewScroll>
                     <Table>
                       <thead>
                         <tr>
                           <Th>Date</Th>
                           <Th>Description</Th>
-                          <Th>Amount</Th>
-                          <Th>Status</Th>
+                          <ThNum>Amount</ThNum>
+                          <Th>
+                            <VisuallyHidden>Status</VisuallyHidden>
+                          </Th>
                           <Th>
                             <VisuallyHidden>Details</VisuallyHidden>
                           </Th>
@@ -944,16 +1100,30 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
                           return (
                             <Fragment key={row.index}>
                               <tr>
-                                <Td $bad={bad}>{dayLabel(row.date)}</Td>
-                                <Td $bad={bad}>{row.description || "—"}</Td>
-                                <Td $bad={bad}>{row.amount ?? "—"}</Td>
                                 <Td $bad={bad || out}>
+                                  {row.date
+                                    ? shortDate(dayLabel(row.date), today)
+                                    : "—"}
+                                </Td>
+                                <Td $bad={bad || out} $isStruck={out}>
+                                  {row.description || "—"}
+                                </Td>
+                                <TdNum $bad={bad || out}>
+                                  {row.amount === null
+                                    ? "—"
+                                    : formatAmount(
+                                        currency,
+                                        row.amount,
+                                        numberFormat,
+                                      )}
+                                </TdNum>
+                                <Tag>
                                   {bad
                                     ? row.errors.join(", ")
                                     : out
                                       ? "Skipped"
-                                      : "Ready"}
-                                </Td>
+                                      : ""}
+                                </Tag>
                                 <Td>
                                   {row.extra && (
                                     <DetailsToggle
@@ -972,11 +1142,6 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
                                 <tr>
                                   <DetailTd colSpan={5}>
                                     <ExtraColumns extra={row.extra} />
-                                    <Note>
-                                      What this row's Details will show in the
-                                      ledger — the columns ticked under “Also
-                                      keep”.
-                                    </Note>
                                   </DetailTd>
                                 </tr>
                               )}
@@ -987,26 +1152,13 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
                     </Table>
                   </PreviewScroll>
                   <Summary>
-                    {importCount} ready to import into{" "}
-                    <strong>{destinationName}</strong>
+                    <strong>{importCount} to import</strong>
                     {leftOut.length > 0 ? `, ${leftOut.length} skipped` : ""}
-                    {errorCount > 0
-                      ? `, ${errorCount} with errors (skipped)`
+                    {filledCount > 0 && fallbackColumn !== null
+                      ? `, ${filledCount} described from ${label(fallbackColumn)}`
                       : ""}
-                    .
+                    {errorCount > 0 ? `, ${errorCount} can't be read` : ""}.
                   </Summary>
-                  {filledCount > 0 &&
-                    mapping.fallbackDescriptionColumn != null && (
-                      <Note>
-                        {filledCount} had no description, so they use{" "}
-                        {columnLabel(
-                          rows,
-                          mapping.hasHeader,
-                          mapping.fallbackDescriptionColumn,
-                        )}{" "}
-                        instead — check the preview reads right.
-                      </Note>
-                    )}
                 </div>
 
                 <DialogActions>
@@ -1187,5 +1339,64 @@ function LeftOutList({
         ))}
       </DupList>
     </>
+  );
+}
+
+// One import setting: a label, what it is set to now, and a toggle that opens
+// its controls in place beneath the summary.
+function SettingRow({
+  label,
+  summary,
+  isOpen,
+  onToggle,
+  children,
+}: {
+  label: string;
+  summary: string;
+  isOpen: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <SettingItem $isOpen={isOpen}>
+      <SettingLabel $isOpen={isOpen}>{label}</SettingLabel>
+      <span>{summary}</span>
+      <SettingToggle
+        type="button"
+        aria-expanded={isOpen}
+        aria-label={`${isOpen ? "Done changing" : "Change"} ${label.toLowerCase()}`}
+        onClick={onToggle}
+      >
+        {isOpen ? "Done ▾" : "Change ▸"}
+      </SettingToggle>
+      {isOpen && <SettingPanel>{children}</SettingPanel>}
+    </SettingItem>
+  );
+}
+
+function ColumnSelect({
+  label,
+  value,
+  options,
+  optionLabel,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  options: number[];
+  optionLabel: (index: number) => string;
+  onChange: (index: number) => void;
+}) {
+  return (
+    <Field>
+      <Label>{label}</Label>
+      <Select value={value} onChange={(e) => onChange(Number(e.target.value))}>
+        {options.map((i) => (
+          <option key={i} value={i}>
+            {optionLabel(i)}
+          </option>
+        ))}
+      </Select>
+    </Field>
   );
 }
