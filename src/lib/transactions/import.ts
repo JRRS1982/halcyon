@@ -180,13 +180,13 @@ export function guessLeaveOut(
   return pot ? { column, values: [pot] } : null;
 }
 
-// The distinct non-empty values in one column, most common first, or null
-// when there are too many to offer as checkboxes.
+// The distinct non-empty values in one column with how many rows hold each,
+// most common first, or null when there are too many to offer as checkboxes.
 export function columnValues(
   rows: readonly string[][],
   column: number,
   hasHeader: boolean,
-): string[] | null {
+): { value: string; count: number }[] | null {
   const counts = new Map<string, number>();
   for (const row of hasHeader ? rows.slice(1) : rows) {
     const value = (row[column] ?? "").trim();
@@ -195,10 +195,54 @@ export function columnValues(
   if (counts.size > MAX_LEAVE_OUT_VALUES) return null;
   return [...counts.entries()]
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-    .map(([value]) => value);
+    .map(([value, count]) => ({ value, count }));
 }
 
 export function isLeftOut(row: MappedRow, rule: LeaveOutRule | null): boolean {
   if (!rule || rule.values.length === 0) return false;
   return rule.values.includes((row.raw[rule.column] ?? "").trim());
+}
+
+// How far apart two rows' dates may be and still read as one movement.
+export const PAIR_WINDOW_DAYS = 3;
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const cents = (amount: number | null): number =>
+  Math.round((amount ?? 0) * 100);
+
+// Groups left-out rows into opposite-amount pairs, so the review shows money
+// that went into a pot beside the matching row that came back out. Display
+// only: a pair is a guess (same size, opposite sign, dates within
+// PAIR_WINDOW_DAYS) and never changes what is imported. Each row pairs with
+// the nearest-dated unpaired match after it; ties go to file order, so the
+// grouping is the same every time the same file is read.
+export function pairOpposites(rows: readonly MappedRow[]): {
+  pairs: [MappedRow, MappedRow][];
+  singles: MappedRow[];
+} {
+  const byDate = [...rows].sort(
+    (a, b) =>
+      (a.date?.getTime() ?? 0) - (b.date?.getTime() ?? 0) || a.index - b.index,
+  );
+  const paired = new Set<number>();
+  const pairs: [MappedRow, MappedRow][] = [];
+
+  for (const [i, row] of byDate.entries()) {
+    if (paired.has(row.index) || cents(row.amount) === 0) continue;
+    const match = byDate
+      .slice(i + 1)
+      .find(
+        (other) =>
+          !paired.has(other.index) &&
+          cents(other.amount) === -cents(row.amount) &&
+          (other.date?.getTime() ?? 0) - (row.date?.getTime() ?? 0) <=
+            PAIR_WINDOW_DAYS * DAY_MS,
+      );
+    if (!match) continue;
+    paired.add(row.index);
+    paired.add(match.index);
+    pairs.push([row, match]);
+  }
+
+  return { pairs, singles: byDate.filter((row) => !paired.has(row.index)) };
 }

@@ -5,6 +5,8 @@ import {
   isLeftOut,
   MAX_LEAVE_OUT_VALUES,
   mapRows,
+  PAIR_WINDOW_DAYS,
+  pairOpposites,
 } from "@/lib/transactions/import";
 
 const mapping = {
@@ -259,9 +261,9 @@ describe("leaving rows out", () => {
 
   test("lists a column's values, most common first", () => {
     expect(columnValues(MONZO, 1, true)).toEqual([
-      "Pot transfer",
-      "Card payment",
-      "Monzo-to-Monzo",
+      { value: "Pot transfer", count: 2 },
+      { value: "Card payment", count: 1 },
+      { value: "Monzo-to-Monzo", count: 1 },
     ]);
   });
 
@@ -283,5 +285,69 @@ describe("leaving rows out", () => {
     expect(rows.some((r) => isLeftOut(r, { column: 1, values: [] }))).toBe(
       false,
     );
+  });
+});
+
+describe("pairOpposites", () => {
+  const row = (index: number, day: string, amount: number) => ({
+    index,
+    raw: [],
+    date: new Date(`2026-11-${day}T00:00:00.000Z`),
+    amount,
+    description: `row ${index}`,
+    isDescriptionFromFallback: false,
+    extra: null,
+    errors: [],
+  });
+  const ids = (result: ReturnType<typeof pairOpposites>) => ({
+    pairs: result.pairs.map(([a, b]) => [a.index, b.index]),
+    singles: result.singles.map((r) => r.index),
+  });
+
+  test("pairs money into a pot with the matching money out", () => {
+    expect(ids(pairOpposites([row(0, "02", -151), row(1, "02", 151)]))).toEqual(
+      { pairs: [[0, 1]], singles: [] },
+    );
+  });
+
+  test("leaves a row with no opposite on its own", () => {
+    expect(ids(pairOpposites([row(0, "02", -151), row(1, "02", 42)]))).toEqual({
+      pairs: [],
+      singles: [0, 1],
+    });
+  });
+
+  test("does not pair rows further apart than the window", () => {
+    const late = String(2 + PAIR_WINDOW_DAYS + 1).padStart(2, "0");
+    expect(ids(pairOpposites([row(0, "02", -50), row(1, late, 50)]))).toEqual({
+      pairs: [],
+      singles: [0, 1],
+    });
+  });
+
+  test("each row pairs once, with the nearest date", () => {
+    expect(
+      ids(
+        pairOpposites([
+          row(0, "02", -20),
+          row(1, "04", 20),
+          row(2, "03", 20),
+          row(3, "03", -20),
+        ]),
+      ),
+    ).toEqual({
+      pairs: [
+        [0, 2],
+        [3, 1],
+      ],
+      singles: [],
+    });
+  });
+
+  test("a same-sign repeat is not a pair", () => {
+    expect(ids(pairOpposites([row(0, "02", 10), row(1, "02", 10)]))).toEqual({
+      pairs: [],
+      singles: [0, 1],
+    });
   });
 });

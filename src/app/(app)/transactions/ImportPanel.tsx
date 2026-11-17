@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import {
   type ChangeEvent,
+  Fragment,
   useCallback,
   useEffect,
   useMemo,
@@ -23,6 +24,7 @@ import {
   type LeaveOutRule,
   type MappedRow,
   mapRows,
+  pairOpposites,
 } from "@/lib/transactions/import";
 import {
   MAX_IMPORT_FILE_BYTES,
@@ -330,6 +332,86 @@ const SectionHead = styled.h3`
   color: ${({ theme }) => theme.colors.ink};
 `;
 
+// One statement row laid out as column → value, so the user can see what each
+// column actually holds before mapping it.
+const SampleCard = styled.div`
+  display: grid;
+  gap: ${({ theme }) => theme.spacing.sm};
+  padding: ${({ theme }) => theme.spacing.lg};
+  border: 1px solid ${({ theme }) => theme.colors.hairline};
+  border-radius: ${({ theme }) => theme.rounded.sm};
+`;
+
+const SampleHead = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: ${({ theme }) => theme.spacing.md};
+`;
+
+const SampleList = styled.dl`
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr) max-content;
+  gap: ${({ theme }) => theme.spacing.xs} ${({ theme }) => theme.spacing.lg};
+  margin: 0;
+  font-family: ${({ theme }) => theme.typography.bodyMd.family};
+  font-size: 13px;
+
+  dt {
+    color: ${({ theme }) => theme.colors.dim};
+  }
+  dd {
+    margin: 0;
+    color: ${({ theme }) => theme.colors.ink};
+    overflow-wrap: anywhere;
+  }
+`;
+
+const Role = styled.span<{ $isUsed: boolean }>`
+  color: ${({ $isUsed, theme }) => ($isUsed ? theme.colors.ink : theme.colors.dim)};
+  font-weight: ${({ $isUsed }) => ($isUsed ? 600 : 400)};
+`;
+
+const LinkButton = styled.button`
+  padding: 0;
+  border: none;
+  background: none;
+  color: ${({ theme }) => theme.colors.ink};
+  font-family: ${({ theme }) => theme.typography.bodyMd.family};
+  font-size: 13px;
+  text-decoration: underline;
+  cursor: pointer;
+`;
+
+// A pair of left-out rows that cancel each other, set apart as one unit.
+const PairGroup = styled.div`
+  display: grid;
+  gap: ${({ theme }) => theme.spacing.xs};
+  padding: ${({ theme }) => theme.spacing.sm} ${({ theme }) => theme.spacing.md};
+  border: 1px solid ${({ theme }) => theme.colors.hairline};
+  border-radius: ${({ theme }) => theme.rounded.sm};
+`;
+
+const PairLine = styled.div`
+  display: flex;
+  justify-content: space-between;
+  gap: ${({ theme }) => theme.spacing.md};
+  padding-left: ${({ theme }) => theme.spacing.xl};
+  font-family: ${({ theme }) => theme.typography.bodyMd.family};
+  font-size: 13px;
+  color: ${({ theme }) => theme.colors.ink};
+`;
+
+// An unpaired skipped row, padded and aligned to match a PairGroup's lines.
+const SingleRow = styled(DupRow)`
+  padding: 0 ${({ theme }) => theme.spacing.md};
+
+  > span:first-of-type {
+    flex: 1;
+  }
+`;
+
 const NEW_ACCOUNT = "__new__";
 const NO_COLUMN = "";
 const PREVIEW_LIMIT = 8;
@@ -620,6 +702,12 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
                   First row is a header
                 </CheckRow>
 
+                <SampleRow
+                  rows={rows}
+                  mapping={mapping}
+                  leaveOutColumn={leaveOut?.column ?? null}
+                />
+
                 <MapGrid>
                   <Field>
                     <Label>Date column</Label>
@@ -757,29 +845,42 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
                 )}
 
                 <div>
-                  <Field>
-                    <Label>Leave out rows where</Label>
-                    <Select
-                      value={leaveOut?.column ?? NO_COLUMN}
-                      onChange={(e) =>
-                        setLeaveOut(
-                          e.target.value === NO_COLUMN
-                            ? null
-                            : { column: Number(e.target.value), values: [] },
-                        )
-                      }
-                    >
-                      <option value={NO_COLUMN}>— leave nothing out —</option>
-                      {columnOptions.map((i) => (
-                        <option key={i} value={i}>
-                          {columnLabel(rows, mapping.hasHeader, i)}
-                        </option>
-                      ))}
-                    </Select>
-                  </Field>
+                  <SectionHead>
+                    Skip rows that aren't spending or income
+                  </SectionHead>
+                  <Note>
+                    Some rows only move money between your own pots or accounts,
+                    so they aren't spending or income. Imported, they clutter
+                    the ledger and inflate its in and out totals. Choose the
+                    column that says what kind each row is, then tick the kinds
+                    to skip. You'll see every skipped row before anything is
+                    imported.
+                  </Note>
+                  <KeepRow>
+                    <Field>
+                      <Label>Kind of row is in</Label>
+                      <Select
+                        value={leaveOut?.column ?? NO_COLUMN}
+                        onChange={(e) =>
+                          setLeaveOut(
+                            e.target.value === NO_COLUMN
+                              ? null
+                              : { column: Number(e.target.value), values: [] },
+                          )
+                        }
+                      >
+                        <option value={NO_COLUMN}>— skip nothing —</option>
+                        {columnOptions.map((i) => (
+                          <option key={i} value={i}>
+                            {columnLabel(rows, mapping.hasHeader, i)}
+                          </option>
+                        ))}
+                      </Select>
+                    </Field>
+                  </KeepRow>
                   {leaveOut && leaveOutValues && (
                     <KeepRow>
-                      {leaveOutValues.map((value) => (
+                      {leaveOutValues.map(({ value, count }) => (
                         <CheckRow key={value}>
                           <input
                             type="checkbox"
@@ -793,7 +894,7 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
                               })
                             }
                           />
-                          is {value}
+                          {value} ({count})
                         </CheckRow>
                       ))}
                     </KeepRow>
@@ -801,15 +902,7 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
                   {leaveOut && !leaveOutValues && (
                     <Note>
                       That column has too many different values to pick from —
-                      choose one that holds a type, like Type.
-                    </Note>
-                  )}
-                  {leftOut.length > 0 && (
-                    <Note>
-                      Moving money into or out of a pot is neither income nor
-                      spending, so pot transfers start left out. You see the
-                      list before anything is imported, and can bring any of
-                      them back.
+                      choose one that holds a kind of row, like Type.
                     </Note>
                   )}
                 </div>
@@ -868,7 +961,7 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
                                 {bad
                                   ? row.errors.join(", ")
                                   : out
-                                    ? "Left out"
+                                    ? "Skipped"
                                     : "Ready"}
                               </Td>
                             </tr>
@@ -880,7 +973,7 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
                   <Summary>
                     {importCount} ready to import into{" "}
                     <strong>{destinationName}</strong>
-                    {leftOut.length > 0 ? `, ${leftOut.length} left out` : ""}
+                    {leftOut.length > 0 ? `, ${leftOut.length} skipped` : ""}
                     {errorCount > 0
                       ? `, ${errorCount} with errors (skipped)`
                       : ""}
@@ -912,7 +1005,7 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
                     {pending
                       ? "Importing…"
                       : leftOut.length > 0
-                        ? `Review ${leftOut.length} left out, then import`
+                        ? `Review ${leftOut.length} skipped, then import`
                         : `Import ${validCount} transactions into ${destinationName}`}
                   </Button>
                 </DialogActions>
@@ -928,7 +1021,7 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
           {result.autoCategorised > 0
             ? `, ${result.autoCategorised} auto-categorised`
             : ""}
-          {result.skipped > 0 ? `, left out ${result.skipped}` : ""}
+          {result.skipped > 0 ? `, skipped ${result.skipped}` : ""}
           {result.invalid > 0 ? `, ${result.invalid} invalid` : ""}.
         </Toast>
       )}
@@ -981,7 +1074,7 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
                 {pending
                   ? "Importing…"
                   : `Import ${confirm.preview.validCount - skip.size}${
-                      skip.size > 0 ? `, leave out ${skip.size}` : ""
+                      skip.size > 0 ? `, skip ${skip.size}` : ""
                     }`}
               </Button>
             </DialogActions>
@@ -992,10 +1085,74 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
   );
 }
 
-// The rows the leave-out rule matched, shown before anything is written so the
-// user can see what will not land in the ledger. Ticked rows stay out; the
-// net line says how much money those rows moved, which is the reassurance —
-// pot transfers should roughly cancel over a statement.
+// One statement row, column by column, with what the import will do with
+// each value. Cycles through the file's rows so a blank cell on one row (an
+// empty Description on a pot transfer) can be compared with another.
+function SampleRow({
+  rows,
+  mapping,
+  leaveOutColumn,
+}: {
+  rows: string[][];
+  mapping: ColumnMapping;
+  leaveOutColumn: number | null;
+}) {
+  const dataRows = mapping.hasHeader ? rows.slice(1) : rows;
+  const [at, setAt] = useState(0);
+  const row = dataRows[at % Math.max(dataRows.length, 1)] ?? [];
+  const width = rows.reduce((max, r) => Math.max(max, r.length), 0);
+
+  const roleOf = (i: number): string => {
+    if (i === mapping.dateColumn) return "Date";
+    if (i === mapping.descriptionColumn) return "Description";
+    if (i === mapping.amountColumn) return "Amount";
+    if (i === mapping.fallbackDescriptionColumn) return "Description if empty";
+    if (i === leaveOutColumn) return "Kind of row";
+    if (mapping.extraColumns?.includes(i)) return "Kept in Details";
+    return "Discarded";
+  };
+
+  if (dataRows.length === 0) return null;
+  return (
+    <SampleCard>
+      <SampleHead>
+        <Label>
+          Example row {(at % dataRows.length) + 1} of {dataRows.length}
+        </Label>
+        {dataRows.length > 1 && (
+          <LinkButton type="button" onClick={() => setAt((n) => n + 1)}>
+            Show another
+          </LinkButton>
+        )}
+      </SampleHead>
+      <SampleList>
+        {Array.from({ length: width }, (_, n) => n).map((i) => {
+          const role = roleOf(i);
+          return (
+            <Fragment key={i}>
+              <dt>{columnLabel(rows, mapping.hasHeader, i)}</dt>
+              <dd>{row[i]?.trim() || "—"}</dd>
+              <Role
+                $isUsed={role !== "Discarded" && role !== "Kept in Details"}
+              >
+                {role}
+              </Role>
+            </Fragment>
+          );
+        })}
+      </SampleList>
+    </SampleCard>
+  );
+}
+
+const rowLine = (row: MappedRow): string =>
+  `${(row.date as Date).toISOString().slice(0, 10)} · ${row.description || "—"}`;
+
+// The rows the skip rule matched, shown before anything is written. Pairs that
+// cancel (money into a pot and the matching money back out) are grouped, so
+// "these net to nothing" is visible at a glance; rows with no opposite in the
+// file are listed on their own, since those are the ones that did move money.
+// Ticked rows stay out; unticking a pair brings both rows in.
 function LeftOutList({
   rows,
   skip,
@@ -1009,20 +1166,19 @@ function LeftOutList({
 }) {
   const indexes = rows.map((row) => row.index);
   const isAllOut = indexes.every((index) => skip.has(index));
-  const moneyIn = rows
-    .filter((row) => (row.amount ?? 0) > 0)
-    .reduce((sum, row) => sum + (row.amount ?? 0), 0);
-  const moneyOut = rows
-    .filter((row) => (row.amount ?? 0) < 0)
-    .reduce((sum, row) => sum + (row.amount ?? 0), 0);
+  const { pairs, singles } = pairOpposites(rows);
+  const singlesNet = singles.reduce((sum, row) => sum + (row.amount ?? 0), 0);
 
   return (
     <>
-      <SectionHead>Left out ({rows.length})</SectionHead>
+      <SectionHead>Skipped ({rows.length})</SectionHead>
       <Note>
-        {money(moneyOut)} went out and {money(moneyIn)} came in across these
-        rows. Ticked rows will not be imported — untick any you want in the
-        ledger after all.
+        {pairs.length > 0 &&
+          `${pairs.length} pair${pairs.length === 1 ? " cancels" : "s cancel"} out — money moved one way and back again. `}
+        {singles.length > 0 &&
+          `${singles.length} row${singles.length === 1 ? " has" : "s have"} no matching row in this file, together ${money(singlesNet)} ${singlesNet < 0 ? "out" : "in"}: money that stayed in a pot or came out of one. `}
+        Ticked rows will not be imported — untick any you want in the ledger
+        after all.
       </Note>
       <CheckRow>
         <input
@@ -1030,19 +1186,41 @@ function LeftOutList({
           checked={isAllOut}
           onChange={() => onSetAll(indexes, !isAllOut)}
         />
-        Leave all of them out
+        Skip all of them
       </CheckRow>
       <DupList>
-        {rows.map((row) => (
-          <DupRow key={row.index}>
+        {pairs.map(([a, b]) => {
+          const both = [a.index, b.index];
+          const isOut = both.every((index) => skip.has(index));
+          return (
+            <PairGroup key={`${a.index}-${b.index}`}>
+              <DupRow>
+                <input
+                  type="checkbox"
+                  checked={isOut}
+                  onChange={() => onSetAll(both, !isOut)}
+                />
+                Cancels out · nets £0.00
+              </DupRow>
+              {[a, b].map((row) => (
+                <PairLine key={row.index}>
+                  <span>{rowLine(row)}</span>
+                  <span>{(row.amount ?? 0).toFixed(2)}</span>
+                </PairLine>
+              ))}
+            </PairGroup>
+          );
+        })}
+        {singles.map((row) => (
+          <SingleRow key={row.index}>
             <input
               type="checkbox"
               checked={skip.has(row.index)}
               onChange={() => onToggle(row.index)}
             />
-            {(row.date as Date).toISOString().slice(0, 10)} ·{" "}
-            {row.description || "—"} · {(row.amount ?? 0).toFixed(2)}
-          </DupRow>
+            <span>{rowLine(row)}</span>
+            <span>{(row.amount ?? 0).toFixed(2)}</span>
+          </SingleRow>
         ))}
       </DupList>
     </>

@@ -127,14 +127,14 @@ test.describe("transactions journey", () => {
     await accountSelect.selectOption("__new__");
     await page.getByPlaceholder("e.g. Current account").fill(`Joint ${token}`);
 
-    await expect(page.getByText(/1 ready to import.*1 left out/)).toBeVisible();
+    await expect(page.getByText(/1 ready to import.*1 skipped/)).toBeVisible();
     await expect(page.getByText(/2 had no description/)).toBeVisible();
-    await page.getByRole("button", { name: /Review 1 left out/ }).click();
+    await page.getByRole("button", { name: /Review 1 skipped/ }).click();
 
     const review = page.getByRole("dialog", { name: "Check before importing" });
     await expect(review.getByText(pot)).toBeVisible();
-    await review.getByRole("button", { name: /Import 1, leave out 1/ }).click();
-    await expect(page.getByText(/Imported 1.*left out 1/)).toBeVisible();
+    await review.getByRole("button", { name: /Import 1, skip 1/ }).click();
+    await expect(page.getByText(/Imported 1.*skipped 1/)).toBeVisible();
 
     await expect(page.locator("tr", { hasText: payee })).toBeVisible();
     await expect(page.locator("tr", { hasText: pot })).toHaveCount(0);
