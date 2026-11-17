@@ -39,6 +39,7 @@ import {
   setTransactionTransfer,
 } from "./actions";
 import { CategoryCombobox, type NewCategoryInput } from "./CategoryCombobox";
+import { ExtraColumns } from "./ExtraColumns";
 import { FilterDrawer } from "./FilterDrawer";
 import { LedgerControls } from "./LedgerControls";
 
@@ -406,28 +407,6 @@ const DetailTd = styled.td`
 const DetailPanel = styled.div`
   display: grid;
   gap: ${({ theme }) => theme.spacing.sm};
-`;
-
-const ExtraList = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: ${({ theme }) => theme.spacing.lg};
-`;
-
-const ExtraPair = styled.span`
-  font-family: ${({ theme }) => theme.typography.bodyMd.family};
-  font-size: 13px;
-  color: ${({ theme }) => theme.colors.ink};
-`;
-
-const ExtraKey = styled.span`
-  font-family: ${({ theme }) => theme.typography.kicker.family};
-  font-size: ${({ theme }) => theme.typography.kicker.size};
-  font-weight: ${({ theme }) => theme.typography.kicker.weight};
-  letter-spacing: ${({ theme }) => theme.typography.kicker.letterSpacing};
-  text-transform: uppercase;
-  color: ${({ theme }) => theme.colors.dim};
-  margin-right: ${({ theme }) => theme.spacing.xs};
 `;
 
 const NoteRow = styled.div`
@@ -1195,16 +1174,7 @@ export function Ledger({
                         <DetailPanel>
                           {tx.extra ? (
                             <>
-                              <ExtraList>
-                                {Object.entries(tx.extra).map(
-                                  ([key, value]) => (
-                                    <ExtraPair key={key}>
-                                      <ExtraKey>{key}</ExtraKey>
-                                      {value}
-                                    </ExtraPair>
-                                  ),
-                                )}
-                              </ExtraList>
+                              <ExtraColumns extra={tx.extra} />
                               <DetailHint>
                                 Showing only the columns ticked under “Also
                                 keep” when this statement was imported.

@@ -20,7 +20,8 @@ box:
 | Uncategorised only | `?uncat=1` | no category and no transfer |
 | To approve only | `?check=1` | no category and no transfer, **or** a category still in pencil (`isCategoryConfirmed = false`) |
 
-The search box (`?q=`) is the one filter that stays outside the drawer — it is
+The search box (`?q=`) matches the description, the note and the category's
+label, case-insensitively. It is the one filter that stays outside the drawer — it is
 a single gesture, it is debounced, and the controls card gives it a permanent
 home. Everything else, both status toggles included, lives in the drawer and
 reports itself as a chip.

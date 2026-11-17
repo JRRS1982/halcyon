@@ -43,6 +43,7 @@ const mappingSchema = z.object({
     .array(z.number().int().min(0))
     .max(MAX_EXTRA_COLUMNS)
     .optional(),
+  fallbackDescriptionColumn: z.number().int().min(0).nullable().optional(),
 });
 
 const importSchema = z.object({
@@ -55,9 +56,9 @@ const importSchema = z.object({
 export type ImportInput = z.input<typeof importSchema>;
 
 const commitSchema = importSchema.extend({
-  // Data-row indexes the user chose NOT to import (flagged duplicates they
-  // confirmed are true re-uploads).
-  skipIndexes: z.array(z.number().int()).default([]),
+  // Data-row indexes the user chose NOT to import: flagged duplicates they
+  // confirmed are true re-uploads, and rows they left out (pot transfers).
+  skipIndexes: z.array(z.number().int()).max(MAX_IMPORT_ROWS).default([]),
   // Shown in the reverse-import picker to identify the batch.
   fileName: z.string().trim().max(200).nullable().optional(),
 });
@@ -81,7 +82,8 @@ export type ImportPreview = {
 
 export type ImportResult = {
   imported: number;
-  duplicates: number;
+  // Valid rows the user chose not to import — duplicates and left-out rows.
+  skipped: number;
   invalid: number;
   // How many imported rows were filed automatically from the user's own
   // categorisation history.
@@ -323,7 +325,7 @@ export async function commitImport(input: CommitInput): Promise<ImportResult> {
 
   return {
     imported: toInsert.length,
-    duplicates: valid.length - toInsert.length,
+    skipped: valid.length - toInsert.length,
     invalid: invalidCount,
     autoCategorised,
     accountName: account.name,

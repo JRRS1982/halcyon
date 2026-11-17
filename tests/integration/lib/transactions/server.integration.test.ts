@@ -94,6 +94,7 @@ describe("ledger queries (integration)", () => {
           date: new Date("2026-03-01"),
           amount: -3,
           description: "Greggs",
+          note: "Lunch with Sam",
         },
       ],
     });
@@ -120,6 +121,27 @@ describe("ledger queries (integration)", () => {
       onlyUncategorized: true,
     });
     expect(uncategorized.items).toHaveLength(2);
+  });
+
+  test("search also finds a row by its note or its category", async () => {
+    await seedTxns();
+    const byNote = await getTransactionsPage(TEST_USER_ID, { search: "sam" });
+    expect(byNote.items.map((t) => t.description)).toEqual(["Greggs"]);
+
+    const byCategory = await getTransactionsPage(TEST_USER_ID, {
+      search: "food",
+    });
+    expect(byCategory.items.map((t) => t.description)).toEqual(["Tesco"]);
+  });
+
+  test("a % or _ in the search is matched literally", async () => {
+    await seedTxns();
+    const percent = await getTransactionsPage(TEST_USER_ID, { search: "%" });
+    expect(percent.items).toHaveLength(0);
+    const underscore = await getTransactionsPage(TEST_USER_ID, {
+      search: "_",
+    });
+    expect(underscore.items).toHaveLength(0);
   });
 
   test("sorts by amount ascending", async () => {

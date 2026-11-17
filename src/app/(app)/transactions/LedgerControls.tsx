@@ -191,7 +191,7 @@ export function LedgerControls({
             ref={searchRef}
             value={search}
             onChange={(e) => onSearch(e.target.value)}
-            placeholder="Search description…"
+            placeholder="Search description, note or category…"
           />
         </Slot>
 

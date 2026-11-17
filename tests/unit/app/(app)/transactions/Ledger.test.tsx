@@ -111,7 +111,9 @@ describe("Ledger search box", () => {
     jest.useFakeTimers();
     try {
       const { rerender } = renderWithSearch("");
-      const box = screen.getByPlaceholderText("Search description…");
+      const box = screen.getByPlaceholderText(
+        "Search description, note or category…",
+      );
 
       fireEvent.change(box, { target: { value: "coffee" } });
       // The debounce fires: the URL is asked for ?q=coffee. Inside act(),
@@ -144,7 +146,9 @@ describe("Ledger search box", () => {
 
   test("still adopts the URL on a genuine external change (back/forward)", () => {
     const { rerender } = renderWithSearch("coffee");
-    const box = screen.getByPlaceholderText("Search description…");
+    const box = screen.getByPlaceholderText(
+      "Search description, note or category…",
+    );
     expect(box).toHaveValue("coffee");
 
     rerender(

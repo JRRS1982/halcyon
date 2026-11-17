@@ -187,11 +187,15 @@ test.describe("ledger controls card and total row", () => {
     await expect(page.locator("tfoot")).toContainText("Total · 1 transaction");
 
     // Selecting a row hands the search box's slot to the categorize control.
-    await expect(page.getByPlaceholder("Search description…")).toBeVisible();
+    await expect(
+      page.getByPlaceholder("Search description, note or category…"),
+    ).toBeVisible();
     await page.getByRole("checkbox", { name: `Select ${small}` }).check();
 
     await expect(page.getByText("1 selected")).toBeVisible();
-    await expect(page.getByPlaceholder("Search description…")).toBeHidden();
+    await expect(
+      page.getByPlaceholder("Search description, note or category…"),
+    ).toBeHidden();
     await expect(
       page.getByRole("button", {
         name: "Set category for selected transactions",
@@ -200,6 +204,8 @@ test.describe("ledger controls card and total row", () => {
 
     // Clearing gives the search box back.
     await page.getByRole("button", { name: "Clear", exact: true }).click();
-    await expect(page.getByPlaceholder("Search description…")).toBeVisible();
+    await expect(
+      page.getByPlaceholder("Search description, note or category…"),
+    ).toBeVisible();
   });
 });

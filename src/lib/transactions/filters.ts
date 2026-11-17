@@ -76,15 +76,25 @@ export function ledgerWhere(
 ): Prisma.TransactionWhereInput {
   const search = filters.search?.trim();
   const date = dateRange(filters.from, filters.to);
+  const and: Prisma.TransactionWhereInput[] = [
+    ...(search ? [searchClause(search)] : []),
+    ...(filters.onlyToCheck
+      ? [
+          {
+            OR: [
+              { categoryId: null, transferAccountId: null },
+              { isCategoryConfirmed: false },
+            ],
+          },
+        ]
+      : []),
+  ];
 
   return {
     userId,
     deletedAt: null,
     ...(filters.onlyUncategorized
       ? { categoryId: null, transferAccountId: null }
-      : {}),
-    ...(search
-      ? { description: { contains: search, mode: "insensitive" as const } }
       : {}),
     ...(date ? { date } : {}),
     ...(filters.accountId ? { accountId: filters.accountId } : {}),
@@ -95,17 +105,29 @@ export function ledgerWhere(
     ...(filters.onlyUncategorized ? {} : categoryClause(filters.category)),
     ...amountClause(filters.amountMin, filters.amountMax),
     // Under AND, because amountClause can already own the top-level OR.
-    ...(filters.onlyToCheck
-      ? {
-          AND: [
-            {
-              OR: [
-                { categoryId: null, transferAccountId: null },
-                { isCategoryConfirmed: false },
-              ],
-            },
-          ],
-        }
-      : {}),
+    ...(and.length > 0 ? { AND: and } : {}),
+  };
+}
+
+// Prisma passes `contains` into an ILIKE pattern unescaped, so a typed `%` or
+// `_` acts as a wildcard: searching "50%" matched every row containing "50".
+// Backslash is Postgres's default LIKE escape, so it is escaped first.
+export function escapeLike(text: string): string {
+  return text.replace(/[\\%_]/g, (char) => `\\${char}`);
+}
+
+// The search box reads every field a person wrote or would recognise a row
+// by: the statement description, their own note, and the category's label.
+function searchClause(search: string): Prisma.TransactionWhereInput {
+  const contains = {
+    contains: escapeLike(search),
+    mode: "insensitive" as const,
+  };
+  return {
+    OR: [
+      { description: contains },
+      { note: contains },
+      { category: { is: { label: contains } } },
+    ],
   };
 }

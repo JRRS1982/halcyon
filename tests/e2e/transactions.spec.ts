@@ -100,6 +100,45 @@ test.describe("transactions journey", () => {
       )
       .toBe(true);
   });
+
+  // A statement with a Type column: the pot transfer starts left out, the user
+  // sees it listed before anything is written, and the row whose description
+  // is empty takes its payee from Name instead.
+  test("pot transfers are left out after a review, and empty descriptions use Name", async ({
+    page,
+  }) => {
+    const token = `${Date.now()}`;
+    const payee = `Energy-${token}`;
+    const pot = `Bills Pot ${token}`;
+
+    await signIn(page);
+    await ensureTransactionsEnabled(page);
+    await page.goto("/transactions");
+    const csv = [
+      "Date,Type,Name,Amount,Description",
+      `02/11/2026,Pot transfer,${pot},151.00,`,
+      `03/11/2026,Direct Debit,${payee},-90.00,`,
+    ].join("\n");
+    await importCsv(page, csv);
+
+    const accountSelect = page
+      .locator("select")
+      .filter({ has: page.locator("option", { hasText: "New account" }) });
+    await accountSelect.selectOption("__new__");
+    await page.getByPlaceholder("e.g. Current account").fill(`Joint ${token}`);
+
+    await expect(page.getByText(/1 to import, 1 skipped/)).toBeVisible();
+    await expect(page.getByText(/2 described from Name/)).toBeVisible();
+    await page.getByRole("button", { name: /Review 1 skipped/ }).click();
+
+    const review = page.getByRole("dialog", { name: "Check before importing" });
+    await expect(review.getByText(pot)).toBeVisible();
+    await review.getByRole("button", { name: /Import 1, skip 1/ }).click();
+    await expect(page.getByText(/Imported 1.*skipped 1/)).toBeVisible();
+
+    await expect(page.locator("tr", { hasText: payee })).toBeVisible();
+    await expect(page.locator("tr", { hasText: pot })).toHaveCount(0);
+  });
 });
 
 // DESIGN.md → Typography → Amounts: "always show the currency symbol". Editable
