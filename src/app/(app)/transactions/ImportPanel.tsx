@@ -944,11 +944,7 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
                           return (
                             <Fragment key={row.index}>
                               <tr>
-                                <Td $bad={bad}>
-                                  {row.date
-                                    ? row.date.toISOString().slice(0, 10)
-                                    : "—"}
-                                </Td>
+                                <Td $bad={bad}>{dayLabel(row.date)}</Td>
                                 <Td $bad={bad}>{row.description || "—"}</Td>
                                 <Td $bad={bad}>{row.amount ?? "—"}</Td>
                                 <Td $bad={bad || out}>
@@ -1105,8 +1101,13 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
   );
 }
 
+// A statement row's date as YYYY-MM-DD, or a dash for a row whose date did
+// not parse.
+const dayLabel = (date: Date | null): string =>
+  date ? date.toISOString().slice(0, 10) : "—";
+
 const rowLine = (row: MappedRow): string =>
-  `${(row.date as Date).toISOString().slice(0, 10)} · ${row.description || "—"}`;
+  `${dayLabel(row.date)} · ${row.description || "—"}`;
 
 // The rows the skip rule matched, shown before anything is written. Pairs that
 // cancel (money into a pot and the matching money back out) are grouped, so
