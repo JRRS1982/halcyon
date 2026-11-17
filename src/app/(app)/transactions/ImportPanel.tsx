@@ -261,7 +261,11 @@ const ConfirmOverlay = styled(Overlay)`
 // lets the preview table's intrinsic width force the whole track wider than
 // the dialog. On a phone that pushed every other row (the mapping selects
 // included) past the dialog's clipped edge. Zeroed, the table pans in here.
+// position: relative makes this the containing block for the headers'
+// visually hidden labels. Without it they resolve against the open <dialog>,
+// so a label sitting past the panned table's edge widened the whole dialog.
 const PreviewScroll = styled.div`
+  position: relative;
   max-height: 240px;
   overflow: auto;
   min-width: 0;
