@@ -16,7 +16,12 @@ import { parseCsv } from "@/lib/transactions/csv";
 import { DATE_FORMATS, type DateFormat } from "@/lib/transactions/date";
 import {
   type ColumnMapping,
+  columnValues,
+  guessLeaveOut,
   guessMapping,
+  isLeftOut,
+  type LeaveOutRule,
+  type MappedRow,
   mapRows,
 } from "@/lib/transactions/import";
 import {
@@ -317,8 +322,27 @@ const GhostButton = styled.button`
   cursor: pointer;
 `;
 
+const SectionHead = styled.h3`
+  margin: 0;
+  font-family: ${({ theme }) => theme.typography.control.family};
+  font-size: ${({ theme }) => theme.typography.control.size};
+  font-weight: ${({ theme }) => theme.typography.control.weight};
+  color: ${({ theme }) => theme.colors.ink};
+`;
+
 const NEW_ACCOUNT = "__new__";
+const NO_COLUMN = "";
 const PREVIEW_LIMIT = 8;
+
+const money = (n: number): string =>
+  `£${Math.abs(n).toLocaleString("en-GB", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+
+// What the review step holds: the server's duplicate check, plus the rows the
+// leave-out rule matched. A row that is both is listed once, as left out.
+type Review = { preview: ImportPreview; leftOut: MappedRow[] };
 
 function columnLabel(
   rows: string[][],
@@ -347,8 +371,9 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
   // When the preview flags duplicates, we hold them here to confirm; `skip`
   // holds the data-row indexes the user has chosen to skip (default: all
   // flagged).
-  const [confirm, setConfirm] = useState<ImportPreview | null>(null);
+  const [confirm, setConfirm] = useState<Review | null>(null);
   const [skip, setSkip] = useState<Set<number>>(new Set());
+  const [leaveOut, setLeaveOut] = useState<LeaveOutRule | null>(null);
 
   const columnCount = useMemo(
     () => rows.reduce((max, row) => Math.max(max, row.length), 0),
@@ -359,8 +384,21 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
     () => (mapping ? mapRows(rows, mapping) : []),
     [rows, mapping],
   );
-  const validCount = preview.filter((row) => row.errors.length === 0).length;
+  const valid = preview.filter((row) => row.errors.length === 0);
+  const validCount = valid.length;
   const errorCount = preview.length - validCount;
+  const leftOut = valid.filter((row) => isLeftOut(row, leaveOut));
+  const importCount = validCount - leftOut.length;
+  const filledCount = valid.filter(
+    (row) => row.isDescriptionFromFallback,
+  ).length;
+  const leaveOutValues = useMemo(
+    () =>
+      mapping && leaveOut
+        ? columnValues(rows, leaveOut.column, mapping.hasHeader)
+        : null,
+    [rows, mapping, leaveOut],
+  );
 
   const onFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -405,6 +443,7 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
     setFileName(file.name);
     setRows(parsed);
     setMapping(guessMapping(headerRow, parsed.slice(1)));
+    setLeaveOut(guessLeaveOut(headerRow, parsed.slice(1)));
     setOpen(true);
   };
 
@@ -414,6 +453,7 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
     setFileName(null);
     setRows([]);
     setMapping(null);
+    setLeaveOut(null);
     setError(null);
   }, []);
 
@@ -483,19 +523,34 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
     startTransition(async () => {
       try {
         const pv = await previewImport({ ...accountArgs(), rows, mapping });
-        if (pv.duplicates.length === 0) {
+        if (pv.duplicates.length === 0 && leftOut.length === 0) {
           await commit([]);
         } else {
-          // Default to skipping every flagged duplicate; the user unticks any
-          // that are genuinely separate transactions.
-          setSkip(new Set(pv.duplicates.map((d) => d.index)));
-          setConfirm(pv);
+          // Default to skipping every flagged duplicate and every left-out
+          // row; the user unticks any they want imported after all.
+          setSkip(
+            new Set([
+              ...pv.duplicates.map((d) => d.index),
+              ...leftOut.map((row) => row.index),
+            ]),
+          );
+          setConfirm({ preview: pv, leftOut });
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Import failed");
       }
     });
   };
+
+  const setSkipped = (indexes: number[], skipped: boolean) =>
+    setSkip((prev) => {
+      const next = new Set(prev);
+      for (const index of indexes) {
+        if (skipped) next.add(index);
+        else next.delete(index);
+      }
+      return next;
+    });
 
   const toggleSkip = (index: number) =>
     setSkip((prev) => {
@@ -515,6 +570,11 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
       }
     });
   };
+
+  const leftOutIndexes = new Set(confirm?.leftOut.map((row) => row.index));
+  const reviewDuplicates = (confirm?.preview.duplicates ?? []).filter(
+    (d) => !leftOutIndexes.has(d.index),
+  );
 
   const columnOptions = Array.from(
     { length: columnCount },
@@ -596,6 +656,30 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
                   </Field>
 
                   <Field>
+                    <Label>If description is empty, use</Label>
+                    <Select
+                      value={mapping.fallbackDescriptionColumn ?? NO_COLUMN}
+                      onChange={(e) =>
+                        patchMapping({
+                          fallbackDescriptionColumn:
+                            e.target.value === NO_COLUMN
+                              ? null
+                              : Number(e.target.value),
+                        })
+                      }
+                    >
+                      <option value={NO_COLUMN}>— leave it empty —</option>
+                      {columnOptions
+                        .filter((i) => i !== mapping.descriptionColumn)
+                        .map((i) => (
+                          <option key={i} value={i}>
+                            {columnLabel(rows, mapping.hasHeader, i)}
+                          </option>
+                        ))}
+                    </Select>
+                  </Field>
+
+                  <Field>
                     <Label>Amount column</Label>
                     <Select
                       value={mapping.amountColumn}
@@ -672,6 +756,64 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
                   </div>
                 )}
 
+                <div>
+                  <Field>
+                    <Label>Leave out rows where</Label>
+                    <Select
+                      value={leaveOut?.column ?? NO_COLUMN}
+                      onChange={(e) =>
+                        setLeaveOut(
+                          e.target.value === NO_COLUMN
+                            ? null
+                            : { column: Number(e.target.value), values: [] },
+                        )
+                      }
+                    >
+                      <option value={NO_COLUMN}>— leave nothing out —</option>
+                      {columnOptions.map((i) => (
+                        <option key={i} value={i}>
+                          {columnLabel(rows, mapping.hasHeader, i)}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                  {leaveOut && leaveOutValues && (
+                    <KeepRow>
+                      {leaveOutValues.map((value) => (
+                        <CheckRow key={value}>
+                          <input
+                            type="checkbox"
+                            checked={leaveOut.values.includes(value)}
+                            onChange={(e) =>
+                              setLeaveOut({
+                                ...leaveOut,
+                                values: e.target.checked
+                                  ? [...leaveOut.values, value]
+                                  : leaveOut.values.filter((v) => v !== value),
+                              })
+                            }
+                          />
+                          is {value}
+                        </CheckRow>
+                      ))}
+                    </KeepRow>
+                  )}
+                  {leaveOut && !leaveOutValues && (
+                    <Note>
+                      That column has too many different values to pick from —
+                      choose one that holds a type, like Type.
+                    </Note>
+                  )}
+                  {leftOut.length > 0 && (
+                    <Note>
+                      Moving money into or out of a pot is neither income nor
+                      spending, so pot transfers start left out. You see the
+                      list before anything is imported, and can bring any of
+                      them back.
+                    </Note>
+                  )}
+                </div>
+
                 <DestinationCard>
                   <Label>Import into</Label>
                   <DestinationLine>
@@ -712,6 +854,7 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
                       <tbody>
                         {preview.slice(0, PREVIEW_LIMIT).map((row) => {
                           const bad = row.errors.length > 0;
+                          const out = !bad && isLeftOut(row, leaveOut);
                           return (
                             <tr key={row.index}>
                               <Td $bad={bad}>
@@ -721,8 +864,12 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
                               </Td>
                               <Td $bad={bad}>{row.description || "—"}</Td>
                               <Td $bad={bad}>{row.amount ?? "—"}</Td>
-                              <Td $bad={bad}>
-                                {bad ? row.errors.join(", ") : "Ready"}
+                              <Td $bad={bad || out}>
+                                {bad
+                                  ? row.errors.join(", ")
+                                  : out
+                                    ? "Left out"
+                                    : "Ready"}
                               </Td>
                             </tr>
                           );
@@ -731,13 +878,26 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
                     </Table>
                   </PreviewScroll>
                   <Summary>
-                    {validCount} ready to import into{" "}
+                    {importCount} ready to import into{" "}
                     <strong>{destinationName}</strong>
+                    {leftOut.length > 0 ? `, ${leftOut.length} left out` : ""}
                     {errorCount > 0
                       ? `, ${errorCount} with errors (skipped)`
                       : ""}
                     .
                   </Summary>
+                  {filledCount > 0 &&
+                    mapping.fallbackDescriptionColumn != null && (
+                      <Note>
+                        {filledCount} had no description, so they use{" "}
+                        {columnLabel(
+                          rows,
+                          mapping.hasHeader,
+                          mapping.fallbackDescriptionColumn,
+                        )}{" "}
+                        instead — check the preview reads right.
+                      </Note>
+                    )}
                 </div>
 
                 <DialogActions>
@@ -751,7 +911,9 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
                   >
                     {pending
                       ? "Importing…"
-                      : `Import ${validCount} transactions into ${destinationName}`}
+                      : leftOut.length > 0
+                        ? `Review ${leftOut.length} left out, then import`
+                        : `Import ${validCount} transactions into ${destinationName}`}
                   </Button>
                 </DialogActions>
               </ModalBody>
@@ -766,9 +928,7 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
           {result.autoCategorised > 0
             ? `, ${result.autoCategorised} auto-categorised`
             : ""}
-          {result.duplicates > 0
-            ? `, skipped ${result.duplicates} duplicate(s)`
-            : ""}
+          {result.skipped > 0 ? `, left out ${result.skipped}` : ""}
           {result.invalid > 0 ? `, ${result.invalid} invalid` : ""}.
         </Toast>
       )}
@@ -779,26 +939,40 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
             if (e.target === e.currentTarget) setConfirm(null);
           }}
         >
-          <Dialog open>
-            <DialogTitle>Possible duplicates</DialogTitle>
-            <Note>
-              {confirm.duplicates.length} row(s) look like transactions already
-              imported into <strong>{destinationName}</strong>. Ticked rows will
-              be skipped — untick any that are genuinely separate.
-            </Note>
-            <DupList>
-              {confirm.duplicates.map((d) => (
-                <DupRow key={d.index}>
-                  <input
-                    type="checkbox"
-                    checked={skip.has(d.index)}
-                    onChange={() => toggleSkip(d.index)}
-                  />
-                  {d.date.slice(0, 10)} · {d.description} ·{" "}
-                  {d.amount.toFixed(2)}
-                </DupRow>
-              ))}
-            </DupList>
+          <ImportDialog open aria-label="Check before importing">
+            <DialogTitle>Check before importing</DialogTitle>
+            {confirm.leftOut.length > 0 && (
+              <LeftOutList
+                rows={confirm.leftOut}
+                skip={skip}
+                onToggle={toggleSkip}
+                onSetAll={setSkipped}
+              />
+            )}
+            {reviewDuplicates.length > 0 && (
+              <>
+                <SectionHead>Possible duplicates</SectionHead>
+                <Note>
+                  {reviewDuplicates.length} row(s) look like transactions
+                  already imported into <strong>{destinationName}</strong>.
+                  Ticked rows will be skipped — untick any that are genuinely
+                  separate.
+                </Note>
+                <DupList>
+                  {reviewDuplicates.map((d) => (
+                    <DupRow key={d.index}>
+                      <input
+                        type="checkbox"
+                        checked={skip.has(d.index)}
+                        onChange={() => toggleSkip(d.index)}
+                      />
+                      {d.date.slice(0, 10)} · {d.description} ·{" "}
+                      {d.amount.toFixed(2)}
+                    </DupRow>
+                  ))}
+                </DupList>
+              </>
+            )}
             <DialogActions>
               <GhostButton type="button" onClick={() => setConfirm(null)}>
                 Cancel
@@ -806,14 +980,71 @@ export function ImportPanel({ accounts }: { accounts: Account[] }) {
               <Button type="button" onClick={onConfirm} disabled={pending}>
                 {pending
                   ? "Importing…"
-                  : `Import ${confirm.validCount - skip.size} new${
-                      skip.size > 0 ? `, skip ${skip.size}` : ""
+                  : `Import ${confirm.preview.validCount - skip.size}${
+                      skip.size > 0 ? `, leave out ${skip.size}` : ""
                     }`}
               </Button>
             </DialogActions>
-          </Dialog>
+          </ImportDialog>
         </ConfirmOverlay>
       )}
+    </>
+  );
+}
+
+// The rows the leave-out rule matched, shown before anything is written so the
+// user can see what will not land in the ledger. Ticked rows stay out; the
+// net line says how much money those rows moved, which is the reassurance —
+// pot transfers should roughly cancel over a statement.
+function LeftOutList({
+  rows,
+  skip,
+  onToggle,
+  onSetAll,
+}: {
+  rows: MappedRow[];
+  skip: Set<number>;
+  onToggle: (index: number) => void;
+  onSetAll: (indexes: number[], skipped: boolean) => void;
+}) {
+  const indexes = rows.map((row) => row.index);
+  const isAllOut = indexes.every((index) => skip.has(index));
+  const moneyIn = rows
+    .filter((row) => (row.amount ?? 0) > 0)
+    .reduce((sum, row) => sum + (row.amount ?? 0), 0);
+  const moneyOut = rows
+    .filter((row) => (row.amount ?? 0) < 0)
+    .reduce((sum, row) => sum + (row.amount ?? 0), 0);
+
+  return (
+    <>
+      <SectionHead>Left out ({rows.length})</SectionHead>
+      <Note>
+        {money(moneyOut)} went out and {money(moneyIn)} came in across these
+        rows. Ticked rows will not be imported — untick any you want in the
+        ledger after all.
+      </Note>
+      <CheckRow>
+        <input
+          type="checkbox"
+          checked={isAllOut}
+          onChange={() => onSetAll(indexes, !isAllOut)}
+        />
+        Leave all of them out
+      </CheckRow>
+      <DupList>
+        {rows.map((row) => (
+          <DupRow key={row.index}>
+            <input
+              type="checkbox"
+              checked={skip.has(row.index)}
+              onChange={() => onToggle(row.index)}
+            />
+            {(row.date as Date).toISOString().slice(0, 10)} ·{" "}
+            {row.description || "—"} · {(row.amount ?? 0).toFixed(2)}
+          </DupRow>
+        ))}
+      </DupList>
     </>
   );
 }

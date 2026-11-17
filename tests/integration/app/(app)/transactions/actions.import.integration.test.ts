@@ -39,6 +39,34 @@ describe("import (integration)", () => {
     expect(await countTxns(account?.id ?? "")).toBe(2);
   });
 
+  test("an empty description is filled from the fallback column, and left-out rows stay out", async () => {
+    const res = await commitImport({
+      accountId: null,
+      newAccountName: "Joint",
+      rows: [
+        ["date", "type", "name", "amount", "desc"],
+        ["2026-03-01", "Pot transfer", "Bills Pot", "151", ""],
+        ["2026-03-02", "Direct Debit", "Octopus Energy", "-90", ""],
+      ],
+      mapping: {
+        dateColumn: 0,
+        descriptionColumn: 4,
+        amountColumn: 3,
+        fallbackDescriptionColumn: 2,
+        dateFormat: "YMD",
+        hasHeader: true,
+      },
+      skipIndexes: [0],
+    });
+
+    expect(res).toMatchObject({ imported: 1, skipped: 1 });
+    const saved = await prisma.transaction.findMany({
+      where: { userId: TEST_USER_ID },
+      select: { description: true },
+    });
+    expect(saved).toEqual([{ description: "Octopus Energy" }]);
+  });
+
   test("invalid rows are skipped, not imported", async () => {
     const res = await commitImport({
       accountId: null,

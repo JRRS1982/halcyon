@@ -1,4 +1,11 @@
-import { guessMapping, mapRows } from "@/lib/transactions/import";
+import {
+  columnValues,
+  guessLeaveOut,
+  guessMapping,
+  isLeftOut,
+  MAX_LEAVE_OUT_VALUES,
+  mapRows,
+} from "@/lib/transactions/import";
 
 const mapping = {
   dateColumn: 0,
@@ -182,5 +189,99 @@ describe("mapRows extra columns", () => {
   test("core mapped columns are never duplicated into extra", () => {
     const mapped = mapRows(rows, { ...mapping, extraColumns: [0, 1, 2, 3] });
     expect(mapped[0]?.extra).toEqual({ Type: "DD" });
+  });
+});
+
+// The shape of a Monzo export, trimmed to the columns that matter here.
+const MONZO = [
+  ["Date", "Type", "Name", "Amount", "Description"],
+  ["02/11/2026", "Pot transfer", "Bills Pot", "151.00", ""],
+  ["02/11/2026", "Card payment", "Pret", "-4.35", "PRET A MANGER LONDON"],
+  ["03/11/2026", "Monzo-to-Monzo", "Sam", "-20.00", "Dinner"],
+  ["04/11/2026", "Pot transfer", "Savings", "-50.00", ""],
+];
+
+describe("description fallback", () => {
+  test("guesses a Name column as the fallback for an empty description", () => {
+    const guess = guessMapping(MONZO[0] as string[], MONZO.slice(1));
+    expect(guess.descriptionColumn).toBe(4);
+    expect(guess.fallbackDescriptionColumn).toBe(2);
+  });
+
+  test("guesses no fallback when the file has no Name column", () => {
+    expect(
+      guessMapping(["Date", "Description", "Amount"]).fallbackDescriptionColumn,
+    ).toBeNull();
+  });
+
+  test("fills only the empty descriptions from the fallback, and says so", () => {
+    const rows = mapRows(
+      MONZO,
+      guessMapping(MONZO[0] as string[], MONZO.slice(1)),
+    );
+    expect(rows.map((r) => r.description)).toEqual([
+      "Bills Pot",
+      "PRET A MANGER LONDON",
+      "Dinner",
+      "Savings",
+    ]);
+    expect(rows.map((r) => r.isDescriptionFromFallback)).toEqual([
+      true,
+      false,
+      false,
+      true,
+    ]);
+  });
+
+  test("with no fallback chosen, an empty description stays empty", () => {
+    const mapping = {
+      ...guessMapping(MONZO[0] as string[], MONZO.slice(1)),
+      fallbackDescriptionColumn: null,
+    };
+    expect(mapRows(MONZO, mapping)[0]?.description).toBe("");
+  });
+});
+
+describe("leaving rows out", () => {
+  test("pre-fills pot transfers when a Type column holds them", () => {
+    expect(guessLeaveOut(MONZO[0] as string[], MONZO.slice(1))).toEqual({
+      column: 1,
+      values: ["Pot transfer"],
+    });
+  });
+
+  test("leaves nothing out by default when there are no pot transfers", () => {
+    expect(
+      guessLeaveOut(["Date", "Type", "Amount"], [["1/1/2026", "DD", "-5"]]),
+    ).toBeNull();
+    expect(guessLeaveOut(["Date", "Description", "Amount"], [])).toBeNull();
+  });
+
+  test("lists a column's values, most common first", () => {
+    expect(columnValues(MONZO, 1, true)).toEqual([
+      "Pot transfer",
+      "Card payment",
+      "Monzo-to-Monzo",
+    ]);
+  });
+
+  test("offers no checkboxes for a free-text column", () => {
+    const rows = [
+      ["Name"],
+      ...Array.from({ length: MAX_LEAVE_OUT_VALUES + 1 }, (_, i) => [`p${i}`]),
+    ];
+    expect(columnValues(rows, 0, true)).toBeNull();
+  });
+
+  test("leaves out exactly the rows whose value was ticked", () => {
+    const rows = mapRows(MONZO, guessMapping(MONZO[0] as string[]));
+    const rule = { column: 1, values: ["Pot transfer", "Monzo-to-Monzo"] };
+    expect(rows.filter((r) => isLeftOut(r, rule)).map((r) => r.index)).toEqual([
+      0, 2, 3,
+    ]);
+    expect(rows.some((r) => isLeftOut(r, null))).toBe(false);
+    expect(rows.some((r) => isLeftOut(r, { column: 1, values: [] }))).toBe(
+      false,
+    );
   });
 });

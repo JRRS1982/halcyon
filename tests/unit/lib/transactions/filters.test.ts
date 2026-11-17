@@ -10,16 +10,28 @@ describe("ledgerWhere", () => {
     });
   });
 
-  test("search matches the description case-insensitively, trimmed", () => {
+  test("search reads description, note and category name, trimmed", () => {
+    const contains = { contains: "tesco", mode: "insensitive" };
     expect(ledgerWhere(USER, { search: "  tesco " })).toMatchObject({
-      description: { contains: "tesco", mode: "insensitive" },
+      AND: [
+        {
+          OR: [
+            { description: contains },
+            { note: contains },
+            { category: { is: { label: contains } } },
+          ],
+        },
+      ],
     });
   });
 
   test("a whitespace-only search is not a filter", () => {
-    expect(ledgerWhere(USER, { search: "   " })).not.toHaveProperty(
-      "description",
-    );
+    expect(ledgerWhere(USER, { search: "   " })).not.toHaveProperty("AND");
+  });
+
+  test("search and to-check both apply, neither replacing the other", () => {
+    const where = ledgerWhere(USER, { search: "rent", onlyToCheck: true });
+    expect(where.AND).toHaveLength(2);
   });
 
   test("uncategorized means no category and no transfer", () => {
@@ -149,7 +161,19 @@ describe("ledgerWhere", () => {
     expect(where).toEqual({
       userId: USER,
       deletedAt: null,
-      description: { contains: "rent", mode: "insensitive" },
+      AND: [
+        {
+          OR: [
+            { description: { contains: "rent", mode: "insensitive" } },
+            { note: { contains: "rent", mode: "insensitive" } },
+            {
+              category: {
+                is: { label: { contains: "rent", mode: "insensitive" } },
+              },
+            },
+          ],
+        },
+      ],
       date: { gte: new Date("2026-02-01T00:00:00.000Z") },
       accountId: "acc-1",
       categoryId: "c-1",
