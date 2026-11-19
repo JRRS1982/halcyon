@@ -22,6 +22,7 @@ const Row = styled.section`
 `;
 
 const Tile = styled.div`
+  container-type: inline-size;
   padding: ${({ theme }) => theme.spacing.lg};
   border-left: 1px solid ${({ theme }) => theme.colors.hairlineStrong};
 
@@ -57,7 +58,10 @@ const Value = styled.div<{ $isOver?: boolean }>`
   ${({ theme }) => css`
     margin-top: ${theme.spacing.sm};
     font-family: ${theme.typography.displayXl.family};
-    font-size: ${theme.typography.displayXl.size};
+    /* Steps down only in a tile too narrow for a seven-figure sum with
+       pence, so the figure stays on one line inside its own tile. */
+    font-size: min(${theme.typography.displayXl.size}, 13cqi);
+    white-space: nowrap;
     font-weight: ${theme.typography.amountXl.weight};
     line-height: ${theme.typography.amountXl.lineHeight};
     letter-spacing: ${theme.typography.amountXl.letterSpacing};

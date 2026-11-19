@@ -32,6 +32,7 @@ import {
   SheetSectionRow,
   SheetSubheadRow,
 } from "@/components/sheet/SheetRow";
+import { sheetGrid } from "@/components/sheet/SheetRow/SheetRow.styled";
 import {
   Toolbar,
   ToolbarGroup,
@@ -205,7 +206,16 @@ const ANCHORED_KIND_COPY = {
 
 // ─── Styled in-cell inputs ──────────────────────────────────────────────────
 
-const CellInput = styled.input<{ $align?: "left" | "right" }>`
+const BudgetGrid = styled(Sheet)`
+  ${sheetGrid}
+`;
+
+// size=1 because an input's default width (about twenty characters) would
+// otherwise set its column's width; the sheet's figures should, and the input
+// fills whatever width they leave it.
+const CellInput = styled.input.attrs({ size: 1 })<{
+  $align?: "left" | "right";
+}>`
   border: none;
   background: transparent;
   outline: none;
@@ -2153,7 +2163,7 @@ export function BudgetSheet({
 
       {copyNotice && <SheetNotice role="status">{copyNotice}</SheetNotice>}
 
-      <Sheet data-sheet-scroller role="table" aria-label="Budget">
+      <BudgetGrid data-sheet-scroller role="table" aria-label="Budget">
         <SheetHeadRow />
 
         <SheetSectionRow
@@ -2219,7 +2229,7 @@ export function BudgetSheet({
             actual: fmtSigned(leftOver.actual),
           }}
         />
-      </Sheet>
+      </BudgetGrid>
       <SheetHint>
         Click any cell to edit. Arrows and Tab move around, Enter drops down and
         adds a row at the end of a section. Totals recalc as you type.

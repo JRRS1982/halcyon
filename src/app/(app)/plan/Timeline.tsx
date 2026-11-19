@@ -51,9 +51,16 @@ const Heading = styled.h2`
   color: ${({ theme }) => theme.colors.ink};
   margin: 0;
 `;
-const Plot = styled.div`
+// Height of one row of staggered line labels.
+const LABEL_ROW = 13;
+
+// The line labels get a band of their own above the lanes. Drawn over the
+// plot, they landed on the axis ticks and on each other's lines whenever the
+// lanes were short or empty.
+const Plot = styled.div<{ $labelRows: number }>`
   position: relative;
   min-width: 480px;
+  padding-top: ${({ $labelRows }) => $labelRows * LABEL_ROW}px;
 `;
 const Rows = styled.div`
   display: grid;
@@ -155,7 +162,7 @@ const EventStroke = styled.div<{ $inflow: boolean }>`
 `;
 const EventLabel = styled.span<{ $inflow: boolean; $level: number }>`
   position: absolute;
-  top: ${({ $level }) => $level * 13}px;
+  top: ${({ $level }) => $level * LABEL_ROW}px;
   left: 50%;
   transform: translateX(-50%);
   padding: 0 2px;
@@ -193,7 +200,7 @@ const GuideLine = styled.div`
 // the line — "Life expectancy" hangs off the card otherwise.
 const RefLabel = styled.span<{ $level: number; $flip: boolean }>`
   position: absolute;
-  top: ${({ $level }) => $level * 13}px;
+  top: ${({ $level }) => $level * LABEL_ROW}px;
   ${({ $flip }) => ($flip ? "right: 4px;" : "left: 4px;")}
   font-size: 10px;
   color: ${({ theme }) => theme.colors.dim};
@@ -450,12 +457,18 @@ export function Timeline({
   // the first one and skips the closing rule.
   const filledGroups = groups.filter(([, bars]) => bars.length > 0);
   const hasContent = filledGroups.length > 0 || model.events.length > 0;
+  const labelRows =
+    Math.max(
+      -1,
+      ...model.refLines.map((r) => r.labelLevel),
+      ...model.events.map((m) => m.labelLevel),
+    ) + 1;
 
   return (
     <Panel>
       <Heading>Timeline</Heading>
       {hasContent ? (
-        <Plot>
+        <Plot $labelRows={labelRows}>
           <Rows>
             {filledGroups.map(([label, bars], groupIndex) => (
               <div key={label} style={{ display: "contents" }}>

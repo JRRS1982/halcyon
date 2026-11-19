@@ -51,6 +51,9 @@ export const CellWrapper = styled.div<{
     css`
       justify-content: flex-end;
       font-variant-numeric: tabular-nums;
+      /* A figure never breaks: "−" and "£1,050.00" on two lines reads as two
+         values. */
+      white-space: nowrap;
     `}
 
   ${({ $focused, theme }) =>

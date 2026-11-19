@@ -91,6 +91,7 @@ const TotalAmount = styled(TotalCell)`
   letter-spacing: ${({ theme }) => theme.typography.amountStrong.letterSpacing};
   text-transform: none;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 `;
 
 // Seven columns (select, date, description, account, amount, category, note)
@@ -323,6 +324,7 @@ const Amount = styled.td<{ $negative: boolean }>`
   border-bottom: 1px solid ${({ theme }) => theme.colors.hairline};
   text-align: right;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
   color: ${({ $negative, theme }) =>
     $negative ? theme.colors.ink : theme.colors.positive};
 `;
