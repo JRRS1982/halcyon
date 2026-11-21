@@ -14,6 +14,7 @@
 import type { ReactNode, RefObject } from "react";
 import styled from "styled-components";
 import { Button } from "@/components/ui/Button";
+import { hoverFill, reach } from "@/lib/pointer";
 import type { ActiveFilter } from "@/lib/transactions/activeFilters";
 
 const Card = styled.section`
@@ -64,10 +65,7 @@ const FilterButton = styled.button`
   cursor: pointer;
   white-space: nowrap;
 
-  &:hover {
-    background: ${({ theme }) => theme.colors.accent};
-    color: ${({ theme }) => theme.colors.canvas};
-  }
+  ${hoverFill}
 `;
 
 // The count of active filters. The drawer hides its own state once closed, so
@@ -131,6 +129,8 @@ const ChipRemove = styled.button`
   &:hover {
     color: ${({ theme }) => theme.colors.ink};
   }
+
+  ${reach}
 `;
 
 export function LedgerControls({

@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import styled, { css } from "styled-components";
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { hoverFill } from "@/lib/pointer";
 
 // Route-level error boundary. Without it, a failed Prisma query or a thrown
 // server action drops the user on Next's default error screen with no way back
@@ -53,6 +54,8 @@ const BackLink = styled(Link)`
     @media (max-width: 767px) {
       min-height: 44px;
     }
+
+    ${hoverFill}
   `}
 `;
 

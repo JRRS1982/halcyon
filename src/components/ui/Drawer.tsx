@@ -9,6 +9,7 @@
 import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 import styled from "styled-components";
 import { RemoveCell } from "@/components/ui/RemoveCell";
+import { hoverFill } from "@/lib/pointer";
 
 const Scrim = styled.div<{ $open: boolean }>`
   position: fixed;
@@ -122,7 +123,8 @@ const CloseBtn = styled.button`
   color: ${({ theme }) => theme.colors.dim};
   padding: 2px 6px;
   border-radius: ${({ theme }) => theme.rounded.sm};
-  &:hover { color: ${({ theme }) => theme.colors.ink}; background: ${({ theme }) => theme.colors.canvasSoft}; }
+  &:hover { color: ${({ theme }) => theme.colors.ink}; }
+  ${hoverFill}
 `;
 // Every field in a dialog is the same size as the app's other forms, whichever
 // editor supplied it: the plan's inline cells and the account card brought
@@ -141,7 +143,6 @@ const Body = styled.div`
     color: ${({ theme }) => theme.colors.ink};
   }
 
-  & input[type="checkbox"],
   & input[type="radio"] {
     width: 16px;
     height: 16px;
@@ -194,6 +195,13 @@ const SectionHead = styled.button`
   font-size: ${({ theme }) => theme.typography.control.size};
   font-weight: ${({ theme }) => theme.typography.control.weight};
   color: ${({ theme }) => theme.colors.ink};
+
+  /* A header is a row, not a button: it takes the warm tint rows take. */
+  @media (hover: hover) {
+    &:hover {
+      background: ${({ theme }) => theme.colors.canvasSoft};
+    }
+  }
 `;
 const SectionBody = styled.div`
   padding: 0 ${({ theme }) => theme.spacing.xl} ${({ theme }) => theme.spacing.lg};

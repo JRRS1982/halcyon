@@ -50,6 +50,7 @@ const groupOf: Record<ColorToken, GroupName> = {
   onPrimary: "brand",
   accent: "brand",
   focus: "brand",
+  hover: "brand",
 
   canvas: "surface",
   canvasSoft: "surface",

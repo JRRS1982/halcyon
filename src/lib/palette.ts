@@ -31,6 +31,7 @@ export type ColorToken =
   | "positive"
   | "negative"
   | "focus"
+  | "hover"
   | "accent"
   // Chart-only hues. Series colours are graphics rather than text, so they
   // answer to WCAG's 3:1 non-text rule against the surface they sit on.
@@ -92,6 +93,10 @@ export const lightPalette: Palette = {
   positive: "#0B6A4C",
   negative: "#A3271F",
   focus: "#1B4E8A",
+  // The fill of the control under the pointer. Cool where every surface is
+  // warm, so a hovered button can never turn the colour of what it sits on —
+  // which is what the paper tints did on a drawer footer or a hovered row.
+  hover: "#DCE8F5",
   // The single highlight accent. Used sparingly — period dates in eyebrows,
   // selected rows, anything the user should locate at a glance.
   accent: "#8E1B3D",
@@ -153,6 +158,7 @@ export const darkPalette: Palette = {
   // Light, so the ring reads against a dark page — the mirror of the light
   // mode's near-black ring on white.
   focus: "#F7EEE6",
+  hover: "#22364E",
   accent: "#D4899A",
   chartRate: "#E9A23B",
   chartBudget: "#8C8177",

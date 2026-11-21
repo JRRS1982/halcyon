@@ -5,6 +5,7 @@ import { type FormEvent, useMemo, useState, useTransition } from "react";
 import styled from "styled-components";
 import { Button } from "@/components/ui/Button";
 import { Drawer } from "@/components/ui/Drawer";
+import { hoverFill } from "@/lib/pointer";
 import type { LedgerCategory } from "@/lib/transactions/server";
 import { parseLine } from "@/lib/transactions/writeLine";
 import { createTransaction, suggestCategory } from "./actions";
@@ -85,6 +86,8 @@ const DirectionButton = styled.button<{ $active: boolean }>`
   font-size: ${({ theme }) => theme.typography.control.size};
   font-weight: ${({ theme }) => theme.typography.control.weight};
   cursor: pointer;
+
+  ${({ $active }) => ($active ? "" : hoverFill)}
 `;
 
 const FormGrid = styled.form`

@@ -86,6 +86,26 @@ describe("colour contrast", () => {
       ).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
     });
 
+    // The hover fill sits under whatever the control already shows: an outline
+    // button's ink label, a destructive button's red one, the Filters button's
+    // claret one, the muted count beside a category in the picker. A hover that dims its own label makes
+    // the control harder to read at the moment it is being aimed at.
+    test.each(["ink", "negative", "dim", "accent"] as const)(
+      "%s clears 4.5:1 on the hover fill",
+      (token) => {
+        expect(contrast(palette[token], palette.hover)).toBeGreaterThanOrEqual(
+          AA_NORMAL_TEXT,
+        );
+      },
+    );
+
+    // A ticked box under the pointer draws its pen tick on the hover fill.
+    test("the tick box's mark is visible on the hover fill", () => {
+      expect(contrast(palette.primary, palette.hover)).toBeGreaterThanOrEqual(
+        AA_NON_TEXT,
+      );
+    });
+
     // Selected text (::selection in globals.css) sets page-coloured text on
     // the accent; a highlight that hides what it highlights is no use.
     test("page-coloured text clears 4.5:1 on an accent fill", () => {

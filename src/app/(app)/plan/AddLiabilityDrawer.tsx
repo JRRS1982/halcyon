@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { Checkbox } from "@/components/ui/Checkbox";
 import {
   Actions,
   Choice,
@@ -134,8 +135,7 @@ export function AddLiabilityDrawer({
         </Field>
 
         <Choice>
-          <input
-            type="checkbox"
+          <Checkbox
             checked={isMortgage}
             onChange={(e) => setIsMortgage(e.target.checked)}
           />

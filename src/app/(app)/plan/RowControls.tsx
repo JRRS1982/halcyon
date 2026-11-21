@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import styled from "styled-components";
+import { hoverFill } from "@/lib/pointer";
 
 // The same outline button as the sheets' "+ Add": a faint 13px box read as
 // disabled beside the plan's rows.
@@ -17,6 +18,13 @@ const AddBtn = styled.button`
   border-radius: ${({ theme }) => theme.rounded.sm};
   padding: ${({ theme }) => theme.spacing.xs} ${({ theme }) => theme.spacing.md};
   width: fit-content;
+
+  ${hoverFill}
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 `;
 
 export function AddRowButton({
