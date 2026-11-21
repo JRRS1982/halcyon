@@ -54,13 +54,17 @@ const Label = styled.div`
 `;
 
 // The display serif at headline size: these four are the page's index figures.
-const Value = styled.div<{ $isOver?: boolean }>`
-  ${({ theme }) => css`
+const Value = styled.div<{ $isOver?: boolean; $chars: number }>`
+  ${({ theme, $chars }) => css`
     margin-top: ${theme.spacing.sm};
     font-family: ${theme.typography.displayXl.family};
-    /* Steps down only in a tile too narrow for a seven-figure sum with
-       pence, so the figure stays on one line inside its own tile. */
-    font-size: min(${theme.typography.displayXl.size}, 13cqi);
+    /* Steps down only when this figure is too long for its tile: a figure of
+       this serif averages under half an em a character, so the tile's width
+       over half an em per character is the largest size that still fits. */
+    font-size: min(
+      ${theme.typography.displayXl.size},
+      calc(100cqi / ${Math.max($chars, 1) * 0.5})
+    );
     white-space: nowrap;
     font-weight: ${theme.typography.amountXl.weight};
     line-height: ${theme.typography.amountXl.lineHeight};
@@ -152,14 +156,15 @@ export function SummaryRow({
   return (
     <Row aria-label="Key figures">
       {stats.map((stat) => {
+        const value = formatValue(stat, currency, numberFormat);
         const delta = formatDelta(stat, currency, numberFormat);
         const left = stat.leftInBudget;
         const isOver = left != null && left < 0;
         return (
           <Tile key={stat.key}>
             <Label>{stat.label}</Label>
-            <Value $isOver={isOver}>
-              {formatValue(stat, currency, numberFormat)}
+            <Value $isOver={isOver} $chars={value.length}>
+              {value}
             </Value>
             {left != null ? (
               <Delta $tone={isOver ? "negative" : "positive"}>

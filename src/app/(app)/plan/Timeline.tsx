@@ -105,9 +105,10 @@ const RowLabel = styled.div`
   text-overflow: ellipsis;
   padding-right: ${({ theme }) => theme.spacing.sm};
 `;
+const TRACK_HEIGHT = 18;
 const Track = styled.div`
   position: relative;
-  height: 18px;
+  height: ${TRACK_HEIGHT}px;
 `;
 // Each stream is a thin line between two dots, so the lanes read as spans of
 // time rather than as a bar chart of amounts.
@@ -177,7 +178,8 @@ const Overlay = styled.div`
   left: ${GUTTER};
   right: ${PLOT_RIGHT_INSET}px;
   top: 0;
-  bottom: 0;
+  /* Stops above the axis row, so no line runs through an age. */
+  bottom: ${TRACK_HEIGHT}px;
   pointer-events: none;
 
   @media ${PHONE_PLOT_QUERY} {

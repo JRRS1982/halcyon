@@ -200,15 +200,23 @@ const Approval = styled.button<{ $approved: boolean }>`
   `}
 `;
 
-const COLUMN_WIDTHS: [column: string, width: string][] = [
-  ["select", "36px"],
-  ["date", "100px"],
-  ["description", "auto"],
-  ["account", "132px"],
-  ["amount", "96px"],
-  ["category", "330px"],
-  ["note", "76px"],
-];
+/**
+ * The colgroup's widths, with Amount as wide as the longest figure it holds.
+ * The layout stays fixed, so opening a row still moves nothing; a fixed 96px
+ * just could not hold "−£123,456.78", which ran into the category picker.
+ */
+function columnWidths(amounts: string[]): [column: string, width: string][] {
+  const longest = Math.max(0, ...amounts.map((amount) => amount.length));
+  return [
+    ["select", "36px"],
+    ["date", "100px"],
+    ["description", "auto"],
+    ["account", "132px"],
+    ["amount", `max(96px, calc(${longest}ch + 24px))`],
+    ["category", "330px"],
+    ["note", "76px"],
+  ];
+}
 
 // Set as the budget sheet's head: small muted labels closed by a heavy ink
 // rule, so the ledger reads as the same kind of table.
@@ -309,7 +317,7 @@ const Td = styled.td`
 
 // Date and account cells: a date broken across two lines ("2026-08-" / "05")
 // reads as noise, and the table pans horizontally anyway — these cells keep
-// their content whole. Their columns are fixed-width (see COLUMN_WIDTHS), so an
+// their content whole. Their columns are fixed-width (see columnWidths), so an
 // account name longer than its column ellipsizes rather than spilling into the
 // amount beside it; the cell carries a title so the full name is still readable.
 const TdNowrap = styled(Td)`
@@ -600,6 +608,11 @@ export function Ledger({
   // Nets the rows on screen, not every matching row — and says which it is,
   // so a partial sum can never read as a grand total.
   const footer = ledgerFooter(items, page.total);
+  const widths = columnWidths(
+    [...items.map((tx) => tx.amount), footer.net].map((amount) =>
+      formatAmount(currency, amount, numberFormat),
+    ),
+  );
 
   // Adopt fresh server data whenever the rendered page changes — a URL
   // navigation, or a revalidation after a mutation. Stale row selections are
@@ -1051,7 +1064,7 @@ export function Ledger({
         <TableScroll data-ledger-scroller>
           <Table>
             <colgroup>
-              {COLUMN_WIDTHS.map(([column, width]) => (
+              {widths.map(([column, width]) => (
                 <col key={column} style={{ width }} />
               ))}
             </colgroup>
