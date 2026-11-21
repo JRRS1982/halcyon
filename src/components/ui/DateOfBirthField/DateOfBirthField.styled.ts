@@ -50,8 +50,14 @@ export const PartInput = styled.input<{
   $wide?: boolean;
   $standalone?: boolean;
 }>`
-  width: ${({ $wide, $standalone }) =>
-    $standalone ? ($wide ? "5.5em" : "3.75em") : $wide ? "3.4em" : "2.6em"};
+  /* The compact sizes count digits, with the padding and border added on top:
+     in ems alone, the four-digit year lost its last digit to the padding. */
+  width: ${({ $wide, $standalone, theme }) =>
+    $standalone
+      ? $wide
+        ? "5.5em"
+        : "3.75em"
+      : `calc(${$wide ? "4.4ch" : "2.4ch"} + 2 * ${theme.spacing.xs} + 2px)`};
   border: 1px solid ${({ theme }) => theme.colors.fieldBorder};
   border-radius: ${({ theme }) => theme.rounded.sm};
   padding: ${({ theme, $standalone }) =>

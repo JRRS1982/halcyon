@@ -3,34 +3,70 @@ import styled, { css } from "styled-components";
 // Shared 6-column template across every row in the sheet (Category · Budget ·
 // Actual · vs budget · Share of spend · Notes). Keep this in lockstep with DESIGN.md → Layout → Grid &
 // Container → "Sheet column template".
+//
+// The sheet owns the columns and each row is a subgrid of them, so a figure
+// wider than its column's floor widens that column for every row rather than
+// spilling over its neighbour. A fixed width per row could not: each row would
+// size alone and the columns would stop lining up.
 export const SHEET_GRID =
-  "minmax(180px, 1.2fr) 120px 120px 120px 150px minmax(160px, 1fr)";
+  "minmax(180px, 1.2fr) max-content max-content max-content max-content minmax(160px, 1fr)";
 
-// Below desktop the amount columns narrow and the row keeps a floor width, so
-// the sheet container (which turns into a horizontal scroller at the same
-// breakpoints) pans instead of crushing the category column. The category cell
-// stays pinned to the left edge while the amounts scroll under it.
+// The amount columns are max-content rather than minmax(floor, max-content):
+// a minmax track gives back to its floor whenever the sheet is narrower than
+// its columns, which is exactly when a figure needs the room. The floors are
+// held by the cells instead, so a column is its floor or its widest figure,
+// and a sheet too narrow for that pans.
+// Below desktop the floors narrow and the category column keeps its own, so
+// the sheet pans instead of crushing it; the category cell stays pinned to the
+// left edge while the amounts scroll under it.
 // DESIGN.md → Responsive Strategy → Breakpoints / Collapsing Strategy.
-const baseRow = css`
+export const sheetGrid = css`
+  --amount-floor: 120px;
+  --share-floor: 150px;
   display: grid;
   grid-template-columns: ${SHEET_GRID};
 
+  > [role="row"] > div:nth-child(n + 2):nth-child(-n + 4),
+  > div > [role="row"] > div:nth-child(n + 2):nth-child(-n + 4) {
+    min-width: var(--amount-floor);
+  }
+  > [role="row"] > div:nth-child(5),
+  > div > [role="row"] > div:nth-child(5) {
+    min-width: var(--share-floor);
+  }
+
   @media (max-width: 991px) {
-    grid-template-columns: minmax(200px, 1fr) 110px 110px 110px 140px minmax(
-        150px,
-        1fr
-      );
-    min-width: 860px;
+    --amount-floor: 110px;
+    --share-floor: 140px;
+    grid-template-columns:
+      minmax(200px, 1fr) max-content max-content max-content max-content
+      minmax(150px, 1fr);
   }
 
   /* A 360px phone leaves 328px inside the page's 16px mobile gutters, so the
-     row floor sits at 320px — all three columns land on screen with nothing
-     to pan to. The insight columns and Notes are hidden to keep the sheet at
-     three columns and within the viewport. Amounts keep tabular-nums room at 95px; see SheetCell for
-     the matching drop in horizontal cell padding. */
+     floor sits at 320px — all three columns land on screen with nothing to
+     pan to unless a figure is wider than its 95px. The insight columns and
+     Notes are hidden to keep the sheet at three columns. Amounts keep
+     tabular-nums room at 95px; see SheetCell for the matching drop in
+     horizontal cell padding. */
   @media (max-width: 767px) {
-    grid-template-columns: minmax(130px, 1fr) 95px 95px;
-    min-width: 320px;
+    --amount-floor: 95px;
+    grid-template-columns: minmax(130px, 1fr) max-content max-content;
+  }
+
+  /* Wrappers that group a section's rows take no box of their own, so their
+     rows still sit on the sheet's grid. */
+  > div:not([role="row"]) {
+    display: contents;
+  }
+`;
+
+const baseRow = css`
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+
+  @media (max-width: 767px) {
     > div:nth-child(n + 4) {
       display: none;
     }

@@ -383,7 +383,7 @@ Page content caps at 1240px and centres. The masthead and footer rules run full 
 
 ### The sheet grid
 
-The budget sheet has six columns: Category · Budget · Actual · vs budget · Share of spend · Notes, at `minmax(180px, 1.2fr) 120px 120px 120px 150px minmax(160px, 1fr)`. Below 992px the columns narrow and the row takes an 860px floor, scrolling sideways with the Category cell pinned left. Below 768px the sheet keeps three columns (Category, Budget, Actual at `minmax(130px, 1fr) 95px 95px`, a 320px row) and hides the rest, so a 360px phone shows the whole row.
+The budget sheet has six columns: Category · Budget · Actual · vs budget · Share of spend · Notes, at `minmax(180px, 1.2fr) max-content max-content max-content max-content minmax(160px, 1fr)`. The sheet owns the columns and every row is a subgrid of them, so the four figure columns are as wide as their widest figure, never narrower than a floor the cells hold (120px each, 150px for Share of spend). A figure never wraps and never runs into its neighbour; a sheet too narrow for its figures scrolls sideways instead. Below 992px the floors narrow (110px, 140px) and the sheet scrolls sideways once the columns outgrow it, with the Category cell pinned left. Below 768px the sheet keeps three columns (Category, Budget, Actual at `minmax(130px, 1fr) max-content max-content`, 95px floors, a 320px row) and hides the rest, so a 360px phone shows the whole row unless a figure is wider than its floor.
 
 The balance sheet has four: Account · Value · Since (the previous month, such as "Since Sep 2026", or "Change" when there is none) · Notes.
 
