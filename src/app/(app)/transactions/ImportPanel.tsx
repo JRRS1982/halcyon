@@ -94,6 +94,9 @@ const FileButton = styled.span`
   font-family: ${({ theme }) => theme.typography.control.family};
   font-size: ${({ theme }) => theme.typography.control.size};
   font-weight: ${({ theme }) => theme.typography.control.weight};
+  /* The shared button's line height, so this sits level with the buttons
+     beside it. */
+  line-height: ${({ theme }) => theme.typography.control.lineHeight};
   white-space: nowrap;
 
   ${hoverFill}
