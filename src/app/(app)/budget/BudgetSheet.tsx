@@ -77,6 +77,7 @@ import { useDebouncedCallback } from "@/lib/hooks/useDebouncedCallback";
 import type { CategoryHistory } from "@/lib/insights/history";
 import { monthBrief } from "@/lib/insights/monthBrief";
 import { appear } from "@/lib/motion";
+import { hoverFill, hoverInk, reach } from "@/lib/pointer";
 import {
   caretAfterSignificant,
   formatAmount,
@@ -467,6 +468,10 @@ const InfoButton = styled.button`
       border-color: ${theme.colors.ink};
       color: ${theme.colors.ink};
     }
+
+    ${hoverFill}
+
+    ${reach}
   `}
 `;
 
@@ -567,6 +572,8 @@ const PickerYearButton = styled.button`
     &:hover {
       border-color: ${theme.colors.ink};
     }
+
+    ${hoverFill}
   `}
 `;
 
@@ -591,6 +598,8 @@ const PickerMonth = styled.button<{ $current?: boolean }>`
     &:hover:not(:disabled) {
       border-color: ${theme.colors.ink};
     }
+
+    ${$current ? "" : hoverFill}
   `}
 `;
 
@@ -691,6 +700,8 @@ const CopySource = styled.button<{ $selected?: boolean }>`
     &:hover:not(:disabled) {
       border-color: ${theme.colors.ink};
     }
+
+    ${$selected ? "" : hoverFill}
   `}
 `;
 
@@ -801,6 +812,8 @@ const LinkBtn = styled.button`
   color: ${({ theme }) => theme.colors.primary};
   text-decoration: underline;
   cursor: pointer;
+
+  ${hoverInk}
 `;
 
 const REPAYMENTS_HELP =

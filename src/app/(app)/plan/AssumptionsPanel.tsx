@@ -64,13 +64,6 @@ const Grid = styled.div`
     background-color: ${({ theme }) => theme.colors.field};
   }
 
-  & input[type="checkbox"] {
-    width: 18px;
-    height: 18px;
-    margin: 0;
-    accent-color: ${({ theme }) => theme.colors.accent};
-  }
-
   & legend {
     font-family: ${({ theme }) => theme.typography.control.family};
     font-size: ${({ theme }) => theme.typography.control.size};

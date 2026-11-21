@@ -5,9 +5,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Fragment, useEffect, useRef, useState, useTransition } from "react";
 import styled, { css } from "styled-components";
 import { Button } from "@/components/ui/Button";
+import { Checkbox } from "@/components/ui/Checkbox";
 import { shortDate } from "@/lib/date/humanDate";
 import { useDebouncedCallback } from "@/lib/hooks/useDebouncedCallback";
 import { appear, LEAVE_MS, leaving } from "@/lib/motion";
+import { hoverFill, reachTall } from "@/lib/pointer";
 import {
   DEFAULT_NUMBER_FORMAT,
   formatAmount,
@@ -406,6 +408,8 @@ const NoteToggle = styled.button<{ $has: boolean }>`
   &:hover {
     color: ${({ theme }) => theme.colors.ink};
   }
+
+  ${reachTall}
 `;
 
 const DetailTd = styled.td`
@@ -465,6 +469,8 @@ const PageButton = styled.button<{ $current?: boolean }>`
     opacity: 0.5;
     cursor: not-allowed;
   }
+
+  ${({ $current }) => ($current ? "" : hoverFill)}
 `;
 
 const PageGap = styled.span`
@@ -1071,9 +1077,9 @@ export function Ledger({
             <thead>
               <tr>
                 <ThSelect>
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={allOnPageSelected}
+                    indeterminate={hasSelection && !allOnPageSelected}
                     onChange={toggleAllOnPage}
                     aria-label="Select all transactions on this page"
                   />
@@ -1099,8 +1105,7 @@ export function Ledger({
                     onClick={() => toggleRow(tx.id)}
                   >
                     <TdCheck>
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={selected.has(tx.id)}
                         onChange={() => toggleRow(tx.id)}
                         // Without this the change handler and the row's click

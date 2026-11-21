@@ -3,6 +3,7 @@
 import { useState } from "react";
 import styled from "styled-components";
 import { Button } from "@/components/ui/Button";
+import { Checkbox } from "@/components/ui/Checkbox";
 import { canConfirmDeletion, type DeletionMode } from "@/lib/accounts/deletion";
 import { DEFAULT_CURRENCY, formatAmount } from "@/lib/settings/currency";
 import { archiveAccount, deleteAccountEverywhere } from "./accountActions";
@@ -307,8 +308,7 @@ export function DeleteAccountPanel({
       {linked && (
         <PartnerBlock>
           <CheckboxLabel>
-            <input
-              type="checkbox"
+            <Checkbox
               checked={alsoLinked}
               onChange={(e) => setAlsoLinked(e.target.checked)}
             />

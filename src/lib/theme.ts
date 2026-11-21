@@ -48,6 +48,7 @@ export const theme = {
     positive: cssVar("positive"),
     negative: cssVar("negative"),
     focus: cssVar("focus"),
+    hover: cssVar("hover"),
     // The single highlight accent. Used sparingly — period dates in eyebrows,
     // selected rows, anything the user should locate at a glance.
     accent: cssVar("accent"),

@@ -58,6 +58,7 @@ import {
   balanceBrief,
 } from "@/lib/insights/balanceBrief";
 import { appear } from "@/lib/motion";
+import { hoverFill, reach } from "@/lib/pointer";
 import {
   formatAmount,
   NUMBER_FORMAT_SPEC,
@@ -459,6 +460,10 @@ const InfoButton = styled.button`
       border-color: ${theme.colors.ink};
       color: ${theme.colors.ink};
     }
+
+    ${hoverFill}
+
+    ${reach}
   `}
 `;
 
@@ -581,6 +586,8 @@ const PickerYearButton = styled.button`
     &:hover {
       border-color: ${theme.colors.ink};
     }
+
+    ${hoverFill}
   `}
 `;
 
@@ -604,6 +611,8 @@ const PickerMonth = styled.button<{ $current?: boolean }>`
     &:hover:not(:disabled) {
       border-color: ${theme.colors.ink};
     }
+
+    ${$current ? "" : hoverFill}
   `}
 `;
 
@@ -675,6 +684,8 @@ const CopySource = styled.button<{ $selected?: boolean }>`
     &:hover:not(:disabled) {
       border-color: ${theme.colors.ink};
     }
+
+    ${$selected ? "" : hoverFill}
   `}
 `;
 

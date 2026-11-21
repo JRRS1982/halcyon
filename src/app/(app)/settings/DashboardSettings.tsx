@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import styled from "styled-components";
+import { Switch } from "@/components/ui/Switch";
 import { DASHBOARD_CHARTS } from "@/lib/dashboard/charts";
 import { setChartVisibility } from "./actions";
 import { SectionHeading, SettingsCard } from "./SectionHeading";
@@ -37,54 +38,6 @@ const ToggleRow = styled.label`
   cursor: pointer;
 `;
 
-const SwitchInput = styled.input`
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-`;
-
-const SwitchTrack = styled.span`
-  position: relative;
-  display: inline-block;
-  flex: none;
-  width: 42px;
-  height: 24px;
-  border-radius: 999px;
-  background: ${({ theme }) => theme.colors.hairlineStrong};
-  transition: background 0.15s ease;
-
-  &::after {
-    content: "";
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    background: ${({ theme }) => theme.colors.canvas};
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
-    transition: transform 0.15s ease;
-  }
-
-  ${SwitchInput}:checked + & {
-    background: ${({ theme }) => theme.colors.positive};
-  }
-  ${SwitchInput}:checked + &::after {
-    transform: translateX(18px);
-  }
-  ${SwitchInput}:focus-visible + & {
-    outline: 2px solid ${({ theme }) => theme.colors.accent};
-    outline-offset: 2px;
-  }
-`;
-
-const SwitchControl = styled.span`
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-`;
-
 export function DashboardSettings({
   hiddenCharts,
 }: {
@@ -113,15 +66,11 @@ export function DashboardSettings({
         {DASHBOARD_CHARTS.map((chart) => (
           <ToggleRow key={chart.key}>
             {chart.label}
-            <SwitchControl>
-              <SwitchInput
-                type="checkbox"
-                checked={!hidden.has(chart.key)}
-                disabled={pending}
-                onChange={(event) => toggle(chart.key, event.target.checked)}
-              />
-              <SwitchTrack />
-            </SwitchControl>
+            <Switch
+              checked={!hidden.has(chart.key)}
+              disabled={pending}
+              onChange={(event) => toggle(chart.key, event.target.checked)}
+            />
           </ToggleRow>
         ))}
       </SettingsCard>

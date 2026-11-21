@@ -1,4 +1,5 @@
 import styled, { css } from "styled-components";
+import { hoverFill } from "@/lib/pointer";
 
 export const ToolbarWrapper = styled.div`
   ${({ theme }) => css`
@@ -109,6 +110,8 @@ export const ToolbarTool = styled.button<{
             : theme.colors.ink
       };
     }
+
+    ${$active ? "" : hoverFill}
 
     &:disabled {
       opacity: 0.5;

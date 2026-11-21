@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState, useTransition } from "react";
 import styled, { css } from "styled-components";
 import { Button } from "@/components/ui/Button";
 import { appear } from "@/lib/motion";
+import { hoverFill } from "@/lib/pointer";
 import {
   type ImportBatchSummary,
   listImportBatches,
@@ -14,20 +15,6 @@ import {
 // "Undo import…" — the outline secondary action paired beside the black
 // import CTA. Opens a confirm dialog with a picker of reversible imports;
 // confirming soft-deletes that batch's transactions.
-
-const TriggerButton = styled.button`
-  padding: ${({ theme }) => theme.spacing.sm}
-    ${({ theme }) => theme.spacing.lg};
-  border: 1px solid ${({ theme }) => theme.colors.ink};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  background: ${({ theme }) => theme.colors.canvas};
-  color: ${({ theme }) => theme.colors.ink};
-  font-family: ${({ theme }) => theme.typography.control.family};
-  font-size: ${({ theme }) => theme.typography.control.size};
-  font-weight: ${({ theme }) => theme.typography.control.weight};
-  white-space: nowrap;
-  cursor: pointer;
-`;
 
 const Overlay = styled.div`
   position: fixed;
@@ -110,6 +97,8 @@ const BatchOption = styled.label<{ $selected: boolean }>`
       margin: 3px 0 0;
       accent-color: ${theme.colors.primary};
     }
+
+    ${hoverFill}
   `}
 `;
 
@@ -239,9 +228,9 @@ export function ReverseImport() {
 
   return (
     <>
-      <TriggerButton type="button" onClick={openDialog}>
+      <Button variant="outline" type="button" onClick={openDialog}>
         Undo import…
-      </TriggerButton>
+      </Button>
 
       {open && (
         <Overlay

@@ -5,6 +5,7 @@ import styled from "styled-components";
 import type { CategorySection } from "@/lib/categories/sections";
 import { sectionsFor } from "@/lib/categories/sections";
 import { appear } from "@/lib/motion";
+import { hoverFill } from "@/lib/pointer";
 import type { LedgerCategory } from "@/lib/transactions/server";
 
 const Wrap = styled.div`
@@ -98,11 +99,9 @@ const Option = styled.li<{ $active?: boolean }>`
   justify-content: space-between;
   gap: ${({ theme }) => theme.spacing.sm};
   background: ${({ $active, theme }) =>
-    $active ? theme.colors.canvasSoft : "transparent"};
+    $active ? theme.colors.hover : "transparent"};
 
-  &:hover {
-    background: ${({ theme }) => theme.colors.canvasSoft};
-  }
+  ${hoverFill}
 `;
 
 // Names in ink: the group headings already split income, spending and

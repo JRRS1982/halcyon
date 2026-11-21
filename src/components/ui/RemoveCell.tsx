@@ -9,6 +9,7 @@
 
 import { useState } from "react";
 import styled from "styled-components";
+import { hoverInk } from "@/lib/pointer";
 
 const LinkBtn = styled.button`
   border: 0;
@@ -18,12 +19,24 @@ const LinkBtn = styled.button`
   color: ${({ theme }) => theme.colors.body};
   padding: 0;
   text-decoration: underline;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  ${hoverInk}
 `;
 // The one that deletes says so, in the warning colour, so the two choices
 // can't be told apart only by their position.
 const YesBtn = styled(LinkBtn)`
   color: ${({ theme }) => theme.colors.negative};
   font-weight: 600;
+
+  /* Stays red under the pointer: this is the one that deletes. */
+  &:hover:not(:disabled) {
+    color: ${({ theme }) => theme.colors.negative};
+  }
 `;
 const Confirm = styled.span`
   font-size: 13px;

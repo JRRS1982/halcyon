@@ -15,6 +15,7 @@ import {
 } from "@/lib/dashboard/series";
 import { dashboardSummary } from "@/lib/dashboard/summary";
 import { overallBrief } from "@/lib/insights/overallBrief";
+import { hoverFill } from "@/lib/pointer";
 import { formatAmount, type NumberFormat } from "@/lib/settings/currency";
 import { theme } from "@/lib/theme";
 import type { BalancePoint } from "./BalanceTrendChart";
@@ -271,6 +272,8 @@ const FirstRunSecondary = styled(FirstRunPrimary)`
       opacity: 1;
       border-color: ${theme.colors.ink};
     }
+
+    ${hoverFill}
   `}
 `;
 

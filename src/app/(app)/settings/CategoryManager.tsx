@@ -6,6 +6,7 @@ import styled from "styled-components";
 import { Button } from "@/components/ui/Button";
 import type { CategorySection } from "@/lib/categories/sections";
 import { sectionsFor } from "@/lib/categories/sections";
+import { hoverInk } from "@/lib/pointer";
 import {
   createManagedCategory,
   deleteCategory,
@@ -128,6 +129,8 @@ const TextButton = styled.button<{ $danger?: boolean }>`
     color: ${({ theme }) => theme.colors.dim};
     cursor: default;
   }
+
+  ${({ $danger }) => ($danger ? "" : hoverInk)}
 `;
 
 // The row's action cluster. Inline after the meta on desktop; on a phone it

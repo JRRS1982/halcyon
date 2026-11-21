@@ -5,6 +5,7 @@ import { useRef, useState, useTransition } from "react";
 import styled from "styled-components";
 import { AccountTermsFields } from "@/components/accounts/AccountTermsFields";
 import { Button } from "@/components/ui/Button";
+import { Checkbox } from "@/components/ui/Checkbox";
 import { Drawer, DrawerSection, Field } from "@/components/ui/Drawer";
 import {
   ACCOUNT_TYPES,
@@ -360,8 +361,7 @@ export function AddAccountDrawer({
             {isProperty ? (
               <>
                 <CheckboxLabel>
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={hasMortgage}
                     onChange={(e) => setHasMortgage(e.target.checked)}
                   />

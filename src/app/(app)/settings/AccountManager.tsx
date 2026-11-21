@@ -10,11 +10,13 @@ import {
 } from "@/app/(app)/balance/accountActions";
 import { DeleteAccountPanel } from "@/app/(app)/balance/DeleteAccountPanel";
 import { Button } from "@/components/ui/Button";
+import { Switch } from "@/components/ui/Switch";
 import {
   type AccountTypeId,
   accountTypeById,
 } from "@/lib/accounts/accountDraft";
 import type { AccountDeletionCounts } from "@/lib/accounts/schemas";
+import { hoverInk } from "@/lib/pointer";
 import { renameAccount, setAccountImports } from "./accountActions";
 import { SectionHeading, SettingsCard } from "./SectionHeading";
 
@@ -100,6 +102,8 @@ const TextButton = styled.button<{ $danger?: boolean }>`
     color: ${({ theme }) => theme.colors.dim};
     cursor: default;
   }
+
+  ${({ $danger }) => ($danger ? "" : hoverInk)}
 `;
 
 const ImportToggle = styled.label`
@@ -259,8 +263,8 @@ export function AccountManager({
         <Meta>{referenced} txns</Meta>
         <RowActions>
           <ImportToggle>
-            <input
-              type="checkbox"
+            Allow importing of statements
+            <Switch
               checked={a.canImportTransactions ?? false}
               disabled={pending}
               onChange={(e) =>
@@ -272,7 +276,6 @@ export function AccountManager({
                 )
               }
             />
-            Allow importing of statements
           </ImportToggle>
           <TextButton
             type="button"

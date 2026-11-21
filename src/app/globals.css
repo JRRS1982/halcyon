@@ -82,8 +82,9 @@ body {
   color: var(--c-ink);
 }
 
-/* Tick boxes, radios and range thumbs take the app's blue rather than the
-   browser's own, so a ticked box matches the buttons beside it. */
+/* Radios and range thumbs take the app's blue rather than the browser's own,
+   so a chosen option matches the buttons beside it. Tick boxes are drawn by
+   the Checkbox component instead. */
 :root {
   accent-color: var(--c-primary);
 }
