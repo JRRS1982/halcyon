@@ -41,7 +41,7 @@ export type Article = {
 const plates = {
   transactions: {
     src: "/marketing/plates/transactions.png",
-    aspect: "2464 / 1834",
+    aspect: "2464 / 1838",
     alt: "The transactions page: '8 transactions to approve', the write-a-line box, and ledger rows whose suggested categories sit in pencil beside an Approve button",
     phone: {
       src: "/marketing/plates/transactions-phone.png",
@@ -82,7 +82,7 @@ const plates = {
     src: "/marketing/plates/balance.png",
     aspect: "2464 / 1798",
     alt: "The balance sheet: 'Net worth rose £4,551 to £348,326', the biggest gain and drop, and every asset with its move since September",
-    phone: { src: "/marketing/plates/balance-phone.png", aspect: "1170 / 960" },
+    phone: { src: "/marketing/plates/balance-phone.png", aspect: "1170 / 961" },
     dark: {
       src: "/marketing/plates/balance-dark.png",
       phone: "/marketing/plates/balance-phone-dark.png",
@@ -92,7 +92,7 @@ const plates = {
     src: "/marketing/plates/plan.png",
     aspect: "2464 / 1190",
     alt: "The plan's net-worth forecast from age 44 to 95: assets stacked by kind, net worth rising to about £1m at retirement then holding, a widening band for how returns might vary, and the age the pots run out marked",
-    phone: { src: "/marketing/plates/plan-phone.png", aspect: "1170 / 900" },
+    phone: { src: "/marketing/plates/plan-phone.png", aspect: "1170 / 902" },
     dark: {
       src: "/marketing/plates/plan-dark.png",
       phone: "/marketing/plates/plan-phone-dark.png",
