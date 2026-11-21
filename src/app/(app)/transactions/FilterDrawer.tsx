@@ -9,7 +9,10 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import styled from "styled-components";
+import { Button } from "@/components/ui/Button";
+import { Checkbox } from "@/components/ui/Checkbox";
 import { Drawer, DrawerSection, Field } from "@/components/ui/Drawer";
+import { hoverFill } from "@/lib/pointer";
 import { datePresets } from "@/lib/transactions/dateRanges";
 import type { LedgerUrlQuery } from "@/lib/transactions/pagination";
 import type { LedgerCategory } from "@/lib/transactions/server";
@@ -65,23 +68,8 @@ const PresetButton = styled.button`
     border-color: ${({ theme }) => theme.colors.hairlineStrong};
     color: ${({ theme }) => theme.colors.ink};
   }
-`;
 
-const FootButton = styled.button<{ $primary?: boolean }>`
-  padding: ${({ theme }) => theme.spacing.sm}
-    ${({ theme }) => theme.spacing.lg};
-  border: 1px solid
-    ${({ $primary, theme }) =>
-      $primary ? theme.colors.primary : theme.colors.ink};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  background: ${({ $primary, theme }) =>
-    $primary ? theme.colors.primary : theme.colors.canvas};
-  color: ${({ $primary, theme }) =>
-    $primary ? theme.colors.onPrimary : theme.colors.ink};
-  font-family: ${({ theme }) => theme.typography.control.family};
-  font-size: ${({ theme }) => theme.typography.control.size};
-  font-weight: ${({ theme }) => theme.typography.control.weight};
-  cursor: pointer;
+  ${hoverFill}
 `;
 
 type Account = { id: string; name: string };
@@ -189,19 +177,16 @@ export function FilterDrawer({
       onClose={onClose}
       footer={
         <>
-          <FootButton
+          <Button
             type="button"
+            variant="outline"
             onClick={() => onApply(paramsFrom(EMPTY_DRAFT))}
           >
             Clear all
-          </FootButton>
-          <FootButton
-            type="button"
-            $primary
-            onClick={() => onApply(paramsFrom(draft))}
-          >
+          </Button>
+          <Button type="button" onClick={() => onApply(paramsFrom(draft))}>
             Apply
-          </FootButton>
+          </Button>
         </>
       }
     >
@@ -210,17 +195,15 @@ export function FilterDrawer({
           state. */}
       <DrawerSection title="Status" defaultOpen>
         <Field label="Uncategorised only" htmlFor={uncategorizedId}>
-          <input
+          <Checkbox
             id={uncategorizedId}
-            type="checkbox"
             checked={draft.onlyUncategorized}
             onChange={(e) => set({ onlyUncategorized: e.target.checked })}
           />
         </Field>
         <Field label="To approve only" htmlFor={toCheckId}>
-          <input
+          <Checkbox
             id={toCheckId}
-            type="checkbox"
             checked={draft.onlyToCheck}
             onChange={(e) => set({ onlyToCheck: e.target.checked })}
           />

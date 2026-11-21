@@ -1,4 +1,5 @@
 import styled from "styled-components";
+import { hoverFill, reach } from "@/lib/pointer";
 
 export const Button = styled.button`
   ${({ theme }) => `
@@ -25,6 +26,10 @@ export const Button = styled.button`
       border-color: ${theme.colors.ink};
       color: ${theme.colors.ink};
     }
+
+    ${hoverFill}
+
+    ${reach}
   `}
 `;
 

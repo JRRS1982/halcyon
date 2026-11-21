@@ -8,6 +8,7 @@ import { DrawerSection, Field } from "@/components/ui/Drawer";
 import { sectionLabel } from "@/lib/categories/sections";
 import type { ExpenseSection } from "@/lib/plan";
 import type { SyncPlan } from "@/lib/plan/sync";
+import { hoverInk } from "@/lib/pointer";
 import { formatAmount, type NumberFormat } from "@/lib/settings/currency";
 import { createPlanExpense, updatePlanExpense } from "./actions";
 import { BoolCell, NumberCell, SelectCell, TextCell } from "./EditableCell";
@@ -67,6 +68,8 @@ const ManagedLink = styled.button`
   font-size: 12px;
   cursor: pointer;
   text-decoration: underline;
+
+  ${hoverInk}
 `;
 
 export function ExpenseFields({

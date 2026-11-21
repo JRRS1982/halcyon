@@ -5,6 +5,7 @@ import { useRef, useState, useTransition } from "react";
 import styled from "styled-components";
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { Switch } from "@/components/ui/Switch";
 import {
   REMINDER_DAY_LABELS,
   REMINDER_DAYS,
@@ -103,59 +104,6 @@ const FieldHint = styled.span`
   max-width: 52ch;
 `;
 
-// Slide toggle: a visually-hidden checkbox drives the track via the adjacent-
-// sibling selector, so it stays keyboard- and form-native while looking like a
-// switch.
-const SwitchInput = styled.input`
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-`;
-
-const SwitchTrack = styled.span`
-  position: relative;
-  display: inline-block;
-  flex: none;
-  width: 42px;
-  height: 24px;
-  border-radius: 999px;
-  background: ${({ theme }) => theme.colors.hairlineStrong};
-  transition: background 0.15s ease;
-
-  &::after {
-    content: "";
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    background: ${({ theme }) => theme.colors.canvas};
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
-    transition: transform 0.15s ease;
-  }
-
-  ${SwitchInput}:checked + & {
-    background: ${({ theme }) => theme.colors.positive};
-  }
-
-  ${SwitchInput}:checked + &::after {
-    transform: translateX(18px);
-  }
-
-  ${SwitchInput}:focus-visible + & {
-    outline: 2px solid ${({ theme }) => theme.colors.accent};
-    outline-offset: 2px;
-  }
-`;
-
-const SwitchControl = styled.span`
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-`;
-
 const Overlay = styled.div`
   position: fixed;
   inset: 0;
@@ -211,19 +159,6 @@ const DialogActions = styled.div`
   display: flex;
   justify-content: flex-end;
   gap: ${({ theme }) => theme.spacing.md};
-`;
-
-const GhostButton = styled.button`
-  padding: ${({ theme }) => theme.spacing.sm}
-    ${({ theme }) => theme.spacing.lg};
-  border: 1px solid ${({ theme }) => theme.colors.ink};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  background: ${({ theme }) => theme.colors.canvas};
-  color: ${({ theme }) => theme.colors.ink};
-  font-family: ${({ theme }) => theme.typography.control.family};
-  font-size: ${({ theme }) => theme.typography.control.size};
-  font-weight: ${({ theme }) => theme.typography.control.weight};
-  cursor: pointer;
 `;
 
 type SelectOption = { value: string; label: string };
@@ -453,16 +388,12 @@ export function SettingsForm({
               add themselves up. Leave it off to type actuals by hand.
             </FieldHint>
           </ToggleText>
-          <SwitchControl>
-            <SwitchInput
-              type="checkbox"
-              aria-label="Track transactions"
-              checked={enabled}
-              disabled={togglePending}
-              onChange={(event) => onToggle(event.target.checked)}
-            />
-            <SwitchTrack />
-          </SwitchControl>
+          <Switch
+            aria-label="Track transactions"
+            checked={enabled}
+            disabled={togglePending}
+            onChange={(event) => onToggle(event.target.checked)}
+          />
         </ToggleField>
 
         <ToggleField>
@@ -474,16 +405,12 @@ export function SettingsForm({
               on.
             </FieldHint>
           </ToggleText>
-          <SwitchControl>
-            <SwitchInput
-              type="checkbox"
-              aria-label="Transfers and saving"
-              checked={transfersOn}
-              disabled={transfersPending || !enabled}
-              onChange={(event) => onToggleTransfers(event.target.checked)}
-            />
-            <SwitchTrack />
-          </SwitchControl>
+          <Switch
+            aria-label="Transfers and saving"
+            checked={transfersOn}
+            disabled={transfersPending || !enabled}
+            onChange={(event) => onToggleTransfers(event.target.checked)}
+          />
         </ToggleField>
       </SettingsCard>
 
@@ -498,16 +425,12 @@ export function SettingsForm({
               kept until you switch it back on.
             </FieldHint>
           </ToggleText>
-          <SwitchControl>
-            <SwitchInput
-              type="checkbox"
-              aria-label="Show Plan"
-              checked={planOn}
-              disabled={planPending}
-              onChange={(event) => onTogglePlan(event.target.checked)}
-            />
-            <SwitchTrack />
-          </SwitchControl>
+          <Switch
+            aria-label="Show Plan"
+            checked={planOn}
+            disabled={planPending}
+            onChange={(event) => onTogglePlan(event.target.checked)}
+          />
         </ToggleField>
       </SettingsCard>
 
@@ -521,16 +444,12 @@ export function SettingsForm({
               figures, and every email has a one-click way out.
             </FieldHint>
           </ToggleText>
-          <SwitchControl>
-            <SwitchInput
-              type="checkbox"
-              aria-label="Monthly reminder email"
-              checked={reminderOn}
-              disabled={reminderPending}
-              onChange={(event) => onToggleReminder(event.target.checked)}
-            />
-            <SwitchTrack />
-          </SwitchControl>
+          <Switch
+            aria-label="Monthly reminder email"
+            checked={reminderOn}
+            disabled={reminderPending}
+            onChange={(event) => onToggleReminder(event.target.checked)}
+          />
         </ToggleField>
 
         {reminderOn && (
@@ -586,9 +505,9 @@ export function SettingsForm({
               </DialogInfo>
             )}
             <DialogActions>
-              <GhostButton type="button" onClick={cancelToggle}>
+              <Button variant="outline" type="button" onClick={cancelToggle}>
                 Cancel
-              </GhostButton>
+              </Button>
               <Button
                 type="button"
                 onClick={confirmToggle}

@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from "react";
 import styled from "styled-components";
+import { Checkbox } from "@/components/ui/Checkbox";
 
 // Controlled inline inputs for the plan editors. They commit on blur and:
 //  - re-sync to the committed `value` when it changes (after a successful save
@@ -219,9 +220,8 @@ export function BoolCell({
     }
   };
   return (
-    <input
+    <Checkbox
       id={id}
-      type="checkbox"
       checked={value}
       onChange={(e) => handle(e.target.checked)}
     />

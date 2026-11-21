@@ -1,5 +1,6 @@
 import Link from "next/link";
 import styled, { css } from "styled-components";
+import { hoverFill } from "@/lib/pointer";
 
 // The public site's editorial pieces, set as a financial paper sets them:
 // serif headlines, short ruled columns, pictures with italic captions. Shared
@@ -113,9 +114,7 @@ export const OutlineLink = styled(Link)`
   color: ${({ theme }) => theme.colors.ink};
   border: 1px solid ${({ theme }) => theme.colors.ink};
 
-  &:hover {
-    background: ${({ theme }) => theme.colors.canvasSoft};
-  }
+  ${hoverFill}
 `;
 
 export const Trust = styled.p`

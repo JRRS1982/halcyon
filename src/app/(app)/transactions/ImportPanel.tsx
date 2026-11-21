@@ -13,8 +13,10 @@ import {
 } from "react";
 import styled from "styled-components";
 import { Button } from "@/components/ui/Button";
+import { Checkbox } from "@/components/ui/Checkbox";
 import { shortDate } from "@/lib/date/humanDate";
 import { appear } from "@/lib/motion";
+import { hoverFill, reachTall } from "@/lib/pointer";
 import {
   DEFAULT_NUMBER_FORMAT,
   formatAmount,
@@ -93,6 +95,15 @@ const FileButton = styled.span`
   font-size: ${({ theme }) => theme.typography.control.size};
   font-weight: ${({ theme }) => theme.typography.control.weight};
   white-space: nowrap;
+
+  ${hoverFill}
+
+  /* The real control is the hidden file input before this, so its keyboard
+     focus has to be drawn here or it is drawn nowhere. */
+  ${HiddenFile}:focus-visible + & {
+    outline: 2px solid ${({ theme }) => theme.colors.focus};
+    outline-offset: 2px;
+  }
 `;
 
 // States the import limits up front, so a too-big file is a known boundary
@@ -302,6 +313,12 @@ const DupList = styled.div`
   gap: ${({ theme }) => theme.spacing.sm};
   max-height: 280px;
   overflow-y: auto;
+
+  /* Every row here is a label, so the row is the target. A tick box's own
+     reach past its edge would overrun this list and make a short one scroll. */
+  & input::after {
+    content: none;
+  }
 `;
 
 const DupRow = styled.label`
@@ -322,19 +339,6 @@ const DialogActions = styled.div`
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: ${({ theme }) => theme.spacing.md};
-`;
-
-const GhostButton = styled.button`
-  padding: ${({ theme }) => theme.spacing.sm}
-    ${({ theme }) => theme.spacing.lg};
-  border: 1px solid ${({ theme }) => theme.colors.ink};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  background: ${({ theme }) => theme.colors.canvas};
-  color: ${({ theme }) => theme.colors.ink};
-  font-family: ${({ theme }) => theme.typography.control.family};
-  font-size: ${({ theme }) => theme.typography.control.size};
-  font-weight: ${({ theme }) => theme.typography.control.weight};
-  cursor: pointer;
 `;
 
 const SectionHead = styled.h3`
@@ -386,6 +390,8 @@ const DetailsToggle = styled.button`
   &:hover {
     color: ${({ theme }) => theme.colors.ink};
   }
+
+  ${reachTall}
 `;
 
 // The opened row's kept columns. Wraps, unlike the nowrap cells above it, so a
@@ -919,8 +925,7 @@ export function ImportPanel({
                     onToggle={() => toggleSetting("columns")}
                   >
                     <CheckRow>
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={mapping.hasHeader}
                         onChange={(e) =>
                           patchMapping({ hasHeader: e.target.checked })
@@ -1005,8 +1010,7 @@ export function ImportPanel({
                         .filter((i) => !core.includes(i))
                         .map((i) => (
                           <CheckRow key={i}>
-                            <input
-                              type="checkbox"
+                            <Checkbox
                               checked={
                                 mapping.extraColumns?.includes(i) ?? false
                               }
@@ -1052,8 +1056,7 @@ export function ImportPanel({
                       <KeepRow>
                         {leaveOutValues.map(({ value, count }) => (
                           <CheckRow key={value}>
-                            <input
-                              type="checkbox"
+                            <Checkbox
                               checked={leaveOut.values.includes(value)}
                               onChange={(e) =>
                                 setLeaveOut({
@@ -1166,9 +1169,9 @@ export function ImportPanel({
                 </div>
 
                 <DialogActions>
-                  <GhostButton type="button" onClick={closeModal}>
+                  <Button variant="outline" type="button" onClick={closeModal}>
                     Cancel
-                  </GhostButton>
+                  </Button>
                   <Button
                     type="button"
                     onClick={onImport}
@@ -1226,8 +1229,7 @@ export function ImportPanel({
                 <DupList>
                   {reviewDuplicates.map((d) => (
                     <DupRow key={d.index}>
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={skip.has(d.index)}
                         onChange={() => toggleSkip(d.index)}
                       />
@@ -1239,9 +1241,13 @@ export function ImportPanel({
               </>
             )}
             <DialogActions>
-              <GhostButton type="button" onClick={() => setConfirm(null)}>
+              <Button
+                variant="outline"
+                type="button"
+                onClick={() => setConfirm(null)}
+              >
                 Cancel
-              </GhostButton>
+              </Button>
               <Button type="button" onClick={onConfirm} disabled={pending}>
                 {pending
                   ? "Importing…"
@@ -1300,8 +1306,7 @@ function LeftOutList({
         after all.
       </Note>
       <CheckRow>
-        <input
-          type="checkbox"
+        <Checkbox
           checked={isAllOut}
           onChange={() => onSetAll(indexes, !isAllOut)}
         />
@@ -1314,8 +1319,7 @@ function LeftOutList({
           return (
             <PairGroup key={`${a.index}-${b.index}`}>
               <DupRow>
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={isOut}
                   onChange={() => onSetAll(both, !isOut)}
                 />
@@ -1332,8 +1336,7 @@ function LeftOutList({
         })}
         {singles.map((row) => (
           <SingleRow key={row.index}>
-            <input
-              type="checkbox"
+            <Checkbox
               checked={skip.has(row.index)}
               onChange={() => onToggle(row.index)}
             />

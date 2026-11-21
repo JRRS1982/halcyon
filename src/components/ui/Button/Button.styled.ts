@@ -1,4 +1,5 @@
 import styled, { css } from "styled-components";
+import { hoverFill } from "@/lib/pointer";
 
 export type ButtonVariant = "primary" | "outline" | "destructive";
 
@@ -17,9 +18,7 @@ const variantStyles = {
     color: ${({ theme }) => theme.colors.ink};
     border: 1px solid ${({ theme }) => theme.colors.ink};
 
-    &:hover:not(:disabled) {
-      background: ${({ theme }) => theme.colors.canvasSoft};
-    }
+    ${hoverFill}
   `,
   // Edged in the warning colour at rest: with a hairline it read as a
   // disabled button sitting beside the live Cancel.
@@ -28,9 +27,7 @@ const variantStyles = {
     color: ${({ theme }) => theme.colors.negative};
     border: 1px solid ${({ theme }) => theme.colors.negative};
 
-    &:hover:not(:disabled) {
-      background: ${({ theme }) => theme.colors.canvasSoft};
-    }
+    ${hoverFill}
   `,
 };
 

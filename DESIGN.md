@@ -39,6 +39,7 @@ colors:
   positive: "#0B6A4C"
   negative: "#A3271F"
   focus: "#1B4E8A"
+  hover: "#DCE8F5"
   accent: "#8E1B3D"
   chart-rate: "#B4530A"
   chart-budget: "#776C63"
@@ -167,7 +168,7 @@ components:
     padding: "{spacing.sm} {spacing.lg}"
 
   button-destructive:
-    description: "Paper fill, red label and red border; hover fills canvas-soft. Always behind a confirm step, and placed after Cancel."
+    description: "Paper fill, red label and red border; hover fills sky. Always behind a confirm step, and placed after Cancel."
     backgroundColor: "{colors.canvas}"
     textColor: "{colors.negative}"
     borderColor: "{colors.negative}"
@@ -194,6 +195,14 @@ components:
     typography: "{typography.body-md}"
     rounded: "{rounded.sm}"
     padding: "{spacing.sm} {spacing.md}"
+
+  tick-box:
+    description: "An 18px box ruled in ink on field paper, ticked by hand: the mark is drawn in oxford blue and runs past the box's corner. Its target is 40px, 44px on touch."
+    backgroundColor: "{colors.field}"
+    borderColor: "{colors.ink}"
+    markColor: "{colors.primary}"
+    rounded: "{rounded.sm}"
+    size: 18px
 
   page-header:
     description: "Serif headline (display-xl) with a 17px standfirst, actions aligned to its foot."
@@ -285,16 +294,20 @@ A paper-and-ink palette with three working hues: oxford blue for action, claret 
 
 ### Primary
 
-- **Oxford Blue** (`primary`): the fill of the primary button and the "Get started" link, the active state of a toolbar toggle, and the focus colour (`focus` shares the value) for inputs and the focused sheet cell. Label on top is `on-primary`.
+- **Oxford Blue** (`primary`): the fill of the primary button and the "Get started" link, the active state of a toolbar toggle, the pen tick in a tick box, and the focus colour (`focus` shares the value) for inputs and the focused sheet cell. Label on top is `on-primary`.
 
 ### Accent
 
 - **Claret** (`accent`): the house accent. The active nav link and its 4px underline, the bold lead-in of each brief note, footer link hover, focus outlines on the mobile menu, and the Net series on the cash-flow chart. It marks where to look; it never fills a button.
 
+### State
+
+- **Sky** (`hover`): the fill of the control under the pointer: an outline or destructive button, a toolbar tool, a tick box, the month picker's months, a page number, a date preset, an info button, the drawer's close button, an option in the category picker. A control that is already filled (the current month, an active toggle) keeps its fill, and the fill only appears where a pointer can hover, so a tapped button on a phone does not keep it. It is the one cool tint among warm surfaces, so a hovered control never turns the colour of what it sits on. The paper tints used to do this job, and on a drawer footer or a hovered row they made the control disappear into its background.
+
 ### Neutral
 
 - **Salmon Paper** (`canvas`): the page and every table cell.
-- **Deeper Paper** (`canvas-soft`): the grand-total row, group (parent) rows in a sheet, outline-button hover. `band-soft` shares the value.
+- **Deeper Paper** (`canvas-soft`): the grand-total row, group (parent) rows in a sheet, a hovered ledger row. `band-soft` shares the value.
 - **Field** (`field`) and **Field Border** (`field-border`): every boxed form field — inputs, selects, text areas — in the app, drawers and dialogs. The fill is a brighter paper than the page so a field reads as somewhere to write; the edge clears 3:1 against the field and every surface, as WCAG asks of an input boundary. Cells edited in place on a sheet stay transparent.
 - **Band** (`band`): the deepest paper tint. In the app it is not used; on the public landing page it fills the call-to-action band and the step markers. It is a tint of the paper, not a dark strip.
 - **Ink** (`ink`): headlines, body figures, every structural rule (masthead, footer, section openers, table head rule, grand-total rules), outline-button borders. `ink-soft` is a half-step lighter for secondary emphasis; `on-band` matches ink.
@@ -318,6 +331,8 @@ A paper-and-ink palette with three working hues: oxford blue for action, claret 
 **The Sign Only Rule.** Green and red mean favourable and adverse, nothing else. They colour figures, deltas, variance words and chart series that are money in or out; never a button fill, a banner tint or a headline.
 
 **The Claret Points Rule.** Claret locates: the page you are on, the lead-in of a note. If it is not helping the reader find something, use ink.
+
+**The Sky Is The Pointer Rule.** Sky means the pointer is on this control, and nothing else. It never fills a surface or a button at rest, and rows are not controls: a hovered row keeps `canvas-soft`.
 
 ## Typography
 
@@ -437,6 +452,7 @@ Surfaces rise in the same order in both: `canvas` → `canvas-soft` → `band`. 
 | `positive` | #5FC79C |
 | `negative` | #F38E80 |
 | `focus` | #F7EEE6 |
+| `hover` | #22364E |
 | `accent` | #D4899A |
 | `chart-rate` | #E9A23B |
 | `chart-budget` | #8C8177 |
@@ -517,13 +533,15 @@ A claret kicker in 12px caps naming the page and its period ("Budget · October 
 
 - **Shape:** 2px corners, 8px by 16px padding, `control` type (14px semibold, sentence case). Labels never wrap.
 - **Primary:** oxford blue fill, white label. Hover drops to 85% opacity.
-- **Outline:** paper fill, ink label, 1px ink border. Hover fills `canvas-soft`.
-- **Destructive:** paper fill, red label, red border; hover fills `canvas-soft`. A hairline edge read as disabled beside Cancel. Always behind a confirm step or, for account-level actions, a type-to-confirm panel. An inline confirm reads "Remove? **Yes, remove** · Cancel", the yes in red.
+- **Outline:** paper fill, ink label, 1px ink border. Hover fills `hover`.
+- **Destructive:** paper fill, red label, red border; hover fills `hover`. A hairline edge read as disabled beside Cancel. Always behind a confirm step or, for account-level actions, a type-to-confirm panel. An inline confirm reads "Remove? **Yes, remove** · Cancel", the yes in red.
 - **Disabled:** 50% opacity, not-allowed cursor.
+- **Text buttons** (Edit, Remove, a table's inline links) have no box to fill, so under the pointer their words turn ink. A red one stays red.
+- **Small controls** (the info "i", a filter chip's ×, Note and Details) reach 4px past their drawn edge, 8px on touch, so a 16px button is a 24px target.
 
 ### Toolbar
 
-One row above a sheet: the primary Add first, secondary actions after, the month stepper pushed right, Delete apart. Tools are 34px, ink-bordered, `control` type, 2px corners; an active toggle fills oxford blue. On a phone each group becomes a full-width row of evenly stretched tools, and row-scoped groups appear only while a row is selected. The status pip (30px, hairline box, 12px caps label and a coloured dot: green saved, muted saving, red error) sits in the same row.
+One row above a sheet: the primary Add first, secondary actions after, the month stepper pushed right, Delete apart. Tools are 34px, ink-bordered, `control` type, 2px corners; an active toggle fills oxford blue, and a tool under the pointer fills `hover`. On a phone each group becomes a full-width row of evenly stretched tools, and row-scoped groups appear only while a row is selected. The status pip (30px, hairline box, 12px caps label and a coloured dot: green saved, muted saving, red error) sits in the same row.
 
 ### The Sheet
 
@@ -585,7 +603,9 @@ The public site is a financial paper: articles, each one a link to the next leve
 
 Boxed fields take the `field` fill and a 1px `field-border` edge (3:1 against every surface), 2px corners, at least 36px tall with 8px by 12px padding in `body-md`, wherever they appear: page, drawer or dialog. Labels sit above in `control` type, sentence case. Placeholder text is dim. On focus the border turns oxford and a 1px oxford ring is added. Every link, button and field that receives keyboard focus without its own treatment gets a 2px `focus` outline offset 2px; text selection is claret on paper.
 
-Tick boxes and radios take oxford blue (`accent-color`) and sit before their label on one line. The plan's assumptions are the one written-on-the-line variant: values on a `canvas-soft` strip with a 2px claret rule beneath and no box, so a dense panel of numbers reads as one set of entries.
+A tick box is for a choice that waits for Apply, Import or Save; a setting that takes effect the moment it is flipped is a switch (the `Switch` component). Tick boxes are the `Checkbox` component, never the browser's own: an 18px box with a 1.5px ink edge on `field` paper and 2px corners, sitting before its label on one line. Ticked, the paper stays and a pen tick is drawn across it in oxford blue, running past the box's top-right corner, as a statement is ticked off by hand. A box that stands for a partly selected set (the ledger's select all) shows a dash instead. Hover fills the box `hover`, disabled drops it to 50% opacity, and keyboard focus takes the shared 2px outline. The target is larger than the box: 40px across, 44px under a finger. Radios take oxford blue (`accent-color`).
+
+The plan's assumptions are the one written-on-the-line variant: values on a `canvas-soft` strip with a 2px claret rule beneath and no box, so a dense panel of numbers reads as one set of entries.
 
 ### Cards and Overlays
 
