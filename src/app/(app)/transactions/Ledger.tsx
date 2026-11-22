@@ -2,7 +2,14 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Fragment, useEffect, useRef, useState, useTransition } from "react";
+import {
+  Fragment,
+  type ReactNode,
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import styled, { css } from "styled-components";
 import { Button } from "@/components/ui/Button";
 import { Checkbox } from "@/components/ui/Checkbox";
@@ -29,7 +36,6 @@ import type {
   SortDir,
 } from "@/lib/transactions/server";
 import { ledgerFooter } from "@/lib/transactions/totals";
-import { visuallyHidden } from "@/lib/visuallyHidden";
 import {
   bulkDeleteTransactions,
   bulkSetTransactionCategory,
@@ -45,6 +51,7 @@ import { CategoryCombobox, type NewCategoryInput } from "./CategoryCombobox";
 import { ExtraColumns } from "./ExtraColumns";
 import { FilterDrawer } from "./FilterDrawer";
 import { LedgerControls } from "./LedgerControls";
+import { SectionHead } from "./SectionHead";
 
 type LedgerAccount = {
   id: string;
@@ -56,11 +63,6 @@ const Section = styled.section`
   margin-top: ${({ theme }) => theme.spacing["3xl"]};
   display: grid;
   gap: ${({ theme }) => theme.spacing.lg};
-`;
-
-// Visually hidden: it names the section in the document outline.
-const Title = styled.h2`
-  ${visuallyHidden}
 `;
 
 // The ledger's amount column is 96px and a five-figure total in amount-xl
@@ -445,7 +447,7 @@ const PageButton = styled.button<{ $current?: boolean }>`
   height: 30px;
   padding: 0 ${({ theme }) => theme.spacing.sm};
   background: ${({ $current, theme }) =>
-    $current ? theme.colors.primary : theme.colors.canvas};
+    $current ? theme.colors.primary : theme.colors.canvasSoft};
   color: ${({ $current, theme }) =>
     $current ? theme.colors.onPrimary : theme.colors.ink};
   border: 1px solid
@@ -562,6 +564,8 @@ type LedgerProps = {
   // The user's money format, from Settings.
   currency?: string;
   numberFormat?: NumberFormat;
+  /** A page-level review action, shown beside the search (Approve all). */
+  reviewAction?: ReactNode;
 };
 
 export function Ledger({
@@ -572,6 +576,7 @@ export function Ledger({
   transfersEnabled,
   currency = "GBP",
   numberFormat = DEFAULT_NUMBER_FORMAT,
+  reviewAction,
 }: LedgerProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -993,9 +998,7 @@ export function Ledger({
 
   return (
     <Section>
-      {/* The page headline above already says what needs doing, so the
-          ledger's heading is for assistive tech's outline only. */}
-      <Title>Transactions</Title>
+      <SectionHead>Review transactions</SectionHead>
 
       <LedgerControls
         search={search}
@@ -1009,6 +1012,7 @@ export function Ledger({
         selectedCount={selected.size}
         onClearSelection={() => setSelected(new Set())}
         onDelete={() => setConfirmDelete(true)}
+        reviewAction={reviewAction}
         categorizer={
           <CategoryCombobox
             categories={categories}

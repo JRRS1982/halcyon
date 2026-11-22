@@ -58,7 +58,7 @@ const PresetButton = styled.button`
     ${({ theme }) => theme.spacing.md};
   border: 1px solid ${({ theme }) => theme.colors.hairline};
   border-radius: ${({ theme }) => theme.rounded.full};
-  background: ${({ theme }) => theme.colors.canvas};
+  background: ${({ theme }) => theme.colors.canvasSoft};
   color: ${({ theme }) => theme.colors.body};
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
   font-size: 12px;

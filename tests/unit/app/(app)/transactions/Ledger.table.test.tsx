@@ -74,6 +74,8 @@ describe("ledger total row", () => {
 
   test("an empty ledger has no total to show", () => {
     renderLedger([]);
-    expect(screen.queryByText(/transactions?$/)).toBeNull();
+    // Matched on the total's own lead-in: "Review transactions", the section
+    // head, also ends in "transactions".
+    expect(screen.queryByText(/^(Total|This page) ·/)).toBeNull();
   });
 });

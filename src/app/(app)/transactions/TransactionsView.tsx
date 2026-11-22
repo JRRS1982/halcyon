@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useId, useTransition } from "react";
 import styled from "styled-components";
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -13,6 +13,7 @@ import { ImportPanel } from "./ImportPanel";
 import { Ledger } from "./Ledger";
 import { QuickAdd } from "./QuickAdd";
 import { ReverseImport } from "./ReverseImport";
+import { SectionHead } from "./SectionHead";
 
 type Account = { id: string; name: string };
 type TransferAccount = {
@@ -33,17 +34,21 @@ const Shell = styled.main`
   }
 `;
 
-// The page's actions on their own ruled row under the headline, so a long
-// headline never squeezes them.
+// The ways in under their own head, so a long headline never squeezes them and
+// they never read as part of the ledger below: a statement first, the usual
+// way, with its undo and its limits beside it; adding one by hand apart, at
+// the end of the row.
 const Actions = styled.div`
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: ${({ theme }) => theme.spacing.sm};
-  padding: ${({ theme }) => theme.spacing.md} 0;
-  margin-bottom: ${({ theme }) => theme.spacing.xl};
-  border-top: 1px solid ${({ theme }) => theme.colors.ink};
-  border-bottom: 1px solid ${({ theme }) => theme.colors.hairlineStrong};
+  padding-top: ${({ theme }) => theme.spacing.md};
+`;
+
+// Pushes Add transaction to the end of the row, apart from the import group.
+const Apart = styled.span`
+  flex: 1;
 `;
 
 // What an import accepts, said once beside the import controls.
@@ -106,7 +111,26 @@ export function TransactionsView({
   numberFormat: NumberFormat;
 }) {
   const [isApproving, startApproving] = useTransition();
+  const addHeadId = useId();
   const toCheck = uncategorizedCount + suggestedCount;
+  // Approving is reviewing, not adding, so it sits with the ledger's search
+  // rather than with the import buttons.
+  const approveAll =
+    suggestedCount > 0 ? (
+      <Button
+        type="button"
+        disabled={isApproving}
+        onClick={() =>
+          startApproving(async () => {
+            await setCategoryApproval({ approved: true });
+          })
+        }
+      >
+        {isApproving
+          ? "Approving…"
+          : `Approve all ${suggestedCount.toLocaleString("en-GB")} suggested`}
+      </Button>
+    ) : null;
   return (
     <Shell>
       <PageHeader
@@ -114,31 +138,20 @@ export function TransactionsView({
         title={headlineFor(toCheck)}
         lead={standfirstFor(uncategorizedCount, suggestedCount)}
       />
-      <Actions>
-        {suggestedCount > 0 && (
-          <Button
-            type="button"
-            disabled={isApproving}
-            onClick={() =>
-              startApproving(async () => {
-                await setCategoryApproval({ approved: true });
-              })
-            }
-          >
-            {isApproving
-              ? "Approving…"
-              : `Approve all ${suggestedCount.toLocaleString("en-GB")} suggested`}
-          </Button>
-        )}
-        <QuickAdd accounts={accounts} categories={categories} />
-        <ImportPanel
-          accounts={accounts}
-          currency={currency}
-          numberFormat={numberFormat}
-        />
-        <ReverseImport />
-        <ImportHint>{importLimitHint}</ImportHint>
-      </Actions>
+      <section aria-labelledby={addHeadId}>
+        <SectionHead id={addHeadId}>Add transactions</SectionHead>
+        <Actions>
+          <ImportPanel
+            accounts={accounts}
+            currency={currency}
+            numberFormat={numberFormat}
+          />
+          <ReverseImport />
+          <ImportHint>{importLimitHint}</ImportHint>
+          <Apart />
+          <QuickAdd accounts={accounts} categories={categories} />
+        </Actions>
+      </section>
       <Ledger
         page={page}
         query={query}
@@ -147,6 +160,7 @@ export function TransactionsView({
         transfersEnabled={transfersEnabled}
         currency={currency}
         numberFormat={numberFormat}
+        reviewAction={approveAll}
       />
     </Shell>
   );
