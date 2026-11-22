@@ -152,7 +152,7 @@ export const FEATURES: Article[] = [
       {
         heading: "Write a line",
         paragraphs: [
-          "For cash, or anything that isn't on a statement, type it the way you would jot it down: “4.35 Pret coffee”, “+2,850 Salary”, “12/10 30 Fuel”. The add form opens filled in, with the category you used last time, for you to check and save.",
+          "For cash, or anything that isn't on a statement, open Add transaction and type it the way you would jot it down: “4.35 Pret coffee”, “+2,850 Salary”, “12/10 30 Fuel”. The form fills in as you type, with the category you used last time, for you to check and save.",
         ],
       },
       {

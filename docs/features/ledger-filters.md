@@ -118,11 +118,12 @@ imports switched off.
 
 Everything that acts on the ledger sits in one bounded card, so the table below
 reads as a separate object rather than the bottom of a loose pile of controls.
-The card is contextual:
+It opens the page's **Review transactions** section, under the add controls'
+own section. The card is contextual:
 
 | | Card contents |
 |---|---|
-| Nothing selected | `Filters ⌄` (with count badge) · search box · active-filter chips |
+| Nothing selected | `Filters ⌄` (with count badge) · search box · `Approve all N suggested` (when any are pencilled) · active-filter chips |
 | Rows selected | `N selected` · **categorize box** · `Delete…` · `Clear` |
 
 The search input and the categorize combobox share one fixed-width slot, so the

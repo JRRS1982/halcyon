@@ -125,19 +125,19 @@ describe("QuickAdd", () => {
     expect(createTransaction).not.toHaveBeenCalled();
   });
 
-  // The "write a line" box: what was jotted lands in the add form for the user
-  // to check, with the remembered category offered, and nothing saved yet.
-  test("a written line opens the add form filled in, with the remembered category", async () => {
+  // The quick-entry line, at the top of the add dialog: what was jotted fills
+  // the form for the user to check, with the remembered category offered, and
+  // nothing saved yet.
+  test("a quick-entry line fills the form, with the remembered category", async () => {
     suggestCategory.mockResolvedValueOnce({
       categoryId: "33333333-3333-3333-3333-333333333333",
     });
     renderQuickAdd();
-
-    fireEvent.change(
-      screen.getByRole("textbox", { name: /write a transaction/i }),
-      { target: { value: "12.40 Supermarket" } },
-    );
     fireEvent.click(screen.getByRole("button", { name: "Add transaction" }));
+
+    fireEvent.change(screen.getByRole("textbox", { name: /quick entry/i }), {
+      target: { value: "12.40 Supermarket" },
+    });
 
     expect(screen.getByPlaceholderText("0.00")).toHaveValue(12.4);
     expect(screen.getByDisplayValue("Supermarket")).toBeInTheDocument();
@@ -149,15 +149,16 @@ describe("QuickAdd", () => {
     expect(createTransaction).not.toHaveBeenCalled();
   });
 
-  test("a line with no amount asks for one instead of opening the form", () => {
+  test("a line with no amount asks for one once the user moves on", () => {
     renderQuickAdd();
-    fireEvent.change(
-      screen.getByRole("textbox", { name: /write a transaction/i }),
-      { target: { value: "Supermarket" } },
-    );
     fireEvent.click(screen.getByRole("button", { name: "Add transaction" }));
 
+    const quick = screen.getByRole("textbox", { name: /quick entry/i });
+    fireEvent.change(quick, { target: { value: "Supermarket" } });
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    fireEvent.blur(quick);
+
     expect(screen.getByRole("alert")).toHaveTextContent(/write an amount/i);
-    expect(screen.queryByPlaceholderText("0.00")).not.toBeInTheDocument();
+    expect(screen.getByPlaceholderText("0.00")).toHaveValue(null);
   });
 });

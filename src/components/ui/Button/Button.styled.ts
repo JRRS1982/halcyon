@@ -14,7 +14,7 @@ const variantStyles = {
     }
   `,
   outline: css`
-    background: ${({ theme }) => theme.colors.canvas};
+    background: ${({ theme }) => theme.colors.canvasSoft};
     color: ${({ theme }) => theme.colors.ink};
     border: 1px solid ${({ theme }) => theme.colors.ink};
 
@@ -23,7 +23,7 @@ const variantStyles = {
   // Edged in the warning colour at rest: with a hairline it read as a
   // disabled button sitting beside the live Cancel.
   destructive: css`
-    background: ${({ theme }) => theme.colors.canvas};
+    background: ${({ theme }) => theme.colors.canvasSoft};
     color: ${({ theme }) => theme.colors.negative};
     border: 1px solid ${({ theme }) => theme.colors.negative};
 

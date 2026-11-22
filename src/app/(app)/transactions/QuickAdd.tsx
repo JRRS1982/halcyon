@@ -5,6 +5,7 @@ import { type FormEvent, useMemo, useState, useTransition } from "react";
 import styled from "styled-components";
 import { Button } from "@/components/ui/Button";
 import { Drawer } from "@/components/ui/Drawer";
+import { useDebouncedCallback } from "@/lib/hooks/useDebouncedCallback";
 import { hoverFill } from "@/lib/pointer";
 import type { LedgerCategory } from "@/lib/transactions/server";
 import { parseLine } from "@/lib/transactions/writeLine";
@@ -79,7 +80,7 @@ const DirectionButton = styled.button<{ $active: boolean }>`
       $active ? theme.colors.primary : theme.colors.fieldBorder};
   border-radius: ${({ theme }) => theme.rounded.sm};
   background: ${({ theme, $active }) =>
-    $active ? theme.colors.primary : theme.colors.canvas};
+    $active ? theme.colors.primary : theme.colors.canvasSoft};
   color: ${({ theme, $active }) =>
     $active ? theme.colors.onPrimary : theme.colors.ink};
   font-family: ${({ theme }) => theme.typography.control.family};
@@ -122,38 +123,12 @@ const Toast = styled.output`
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
-// The "write a line" box: jot a transaction as you would on paper and the add
-// form opens with it filled in, for you to check and save.
-const LineForm = styled.form`
-  display: flex;
-  flex-wrap: wrap;
-  /* Its own full-width row at the head of the actions: the everyday way in. */
-  flex: 1 1 100%;
-  order: -1;
-  min-width: 0;
-  gap: ${({ theme }) => theme.spacing.sm};
-`;
-
-const LineInput = styled.input`
-  flex: 1;
-  min-width: 0;
-  height: 34px;
-  padding: 0 ${({ theme }) => theme.spacing.md};
-  border: 1px solid ${({ theme }) => theme.colors.ink};
-  border-radius: ${({ theme }) => theme.rounded.sm};
+// What the quick-entry line says it does, under it. Body colour, 13px: a
+// field's hint, not a label.
+const Hint = styled.span`
   font-family: ${({ theme }) => theme.typography.bodyMd.family};
-  font-size: 15px;
-
-  /* Beside the button a phone leaves it too narrow to show its own example. */
-  @media (max-width: 767px) {
-    flex-basis: 100%;
-  }
-`;
-
-const LineError = styled.p`
-  flex-basis: 100%;
   font-size: 13px;
-  color: ${({ theme }) => theme.colors.negative};
+  color: ${({ theme }) => theme.colors.body};
 `;
 
 // One typed-in transaction — cash spend, a mid-month capture — without waiting
@@ -181,40 +156,40 @@ export function QuickAdd({
   const [line, setLine] = useState("");
   const [lineError, setLineError] = useState<string | null>(null);
 
-  const onWriteLine = (event: FormEvent) => {
-    event.preventDefault();
-    // Nothing written: open the form empty, to fill in field by field.
-    if (line.trim() === "") {
-      setLineError(null);
-      setSaved(null);
-      setOpen(true);
-      return;
-    }
-    const written = parseLine(line, new Date());
-    if (!written) {
-      setLineError(
-        "Write an amount and what it was, for example 4.35 Pret coffee.",
-      );
-      return;
-    }
-    setLineError(null);
-    setDate(written.date);
-    setDescription(written.description);
-    setAmount(written.amount.toFixed(2));
-    setDirection(written.direction);
-    setCategoryId("");
-    setError(null);
-    setSaved(null);
-    setOpen(true);
-    setLine("");
-    // Offer how this description was filed last time; the user can change it.
-    suggestCategory({ description: written.description })
+  // Offer how this description was filed last time, once the typing pauses;
+  // the user can change it. Never over a category already chosen.
+  const suggestFor = useDebouncedCallback((written: string) => {
+    suggestCategory({ description: written })
       .then(({ categoryId: suggested }) => {
         if (suggested) setCategoryId((current) => current || suggested);
       })
       .catch(() => {
         // No suggestion is fine: the form works without one.
       });
+  }, 400);
+
+  // The quick-entry line fills the fields below as it is typed. A line it
+  // cannot read yet leaves them as they are, so a half-typed "4." does not
+  // wipe what was there.
+  const onLineChange = (text: string) => {
+    setLine(text);
+    setLineError(null);
+    const written = parseLine(text, new Date());
+    if (!written) return;
+    setDate(written.date);
+    setDescription(written.description);
+    setAmount(written.amount.toFixed(2));
+    setDirection(written.direction);
+    suggestFor(written.description);
+  };
+
+  // Said once the user moves on, not on every keystroke of a line still
+  // being written.
+  const onLineBlur = () => {
+    if (line.trim() === "" || parseLine(line, new Date())) return;
+    setLineError(
+      "Write an amount and what it was, for example 4.35 Pret coffee.",
+    );
   };
 
   // Categories grouped the way the ledger's combobox groups them — by the
@@ -236,6 +211,14 @@ export function QuickAdd({
     setDirection("out");
     setCategoryId("");
     setError(null);
+    setLine("");
+    setLineError(null);
+  };
+
+  const openEmpty = () => {
+    reset();
+    setSaved(null);
+    setOpen(true);
   };
 
   const onSubmit = (event: FormEvent) => {
@@ -269,18 +252,9 @@ export function QuickAdd({
 
   return (
     <>
-      <LineForm onSubmit={onWriteLine} aria-label="Write a transaction">
-        <LineInput
-          value={line}
-          onChange={(e) => setLine(e.target.value)}
-          placeholder="Write a line: 4.35 Pret coffee"
-          aria-label="Write a transaction, for example 4.35 Pret coffee"
-        />
-        <Button type="submit" variant="outline">
-          Add transaction
-        </Button>
-        {lineError && <LineError role="alert">{lineError}</LineError>}
-      </LineForm>
+      <Button type="button" variant="outline" onClick={openEmpty}>
+        Add transaction
+      </Button>
 
       <Drawer
         open={open}
@@ -310,6 +284,26 @@ export function QuickAdd({
         }
       >
         <FormGrid id="add-transaction-form" onSubmit={onSubmit}>
+          {/* The shorthand, inside the dialog it fills: on the page, a bare
+              box asking for "a line" read as a puzzle. */}
+          <Field>
+            <Label>Quick entry (optional)</Label>
+            <Input
+              type="text"
+              value={line}
+              onChange={(e) => onLineChange(e.target.value)}
+              onBlur={onLineBlur}
+              placeholder="4.35 Pret coffee"
+            />
+            {lineError ? (
+              <ErrorText role="alert">{lineError}</ErrorText>
+            ) : (
+              <Hint>
+                Type it as you would jot it down, such as “+2,850 Salary” or
+                “12/10 30 Fuel”; the fields below fill in.
+              </Hint>
+            )}
+          </Field>
           <Direction>
             <DirectionLegend>Direction</DirectionLegend>
             <DirectionRow>
