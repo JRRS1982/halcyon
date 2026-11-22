@@ -64,7 +64,7 @@ import {
   describeVariance,
   type ItemAmounts,
   type ItemForTotals,
-  shareOfSpend,
+  shareOf,
   sumAmounts,
   surplus,
 } from "@/lib/budget/totals";
@@ -371,11 +371,19 @@ const ShareFill = styled.span<{ $color: string }>`
   background: ${({ $color }) => $color};
 `;
 
-// Each spending section's colour code, shared with the dashboard's charts.
-const SECTION_COLOR: Partial<Record<string, string>> = {
+// Each section's colour code: its subhead bar and its share bars. Spending
+// sections share theirs with the dashboard's charts; income sections take the
+// hue the plan's cash-flow chart gives the same kind of income, so Salary is
+// one colour wherever it appears.
+const SECTION_COLOR: Record<CategorySection, string> = {
   FIXED: theme.colors.sectionFixed,
   VARIABLE: theme.colors.sectionVariable,
   DISCRETIONARY: theme.colors.sectionDiscretionary,
+  SALARY: theme.colors.chartIsa,
+  SIDE_INCOME: theme.colors.chartOtherAsset,
+  INVESTMENTS: theme.colors.chartCash,
+  PENSIONS: theme.colors.chartDbPension,
+  OTHER: theme.colors.chartGia,
 };
 
 type VarianceKind = Pick<ItemForTotals, "type" | "direction">;
@@ -1610,17 +1618,24 @@ export function BudgetSheet({
         ? `Saved ${formatRelative(lastSavedAt, now)}`
         : "Up to date";
 
-  // The two read-only columns: how far a row landed from its budget, and — for
-  // spending — its share of everything spent this month.
+  // The two read-only columns: how far a row landed from its budget, and its
+  // share of its side of the month — everything spent, or everything earned.
+  // Transfers are neither, so they take no share.
+  const shareTotal = (kind: VarianceKind): number | null => {
+    if (kind.type === "EXPENSE" || kind.type === "REPAYMENT") {
+      return expenseTotals.actual;
+    }
+    if (kind.type === "INCOME") return incomeTotals.actual;
+    return null;
+  };
+
   const insightFor = (
     kind: VarianceKind,
     amounts: ItemAmounts,
     color: string = theme.colors.accent,
   ): Insight => {
-    const isSpend = kind.type === "EXPENSE" || kind.type === "REPAYMENT";
-    const share = isSpend
-      ? shareOfSpend(amounts.actual, expenseTotals.actual)
-      : null;
+    const total = shareTotal(kind);
+    const share = total === null ? null : shareOf(amounts.actual, total);
     return {
       variance: renderVariance(kind, amounts),
       share:
@@ -1710,7 +1725,7 @@ export function BudgetSheet({
     const insight = insightFor(
       item,
       { budget: item.budget, actual: item.actual },
-      SECTION_COLOR[item.section ?? ""],
+      item.section ? SECTION_COLOR[item.section] : undefined,
     );
     // What an anchored row points at, said from the user's side: "To Vanguard
     // ISA", never the stored INFLOW.
@@ -2181,7 +2196,8 @@ export function BudgetSheet({
 
         <SheetSectionRow
           label="Income"
-          insight={insightFor(INCOME_KIND, incomeTotals)}
+          // All income is 100% of itself; the section shows only its variance.
+          insight={{ variance: renderVariance(INCOME_KIND, incomeTotals) }}
           amounts={{
             budget: fmtAmount(incomeTotals.budget),
             actual: fmtAmount(incomeTotals.actual),
@@ -2189,7 +2205,13 @@ export function BudgetSheet({
         />
         {incomeSections.map(({ cat, rows, totals }) => (
           <div key={cat.key}>
-            {renderSectionSubhead(cat.label, cat.help, totals, INCOME_KIND)}
+            {renderSectionSubhead(
+              cat.label,
+              cat.help,
+              totals,
+              INCOME_KIND,
+              SECTION_COLOR[cat.key],
+            )}
             {rows.map((item) => renderItemRow(item))}
           </div>
         ))}
@@ -2236,7 +2258,7 @@ export function BudgetSheet({
 
         <SheetGrandRow
           label="Left over"
-          insight={insightFor(INCOME_KIND, leftOver)}
+          insight={{ variance: renderVariance(INCOME_KIND, leftOver) }}
           amounts={{
             budget: fmtSigned(leftOver.budget),
             actual: fmtSigned(leftOver.actual),

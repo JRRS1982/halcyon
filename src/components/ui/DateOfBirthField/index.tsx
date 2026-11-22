@@ -15,6 +15,7 @@ import {
   PartName,
   PickerButton,
   Row,
+  Separator,
 } from "./DateOfBirthField.styled";
 
 // A legend does not take part in flex or grid layout, so the fieldset stays a
@@ -66,9 +67,9 @@ export function DateOfBirthField({
   required?: boolean;
   /**
    * The field is the whole point of its card, rather than one of a panel of
-   * them: centred, with a larger legend and larger boxes. Off by default, so
-   * the group stays inside a dense grid's column and matches the labels
-   * beside it.
+   * them: full width at a 44px touch height, under a form label. Off by
+   * default, so the group stays inside a dense grid's column and matches the
+   * labels beside it.
    */
   standalone?: boolean;
 }) {
@@ -128,10 +129,12 @@ export function DateOfBirthField({
     if (next.length === 2 && previous.length < 2) to.current?.focus();
   };
 
+  const slash = <Separator aria-hidden="true">/</Separator>;
+
   return (
     <Group ref={groupRef}>
       <Legend $standalone={standalone}>{legend}</Legend>
-      <Row $standalone={standalone}>
+      <Row $standalone={standalone} data-date-row>
         <Part htmlFor={`${ids}-day`}>
           <PartName>Day</PartName>
           <PartInput
@@ -149,6 +152,7 @@ export function DateOfBirthField({
             }}
           />
         </Part>
+        {slash}
         <Part htmlFor={`${ids}-month`}>
           <PartName>Month</PartName>
           <PartInput
@@ -167,6 +171,7 @@ export function DateOfBirthField({
             }}
           />
         </Part>
+        {slash}
         <Part htmlFor={`${ids}-year`}>
           <PartName>Year</PartName>
           <PartInput
@@ -186,7 +191,6 @@ export function DateOfBirthField({
         </Part>
         <PickerButton
           type="button"
-          $standalone={standalone}
           onClick={openPicker}
           aria-label="Choose the date from a calendar"
         >

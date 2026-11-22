@@ -1,4 +1,15 @@
 import styled from "styled-components";
+import { visuallyHidden } from "@/lib/visuallyHidden";
+
+// One field in three parts, in every use: day, month and year typed onto a
+// single boxed strip divided by slashes, with the calendar inside the same
+// edge, so a date reads as one entry rather than three. $standalone is the
+// first-run card, where the date is the card's only question: the strip runs
+// the card's width at a 44px touch height. In a panel it is sized to its
+// digits so it keeps to its column.
+//
+// The surface is the row's, not the parts', so a panel that restyles its
+// fields (the plan's assumptions) styles this row via [data-date-row].
 
 export const Group = styled.fieldset`
   border: 0;
@@ -6,78 +17,92 @@ export const Group = styled.fieldset`
   padding: 0;
   min-inline-size: 0;
 `;
-// Standalone, this is the card's question and carries weight. In a panel it is
-// one label among many, so it matches them exactly — 13px in the body colour,
-// the same as the panel's own Field.
+
+// A form label, as on every other form: control type above the field. In a
+// panel it matches the panel's own labels instead.
 export const Legend = styled.legend<{ $standalone?: boolean }>`
   padding: 0;
   margin-bottom: ${({ theme }) => theme.spacing.xs};
   ${({ theme, $standalone }) =>
     $standalone
-      ? "width: 100%; text-align: center; font-size: 1.2em;"
+      ? `
+    font-family: ${theme.typography.control.family};
+    font-size: ${theme.typography.control.size};
+    font-weight: ${theme.typography.control.weight};
+    color: ${theme.colors.body};
+  `
       : `font-size: 13px; color: ${theme.colors.body};`}
 `;
+
 export const Row = styled.div<{ $standalone?: boolean }>`
-  display: flex;
-  flex-wrap: wrap;
-  gap: ${({ theme }) => theme.spacing.xs};
-  justify-content: ${({ $standalone }) =>
-    $standalone ? "center" : "flex-start"};
+  display: ${({ $standalone }) => ($standalone ? "flex" : "inline-flex")};
+  align-items: center;
+  min-height: ${({ $standalone }) => ($standalone ? "44px" : "36px")};
+  padding: 0 ${({ theme }) => theme.spacing.sm};
+  border: 1px solid ${({ theme }) => theme.colors.fieldBorder};
+  border-radius: ${({ theme }) => theme.rounded.sm};
+  background-color: ${({ theme }) => theme.colors.field};
+
+  &:focus-within {
+    border-color: ${({ theme }) => theme.colors.focus};
+    box-shadow: 0 0 0 1px ${({ theme }) => theme.colors.focus};
+  }
 `;
-// Sized to what they hold — two digits, two digits, four — rather than filling
-// the row. A box far wider than its content invites the wrong input.
+
+// The "/" between parts: drawn, not typed, so it is hidden from assistive
+// tech, which reads each part's own name instead.
+export const Separator = styled.span`
+  color: ${({ theme }) => theme.colors.dim};
+  user-select: none;
+`;
+
 export const Part = styled.label`
   display: grid;
 `;
-// The DD / MM / YYYY placeholders say which box is which, so the words are
+
+// The DD / MM / YYYY placeholders say which part is which, so the words are
 // redundant on screen — but a placeholder is not a label, and without these
 // the fields are three unnamed boxes to a screen reader. Hidden, not deleted.
 export const PartName = styled.span`
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-  border: 0;
+  ${visuallyHidden}
 `;
-// The panel's grid gives each field a 180px column, and the standalone card
-// gives it a whole row — so the compact sizes are what keep the group inside
-// its column instead of over its neighbour.
+
+// Sized to what they hold — two characters, two, four — rather than filling the
+// row. The width counts characters with the padding on top (in ems alone, the
+// four-digit year lost its last digit to the padding), and is measured for the
+// placeholder, not the digits: "MM" is wider than "06" and was cut to "MN".
 export const PartInput = styled.input<{
   $wide?: boolean;
   $standalone?: boolean;
 }>`
-  /* The compact sizes count digits, with the padding and border added on top:
-     in ems alone, the four-digit year lost its last digit to the padding. */
-  width: ${({ $wide, $standalone, theme }) =>
-    $standalone
-      ? $wide
-        ? "5.5em"
-        : "3.75em"
-      : `calc(${$wide ? "4.4ch" : "2.4ch"} + 2 * ${theme.spacing.xs} + 2px)`};
-  border: 1px solid ${({ theme }) => theme.colors.fieldBorder};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  padding: ${({ theme, $standalone }) =>
-    $standalone ? theme.spacing.md : theme.spacing.xs};
+  width: ${({ $wide, theme }) =>
+    `calc(${$wide ? "5ch" : "3.2ch"} + 2 * ${theme.spacing.xs})`};
+  padding: 0 ${({ theme }) => theme.spacing.xs};
+  border: 0;
+  background: transparent;
+  outline: none;
   font: inherit;
-  font-size: ${({ $standalone }) => ($standalone ? "1.05em" : "13px")};
+  font-size: ${({ $standalone, theme }) =>
+    $standalone ? "16px" : theme.typography.bodyMd.size};
+  font-variant-numeric: tabular-nums;
   text-align: center;
   color: ${({ theme }) => theme.colors.ink};
+
+  &::placeholder {
+    color: ${({ theme }) => theme.colors.dim};
+  }
 `;
+
 // Opens the browser's own calendar, which is only a problem when it also
-// supplies the *text* — and it no longer does. Aligned to the inputs rather
-// than the row, so it sits level with them under their little labels.
-export const PickerButton = styled.button<{ $standalone?: boolean }>`
+// supplies the *text* — and it no longer does. At the strip's right end.
+export const PickerButton = styled.button`
   align-self: stretch;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: ${({ theme, $standalone }) =>
-    $standalone ? theme.spacing.md : theme.spacing.xs};
-  border: 1px solid ${({ theme }) => theme.colors.fieldBorder};
+  margin-left: auto;
+  padding: 0 ${({ theme }) => theme.spacing.xs};
+  border: 0;
   border-radius: ${({ theme }) => theme.rounded.sm};
   background: none;
   color: ${({ theme }) => theme.colors.body};
@@ -87,16 +112,9 @@ export const PickerButton = styled.button<{ $standalone?: boolean }>`
     color: ${({ theme }) => theme.colors.ink};
   }
 `;
-// Present for its calendar only: the three fields above are what the user
-// reads and types into, so this never needs to be seen.
+
+// Present for its calendar only: the three parts are what the user reads and
+// types into, so this never needs to be seen.
 export const HiddenDateInput = styled.input`
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-  border: 0;
+  ${visuallyHidden}
 `;

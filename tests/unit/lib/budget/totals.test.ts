@@ -3,7 +3,7 @@ import {
   describeVariance,
   favourableVariance,
   type ItemForTotals,
-  shareOfSpend,
+  shareOf,
   sumAmounts,
   surplus,
 } from "@/lib/budget/totals";
@@ -327,14 +327,14 @@ describe("describeVariance", () => {
   });
 });
 
-// The sheet's "Share of spend" column. If this is wrong, a user misjudges
-// which category their money actually goes to.
-describe("shareOfSpend", () => {
-  test("is the row's actual as a fraction of the month's spending", () => {
-    expect(shareOfSpend(492, 2460)).toBeCloseTo(0.2, 5);
+// The sheet's "Share" column. If this is wrong, a user misjudges which
+// category their money actually goes to, or where it comes from.
+describe("shareOf", () => {
+  test("is the row's actual as a fraction of its side's total", () => {
+    expect(shareOf(492, 2460)).toBeCloseTo(0.2, 5);
   });
 
-  test("is undefined when nothing has been spent", () => {
-    expect(shareOfSpend(0, 0)).toBeNull();
+  test("is undefined when the total is nothing", () => {
+    expect(shareOf(0, 0)).toBeNull();
   });
 });

@@ -19,6 +19,9 @@ async function figuresThatDoNotFit(page: Page): Promise<string[]> {
     );
     return [...(cells ?? [])].flatMap((cell) => {
       if (cell.offsetParent === null) return [];
+      // Column heads are words, not figures, and "vs budget" is hidden from
+      // sight: its 1px screen-reader box sits outside the cell by design.
+      if (cell.getAttribute("role") === "columnheader") return [];
       const input = cell.querySelector("input");
       if (input) {
         return input.scrollWidth > input.clientWidth
