@@ -5,5 +5,10 @@
       "path": "/api/cron/monthly-reminder",
       "schedule": "0 9 * * *"
     }
-  ]
+  ],
+  "git": {
+    "deploymentEnabled": {
+      "badges": false
+    }
+  }
 }
