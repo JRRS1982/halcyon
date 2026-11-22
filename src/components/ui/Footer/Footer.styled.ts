@@ -1,8 +1,9 @@
 import Link from "next/link";
 import styled from "styled-components";
 
-// The rule runs full width; the links keep to the page's column, as the
-// masthead's do.
+// The rule runs full width; the links sit centred in the page's column. Left
+// aligned under the wordmark, they read as off centre on every page whose
+// content is a narrower centred column (Settings, Plan's first run).
 export const FooterBar = styled.footer`
   border-top: 1px solid ${({ theme }) => theme.colors.ink};
 `;
@@ -13,7 +14,10 @@ export const FooterRow = styled.div`
   padding: ${({ theme }) => theme.spacing["2xl"]};
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  justify-content: center;
+  /* Baseline, not centre: the 13px name and the 14px links share one line of
+     type, and centring their boxes set the name half a pixel off it. */
+  align-items: baseline;
   gap: ${({ theme }) => theme.spacing["2xl"]};
 
   /* Links become 44px targets on a phone; the row gap closes up so the

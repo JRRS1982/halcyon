@@ -8,17 +8,22 @@ import { appear } from "@/lib/motion";
 import { hoverFill } from "@/lib/pointer";
 import type { LedgerCategory } from "@/lib/transactions/server";
 
-const Wrap = styled.div`
+// $fill: the picker takes the whole width of its slot and the size of a
+// form field, for the controls card, where it stands in for the search box.
+// In a table cell it stays compact.
+const Wrap = styled.div<{ $fill?: boolean }>`
   position: relative;
-  display: inline-block;
+  display: ${({ $fill }) => ($fill ? "block" : "inline-block")};
   min-width: 200px;
 `;
 
-const Trigger = styled.button`
+const Trigger = styled.button<{ $fill?: boolean }>`
   width: 100%;
   text-align: left;
-  padding: ${({ theme }) => theme.spacing.xs}
-    ${({ theme }) => theme.spacing.sm};
+  padding: ${({ theme, $fill }) =>
+    $fill
+      ? `${theme.spacing.sm} ${theme.spacing.md}`
+      : `${theme.spacing.xs} ${theme.spacing.sm}`};
   border: 1px solid ${({ theme }) => theme.colors.fieldBorder};
   border-radius: ${({ theme }) => theme.rounded.sm};
   background: ${({ theme }) => theme.colors.field};
@@ -43,11 +48,21 @@ const Muted = styled.span`
 // popover on a 375px phone did exactly that from the bulk bar). Width is
 // clamped so it fits even when neither anchor has 280px of room.
 const POPOVER_WIDTH = 280;
+// Roughly the open popover's height: the search box plus a full list. A row
+// near the foot of the window has less than this beneath it, so the popover
+// opens above instead of below the fold.
+const POPOVER_HEIGHT = 320;
 
-const Popover = styled.div<{ $align: "left" | "right" }>`
+type Placement = { align: "left" | "right"; side: "below" | "above" };
+
+const Popover = styled.div<{
+  $align: Placement["align"];
+  $side: Placement["side"];
+}>`
   position: absolute;
   z-index: 30;
-  top: calc(100% + 2px);
+  ${({ $side }) =>
+    $side === "above" ? "bottom: calc(100% + 2px);" : "top: calc(100% + 2px);"}
   ${({ $align }) => ($align === "right" ? "right: 0;" : "left: 0;")}
   width: min(${POPOVER_WIDTH}px, calc(100vw - 24px));
   background: ${({ theme }) => theme.colors.canvas};
@@ -183,6 +198,8 @@ type Props = {
   disabled?: boolean;
   // Trigger text when nothing is chosen; defaults to "— Uncategorised —".
   placeholder?: string;
+  // Full width at form-field size, rather than compact for a table cell.
+  fill?: boolean;
   // Offer the "— Uncategorised —" clear option even when value is null (the
   // bulk bar always shows it: a mixed selection can still be cleared).
   alwaysClearable?: boolean;
@@ -203,6 +220,18 @@ type NavOption = {
   run: () => void;
 };
 
+// Measured at open (not render): the trigger can sit anywhere — a table cell
+// mid-pan, the controls card — so the anchor is a property of the moment.
+// Above only when the room beneath is short and there is more room overhead.
+function placementFor(rect: DOMRect): Placement {
+  const below = window.innerHeight - rect.bottom;
+  return {
+    align:
+      rect.left + POPOVER_WIDTH > window.innerWidth - 12 ? "right" : "left",
+    side: below < POPOVER_HEIGHT && rect.top > below ? "above" : "below",
+  };
+}
+
 const byLabel = (a: { label: string }, b: { label: string }) =>
   a.label.localeCompare(b.label);
 const byName = (a: { name: string }, b: { name: string }) =>
@@ -218,6 +247,7 @@ export function CategoryCombobox({
   transfersEnabled,
   disabled,
   placeholder = "— Uncategorised —",
+  fill = false,
   alwaysClearable = false,
   triggerLabel,
   onSelect,
@@ -226,7 +256,10 @@ export function CategoryCombobox({
   onCreateAccount,
 }: Props) {
   const [open, setOpen] = useState(false);
-  const [align, setAlign] = useState<"left" | "right">("left");
+  const [placement, setPlacement] = useState<Placement>({
+    align: "left",
+    side: "below",
+  });
   const [query, setQuery] = useState("");
   // Index into the keyboard-navigable options below; -1 means none highlighted.
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -234,18 +267,13 @@ export function CategoryCombobox({
   const [newSection, setNewSection] = useState<CategorySection | "">("");
   const inputRef = useRef<HTMLInputElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
   const listboxId = useId();
 
-  // Measured at open (not render): the trigger can sit anywhere — a table cell
-  // mid-pan, the bulk bar — so the anchor is a property of the moment.
   const toggleOpen = () => {
     if (!open) {
       const rect = wrapRef.current?.getBoundingClientRect();
-      setAlign(
-        rect && rect.left + POPOVER_WIDTH > window.innerWidth - 12
-          ? "right"
-          : "left",
-      );
+      if (rect) setPlacement(placementFor(rect));
     }
     setOpen((o) => !o);
   };
@@ -290,8 +318,13 @@ export function CategoryCombobox({
 
   const sectionOptions = sectionsFor(newType);
 
+  // Focus without the browser's own scroll — it only brings the search box
+  // into view — then bring the whole popover on screen, list included, when
+  // neither side had room for it.
   useEffect(() => {
-    if (open) inputRef.current?.focus();
+    if (!open) return;
+    inputRef.current?.focus({ preventScroll: true });
+    popoverRef.current?.scrollIntoView?.({ block: "nearest" });
   }, [open]);
 
   // Keep the highlighted option visible as arrow keys move it.
@@ -449,12 +482,14 @@ export function CategoryCombobox({
   return (
     <Wrap
       ref={wrapRef}
+      $fill={fill}
       onBlur={(e) => {
         if (!e.currentTarget.contains(e.relatedTarget as Node | null)) close();
       }}
     >
       <Trigger
         type="button"
+        $fill={fill}
         disabled={disabled}
         aria-label={triggerLabel}
         onClick={toggleOpen}
@@ -474,8 +509,11 @@ export function CategoryCombobox({
 
       {open && (
         <Popover
-          $align={align}
-          data-align={align}
+          ref={popoverRef}
+          $align={placement.align}
+          $side={placement.side}
+          data-align={placement.align}
+          data-side={placement.side}
           data-testid="combobox-popover"
         >
           <SearchInput

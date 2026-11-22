@@ -126,13 +126,11 @@ export function describeVariance(
 }
 
 /**
- * A row's share of the month's actual spending (expenses and repayments) as a
- * fraction, or null when nothing has been spent to take a share of.
+ * A row's share of its side's actual total — spending (expenses and
+ * repayments) for an outgoing row, income for an incoming one — as a fraction,
+ * or null when the total is nothing to take a share of.
  */
-export function shareOfSpend(
-  actual: number,
-  totalSpend: number,
-): number | null {
-  if (totalSpend <= 0) return null;
-  return actual / totalSpend;
+export function shareOf(actual: number, total: number): number | null {
+  if (total <= 0) return null;
+  return actual / total;
 }

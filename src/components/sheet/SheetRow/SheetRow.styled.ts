@@ -1,4 +1,5 @@
 import styled, { css } from "styled-components";
+import { visuallyHidden } from "@/lib/visuallyHidden";
 
 // Shared 6-column template across every row in the sheet (Category · Budget ·
 // Actual · vs budget · Share of spend · Notes). Keep this in lockstep with DESIGN.md → Layout → Grid &
@@ -143,6 +144,11 @@ export const headCells = css`
   }
 `;
 
+// A column head kept for screen readers only.
+export const HiddenHead = styled.span`
+  ${visuallyHidden}
+`;
+
 export const HeadRow = styled.div`
   ${baseRow}
   ${headCells}
@@ -153,10 +159,9 @@ export const SectionRow = styled.div`
   ${sectionCells}
 `;
 
-// $accent is the section's colour code, drawn as a bar against the label.
-export const SubheadRow = styled.div<{ $accent?: string }>`
-  ${baseRow}
-  ${subheadCells}
+// $accent is the section's colour code, drawn as a 4px bar against the label.
+// Shared with the balance sheet's subheads.
+export const subheadAccent = css<{ $accent?: string }>`
   ${({ $accent, theme }) =>
     $accent &&
     css`
@@ -165,6 +170,12 @@ export const SubheadRow = styled.div<{ $accent?: string }>`
         padding-left: ${theme.spacing.lg};
       }
     `}
+`;
+
+export const SubheadRow = styled.div<{ $accent?: string }>`
+  ${baseRow}
+  ${subheadCells}
+  ${subheadAccent}
 `;
 
 export const ItemRow = styled.div<{ $group?: boolean }>`

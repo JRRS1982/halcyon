@@ -6,6 +6,7 @@ import styled from "styled-components";
 import { Button } from "@/components/ui/Button";
 import type { Reauthentication, ReauthMethod } from "@/lib/auth/reauth";
 import { REAUTH_MESSAGES } from "@/lib/auth/reauthOutcome";
+import { boxedField } from "@/lib/field";
 import {
   clearMyData,
   deleteMyAccount,
@@ -105,13 +106,7 @@ const ConfirmLabel = styled.label`
 const ConfirmInput = styled.input`
   width: 320px;
   max-width: 100%;
-  min-height: 36px;
-  padding: ${({ theme }) => theme.spacing.sm}
-    ${({ theme }) => theme.spacing.md};
-  border: 1px solid ${({ theme }) => theme.colors.fieldBorder};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  font-family: ${({ theme }) => theme.typography.bodyMd.family};
-  font-size: ${({ theme }) => theme.typography.bodyMd.size};
+  ${boxedField}
 `;
 
 const Actions = styled.div`

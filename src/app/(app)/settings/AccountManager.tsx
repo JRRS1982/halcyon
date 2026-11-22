@@ -16,6 +16,7 @@ import {
   accountTypeById,
 } from "@/lib/accounts/accountDraft";
 import type { AccountDeletionCounts } from "@/lib/accounts/schemas";
+import { boxedField } from "@/lib/field";
 import { hoverInk } from "@/lib/pointer";
 import { renameAccount, setAccountImports } from "./accountActions";
 import { SectionHeading, SettingsCard } from "./SectionHeading";
@@ -80,12 +81,7 @@ const Meta = styled.span`
 const Input = styled.input`
   flex: 1;
   min-width: 120px;
-  padding: ${({ theme }) => theme.spacing.xs}
-    ${({ theme }) => theme.spacing.sm};
-  border: 1px solid ${({ theme }) => theme.colors.fieldBorder};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  font-family: ${({ theme }) => theme.typography.bodyMd.family};
-  font-size: 13px;
+  ${boxedField}
 `;
 
 const TextButton = styled.button<{ $danger?: boolean }>`

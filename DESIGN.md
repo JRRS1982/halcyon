@@ -1,7 +1,7 @@
 ---
 version: beta
 name: Halcyon-design-system
-description: Balanced Money's design language, "Market Pages". Your money is set like the markets page of a serious financial paper — warm salmon paper, near-black warm ink, an editorial serif for headlines, section rows and big figures, a sturdy grotesk for tables and controls. Every category is a quoted line with its budget, its actual, its distance from plan and its share of spend. Oxford blue carries primary actions, claret is the house accent, teal-green and muted red carry sign. Hairline and ink rules do the structural work; corners are near-square and nothing on the page floats.
+description: Balanced Money's design language, "Market Pages". Your money is set like the markets page of a serious financial paper — warm salmon paper, near-black warm ink, an editorial serif for headlines, section rows and big figures, a sturdy grotesk for tables and controls. Every category is a quoted line with its budget, its actual, its distance from plan and its share of the month. Oxford blue carries primary actions, claret is the house accent, teal-green and muted red carry sign. Hairline and ink rules do the structural work; corners are near-square and nothing on the page floats.
 
 # Type scale, as built (sizes in use across the signed-in app):
 #   40 → the brief's left-over figure (serif)
@@ -145,7 +145,7 @@ components:
     gap: "{spacing.2xl}"
 
   footer:
-    description: "A single ruled line of links under a 1px ink rule. Links hover to claret."
+    description: "A single ruled line of links, centred, under a 1px ink rule. Links hover to claret."
     textColor: "{colors.ink}"
     borderTop: "1px solid {colors.ink}"
     padding: "{spacing.2xl}"
@@ -222,7 +222,7 @@ components:
     borderBottom: "1px solid {colors.ink}"
 
   sheet-row-subhead:
-    description: "Subhead row (Fixed / Variable / Discretionary): 16px serif label with a 4px bar in its section colour; figures stay in the sans."
+    description: "Subhead row (Fixed / Variable / Discretionary, the income sections, the balance buckets): 16px serif label with a 4px bar in its section colour; figures stay in the sans."
     textColor: "{colors.ink}"
 
   sheet-row-item:
@@ -274,7 +274,7 @@ components:
 
 **Creative North Star: "Market Pages"**
 
-Balanced Money reads like the markets page of a serious financial paper. Each month is a page: a headline that states the verdict, a standfirst that says it in one sentence, a short brief explaining why, and below it a market-data table where every category is a quoted line with its budget, actual, distance from plan and share of spend. The aim is trust through formality, the register of a bank statement or a broadsheet, rather than the fintech default of KPI cards over a progress-bar table.
+Balanced Money reads like the markets page of a serious financial paper. Each month is a page: a headline that states the verdict, a standfirst that says it in one sentence, a short brief explaining why, and below it a market-data table where every category is a quoted line with its budget, actual, distance from plan and share of the month. The aim is trust through formality, the register of a bank statement or a broadsheet, rather than the fintech default of KPI cards over a progress-bar table.
 
 Every sentence of written feedback is computed. The budget headline, standfirst and brief notes come from pure functions in `src/lib/insights/` (`monthBrief`, `balanceBrief`, `overallBrief`) working on the user's own rows. A note can only say what a row beneath it already shows; nothing is invented, and the same month always reads the same way.
 
@@ -324,11 +324,14 @@ A paper-and-ink palette with three working hues: oxford blue for action, claret 
 
 ### Section Codes
 
-- **Fixed** (`section-fixed`, oxford), **Variable** (`section-variable`, burnt orange), **Discretionary** (`section-discretionary`, claret). Each spending section keeps one colour wherever it appears: the 4px bar on its budget subhead row, its share-of-spend bars, and its dashboard spending chart. They are graphics, so they answer to 3:1 against the page.
+- **Fixed** (`section-fixed`, oxford), **Variable** (`section-variable`, burnt orange), **Discretionary** (`section-discretionary`, claret). Each spending section keeps one colour wherever it appears: the 4px bar on its budget subhead row, its share bars, and its dashboard spending chart. They are graphics, so they answer to 3:1 against the page.
+- **Income sections** borrow the plan's hue for the same kind of income, so it matches the plan's cash-flow chart: Salary `chart-isa`, Side income `chart-other-asset`, Investments `chart-cash`, Pensions `chart-db-pension`, Other `chart-gia`.
+- **Balance buckets** borrow the plan's hue for what each typically holds: Current `chart-cash`, Medium-term `chart-isa`, Long-term `chart-pension`, Property `chart-property`, Other `chart-other-asset`. Assets and liabilities share a bucket's colour; it marks how soon, not which side.
+- Debt payments and Transfers and saving carry no bar.
 
 ### Named Rules
 
-**The Sign Only Rule.** Green and red mean favourable and adverse, nothing else. They colour figures, deltas, variance words and chart series that are money in or out; never a button fill, a banner tint or a headline.
+**The Sign Only Rule.** Green and red mean favourable and adverse, nothing else. They colour figures, deltas, variance words and chart series that are money in or out; never a banner tint or a headline, and never a button fill but one: **Import statement** on Transactions, the money coming in, is filled green with a paper-coloured label as that page's call to action.
 
 **The Claret Points Rule.** Claret locates: the page you are on, the lead-in of a note. If it is not helping the reader find something, use ink.
 
@@ -390,7 +393,7 @@ Every right-aligned cell sets `tabular-nums`, so a column of amounts lines up di
 
 ### Spacing
 
-A 4px base. Tokens run `xxs` 2px to `5xl` 48px, plus `section` 80px. Page shells use `3xl` 32px top, `2xl` 24px sides and `5xl` 48px bottom; sides drop to `lg` 16px on a phone. The masthead and footer contents sit in the same column, with `2xl` 24px sides on desktop and `lg` 16px on a phone, so the wordmark lines up with the headline beneath it.
+A 4px base. Tokens run `xxs` 2px to `5xl` 48px, plus `section` 80px. Page shells use `3xl` 32px top, `2xl` 24px sides and `5xl` 48px bottom; sides drop to `lg` 16px on a phone. The masthead and footer contents sit in the same column, with `2xl` 24px sides on desktop and `lg` 16px on a phone, so the wordmark lines up with the headline beneath it. The footer's links are centred in that column.
 
 ### Container
 
@@ -398,7 +401,7 @@ Page content caps at 1240px and centres. The masthead and footer rules run full 
 
 ### The sheet grid
 
-The budget sheet has six columns: Category · Budget · Actual · vs budget · Share of spend · Notes, at `minmax(180px, 1.2fr) max-content max-content max-content max-content minmax(160px, 1fr)`. The sheet owns the columns and every row is a subgrid of them, so the four figure columns are as wide as their widest figure, never narrower than a floor the cells hold (120px each, 150px for Share of spend). A figure never wraps and never runs into its neighbour; a sheet too narrow for its figures scrolls sideways instead. Below 992px the floors narrow (110px, 140px) and the sheet scrolls sideways once the columns outgrow it, with the Category cell pinned left. Below 768px the sheet keeps three columns (Category, Budget, Actual at `minmax(130px, 1fr) max-content max-content`, 95px floors, a 320px row) and hides the rest, so a 360px phone shows the whole row unless a figure is wider than its floor.
+The budget sheet has six columns: Category · Budget · Actual · vs budget · Share · Notes, at `minmax(180px, 1.2fr) max-content max-content max-content max-content minmax(160px, 1fr)`. The sheet owns the columns and every row is a subgrid of them, so the four figure columns are as wide as their widest figure, never narrower than a floor the cells hold (120px each, 150px for Share). A figure never wraps and never runs into its neighbour; a sheet too narrow for its figures scrolls sideways instead. Below 992px the floors narrow (110px, 140px) and the sheet scrolls sideways once the columns outgrow it, with the Category cell pinned left. Below 768px the sheet keeps three columns (Category, Budget, Actual at `minmax(130px, 1fr) max-content max-content`, 95px floors, a 320px row) and hides the rest, so a 360px phone shows the whole row unless a figure is wider than its floor.
 
 The balance sheet has four: Account · Value · Since (the previous month, such as "Since Sep 2026", or "Change" when there is none) · Notes.
 
@@ -523,7 +526,7 @@ Two tiers on a paper ground, sticky to the top. The upper tier is the "Balanced 
 
 ### Footer
 
-One ruled line: a 1px ink rule above, "Balanced Money" in 13px dim, then links in 14px ink (Features, Guide, Design, Engineering, Privacy, Cookies, Terms) that turn claret and underline on hover. On a phone each link is a 44px-tall target and the wrapped rows close up, so the footer stays short. The public pages' footer stacks its links in two columns, each a 44px row on a phone.
+One ruled line, centred in the page column: a 1px ink rule above, "Balanced Money" in 13px dim, then links in 14px ink (Features, Guide, Design, Engineering, Privacy, Cookies, Terms) that turn claret and underline on hover. On a phone each link is a 44px-tall target and the wrapped rows close up, so the footer stays short. The public pages' footer stacks its links in two columns, each a 44px row on a phone.
 
 ### Page Header
 
@@ -549,7 +552,7 @@ A market-data table on paper.
 
 - **Column heads:** 13px semibold sans in body colour, closed by a 2px ink rule.
 - **Section rows** (Income, Expenses, Assets, Liabilities): 20px serif in ink, 24px space above, a 1px ink rule beneath, carrying the section's totals.
-- **Subhead rows** (Fixed, Variable, Discretionary, and the income sections): 16px serif label; figures stay in the sans at 600 so the column reads as one. Spending sections carry a 4px bar in their section colour on the left.
+- **Subhead rows** (Fixed, Variable, Discretionary, the income sections, and the balance buckets): 16px serif label; figures stay in the sans at 600 so the column reads as one. Each carries a 4px bar in its section colour on the left (see Section Codes).
 - **Item rows:** 14px sans, 8px by 12px padding (12px by 8px on a phone), a hairline beneath, no vertical rules. Nesting is shown by indent only: 32px, 48px, 64px.
 - **Group rows:** a parent whose figures roll up its children is tinted `canvas-soft` with weight-500 figures.
 - **Subtotal rows:** a 1px ink rule above, semibold label and figures.
@@ -557,10 +560,10 @@ A market-data table on paper.
 - **Focused cell:** a 2px oxford outline inside the cell and a 7px square handle at its bottom-right corner.
 - **Zero cells:** a £0 or empty figure is set in `dim`.
 
-The insight columns on Budget:
+The insight columns on Budget. Their column heads are hidden from sight, because "£12.00 over" and a bar with its percentage say what they are; screen readers still announce each column by name.
 
 - **vs budget:** the distance from plan in words, such as "£12.00 over" or "£40.00 under", semibold and coloured favourable or adverse. A row that landed on plan reads "On budget" in dim; a row with nothing budgeted or spent is blank.
-- **Share of spend:** a 64 by 8px bar on a hairline track, filled to scale in the row's section colour, followed by the percentage in 13px.
+- **Share:** a 64 by 8px bar on a hairline track, filled to scale in the row's section colour, followed by the percentage in 13px. A spending row's share is of the month's spending; an income row's is of the month's income. The Income, Expenses and Left over rows show none, since each is the whole of itself.
 
 On Balance, the **Since** column shows each account's movement against the previous month as ▲ or ▼ and the amount.
 
@@ -605,7 +608,9 @@ Boxed fields take the `field` fill and a 1px `field-border` edge (3:1 against ev
 
 A tick box is for a choice that waits for Apply, Import or Save; a setting that takes effect the moment it is flipped is a switch (the `Switch` component). Tick boxes are the `Checkbox` component, never the browser's own: an 18px box with a 1.5px ink edge on `field` paper and 2px corners, sitting before its label on one line. Ticked, the paper stays and a pen tick is drawn across it in oxford blue, running past the box's top-right corner, as a statement is ticked off by hand. A box that stands for a partly selected set (the ledger's select all) shows a dash instead. Hover fills the box `hover`, disabled drops it to 50% opacity, and keyboard focus takes the shared 2px outline. The target is larger than the box: 40px across, 44px under a finger. Radios take oxford blue (`accent-color`).
 
-The plan's assumptions are the one written-on-the-line variant: values on a `canvas-soft` strip with a 2px claret rule beneath and no box, so a dense panel of numbers reads as one set of entries.
+The plan's assumptions are the one written-on-the-line variant: values on a `canvas-soft` strip with a 2px claret rule beneath and no box, so a dense panel of numbers reads as one set of entries. A date of birth there sits on that strip too.
+
+A date of birth is one boxed field in three typed parts, day / month / year divided by slashes, with the calendar icon at its right end. Never the browser's own date control: it follows the browser's locale and can read mm/dd/yyyy, and its calendar is a slow way back to a birth year. On the plan's first-run card, where the date is the only question, the field runs the card's width at 44px under a normal form label.
 
 ### Cards and Overlays
 

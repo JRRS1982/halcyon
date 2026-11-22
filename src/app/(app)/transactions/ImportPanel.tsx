@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/Button";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { shortDate } from "@/lib/date/humanDate";
 import { appear } from "@/lib/motion";
-import { hoverFill, reachTall } from "@/lib/pointer";
+import { reachTall } from "@/lib/pointer";
 import {
   DEFAULT_NUMBER_FORMAT,
   formatAmount,
@@ -81,16 +81,19 @@ const HiddenFile = styled.input`
   opacity: 0;
 `;
 
-// The page's single primary CTA: picking a file opens the import modal.
+// The page's call to action: picking a file opens the import modal. Filled in
+// the money-in green, the one button allowed it (DESIGN.md → The Sign Only
+// Rule), because importing a statement is the cheapest way to fill a month and
+// the thing a new user should reach for first; typing a line stays secondary.
 const FileButton = styled.span`
   display: inline-flex;
   align-items: center;
   padding: ${({ theme }) => theme.spacing.sm}
     ${({ theme }) => theme.spacing.lg};
-  border: 1px solid ${({ theme }) => theme.colors.ink};
+  border: 1px solid ${({ theme }) => theme.colors.positive};
   border-radius: ${({ theme }) => theme.rounded.sm};
-  background: ${({ theme }) => theme.colors.canvas};
-  color: ${({ theme }) => theme.colors.ink};
+  background: ${({ theme }) => theme.colors.positive};
+  color: ${({ theme }) => theme.colors.canvas};
   font-family: ${({ theme }) => theme.typography.control.family};
   font-size: ${({ theme }) => theme.typography.control.size};
   font-weight: ${({ theme }) => theme.typography.control.weight};
@@ -98,8 +101,14 @@ const FileButton = styled.span`
      beside it. */
   line-height: ${({ theme }) => theme.typography.control.lineHeight};
   white-space: nowrap;
+  transition: opacity 100ms;
 
-  ${hoverFill}
+  /* Filled, so it answers the pointer as the primary button does. */
+  @media (hover: hover) {
+    &:hover {
+      opacity: 0.85;
+    }
+  }
 
   /* The real control is the hidden file input before this, so its keyboard
      focus has to be drawn here or it is drawn nowhere. */

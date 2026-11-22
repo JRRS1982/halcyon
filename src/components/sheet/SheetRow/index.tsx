@@ -3,6 +3,7 @@ import { SheetCell } from "../SheetCell";
 import {
   GrandRow,
   HeadRow,
+  HiddenHead,
   ItemRow,
   SectionRow,
   SubheadRow,
@@ -10,7 +11,8 @@ import {
 } from "./SheetRow.styled";
 
 // The two read-only columns between Actual and Notes: how far the row landed
-// from its budget, and its share of the month's spending. Either may be empty.
+// from its budget, and its share of the month's spending or income. Either may
+// be empty.
 export type Insight = { variance?: ReactNode; share?: ReactNode };
 
 function InsightCells({ insight }: { insight?: Insight }) {
@@ -22,8 +24,10 @@ function InsightCells({ insight }: { insight?: Insight }) {
   );
 }
 
-// Column header row — Category · Budget · Actual · vs budget · Share of spend
-// · Notes.
+// Column header row — Category · Budget · Actual · vs budget · Share · Notes.
+// The two insight heads are hidden from sight: "£12 over" and a bar with its
+// percentage say what they are, and the words only crowded the head row. A
+// screen reader still announces each column by name.
 export function SheetHeadRow() {
   return (
     <HeadRow role="row">
@@ -35,10 +39,10 @@ export function SheetHeadRow() {
         Actual
       </SheetCell>
       <SheetCell role="columnheader" align="right">
-        vs budget
+        <HiddenHead>vs budget</HiddenHead>
       </SheetCell>
       <SheetCell role="columnheader" align="right">
-        Share of spend
+        <HiddenHead>Share</HiddenHead>
       </SheetCell>
       <SheetCell role="columnheader">Notes</SheetCell>
     </HeadRow>
