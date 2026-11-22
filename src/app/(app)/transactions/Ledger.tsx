@@ -29,6 +29,7 @@ import type {
   SortDir,
 } from "@/lib/transactions/server";
 import { ledgerFooter } from "@/lib/transactions/totals";
+import { visuallyHidden } from "@/lib/visuallyHidden";
 import {
   bulkDeleteTransactions,
   bulkSetTransactionCategory,
@@ -59,12 +60,7 @@ const Section = styled.section`
 
 // Visually hidden: it names the section in the document outline.
 const Title = styled.h2`
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
+  ${visuallyHidden}
 `;
 
 // The ledger's amount column is 96px and a five-figure total in amount-xl
@@ -1026,6 +1022,7 @@ export function Ledger({
             transfersEnabled={transfersEnabled}
             disabled={!hasSelection}
             placeholder="Set category…"
+            fill
             alwaysClearable
             triggerLabel="Set category for selected transactions"
             onSelect={onBulkCategorise}

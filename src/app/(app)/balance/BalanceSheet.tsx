@@ -26,6 +26,7 @@ import {
   grandCells,
   headCells,
   sectionCells,
+  subheadAccent,
   subheadCells,
 } from "@/components/sheet/SheetRow/SheetRow.styled";
 import {
@@ -64,6 +65,7 @@ import {
   NUMBER_FORMAT_SPEC,
   type NumberFormat,
 } from "@/lib/settings/currency";
+import { theme } from "@/lib/theme";
 import { AccountCard } from "./AccountCard";
 import { AddAccountDrawer } from "./AddAccountDrawer";
 import { accountDeletionCounts } from "./accountActions";
@@ -246,11 +248,25 @@ const SectionRow = styled.div`
   ${sectionCells}
 `;
 
-// Sub-section for the category buckets, a step below the section.
-const SubheadRow = styled.div`
+// Sub-section for the category buckets, a step below the section, with its
+// colour code as a bar against the label, as the budget's subheads have.
+const SubheadRow = styled.div<{ $accent?: string }>`
   ${baseRow}
   ${subheadCells}
+  ${subheadAccent}
 `;
+
+// Each bucket takes the plan chart's colour for what it typically holds —
+// Current is cash, Medium-term ISAs, Long-term pensions — so a section reads
+// the same on Balance and on Plan. Assets and liabilities share a bucket's
+// colour: it marks how soon, not which side.
+const SECTION_COLOR: Record<AccountSection, string> = {
+  CURRENT: theme.colors.chartCash,
+  MEDIUM_TERM: theme.colors.chartIsa,
+  LONG_TERM: theme.colors.chartPension,
+  PROPERTY: theme.colors.chartProperty,
+  OTHER: theme.colors.chartOtherAsset,
+};
 
 const ItemRow = styled.div`
   ${baseRow}
@@ -314,6 +330,22 @@ const CellInput = styled.input<{ $align?: "left" | "right" }>`
     cursor: not-allowed;
     color: ${({ theme }) => theme.colors.dim};
     -webkit-text-fill-color: ${({ theme }) => theme.colors.dim};
+  }
+`;
+
+// "Notes (optional)" on every line outshouts the figures. With a pointer the
+// prompt shows only on the row in hand; touch has no hover, so it stays put.
+// The budget sheet's notes cell does the same.
+const NotesInput = styled(CellInput)`
+  @media (hover: hover) {
+    &::placeholder {
+      color: transparent;
+    }
+
+    [role="row"]:hover &::placeholder,
+    &:focus::placeholder {
+      color: ${({ theme }) => theme.colors.dim};
+    }
   }
 `;
 
@@ -1399,7 +1431,7 @@ export function BalanceSheet({
             nothing recorded there is no row to hang it on, and saving one
             would have to invent a £0 the user never typed. The server
             refuses that too — this stops the user reaching it. */}
-        <CellInput
+        <NotesInput
           value={row.notes ?? ""}
           disabled={row.value === null}
           title={
@@ -1441,7 +1473,7 @@ export function BalanceSheet({
         const help = CATEGORY_HELP[kind][c.key];
         return (
           <div key={`${kind}-${c.key}`}>
-            <SubheadRow role="row">
+            <SubheadRow role="row" $accent={SECTION_COLOR[c.key]}>
               <SheetCell role="rowheader">
                 <SubheadLabel>
                   {c.label}

@@ -11,6 +11,7 @@ import {
   REMINDER_DAYS,
   type ReminderDay,
 } from "@/lib/email/reminder";
+import { boxedField } from "@/lib/field";
 import { appear } from "@/lib/motion";
 import {
   THEME_PREFERENCE_LABELS,
@@ -57,14 +58,7 @@ const Field = styled.label`
 `;
 
 const Select = styled.select`
-  padding: ${({ theme }) => theme.spacing.sm}
-    ${({ theme }) => theme.spacing.md};
-  border: 1px solid ${({ theme }) => theme.colors.fieldBorder};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  background: ${({ theme }) => theme.colors.field};
-  color: ${({ theme }) => theme.colors.ink};
-  font-family: ${({ theme }) => theme.typography.bodyMd.family};
-  font-size: ${({ theme }) => theme.typography.bodyMd.size};
+  ${boxedField}
 `;
 
 const Row = styled.div`

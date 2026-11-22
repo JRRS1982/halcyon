@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import styled from "styled-components";
 import { Button } from "@/components/ui/Button";
 import { CHANGE_PASSWORD_MESSAGES } from "@/lib/auth/changePasswordOutcome";
+import { boxedField } from "@/lib/field";
 import { changePassword } from "./credentialActions";
 import { SectionHeading, SettingsCard } from "./SectionHeading";
 
@@ -46,13 +47,7 @@ const FieldLabel = styled.label`
 `;
 
 const Input = styled.input`
-  min-height: 36px;
-  padding: ${({ theme }) => theme.spacing.sm}
-    ${({ theme }) => theme.spacing.md};
-  border: 1px solid ${({ theme }) => theme.colors.fieldBorder};
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  font-family: ${({ theme }) => theme.typography.bodyMd.family};
-  font-size: ${({ theme }) => theme.typography.bodyMd.size};
+  ${boxedField}
 `;
 
 const Hint = styled.p`

@@ -64,6 +64,28 @@ const Grid = styled.div`
     background-color: ${({ theme }) => theme.colors.field};
   }
 
+  /* The date of birth is one entry in three parts: the strip goes on the row
+     that holds them, and the parts sit on it unboxed, so it matches the
+     single-value fields beside it rather than reading as three. */
+  & [data-date-row] {
+    border: 0;
+    border-bottom: 2px solid ${({ theme }) => theme.colors.accent};
+    border-radius: 0;
+    background-color: ${({ theme }) => theme.colors.canvasSoft};
+  }
+
+  & [data-date-row]:focus-within {
+    background-color: ${({ theme }) => theme.colors.field};
+    box-shadow: none;
+  }
+
+  & [data-date-row] input {
+    min-height: 0;
+    padding: 0 ${({ theme }) => theme.spacing.xs};
+    background-color: transparent;
+    border: 0;
+  }
+
   & legend {
     font-family: ${({ theme }) => theme.typography.control.family};
     font-size: ${({ theme }) => theme.typography.control.size};

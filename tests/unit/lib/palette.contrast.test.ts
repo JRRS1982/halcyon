@@ -86,6 +86,14 @@ describe("colour contrast", () => {
       ).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
     });
 
+    // Import statement is filled green with a page-coloured label; a call to
+    // action nobody can read is no call at all.
+    test("the import button's label clears 4.5:1 on its green fill", () => {
+      expect(contrast(palette.canvas, palette.positive)).toBeGreaterThanOrEqual(
+        AA_NORMAL_TEXT,
+      );
+    });
+
     // The hover fill sits under whatever the control already shows: an outline
     // button's ink label, a destructive button's red one, the Filters button's
     // claret one, the muted count beside a category in the picker. A hover that dims its own label makes
