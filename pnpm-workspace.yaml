@@ -69,6 +69,13 @@ overrides:
   # styled-components output at build time — never an attacker's source map — so
   # the floor is hygiene, not a live exposure.
   source-map-js: ">=1.2.2 <2.0.0"
+  # GHSA-7589-6fvf-x4pw (ReDoS in a regex compiled from Schema.TemplateLiteral)
+  # is patched in 3.22.1; @prisma/config pins effect at exactly 3.20.0, so the
+  # floor has to come from here. 3.x is still maintained as `prev`, so the line
+  # stays put rather than jumping to 4.x. Tree: prisma → @prisma/config →
+  # effect, which validates our own prisma.config.ts at CLI/config-load time
+  # and never matches a template-literal schema against user input.
+  effect: ">=3.22.1 <4.0.0"
 
 # Don't re-verify node_modules against the lockfile before `pnpm <script>`.
 # pnpm 11 added this pre-run check (pnpm 10 had none); in the dev container the
