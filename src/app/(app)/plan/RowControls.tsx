@@ -9,7 +9,7 @@ import { hoverFill } from "@/lib/pointer";
 // disabled beside the plan's rows.
 const AddBtn = styled.button`
   border: 1px solid ${({ theme }) => theme.colors.ink};
-  background: none;
+  background: ${({ theme }) => theme.colors.canvasSoft};
   cursor: pointer;
   font-family: ${({ theme }) => theme.typography.control.family};
   font-size: ${({ theme }) => theme.typography.control.size};

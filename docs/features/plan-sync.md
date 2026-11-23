@@ -391,10 +391,14 @@ other two.
 
 ## The button
 
-`Sync with latest — N changes` in accent colour, with a breakdown beneath
-reading `X updated · Y added · Z removed`, any zero part omitted. With nothing
-to do it reads **`Up to date`** and is disabled — so the button also answers
-"is my plan current?", which is the question that prompted this work.
+It sits at the end of the header line over the plan's lists ("What the plan
+is built from"). With changes waiting it is the primary button,
+`Sync with latest — N changes`, with a breakdown beneath reading
+`X updated · Y added · Z removed`, any zero part omitted. With nothing to do
+there is no button, only the status line **`✓ Up to date with your accounts
+and budget`**, so the header also answers "is my plan current?", which is the
+question that prompted this work. (It used to be a claret button that, with
+nothing to do, stayed on screen disabled and read as broken.)
 
 A real count, on the same principle as the balance sheet's delete panel: a
 number stops a mistake where "are you sure?" does not.
@@ -647,7 +651,7 @@ Unit tests live under `tests/unit/`, integration tests under `tests/integration/
   - `tests/integration/app/(app)/plan/actions.createPlan.integration.test.ts`.
 - **E2E**
   - `tests/e2e/plan-sync.spec.ts`: change a balance value, see the `●` marker and
-    source figure, press Sync, see the button read `Up to date`.
+    source figure, press Sync, see the header read `Up to date`.
   - `tests/e2e/budget-transfers.spec.ts`: budget a repayment at a mortgage, press
     Sync, find it on the liability's `monthlyRepayment`.
 

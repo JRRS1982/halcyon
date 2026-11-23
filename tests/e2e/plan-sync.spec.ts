@@ -89,8 +89,8 @@ test.describe("plan sync", () => {
     await expect(isa).toContainText("£42,300");
     await expect(isa.getByRole("img", { name: /^synced/i })).toBeVisible();
     await expect(
-      page.getByRole("button", { name: /up to date/i }),
-    ).toBeDisabled();
+      page.getByRole("status").filter({ hasText: /^✓ Up to date with/ }),
+    ).toBeVisible();
 
     // Move the balance sheet underneath the plan.
     await page.goto("/balance");
@@ -139,8 +139,8 @@ test.describe("plan sync", () => {
       changedIsa.getByRole("img", { name: /^synced/i }),
     ).toBeVisible();
     await expect(
-      page.getByRole("button", { name: /up to date/i }),
-    ).toBeDisabled();
+      page.getByRole("status").filter({ hasText: /^✓ Up to date with/ }),
+    ).toBeVisible();
   });
 
   test("Sync confirms before removing a plan-only row, and Cancel changes nothing", async ({

@@ -3,6 +3,7 @@
 
 import { useState, useTransition } from "react";
 import styled from "styled-components";
+import { Button } from "@/components/ui/Button";
 import {
   confirmableRemovals,
   type SyncPlan,
@@ -11,33 +12,20 @@ import {
 import { SyncRemovalDialog } from "./SyncRemovalDialog";
 import { syncPlan } from "./syncActions";
 
+// Right-aligned in the lists' header, so the button and its breakdown sit at
+// the end of the line that says what the plan is built from.
 const Wrap = styled.div`
   display: grid;
   gap: ${({ theme }) => theme.spacing.xs};
-  justify-items: start;
+  justify-items: end;
 `;
-const Btn = styled.button`
-  font-family: ${({ theme }) => theme.typography.control.family};
-  font-size: ${({ theme }) => theme.typography.control.size};
-  font-weight: ${({ theme }) => theme.typography.control.weight};
-  line-height: 1;
-  border-radius: ${({ theme }) => theme.rounded.sm};
-  padding: ${({ theme }) => theme.spacing.sm} ${({ theme }) => theme.spacing.lg};
-  cursor: pointer;
-  background: ${({ theme }) => theme.colors.accent};
-  color: ${({ theme }) => theme.colors.onPrimary};
-  border: 1px solid ${({ theme }) => theme.colors.accent};
-  transition: opacity 100ms;
-
-  &:hover:not(:disabled) {
-    opacity: 0.85;
-  }
-  &:disabled {
-    cursor: not-allowed;
-    background: ${({ theme }) => theme.colors.canvasSoft};
-    color: ${({ theme }) => theme.colors.dim};
-    border-color: ${({ theme }) => theme.colors.hairline};
-  }
+// Nothing to sync is a state, not an action: words, not a dead button. It
+// used to be a disabled "Up to date" button, which read as broken and never
+// said what it was up to date with.
+const UpToDate = styled.p`
+  margin: 0;
+  font-size: 13px;
+  color: ${({ theme }) => theme.colors.body};
 `;
 const Breakdown = styled.p`
   margin: 0;
@@ -95,9 +83,9 @@ export function SyncButton({
   if (count === 0) {
     return (
       <Wrap>
-        <Btn type="button" disabled>
-          Up to date
-        </Btn>
+        <UpToDate role="status">
+          ✓ Up to date with your accounts and budget
+        </UpToDate>
       </Wrap>
     );
   }
@@ -106,9 +94,9 @@ export function SyncButton({
 
   return (
     <Wrap>
-      <Btn type="button" onClick={onClick} disabled={pending}>
+      <Button type="button" onClick={onClick} disabled={pending}>
         {label}
-      </Btn>
+      </Button>
       <Breakdown>{breakdownOf(preview)}</Breakdown>
       {confirming ? (
         <SyncRemovalDialog

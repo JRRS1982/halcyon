@@ -8,6 +8,7 @@ import { ChartFallback } from "@/components/ui/ChartFallback";
 import type { YearProjection } from "@/lib/plan";
 import type { NumberFormat } from "@/lib/settings/currency";
 import { PlanCard } from "./PlanCard";
+import { ViewSwitch } from "./ViewSwitch";
 
 // Only one of the three views is ever on screen, but all three used to be in
 // the page's bundle. Loading each on demand means the user pays for the tab
@@ -48,36 +49,6 @@ const DESCRIPTIONS: Record<View, string> = {
     "Only the pots you can draw on — pensions, ISAs, GIAs and cash. Property and defined-benefit pensions are excluded. Shows whether your spendable savings last.",
 };
 
-// The view picker reads as the masthead's nav does: words on a rule, the
-// chosen one in the accent and underlined. No frame or filled pill — a box
-// around three words made the control louder than the chart it serves.
-const Switcher = styled.fieldset`
-  display: flex;
-  gap: ${({ theme }) => theme.spacing.xl};
-  margin: 0;
-  padding: 0;
-  border: 0;
-  border-bottom: 1px solid ${({ theme }) => theme.colors.hairline};
-`;
-const Tab = styled.button<{ $active: boolean }>`
-  margin-bottom: -1px;
-  padding: ${({ theme }) => theme.spacing.sm} 0;
-  border: 0;
-  border-bottom: 3px solid
-    ${({ $active, theme }) => ($active ? theme.colors.accent : "transparent")};
-  background: transparent;
-  cursor: pointer;
-  font-family: ${({ theme }) => theme.typography.control.family};
-  font-size: ${({ theme }) => theme.typography.control.size};
-  font-weight: ${({ theme }) => theme.typography.control.weight};
-  color: ${({ $active, theme }) =>
-    $active ? theme.colors.accent : theme.colors.ink};
-
-  &:hover {
-    border-bottom-color: ${({ $active, theme }) =>
-      $active ? theme.colors.accent : theme.colors.hairlineStrong};
-  }
-`;
 const Caption = styled.p`
   margin: 0;
   font-size: 13px;
@@ -120,19 +91,12 @@ export function ChartPanel({
 
   return (
     <PlanCard>
-      <Switcher aria-label="Chart view">
-        {VIEWS.map((v) => (
-          <Tab
-            key={v.id}
-            type="button"
-            $active={view === v.id}
-            aria-pressed={view === v.id}
-            onClick={() => setView(v.id)}
-          >
-            {v.label}
-          </Tab>
-        ))}
-      </Switcher>
+      <ViewSwitch
+        label="Chart view"
+        options={VIEWS}
+        value={view}
+        onChange={setView}
+      />
       <Caption>{DESCRIPTIONS[view]}</Caption>
       <ChartScroller data-chart-scroller>
         <ChartArea>

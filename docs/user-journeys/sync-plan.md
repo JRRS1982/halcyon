@@ -43,7 +43,7 @@ Fields Sync owns are overwritten the next time you run it: labels, values, the b
 
 ### Run Sync
 
-The button reads **Sync with latest — N changes**, with a breakdown (`X updated · Y added · Z removed`). When nothing differs it reads **Up to date** and is disabled.
+The button reads **Sync with latest — N changes**, with a breakdown (`X updated · Y added · Z removed`). When nothing differs there is no button; the header over the lists reads **✓ Up to date with your accounts and budget**.
 
 - Rows for accounts or categories that no longer exist are removed.
 - Rows for new accounts or categories are added.
