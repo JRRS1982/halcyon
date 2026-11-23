@@ -22,6 +22,7 @@ import { EventFields, EventsTable } from "./EventsTable";
 import { ExpenseFields, ExpensesTable } from "./ExpensesTable";
 import { IncomeFields, IncomesTable } from "./IncomesTable";
 import { LiabilitiesTable, LiabilityFields } from "./LiabilitiesTable";
+import { PlanLists } from "./PlanLists";
 import { PropertyFields } from "./PropertyFields";
 import { SyncButton } from "./SyncButton";
 import type { SerializedPlan } from "./serialized";
@@ -53,18 +54,6 @@ const Shell = styled.main`
     padding-right: ${({ theme }) => theme.spacing.lg};
   }
 `;
-// All record cards in one responsive grid, at most two across so the cards
-// pair by meaning: assets beside liabilities, income beside expenses, then
-// events. Three across split income from expenses and left a hole. One column
-// on mobile — no manual breakpoints. align-items: start so each card is only
-// as tall as its own content rather than stretching to match its neighbour.
-const Cards = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(440px, 100%), 1fr));
-  gap: ${({ theme }) => theme.spacing["2xl"]};
-  align-items: start;
-`;
-
 const removeRow = ({ kind, id }: { kind: Kind; id: string }) => {
   const remove =
     kind === "asset"
@@ -277,51 +266,89 @@ export function PlanView({
         onStreamInput={setStreamOverride}
         onStreamCommit={commitStream}
       />
-      <SyncButton preview={preview} onSynced={() => router.refresh()} />
-
-      <Cards>
-        <AssetsTable
-          assets={plan.assets}
-          currency={currency}
-          numberFormat={numberFormat}
-          syncPreview={preview}
-          unlinkedMortgages={unlinkedMortgages}
-          onOpen={open("asset")}
-        />
-        <LiabilitiesTable
-          liabilities={plan.liabilities}
-          currency={currency}
-          numberFormat={numberFormat}
-          syncPreview={preview}
-          unmortgagedProperties={unmortgagedProperties}
-          onOpen={open("liability")}
-          onOpenProperty={open("asset")}
-        />
-        <IncomesTable
-          incomes={plan.incomes}
-          currency={currency}
-          numberFormat={numberFormat}
-          syncPreview={preview}
-          onOpen={open("income")}
-          onCreated={created("income")}
-        />
-        <ExpensesTable
-          expenses={plan.expenses}
-          currency={currency}
-          numberFormat={numberFormat}
-          syncPreview={preview}
-          onOpen={open("expense")}
-          onCreated={created("expense")}
-        />
-        <EventsTable
-          events={plan.events}
-          currency={currency}
-          numberFormat={numberFormat}
-          properties={properties}
-          onOpen={open("event")}
-          onCreated={created("event")}
-        />
-      </Cards>
+      <PlanLists
+        sync={
+          <SyncButton preview={preview} onSynced={() => router.refresh()} />
+        }
+        lists={[
+          {
+            id: "assets",
+            label: "Assets",
+            count: plan.assets.length,
+            content: (
+              <AssetsTable
+                assets={plan.assets}
+                currency={currency}
+                numberFormat={numberFormat}
+                syncPreview={preview}
+                unlinkedMortgages={unlinkedMortgages}
+                onOpen={open("asset")}
+              />
+            ),
+          },
+          {
+            id: "liabilities",
+            label: "Liabilities",
+            count: plan.liabilities.length,
+            content: (
+              <LiabilitiesTable
+                liabilities={plan.liabilities}
+                currency={currency}
+                numberFormat={numberFormat}
+                syncPreview={preview}
+                unmortgagedProperties={unmortgagedProperties}
+                onOpen={open("liability")}
+                onOpenProperty={open("asset")}
+              />
+            ),
+          },
+          {
+            id: "income",
+            label: "Income",
+            count: plan.incomes.length,
+            content: (
+              <IncomesTable
+                incomes={plan.incomes}
+                currency={currency}
+                numberFormat={numberFormat}
+                syncPreview={preview}
+                onOpen={open("income")}
+                onCreated={created("income")}
+              />
+            ),
+          },
+          {
+            id: "expenses",
+            label: "Expenses",
+            count: plan.expenses.length,
+            content: (
+              <ExpensesTable
+                expenses={plan.expenses}
+                currency={currency}
+                numberFormat={numberFormat}
+                syncPreview={preview}
+                onOpen={open("expense")}
+                onCreated={created("expense")}
+              />
+            ),
+          },
+          {
+            id: "events",
+            label: "Events",
+            count: plan.events.length,
+            content: (
+              <EventsTable
+                events={plan.events}
+                currency={currency}
+                numberFormat={numberFormat}
+                properties={properties}
+                onOpen={open("event")}
+                onCreated={created("event")}
+              />
+            ),
+          },
+        ]}
+      />
 
       <Drawer
         open={target !== undefined}

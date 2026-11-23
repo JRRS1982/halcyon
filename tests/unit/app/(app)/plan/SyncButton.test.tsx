@@ -27,9 +27,13 @@ const renderButton = (preview: SyncPlan) =>
 beforeEach(() => synced.mockClear());
 
 describe("SyncButton", () => {
-  test("reads Up to date and is disabled when there is nothing to do", () => {
+  // Nothing to sync is said, not offered: a disabled button read as broken.
+  test("says it is up to date, with nothing to press, when there is nothing to do", () => {
     renderButton(empty);
-    expect(screen.getByRole("button", { name: /up to date/i })).toBeDisabled();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      /up to date with your accounts and budget/i,
+    );
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
   test("counts every change, and breaks them down", () => {

@@ -600,6 +600,7 @@ export async function addPlanAsset(
     mortgageLabel?: string;
   },
 ): Promise<void> {
+  await openPlanList(page, "Assets");
   const panel = page
     .locator("section")
     .filter({ has: page.getByRole("button", { name: "+ Add asset" }) });
@@ -630,6 +631,34 @@ export async function addPlanAsset(
   );
 }
 
+export type PlanListName =
+  | "Assets"
+  | "Liabilities"
+  | "Income"
+  | "Expenses"
+  | "Events";
+
+/**
+ * Opens one of the plan's record lists. They sit behind one switch and only
+ * the open list is on the page, so a list's rows and its "+ Add" button exist
+ * only once its tab is chosen. Retried until the tab reports itself chosen: a
+ * server-rendered tab is clickable a moment before React wires it up.
+ */
+export async function openPlanList(
+  page: Page,
+  name: PlanListName,
+): Promise<void> {
+  const tab = page
+    .getByRole("group", { name: "Plan list" })
+    .getByRole("button", { name: new RegExp(`^${name}\\b`) });
+  await expect(async () => {
+    if ((await tab.getAttribute("aria-pressed")) !== "true") await tab.click();
+    await expect(tab).toHaveAttribute("aria-pressed", "true", {
+      timeout: 1_000,
+    });
+  }).toPass({ timeout: 15_000 });
+}
+
 /** The mirror of addPlanAsset, for the Liabilities card. */
 export async function addPlanLiability(
   page: Page,
@@ -641,6 +670,7 @@ export async function addPlanLiability(
     propertyLabel?: string;
   },
 ): Promise<void> {
+  await openPlanList(page, "Liabilities");
   const panel = page
     .locator("section")
     .filter({ has: page.getByRole("button", { name: "+ Add liability" }) });

@@ -618,7 +618,9 @@ The `Card` primitive is paper with a 1px hairline border, 2px corners and 16px p
 
 Every dialog has the same anatomy: an optional claret kicker, a 20px serif title, a close × top right, the fields, then a footer with Cancel first and the action last. Editors that save as you go say so in the footer instead ("Changes save as you go", or "Changes update your plan instantly" in the plan). A row created by an Add button and closed untouched is discarded.
 
-View switches that change what a chart shows (the plan's Net worth · Cash flow · Liquid assets) read like the masthead nav: words on a hairline rule, the chosen one in claret with a 3px claret underline. No frame, no filled pill.
+View switches read like the masthead nav: words on a hairline rule, the chosen one in claret with a 3px claret underline. No frame, no filled pill. The plan uses one for its charts (Net worth · Cash flow · Liquid assets) and one for its record lists (Assets · Liabilities · Income · Expenses · Events), where each tab carries its row count in dim 13px so a closed list still says what it holds. Both are the `ViewSwitch` component.
+
+The plan's lists open with a ruled section head, "What the plan is built from", a sentence saying the rows are copied from the accounts and budget, and the sync state at the end of that line: a primary "Sync with latest — N changes" button when something has changed, otherwise the words "✓ Up to date with your accounts and budget". A state with nothing to do is said, never shown as a disabled button.
 
 ## Data visualization
 

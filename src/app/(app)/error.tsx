@@ -37,7 +37,7 @@ const BackLink = styled(Link)`
   ${({ theme }) => css`
     display: inline-flex;
     align-items: center;
-    background: ${theme.colors.canvas};
+    background: ${theme.colors.canvasSoft};
     color: ${theme.colors.ink};
     border: 1px solid ${theme.colors.hairline};
     border-radius: ${theme.rounded.sm};

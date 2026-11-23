@@ -12,6 +12,7 @@ import { hoverInk } from "@/lib/pointer";
 import { formatAmount, type NumberFormat } from "@/lib/settings/currency";
 import { createPlanExpense, updatePlanExpense } from "./actions";
 import { BoolCell, NumberCell, SelectCell, TextCell } from "./EditableCell";
+import { Empty, Err, Heading, Panel } from "./RecordPanel";
 import { AddRowButton } from "./RowControls";
 import { SummaryList, SummaryRow } from "./SummaryRow";
 import { rowMarkerProps, SyncMarker } from "./SyncMarker";
@@ -32,29 +33,6 @@ const SECTION_LABELS: Partial<Record<ExpenseSection, string>> =
     EXPENSE_SECTIONS.map((section) => [section, sectionLabel(section)]),
   );
 
-const Panel = styled.section`
-  border-top: 1px solid ${({ theme }) => theme.colors.ink};
-  padding: ${({ theme }) => theme.spacing.lg} 0;
-  display: grid;
-  gap: ${({ theme }) => theme.spacing.sm};
-`;
-const Heading = styled.h2`
-  font-family: ${({ theme }) => theme.typography.displayLg.family};
-  font-size: ${({ theme }) => theme.typography.displayLg.size};
-  font-weight: ${({ theme }) => theme.typography.displayLg.weight};
-  color: ${({ theme }) => theme.colors.ink};
-  margin: 0;
-`;
-const Empty = styled.p`
-  color: ${({ theme }) => theme.colors.dim};
-  font-size: 13px;
-  margin: ${({ theme }) => theme.spacing.sm} 0;
-`;
-const Err = styled.p`
-  color: ${({ theme }) => theme.colors.negative};
-  font-size: 13px;
-  margin: 0 ${({ theme }) => theme.spacing.xl} ${({ theme }) => theme.spacing.md};
-`;
 const ManagedNote = styled.p`
   font-size: 12px;
   color: ${({ theme }) => theme.colors.dim};

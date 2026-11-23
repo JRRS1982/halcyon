@@ -24,6 +24,7 @@ import {
   expect,
   importCsv,
   openAddDrawer,
+  openPlanList,
   rowInput,
   signedInUser,
   signIn,
@@ -248,13 +249,14 @@ test.describe("budget transfers and repayments", () => {
     // — with nothing being paid at it yet.
     await page.goto("/plan");
     await createPlanWithDob(page);
+    await openPlanList(page, "Liabilities");
     const liabilities = page.locator("section", { hasText: "Liabilities" });
     await expect(
       liabilities.getByRole("button", { name: new RegExp(MORTGAGE) }),
     ).toContainText("£184,200");
     await expect(
-      page.getByRole("button", { name: /up to date/i }),
-    ).toBeDisabled();
+      page.getByRole("status").filter({ hasText: /^✓ Up to date with/ }),
+    ).toBeVisible();
 
     // Budget £1,200/mo at the debt.
     await page.goto("/budget");
@@ -289,9 +291,10 @@ test.describe("budget transfers and repayments", () => {
 
     await withServerAction(page, () => sync.click());
     await expect(
-      page.getByRole("button", { name: /up to date/i }),
-    ).toBeDisabled();
+      page.getByRole("status").filter({ hasText: /^✓ Up to date with/ }),
+    ).toBeVisible();
 
+    await openPlanList(page, "Liabilities");
     // …and the budgeted figure is on the liability: monthlyRepayment is
     // monthly, exactly like an asset's monthlyContribution.
     await page

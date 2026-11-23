@@ -113,6 +113,7 @@ export const OutlineLink = styled(Link)`
   ${linkButton}
   color: ${({ theme }) => theme.colors.ink};
   border: 1px solid ${({ theme }) => theme.colors.ink};
+  background: ${({ theme }) => theme.colors.canvasSoft};
 
   ${hoverFill}
 `;
