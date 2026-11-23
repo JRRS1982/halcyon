@@ -53,6 +53,12 @@ model UserSettings {
   userId              String   @id @db.Uuid
   currency            String   @default("GBP")
   numberFormat        String   @default("COMMA_0")
+  // DMY | MDY | YMD: the order a date's day, month and year are written and
+  // typed in. Text like its neighbours, validated by zod at the boundary.
+  // Defaults to DMY because the app is UK-first, and because the browser's own
+  // date box follows the browser's language instead of the user, which showed
+  // a UK user mm/dd/yyyy.
+  dateFormat          String   @default("DMY")
   // Defaults true: CSV import is the fastest route to a filled-in app, so it
   // shouldn't be something a new user has to discover in Settings first. Only
   // affects rows created from here on — existing users keep their own choice.
