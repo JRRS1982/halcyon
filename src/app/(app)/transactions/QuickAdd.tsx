@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { type FormEvent, useMemo, useState, useTransition } from "react";
 import styled from "styled-components";
 import { Button } from "@/components/ui/Button";
+import { DateField } from "@/components/ui/DateField";
 import { Drawer } from "@/components/ui/Drawer";
 import { useDebouncedCallback } from "@/lib/hooks/useDebouncedCallback";
 import { hoverFill } from "@/lib/pointer";
@@ -228,6 +229,10 @@ export function QuickAdd({
       setError("Enter an amount greater than zero.");
       return;
     }
+    if (!date) {
+      setError("Enter the whole date: day, month and year.");
+      return;
+    }
 
     startTransition(async () => {
       try {
@@ -347,15 +352,14 @@ export function QuickAdd({
               placeholder="Corner cafe"
             />
           </Field>
-          <Field>
-            <Label>Date</Label>
-            <Input
-              type="date"
-              required
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-            />
-          </Field>
+          {/* "" while the parts are half typed, which the submit refuses. */}
+          <DateField
+            wide
+            required
+            legend="Date"
+            value={date}
+            onCommit={setDate}
+          />
           <Field>
             <Label>Account</Label>
             <Select

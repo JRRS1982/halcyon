@@ -4,7 +4,7 @@
 import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
 import styled from "styled-components";
-import { DateOfBirthField } from "@/components/ui/DateOfBirthField";
+import { DateField } from "@/components/ui/DateField";
 import { InfoTip } from "@/components/ui/InfoTip";
 import type { Regime } from "@/lib/tax/types";
 import { updatePlanAssumptions } from "./actions";
@@ -181,7 +181,8 @@ export function AssumptionsPanel({
             browser's locale, so a UK user on a US-locale browser reads
             mm/dd/yyyy, and its calendar is a poor way to reach a birth year.
             An incomplete date arrives as "" and is simply not saved. */}
-        <DateOfBirthField
+        <DateField
+          birthday
           legend="Date of birth"
           value={a.dateOfBirth}
           onCommit={(iso) => {

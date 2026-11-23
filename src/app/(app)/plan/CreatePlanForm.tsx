@@ -5,7 +5,7 @@ import { useState, useTransition } from "react";
 import styled from "styled-components";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { DateOfBirthField } from "@/components/ui/DateOfBirthField";
+import { DateField } from "@/components/ui/DateField";
 import { createPlan } from "./actions";
 
 // Empty state for /plan: one centred card asking only for the date of birth.
@@ -70,11 +70,12 @@ export function CreatePlanForm() {
             });
           }}
         >
-          {/* See DateOfBirthField: a native date input reads mm/dd/yyyy on a
+          {/* See DateField: a native date input reads mm/dd/yyyy on a
               US-locale browser and its calendar cannot reach a birth year
               without scrolling back decades. "" until the fields describe a
               real date, which is what keeps the button disabled. */}
-          <DateOfBirthField
+          <DateField
+            birthday
             legend="Date of birth"
             value={dob}
             onCommit={setDob}

@@ -2,7 +2,8 @@
 
 import type { AccountType } from "@prisma/client";
 import { useId } from "react";
-import { BoolCell, NumberCell, TextCell } from "@/app/(app)/plan/EditableCell";
+import { BoolCell, NumberCell } from "@/app/(app)/plan/EditableCell";
+import { DateField } from "@/components/ui/DateField";
 import { Field } from "@/components/ui/Drawer";
 import { type TermField, termsFor } from "@/lib/accounts/accountDraft";
 import { type AccountTermsInput, promptedTerms } from "@/lib/accounts/schemas";
@@ -36,8 +37,8 @@ const TERM_PLACEHOLDERS: Record<TermField, string> = {
   endDate: "never",
 };
 
-// A date column round-trips through the input as yyyy-mm-dd; anything else is
-// what the browser's date input hands back for a cleared field.
+// A date column round-trips through the field as yyyy-mm-dd; "" is an unset
+// date.
 const toDateValue = (value: Date | null | undefined): string =>
   value ? new Date(value).toISOString().slice(0, 10) : "";
 
@@ -101,17 +102,16 @@ export function AccountTermsFields({
 
         if (field === "revisionDate" || field === "endDate") {
           return (
-            <Field key={field} label={label}>
-              <TextCell
-                type="date"
-                nullable
-                value={toDateValue(value[field])}
-                placeholder={placeholder}
-                onCommit={(next) =>
-                  set(field, next === null ? null : new Date(next))
-                }
-              />
-            </Field>
+            <DateField
+              key={field}
+              wide
+              legend={label}
+              value={toDateValue(value[field])}
+              onCommit={(iso) => {
+                if (iso) set(field, new Date(iso));
+              }}
+              onClear={() => set(field, null)}
+            />
           );
         }
 

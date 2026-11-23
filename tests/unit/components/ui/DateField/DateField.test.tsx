@@ -1,16 +1,12 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { ThemeProvider } from "styled-components";
-import { DateOfBirthField } from "@/components/ui/DateOfBirthField";
+import { DateField } from "@/components/ui/DateField";
 import { theme } from "@/lib/theme";
 
 const renderField = (value = "", onCommit = jest.fn()) => {
   const utils = render(
     <ThemeProvider theme={theme}>
-      <DateOfBirthField
-        legend="Date of birth"
-        value={value}
-        onCommit={onCommit}
-      />
+      <DateField legend="Date of birth" value={value} onCommit={onCommit} />
     </ThemeProvider>,
   );
   return { ...utils, onCommit };
@@ -22,7 +18,7 @@ const fields = () => ({
   year: screen.getByLabelText("Year"),
 });
 
-describe("DateOfBirthField", () => {
+describe("DateField", () => {
   test("shows a stored date split across three fields", () => {
     renderField("1986-06-01");
     const { day, month, year } = fields();
@@ -87,7 +83,7 @@ describe("DateOfBirthField", () => {
     fireEvent.change(day, { target: { value: "02" } });
     rerender(
       <ThemeProvider theme={theme}>
-        <DateOfBirthField
+        <DateField
           legend="Date of birth"
           value="1986-06-01"
           onCommit={onCommit}
@@ -103,7 +99,7 @@ describe("DateOfBirthField", () => {
     const { rerender } = renderField("1986-06-01", onCommit);
     rerender(
       <ThemeProvider theme={theme}>
-        <DateOfBirthField
+        <DateField
           legend="Date of birth"
           value="1990-12-25"
           onCommit={onCommit}
@@ -145,7 +141,7 @@ describe("DateOfBirthField", () => {
   });
 });
 
-describe("DateOfBirthField — moving between the fields", () => {
+describe("DateField — moving between the fields", () => {
   test("a filled day jumps to month, and a filled month to year", () => {
     renderField("");
     const { day, month, year } = fields();
@@ -177,5 +173,75 @@ describe("DateOfBirthField — moving between the fields", () => {
     expect(document.activeElement).toBe(day);
     fireEvent.change(day, { target: { value: "03" } });
     expect(document.activeElement).toBe(month);
+  });
+});
+
+// The setting's whole job: the parts are laid out, and typed through, in the
+// order the user reads dates in. If this is wrong, 03/04 means the wrong month.
+describe("DateField — the user's date format", () => {
+  const renderIn = (format: "DMY" | "MDY" | "YMD", onCommit = jest.fn()) => {
+    render(
+      <ThemeProvider theme={theme}>
+        <DateField legend="Date" value="" onCommit={onCommit} format={format} />
+      </ThemeProvider>,
+    );
+    return onCommit;
+  };
+  const order = () =>
+    screen.getAllByRole("textbox").map((el) => el.getAttribute("placeholder"));
+
+  test.each([
+    ["DMY", ["DD", "MM", "YYYY"]],
+    ["MDY", ["MM", "DD", "YYYY"]],
+    ["YMD", ["YYYY", "MM", "DD"]],
+  ] as const)("%s lays the parts out as %j", (format, expected) => {
+    renderIn(format);
+    expect(order()).toEqual(expected);
+  });
+
+  test("month first: typing straight through still makes the right date", () => {
+    const onCommit = renderIn("MDY");
+    const [first] = screen.getAllByRole("textbox");
+    first?.focus();
+    fireEvent.change(first as HTMLElement, { target: { value: "12" } });
+    // A full month moves on to the day, the next part in this order.
+    expect(document.activeElement).toBe(screen.getByLabelText("Day"));
+    fireEvent.change(screen.getByLabelText("Day"), { target: { value: "31" } });
+    fireEvent.change(screen.getByLabelText("Year"), {
+      target: { value: "2026" },
+    });
+    expect(onCommit).toHaveBeenLastCalledWith("2026-12-31");
+  });
+
+  test("year first: a full year moves on to the month", () => {
+    renderIn("YMD");
+    const year = screen.getByLabelText("Year");
+    year.focus();
+    fireEvent.change(year, { target: { value: "2026" } });
+    expect(document.activeElement).toBe(screen.getByLabelText("Month"));
+  });
+});
+
+// A date that may be unset (an account's revision date) needs to tell "cleared"
+// from "half typed": both are "" to onCommit.
+describe("DateField — clearing", () => {
+  test("emptying every part reports a clear, not a half-typed date", () => {
+    const onCommit = jest.fn();
+    const onClear = jest.fn();
+    render(
+      <ThemeProvider theme={theme}>
+        <DateField
+          legend="Revision date"
+          value="2027-03-01"
+          onCommit={onCommit}
+          onClear={onClear}
+        />
+      </ThemeProvider>,
+    );
+    fireEvent.change(screen.getByLabelText("Day"), { target: { value: "" } });
+    expect(onClear).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText("Month"), { target: { value: "" } });
+    fireEvent.change(screen.getByLabelText("Year"), { target: { value: "" } });
+    expect(onClear).toHaveBeenCalledTimes(1);
   });
 });

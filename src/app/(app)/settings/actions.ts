@@ -8,20 +8,23 @@ import { reminderDaySchema } from "@/lib/email/reminder";
 import { ensureUnsubscribeToken } from "@/lib/email/subscriptions";
 import { prisma } from "@/lib/prisma";
 import { CURRENCY_CODES, NUMBER_FORMATS } from "@/lib/settings/currency";
+import { DATE_FORMATS } from "@/lib/settings/dateFormat";
 import { isThemePreference } from "@/lib/settings/theme";
 
 const updateSettingsSchema = z.object({
   currency: z.enum(CURRENCY_CODES),
   numberFormat: z.enum(NUMBER_FORMATS),
+  dateFormat: z.enum(DATE_FORMATS),
 });
 
-// Saves the Format preferences (currency + number format) from the Save button.
+// Saves the Format preferences (currency, number format, date format).
 // The transactions toggle is handled separately (toggleTransactions).
 export async function updateSettings(formData: FormData) {
   const userId = await requireUserId("/settings");
   const parsed = updateSettingsSchema.parse({
     currency: formData.get("currency"),
     numberFormat: formData.get("numberFormat"),
+    dateFormat: formData.get("dateFormat"),
   });
 
   await prisma.userSettings.upsert({
@@ -30,10 +33,9 @@ export async function updateSettings(formData: FormData) {
     create: { userId, ...parsed },
   });
 
-  // Read by /budget and /balance server components for formatting.
-  revalidatePath("/budget");
-  revalidatePath("/balance");
-  revalidatePath("/settings");
+  // Read by /budget and /balance server components for formatting, and the
+  // date format by the app layout, which provides it to every page's dates.
+  revalidatePath("/", "layout");
 }
 
 const setChartVisibilitySchema = z.object({

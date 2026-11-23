@@ -1,6 +1,7 @@
 import {
   ensureTransactionsEnabled,
   expect,
+  fillDate,
   importCsv,
   signIn,
   test,
@@ -112,8 +113,8 @@ test.describe("ledger filter drawer", () => {
 
     // A first-quarter date range keeps only the January row.
     await page.getByRole("button", { name: "Filters", exact: true }).click();
-    await page.getByLabel("From", { exact: true }).fill("2026-01-01");
-    await page.getByLabel("To", { exact: true }).fill("2026-03-31");
+    await fillDate(page, "From", "2026-01-01");
+    await fillDate(page, "To", "2026-03-31");
     await page.getByRole("button", { name: "Apply" }).click();
 
     await expect(smallRow).toHaveCount(1);
@@ -178,8 +179,8 @@ test.describe("ledger controls card and total row", () => {
     // Filtering to the January row alone must move the total with it, not
     // leave it reporting the unfiltered ledger.
     await page.getByRole("button", { name: "Filters", exact: true }).click();
-    await page.getByLabel("From", { exact: true }).fill("2026-01-01");
-    await page.getByLabel("To", { exact: true }).fill("2026-03-31");
+    await fillDate(page, "From", "2026-01-01");
+    await fillDate(page, "To", "2026-03-31");
     await page.getByRole("button", { name: "Apply" }).click();
 
     // In the default money format, as Settings sets it.

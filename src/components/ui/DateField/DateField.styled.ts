@@ -3,10 +3,13 @@ import { visuallyHidden } from "@/lib/visuallyHidden";
 
 // One field in three parts, in every use: day, month and year typed onto a
 // single boxed strip divided by slashes, with the calendar inside the same
-// edge, so a date reads as one entry rather than three. $standalone is the
-// first-run card, where the date is the card's only question: the strip runs
-// the card's width at a 44px touch height. In a panel it is sized to its
-// digits so it keeps to its column.
+// edge, so a date reads as one entry rather than three. Three sizes:
+//   - compact (default): sized to its digits, with a panel's 13px label, so it
+//     keeps to a dense column (the plan's assumptions);
+//   - $wide: full width under a form label at a field's 36px, as in a drawer;
+//   - $standalone: $wide at a 44px touch height with larger digits, for the
+//     first-run card where the date is the only question.
+// In a panel it is sized to its digits so it keeps to its column.
 //
 // The surface is the row's, not the parts', so a panel that restyles its
 // fields (the plan's assumptions) styles this row via [data-date-row].
@@ -20,11 +23,11 @@ export const Group = styled.fieldset`
 
 // A form label, as on every other form: control type above the field. In a
 // panel it matches the panel's own labels instead.
-export const Legend = styled.legend<{ $standalone?: boolean }>`
+export const Legend = styled.legend<{ $wide?: boolean }>`
   padding: 0;
   margin-bottom: ${({ theme }) => theme.spacing.xs};
-  ${({ theme, $standalone }) =>
-    $standalone
+  ${({ theme, $wide }) =>
+    $wide
       ? `
     font-family: ${theme.typography.control.family};
     font-size: ${theme.typography.control.size};
@@ -34,8 +37,8 @@ export const Legend = styled.legend<{ $standalone?: boolean }>`
       : `font-size: 13px; color: ${theme.colors.body};`}
 `;
 
-export const Row = styled.div<{ $standalone?: boolean }>`
-  display: ${({ $standalone }) => ($standalone ? "flex" : "inline-flex")};
+export const Row = styled.div<{ $wide?: boolean; $standalone?: boolean }>`
+  display: ${({ $wide }) => ($wide ? "flex" : "inline-flex")};
   align-items: center;
   min-height: ${({ $standalone }) => ($standalone ? "44px" : "36px")};
   padding: 0 ${({ theme }) => theme.spacing.sm};

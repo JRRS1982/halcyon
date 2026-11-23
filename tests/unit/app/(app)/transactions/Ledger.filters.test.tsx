@@ -118,6 +118,22 @@ describe("ledger filter chips and badge", () => {
   });
 });
 
+// A date is a group of three parts (day, month, year) named by its legend.
+// Read back and typed in as YYYY-MM-DD, whatever order the parts are shown in.
+const dateIn = (name: string) => {
+  const group = within(screen.getByRole("group", { name }));
+  const part = (label: string) =>
+    (group.getByLabelText(label) as HTMLInputElement).value;
+  return `${part("Year")}-${part("Month")}-${part("Day")}`;
+};
+const typeDate = (name: string, iso: string) => {
+  const group = within(screen.getByRole("group", { name }));
+  const [year, month, day] = iso.split("-");
+  fireEvent.change(group.getByLabelText("Day"), { target: { value: day } });
+  fireEvent.change(group.getByLabelText("Month"), { target: { value: month } });
+  fireEvent.change(group.getByLabelText("Year"), { target: { value: year } });
+};
+
 describe("ledger filter drawer", () => {
   const openDrawer = () =>
     fireEvent.click(screen.getByRole("button", { name: /^Filters/ }));
@@ -125,7 +141,7 @@ describe("ledger filter drawer", () => {
   test("the drawer opens prefilled from the URL", () => {
     renderLedger(`from=2026-01-01&acct=${SAVINGS}&cat=${FOOD}&max=50`);
     openDrawer();
-    expect(screen.getByLabelText("From")).toHaveValue("2026-01-01");
+    expect(dateIn("From")).toBe("2026-01-01");
     expect(screen.getByLabelText("Account")).toHaveValue(SAVINGS);
     expect(screen.getByLabelText("Category")).toHaveValue(FOOD);
     expect(screen.getByLabelText("Maximum")).toHaveValue(50);
@@ -134,9 +150,7 @@ describe("ledger filter drawer", () => {
   test("editing fields writes nothing until Apply", () => {
     renderLedger("");
     openDrawer();
-    fireEvent.change(screen.getByLabelText("From"), {
-      target: { value: "2026-05-01" },
-    });
+    typeDate("From", "2026-05-01");
     fireEvent.change(screen.getByLabelText("Minimum"), {
       target: { value: "25" },
     });
@@ -153,12 +167,8 @@ describe("ledger filter drawer", () => {
     renderLedger("");
     openDrawer();
     fireEvent.click(screen.getByRole("button", { name: "This year" }));
-    expect(screen.getByLabelText("From")).toHaveValue(
-      `${new Date().getUTCFullYear()}-01-01`,
-    );
-    expect(screen.getByLabelText("To")).toHaveValue(
-      new Date().toISOString().slice(0, 10),
-    );
+    expect(dateIn("From")).toBe(`${new Date().getUTCFullYear()}-01-01`);
+    expect(dateIn("To")).toBe(new Date().toISOString().slice(0, 10));
   });
 
   test("the transfers option is offered alongside the categories", () => {

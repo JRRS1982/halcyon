@@ -610,7 +610,7 @@ A tick box is for a choice that waits for Apply, Import or Save; a setting that 
 
 The plan's assumptions are the one written-on-the-line variant: values on a `canvas-soft` strip with a 2px claret rule beneath and no box, so a dense panel of numbers reads as one set of entries. A date of birth there sits on that strip too.
 
-A date of birth is one boxed field in three typed parts, day / month / year divided by slashes, with the calendar icon at its right end. Never the browser's own date control: it follows the browser's locale and can read mm/dd/yyyy, and its calendar is a slow way back to a birth year. On the plan's first-run card, where the date is the only question, the field runs the card's width at 44px under a normal form label.
+Every date is the `DateField` component: one boxed field in three typed parts, laid out in the user's date format from Settings (DD/MM/YYYY by default, or MM/DD/YYYY, or YYYY-MM-DD), with the calendar icon at its right end. Never the browser's own date control: it follows the browser's language rather than the user, so it can read mm/dd/yyyy to a UK user, and its calendar is a slow way back to a birth year. Three sizes: compact in a dense panel (the plan's assumptions); full width at a field's 36px under a form label in a drawer or dialog (the transaction filters, the add dialog, an account's terms); and 44px on the plan's first-run card, where the date is the only question.
 
 ### Cards and Overlays
 

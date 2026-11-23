@@ -147,6 +147,13 @@ const Body = styled.div`
     width: 16px;
     height: 16px;
   }
+
+  /* A DateField is one field in three parts: the box is its row, and the
+     parts sit on it unboxed. Undoes the rule above for them alone. */
+  & [data-date-row] input {
+    min-height: 0;
+    padding: 0 ${({ theme }) => theme.spacing.xs};
+  }
 `;
 const Foot = styled.div`
   display: flex;

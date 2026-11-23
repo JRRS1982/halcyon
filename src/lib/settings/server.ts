@@ -28,6 +28,11 @@ import {
   isNumberFormat,
   type NumberFormat,
 } from "./currency";
+import {
+  type DateFormat,
+  DEFAULT_DATE_FORMAT,
+  isDateFormat,
+} from "./dateFormat";
 
 // Creates the app-side profile + settings rows for a user who has neither yet,
 // and returns the settings row. Only reached on a miss — see the caller.
@@ -147,6 +152,7 @@ export const getCurrentUserSettings = cache(
     userId: string;
     currency: CurrencyCode;
     numberFormat: NumberFormat;
+    dateFormat: DateFormat;
     transactionsEnabled: boolean;
     transfersEnabled: boolean;
     planEnabled: boolean;
@@ -168,6 +174,9 @@ export const getCurrentUserSettings = cache(
       numberFormat: isNumberFormat(row.numberFormat)
         ? row.numberFormat
         : DEFAULT_NUMBER_FORMAT,
+      dateFormat: isDateFormat(row.dateFormat)
+        ? row.dateFormat
+        : DEFAULT_DATE_FORMAT,
       transactionsEnabled: row.transactionsEnabled,
       transfersEnabled: row.transfersEnabled,
       planEnabled: row.planEnabled,
@@ -221,12 +230,14 @@ export async function getLayoutSettings(userId: string | undefined): Promise<{
   transactionsEnabled: boolean;
   planEnabled: boolean;
   themePreference: ThemePreference;
+  dateFormat: DateFormat;
 }> {
   if (!userId)
     return {
       transactionsEnabled: false,
       planEnabled: false,
       themePreference: DEFAULT_THEME_PREFERENCE,
+      dateFormat: DEFAULT_DATE_FORMAT,
     };
 
   // Provisions on a miss, exactly as getCurrentUserSettings does. A read-only
@@ -242,6 +253,7 @@ export async function getLayoutSettings(userId: string | undefined): Promise<{
         transactionsEnabled: true,
         planEnabled: true,
         themePreference: true,
+        dateFormat: true,
       },
     })) ?? (await provisionUserSettings(userId));
   return {
@@ -250,5 +262,8 @@ export async function getLayoutSettings(userId: string | undefined): Promise<{
     themePreference: isThemePreference(row?.themePreference)
       ? row.themePreference
       : DEFAULT_THEME_PREFERENCE,
+    dateFormat: isDateFormat(row?.dateFormat)
+      ? row.dateFormat
+      : DEFAULT_DATE_FORMAT,
   };
 }

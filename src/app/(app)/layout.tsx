@@ -1,4 +1,5 @@
 import { IdleTimeout } from "@/components/auth/IdleTimeout";
+import { DateFormatProvider } from "@/components/ui/DateField";
 import { Footer } from "@/components/ui/Footer";
 import { NavBar } from "@/components/ui/NavBar";
 import { getLayoutSettings } from "@/lib/settings/server";
@@ -24,7 +25,7 @@ export default async function AppLayout({
   // the very first paint: deciding it on the client would mean rendering light,
   // hydrating, then repainting dark — the flash every dark-mode implementation
   // is judged by.
-  const { transactionsEnabled, planEnabled, themePreference } =
+  const { transactionsEnabled, planEnabled, themePreference, dateFormat } =
     await getLayoutSettings(user?.id);
   const theme = themeAttribute(themePreference);
 
@@ -50,7 +51,8 @@ export default async function AppLayout({
       {/* tabIndex -1 makes the skip link's target programmatically focusable,
           so the jump moves focus rather than only scrolling. */}
       <div className="app-content" id="main-content" tabIndex={-1}>
-        {children}
+        {/* Every date field beneath reads the user's date format from here. */}
+        <DateFormatProvider format={dateFormat}>{children}</DateFormatProvider>
       </div>
       <Footer />
       {user && <IdleTimeout />}
