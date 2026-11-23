@@ -16,6 +16,7 @@ import {
 } from "./actions";
 import { NumberCell, TextCell } from "./EditableCell";
 import { MortgageBadge } from "./MortgageBadge";
+import { Empty, Err, Heading, Panel } from "./RecordPanel";
 import { AddRowButton } from "./RowControls";
 import { SummaryList, SummaryRow } from "./SummaryRow";
 import { rowMarkerProps, SyncMarker } from "./SyncMarker";
@@ -24,29 +25,6 @@ import type {
   SerializedPlanLiability,
 } from "./serialized";
 
-const Panel = styled.section`
-  border-top: 1px solid ${({ theme }) => theme.colors.ink};
-  padding: ${({ theme }) => theme.spacing.lg} 0;
-  display: grid;
-  gap: ${({ theme }) => theme.spacing.sm};
-`;
-const Heading = styled.h2`
-  font-family: ${({ theme }) => theme.typography.displayLg.family};
-  font-size: ${({ theme }) => theme.typography.displayLg.size};
-  font-weight: ${({ theme }) => theme.typography.displayLg.weight};
-  color: ${({ theme }) => theme.colors.ink};
-  margin: 0;
-`;
-const Empty = styled.p`
-  color: ${({ theme }) => theme.colors.dim};
-  font-size: 13px;
-  margin: ${({ theme }) => theme.spacing.sm} 0;
-`;
-const Err = styled.p`
-  color: ${({ theme }) => theme.colors.negative};
-  font-size: 13px;
-  margin: 0 ${({ theme }) => theme.spacing.xl} ${({ theme }) => theme.spacing.md};
-`;
 const LinkedRow = styled.div`
   display: flex;
   gap: ${({ theme }) => theme.spacing.sm};

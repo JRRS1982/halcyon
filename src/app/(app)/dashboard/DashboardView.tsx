@@ -264,7 +264,7 @@ const FirstRunPrimary = styled(Link)`
 
 const FirstRunSecondary = styled(FirstRunPrimary)`
   ${({ theme }) => css`
-    background: ${theme.colors.canvas};
+    background: ${theme.colors.canvasSoft};
     color: ${theme.colors.ink};
     border: 1px solid ${theme.colors.hairline};
 

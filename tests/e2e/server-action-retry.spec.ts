@@ -1,6 +1,7 @@
 import {
   createPlanWithDob,
   expect,
+  openPlanList,
   seedPlanReality,
   signedInUser,
   signIn,
@@ -30,6 +31,7 @@ test("withServerAction retries an interaction that dispatched nothing", async ({
 
   // The Add drawer's own button is the server action now — the toolbar button
   // only opens the drawer.
+  await openPlanList(page, "Liabilities");
   const panel = page
     .locator("section")
     .filter({ has: page.getByRole("button", { name: "+ Add liability" }) });

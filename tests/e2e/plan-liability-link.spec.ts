@@ -5,6 +5,7 @@ import {
   createPlanWithDob,
   expect,
   openFresh,
+  openPlanList,
   seedPlanReality,
   signedInUser,
   signIn,
@@ -86,6 +87,7 @@ test("plan: link a repayment expense — managed drawer, list badge, then unlink
   await expect(drawer).not.toBeVisible();
 
   // The expenses list flags the linked expense.
+  await openPlanList(page, "Expenses");
   const expensePanel = page
     .locator("section")
     .filter({ has: page.getByRole("button", { name: "+ Add expense" }) });
@@ -97,6 +99,7 @@ test("plan: link a repayment expense — managed drawer, list badge, then unlink
 
   // Reopen the liability drawer: it now shows the managed-by-expense row + an
   // Unlink button, and the manual "Repayment /mo" field is gone.
+  await openPlanList(page, "Liabilities");
   const liabilityPanel = page
     .locator("section")
     .filter({ has: page.getByRole("button", { name: "+ Add liability" }) });
@@ -136,12 +139,14 @@ test("plan: deleting a liability cascades — its linked repayment expense disap
   await expect(drawer.getByText(/repayment managed by/i)).toBeVisible();
   await page.keyboard.press("Escape");
 
+  await openPlanList(page, "Expenses");
   const expensePanel = page
     .locator("section")
     .filter({ has: page.getByRole("button", { name: "+ Add expense" }) });
   await expect(expensePanel.getByText("New liability repayment")).toBeVisible();
 
   // Delete the liability from its drawer (Remove → confirm).
+  await openPlanList(page, "Liabilities");
   const liabilityPanel = page
     .locator("section")
     .filter({ has: page.getByRole("button", { name: "+ Add liability" }) });
@@ -151,10 +156,20 @@ test("plan: deleting a liability cascades — its linked repayment expense disap
   await drawer.getByRole("button", { name: /yes/i }).click();
   await expect(drawer).not.toBeVisible();
 
-  // The linked expense is gone with it.
+  // The linked expense is gone with it. Each list is opened and its own Add
+  // button seen first: a list that is not open has no rows at all, so a count
+  // of zero means nothing until the list is on the page.
+  await openPlanList(page, "Expenses");
+  await expect(
+    page.getByRole("button", { name: "+ Add expense" }),
+  ).toBeVisible();
   await expect(expensePanel.getByText("New liability repayment")).toHaveCount(
     0,
   );
+  await openPlanList(page, "Liabilities");
+  await expect(
+    page.getByRole("button", { name: "+ Add liability" }),
+  ).toBeVisible();
   await expect(liabilityPanel.getByText("New liability")).toHaveCount(0);
 });
 

@@ -8,6 +8,7 @@ import { DrawerSection, Field } from "@/components/ui/Drawer";
 import { formatAmount, type NumberFormat } from "@/lib/settings/currency";
 import { createPlanEvent, updatePlanEvent } from "./actions";
 import { NumberCell, SelectCell, TextCell } from "./EditableCell";
+import { Empty, Err, Heading, Panel } from "./RecordPanel";
 import { AddRowButton } from "./RowControls";
 import { SummaryList, SummaryRow } from "./SummaryRow";
 import type {
@@ -21,29 +22,6 @@ const EVENT_KINDS: EventKind[] = ["MANUAL", "PROPERTY_SALE"];
 
 type PlanProperty = { id: string; label: string };
 
-const Panel = styled.section`
-  border-top: 1px solid ${({ theme }) => theme.colors.ink};
-  padding: ${({ theme }) => theme.spacing.lg} 0;
-  display: grid;
-  gap: ${({ theme }) => theme.spacing.sm};
-`;
-const Heading = styled.h2`
-  font-family: ${({ theme }) => theme.typography.displayLg.family};
-  font-size: ${({ theme }) => theme.typography.displayLg.size};
-  font-weight: ${({ theme }) => theme.typography.displayLg.weight};
-  color: ${({ theme }) => theme.colors.ink};
-  margin: 0;
-`;
-const Empty = styled.p`
-  color: ${({ theme }) => theme.colors.dim};
-  font-size: 13px;
-  margin: ${({ theme }) => theme.spacing.sm} 0;
-`;
-const Err = styled.p`
-  color: ${({ theme }) => theme.colors.negative};
-  font-size: 13px;
-  margin: 0 ${({ theme }) => theme.spacing.xl} ${({ theme }) => theme.spacing.md};
-`;
 const Hint = styled.p`
   color: ${({ theme }) => theme.colors.dim};
   font-size: 12px;

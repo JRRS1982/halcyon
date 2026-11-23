@@ -159,8 +159,8 @@ components:
     padding: "{spacing.sm} {spacing.lg}"
 
   button-outline:
-    description: "Paper fill with a 1px ink border. Secondary actions and sign out."
-    backgroundColor: "{colors.canvas}"
+    description: "Deeper-paper (canvas-soft) fill with a 1px ink border. Secondary actions and sign out."
+    backgroundColor: "{colors.canvas-soft}"
     textColor: "{colors.ink}"
     borderColor: "{colors.ink}"
     typography: "{typography.control}"
@@ -168,8 +168,8 @@ components:
     padding: "{spacing.sm} {spacing.lg}"
 
   button-destructive:
-    description: "Paper fill, red label and red border; hover fills sky. Always behind a confirm step, and placed after Cancel."
-    backgroundColor: "{colors.canvas}"
+    description: "Deeper-paper (canvas-soft) fill, red label and red border; hover fills sky. Always behind a confirm step, and placed after Cancel."
+    backgroundColor: "{colors.canvas-soft}"
     textColor: "{colors.negative}"
     borderColor: "{colors.negative}"
     typography: "{typography.control}"
@@ -178,7 +178,7 @@ components:
 
   toolbar-tool:
     description: "A 34px control in the toolbar row above a sheet. Ink-bordered; an active toggle fills oxford blue."
-    backgroundColor: "{colors.canvas}"
+    backgroundColor: "{colors.canvas-soft}"
     textColor: "{colors.ink}"
     borderColor: "{colors.ink}"
     typography: "{typography.control}"
@@ -307,8 +307,8 @@ A paper-and-ink palette with three working hues: oxford blue for action, claret 
 ### Neutral
 
 - **Salmon Paper** (`canvas`): the page and every table cell.
-- **Deeper Paper** (`canvas-soft`): the grand-total row, group (parent) rows in a sheet, a hovered ledger row. `band-soft` shares the value.
-- **Field** (`field`) and **Field Border** (`field-border`): every boxed form field — inputs, selects, text areas — in the app, drawers and dialogs. The fill is a brighter paper than the page so a field reads as somewhere to write; the edge clears 3:1 against the field and every surface, as WCAG asks of an input boundary. Cells edited in place on a sheet stay transparent.
+- **Deeper Paper** (`canvas-soft`): the grand-total row, group (parent) rows in a sheet, a hovered ledger row, and a boxed button at rest: outline and destructive buttons, toolbar tools and the toolbar's select, Filters, page numbers, the money in/out toggle, date presets. On the page's own colour only their outline set those buttons apart, so they read as drawn on the paper rather than as things to press. `band-soft` shares the value.
+- **Field** (`field`) and **Field Border** (`field-border`): every boxed form field — inputs, selects, text areas — in the app, drawers and dialogs, except the toolbar's select, which takes the `canvas-soft` fill of the buttons beside it. The fill is a brighter paper than the page so a field reads as somewhere to write; the edge clears 3:1 against the field and every surface, as WCAG asks of an input boundary. Cells edited in place on a sheet stay transparent.
 - **Band** (`band`): the deepest paper tint. In the app it is not used; on the public landing page it fills the call-to-action band and the step markers. It is a tint of the paper, not a dark strip.
 - **Ink** (`ink`): headlines, body figures, every structural rule (masthead, footer, section openers, table head rule, grand-total rules), outline-button borders. `ink-soft` is a half-step lighter for secondary emphasis; `on-band` matches ink.
 - **Body** (`body`): standfirsts, table column heads, caps labels over figures, chart axis ticks. `body-on-band` matches it.
@@ -536,15 +536,15 @@ A claret kicker in 12px caps naming the page and its period ("Budget · October 
 
 - **Shape:** 2px corners, 8px by 16px padding, `control` type (14px semibold, sentence case). Labels never wrap.
 - **Primary:** oxford blue fill, white label. Hover drops to 85% opacity.
-- **Outline:** paper fill, ink label, 1px ink border. Hover fills `hover`.
-- **Destructive:** paper fill, red label, red border; hover fills `hover`. A hairline edge read as disabled beside Cancel. Always behind a confirm step or, for account-level actions, a type-to-confirm panel. An inline confirm reads "Remove? **Yes, remove** · Cancel", the yes in red.
+- **Outline:** `canvas-soft` fill, ink label, 1px ink border. Hover fills `hover`.
+- **Destructive:** `canvas-soft` fill, red label, red border; hover fills `hover`. A hairline edge read as disabled beside Cancel. Always behind a confirm step or, for account-level actions, a type-to-confirm panel. An inline confirm reads "Remove? **Yes, remove** · Cancel", the yes in red.
 - **Disabled:** 50% opacity, not-allowed cursor.
 - **Text buttons** (Edit, Remove, a table's inline links) have no box to fill, so under the pointer their words turn ink. A red one stays red.
 - **Small controls** (the info "i", a filter chip's ×, Note and Details) reach 4px past their drawn edge, 8px on touch, so a 16px button is a 24px target.
 
 ### Toolbar
 
-One row above a sheet: the primary Add first, secondary actions after, the month stepper pushed right, Delete apart. Tools are 34px, ink-bordered, `control` type, 2px corners; an active toggle fills oxford blue, and a tool under the pointer fills `hover`. On a phone each group becomes a full-width row of evenly stretched tools, and row-scoped groups appear only while a row is selected. The status pip (30px, hairline box, 12px caps label and a coloured dot: green saved, muted saving, red error) sits in the same row.
+One row above a sheet: the primary Add first, secondary actions after, the month stepper pushed right, Delete apart. Tools are 34px, ink-bordered on `canvas-soft` (the toolbar's select too), `control` type, 2px corners; an active toggle fills oxford blue, and a tool under the pointer fills `hover`. On a phone each group becomes a full-width row of evenly stretched tools, and row-scoped groups appear only while a row is selected. The status pip (30px, hairline box, 12px caps label and a coloured dot: green saved, muted saving, red error) sits in the same row.
 
 ### The Sheet
 
@@ -618,7 +618,9 @@ The `Card` primitive is paper with a 1px hairline border, 2px corners and 16px p
 
 Every dialog has the same anatomy: an optional claret kicker, a 20px serif title, a close × top right, the fields, then a footer with Cancel first and the action last. Editors that save as you go say so in the footer instead ("Changes save as you go", or "Changes update your plan instantly" in the plan). A row created by an Add button and closed untouched is discarded.
 
-View switches that change what a chart shows (the plan's Net worth · Cash flow · Liquid assets) read like the masthead nav: words on a hairline rule, the chosen one in claret with a 3px claret underline. No frame, no filled pill.
+View switches read like the masthead nav: words on a hairline rule, the chosen one in claret with a 3px claret underline. No frame, no filled pill. The plan uses one for its charts (Net worth · Cash flow · Liquid assets) and one for its record lists (Assets · Liabilities · Income · Expenses · Events), where each tab carries its row count in dim 13px so a closed list still says what it holds. Both are the `ViewSwitch` component.
+
+The plan's lists open with a ruled section head, "What the plan is built from", a sentence saying the rows are copied from the accounts and budget, and the sync state at the end of that line: a primary "Sync with latest — N changes" button when something has changed, otherwise the words "✓ Up to date with your accounts and budget". A state with nothing to do is said, never shown as a disabled button.
 
 ## Data visualization
 

@@ -17,10 +17,12 @@ import { Button } from "@/components/ui/Button";
 import { hoverFill, reach } from "@/lib/pointer";
 import type { ActiveFilter } from "@/lib/transactions/activeFilters";
 
+// No top padding: the section head above already opens the space, and the
+// gap under it should match the one under "Add transactions".
 const Card = styled.section`
   display: grid;
   gap: ${({ theme }) => theme.spacing.md};
-  padding: ${({ theme }) => theme.spacing.md} 0;
+  padding: 0 0 ${({ theme }) => theme.spacing.md};
 `;
 
 const Row = styled.div`
@@ -57,7 +59,7 @@ const FilterButton = styled.button`
      ledger is narrowed to what needs attention. */
   border: 1px solid ${({ theme }) => theme.colors.accent};
   border-radius: ${({ theme }) => theme.rounded.sm};
-  background: ${({ theme }) => theme.colors.canvas};
+  background: ${({ theme }) => theme.colors.canvasSoft};
   color: ${({ theme }) => theme.colors.accent};
   font-family: ${({ theme }) => theme.typography.control.family};
   font-size: ${({ theme }) => theme.typography.control.size};
@@ -143,6 +145,7 @@ export function LedgerControls({
   selectedCount,
   onClearSelection,
   onDelete,
+  reviewAction,
   categorizer,
 }: {
   search: string;
@@ -154,6 +157,9 @@ export function LedgerControls({
   selectedCount: number;
   onClearSelection: () => void;
   onDelete: () => void;
+  /** A page-level action that reviews the ledger (Approve all), shown after
+   *  the search while nothing is selected. */
+  reviewAction?: ReactNode;
   /** The bulk CategoryCombobox, rendered into the search box's slot. */
   categorizer: ReactNode;
 }) {
@@ -194,6 +200,8 @@ export function LedgerControls({
             placeholder="Search description, note or category…"
           />
         </Slot>
+
+        {hasSelection ? null : reviewAction}
 
         {hasSelection ? (
           <>

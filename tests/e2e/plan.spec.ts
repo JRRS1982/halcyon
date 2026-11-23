@@ -3,6 +3,7 @@ import {
   createPlanWithDob,
   expect,
   openFresh,
+  openPlanList,
   seedPlanReality,
   signedInUser,
   signIn,
@@ -164,7 +165,9 @@ test("plan: create, edit assumptions/assets, and the data-loss guard holds", asy
   await expect(
     page.getByRole("heading", { name: "Assumptions" }),
   ).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Assets" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "What the plan is built from" }),
+  ).toBeVisible();
   // Scoped to recharts' own surface rather than the first <svg> on the page:
   // the nav's hamburger icon is an inline SVG that sits earlier in the DOM and
   // is display:none above the mobile breakpoint, so a bare locator("svg")
@@ -249,7 +252,10 @@ test("plan: create, edit assumptions/assets, and the data-loss guard holds", asy
 
   // CRUD: add an income → its drawer opens ready to edit; edit the label;
   // confirm-remove closes the drawer.
-  const incomePanel = page.locator("section", { hasText: "Income" });
+  await openPlanList(page, "Income");
+  const incomePanel = page
+    .locator("section")
+    .filter({ has: page.getByRole("button", { name: "+ Add income" }) });
   await incomePanel.getByRole("button", { name: "+ Add income" }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
   const incomeLabel = page

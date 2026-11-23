@@ -33,8 +33,17 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // suppressHydrationWarning: browser extensions write their own attributes
+  // onto <html> before React loads (LastPass adds
+  // data-lastpass-safe-prompts-active), and React then reports a hydration
+  // mismatch the app did not cause. It covers this element's own attributes
+  // only, one level deep: every element inside is still checked.
   return (
-    <html lang="en" className={`${sans.variable} ${serif.variable}`}>
+    <html
+      lang="en"
+      className={`${sans.variable} ${serif.variable}`}
+      suppressHydrationWarning
+    >
       <head>
         {/* Generated from the palettes rather than a static stylesheet, so the
             two never drift. Inline in <head> so the variables exist before the

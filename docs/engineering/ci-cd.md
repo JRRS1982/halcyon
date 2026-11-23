@@ -168,7 +168,11 @@ The first two probe `GET /api/health` (bearer-gated, `SELECT 1`) expecting
 
 After each Production deploy, `lighthouse-badges.yml` runs Lighthouse
 (mobile, three runs) against production and writes the median scores to the
-`badges` branch, which the README's badges read. It never fails on a low score. Regressions are the job
+`badges` branch, which the README's badges read. That branch holds no app, so
+Vercel is told not to deploy it, both in master's `vercel.json` (by branch
+name) and in a `vercel.json` the workflow writes onto the branch; without
+that, every badge commit showed as a failed preview ("No Next.js version
+detected"). It never fails on a low score. Regressions are the job
 of the `lighthouse` job in `ci.yml`, which builds the PR and fails it if a
 public page drops below the scores in `lighthouserc.json`. That job is not a
 required check yet.

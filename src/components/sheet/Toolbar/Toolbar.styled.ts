@@ -72,7 +72,7 @@ export const ToolbarTool = styled.button<{
   ${({ theme, $active, $danger }) => css`
     height: 34px;
     padding: 0 ${theme.spacing.md};
-    background: ${$active ? theme.colors.primary : theme.colors.canvas};
+    background: ${$active ? theme.colors.primary : theme.colors.canvasSoft};
     color: ${$active ? theme.colors.onPrimary : theme.colors.ink};
     border: 1px solid ${$active ? theme.colors.primary : theme.colors.ink};
     border-radius: ${theme.rounded.sm};
@@ -128,7 +128,7 @@ export const ToolbarSelect = styled.select`
     padding: 0 ${theme.spacing.sm};
     border: 1px solid ${theme.colors.ink};
     border-radius: ${theme.rounded.sm};
-    background: ${theme.colors.field};
+    background: ${theme.colors.canvasSoft};
     color: ${theme.colors.ink};
     font-family: ${theme.typography.bodyMdStrong.family};
     font-size: 14px;

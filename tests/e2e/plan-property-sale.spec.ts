@@ -2,6 +2,7 @@ import {
   addPlanLiability,
   createPlanWithDob,
   expect,
+  openPlanList,
   seedPlanReality,
   signedInUser,
   signIn,
@@ -35,7 +36,10 @@ test("switching an event to Property sale shows the property picker and labels t
   await page.getByRole("button", { name: "Close" }).click();
 
   // Add an event and switch its type to Property sale.
-  const eventsPanel = page.locator("section", { hasText: "One-off events" });
+  await openPlanList(page, "Events");
+  const eventsPanel = page
+    .locator("section")
+    .filter({ has: page.getByRole("button", { name: /add event/i }) });
   await withServerAction(page, () =>
     eventsPanel.getByRole("button", { name: /add event/i }).click(),
   );

@@ -6,6 +6,7 @@
 - CSV import is two steps: `previewImport` flags likely duplicates, then `commitImport` writes an `ImportBatch` and its `Transaction` rows in one `$transaction`.
 - Dedupe key: `accountId | date | amountCents | normalizedDescription`. A match is flagged for the user to keep or drop, never merged silently.
 - Import pre-categorises rows from the user's own history (`src/lib/transactions/memory.ts`). Those categories are suggestions, shown in pencil until the user approves them (`Transaction.isCategoryConfirmed`).
+- The page has two ruled sections under the headline: **Add transactions** (`Import statement…`, `Undo import…` and the CSV limits, then `Add transaction` at the end of the row) and **Review transactions** (the controls card, then the ledger). Approving belongs to reviewing, so `Approve all N suggested` sits in the controls card, not with the import buttons.
 - Filters, search and the controls card: see [ledger-filters.md](ledger-filters.md).
 
 All actions in `src/app/(app)/transactions/actions.ts` call `requireTransactionsEnabled`, so the route and its server actions both refuse a user who has the feature off.
@@ -50,7 +51,7 @@ Choosing a category or a transfer, singly or in bulk, also approves the row.
 A pencilled row (a category with `isCategoryConfirmed = false`) still counts in the budget; approval only records that the user agrees with it. `setCategoryApproval` flips the flag:
 
 - **One row:** the row's `Approve` button approves it, and pressing `✓ Approved` takes the approval back.
-- **Every row:** `Approve all N suggested` sends no ids and approves every pencilled row the user has.
+- **Every row:** `Approve all N suggested`, beside the ledger's search box, sends no ids and approves every pencilled row the user has.
 
 Withdrawing approval always needs the rows it applies to. Only rows that carry a category have an approval to give or take. The filter drawer's `To approve only` (`?check=1`) narrows the ledger to rows still needing you; see [ledger-filters.md](ledger-filters.md).
 
@@ -58,5 +59,5 @@ Withdrawing approval always needs the rows it applies to. Only rows that carry a
 
 For cash spending that no statement captures, or anything that shouldn't wait for the next export.
 
-- **Write a line:** type it as you would jot it (`4.35 Pret coffee`, `+2,850 Salary`, `12/10 30 Fuel`). `parseLine` (`src/lib/transactions/writeLine.ts`) reads the amount, direction, date and description, and `suggestCategory` offers the category that description was last filed under, from the same `loadCategoryMemory` the import uses. A line it can't read asks for an amount instead of opening the form.
-- **The add dialog:** `QuickAdd.tsx`, on the shared `Drawer`, opens filled in from the line (or empty from `Add transaction` with nothing typed) for the user to check. Saving calls `createTransaction`, which adds one `Transaction` with no `ImportBatch`. A category chosen here is the user's own choice, so the row is approved.
+- **Quick entry:** the first field of the add dialog takes a transaction typed as you would jot it (`4.35 Pret coffee`, `+2,850 Salary`, `12/10 30 Fuel`). `parseLine` (`src/lib/transactions/writeLine.ts`) reads the amount, direction, date and description into the fields below as it is typed, and `suggestCategory` (debounced) offers the category that description was last filed under, from the same `loadCategoryMemory` the import uses. A line it can't read leaves the fields alone and, once the user moves on, asks for an amount. It used to be a bare box on the page, which read as a puzzle; inside the dialog it explains itself.
+- **The add dialog:** `QuickAdd.tsx`, on the shared `Drawer`, opens empty from `Add transaction`. Saving calls `createTransaction`, which adds one `Transaction` with no `ImportBatch`. A category chosen here is the user's own choice, so the row is approved.
