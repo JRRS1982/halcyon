@@ -76,7 +76,7 @@ export function CashFlowChart({
 
   // Net figure marker above each net point: green when the month ran a surplus,
   // red when it ran a deficit. The exact value stays in the tooltip.
-  const NetLabel = (props: {
+  const renderNetLabel = (props: {
     x?: number | string;
     y?: number | string;
     index?: number;
@@ -197,7 +197,7 @@ export function CashFlowChart({
           stroke={NET_COLOR}
           strokeWidth={2}
           dot={{ r: 2.5, fill: NET_COLOR }}
-          label={NetLabel}
+          label={renderNetLabel}
           isAnimationActive={false}
         />
         <Line
