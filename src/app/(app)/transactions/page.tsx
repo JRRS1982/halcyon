@@ -32,7 +32,12 @@ export default async function TransactionsPage({
   const userId = await requireTransactionsEnabled();
   const { transfersEnabled, currency, numberFormat } =
     await getCurrentUserSettings();
-  const query = parseLedgerSearchParams(await searchParams);
+  const parsed = parseLedgerSearchParams(await searchParams);
+  // Possible transfers are for tagging transfers, so with transfers off the
+  // view is gone, as its drawer toggle is — a saved link included.
+  const query = transfersEnabled
+    ? parsed
+    : { ...parsed, possibleTransfers: false, showHiddenPairs: false };
 
   const [
     accounts,

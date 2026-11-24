@@ -145,3 +145,25 @@ describe("TransactionsPage filter wiring (integration)", () => {
     expect(await renderWith({ max: "100" })).toEqual(["January"]);
   });
 });
+
+describe("TransactionsPage possible transfers (integration)", () => {
+  test("?pairs=1 is ignored while transfers are switched off", async () => {
+    // The drawer hides the toggle then; a shared or bookmarked link must not
+    // bring the view back.
+    await prisma.userSettings.update({
+      where: { userId: TEST_USER_ID },
+      data: { transfersEnabled: false },
+    });
+
+    const element = (await TransactionsPage({
+      searchParams: Promise.resolve({ pairs: "1", hidden: "1" }),
+    })) as ReactElement<{
+      page: { pairs: unknown };
+      query: { possibleTransfers: boolean; showHiddenPairs: boolean };
+    }>;
+
+    expect(element.props.page.pairs).toBeNull();
+    expect(element.props.query.possibleTransfers).toBe(false);
+    expect(element.props.query.showHiddenPairs).toBe(false);
+  });
+});

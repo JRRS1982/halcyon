@@ -378,14 +378,15 @@ async function getPossibleTransfersPage(
 /**
  * Every live row of the user's that has a possible opposite: same size,
  * opposite sign, another account, within PAIR_WINDOW_DAYS. A superset the pure
- * pairing then decides over. Fenced on the user (ADR-002).
+ * pairing then decides over. Fenced on the user (ADR-002). Rows in an archived
+ * account are left out: nothing can be tagged as a transfer to one.
  *
  * The join is on integer pence, not on `amount`: Postgres hashes a numeric
  * without its sign, so joining `amount = -amount` put every -£10 row in the
  * same hash bucket as every +£10 one and took 1.3-3s on 50k rows; on pence it
  * takes ~40ms, with no index.
  */
-async function possibleTransferCandidates(
+export async function possibleTransferCandidates(
   userId: string,
 ): Promise<PairCandidate[]> {
   const rows = await prisma.$queryRaw<
@@ -409,12 +410,14 @@ async function possibleTransferCandidates(
            i."accountId" AS "inAccountId",
            i."transferAccountId" AS "inTransferAccountId"
     FROM "Transaction" o
+    JOIN "Account" oa ON oa.id = o."accountId" AND oa."deletedAt" IS NULL
     JOIN "Transaction" i
       ON i."userId" = o."userId"
      AND (i.amount * 100)::bigint = -(o.amount * 100)::bigint
      AND i."accountId" <> o."accountId"
      AND i.date BETWEEN o.date - ${PAIR_WINDOW_DAYS}::int
                     AND o.date + ${PAIR_WINDOW_DAYS}::int
+    JOIN "Account" ia ON ia.id = i."accountId" AND ia."deletedAt" IS NULL
     WHERE o."userId" = ${userId}::uuid
       AND o."deletedAt" IS NULL
       AND i."deletedAt" IS NULL

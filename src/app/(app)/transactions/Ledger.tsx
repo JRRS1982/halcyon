@@ -32,6 +32,8 @@ import {
 } from "@/lib/transactions/pagination";
 import {
   daysApartLabel,
+  dismissNotice,
+  markNotice,
   pairWarnings,
 } from "@/lib/transactions/possibleTransfers";
 import type {
@@ -609,9 +611,17 @@ const Toast = styled.div`
   color: ${({ theme }) => theme.colors.ink};
 `;
 
-const UNDO_MS = 8000;
+// How long a notice stays unattended. It does not close while the pointer or
+// focus is on it (WCAG 2.2.1), and Show hidden pairs is there after it goes.
+const NOTICE_MS = 8000;
 
 type PairIds = { outId: string; inId: string };
+
+// What a pair action reports back: a sentence, and the pairs Undo restores.
+type Notice = { text: string; undo: PairIds[] | null };
+
+const idsOf = (pairs: PairIds[]) =>
+  pairs.flatMap(({ outId, inId }) => [outId, inId]);
 
 const COLUMNS: { key: SortColumn; label: string; align?: "right" }[] = [
   { key: "date", label: "Date" },
@@ -671,8 +681,9 @@ export function Ledger({
   // Which row's detail panel (kept import columns + editable note) is open.
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
-  // The pairs just hidden with "Not a transfer", while their Undo is offered.
-  const [undoable, setUndoable] = useState<PairIds[] | null>(null);
+  // What the last pair action did, while it is on screen.
+  const [notice, setNotice] = useState<Notice | null>(null);
+  const [isNoticeHeld, setNoticeHeld] = useState(false);
 
   const { onlyUncategorized, sortColumn, sortDir } = query;
   // The possible-transfers view: rows come in pairs, and the page is pairs.
@@ -712,10 +723,10 @@ export function Ledger({
   }, [page]);
 
   useEffect(() => {
-    if (!undoable) return;
-    const timer = setTimeout(() => setUndoable(null), UNDO_MS);
+    if (!notice || isNoticeHeld) return;
+    const timer = setTimeout(() => setNotice(null), NOTICE_MS);
     return () => clearTimeout(timer);
-  }, [undoable]);
+  }, [notice, isNoticeHeld]);
 
   useEffect(() => {
     setCategories(initialCategories);
@@ -1117,36 +1128,75 @@ export function Ledger({
       }),
     );
     setSelected(new Set());
+    const chosen = selectedPairs;
     startTransition(async () => {
-      await markPairsAsTransfer({ pairs: selectedPairs });
+      // The ledger refreshes either way, so a skipped pair's optimistic tag
+      // goes; this says why it did.
+      const { skipped } = await markPairsAsTransfer({ pairs: chosen });
+      const text = markNotice(skipped);
+      if (text) showNotice({ text, undo: null });
     });
+  };
+
+  const showNotice = (next: Notice) => {
+    setNoticeHeld(false);
+    setNotice(next);
+  };
+
+  // The chosen pairs' rows fade while their action runs. Once it answers, the
+  // pairs it acted on leave the list and the rest come back: a pair the
+  // server did not store must not stay hidden with nothing behind it.
+  const fadePairs = (chosen: PairIds[]) =>
+    setLeavingIds((prev) => new Set([...prev, ...idsOf(chosen)]));
+
+  const settlePairs = (chosen: PairIds[], stayed: PairIds[]) => {
+    const stays = new Set(idsOf(stayed));
+    const faded = new Set(idsOf(chosen));
+    setItems((prev) => prev.filter((t) => !faded.has(t.id) || stays.has(t.id)));
+    setLeavingIds((prev) => new Set([...prev].filter((id) => !faded.has(id))));
   };
 
   // "Not a transfer" hides the pairs (with an Undo); "Unhide" brings hidden
   // ones back. Either way they leave this view.
   const onDismissPairs = () => {
     const chosen = selectedPairs;
-    dismissRows(chosen.flatMap(({ outId, inId }) => [outId, inId]));
+    fadePairs(chosen);
     setSelected(new Set());
     startTransition(async () => {
-      const { dismissed } = await dismissPairs({ pairs: chosen });
-      if (dismissed > 0) setUndoable(chosen);
+      const outcome = await dismissPairs({ pairs: chosen });
+      if (!outcome.ok) {
+        settlePairs(chosen, chosen);
+        showNotice({ text: outcome.reason, undo: null });
+        return;
+      }
+      settlePairs(chosen, outcome.skipped);
+      const isSkipped = (pair: PairIds) =>
+        outcome.skipped.some(
+          (s) => s.outId === pair.outId && s.inId === pair.inId,
+        );
+      const hidden = chosen.filter((pair) => !isSkipped(pair));
+      showNotice({
+        text: dismissNotice(hidden.length, outcome.skipped.length),
+        undo: hidden.length > 0 ? hidden : null,
+      });
     });
   };
 
   const onUnhidePairs = () => {
     const chosen = selectedPairs;
-    dismissRows(chosen.flatMap(({ outId, inId }) => [outId, inId]));
+    fadePairs(chosen);
     setSelected(new Set());
     startTransition(async () => {
       await unhidePairs({ pairs: chosen });
+      settlePairs(chosen, []);
     });
   };
 
   const onUndoDismiss = () => {
-    if (!undoable) return;
-    const chosen = undoable;
-    setUndoable(null);
+    const chosen = notice?.undo;
+    if (!chosen) return;
+    setNotice(null);
+    setNoticeHeld(false);
     startTransition(async () => {
       await unhidePairs({ pairs: chosen });
     });
@@ -1519,13 +1569,21 @@ export function Ledger({
         </Pagination>
       )}
 
-      {undoable && (
-        <Toast role="status" aria-live="polite">
-          Hid {undoable.length} {undoable.length === 1 ? "pair" : "pairs"}: not
-          a transfer.
-          <Button variant="outline" type="button" onClick={onUndoDismiss}>
-            Undo
-          </Button>
+      {notice && (
+        <Toast
+          role="status"
+          aria-live="polite"
+          onMouseEnter={() => setNoticeHeld(true)}
+          onMouseLeave={() => setNoticeHeld(false)}
+          onFocus={() => setNoticeHeld(true)}
+          onBlur={() => setNoticeHeld(false)}
+        >
+          {notice.text}
+          {notice.undo ? (
+            <Button variant="outline" type="button" onClick={onUndoDismiss}>
+              Undo
+            </Button>
+          ) : null}
         </Toast>
       )}
 

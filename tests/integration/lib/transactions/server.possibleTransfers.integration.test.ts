@@ -2,8 +2,15 @@ import { TEST_USER_ID } from "@test/support/helpers";
 import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
 import { PAIRS_PER_PAGE } from "@/lib/transactions/pagination";
-import { snapshotOf } from "@/lib/transactions/possibleTransfers";
-import { getTransactionsPage } from "@/lib/transactions/server";
+import {
+  isMatch,
+  type PairCandidate,
+  snapshotOf,
+} from "@/lib/transactions/possibleTransfers";
+import {
+  getTransactionsPage,
+  possibleTransferCandidates,
+} from "@/lib/transactions/server";
 
 const OTHER_USER = "00000000-0000-0000-0000-0000000000bb";
 
@@ -160,5 +167,55 @@ describe("possible transfers (integration)", () => {
   test("the ordinary ledger carries no pairs", async () => {
     const page = await getTransactionsPage(TEST_USER_ID, {});
     expect(page.pairs).toBeNull();
+  });
+});
+
+describe("possibleTransferCandidates (integration)", () => {
+  test("the SQL finds exactly the rows the pure rule would pair", async () => {
+    // The rule lives twice: in the join, which narrows, and in isMatch, which
+    // decides. If the join drops a row isMatch would pair, that pair is never
+    // offered, so the two are checked against each other here.
+    const a = await account("A");
+    const b = await account("B");
+    const base = "2026-06-10";
+    const day = (offset: number) => {
+      const d = new Date(`${base}T00:00:00.000Z`);
+      d.setUTCDate(d.getUTCDate() + offset);
+      return d.toISOString().slice(0, 10);
+    };
+    await tx(a.id, base, -100);
+    for (const offset of [-4, -3, -1, 0, 2, 3, 4]) {
+      await tx(b.id, day(offset), 100);
+    }
+    await tx(a.id, base, 100); // same account
+    await tx(b.id, base, -100); // same sign
+    await tx(b.id, base, 100.01); // a penny off
+    await tx(a.id, day(10), 0);
+    await tx(b.id, day(10), 0);
+    await tx(a.id, day(20), -0.3);
+    await tx(b.id, day(20), 0.3);
+
+    const live = await prisma.transaction.findMany({
+      where: { userId: TEST_USER_ID, deletedAt: null },
+    });
+    const asCandidate = (row: (typeof live)[number]): PairCandidate => ({
+      id: row.id,
+      date: row.date.toISOString().slice(0, 10),
+      amount: Number(row.amount),
+      accountId: row.accountId,
+      transferAccountId: row.transferAccountId,
+    });
+    const rows = live.map(asCandidate);
+    const expected = rows
+      .filter((row) => rows.some((other) => isMatch(row, other)))
+      .map((row) => row.id)
+      .sort();
+
+    const found = (await possibleTransferCandidates(TEST_USER_ID))
+      .map((row) => row.id)
+      .sort();
+
+    expect(found).toEqual(expected);
+    expect(found.length).toBeGreaterThan(0);
   });
 });

@@ -118,11 +118,13 @@ shows what was asked for, and an empty ledger is the honest answer.
 
 A transfer the user has not tagged counts as spending in one account and as
 income in the other. **Possible transfers** finds both sides so they can be
-dealt with in one go. Hidden when transfers are off in Settings, like the
-category picker's Transfers option.
+dealt with in one go. Off when transfers are off in Settings: the drawer hides
+the toggle, like the category picker's Transfers option, and the page ignores
+`?pairs=1` in a saved or shared link.
 
 **What counts as a pair:** two live rows of the user's, in **different
-accounts**, the same amount with opposite signs, dated within
+accounts**, neither archived (nothing can be a transfer to an archived
+account), the same amount with opposite signs, dated within
 `PAIR_WINDOW_DAYS` (3) of each other, the window the import review's
 `pairOpposites` uses. When a row could match more than one other row, the
 pairing is the same every time: rows in date order (ties by id), each taking
@@ -164,8 +166,8 @@ controls card:
 
 | Action | Server action | Does |
 |---|---|---|
-| Mark as transfer | `markPairsAsTransfer` | Each row becomes a transfer to the **other** row's account, in one transaction. `bulkSetTransactionTransfer` cannot do this: it points every row at one account and skips rows already in it. |
-| Not a transfer | `dismissPairs` | Stores a `DismissedTransferPair` (both ids plus a snapshot of each row's amount, date and account), then offers **Undo**. |
+| Mark as transfer | `markPairsAsTransfer` | Each row becomes a transfer to the **other** row's account, in one transaction. `bulkSetTransactionTransfer` cannot do this: it points every row at one account and skips rows already in it. A pair that no longer matches (edited since the page was drawn) or has a side in an archived account is left alone, and the ledger says how many. |
+| Not a transfer | `dismissPairs` | Stores a `DismissedTransferPair` (both ids plus a snapshot of each row's amount, date and account), then offers **Undo**. A pair that no longer matches is not stored and stays listed, and the ledger says so. At the cap nothing is stored and the reason is shown. |
 | Unhide (hidden view) | `unhidePairs` | Removes the record, so the pair is offered again. Undo uses it too. |
 
 A dismissal hides only that exact pair, and only while both rows still match
@@ -173,8 +175,19 @@ its snapshot. Editing either row brings the pair back. Hiding A–B does not sto
 A pairing with another row, C. `dismissPairs` stores only a real possible pair
 of the user's own rows. A repeat dismissal refreshes the snapshot rather than
 adding a record. Deleting a row, singly or by undoing its import, removes the
-dismissals that name it. Records are capped per user at
-`MAX_DISMISSED_PAIRS_PER_USER` (10,000), counted over every record.
+dismissals that name it. A dismissal that stopped applying for any other
+reason (a row edited, or moved by deleting its account) is removed at the
+user's next dismissal. Records are written only by `dismissWithinCap` and
+capped per user at `MAX_DISMISSED_PAIRS_PER_USER` (10,000), counted over every
+record; refreshing a pair already hidden does not count as a new one.
+
+Show hidden pairs lists a row once. A row hidden in two pairs (A–B hidden, A
+then paired with C, A–C hidden too) appears in the first; unhiding that one
+reveals the next.
+
+The notice after a pair action (with Undo, after a dismissal) closes itself
+after eight seconds, but not while the pointer or keyboard focus is on it.
+Show hidden pairs is there after it goes.
 
 ## Where it lives
 
@@ -183,6 +196,7 @@ dismissals that name it. Records are capped per user at
 | [`src/lib/transactions/pagination.ts`](../../src/lib/transactions/pagination.ts) | URL → sanitized `LedgerUrlQuery` |
 | [`src/lib/transactions/filters.ts`](../../src/lib/transactions/filters.ts) | query → Prisma predicate |
 | [`src/lib/transactions/possibleTransfers.ts`](../../src/lib/transactions/possibleTransfers.ts) | candidate rows → pairs, dismissals, warnings |
+| [`src/lib/transactions/dismissWithinCap.ts`](../../src/lib/transactions/dismissWithinCap.ts) | the one writer of dismissals: prune, cap, store |
 | [`src/app/(app)/transactions/PairSummary.tsx`](../../src/app/(app)/transactions/PairSummary.tsx) | a pair's summary line and bracket |
 | [`src/lib/transactions/activeFilters.ts`](../../src/lib/transactions/activeFilters.ts) | query → chips + badge count |
 | [`src/lib/transactions/dateRanges.ts`](../../src/lib/transactions/dateRanges.ts) | the one-tap presets, on an injected `today` |

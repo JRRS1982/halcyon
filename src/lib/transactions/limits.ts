@@ -41,10 +41,13 @@ export const countedByCap = (
 ): Promise<number> => db.count({ where: { userId } });
 
 // Per-user ceiling on dismissed possible-transfer pairs ("Not a transfer").
-// One record per pair of rows, removed when either row is deleted, but a row
-// whose pair is dismissed can pair again with another row, so the count is
-// bounded by rows only loosely. Counted over every record (none are soft
-// deleted). A person dismisses a handful a month; only a script gets near it.
+// One record per pair of rows, but a row whose pair is dismissed can pair
+// again with another row, so the count is bounded by rows only loosely.
+// Counted over every record (none are soft deleted). Records that stopped
+// applying (a row deleted, edited or moved) are removed before each count —
+// see dismissWithinCap — so the cap is spent only on pairs the user can see
+// under Show hidden pairs. A person dismisses a handful a month; only a script
+// gets near it.
 export const MAX_DISMISSED_PAIRS_PER_USER = 10_000;
 
 export const MAX_IMPORT_FILE_MB = MAX_IMPORT_FILE_BYTES / (1024 * 1024);

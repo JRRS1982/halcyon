@@ -28,8 +28,8 @@ jest.mock("@/app/(app)/transactions/actions", () => ({
   bulkSetTransactionTransfer: jest.fn(),
   createAccountAndTransfer: jest.fn(),
   createAndAssignCategory: jest.fn(),
-  dismissPairs: jest.fn(async () => ({ dismissed: 1 })),
-  markPairsAsTransfer: jest.fn(async () => ({ updated: 2 })),
+  dismissPairs: jest.fn(async () => ({ ok: true, dismissed: 1, skipped: [] })),
+  markPairsAsTransfer: jest.fn(async () => ({ updated: 2, skipped: 0 })),
   setTransactionCategory: jest.fn(),
   setTransactionNote: jest.fn(),
   setTransactionTransfer: jest.fn(),
@@ -103,6 +103,15 @@ const tickPair = () =>
   );
 
 beforeEach(() => jest.clearAllMocks());
+afterEach(() => jest.useRealTimers());
+
+const PAIR_IDS = { outId: "out", inId: "in" };
+
+// Past the rows' fade-out, so a row still here is one that stayed.
+const afterFade = () =>
+  act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  });
 
 describe("possible transfers view", () => {
   test("sums the pair up in one line, with its warning", () => {
@@ -175,5 +184,77 @@ describe("possible transfers view", () => {
   test("the footer counts pairs", () => {
     renderPairs();
     expect(screen.getByText("Total · 1 pair")).toBeInTheDocument();
+  });
+
+  test("a pair that no longer matched stays, and the ledger says why", async () => {
+    jest.mocked(dismissPairs).mockResolvedValueOnce({
+      ok: true,
+      dismissed: 0,
+      skipped: [PAIR_IDS],
+    });
+    renderPairs();
+    tickPair();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Not a transfer" }));
+    });
+    await afterFade();
+
+    expect(screen.getByText("Current row")).toBeInTheDocument();
+    expect(
+      screen.getByText("1 pair no longer matched, so it is still listed."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Undo" })).toBeNull();
+  });
+
+  test("at the cap the pair stays and the reason is shown", async () => {
+    jest.mocked(dismissPairs).mockResolvedValueOnce({
+      ok: false,
+      reason: "You can keep up to 10,000 hidden pairs. Unhide some first.",
+    });
+    renderPairs();
+    tickPair();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Not a transfer" }));
+    });
+    await afterFade();
+
+    expect(screen.getByText("Current row")).toBeInTheDocument();
+    expect(screen.getByText(/Unhide some first/)).toBeInTheDocument();
+  });
+
+  test("Mark as transfer says when a pair was left alone", async () => {
+    jest.mocked(markPairsAsTransfer).mockResolvedValueOnce({
+      updated: 0,
+      skipped: 1,
+    });
+    renderPairs();
+    tickPair();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Mark as transfer" }));
+    });
+
+    expect(screen.getByText(/1 pair was not marked/)).toBeInTheDocument();
+  });
+
+  test("the Undo stays while the pointer or focus is on it", async () => {
+    jest.useFakeTimers();
+    renderPairs();
+    tickPair();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Not a transfer" }));
+    });
+    const undo = screen.getByRole("button", { name: "Undo" });
+
+    fireEvent.mouseEnter(undo.parentElement as HTMLElement);
+    act(() => {
+      jest.advanceTimersByTime(60_000);
+    });
+    expect(screen.getByRole("button", { name: "Undo" })).toBeInTheDocument();
+
+    fireEvent.mouseLeave(undo.parentElement as HTMLElement);
+    act(() => {
+      jest.advanceTimersByTime(60_000);
+    });
+    expect(screen.queryByRole("button", { name: "Undo" })).toBeNull();
   });
 });

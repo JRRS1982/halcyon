@@ -1,8 +1,10 @@
 import {
   daysApartLabel,
+  dismissNotice,
   hiddenPairs,
   isMatch,
   liveDismissals,
+  markNotice,
   type PairCandidate,
   pairKey,
   pairPossibleTransfers,
@@ -238,6 +240,16 @@ describe("dismissals", () => {
       },
     ]);
   });
+
+  test("a row hidden in two pairs is listed once, in the first pair the list shows", () => {
+    // Hide A–B, A then pairs with C, hide A–C: listing both would show A twice.
+    const later = row("c", "2026-11-03", 75, "monzo");
+    const shown = hiddenPairs(
+      [out, back, later],
+      [snapshotOf(out, back), snapshotOf(out, later)],
+    );
+    expect(shown.map((p) => [p.outId, p.inId])).toEqual([["a", "b"]]);
+  });
 });
 
 describe("labels", () => {
@@ -273,5 +285,34 @@ describe("labels", () => {
       "2 other rows could also match",
       "Tagged to a different account",
     ]);
+  });
+});
+
+describe("what the ledger says after a pair action", () => {
+  test("hiding says how many pairs went", () => {
+    expect(dismissNotice(1, 0)).toBe("Hid 1 pair: not a transfer.");
+    expect(dismissNotice(3, 0)).toBe("Hid 3 pairs: not a transfer.");
+  });
+
+  test("a pair that no longer matched is owned up to, not dropped", () => {
+    expect(dismissNotice(1, 1)).toBe(
+      "Hid 1 pair: not a transfer. 1 pair no longer matched, so it is still listed.",
+    );
+    expect(dismissNotice(0, 2)).toBe(
+      "2 pairs no longer matched, so they are still listed.",
+    );
+  });
+
+  test("marking says nothing when every pair was marked", () => {
+    expect(markNotice(0)).toBeNull();
+  });
+
+  test("marking says which pairs were left alone, and why", () => {
+    expect(markNotice(1)).toBe(
+      "1 pair was not marked: it no longer matches, or one side is in an archived account.",
+    );
+    expect(markNotice(2)).toBe(
+      "2 pairs were not marked: they no longer match, or one side is in an archived account.",
+    );
   });
 });

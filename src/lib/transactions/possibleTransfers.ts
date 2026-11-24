@@ -90,7 +90,9 @@ function toPair(
 }
 
 const newestFirst = (a: PossiblePair, b: PossiblePair): number =>
-  b.earlierDate.localeCompare(a.earlierDate) || a.outId.localeCompare(b.outId);
+  b.earlierDate.localeCompare(a.earlierDate) ||
+  a.outId.localeCompare(b.outId) ||
+  a.inId.localeCompare(b.inId);
 
 /**
  * Pairs the rows deterministically, the way pairOpposites does: in date order
@@ -189,19 +191,30 @@ export function liveDismissals(
   );
 }
 
-/** The live dismissals as pairs, newest first, for the "Show hidden pairs" view. */
+/**
+ * The live dismissals as pairs, newest first, for the "Show hidden pairs"
+ * view. A row hidden in two pairs (A–B hidden, then A–C) is listed once, in
+ * the first pair the list shows; unhiding that one reveals the next.
+ */
 export function hiddenPairs(
   rows: readonly PairCandidate[],
   live: readonly PairSnapshot[],
 ): PossiblePair[] {
   const byId = new Map(rows.map((row) => [row.id, row]));
-  return live
+  const all = live
     .flatMap((d) => {
       const first = byId.get(d.firstId);
       const second = byId.get(d.secondId);
       return first && second ? [toPair(first, second, 0)] : [];
     })
     .sort(newestFirst);
+  const shown = new Set<string>();
+  return all.filter((pair) => {
+    if (shown.has(pair.outId) || shown.has(pair.inId)) return false;
+    shown.add(pair.outId);
+    shown.add(pair.inId);
+    return true;
+  });
 }
 
 export function daysApartLabel(days: number): string {
@@ -215,4 +228,26 @@ export function pairWarnings(pair: PossiblePair): string[] {
     ...(n > 0 ? [`${n} other row${n === 1 ? "" : "s"} could also match`] : []),
     ...(pair.isTaggedElsewhere ? ["Tagged to a different account"] : []),
   ];
+}
+
+const pairCount = (n: number) => `${n} pair${n === 1 ? "" : "s"}`;
+
+/** After "Not a transfer": what was hidden, and what no longer matched. */
+export function dismissNotice(hidden: number, skipped: number): string {
+  const parts = [
+    ...(hidden > 0 ? [`Hid ${pairCount(hidden)}: not a transfer.`] : []),
+    ...(skipped > 0
+      ? [
+          `${pairCount(skipped)} no longer matched, so ${skipped === 1 ? "it is" : "they are"} still listed.`,
+        ]
+      : []),
+  ];
+  return parts.join(" ");
+}
+
+/** After "Mark as transfer": the pairs left alone, or null when none were. */
+export function markNotice(skipped: number): string | null {
+  if (skipped === 0) return null;
+  const one = skipped === 1;
+  return `${pairCount(skipped)} ${one ? "was" : "were"} not marked: ${one ? "it no longer matches" : "they no longer match"}, or one side is in an archived account.`;
 }

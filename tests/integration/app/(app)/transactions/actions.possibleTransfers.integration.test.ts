@@ -1,4 +1,5 @@
 import { TEST_USER_ID } from "@test/support/helpers";
+import { revalidatePath } from "next/cache";
 import {
   bulkDeleteTransactions,
   dismissPairs,
@@ -54,7 +55,7 @@ describe("markPairsAsTransfer (integration)", () => {
       pairs: [{ outId: out.id, inId: into.id }],
     });
 
-    expect(result).toEqual({ updated: 2 });
+    expect(result).toEqual({ updated: 2, skipped: 0 });
     const rows = await prisma.transaction.findMany({
       where: { id: { in: [out.id, into.id] } },
     });
@@ -88,11 +89,102 @@ describe("markPairsAsTransfer (integration)", () => {
       pairs: [{ outId: out.id, inId: into.id }],
     });
 
-    expect(result).toEqual({ updated: 0 });
+    expect(result).toEqual({ updated: 0, skipped: 1 });
     const rows = await prisma.transaction.findMany({
       where: { id: { in: [out.id, into.id] } },
     });
     expect(rows.every((row) => row.transferAccountId === null)).toBe(true);
+  });
+
+  test("skips a pair that no longer matches, and says so", async () => {
+    const { out, into } = await seedPair();
+    // Edited elsewhere since the page was drawn: no longer the same size.
+    await prisma.transaction.update({
+      where: { id: into.id },
+      data: { amount: 199 },
+    });
+
+    const result = await markPairsAsTransfer({
+      pairs: [{ outId: out.id, inId: into.id }],
+    });
+
+    expect(result).toEqual({ updated: 0, skipped: 1 });
+    const rows = await prisma.transaction.findMany({
+      where: { id: { in: [out.id, into.id] } },
+    });
+    expect(rows.every((row) => row.transferAccountId === null)).toBe(true);
+  });
+
+  test("skips a pair with a side in an archived account", async () => {
+    const { savings, out, into } = await seedPair();
+    await prisma.account.update({
+      where: { id: savings.id },
+      data: { deletedAt: new Date() },
+    });
+
+    const result = await markPairsAsTransfer({
+      pairs: [{ outId: out.id, inId: into.id }],
+    });
+
+    expect(result).toEqual({ updated: 0, skipped: 1 });
+  });
+});
+
+describe("possible transfers through the database (integration)", () => {
+  test("rows in an archived account are not offered as a pair", async () => {
+    const { savings } = await seedPair();
+    await prisma.account.update({
+      where: { id: savings.id },
+      data: { deletedAt: new Date() },
+    });
+
+    expect(await pairsOnScreen()).toEqual([]);
+  });
+
+  test("editing a row brings its dismissed pair back", async () => {
+    const { out, into } = await seedPair();
+    await dismissPairs({ pairs: [{ outId: out.id, inId: into.id }] });
+    expect(await pairsOnScreen()).toEqual([]);
+
+    // Still within the window, so still a pair, but no longer the one hidden.
+    await prisma.transaction.update({
+      where: { id: into.id },
+      data: { date: new Date("2026-11-05") },
+    });
+
+    expect(await pairsOnScreen()).toEqual([
+      expect.objectContaining({ outId: out.id, inId: into.id }),
+    ]);
+  });
+
+  test("hiding A–B leaves A free to pair with C", async () => {
+    const { out, into } = await seedPair();
+    const monzo = await account("Monzo");
+    const other = await tx(monzo.id, "2026-11-05", 200);
+
+    await dismissPairs({ pairs: [{ outId: out.id, inId: into.id }] });
+
+    expect(await pairsOnScreen()).toEqual([
+      expect.objectContaining({ outId: out.id, inId: other.id }),
+    ]);
+  });
+
+  test("the hidden view lists a row once, however many pairs hid it", async () => {
+    const { out, into } = await seedPair();
+    const monzo = await account("Monzo");
+    const other = await tx(monzo.id, "2026-11-05", 200);
+    await dismissPairs({ pairs: [{ outId: out.id, inId: into.id }] });
+    await dismissPairs({ pairs: [{ outId: out.id, inId: other.id }] });
+
+    const hidden = await getTransactionsPage(TEST_USER_ID, {
+      possibleTransfers: true,
+      showHiddenPairs: true,
+    });
+
+    expect(hidden.pairs).toHaveLength(1);
+    expect(new Set(hidden.items.map((row) => row.id)).size).toBe(
+      hidden.items.length,
+    );
   });
 });
 
@@ -101,7 +193,11 @@ describe("dismissPairs / unhidePairs (integration)", () => {
     const { out, into } = await seedPair();
     const pair = { outId: out.id, inId: into.id };
 
-    expect(await dismissPairs({ pairs: [pair] })).toEqual({ dismissed: 1 });
+    expect(await dismissPairs({ pairs: [pair] })).toEqual({
+      ok: true,
+      dismissed: 1,
+      skipped: [],
+    });
     expect(await pairsOnScreen()).toEqual([]);
 
     expect(await unhidePairs({ pairs: [pair] })).toEqual({ unhidden: 1 });
@@ -125,6 +221,19 @@ describe("dismissPairs / unhidePairs (integration)", () => {
     });
   });
 
+  test("the same pair sent twice in one request is stored once", async () => {
+    const { out, into } = await seedPair();
+
+    await dismissPairs({
+      pairs: [
+        { outId: out.id, inId: into.id },
+        { outId: into.id, inId: out.id },
+      ],
+    });
+
+    expect(await prisma.dismissedTransferPair.count()).toBe(1);
+  });
+
   test("dismissing twice keeps one record", async () => {
     const { out, into } = await seedPair();
     const pair = { outId: out.id, inId: into.id };
@@ -145,8 +254,90 @@ describe("dismissPairs / unhidePairs (integration)", () => {
       pairs: [{ outId: out.id, inId: unrelated.id }],
     });
 
-    expect(result).toEqual({ dismissed: 0 });
+    expect(result).toEqual({
+      ok: true,
+      dismissed: 0,
+      skipped: [{ outId: out.id, inId: unrelated.id }],
+    });
     expect(await prisma.dismissedTransferPair.count()).toBe(0);
+  });
+
+  test("a dismissal that stored nothing still refreshes the ledger", async () => {
+    // Otherwise rows hidden optimistically would stay hidden until the next
+    // navigation, with nothing stored behind them.
+    const current = await account("Current");
+    const savings = await account("Savings");
+    const out = await tx(current.id, "2026-11-03", -200);
+    const unrelated = await tx(savings.id, "2026-11-03", 199);
+    jest.mocked(revalidatePath).mockClear();
+
+    await dismissPairs({ pairs: [{ outId: out.id, inId: unrelated.id }] });
+
+    expect(revalidatePath).toHaveBeenCalledWith("/transactions");
+  });
+
+  test("will not store a pair of another user's rows", async () => {
+    await prisma.user.create({ data: { id: OTHER_USER } });
+    const a = await account("A", OTHER_USER);
+    const b = await account("B", OTHER_USER);
+    const out = await tx(a.id, "2026-11-03", -5, { userId: OTHER_USER });
+    const into = await tx(b.id, "2026-11-03", 5, { userId: OTHER_USER });
+
+    const result = await dismissPairs({
+      pairs: [{ outId: out.id, inId: into.id }],
+    });
+
+    expect(result).toMatchObject({ ok: true, dismissed: 0 });
+    expect(await prisma.dismissedTransferPair.count()).toBe(0);
+  });
+
+  test("will not unhide another user's pair", async () => {
+    await prisma.user.create({ data: { id: OTHER_USER } });
+    const a = await account("A", OTHER_USER);
+    const b = await account("B", OTHER_USER);
+    const out = await tx(a.id, "2026-11-03", -5, { userId: OTHER_USER });
+    const into = await tx(b.id, "2026-11-03", 5, { userId: OTHER_USER });
+    const [first, second] = [out, into].sort((x, y) => (x.id < y.id ? -1 : 1));
+    await prisma.dismissedTransferPair.create({
+      data: {
+        userId: OTHER_USER,
+        firstId: first?.id ?? "",
+        secondId: second?.id ?? "",
+        firstAmount: Number(first?.amount),
+        firstDate: new Date("2026-11-03"),
+        firstAccountId: first?.accountId ?? "",
+        secondAmount: Number(second?.amount),
+        secondDate: new Date("2026-11-03"),
+        secondAccountId: second?.accountId ?? "",
+      },
+    });
+
+    const result = await unhidePairs({
+      pairs: [{ outId: out.id, inId: into.id }],
+    });
+
+    expect(result).toEqual({ unhidden: 0 });
+    expect(await prisma.dismissedTransferPair.count()).toBe(1);
+  });
+
+  test("a dismissal whose row was edited is cleared at the next one", async () => {
+    // It no longer hides anything, so it must not linger or count to the cap.
+    const { out, into } = await seedPair();
+    await dismissPairs({ pairs: [{ outId: out.id, inId: into.id }] });
+    await prisma.transaction.update({
+      where: { id: into.id },
+      data: { date: new Date("2026-11-05") },
+    });
+    const monzo = await account("Monzo");
+    const other = await tx(monzo.id, "2026-11-01", -50);
+    const back = await tx(into.accountId, "2026-11-01", 50);
+
+    await dismissPairs({ pairs: [{ outId: other.id, inId: back.id }] });
+
+    const stored = await prisma.dismissedTransferPair.findMany();
+    expect(stored.map((d) => [d.firstId, d.secondId].sort())).toEqual([
+      [other.id, back.id].sort(),
+    ]);
   });
 
   test("refuses past the per-user cap, writing nothing", async () => {
@@ -173,14 +364,43 @@ describe("dismissPairs / unhidePairs (integration)", () => {
       MAX_DISMISSED_PAIRS_PER_USER,
     );
 
-    await expect(
-      dismissPairs({ pairs: [{ outId: out.id, inId: into.id }] }),
-    ).rejects.toThrow(/hidden pairs/);
+    expect(
+      await dismissPairs({ pairs: [{ outId: out.id, inId: into.id }] }),
+    ).toEqual({ ok: false, reason: expect.stringMatching(/hidden pairs/) });
     expect(
       await prisma.dismissedTransferPair.count({
         where: { OR: [{ firstId: out.id }, { secondId: out.id }] },
       }),
     ).toBe(0);
+  });
+
+  test("refreshing a pair already hidden is not refused at the cap", async () => {
+    const { out, into } = await seedPair();
+    const pair = { outId: out.id, inId: into.id };
+    await dismissPairs({ pairs: [pair] });
+    const filler = await account("Filler");
+    // One short of the cap besides the pair itself, all still live.
+    await prisma.$executeRaw`
+      INSERT INTO "Transaction" (id, "userId", "accountId", date, amount, description, "updatedAt")
+      SELECT gen_random_uuid(), ${TEST_USER_ID}::uuid, ${filler.id}::uuid, '2020-01-01', -1, 'filler', now()
+      FROM generate_series(1, 150)`;
+    await prisma.$executeRaw`
+      INSERT INTO "DismissedTransferPair"
+        (id, "userId", "firstId", "secondId", "firstAmount", "firstDate",
+         "firstAccountId", "secondAmount", "secondDate", "secondAccountId")
+      SELECT gen_random_uuid(), ${TEST_USER_ID}::uuid, f.id, s.id, -1,
+             '2020-01-01', f."accountId", -1, '2020-01-01', s."accountId"
+      FROM "Transaction" f, "Transaction" s
+      WHERE f.description = 'filler' AND s.description = 'filler' AND f.id < s.id
+      LIMIT ${MAX_DISMISSED_PAIRS_PER_USER - 1}`;
+    expect(await prisma.dismissedTransferPair.count()).toBe(
+      MAX_DISMISSED_PAIRS_PER_USER,
+    );
+
+    expect(await dismissPairs({ pairs: [pair] })).toMatchObject({
+      ok: true,
+      dismissed: 1,
+    });
   });
 
   test("deleting a row removes the dismissal that named it", async () => {
