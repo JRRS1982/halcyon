@@ -134,6 +134,139 @@ describe("ledger queries (integration)", () => {
     expect(byCategory.items.map((t) => t.description)).toEqual(["Tesco"]);
   });
 
+  // A transfer has no category; its category cell reads "Transfer to ISA" or
+  // "Transfer from ISA". If search ignores that, a user typing what they see
+  // finds nothing.
+  describe("search finds transfers by what their category cell says", () => {
+    const seedTransfers = async () => {
+      await seedTxns();
+      const cur = await prisma.account.findFirstOrThrow({
+        where: { userId: TEST_USER_ID, name: "Cur" },
+      });
+      const isa = await prisma.account.create({
+        data: {
+          userId: TEST_USER_ID,
+          name: "Vanguard ISA",
+          ...buildAccountData({ type: "STOCKS_ISA" }),
+        },
+      });
+      await prisma.transaction.createMany({
+        data: [
+          {
+            userId: TEST_USER_ID,
+            accountId: cur.id,
+            transferAccountId: isa.id,
+            date: new Date("2026-03-04"),
+            amount: -200,
+            description: "STO 1234",
+          },
+          {
+            userId: TEST_USER_ID,
+            accountId: cur.id,
+            transferAccountId: isa.id,
+            date: new Date("2026-03-05"),
+            amount: 50,
+            description: "Withdrawal 99",
+          },
+        ],
+      });
+    };
+    const found = async (search: string) =>
+      (await getTransactionsPage(TEST_USER_ID, { search })).items
+        .map((t) => t.description)
+        .sort();
+
+    test("by the account it moved to or from", async () => {
+      await seedTransfers();
+      expect(await found("vanguard")).toEqual(["STO 1234", "Withdrawal 99"]);
+    });
+
+    test("by the word transfer, or the start of it", async () => {
+      await seedTransfers();
+      expect(await found("transfer")).toEqual(["STO 1234", "Withdrawal 99"]);
+      expect(await found("trans")).toEqual(["STO 1234", "Withdrawal 99"]);
+    });
+
+    test("by the phrase, with to and from following the money", async () => {
+      await seedTransfers();
+      expect(await found("transfer to vanguard")).toEqual(["STO 1234"]);
+      expect(await found("Transfer from Vanguard ISA")).toEqual([
+        "Withdrawal 99",
+      ]);
+    });
+
+    test("and not for a word that only shares a few letters", async () => {
+      await seedTransfers();
+      expect(await found("tr")).toEqual([]);
+    });
+  });
+
+  // The Details panel shows the import columns a user kept (a bank's own
+  // "Pot transfer" type, say). If search skips them, the one word a user can
+  // see on the row finds nothing.
+  describe("search reads the kept import columns (Details)", () => {
+    const seedDetails = async () => {
+      await seedTxns();
+      const cur = await prisma.account.findFirstOrThrow({
+        where: { userId: TEST_USER_ID, name: "Cur" },
+      });
+      await prisma.transaction.create({
+        data: {
+          userId: TEST_USER_ID,
+          accountId: cur.id,
+          date: new Date("2026-03-06"),
+          amount: 50,
+          description: "Bills",
+          extra: { Type: "Pot transfer", Name: "Bills Pot" },
+        },
+      });
+    };
+    const found = async (search: string) =>
+      (await getTransactionsPage(TEST_USER_ID, { search })).items.map(
+        (t) => t.description,
+      );
+
+    test("finds a row by a kept column's value", async () => {
+      await seedDetails();
+      expect(await found("pot transfer")).toEqual(["Bills"]);
+      expect(await found("BILLS POT")).toEqual(["Bills"]);
+    });
+
+    test("reads the values, not the column names", async () => {
+      await seedDetails();
+      expect(await found("type")).toEqual([]);
+    });
+
+    // The Details lookup is raw SQL outside Prisma's usual where. The outcome
+    // is fenced twice: the lookup filters on the user itself, and the ledger
+    // query wraps the ids it returns in the user's own filter, so this passes
+    // even if either fence alone were dropped (checked by removing the SQL's).
+    test("never finds another user's row", async () => {
+      await seedDetails();
+      const other = await prisma.user.create({
+        data: { id: "00000000-0000-0000-0000-0000000000bb" },
+      });
+      const theirAccount = await prisma.account.create({
+        data: {
+          userId: other.id,
+          name: "Theirs",
+          ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+        },
+      });
+      await prisma.transaction.create({
+        data: {
+          userId: other.id,
+          accountId: theirAccount.id,
+          date: new Date("2026-03-07"),
+          amount: 75,
+          description: "Their pot",
+          extra: { Type: "Pot transfer" },
+        },
+      });
+      expect(await found("pot transfer")).toEqual(["Bills"]);
+    });
+  });
+
   test("a % or _ in the search is matched literally", async () => {
     await seedTxns();
     const percent = await getTransactionsPage(TEST_USER_ID, { search: "%" });

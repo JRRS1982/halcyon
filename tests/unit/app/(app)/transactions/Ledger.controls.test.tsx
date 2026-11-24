@@ -118,7 +118,9 @@ describe("ledger controls card", () => {
     renderLedger();
     expect(screen.getByRole("button", { name: "Filters" })).toBeInTheDocument();
     expect(
-      screen.getByPlaceholderText("Search description, note or category…"),
+      screen.getByPlaceholderText(
+        "Search description, note, category or transfer…",
+      ),
     ).toBeInTheDocument();
     // Destructive and selection-only actions do not sit greyed out waiting.
     expect(screen.queryByRole("button", { name: "Delete…" })).toBeNull();
@@ -143,7 +145,9 @@ describe("ledger controls card", () => {
     expect(screen.getByText("1 selected")).toBeInTheDocument();
     // Hidden, not unmounted — see the surviving-search test below.
     expect(
-      screen.getByPlaceholderText("Search description, note or category…"),
+      screen.getByPlaceholderText(
+        "Search description, note, category or transfer…",
+      ),
     ).not.toBeVisible();
     expect(
       screen.getByRole("button", {
@@ -166,7 +170,9 @@ describe("ledger controls card", () => {
     selectRow("Greggs");
     fireEvent.click(screen.getByRole("button", { name: "Clear" }));
     expect(
-      screen.getByPlaceholderText("Search description, note or category…"),
+      screen.getByPlaceholderText(
+        "Search description, note, category or transfer…",
+      ),
     ).toBeInTheDocument();
     expect(screen.queryByText("1 selected")).toBeNull();
   });
@@ -177,12 +183,16 @@ describe("ledger controls card", () => {
     // to prevent.
     renderLedger("q=greg");
     expect(
-      screen.getByPlaceholderText("Search description, note or category…"),
+      screen.getByPlaceholderText(
+        "Search description, note, category or transfer…",
+      ),
     ).toHaveValue("greg");
     selectRow("Greggs");
     fireEvent.click(screen.getByRole("button", { name: "Clear" }));
     expect(
-      screen.getByPlaceholderText("Search description, note or category…"),
+      screen.getByPlaceholderText(
+        "Search description, note, category or transfer…",
+      ),
     ).toHaveValue("greg");
   });
 
