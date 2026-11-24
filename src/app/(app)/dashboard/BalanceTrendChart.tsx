@@ -130,7 +130,7 @@ export function BalanceTrendChart({
 
   // Net balance marker above the latest net point: green when net worth is positive,
   // red when liabilities outweigh assets. The exact value stays in the tooltip.
-  const NetLabel = (props: {
+  const renderNetLabel = (props: {
     x?: number | string;
     y?: number | string;
     index?: number;
@@ -248,7 +248,7 @@ export function BalanceTrendChart({
           stroke={theme.colors.body}
           strokeWidth={2.5}
           dot={{ r: 2.5, fill: theme.colors.body }}
-          label={NetLabel}
+          label={renderNetLabel}
           isAnimationActive={false}
         />
       </LineChart>
