@@ -90,9 +90,12 @@ export const NavLink = styled(Link)<{ $active: boolean }>`
 
 // $level: no link row to balance against (signed out), so the action stays
 // level with the wordmark instead of centring on an empty second row.
+// Otherwise the negative margin takes in the bar's top padding, which sits
+// outside the grid, so the action centres between the bar's top edge and its
+// rule rather than sitting low.
 export const RightZone = styled.div<{ $level?: boolean }>`
   grid-area: right;
-  ${({ $level }) => ($level ? "grid-row: 1;" : "")}
+  ${({ $level, theme }) => ($level ? "grid-row: 1;" : `margin-top: -${theme.spacing.lg};`)}
   display: flex;
   align-items: center;
   justify-self: end;

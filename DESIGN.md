@@ -261,14 +261,10 @@ components:
     padding: "{spacing.lg} 0 {spacing.xl}"
 
   status-pip:
-    description: "Save-state indicator in the toolbar row. Hairline box, coloured dot, caps label."
-    backgroundColor: "{colors.canvas}"
-    borderColor: "{colors.hairline}"
+    description: "Save-state indicator in the toolbar row: a coloured dot and a caps label, no box, so it never reads as a button."
     textColor: "{colors.body}"
     typography: "{typography.kicker}"
-    rounded: "{rounded.sm}"
     height: 30px
-    padding: "0 {spacing.md}"
 ---
 ## Overview
 
@@ -502,7 +498,7 @@ The page is flat. Depth is drawn with rules, not light.
 
 ## Shapes
 
-Corners are near-square. `sm` 2px is the radius for buttons, toolbar tools, inputs, cards, status pips and overlays. `none` is used on rules and table rows. `full` appears only on dots: the status dot in the plan verdict and the drag handle on a mobile bottom sheet.
+Corners are near-square. `sm` 2px is the radius for buttons, toolbar tools, inputs, cards and overlays. `none` is used on rules and table rows. `full` appears only on dots: the status dot in the plan verdict and the drag handle on a mobile bottom sheet.
 
 Lines are horizontal. Tables have no vertical rules; columns are held apart by alignment and padding. The only vertical marks are the hairline dividers between index-strip and verdict figures, and the 4px colour bar on a subhead row or the active item in the mobile menu.
 
@@ -544,7 +540,7 @@ A claret kicker in 12px caps naming the page and its period ("Budget · October 
 
 ### Toolbar
 
-One row above a sheet: the primary Add first, secondary actions after, the month stepper pushed right, Delete apart. Tools are 34px, ink-bordered on `canvas-soft` (the toolbar's select too), `control` type, 2px corners; an active toggle fills oxford blue, and a tool under the pointer fills `hover`. On a phone each group becomes a full-width row of evenly stretched tools, and row-scoped groups appear only while a row is selected. The status pip (30px, hairline box, 12px caps label and a coloured dot: green saved, muted saving, red error) sits in the same row.
+One row above a sheet: the primary Add first, secondary actions after, the month stepper pushed right, Delete apart. Tools are 34px, ink-bordered on `canvas-soft` (the toolbar's select too), `control` type, 2px corners; an active toggle fills oxford blue, and a tool under the pointer fills `hover`. On a phone each group becomes a full-width row of evenly stretched tools, and row-scoped groups appear only while a row is selected. The status pip (12px caps label and a coloured dot: green saved, muted saving, red error) sits at the row's right end with no box: it is status, not a control, and a box made it read as a disabled button.
 
 ### The Sheet
 
