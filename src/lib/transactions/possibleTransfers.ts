@@ -53,8 +53,13 @@ const dayNumber = (isoDate: string): number =>
 const daysBetween = (a: PairCandidate, b: PairCandidate): number =>
   Math.abs(dayNumber(a.date) - dayNumber(b.date));
 
+/** Two row ids in the order a dismissal stores them: plain string order. */
+export function orderedIds(a: string, b: string): [string, string] {
+  return a < b ? [a, b] : [b, a];
+}
+
 export const pairKey = (a: string, b: string): string =>
-  a < b ? `${a}|${b}` : `${b}|${a}`;
+  orderedIds(a, b).join("|");
 
 export function isMatch(a: PairCandidate, b: PairCandidate): boolean {
   return (
@@ -135,7 +140,7 @@ export function pairPossibleTransfers(
 
 /** The snapshot a dismissal stores, in id order whichever row is named first. */
 export function snapshotOf(a: PairCandidate, b: PairCandidate): PairSnapshot {
-  const [first, second] = a.id < b.id ? [a, b] : [b, a];
+  const [first, second] = orderedIds(a.id, b.id)[0] === a.id ? [a, b] : [b, a];
   return {
     firstId: first.id,
     secondId: second.id,

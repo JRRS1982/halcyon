@@ -23,6 +23,7 @@ import {
 } from "@/lib/transactions/import";
 import {
   countedByCap,
+  MAX_DISMISSED_PAIRS_PER_USER,
   MAX_IMPORT_ROWS,
   MAX_TRANSACTIONS_PER_USER,
 } from "@/lib/transactions/limits";
@@ -31,6 +32,12 @@ import {
   descriptionKey,
   MEMORY_WINDOW,
 } from "@/lib/transactions/memory";
+import {
+  isMatch,
+  orderedIds,
+  type PairCandidate,
+  snapshotOf,
+} from "@/lib/transactions/possibleTransfers";
 import type { LedgerCategory } from "@/lib/transactions/server";
 
 const mappingSchema = z.object({
@@ -398,14 +405,26 @@ export async function reverseImport(
   });
   if (!batch) throw new Error("Import not found");
 
-  const result = await prisma.transaction.updateMany({
-    where: { importBatchId: batchId, userId, deletedAt: null },
-    data: { deletedAt: new Date() },
-  });
-  await prisma.importBatch.update({
-    where: { id: batchId },
-    data: { reversedAt: new Date() },
-  });
+  const [result] = await prisma.$transaction([
+    prisma.transaction.updateMany({
+      where: { importBatchId: batchId, userId, deletedAt: null },
+      data: { deletedAt: new Date() },
+    }),
+    // A dismissal names two rows; with one gone it can never apply again.
+    prisma.dismissedTransferPair.deleteMany({
+      where: {
+        userId,
+        OR: [
+          { first: { importBatchId: batchId } },
+          { second: { importBatchId: batchId } },
+        ],
+      },
+    }),
+    prisma.importBatch.update({
+      where: { id: batchId },
+      data: { reversedAt: new Date() },
+    }),
+  ]);
 
   revalidatePath("/transactions");
   revalidatePath("/budget");
@@ -621,10 +640,22 @@ export async function bulkDeleteTransactions(
   const userId = await requireTransactionsEnabled();
   const { transactionIds } = bulkDeleteSchema.parse(input);
 
-  const result = await prisma.transaction.updateMany({
-    where: { id: { in: transactionIds }, userId, deletedAt: null },
-    data: { deletedAt: new Date() },
-  });
+  const [result] = await prisma.$transaction([
+    prisma.transaction.updateMany({
+      where: { id: { in: transactionIds }, userId, deletedAt: null },
+      data: { deletedAt: new Date() },
+    }),
+    // A dismissal names two rows; with one gone it can never apply again.
+    prisma.dismissedTransferPair.deleteMany({
+      where: {
+        userId,
+        OR: [
+          { firstId: { in: transactionIds } },
+          { secondId: { in: transactionIds } },
+        ],
+      },
+    }),
+  ]);
 
   revalidatePath("/transactions");
   revalidatePath("/budget");
@@ -838,4 +869,176 @@ export async function createAndAssignCategory(
     type,
     section: sectionLabel(resolvedSection),
   };
+}
+
+// ─── Possible transfers ─────────────────────────────────────────────────────
+// The ledger's "Possible transfers" view acts on pairs: two rows that look
+// like the two sides of one move between the user's accounts (see
+// src/lib/transactions/possibleTransfers.ts).
+
+const pairsSchema = z.object({
+  pairs: z
+    .array(z.object({ outId: z.string().uuid(), inId: z.string().uuid() }))
+    .min(1)
+    .max(250),
+});
+
+type PairsInput = z.input<typeof pairsSchema>;
+
+// The pairs' rows that are the user's and live, by id. Fenced on userId — per
+// ADR-002 this is the boundary, so a pair naming anyone else's row finds
+// nothing and is skipped.
+async function pairRows(
+  userId: string,
+  pairs: { outId: string; inId: string }[],
+): Promise<Map<string, PairCandidate>> {
+  const rows = await prisma.transaction.findMany({
+    where: {
+      id: { in: pairs.flatMap((pair) => [pair.outId, pair.inId]) },
+      userId,
+      deletedAt: null,
+    },
+    select: {
+      id: true,
+      date: true,
+      amount: true,
+      accountId: true,
+      transferAccountId: true,
+    },
+  });
+  return new Map(
+    rows.map((row) => [
+      row.id,
+      {
+        ...row,
+        date: row.date.toISOString().slice(0, 10),
+        amount: Number(row.amount),
+      },
+    ]),
+  );
+}
+
+// Tags both rows of each pair as a transfer to the OTHER row's account, in
+// one step: the money out of Current points at Savings and the money into
+// Savings points at Current. bulkSetTransactionTransfer cannot — it points
+// every row at one account and skips the rows already in it. Rows that are
+// not the user's, or a pair in one account, are skipped; one transaction.
+export async function markPairsAsTransfer(
+  input: PairsInput,
+): Promise<{ updated: number }> {
+  const userId = await requireTransactionsEnabled();
+  const { pairs } = pairsSchema.parse(input);
+  const rows = await pairRows(userId, pairs);
+  const liveAccounts = new Set(
+    (
+      await prisma.account.findMany({
+        where: {
+          id: { in: [...rows.values()].map((row) => row.accountId) },
+          userId,
+          deletedAt: null,
+        },
+        select: { id: true },
+      })
+    ).map((account) => account.id),
+  );
+
+  const writes = pairs.flatMap(({ outId, inId }) => {
+    const out = rows.get(outId);
+    const into = rows.get(inId);
+    if (!out || !into || out.accountId === into.accountId) return [];
+    if (!liveAccounts.has(out.accountId) || !liveAccounts.has(into.accountId))
+      return [];
+    return [
+      [out.id, into.accountId],
+      [into.id, out.accountId],
+    ].map(([id, transferAccountId]) =>
+      prisma.transaction.updateMany({
+        where: { id, userId, deletedAt: null },
+        // Transfer and category are mutually exclusive — see setTransactionTransfer.
+        data: {
+          transferAccountId,
+          categoryId: null,
+          isCategoryConfirmed: true,
+        },
+      }),
+    );
+  });
+  const results = await prisma.$transaction(writes);
+
+  revalidatePath("/transactions");
+  revalidatePath("/budget");
+  revalidatePath("/dashboard");
+  return { updated: results.reduce((sum, result) => sum + result.count, 0) };
+}
+
+// "Not a transfer": hides each pair by storing both row ids with a snapshot of
+// each row's amount, date and account. The pair stays hidden only while both
+// rows still match it. Only a real possible pair of the user's own rows is
+// stored, so the action cannot be used to write arbitrary records; dismissing
+// a pair again refreshes its snapshot rather than adding a second record.
+export async function dismissPairs(
+  input: PairsInput,
+): Promise<{ dismissed: number }> {
+  const userId = await requireTransactionsEnabled();
+  const { pairs } = pairsSchema.parse(input);
+  const rows = await pairRows(userId, pairs);
+
+  const snapshots = pairs.flatMap(({ outId, inId }) => {
+    const out = rows.get(outId);
+    const into = rows.get(inId);
+    return out && into && isMatch(out, into) ? [snapshotOf(out, into)] : [];
+  });
+  if (snapshots.length === 0) return { dismissed: 0 };
+
+  await prisma.$transaction(async (tx) => {
+    // Every record counts: none are soft deleted.
+    const stored = await tx.dismissedTransferPair.count({ where: { userId } });
+    if (stored + snapshots.length > MAX_DISMISSED_PAIRS_PER_USER) {
+      throw new Error(
+        `You can keep up to ${MAX_DISMISSED_PAIRS_PER_USER.toLocaleString("en-GB")} hidden pairs. Unhide some first.`,
+      );
+    }
+    for (const snapshot of snapshots) {
+      const data = {
+        ...snapshot,
+        firstDate: new Date(`${snapshot.firstDate}T00:00:00.000Z`),
+        secondDate: new Date(`${snapshot.secondDate}T00:00:00.000Z`),
+      };
+      await tx.dismissedTransferPair.upsert({
+        where: {
+          firstId_secondId: {
+            firstId: snapshot.firstId,
+            secondId: snapshot.secondId,
+          },
+        },
+        create: { userId, ...data },
+        update: data,
+      });
+    }
+  });
+
+  revalidatePath("/transactions");
+  return { dismissed: snapshots.length };
+}
+
+// Unhide, and the Undo after "Not a transfer": removes the pairs' records, so
+// they are offered again.
+export async function unhidePairs(
+  input: PairsInput,
+): Promise<{ unhidden: number }> {
+  const userId = await requireTransactionsEnabled();
+  const { pairs } = pairsSchema.parse(input);
+
+  const result = await prisma.dismissedTransferPair.deleteMany({
+    where: {
+      userId,
+      OR: pairs.map(({ outId, inId }) => {
+        const [firstId, secondId] = orderedIds(outId, inId);
+        return { firstId, secondId };
+      }),
+    },
+  });
+
+  revalidatePath("/transactions");
+  return { unhidden: result.count };
 }
