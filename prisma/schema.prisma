@@ -468,7 +468,9 @@ model Transaction {
 // It holds a snapshot of each row's amount, date and account, and hides the
 // pair only while both rows still match it: editing either row brings the pair
 // back. firstId < secondId, so one pair has one record. Removed when either
-// row is deleted (the soft-delete paths do it; the FKs cover hard deletes).
+// row is deleted (the soft-delete paths do it; the FKs cover hard deletes),
+// and, once it no longer matches its rows, at the user's next dismissal
+// (dismissWithinCap). Written only by src/lib/transactions/dismissWithinCap.ts.
 model DismissedTransferPair {
   id              String   @id @default(uuid()) @db.Uuid
   userId          String   @db.Uuid

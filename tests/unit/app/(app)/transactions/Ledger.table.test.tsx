@@ -50,6 +50,7 @@ const renderLedger = (amounts: number[], total = amounts.length) =>
         page={{
           items: amounts.map((amount, i) => row(`tx${i}`, amount)),
           total,
+          pairs: null,
         }}
         query={parseLedgerSearchParams({})}
         categories={[]}

@@ -5,6 +5,7 @@ import {
 } from "@/lib/settings/server";
 import {
   PAGE_SIZE,
+  PAIRS_PER_PAGE,
   parseLedgerSearchParams,
 } from "@/lib/transactions/pagination";
 import {
@@ -32,7 +33,12 @@ export default async function TransactionsPage({
   const userId = await requireTransactionsEnabled();
   const { transfersEnabled, currency, numberFormat } =
     await getCurrentUserSettings();
-  const query = parseLedgerSearchParams(await searchParams);
+  const parsed = parseLedgerSearchParams(await searchParams);
+  // Possible transfers are for tagging transfers, so with transfers off the
+  // view is gone, as its drawer toggle is — a saved link included.
+  const query = transfersEnabled
+    ? parsed
+    : { ...parsed, possibleTransfers: false, showHiddenPairs: false };
 
   const [
     accounts,
@@ -59,7 +65,9 @@ export default async function TransactionsPage({
     getLedgerAccounts(userId),
     getOrProvisionCategories(userId),
     getTransactionsPage(userId, {
-      offset: (query.page - 1) * PAGE_SIZE,
+      offset:
+        (query.page - 1) *
+        (query.possibleTransfers ? PAIRS_PER_PAGE : PAGE_SIZE),
       search: query.search,
       onlyUncategorized: query.onlyUncategorized,
       onlyToCheck: query.onlyToCheck,
@@ -72,6 +80,8 @@ export default async function TransactionsPage({
       amountMin: query.amountMin,
       amountMax: query.amountMax,
       countedIn: query.countedIn,
+      possibleTransfers: query.possibleTransfers,
+      showHiddenPairs: query.showHiddenPairs,
     }),
     countUncategorized(userId),
     countSuggested(userId),

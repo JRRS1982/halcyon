@@ -16,6 +16,8 @@ export type ActiveFilter = {
   key:
     | "uncategorized"
     | "toCheck"
+    | "possibleTransfers"
+    | "hiddenPairs"
     | "date"
     | "account"
     | "category"
@@ -72,6 +74,22 @@ export function activeFilters(
       key: "toCheck",
       label: "To approve",
       clear: { check: null },
+    });
+  }
+
+  if (query.possibleTransfers) {
+    filters.push({
+      key: "possibleTransfers",
+      label: "Possible transfers",
+      clear: { pairs: null, hidden: null },
+    });
+  }
+
+  if (query.showHiddenPairs) {
+    filters.push({
+      key: "hiddenPairs",
+      label: "Hidden pairs",
+      clear: { hidden: null },
     });
   }
 

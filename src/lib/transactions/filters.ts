@@ -19,8 +19,10 @@ export type LedgerFilters = {
   /** Non-negative magnitudes: amounts are matched on absolute value. */
   amountMin?: number | null;
   amountMax?: number | null;
-  /** Resolved to ids by the caller: see `countedIds` on ledgerWhere. */
+  /** Resolved to ids by the caller: see `ids.counted` on ledgerWhere. */
   countedIn?: CountedIn | null;
+  /** Only rows in a possible-transfer pair (ids supplied by the caller). */
+  possibleTransfers?: boolean;
 };
 
 // Transaction.date is a @db.Date, so every stored value sits at UTC midnight
@@ -73,23 +75,33 @@ function amountClause(
 // Every ledger read goes through here. Fenced on userId — per ADR-002 the
 // server Prisma role bypasses RLS, so this filter is the boundary.
 //
-// `detailMatchIds`: rows whose kept import columns (the Details panel) mention
-// the search, found by a lookup Prisma cannot express (see detailMatchIds in
-// server.ts). Passed in so this stays a pure function.
-//
-// `countedIds`: the rows a budget Actual counted for `filters.countedIn`, found
-// by the transfer source rule (see countedIds in server.ts). With the
-// filter on and no ids, it matches nothing rather than everything.
+// `ids`: rows found by lookups Prisma cannot express, passed in so this stays
+// a pure function.
+//   detail:  rows whose kept import columns (the Details panel) mention the
+//            search, added to what the search matches (detailMatchIds in
+//            server.ts)
+//   counted: the rows a budget Actual counted for `filters.countedIn`, by the
+//            transfer source rule (countedIds in server.ts)
+//   pairs:   under possibleTransfers, the rows that sit in a pair, found by
+//            possibleTransferCandidates and paired by possibleTransfers.ts
+// `counted` and `pairs` fence the ledger while their filter is on, so an
+// empty list then matches nothing rather than everything.
 export function ledgerWhere(
   userId: string,
   filters: LedgerFilters,
-  detailMatchIds: readonly string[] = [],
-  countedIds: readonly string[] = [],
+  ids: {
+    detail?: readonly string[];
+    counted?: readonly string[];
+    pairs?: readonly string[];
+  } = {},
 ): Prisma.TransactionWhereInput {
   const search = filters.search?.trim();
   const date = dateRange(filters.from, filters.to);
   const and: Prisma.TransactionWhereInput[] = [
-    ...(search ? [searchClause(search, detailMatchIds)] : []),
+    ...(filters.possibleTransfers
+      ? [{ id: { in: [...(ids.pairs ?? [])] } }]
+      : []),
+    ...(search ? [searchClause(search, ids.detail ?? [])] : []),
     ...(filters.onlyToCheck
       ? [
           {
@@ -100,7 +112,7 @@ export function ledgerWhere(
           },
         ]
       : []),
-    ...(filters.countedIn ? [{ id: { in: [...countedIds] } }] : []),
+    ...(filters.countedIn ? [{ id: { in: [...(ids.counted ?? [])] } }] : []),
   ];
 
   return {

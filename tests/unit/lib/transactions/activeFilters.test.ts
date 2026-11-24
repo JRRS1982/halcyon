@@ -47,6 +47,24 @@ describe("activeFilters", () => {
     ]);
   });
 
+  test("possible transfers is a chip that also clears the hidden view", () => {
+    expect(chips({ pairs: "1" })).toEqual([
+      {
+        key: "possibleTransfers",
+        label: "Possible transfers",
+        clear: { pairs: null, hidden: null },
+      },
+    ]);
+  });
+
+  test("showing hidden pairs is its own chip", () => {
+    expect(chips({ pairs: "1", hidden: "1" })[1]).toEqual({
+      key: "hiddenPairs",
+      label: "Hidden pairs",
+      clear: { hidden: null },
+    });
+  });
+
   test("a closed date range reads as one chip", () => {
     expect(chips({ from: "2026-01-01", to: "2026-03-31" })).toEqual([
       {

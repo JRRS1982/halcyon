@@ -33,8 +33,7 @@ describe("ledgerWhere", () => {
     const where = ledgerWhere(
       USER,
       { countedIn: { accountId: "acct", year: 2026, month: 2 } },
-      [],
-      ["t1", "t2"],
+      { counted: ["t1", "t2"] },
     );
     expect(where).toMatchObject({
       userId: USER,
@@ -56,6 +55,19 @@ describe("ledgerWhere", () => {
   test("search and to-check both apply, neither replacing the other", () => {
     const where = ledgerWhere(USER, { search: "rent", onlyToCheck: true });
     expect(where.AND).toHaveLength(2);
+  });
+
+  test("possible transfers narrows to the paired rows it is given", () => {
+    expect(
+      ledgerWhere(USER, { possibleTransfers: true }, { pairs: ["a", "b"] }),
+    ).toMatchObject({ AND: [{ id: { in: ["a", "b"] } }] });
+  });
+
+  test("possible transfers with no pairs matches nothing", () => {
+    // An empty list must not fall back to "every row".
+    expect(ledgerWhere(USER, { possibleTransfers: true })).toMatchObject({
+      AND: [{ id: { in: [] } }],
+    });
   });
 
   test("uncategorized means no category and no transfer", () => {

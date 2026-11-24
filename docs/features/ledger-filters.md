@@ -1,11 +1,12 @@
 # Ledger filters: a drawer, a badge, and the chips that undo it
 
-**What:** Six filters (date range, account, category, amount, uncategorised, to approve) in a drawer beside the search box; every active filter shows as a removable chip.  
+**What:** Six filters (date range, account, category, amount, uncategorised, to approve) in a drawer beside the search box, plus a Possible transfers view that pairs rows cancelling out across accounts; every active filter shows as a removable chip.  
 **Key points:**
 - All filter state lives in the URL — shareable, bookmarkable, back-button aware
 - Amount filter matches magnitude (absolute value), not sign — £50 matches both debit and credit
 - The drawer badge shows the count of active non-search filters
 - `ledgerWhere()` in `src/lib/transactions/` is the single pure predicate composing all filters
+- Possible transfers are found on read across every row, shown pair by pair, and never change a total
 
 A drawer on the toolbar narrows the ledger by month, account, category, size of
 charge, missing category or a category still to approve, alongside the search
@@ -20,6 +21,8 @@ box:
 | Uncategorised only | `?uncat=1` | no category and no transfer |
 | To approve only | `?check=1` | no category and no transfer, **or** a category still in pencil (`isCategoryConfirmed = false`) |
 | Counted in budget | `?counted=<accountId>:<YYYY-MM>` | exactly the transactions a budget Transfer or Debt payment row's Actual counted that month; no drawer control |
+| Possible transfers | `?pairs=1` | rows in a possible-transfer pair, shown pair by pair; see [below](#possible-transfers) |
+| Show hidden pairs | `?pairs=1&hidden=1` | instead, the pairs the user marked *Not a transfer* |
 
 The search box (`?q=`) matches the description, the note and the category's
 label, case-insensitively. A transfer has no category, so it is matched by what
@@ -116,8 +119,9 @@ six times to reach one state. It holds a draft and writes once, on **Apply** —
 and re-seeds from the URL on every open, so an abandoned edit is discarded
 rather than waiting to surprise the next person who opens it.
 
-`Clear all` clears every drawer filter — `uncat` and `check` included — and the
-budget's `counted` filter, and deliberately leaves `q` alone: it clears every
+`Clear all` clears every drawer filter — `uncat`, `check`, and `pairs` with
+its `hidden` view included — and the budget's `counted` filter, and
+deliberately leaves `q` alone: it clears every
 filter the badge counts.
 
 ## Two contradictions the URL can express and the UI cannot
@@ -136,12 +140,90 @@ outcome rather than an incidental one:
 An out-of-order range (`from` after `to`) is **not** silently swapped. The chip
 shows what was asked for, and an empty ledger is the honest answer.
 
+## Possible transfers
+
+A transfer the user has not tagged counts as spending in one account and as
+income in the other. **Possible transfers** finds both sides so they can be
+dealt with in one go. Off when transfers are off in Settings: the drawer hides
+the toggle, like the category picker's Transfers option, and the page ignores
+`?pairs=1` in a saved or shared link.
+
+**What counts as a pair:** two live rows of the user's, in **different
+accounts**, neither archived (nothing can be a transfer to an archived
+account), the same amount with opposite signs, dated within
+`PAIR_WINDOW_DAYS` (3) of each other, the window the import review's
+`pairOpposites` uses. When a row could match more than one other row, the
+pairing is the same every time: rows in date order (ties by id), each taking
+the nearest-dated unpaired match after it. The pair is then flagged *"1 other
+row could also match"*, counting the distinct other rows that match either side.
+A pair is also flagged *"Tagged to a different account"* when a row is already
+a transfer to some account other than its match's.
+
+**How it is found:** on read, over every row the user has, never one page.
+Nothing is stored at import. `possibleTransferCandidates` (`server.ts`) is one
+parameterised self-join, fenced on the user, that returns every row with a
+possible opposite. `pairPossibleTransfers`
+([`possibleTransfers.ts`](../../src/lib/transactions/possibleTransfers.ts)) is
+the pure pairing. The pairs' ids then go into `ledgerWhere`, like
+`detailMatchIds`, so the other filters apply. The join compares integer pence,
+not `amount`: Postgres hashes a numeric without its sign, so `amount = -amount`
+put every −£10 row in one hash bucket with every +£10 row. On 51,500 rows per
+user it took 1.3–3.0 s, and an index on `(userId, amount, date)` went unused.
+Joining on pence takes about 40 ms with no index, so none was added.
+
+**Other filters choose which pairs show; both rows always show.** A pair shows
+when either of its rows matches the rest of the query. So *Account: Current*
+still shows the Savings side, and with *Uncategorised only* a pair stays while
+at least one row still needs dealing with. With no other filter, pairs already
+tagged as transfers still show. The filter never changes a total: the footer
+nets the rows on screen, which for whole pairs is £0.
+
+**Layout:** each pair is a summary line, *"Current → Savings · £200.00 · 1 day
+apart"*, with both rows bracketed beneath it as ordinary ledger rows. Their
+category cells work as usual. In this view a row offers **Details** only when
+its import kept columns, and shows no note. Pairs are listed newest first, by
+the pair's earlier date, so the column headings do not sort here. The list
+pages by pair (`PAIRS_PER_PAGE`, 25, which is 50 rows), so a pair is never split
+across two pages.
+
+**Acting on pairs.** One tick on the summary selects both rows, and the usual
+bulk actions (categorise, delete) apply to both. Two more appear in the
+controls card:
+
+| Action | Server action | Does |
+|---|---|---|
+| Mark as transfer | `markPairsAsTransfer` | Each row becomes a transfer to the **other** row's account, in one transaction. `bulkSetTransactionTransfer` cannot do this: it points every row at one account and skips rows already in it. A pair that no longer matches (edited since the page was drawn) or has a side in an archived account is left alone, and the ledger says how many. |
+| Not a transfer | `dismissPairs` | Stores a `DismissedTransferPair` (both ids plus a snapshot of each row's amount, date and account), then offers **Undo**. A pair that no longer matches is not stored and stays listed, and the ledger says so. At the cap nothing is stored and the reason is shown. |
+| Unhide (hidden view) | `unhidePairs` | Removes the record, so the pair is offered again. Undo uses it too. |
+
+A dismissal hides only that exact pair, and only while both rows still match
+its snapshot. Editing either row brings the pair back. Hiding A–B does not stop
+A pairing with another row, C. `dismissPairs` stores only a real possible pair
+of the user's own rows. A repeat dismissal refreshes the snapshot rather than
+adding a record. Deleting a row, singly or by undoing its import, removes the
+dismissals that name it. A dismissal that stopped applying for any other
+reason (a row edited, or moved by deleting its account) is removed at the
+user's next dismissal. Records are written only by `dismissWithinCap` and
+capped per user at `MAX_DISMISSED_PAIRS_PER_USER` (10,000), counted over every
+record; refreshing a pair already hidden does not count as a new one.
+
+Show hidden pairs lists a row once. A row hidden in two pairs (A–B hidden, A
+then paired with C, A–C hidden too) appears in the first; unhiding that one
+reveals the next.
+
+The notice after a pair action (with Undo, after a dismissal) closes itself
+after eight seconds, but not while the pointer or keyboard focus is on it.
+Show hidden pairs is there after it goes.
+
 ## Where it lives
 
 | File | Job |
 |---|---|
 | [`src/lib/transactions/pagination.ts`](../../src/lib/transactions/pagination.ts) | URL → sanitized `LedgerUrlQuery` |
 | [`src/lib/transactions/filters.ts`](../../src/lib/transactions/filters.ts) | query → Prisma predicate |
+| [`src/lib/transactions/possibleTransfers.ts`](../../src/lib/transactions/possibleTransfers.ts) | candidate rows → pairs, dismissals, warnings |
+| [`src/lib/transactions/dismissWithinCap.ts`](../../src/lib/transactions/dismissWithinCap.ts) | the one writer of dismissals: prune, cap, store |
+| [`src/app/(app)/transactions/PairSummary.tsx`](../../src/app/(app)/transactions/PairSummary.tsx) | a pair's summary line and bracket |
 | [`src/lib/transactions/activeFilters.ts`](../../src/lib/transactions/activeFilters.ts) | query → chips + badge count |
 | [`src/lib/transactions/dateRanges.ts`](../../src/lib/transactions/dateRanges.ts) | the one-tap presets, on an injected `today` |
 | [`src/app/(app)/transactions/FilterDrawer.tsx`](../../src/app/(app)/transactions/FilterDrawer.tsx) | the drawer, on the shared `Drawer` chrome |
@@ -163,6 +245,7 @@ own section. The card is contextual:
 |---|---|
 | Nothing selected | `Filters ⌄` (with count badge) · search box · `Approve all N suggested` (when any are pencilled) · active-filter chips |
 | Rows selected | `N selected` · **categorize box** · `Delete…` · `Clear` |
+| Pairs selected (Possible transfers) | as above, plus `Mark as transfer` · `Not a transfer` (or `Unhide` among hidden pairs) before `Delete…` |
 
 The search input and the categorize combobox share one fixed-width slot, so the
 card does not resize as one replaces the other. The search input is **hidden,

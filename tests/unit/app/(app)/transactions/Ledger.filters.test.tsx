@@ -41,7 +41,7 @@ const renderLedger = (search: string, filterNames?: FilterLookup) => {
   return render(
     <ThemeProvider theme={theme}>
       <Ledger
-        page={{ items: [], total: 0 }}
+        page={{ items: [], total: 0, pairs: null }}
         query={query}
         categories={[
           { id: FOOD, label: "Food", type: "EXPENSE", section: "Variable" },
@@ -183,6 +183,40 @@ describe("ledger filter drawer", () => {
     expect(lastReplacedParams().get("cat")).toBe("transfers");
   });
 
+  test("possible transfers is a drawer toggle written on Apply", () => {
+    renderLedger("");
+    openDrawer();
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Possible transfers" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    expect(lastReplacedParams().get("pairs")).toBe("1");
+  });
+
+  test("showing hidden pairs waits for possible transfers to be on", () => {
+    renderLedger("");
+    openDrawer();
+    const hidden = screen.getByRole("checkbox", { name: "Show hidden pairs" });
+    expect(hidden).toBeDisabled();
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Possible transfers" }),
+    );
+    fireEvent.click(hidden);
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    expect(lastReplacedParams().get("hidden")).toBe("1");
+  });
+
+  test("turning possible transfers off drops the hidden view with it", () => {
+    renderLedger("pairs=1&hidden=1");
+    openDrawer();
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Possible transfers" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    expect(lastReplacedParams().get("pairs")).toBeNull();
+    expect(lastReplacedParams().get("hidden")).toBeNull();
+  });
+
   test("Clear all drops every drawer filter but leaves the search alone", () => {
     renderLedger(`q=tesco&uncat=1&from=2026-01-01&acct=${SAVINGS}&min=10`);
     openDrawer();
@@ -205,6 +239,16 @@ describe("ledger filter drawer", () => {
     openDrawer();
     fireEvent.click(screen.getByRole("button", { name: "Clear all" }));
     expect(lastReplacedParams().get("counted")).toBeNull();
+  });
+
+  test("Clear all clears possible transfers and counted together", () => {
+    renderLedger(`pairs=1&hidden=1&counted=${SAVINGS}:2026-03`);
+    openDrawer();
+    fireEvent.click(screen.getByRole("button", { name: "Clear all" }));
+    const params = lastReplacedParams();
+    expect(params.get("pairs")).toBeNull();
+    expect(params.get("hidden")).toBeNull();
+    expect(params.get("counted")).toBeNull();
   });
 
   test("a filter on an archived account still names it", () => {
@@ -232,7 +276,7 @@ describe("ledger filter drawer draft", () => {
     rerender(
       <ThemeProvider theme={theme}>
         <Ledger
-          page={{ items: [], total: 0 }}
+          page={{ items: [], total: 0, pairs: null }}
           // Same values, new identity — exactly what a re-render produces.
           query={parseLedgerSearchParams({})}
           categories={[]}

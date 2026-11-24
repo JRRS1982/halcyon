@@ -97,6 +97,7 @@ export async function exportMyData(
     importBatches,
     plans,
     sentMessages,
+    dismissedTransferPairs,
   ] = await Promise.all([
     prisma.user.findUnique({ where: { id: userId } }),
     prisma.userSettings.findUnique({ where: { userId } }),
@@ -118,6 +119,7 @@ export async function exportMyData(
       },
     }),
     prisma.sentMessage.findMany({ where: { userId } }),
+    prisma.dismissedTransferPair.findMany({ where: { userId } }),
   ]);
 
   const json = serializeExport({
@@ -125,7 +127,9 @@ export async function exportMyData(
     // v3 added sentMessages so the user's full communication history is included.
     // v4 nests each account's terms (expected return, fees, rates) — figures the
     // user typed, left out of every export before it.
-    schemaVersion: 4,
+    // v5 adds dismissedTransferPairs: the ledger pairs the user said are not
+    // transfers.
+    schemaVersion: 5,
     user,
     settings,
     categories,
@@ -137,6 +141,7 @@ export async function exportMyData(
     importBatches,
     plans,
     sentMessages,
+    dismissedTransferPairs,
   });
   return { ok: true, json };
 }

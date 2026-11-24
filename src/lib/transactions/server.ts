@@ -9,7 +9,21 @@ import { sectionLabel } from "@/lib/categories/sections";
 import { prisma } from "@/lib/prisma";
 import type { FilterLookup } from "./activeFilters";
 import { escapeLike, type LedgerFilters, ledgerWhere } from "./filters";
-import { type CountedIn, type LedgerUrlQuery, PAGE_SIZE } from "./pagination";
+import { PAIR_WINDOW_DAYS } from "./import";
+import {
+  type CountedIn,
+  type LedgerUrlQuery,
+  PAGE_SIZE,
+  PAIRS_PER_PAGE,
+} from "./pagination";
+import {
+  hiddenPairs,
+  liveDismissals,
+  type PairCandidate,
+  type PossiblePair,
+  pairKey,
+  pairPossibleTransfers,
+} from "./possibleTransfers";
 import {
   countedTransferLegs,
   type DatedTransferLeg,
@@ -50,15 +64,30 @@ export type SortColumn =
 export type SortDir = "asc" | "desc";
 
 export type LedgerQuery = LedgerFilters & {
+  /** Rows to skip, or pairs under possibleTransfers. */
   offset?: number;
+  /** Under possibleTransfers: list the pairs the user hid instead. */
+  showHiddenPairs?: boolean;
   sortColumn?: SortColumn;
   sortDir?: SortDir;
 };
 
+// One pair in the possible-transfers view. Its two rows are in `items`, the
+// money-out row first.
+export type LedgerPair = PossiblePair & {
+  outAccountName: string;
+  inAccountName: string;
+  isHidden: boolean;
+};
+
 export type LedgerPage = {
   items: LedgerTransaction[];
-  // Total matching rows (all pages) for the same filters.
+  // Total matching rows (all pages) for the same filters; pairs, when
+  // `pairs` is set.
   total: number;
+  // The possible-transfers view's pairs on this page; null in the ordinary
+  // ledger.
+  pairs: LedgerPair[] | null;
 };
 
 // Returns the user's categories, lazily provisioning them from existing budget
@@ -236,14 +265,14 @@ export async function getTransactionsPage(
   userId: string,
   query: LedgerQuery = {},
 ): Promise<LedgerPage> {
+  if (query.possibleTransfers) return getPossibleTransfersPage(userId, query);
+
   const offset = query.offset ?? 0;
   const search = query.search?.trim();
-  const where = ledgerWhere(
-    userId,
-    query,
-    search ? await detailMatchIds(userId, search) : [],
-    query.countedIn ? await countedIds(userId, query.countedIn) : [],
-  );
+  const where = ledgerWhere(userId, query, {
+    detail: search ? await detailMatchIds(userId, search) : [],
+    counted: query.countedIn ? await countedIds(userId, query.countedIn) : [],
+  });
 
   const [rows, total] = await Promise.all([
     prisma.transaction.findMany({
@@ -251,24 +280,174 @@ export async function getTransactionsPage(
       orderBy: orderByFor(query.sortColumn ?? "date", query.sortDir ?? "desc"),
       skip: offset,
       take: PAGE_SIZE,
-      select: {
-        id: true,
-        date: true,
-        amount: true,
-        description: true,
-        categoryId: true,
-        isCategoryConfirmed: true,
-        transferAccountId: true,
-        accountId: true,
-        account: { select: { name: true } },
-        note: true,
-        extra: true,
-      },
+      select: LEDGER_ROW,
     }),
     prisma.transaction.count({ where }),
   ]);
 
-  return { items: rows.map(serialize), total };
+  return { items: rows.map(serialize), total, pairs: null };
+}
+
+const LEDGER_ROW = {
+  id: true,
+  date: true,
+  amount: true,
+  description: true,
+  categoryId: true,
+  isCategoryConfirmed: true,
+  transferAccountId: true,
+  accountId: true,
+  account: { select: { name: true } },
+  note: true,
+  extra: true,
+} as const;
+
+const isoDay = (date: Date): string => date.toISOString().slice(0, 10);
+
+// The possible-transfers view, one page of pairs. Pairing runs over every row
+// the user has, never one page, so a pair is the same whichever page or
+// filter it is seen through. The other filters then choose which pairs show:
+// a pair shows when either of its rows matches them, and both rows always
+// show — filtering by Current still shows the Savings side.
+async function getPossibleTransfersPage(
+  userId: string,
+  query: LedgerQuery,
+): Promise<LedgerPage> {
+  const search = query.search?.trim();
+  const [candidates, dismissals, detailIds] = await Promise.all([
+    possibleTransferCandidates(userId),
+    prisma.dismissedTransferPair.findMany({ where: { userId } }),
+    search ? detailMatchIds(userId, search) : Promise.resolve([]),
+  ]);
+
+  const live = liveDismissals(
+    candidates,
+    dismissals.map((d) => ({
+      ...d,
+      firstAmount: Number(d.firstAmount),
+      secondAmount: Number(d.secondAmount),
+      firstDate: isoDay(d.firstDate),
+      secondDate: isoDay(d.secondDate),
+    })),
+  );
+  const pairs = query.showHiddenPairs
+    ? hiddenPairs(candidates, live)
+    : pairPossibleTransfers(
+        candidates,
+        new Set(live.map((d) => pairKey(d.firstId, d.secondId))),
+      );
+  if (pairs.length === 0) return { items: [], total: 0, pairs: [] };
+
+  const matching = await prisma.transaction.findMany({
+    where: ledgerWhere(userId, query, {
+      detail: detailIds,
+      counted: query.countedIn ? await countedIds(userId, query.countedIn) : [],
+      pairs: pairs.flatMap((pair) => [pair.outId, pair.inId]),
+    }),
+    select: { id: true },
+  });
+  const matched = new Set(matching.map((row) => row.id));
+  const visible = pairs.filter(
+    (pair) => matched.has(pair.outId) || matched.has(pair.inId),
+  );
+
+  const offset = query.offset ?? 0;
+  const onPage = visible.slice(offset, offset + PAIRS_PER_PAGE);
+  const rows = await prisma.transaction.findMany({
+    where: {
+      userId,
+      deletedAt: null,
+      id: { in: onPage.flatMap((pair) => [pair.outId, pair.inId]) },
+    },
+    select: LEDGER_ROW,
+  });
+  const byId = new Map(rows.map((row) => [row.id, serialize(row)]));
+
+  const items: LedgerTransaction[] = [];
+  const pagePairs: LedgerPair[] = [];
+  for (const pair of onPage) {
+    const out = byId.get(pair.outId);
+    const into = byId.get(pair.inId);
+    // Deleted between the two reads: drop the pair rather than show half.
+    if (!out || !into) continue;
+    items.push(out, into);
+    pagePairs.push({
+      ...pair,
+      outAccountName: out.accountName,
+      inAccountName: into.accountName,
+      isHidden: Boolean(query.showHiddenPairs),
+    });
+  }
+  return { items, total: visible.length, pairs: pagePairs };
+}
+
+/**
+ * Every live row of the user's that has a possible opposite: same size,
+ * opposite sign, another account, within PAIR_WINDOW_DAYS. A superset the pure
+ * pairing then decides over. Fenced on the user (ADR-002). Rows in an archived
+ * account are left out: nothing can be tagged as a transfer to one.
+ *
+ * The join is on integer pence, not on `amount`: Postgres hashes a numeric
+ * without its sign, so joining `amount = -amount` put every -£10 row in the
+ * same hash bucket as every +£10 one and took 1.3-3s on 50k rows; on pence it
+ * takes ~40ms, with no index.
+ */
+export async function possibleTransferCandidates(
+  userId: string,
+): Promise<PairCandidate[]> {
+  const rows = await prisma.$queryRaw<
+    {
+      outId: string;
+      outDate: Date;
+      outAmount: { toString(): string };
+      outAccountId: string;
+      outTransferAccountId: string | null;
+      inId: string;
+      inDate: Date;
+      inAmount: { toString(): string };
+      inAccountId: string;
+      inTransferAccountId: string | null;
+    }[]
+  >`
+    SELECT o.id AS "outId", o.date AS "outDate", o.amount AS "outAmount",
+           o."accountId" AS "outAccountId",
+           o."transferAccountId" AS "outTransferAccountId",
+           i.id AS "inId", i.date AS "inDate", i.amount AS "inAmount",
+           i."accountId" AS "inAccountId",
+           i."transferAccountId" AS "inTransferAccountId"
+    FROM "Transaction" o
+    JOIN "Account" oa ON oa.id = o."accountId" AND oa."deletedAt" IS NULL
+    JOIN "Transaction" i
+      ON i."userId" = o."userId"
+     AND (i.amount * 100)::bigint = -(o.amount * 100)::bigint
+     AND i."accountId" <> o."accountId"
+     AND i.date BETWEEN o.date - ${PAIR_WINDOW_DAYS}::int
+                    AND o.date + ${PAIR_WINDOW_DAYS}::int
+    JOIN "Account" ia ON ia.id = i."accountId" AND ia."deletedAt" IS NULL
+    WHERE o."userId" = ${userId}::uuid
+      AND o."deletedAt" IS NULL
+      AND i."deletedAt" IS NULL
+      AND o.amount < 0
+      AND i.amount > 0`;
+
+  const byId = new Map<string, PairCandidate>();
+  for (const row of rows) {
+    byId.set(row.outId, {
+      id: row.outId,
+      date: isoDay(row.outDate),
+      amount: Number(row.outAmount),
+      accountId: row.outAccountId,
+      transferAccountId: row.outTransferAccountId,
+    });
+    byId.set(row.inId, {
+      id: row.inId,
+      date: isoDay(row.inDate),
+      amount: Number(row.inAmount),
+      accountId: row.inAccountId,
+      transferAccountId: row.inTransferAccountId,
+    });
+  }
+  return [...byId.values()];
 }
 
 /**

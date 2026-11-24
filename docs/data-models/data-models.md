@@ -67,6 +67,7 @@ which enforce the per-user caps.
 |---|---|
 | `ImportBatch` | one CSV import into one account, so it can be reversed as a unit |
 | `Transaction` | an imported or manual line: date, signed amount, description, optional category, and an optional counterparty account when it is a transfer. `isCategoryConfirmed` (default `true`) is `false` while an import's suggested category waits for the user to approve it; see [features/transactions.md](../features/transactions.md#approval) |
+| `DismissedTransferPair` | two transactions the user said are *not* a transfer, from the ledger's Possible transfers filter, with a snapshot of each row's amount, date and account. It hides the pair only while both rows still match the snapshot; deleting either row removes it. Included in the data export. See [features/ledger-filters.md](../features/ledger-filters.md#possible-transfers) |
 
 ### Plan
 
