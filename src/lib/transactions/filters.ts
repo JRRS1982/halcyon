@@ -4,7 +4,7 @@
 // never drift apart on what "matching" means.
 
 import type { Prisma } from "@prisma/client";
-import type { CategoryFilter } from "./pagination";
+import type { CategoryFilter, CountedIn } from "./pagination";
 
 export type LedgerFilters = {
   search?: string;
@@ -19,6 +19,8 @@ export type LedgerFilters = {
   /** Non-negative magnitudes: amounts are matched on absolute value. */
   amountMin?: number | null;
   amountMax?: number | null;
+  /** Resolved to ids by the caller: see `countedIds` on ledgerWhere. */
+  countedIn?: CountedIn | null;
 };
 
 // Transaction.date is a @db.Date, so every stored value sits at UTC midnight
@@ -74,10 +76,15 @@ function amountClause(
 // `detailMatchIds`: rows whose kept import columns (the Details panel) mention
 // the search, found by a lookup Prisma cannot express (see detailMatchIds in
 // server.ts). Passed in so this stays a pure function.
+//
+// `countedIds`: the rows a budget Actual counted for `filters.countedIn`, found
+// by the transfer source rule (see countedIds in server.ts). With the
+// filter on and no ids, it matches nothing rather than everything.
 export function ledgerWhere(
   userId: string,
   filters: LedgerFilters,
   detailMatchIds: readonly string[] = [],
+  countedIds: readonly string[] = [],
 ): Prisma.TransactionWhereInput {
   const search = filters.search?.trim();
   const date = dateRange(filters.from, filters.to);
@@ -93,6 +100,7 @@ export function ledgerWhere(
           },
         ]
       : []),
+    ...(filters.countedIn ? [{ id: { in: [...countedIds] } }] : []),
   ];
 
   return {

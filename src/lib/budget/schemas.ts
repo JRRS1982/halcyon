@@ -132,6 +132,10 @@ export const deleteItemSchema = z.object({
   itemId: z.string().uuid(),
 });
 
+export const actualBreakdownSchema = z.object({
+  itemId: z.string().uuid(),
+});
+
 export const copyPeriodFromSchema = z.object({
   sourcePeriodId: z.string().uuid(),
   targetYear: calendarYear,
@@ -142,4 +146,5 @@ export type CreateItemInput = z.infer<typeof createItemSchema>;
 export type CreateItemForMonthInput = z.infer<typeof createItemForMonthSchema>;
 export type UpdateItemInput = z.infer<typeof updateItemSchema>;
 export type DeleteItemInput = z.infer<typeof deleteItemSchema>;
+export type ActualBreakdownInput = z.infer<typeof actualBreakdownSchema>;
 export type CopyPeriodFromInput = z.infer<typeof copyPeriodFromSchema>;

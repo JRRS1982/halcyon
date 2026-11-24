@@ -22,7 +22,10 @@ import {
   formatAmount,
   type NumberFormat,
 } from "@/lib/settings/currency";
-import { activeFilters } from "@/lib/transactions/activeFilters";
+import {
+  activeFilters,
+  type FilterLookup,
+} from "@/lib/transactions/activeFilters";
 import {
   type LedgerUrlQuery,
   pageCount,
@@ -602,6 +605,12 @@ type LedgerProps = {
   numberFormat?: NumberFormat;
   /** A page-level review action, shown beside the search (Approve all). */
   reviewAction?: ReactNode;
+  /**
+   * Names for archived accounts and deleted categories the URL filters on —
+   * a budget month's link can point at one — so their chips can say what
+   * they are. Not offered anywhere else.
+   */
+  filterNames?: FilterLookup;
 };
 
 export function Ledger({
@@ -613,6 +622,7 @@ export function Ledger({
   currency = "GBP",
   numberFormat = DEFAULT_NUMBER_FORMAT,
   reviewAction,
+  filterNames = { accounts: [], categories: [] },
 }: LedgerProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -644,8 +654,8 @@ export function Ledger({
   // names come from the full active-account list rather than the importable
   // subset, so a filter can never point at an account the chip cannot name.
   const chips = activeFilters(query, {
-    accounts: transferAccounts,
-    categories,
+    accounts: [...transferAccounts, ...filterNames.accounts],
+    categories: [...categories, ...filterNames.categories],
   });
 
   // Nets the rows on screen, not every matching row — and says which it is,
