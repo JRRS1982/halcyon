@@ -181,6 +181,40 @@ describe("ledger filter drawer", () => {
     expect(lastReplacedParams().get("cat")).toBe("transfers");
   });
 
+  test("possible transfers is a drawer toggle written on Apply", () => {
+    renderLedger("");
+    openDrawer();
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Possible transfers" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    expect(lastReplacedParams().get("pairs")).toBe("1");
+  });
+
+  test("showing hidden pairs waits for possible transfers to be on", () => {
+    renderLedger("");
+    openDrawer();
+    const hidden = screen.getByRole("checkbox", { name: "Show hidden pairs" });
+    expect(hidden).toBeDisabled();
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Possible transfers" }),
+    );
+    fireEvent.click(hidden);
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    expect(lastReplacedParams().get("hidden")).toBe("1");
+  });
+
+  test("turning possible transfers off drops the hidden view with it", () => {
+    renderLedger("pairs=1&hidden=1");
+    openDrawer();
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Possible transfers" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    expect(lastReplacedParams().get("pairs")).toBeNull();
+    expect(lastReplacedParams().get("hidden")).toBeNull();
+  });
+
   test("Clear all drops every drawer filter but leaves the search alone", () => {
     renderLedger(`q=tesco&uncat=1&from=2026-01-01&acct=${SAVINGS}&min=10`);
     openDrawer();

@@ -146,6 +146,7 @@ export function LedgerControls({
   onClearSelection,
   onDelete,
   reviewAction,
+  selectionActions,
   categorizer,
 }: {
   search: string;
@@ -160,6 +161,9 @@ export function LedgerControls({
   /** A page-level action that reviews the ledger (Approve all), shown after
    *  the search while nothing is selected. */
   reviewAction?: ReactNode;
+  /** Actions for the current selection beyond categorise and delete (the
+   *  possible-transfers view's pair actions), shown before Delete. */
+  selectionActions?: ReactNode;
   /** The bulk CategoryCombobox, rendered into the search box's slot. */
   categorizer: ReactNode;
 }) {
@@ -205,6 +209,7 @@ export function LedgerControls({
 
         {hasSelection ? (
           <>
+            {selectionActions}
             <Button variant="destructive" type="button" onClick={onDelete}>
               Delete…
             </Button>
