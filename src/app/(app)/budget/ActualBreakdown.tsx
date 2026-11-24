@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import styled from "styled-components";
 import { shortDate } from "@/lib/date/humanDate";
 import { appear } from "@/lib/motion";
 import { hoverInk, reach } from "@/lib/pointer";
+import { visuallyHidden } from "@/lib/visuallyHidden";
 import {
   type ActualBreakdown as Breakdown,
   getActualBreakdown,
@@ -17,8 +17,10 @@ import {
 //
 // Closes like the sheet's other popovers — a mousedown outside, Esc (focus
 // back to the figure), a second click of the figure — and on focus leaving
-// it. Portalled and fixed-positioned so the sheet's overflow cannot clip it;
-// a page scroll or resize would strand it, so those close it too.
+// it. Rendered inline, right after its figure, so Tab and Shift+Tab move
+// through it in reading order and a click inside it stays inside the row;
+// fixed-positioned, like the sheet's info popover, so the sheet's overflow
+// cannot clip it. A page scroll or resize would strand it, so those close it.
 
 const WIDTH = 380;
 const GUTTER = 16;
@@ -55,10 +57,13 @@ const Popover = styled.div`
     padding: ${theme.spacing.md};
     font-family: ${theme.typography.bodyMd.family};
     font-size: ${theme.typography.bodyMd.size};
+    font-weight: normal;
     color: ${theme.colors.body};
     text-align: left;
     text-transform: none;
     letter-spacing: normal;
+    /* It sits inside an amount cell, which keeps its figure on one line. */
+    white-space: normal;
 
     &:focus { outline: none; }
     &:focus-visible { outline: 2px solid ${theme.colors.focus}; }
@@ -91,12 +96,19 @@ const Table = styled.table`
   td {
     padding: 6px 4px;
     vertical-align: top;
+    /* A bank's description can be one long token; it breaks rather than
+       pushing the amount out of view. */
+    overflow-wrap: anywhere;
     border-bottom: 1px solid ${({ theme }) => theme.colors.hairline};
   }
 
   tr:last-child td {
     border-bottom: 0;
   }
+`;
+
+const Hidden = styled.thead`
+  ${visuallyHidden}
 `;
 
 const Nowrap = styled.td`
@@ -271,6 +283,9 @@ export function ActualBreakdown({
       aria-label={`${label} transactions`}
       tabIndex={-1}
       style={place}
+      // A click inside is not a click on the sheet: the row keeps its
+      // selection, and the outside-click listeners never hear it.
+      onMouseDown={(e) => e.stopPropagation()}
       onKeyDown={(e) => {
         if (e.key !== "Escape") return;
         e.stopPropagation();
@@ -296,13 +311,23 @@ export function ActualBreakdown({
           {load.status === "ready" && ` · ${countLine(load.breakdown)}`}
         </Muted>
       </div>
-      {load.status === "loading" && <Muted>Loading…</Muted>}
+      {load.status === "loading" && <Muted role="status">Loading…</Muted>}
       {load.status === "failed" && (
-        <Muted>Couldn't load these transactions. Try again.</Muted>
+        <Muted role="status">
+          Couldn't load these transactions. Try again.
+        </Muted>
       )}
       {load.status === "ready" && load.breakdown.lines.length > 0 && (
         <Rows>
           <Table>
+            <Hidden>
+              <tr>
+                <th scope="col">Date</th>
+                <th scope="col">Account</th>
+                <th scope="col">Description</th>
+                <th scope="col">Amount</th>
+              </tr>
+            </Hidden>
             <tbody>
               {load.breakdown.lines.map((line) => (
                 <tr key={line.id}>
@@ -357,7 +382,7 @@ export function ActualBreakdown({
       >
         {fmtAmount(actual)}
       </Figure>
-      {popover && createPortal(popover, document.body)}
+      {popover}
     </>
   );
 }

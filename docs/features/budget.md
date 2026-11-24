@@ -70,10 +70,13 @@ figure is derived from the listed amounts by the same `netActual` /
 `accountActual` (`breakdownActual`, `src/lib/transactions/breakdown.ts`).
 
 It is fetched by the `getActualBreakdown` server action when the popover opens,
-not with the sheet. The popover (`ActualBreakdown.tsx`) is portalled to the
-body so the sheet's overflow cannot clip it. It closes on a click or focus
-outside, on Esc (focus returns to the figure), on a second click of the figure,
-and on a page scroll or resize, which would otherwise strand it.
+not with the sheet. The popover (`ActualBreakdown.tsx`) renders inline, right
+after its figure, so Tab and Shift+Tab move through it in reading order and a
+click inside it does not change the sheet's selected cell. It is
+fixed-positioned, like the sheet's info popover, so the sheet's overflow cannot
+clip it. It closes on a click outside, on focus moving elsewhere on the page,
+on Esc (focus returns to the figure), on a second click of the figure, and on a
+page scroll or resize, which would otherwise strand it.
 
 ## Period management
 

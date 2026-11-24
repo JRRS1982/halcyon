@@ -7,8 +7,9 @@ import { createCategoryWithinCap } from "@/lib/categories/createWithinCap";
 import { categoryKey, cleanLabel } from "@/lib/categories/normalize";
 import { sectionLabel } from "@/lib/categories/sections";
 import { prisma } from "@/lib/prisma";
+import type { FilterLookup } from "./activeFilters";
 import { escapeLike, type LedgerFilters, ledgerWhere } from "./filters";
-import { type CountedIn, PAGE_SIZE } from "./pagination";
+import { type CountedIn, type LedgerUrlQuery, PAGE_SIZE } from "./pagination";
 import {
   countedTransferLegs,
   type DatedTransferLeg,
@@ -517,6 +518,37 @@ export async function getTransferBreakdown(
     isPencilled: false,
     recordedOn: isOtherSide ? leg.accountName : null,
   }));
+}
+
+// Names for the accounts and category a ledger query filters on, archived and
+// deleted ones included: a past budget month's "Open in ledger" can point at an
+// account archived since, and its chip should still say which. Fenced on the
+// user, and only the ids the query names.
+export async function getFilterNames(
+  userId: string,
+  query: LedgerUrlQuery,
+): Promise<FilterLookup> {
+  const accountIds = [query.accountId, query.countedIn?.accountId].filter(
+    (id): id is string => id !== null && id !== undefined,
+  );
+  const categoryId =
+    query.category.kind === "category" ? query.category.categoryId : null;
+
+  const [accounts, categories] = await Promise.all([
+    accountIds.length > 0
+      ? prisma.account.findMany({
+          where: { userId, id: { in: accountIds } },
+          select: { id: true, name: true },
+        })
+      : [],
+    categoryId
+      ? prisma.category.findMany({
+          where: { userId, id: categoryId },
+          select: { id: true, label: true },
+        })
+      : [],
+  ]);
+  return { accounts, categories };
 }
 
 // Active accounts for the ledger's transfer picker (id + name + kind, the

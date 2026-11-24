@@ -53,9 +53,15 @@ Savings · Mar 2026".
 `getTransactionsPage` resolves it to ids with `getTransferBreakdown`, the same
 lookup the popover lists, and passes them into `ledgerWhere` beside
 `detailMatchIds`. With the filter on and no ids, it matches nothing rather than
-everything. It has no drawer control; its chip clears it, and the drawer's
-`Clear all` leaves it alone. A malformed value (a non-uuid, a month outside
-1–12) falls back to no filter, like every other bad param.
+everything. It has no drawer control, but it is a chip and counts in the
+badge, so both its chip and the drawer's `Clear all` clear it. A malformed
+value (a non-uuid, a month outside 1–12) falls back to no filter, like every
+other bad param.
+
+A budget month can link to an account archived since, so the page looks up
+names for the account and category ids the query names — archived and deleted
+ones included, fenced on the user (`getFilterNames`) — and the chip still says
+which account it is rather than `Unknown account`.
 
 ## Amounts match magnitude, not sign
 
@@ -110,8 +116,9 @@ six times to reach one state. It holds a draft and writes once, on **Apply** —
 and re-seeds from the URL on every open, so an abandoned edit is discarded
 rather than waiting to surprise the next person who opens it.
 
-`Clear all` clears every drawer filter — `uncat` and `check` included — and deliberately
-leaves `q` alone: it clears what the drawer owns.
+`Clear all` clears every drawer filter — `uncat` and `check` included — and the
+budget's `counted` filter, and deliberately leaves `q` alone: it clears every
+filter the badge counts.
 
 ## Two contradictions the URL can express and the UI cannot
 

@@ -10,6 +10,7 @@ import {
 import {
   countSuggested,
   countUncategorized,
+  getFilterNames,
   getLedgerAccounts,
   getOrProvisionCategories,
   getTransactionsPage,
@@ -40,6 +41,7 @@ export default async function TransactionsPage({
     page,
     uncategorizedCount,
     suggestedCount,
+    filterNames,
   ] = await Promise.all([
     // Importable accounts only — the import target picker and quick-add
     // render from this list. The ledger's own account *filter* does not:
@@ -73,6 +75,7 @@ export default async function TransactionsPage({
     }),
     countUncategorized(userId),
     countSuggested(userId),
+    getFilterNames(userId, query),
   ]);
 
   return (
@@ -87,6 +90,7 @@ export default async function TransactionsPage({
       transfersEnabled={transfersEnabled}
       currency={currency}
       numberFormat={numberFormat}
+      filterNames={filterNames}
     />
   );
 }

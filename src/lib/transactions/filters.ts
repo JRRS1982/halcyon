@@ -78,7 +78,7 @@ function amountClause(
 // server.ts). Passed in so this stays a pure function.
 //
 // `countedIds`: the rows a budget Actual counted for `filters.countedIn`, found
-// by the transfer source rule (see getCountedTransfers in server.ts). With the
+// by the transfer source rule (see countedIds in server.ts). With the
 // filter on and no ids, it matches nothing rather than everything.
 export function ledgerWhere(
   userId: string,

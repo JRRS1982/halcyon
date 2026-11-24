@@ -187,3 +187,90 @@ test.describe("budget Actual breakdown", () => {
     ).toHaveCount(0);
   });
 });
+
+// How the popover opens and closes, on every engine. Not gated: it asserts
+// focus, which engines genuinely differ on — WebKit does not focus a clicked
+// button, so a second click on the figure reaches the popover's blur with no
+// relatedTarget, and must still close it rather than close-and-reopen.
+test.describe("budget Actual popover focus", () => {
+  test("opens on the figure, closes on Esc, a second click or a click outside", async ({
+    page,
+    db,
+  }) => {
+    const token = `${Date.now()}`;
+    const row = `Food-${token}`;
+
+    await signIn(page);
+    const user = await signedInUser(db);
+    await clearStarterPeriods(db, user.id);
+    await db.userSettings.update({
+      where: { userId: user.id },
+      data: { transactionsEnabled: true },
+    });
+    const current = await db.account.create({
+      data: {
+        userId: user.id,
+        name: `Current-${token}`,
+        ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+      },
+    });
+    const category = await db.category.create({
+      data: {
+        userId: user.id,
+        label: row,
+        type: "EXPENSE",
+        section: "VARIABLE",
+      },
+    });
+    const period = await db.financialPeriod.create({
+      data: {
+        userId: user.id,
+        granularity: "MONTH",
+        startDate: new Date("2026-03-01"),
+        endDate: new Date("2026-03-31"),
+        label: "March 2026",
+      },
+    });
+    await db.budgetItem.create({
+      data: {
+        periodId: period.id,
+        categoryId: category.id,
+        type: "EXPENSE",
+        section: "VARIABLE",
+        label: row,
+        budget: 100,
+      },
+    });
+    await db.transaction.create({
+      data: {
+        userId: user.id,
+        accountId: current.id,
+        categoryId: category.id,
+        date: new Date("2026-03-05"),
+        amount: -12.5,
+        description: `Lunch-${token}`,
+      },
+    });
+
+    await page.goto("/budget?ym=2026-03");
+    const figure = page.getByRole("button", { name: `${row} Actual` });
+
+    // Esc closes it and hands focus back to the figure.
+    const dialog = await openActual(page, row);
+    await expect(dialog).toContainText("1 transaction");
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+    await expect(figure).toBeFocused();
+
+    // A second click of the figure closes it, and it stays closed.
+    await openActual(page, row);
+    await figure.click();
+    await expect(dialog).toBeHidden();
+    await expect(figure).toHaveAttribute("aria-expanded", "false");
+
+    // A click elsewhere on the page closes it.
+    await openActual(page, row);
+    await page.getByRole("heading", { level: 1 }).click();
+    await expect(dialog).toBeHidden();
+  });
+});

@@ -222,6 +222,40 @@ describe("the ledger's counted filter (integration)", () => {
     );
   });
 
+  const filterNames = async (searchParams: Record<string, string>) => {
+    const element = (await TransactionsPage({
+      searchParams: Promise.resolve(searchParams),
+    })) as ReactElement<{
+      filterNames: { accounts: { id: string; name: string }[] };
+    }>;
+    return element.props.filterNames.accounts.map((a) => a.name);
+  };
+
+  test("a link to an account archived since still names it on the chip", async () => {
+    const { savings } = await seedSavings();
+    await prisma.account.update({
+      where: { id: savings.id },
+      data: { deletedAt: new Date() },
+    });
+
+    expect(await filterNames({ counted: `${savings.id}:2026-03` })).toEqual([
+      "Savings",
+    ]);
+  });
+
+  test("never names another user's account", async () => {
+    await prisma.user.create({ data: { id: OTHER_USER_ID } });
+    const theirs = await prisma.account.create({
+      data: {
+        userId: OTHER_USER_ID,
+        name: "Theirs",
+        ...buildAccountData({ type: "SAVINGS" }),
+      },
+    });
+
+    expect(await filterNames({ acct: theirs.id })).toEqual([]);
+  });
+
   test("another user's account matches nothing", async () => {
     await seedSavings();
     await prisma.user.create({ data: { id: OTHER_USER_ID } });

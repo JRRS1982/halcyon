@@ -62,21 +62,28 @@ const GROCERIES: Breakdown = {
   ],
 };
 
+const rowMouseDown = jest.fn();
+
 function renderFigure(
   props: Partial<Parameters<typeof ActualBreakdown>[0]> = {},
 ) {
   return render(
     <ThemeProvider theme={theme}>
-      <ActualBreakdown
-        itemId={ITEM}
-        label="Groceries"
-        context="Expenses · Variable"
-        actual={102.95}
-        budget={400}
-        fmtAmount={(n) => formatAmount("GBP", n)}
-        fmtSigned={(n) => formatSignedAmount("GBP", n)}
-        {...props}
-      />
+      {/* Stands in for the sheet row, which selects itself on mousedown. */}
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: a test double for the row */}
+      <div onMouseDown={rowMouseDown}>
+        <ActualBreakdown
+          itemId={ITEM}
+          label="Groceries"
+          context="Expenses · Variable"
+          actual={102.95}
+          budget={400}
+          fmtAmount={(n) => formatAmount("GBP", n)}
+          fmtSigned={(n) => formatSignedAmount("GBP", n)}
+          {...props}
+        />
+      </div>
+      <button type="button">Next cell</button>
       <p>Elsewhere on the page</p>
     </ThemeProvider>,
   );
@@ -92,6 +99,7 @@ async function open() {
 }
 
 beforeEach(() => {
+  rowMouseDown.mockReset();
   getActualBreakdown.mockReset();
   getActualBreakdown.mockResolvedValue(GROCERIES);
 });
@@ -176,6 +184,51 @@ describe("ActualBreakdown", () => {
     expect(screen.queryByRole("dialog")).not.toBeNull();
     fireEvent.mouseDown(screen.getByText("Elsewhere on the page"));
     expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  test("a click inside it leaves the row's selection alone", async () => {
+    renderFigure();
+    const dialog = await open();
+    rowMouseDown.mockReset();
+    fireEvent.mouseDown(dialog);
+    expect(rowMouseDown).not.toHaveBeenCalled();
+  });
+
+  test("sits right after its figure, so Tab reaches it in reading order", async () => {
+    renderFigure();
+    const dialog = await open();
+    expect(figure().nextElementSibling).toBe(dialog);
+  });
+
+  test("focus moving elsewhere on the page closes it", async () => {
+    renderFigure();
+    const dialog = await open();
+    fireEvent.focusOut(dialog, {
+      relatedTarget: screen.getByRole("button", { name: "Next cell" }),
+    });
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  test("Shift+Tab back to the figure keeps it open", async () => {
+    renderFigure();
+    const dialog = await open();
+    fireEvent.focusOut(dialog, { relatedTarget: figure() });
+    expect(screen.queryByRole("dialog")).not.toBeNull();
+  });
+
+  test("announces that it is loading", () => {
+    getActualBreakdown.mockReturnValue(new Promise(() => {}));
+    renderFigure();
+    fireEvent.click(figure());
+    expect(screen.getByRole("status")).toHaveTextContent("Loading");
+  });
+
+  test("names its columns for a screen reader", async () => {
+    renderFigure();
+    await open();
+    expect(
+      screen.getAllByRole("columnheader").map((h) => h.textContent),
+    ).toEqual(["Date", "Account", "Description", "Amount"]);
   });
 
   test("says so when the transactions cannot be loaded", async () => {
