@@ -942,26 +942,21 @@ export async function markPairsAsTransfer(
     ).map((account) => account.id),
   );
 
+  // Typed string ids only: an undefined id would drop the filter and tag
+  // every row the user has.
+  const pointAt = (id: string, transferAccountId: string) =>
+    prisma.transaction.updateMany({
+      where: { id, userId, deletedAt: null },
+      // Transfer and category are mutually exclusive — see setTransactionTransfer.
+      data: { transferAccountId, categoryId: null, isCategoryConfirmed: true },
+    });
   const writes = pairs.flatMap(({ outId, inId }) => {
     const out = rows.get(outId);
     const into = rows.get(inId);
     if (!out || !into || out.accountId === into.accountId) return [];
     if (!liveAccounts.has(out.accountId) || !liveAccounts.has(into.accountId))
       return [];
-    return [
-      [out.id, into.accountId],
-      [into.id, out.accountId],
-    ].map(([id, transferAccountId]) =>
-      prisma.transaction.updateMany({
-        where: { id, userId, deletedAt: null },
-        // Transfer and category are mutually exclusive — see setTransactionTransfer.
-        data: {
-          transferAccountId,
-          categoryId: null,
-          isCategoryConfirmed: true,
-        },
-      }),
-    );
+    return [pointAt(out.id, into.accountId), pointAt(into.id, out.accountId)];
   });
   const results = await prisma.$transaction(writes);
 

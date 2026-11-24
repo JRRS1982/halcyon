@@ -1129,8 +1129,8 @@ export function Ledger({
     dismissRows(chosen.flatMap(({ outId, inId }) => [outId, inId]));
     setSelected(new Set());
     startTransition(async () => {
-      await dismissPairs({ pairs: chosen });
-      setUndoable(chosen);
+      const { dismissed } = await dismissPairs({ pairs: chosen });
+      if (dismissed > 0) setUndoable(chosen);
     });
   };
 

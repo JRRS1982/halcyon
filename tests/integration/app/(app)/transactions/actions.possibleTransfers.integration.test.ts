@@ -65,6 +65,18 @@ describe("markPairsAsTransfer (integration)", () => {
     expect(rows.every((row) => row.isCategoryConfirmed)).toBe(true);
   });
 
+  test("changes only the pair's own rows", async () => {
+    const { current, out, into } = await seedPair();
+    const bystander = await tx(current.id, "2026-11-03", -9);
+
+    await markPairsAsTransfer({ pairs: [{ outId: out.id, inId: into.id }] });
+
+    const after = await prisma.transaction.findUniqueOrThrow({
+      where: { id: bystander.id },
+    });
+    expect(after.transferAccountId).toBeNull();
+  });
+
   test("leaves another user's rows untouched", async () => {
     await prisma.user.create({ data: { id: OTHER_USER } });
     const theirsA = await account("A", OTHER_USER);
