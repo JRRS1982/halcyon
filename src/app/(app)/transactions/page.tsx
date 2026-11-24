@@ -69,6 +69,7 @@ export default async function TransactionsPage({
       category: query.category,
       amountMin: query.amountMin,
       amountMax: query.amountMax,
+      countedIn: query.countedIn,
     }),
     countUncategorized(userId),
     countSuggested(userId),

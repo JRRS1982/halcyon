@@ -15,9 +15,9 @@ describe("parseLedgerSearchParams", () => {
 
     test("reads an account and a month", () => {
       expect(
-        parseLedgerSearchParams({ counted: countedParam(ACCOUNT, "2026-03") })
+        parseLedgerSearchParams({ counted: countedParam(ACCOUNT, 2026, 2) })
           .countedIn,
-      ).toEqual({ accountId: ACCOUNT, ym: "2026-03" });
+      ).toEqual({ accountId: ACCOUNT, year: 2026, month: 2 });
     });
 
     test.each([
@@ -25,6 +25,7 @@ describe("parseLedgerSearchParams", () => {
       ["a non-uuid account", "banana:2026-03"],
       ["an impossible month", `${ACCOUNT}:2026-13`],
       ["a malformed month", `${ACCOUNT}:2026-3`],
+      ["a trailing segment", `${ACCOUNT}:2026-03:x`],
     ])("drops %s", (_, raw) => {
       expect(parseLedgerSearchParams({ counted: raw }).countedIn).toBeNull();
     });

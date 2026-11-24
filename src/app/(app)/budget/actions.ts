@@ -27,6 +27,8 @@ import {
   monthRangeFor,
 } from "@/lib/budget/period";
 import {
+  type ActualBreakdownInput,
+  actualBreakdownSchema,
   type CopyPeriodFromInput,
   type CreateItemForMonthInput,
   copyPeriodFromSchema,
@@ -45,7 +47,14 @@ import {
   netActual,
 } from "@/lib/transactions/actual";
 import {
+  breakdownActual,
+  breakdownLedgerHref,
+} from "@/lib/transactions/breakdown";
+import {
+  type BreakdownLine,
   getAmountsByCategory,
+  getCategoryBreakdown,
+  getTransferBreakdown,
   getTransferFlowByAccount,
 } from "@/lib/transactions/server";
 
@@ -386,6 +395,67 @@ export async function deleteItem(input: DeleteItemInput) {
     where: { id: parsed.itemId },
     data: { deletedAt: new Date() },
   });
+}
+
+export type ActualBreakdown = {
+  lines: BreakdownLine[];
+  actual: number;
+  ledgerHref: string | null;
+};
+
+// The transactions behind one row's Actual, for the popover on the sheet.
+// Fetched when the popover opens rather than with the sheet, so a month of
+// rows costs nothing until someone asks. Read through the same queries and
+// rules as the page's figure, so the list sums to it.
+export async function getActualBreakdown(
+  input: ActualBreakdownInput,
+): Promise<ActualBreakdown> {
+  const userId = await requireUserId("/budget");
+  const { itemId } = actualBreakdownSchema.parse(input);
+
+  const item = await prisma.budgetItem.findFirst({
+    where: { id: itemId, deletedAt: null, period: { userId } },
+    select: {
+      type: true,
+      direction: true,
+      categoryId: true,
+      accountId: true,
+      period: { select: { startDate: true } },
+    },
+  });
+  if (!item) {
+    throw new Error("Item not found");
+  }
+
+  // With transactions mode off the Actual is a typed figure: there are no
+  // transactions behind it to list.
+  const settings = await prisma.userSettings.findUnique({
+    where: { userId },
+    select: { transactionsEnabled: true },
+  });
+  if (!settings?.transactionsEnabled) {
+    throw new Error("Transactions are switched off");
+  }
+
+  const year = item.period.startDate.getUTCFullYear();
+  const month = item.period.startDate.getUTCMonth();
+  const { startDate, endDate } = monthRangeFor(year, month);
+  const lines = isAccountKeyed(item.type)
+    ? item.accountId
+      ? await getTransferBreakdown(userId, item.accountId, startDate, endDate)
+      : []
+    : item.categoryId
+      ? await getCategoryBreakdown(userId, item.categoryId, startDate, endDate)
+      : [];
+
+  return {
+    lines,
+    actual: breakdownActual(
+      item,
+      lines.map((line) => line.amount),
+    ),
+    ledgerHref: breakdownLedgerHref(item, year, month),
+  };
 }
 
 // The user's periods that have at least one item — the candidate sources for

@@ -2,13 +2,15 @@ import "server-only";
 
 import type { AccountKind } from "@prisma/client";
 import { kindOf } from "@/lib/accounts/accountDraft";
+import { monthRangeFor } from "@/lib/budget/period";
 import { createCategoryWithinCap } from "@/lib/categories/createWithinCap";
 import { categoryKey, cleanLabel } from "@/lib/categories/normalize";
 import { sectionLabel } from "@/lib/categories/sections";
 import { prisma } from "@/lib/prisma";
 import { escapeLike, type LedgerFilters, ledgerWhere } from "./filters";
-import { PAGE_SIZE } from "./pagination";
+import { type CountedIn, PAGE_SIZE } from "./pagination";
 import {
+  countedTransferLegs,
   type DatedTransferLeg,
   netTransfersByMonthAndAccount,
   netTransfersForAccounts,
@@ -239,6 +241,7 @@ export async function getTransactionsPage(
     userId,
     query,
     search ? await detailMatchIds(userId, search) : [],
+    query.countedIn ? await countedIds(userId, query.countedIn) : [],
   );
 
   const [rows, total] = await Promise.all([
@@ -294,6 +297,22 @@ async function detailMatchIds(
   return rows.map((row) => row.id);
 }
 
+// The ids a budget transfer or debt payment Actual counted for one account and
+// month — the rows its popover lists, so "Open in ledger" shows exactly those.
+async function countedIds(
+  userId: string,
+  { accountId, year, month }: CountedIn,
+): Promise<string[]> {
+  const { startDate, endDate } = monthRangeFor(year, month);
+  const lines = await getTransferBreakdown(
+    userId,
+    accountId,
+    startDate,
+    endDate,
+  );
+  return lines.map((line) => line.id);
+}
+
 // Count of uncategorized transactions, for the "needs attention" nudge. A
 // transfer (transferAccountId set) is resolved, not uncategorized.
 export async function countUncategorized(userId: string): Promise<number> {
@@ -319,6 +338,22 @@ export async function countSuggested(userId: string): Promise<number> {
   });
 }
 
+// The transactions a category-keyed budget Actual is made of. Shared by the
+// sheet's figure and the popover's list, so the two read the same rows.
+function categoryActualWhere(
+  userId: string,
+  categoryIds: string[],
+  start: Date,
+  end: Date,
+) {
+  return {
+    userId,
+    deletedAt: null,
+    categoryId: { in: categoryIds },
+    date: { gte: start, lte: end },
+  };
+}
+
 // Signed transaction amounts per category in a date range, for overlaying
 // computed actuals onto budget rows (via netActual). Categories with no
 // transactions are simply absent from the map.
@@ -332,12 +367,7 @@ export async function getAmountsByCategory(
   if (categoryIds.length === 0) return amounts;
 
   const txns = await prisma.transaction.findMany({
-    where: {
-      userId,
-      deletedAt: null,
-      categoryId: { in: categoryIds },
-      date: { gte: start, lte: end },
-    },
+    where: categoryActualWhere(userId, categoryIds, start, end),
     select: { categoryId: true, amount: true },
   });
   for (const tx of txns) {
@@ -353,11 +383,13 @@ export async function getAmountsByCategory(
 // account, its counterparty, and the amount. Fenced on userId — per ADR-002
 // the server Prisma role bypasses RLS, so this filter is the boundary. Shared
 // by both transfer readers so their fencing can never drift apart.
+type StoredTransferLeg = DatedTransferLeg & { id: string; description: string };
+
 async function transferLegs(
   userId: string,
   start: Date,
   end: Date,
-): Promise<DatedTransferLeg[]> {
+): Promise<StoredTransferLeg[]> {
   const rows = await prisma.transaction.findMany({
     where: {
       userId,
@@ -366,17 +398,22 @@ async function transferLegs(
       date: { gte: start, lte: end },
     },
     select: {
+      id: true,
       amount: true,
       date: true,
+      description: true,
       account: { select: { id: true, name: true } },
       transferAccount: { select: { id: true, name: true } },
     },
+    orderBy: [{ date: "asc" }, { id: "asc" }],
   });
 
   return rows.flatMap((r) =>
     r.transferAccount
       ? [
           {
+            id: r.id,
+            description: r.description,
             accountId: r.account.id,
             accountName: r.account.name,
             counterpartyId: r.transferAccount.id,
@@ -415,6 +452,71 @@ export async function getTransferFlowByMonthAndAccount(
   end: Date,
 ): Promise<Map<string, number>> {
   return netTransfersByMonthAndAccount(await transferLegs(userId, start, end));
+}
+
+// One transaction as a budget Actual's breakdown lists it. `amount` is signed
+// the way the row reads it: as stored for a category row, from the row's
+// account for a transfer or debt payment. `recordedOn` names the other account
+// when the row counted a leg recorded on that account's side.
+export type BreakdownLine = {
+  id: string;
+  date: string;
+  accountName: string;
+  description: string;
+  amount: number;
+  isPencilled: boolean;
+  recordedOn: string | null;
+};
+
+// The transactions a category row's Actual sums, oldest first.
+export async function getCategoryBreakdown(
+  userId: string,
+  categoryId: string,
+  start: Date,
+  end: Date,
+): Promise<BreakdownLine[]> {
+  const rows = await prisma.transaction.findMany({
+    where: categoryActualWhere(userId, [categoryId], start, end),
+    orderBy: [{ date: "asc" }, { id: "asc" }],
+    select: {
+      id: true,
+      date: true,
+      amount: true,
+      description: true,
+      isCategoryConfirmed: true,
+      account: { select: { name: true } },
+    },
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    date: r.date.toISOString(),
+    accountName: r.account.name,
+    description: r.description,
+    amount: Number(r.amount),
+    isPencilled: !r.isCategoryConfirmed,
+    recordedOn: null,
+  }));
+}
+
+// The transfer legs an account's Actual counted in a period, oldest first:
+// the same legs, through the same source rule, as getTransferFlowByAccount.
+export async function getTransferBreakdown(
+  userId: string,
+  accountId: string,
+  start: Date,
+  end: Date,
+): Promise<BreakdownLine[]> {
+  const legs = await transferLegs(userId, start, end);
+  const counted = countedTransferLegs(legs, legs).get(accountId) ?? [];
+  return counted.map(({ leg, amount, isOtherSide }) => ({
+    id: leg.id,
+    date: leg.date.toISOString(),
+    accountName: leg.accountName,
+    description: leg.description,
+    amount,
+    isPencilled: false,
+    recordedOn: isOtherSide ? leg.accountName : null,
+  }));
 }
 
 // Active accounts for the ledger's transfer picker (id + name + kind, the

@@ -4,6 +4,7 @@
 // &acct=…&cat=…&min=10&max=50) so the server component renders exactly one
 // page, and back/forward + shareable links work. Pure helpers only.
 
+import { formatYm, parseYm } from "@/lib/budget/period";
 import type { SortColumn, SortDir } from "./server";
 
 export const PAGE_SIZE = 50;
@@ -44,9 +45,10 @@ export type LedgerUrlQuery = {
   countedIn: CountedIn | null;
 };
 
-// A budget row's account and month, YYYY-MM. Reached only from the budget's
-// "Open in ledger" link; it has no control in the drawer.
-export type CountedIn = { accountId: string; ym: string };
+// A budget row's account and month (0-indexed, as the budget's period helpers
+// speak it). Reached only from the budget's "Open in ledger" link; it has no
+// control in the drawer.
+export type CountedIn = { accountId: string; year: number; month: number };
 
 // Account and category ids are @db.Uuid columns, so anything else is not a
 // filter that finds nothing — it is a Prisma error and a 500 on a page anyone
@@ -87,17 +89,17 @@ function parseCategory(raw: string | undefined): CategoryFilter {
 
 // The `counted` param is one value, `<accountId>:<YYYY-MM>`, so its chip
 // clears with one key. Built here beside its parser so the two cannot drift.
-export const countedParam = (accountId: string, ym: string): string =>
-  `${accountId}:${ym}`;
+export const countedParam = (
+  accountId: string,
+  year: number,
+  month: number,
+): string => `${accountId}:${formatYm(year, month)}`;
 
 function parseCounted(raw: string | undefined): CountedIn | null {
-  const match = /^([^:]+):(\d{4})-(\d{2})$/.exec(raw ?? "");
-  if (!match) return null;
-  const [, rawAccount, year, month] = match;
+  const [rawAccount, rawYm, ...rest] = (raw ?? "").split(":");
   const accountId = idOrNull(rawAccount);
-  const monthNumber = Number(month);
-  if (!accountId || monthNumber < 1 || monthNumber > 12) return null;
-  return { accountId, ym: `${year}-${month}` };
+  const ym = rest.length === 0 ? parseYm(rawYm ?? "") : null;
+  return accountId && ym ? { accountId, ...ym } : null;
 }
 
 const first = (v: string | string[] | undefined): string | undefined =>

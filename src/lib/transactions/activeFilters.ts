@@ -114,14 +114,13 @@ export function activeFilters(
   }
 
   if (query.countedIn) {
-    const { accountId, ym } = query.countedIn;
+    const { accountId, year, month } = query.countedIn;
     const account =
       lookup.accounts.find((a) => a.id === accountId)?.name ??
       "Unknown account";
-    const [year, month] = ym.split("-");
     filters.push({
       key: "counted",
-      label: `Counted in budget: ${account} · ${MONTH_LABELS_SHORT[Number(month) - 1]} ${year}`,
+      label: `Counted in budget: ${account} · ${MONTH_LABELS_SHORT[month]} ${year}`,
       clear: { counted: null },
     });
   }

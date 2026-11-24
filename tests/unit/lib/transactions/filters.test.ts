@@ -32,7 +32,7 @@ describe("ledgerWhere", () => {
   test("counted narrows to the ids the budget counted", () => {
     const where = ledgerWhere(
       USER,
-      { countedIn: { accountId: "acct", ym: "2026-03" } },
+      { countedIn: { accountId: "acct", year: 2026, month: 2 } },
       [],
       ["t1", "t2"],
     );
@@ -44,7 +44,7 @@ describe("ledgerWhere", () => {
 
   test("counted with nothing counted matches nothing, never everything", () => {
     const where = ledgerWhere(USER, {
-      countedIn: { accountId: "acct", ym: "2026-03" },
+      countedIn: { accountId: "acct", year: 2026, month: 2 },
     });
     expect(where.AND).toEqual([{ id: { in: [] } }]);
   });
