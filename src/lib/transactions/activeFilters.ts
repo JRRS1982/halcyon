@@ -12,7 +12,15 @@ import { humanDate } from "@/lib/date/humanDate";
 import type { LedgerUrlQuery } from "./pagination";
 
 export type ActiveFilter = {
-  key: "uncategorized" | "toCheck" | "date" | "account" | "category" | "amount";
+  key:
+    | "uncategorized"
+    | "toCheck"
+    | "possibleTransfers"
+    | "hiddenPairs"
+    | "date"
+    | "account"
+    | "category"
+    | "amount";
   label: string;
   /** The searchParams patch that clears this filter. */
   clear: Record<string, null>;
@@ -64,6 +72,22 @@ export function activeFilters(
       key: "toCheck",
       label: "To approve",
       clear: { check: null },
+    });
+  }
+
+  if (query.possibleTransfers) {
+    filters.push({
+      key: "possibleTransfers",
+      label: "Possible transfers",
+      clear: { pairs: null, hidden: null },
+    });
+  }
+
+  if (query.showHiddenPairs) {
+    filters.push({
+      key: "hiddenPairs",
+      label: "Hidden pairs",
+      clear: { hidden: null },
     });
   }
 

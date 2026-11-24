@@ -36,6 +36,19 @@ describe("ledgerWhere", () => {
     expect(where.AND).toHaveLength(2);
   });
 
+  test("possible transfers narrows to the paired rows it is given", () => {
+    expect(
+      ledgerWhere(USER, { possibleTransfers: true }, [], ["a", "b"]),
+    ).toMatchObject({ AND: [{ id: { in: ["a", "b"] } }] });
+  });
+
+  test("possible transfers with no pairs matches nothing", () => {
+    // An empty list must not fall back to "every row".
+    expect(ledgerWhere(USER, { possibleTransfers: true })).toMatchObject({
+      AND: [{ id: { in: [] } }],
+    });
+  });
+
   test("uncategorized means no category and no transfer", () => {
     expect(ledgerWhere(USER, { onlyUncategorized: true })).toMatchObject({
       categoryId: null,

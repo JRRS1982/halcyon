@@ -19,6 +19,8 @@ export type LedgerFilters = {
   /** Non-negative magnitudes: amounts are matched on absolute value. */
   amountMin?: number | null;
   amountMax?: number | null;
+  /** Only rows in a possible-transfer pair (ids supplied by the caller). */
+  possibleTransfers?: boolean;
 };
 
 // Transaction.date is a @db.Date, so every stored value sits at UTC midnight
@@ -74,14 +76,20 @@ function amountClause(
 // `detailMatchIds`: rows whose kept import columns (the Details panel) mention
 // the search, found by a lookup Prisma cannot express (see detailMatchIds in
 // server.ts). Passed in so this stays a pure function.
+//
+// `pairRowIds`: under possibleTransfers, the rows that sit in a pair, found by
+// possibleTransferCandidates in server.ts and paired by possibleTransfers.ts.
+// An empty list matches nothing rather than everything.
 export function ledgerWhere(
   userId: string,
   filters: LedgerFilters,
   detailMatchIds: readonly string[] = [],
+  pairRowIds: readonly string[] = [],
 ): Prisma.TransactionWhereInput {
   const search = filters.search?.trim();
   const date = dateRange(filters.from, filters.to);
   const and: Prisma.TransactionWhereInput[] = [
+    ...(filters.possibleTransfers ? [{ id: { in: [...pairRowIds] } }] : []),
     ...(search ? [searchClause(search, detailMatchIds)] : []),
     ...(filters.onlyToCheck
       ? [

@@ -1,4 +1,4 @@
-import { ledgerFooter } from "@/lib/transactions/totals";
+import { ledgerFooter, pairFooter } from "@/lib/transactions/totals";
 
 const rows = (...amounts: number[]) => amounts.map((amount) => ({ amount }));
 
@@ -37,5 +37,24 @@ describe("ledgerFooter", () => {
 
   test("the last page of many still says which page it is", () => {
     expect(ledgerFooter(rows(-1, -2), 52).label).toBe("This page · 2 of 52");
+  });
+});
+
+describe("pairFooter", () => {
+  test("counts pairs, not rows, when every pair fits the page", () => {
+    expect(pairFooter(rows(-200, 200, -5, 5), 2, 2)).toEqual({
+      net: 0,
+      label: "Total · 2 pairs",
+    });
+  });
+
+  test("a single pair is not pluralised", () => {
+    expect(pairFooter(rows(-200, 200), 1, 1).label).toBe("Total · 1 pair");
+  });
+
+  test("when pairs spill past this page, the label says so", () => {
+    expect(pairFooter(rows(-1, 1), 1, 60).label).toBe(
+      "This page · 1 of 60 pairs",
+    );
   });
 });

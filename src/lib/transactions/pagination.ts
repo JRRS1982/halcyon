@@ -1,12 +1,16 @@
 // Offset pagination for the transactions ledger. The page, search, filters and
 // sort all live in the URL
 // (?page=2&q=tesco&sort=amount&dir=asc&uncat=1&from=2026-01-01&to=2026-03-31
-// &acct=…&cat=…&min=10&max=50) so the server component renders exactly one
+// &acct=…&cat=…&min=10&max=50&pairs=1&hidden=1) so the server component renders exactly one
 // page, and back/forward + shareable links work. Pure helpers only.
 
 import type { SortColumn, SortDir } from "./server";
 
 export const PAGE_SIZE = 50;
+
+// The possible-transfers view pages by pair, two rows each, so a page holds as
+// many rows as the ordinary ledger and a pair is never split across pages.
+export const PAIRS_PER_PAGE = PAGE_SIZE / 2;
 
 const SORT_COLUMNS: SortColumn[] = [
   "date",
@@ -40,6 +44,10 @@ export type LedgerUrlQuery = {
   /** Non-negative magnitudes — amounts match on absolute value, not sign. */
   amountMin: number | null;
   amountMax: number | null;
+  /** Show rows that look like the two sides of an untagged transfer, in pairs. */
+  possibleTransfers: boolean;
+  /** Within possibleTransfers: the pairs the user hid, instead of the rest. */
+  showHiddenPairs: boolean;
 };
 
 // Account and category ids are @db.Uuid columns, so anything else is not a
@@ -90,6 +98,7 @@ export function parseLedgerSearchParams(
   const rawPage = Number.parseInt(first(params.page) ?? "1", 10);
   const sort = first(params.sort);
   const dir = first(params.dir);
+  const possibleTransfers = first(params.pairs) === "1";
 
   return {
     page: Number.isFinite(rawPage) && rawPage >= 1 ? rawPage : 1,
@@ -106,11 +115,13 @@ export function parseLedgerSearchParams(
     category: parseCategory(first(params.cat)),
     amountMin: amountOrNull(first(params.min)),
     amountMax: amountOrNull(first(params.max)),
+    possibleTransfers,
+    showHiddenPairs: possibleTransfers && first(params.hidden) === "1",
   };
 }
 
-export function pageCount(total: number): number {
-  return Math.max(1, Math.ceil(total / PAGE_SIZE));
+export function pageCount(total: number, size = PAGE_SIZE): number {
+  return Math.max(1, Math.ceil(total / size));
 }
 
 export type PageWindowItem = number | "gap";

@@ -1,5 +1,6 @@
 import {
   PAGE_SIZE,
+  PAIRS_PER_PAGE,
   pageCount,
   pageWindow,
   parseLedgerSearchParams,
@@ -20,6 +21,8 @@ describe("parseLedgerSearchParams", () => {
       category: { kind: "any" },
       amountMin: null,
       amountMax: null,
+      possibleTransfers: false,
+      showHiddenPairs: false,
     });
   });
 
@@ -38,6 +41,8 @@ describe("parseLedgerSearchParams", () => {
         cat: "22222222-2222-2222-2222-222222222222",
         min: "10",
         max: "50.5",
+        pairs: "1",
+        hidden: "1",
       }),
     ).toEqual({
       page: 3,
@@ -55,7 +60,16 @@ describe("parseLedgerSearchParams", () => {
       },
       amountMin: 10,
       amountMax: 50.5,
+      possibleTransfers: true,
+      showHiddenPairs: true,
     });
+  });
+
+  test("hidden pairs mean nothing without the possible-transfers filter", () => {
+    // A stray ?hidden=1 must not narrow the ordinary ledger.
+    expect(parseLedgerSearchParams({ hidden: "1" }).showHiddenPairs).toBe(
+      false,
+    );
   });
 
   test("malformed values fall back to defaults", () => {
@@ -152,6 +166,10 @@ describe("pageCount", () => {
     expect(pageCount(PAGE_SIZE)).toBe(1);
     expect(pageCount(PAGE_SIZE + 1)).toBe(2);
     expect(pageCount(PAGE_SIZE * 4)).toBe(4);
+  });
+
+  test("counts pages of pairs by the pair page size", () => {
+    expect(pageCount(PAIRS_PER_PAGE + 1, PAIRS_PER_PAGE)).toBe(2);
   });
 });
 

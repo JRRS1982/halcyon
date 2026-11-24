@@ -40,7 +40,7 @@ const renderLedger = (search: string) => {
   return render(
     <ThemeProvider theme={theme}>
       <Ledger
-        page={{ items: [], total: 0 }}
+        page={{ items: [], total: 0, pairs: null }}
         query={query}
         categories={[
           { id: FOOD, label: "Food", type: "EXPENSE", section: "Variable" },
@@ -209,7 +209,7 @@ describe("ledger filter drawer draft", () => {
     rerender(
       <ThemeProvider theme={theme}>
         <Ledger
-          page={{ items: [], total: 0 }}
+          page={{ items: [], total: 0, pairs: null }}
           // Same values, new identity — exactly what a re-render produces.
           query={parseLedgerSearchParams({})}
           categories={[]}

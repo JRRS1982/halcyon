@@ -5,6 +5,7 @@ import {
 } from "@/lib/settings/server";
 import {
   PAGE_SIZE,
+  PAIRS_PER_PAGE,
   parseLedgerSearchParams,
 } from "@/lib/transactions/pagination";
 import {
@@ -57,7 +58,9 @@ export default async function TransactionsPage({
     getLedgerAccounts(userId),
     getOrProvisionCategories(userId),
     getTransactionsPage(userId, {
-      offset: (query.page - 1) * PAGE_SIZE,
+      offset:
+        (query.page - 1) *
+        (query.possibleTransfers ? PAIRS_PER_PAGE : PAGE_SIZE),
       search: query.search,
       onlyUncategorized: query.onlyUncategorized,
       onlyToCheck: query.onlyToCheck,
@@ -69,6 +72,8 @@ export default async function TransactionsPage({
       category: query.category,
       amountMin: query.amountMin,
       amountMax: query.amountMax,
+      possibleTransfers: query.possibleTransfers,
+      showHiddenPairs: query.showHiddenPairs,
     }),
     countUncategorized(userId),
     countSuggested(userId),
