@@ -40,7 +40,13 @@ export type LedgerUrlQuery = {
   /** Non-negative magnitudes — amounts match on absolute value, not sign. */
   amountMin: number | null;
   amountMax: number | null;
+  /** The rows a budget transfer or debt payment Actual counted that month. */
+  countedIn: CountedIn | null;
 };
+
+// A budget row's account and month, YYYY-MM. Reached only from the budget's
+// "Open in ledger" link; it has no control in the drawer.
+export type CountedIn = { accountId: string; ym: string };
 
 // Account and category ids are @db.Uuid columns, so anything else is not a
 // filter that finds nothing — it is a Prisma error and a 500 on a page anyone
@@ -79,6 +85,21 @@ function parseCategory(raw: string | undefined): CategoryFilter {
   return categoryId ? { kind: "category", categoryId } : { kind: "any" };
 }
 
+// The `counted` param is one value, `<accountId>:<YYYY-MM>`, so its chip
+// clears with one key. Built here beside its parser so the two cannot drift.
+export const countedParam = (accountId: string, ym: string): string =>
+  `${accountId}:${ym}`;
+
+function parseCounted(raw: string | undefined): CountedIn | null {
+  const match = /^([^:]+):(\d{4})-(\d{2})$/.exec(raw ?? "");
+  if (!match) return null;
+  const [, rawAccount, year, month] = match;
+  const accountId = idOrNull(rawAccount);
+  const monthNumber = Number(month);
+  if (!accountId || monthNumber < 1 || monthNumber > 12) return null;
+  return { accountId, ym: `${year}-${month}` };
+}
+
 const first = (v: string | string[] | undefined): string | undefined =>
   Array.isArray(v) ? v[0] : v;
 
@@ -106,6 +127,7 @@ export function parseLedgerSearchParams(
     category: parseCategory(first(params.cat)),
     amountMin: amountOrNull(first(params.min)),
     amountMax: amountOrNull(first(params.max)),
+    countedIn: parseCounted(first(params.counted)),
   };
 }
 

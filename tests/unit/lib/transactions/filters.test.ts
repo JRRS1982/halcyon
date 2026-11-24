@@ -27,6 +27,28 @@ describe("ledgerWhere", () => {
     });
   });
 
+  // The rows a budget Actual counted are found by a lookup (the transfer
+  // source rule cannot be a Prisma predicate) and passed in as ids.
+  test("counted narrows to the ids the budget counted", () => {
+    const where = ledgerWhere(
+      USER,
+      { countedIn: { accountId: "acct", ym: "2026-03" } },
+      [],
+      ["t1", "t2"],
+    );
+    expect(where).toMatchObject({
+      userId: USER,
+      AND: [{ id: { in: ["t1", "t2"] } }],
+    });
+  });
+
+  test("counted with nothing counted matches nothing, never everything", () => {
+    const where = ledgerWhere(USER, {
+      countedIn: { accountId: "acct", ym: "2026-03" },
+    });
+    expect(where.AND).toEqual([{ id: { in: [] } }]);
+  });
+
   test("a whitespace-only search is not a filter", () => {
     expect(ledgerWhere(USER, { search: "   " })).not.toHaveProperty("AND");
   });
