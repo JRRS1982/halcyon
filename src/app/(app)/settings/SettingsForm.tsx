@@ -163,6 +163,8 @@ export function SettingsForm({
   currencyOptions,
   numberFormat,
   numberFormatOptions,
+  dateFormat,
+  dateFormatOptions,
   transactionsEnabled,
   transfersEnabled,
   planEnabled,
@@ -175,6 +177,8 @@ export function SettingsForm({
   currencyOptions: SelectOption[];
   numberFormat: string;
   numberFormatOptions: SelectOption[];
+  dateFormat: string;
+  dateFormatOptions: SelectOption[];
   transactionsEnabled: boolean;
   transfersEnabled: boolean;
   planEnabled: boolean;
@@ -187,13 +191,22 @@ export function SettingsForm({
   const [justSaved, setJustSaved] = useState(false);
   const [currencyValue, setCurrencyValue] = useState(currency);
   const [numberFormatValue, setNumberFormatValue] = useState(numberFormat);
+  const [dateFormatValue, setDateFormatValue] = useState(dateFormat);
 
   // Format changes persist immediately on change (no Save button): build the
-  // form data from the current selections and call the action.
-  const persistFormat = (nextCurrency: string, nextNumberFormat: string) => {
+  // form data from the current selections, with the one just changed, and
+  // call the action.
+  const persistFormat = (
+    change: Partial<{
+      currency: string;
+      numberFormat: string;
+      dateFormat: string;
+    }>,
+  ) => {
     const formData = new FormData();
-    formData.set("currency", nextCurrency);
-    formData.set("numberFormat", nextNumberFormat);
+    formData.set("currency", change.currency ?? currencyValue);
+    formData.set("numberFormat", change.numberFormat ?? numberFormatValue);
+    formData.set("dateFormat", change.dateFormat ?? dateFormatValue);
     setJustSaved(false);
     startSave(async () => {
       await action(formData);
@@ -312,7 +325,7 @@ export function SettingsForm({
             onChange={(event) => {
               const next = event.target.value;
               setCurrencyValue(next);
-              persistFormat(next, numberFormatValue);
+              persistFormat({ currency: next });
             }}
           >
             {currencyOptions.map((opt) => (
@@ -331,10 +344,29 @@ export function SettingsForm({
             onChange={(event) => {
               const next = event.target.value;
               setNumberFormatValue(next);
-              persistFormat(currencyValue, next);
+              persistFormat({ numberFormat: next });
             }}
           >
             {numberFormatOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field>
+          <FieldLabel>Date format</FieldLabel>
+          <Select
+            name="dateFormat"
+            value={dateFormatValue}
+            disabled={savePending}
+            onChange={(event) => {
+              const next = event.target.value;
+              setDateFormatValue(next);
+              persistFormat({ dateFormat: next });
+            }}
+          >
+            {dateFormatOptions.map((opt) => (
               <option key={opt.value} value={opt.value}>
                 {opt.label}
               </option>

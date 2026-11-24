@@ -13,10 +13,15 @@ import { prisma } from "@/lib/prisma";
 const settings = () =>
   prisma.userSettings.findUniqueOrThrow({ where: { userId: TEST_USER_ID } });
 
-const formatForm = (currency: string, numberFormat: string) => {
+const formatForm = (
+  currency: string,
+  numberFormat: string,
+  dateFormat = "DMY",
+) => {
   const form = new FormData();
   form.set("currency", currency);
   form.set("numberFormat", numberFormat);
+  form.set("dateFormat", dateFormat);
   return form;
 };
 
@@ -26,12 +31,26 @@ const formatForm = (currency: string, numberFormat: string) => {
 describe("settings actions (integration)", () => {
   describe("format preferences", () => {
     // If wrong, the budget and balance sheets render in the old currency.
-    test("saves the currency and number format", async () => {
-      await updateSettings(formatForm("EUR", "DOT_2"));
+    test("saves the currency, number format and date format", async () => {
+      await updateSettings(formatForm("EUR", "DOT_2", "MDY"));
 
       await expect(settings()).resolves.toMatchObject({
         currency: "EUR",
         numberFormat: "DOT_2",
+        dateFormat: "MDY",
+      });
+    });
+
+    // A stored format nothing can read would fall back silently on every page,
+    // so an unknown one is refused at the boundary instead.
+    test("refuses a date format the app does not know, storing nothing", async () => {
+      await expect(
+        updateSettings(formatForm("EUR", "DOT_2", "DDMMYYYY")),
+      ).rejects.toThrow();
+
+      await expect(settings()).resolves.toMatchObject({
+        currency: "GBP",
+        dateFormat: "DMY",
       });
     });
 

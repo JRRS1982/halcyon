@@ -631,6 +631,24 @@ export async function addPlanAsset(
   );
 }
 
+/**
+ * Fills a DateField: a group of three parts (day, month, year) named by its
+ * legend, laid out in the user's date format. `iso` is YYYY-MM-DD; each part
+ * is filled by its own label, so the order the parts are shown in does not
+ * matter.
+ */
+export async function fillDate(
+  page: Page,
+  name: string,
+  iso: string,
+): Promise<void> {
+  const group = page.getByRole("group", { name, exact: true });
+  const [year, month, day] = iso.split("-");
+  await group.getByLabel("Day").fill(day ?? "");
+  await group.getByLabel("Month").fill(month ?? "");
+  await group.getByLabel("Year").fill(year ?? "");
+}
+
 export type PlanListName =
   | "Assets"
   | "Liabilities"

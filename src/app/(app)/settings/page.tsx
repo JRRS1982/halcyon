@@ -8,6 +8,11 @@ import {
   NUMBER_FORMATS,
   symbolFor,
 } from "@/lib/settings/currency";
+import {
+  DATE_FORMATS,
+  type DateFormat,
+  formatDate,
+} from "@/lib/settings/dateFormat";
 import { getCurrentUserSettings } from "@/lib/settings/server";
 import { getCurrentUser } from "@/lib/supabase/user";
 import { getOrProvisionCategories } from "@/lib/transactions/server";
@@ -30,12 +35,20 @@ const NUMBER_FORMAT_LABELS: Record<(typeof NUMBER_FORMATS)[number], string> = {
   SPACE_2: "Space thousands, 2 decimals",
 };
 
+// Each date format with a worked example, so the choice is read, not decoded.
+const DATE_FORMAT_LABELS: Record<DateFormat, string> = {
+  DMY: "Day, month, year",
+  MDY: "Month, day, year",
+  YMD: "Year, month, day",
+};
+
 // Protected by middleware → /sign-in?next=/settings if no session.
 export default async function SettingsPage() {
   const {
     userId,
     currency,
     numberFormat,
+    dateFormat,
     transactionsEnabled,
     transfersEnabled,
     planEnabled,
@@ -160,6 +173,11 @@ export default async function SettingsPage() {
     label: `${symbol}${NUMBER_FORMAT_SPEC[fmt].example} · ${NUMBER_FORMAT_LABELS[fmt]}`,
   }));
 
+  const dateFormatOptions = DATE_FORMATS.map((fmt) => ({
+    value: fmt,
+    label: `${formatDate("2026-12-31", fmt)} · ${DATE_FORMAT_LABELS[fmt]}`,
+  }));
+
   // One landmark around all the sections. Each supplies its own <section>
   // and heading, so the page reads as a single region with several parts.
   return (
@@ -170,6 +188,8 @@ export default async function SettingsPage() {
         currencyOptions={currencyOptions}
         numberFormat={numberFormat}
         numberFormatOptions={numberFormatOptions}
+        dateFormat={dateFormat}
+        dateFormatOptions={dateFormatOptions}
         transactionsEnabled={transactionsEnabled}
         transfersEnabled={transfersEnabled}
         planEnabled={planEnabled}

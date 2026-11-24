@@ -17,9 +17,12 @@ Saved to `UserSettings`:
 |---------|---------|---------|
 | Currency | ISO codes via `CURRENCY_CODES` | GBP |
 | Number format | `COMMA_0` etc. via `NUMBER_FORMATS` | COMMA_0 |
+| Date format | `DMY`, `MDY`, `YMD` via `DATE_FORMATS` (`src/lib/settings/dateFormat.ts`) | DMY |
 | Theme | `SYSTEM`, `LIGHT`, `DARK` | SYSTEM |
 
-Theme saves on change; currency and number format save on form submit. Both use `src/app/(app)/settings/actions.ts`.
+Every preference saves as soon as it is changed, through `src/app/(app)/settings/actions.ts`.
+
+The date format decides the order a date's parts are shown and typed in, everywhere a date is entered: the transaction filters, the add dialog, an account's terms and the plan's date of birth. Dates are still stored and sent as `YYYY-MM-DD`. The app layout reads the format with the rest of its settings row and provides it through `DateFormatProvider`, so each `DateField` reads it with `useDateFormat()` instead of having it passed down from the page.
 
 ## Dashboard charts
 

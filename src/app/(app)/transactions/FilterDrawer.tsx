@@ -11,6 +11,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import styled from "styled-components";
 import { Button } from "@/components/ui/Button";
 import { Checkbox } from "@/components/ui/Checkbox";
+import { DateField } from "@/components/ui/DateField";
 import { Drawer, DrawerSection, Field } from "@/components/ui/Drawer";
 import { hoverFill } from "@/lib/pointer";
 import { datePresets } from "@/lib/transactions/dateRanges";
@@ -223,20 +224,26 @@ export function FilterDrawer({
           ))}
         </Presets>
         <Pair>
-          <Field label="From">
-            <Input
-              type="date"
-              value={draft.from}
-              onChange={(e) => set({ from: e.target.value })}
-            />
-          </Field>
-          <Field label="To">
-            <Input
-              type="date"
-              value={draft.to}
-              onChange={(e) => set({ to: e.target.value })}
-            />
-          </Field>
+          {/* A half-typed date changes nothing; clearing all three parts
+              drops that end of the range. */}
+          <DateField
+            wide
+            legend="From"
+            value={draft.from}
+            onCommit={(iso) => {
+              if (iso) set({ from: iso });
+            }}
+            onClear={() => set({ from: "" })}
+          />
+          <DateField
+            wide
+            legend="To"
+            value={draft.to}
+            onCommit={(iso) => {
+              if (iso) set({ to: iso });
+            }}
+            onClear={() => set({ to: "" })}
+          />
         </Pair>
       </DrawerSection>
 

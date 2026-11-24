@@ -1,6 +1,6 @@
 /** @jest-environment jsdom */
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { ThemeProvider } from "styled-components";
 import { AccountTermsFields } from "@/components/accounts/AccountTermsFields";
@@ -23,9 +23,13 @@ describe("AccountTermsFields", () => {
 
     expect(screen.getByLabelText("Interest rate %")).toBeInTheDocument();
     expect(screen.getByLabelText("Interest only")).toBeInTheDocument();
-    expect(screen.getByLabelText("Fixed until")).toBeInTheDocument();
+    expect(
+      screen.getByRole("group", { name: "Fixed until" }),
+    ).toBeInTheDocument();
     expect(screen.getByLabelText("Rate after that %")).toBeInTheDocument();
-    expect(screen.getByLabelText("Paid off by")).toBeInTheDocument();
+    expect(
+      screen.getByRole("group", { name: "Paid off by" }),
+    ).toBeInTheDocument();
     // A mortgage is not an investment.
     expect(screen.queryByLabelText("Platform fee %")).not.toBeInTheDocument();
   });
@@ -116,9 +120,11 @@ describe("AccountTermsFields", () => {
       />,
     );
 
-    const input = screen.getByLabelText("Paid off by");
-    fireEvent.change(input, { target: { value: "" } });
-    fireEvent.blur(input);
+    // Emptying all three parts of the date is clearing it.
+    const date = within(screen.getByRole("group", { name: "Paid off by" }));
+    for (const part of ["Day", "Month", "Year"]) {
+      fireEvent.change(date.getByLabelText(part), { target: { value: "" } });
+    }
 
     expect(onChange).toHaveBeenCalledWith({ endDate: null });
   });
