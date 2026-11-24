@@ -93,4 +93,22 @@ test.describe("Ledger rows", () => {
     // re-measured the whole table and every row below it jumped sideways.
     expect(await columnWidths()).toEqual(before);
   });
+
+  // On a phone the detail row sized itself to its contents, so the card ran
+  // past the screen's edge and Save sat out of reach inside the table's pan.
+  test("on a phone, an open row's details fit the screen, Save included", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page
+      .getByRole("button", { name: /details/i })
+      .first()
+      .click();
+    const save = page.getByRole("button", { name: "Save", exact: true });
+    await expect(save).toBeVisible();
+
+    const box = await save.boundingBox();
+    expect(box).not.toBeNull();
+    expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(390);
+  });
 });
