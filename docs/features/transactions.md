@@ -8,6 +8,7 @@
 - Import pre-categorises rows from the user's own history (`src/lib/transactions/memory.ts`). Those categories are suggestions, shown in pencil until the user approves them (`Transaction.isCategoryConfirmed`).
 - The page has two ruled sections under the headline: **Add transactions** (`Import statement…`, `Undo import…` and the CSV limits, then `Add transaction` at the end of the row) and **Review transactions** (the controls card, then the ledger). Approving belongs to reviewing, so `Approve all N suggested` sits in the controls card, not with the import buttons.
 - Filters, search and the controls card: see [ledger-filters.md](ledger-filters.md).
+- **Possible transfers** (a drawer filter) pairs rows that cancel out across accounts, so an untagged transfer can be marked as one, both sides at once, or dismissed as not one: see [ledger-filters.md](ledger-filters.md#possible-transfers).
 
 All actions in `src/app/(app)/transactions/actions.ts` call `requireTransactionsEnabled`, so the route and its server actions both refuse a user who has the feature off.
 
