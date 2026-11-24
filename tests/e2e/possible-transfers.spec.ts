@@ -62,7 +62,9 @@ test.describe("possible transfers", () => {
     const { current, savings, out, into } = await seedPair(db);
 
     await page.goto("/transactions?pairs=1");
-    await expect(page.getByText(/Everyday → Rainy Day · .*1 day apart/)).toBeVisible();
+    await expect(
+      page.getByText(/Everyday → Rainy Day · .*1 day apart/),
+    ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Remove filter: Possible transfers" }),
     ).toBeVisible();
