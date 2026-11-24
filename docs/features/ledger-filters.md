@@ -19,6 +19,7 @@ box:
 | Amount | `?min=&max=` | **magnitude**, either sign |
 | Uncategorised only | `?uncat=1` | no category and no transfer |
 | To approve only | `?check=1` | no category and no transfer, **or** a category still in pencil (`isCategoryConfirmed = false`) |
+| Counted in budget | `?counted=<accountId>:<YYYY-MM>` | exactly the transactions a budget Transfer or Debt payment row's Actual counted that month; no drawer control |
 
 The search box (`?q=`) matches the description, the note and the category's
 label, case-insensitively. A transfer has no category, so it is matched by what
@@ -38,6 +39,23 @@ own filter. It is the one filter that stays outside the drawer — it is
 a single gesture, it is debounced, and the controls card gives it a permanent
 home. Everything else, both status toggles included, lives in the drawer and
 reports itself as a chip.
+
+## Counted in budget
+
+The budget's Actual popover links to the ledger. For a category row that link
+is the drawer's own filters (category plus the month's dates), so the usual
+chips appear. A Transfer or Debt payment row's Actual cannot be expressed that
+way: it counts one side per counterparty pair, sometimes a leg recorded on
+another account ([budget-transfers.md](budget-transfers.md#one-source-per-counterparty-pair)).
+So it links to `?counted=<accountId>:<YYYY-MM>`, chip "Counted in budget:
+Savings · Mar 2026".
+
+`getTransactionsPage` resolves it to ids with `getTransferBreakdown`, the same
+lookup the popover lists, and passes them into `ledgerWhere` beside
+`detailMatchIds`. With the filter on and no ids, it matches nothing rather than
+everything. It has no drawer control; its chip clears it, and the drawer's
+`Clear all` leaves it alone. A malformed value (a non-uuid, a month outside
+1–12) falls back to no filter, like every other bad param.
 
 ## Amounts match magnitude, not sign
 
