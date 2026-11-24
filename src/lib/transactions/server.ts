@@ -6,7 +6,7 @@ import { createCategoryWithinCap } from "@/lib/categories/createWithinCap";
 import { categoryKey, cleanLabel } from "@/lib/categories/normalize";
 import { sectionLabel } from "@/lib/categories/sections";
 import { prisma } from "@/lib/prisma";
-import { type LedgerFilters, ledgerWhere } from "./filters";
+import { escapeLike, type LedgerFilters, ledgerWhere } from "./filters";
 import { PAGE_SIZE } from "./pagination";
 import {
   type DatedTransferLeg,
@@ -234,7 +234,12 @@ export async function getTransactionsPage(
   query: LedgerQuery = {},
 ): Promise<LedgerPage> {
   const offset = query.offset ?? 0;
-  const where = ledgerWhere(userId, query);
+  const search = query.search?.trim();
+  const where = ledgerWhere(
+    userId,
+    query,
+    search ? await detailMatchIds(userId, search) : [],
+  );
 
   const [rows, total] = await Promise.all([
     prisma.transaction.findMany({
@@ -260,6 +265,33 @@ export async function getTransactionsPage(
   ]);
 
   return { items: rows.map(serialize), total };
+}
+
+/**
+ * Ids of the user's rows whose kept import columns (the Details panel, stored
+ * in `extra` as {"Type": "Pot transfer", …}) have a value containing `search`.
+ *
+ * Values only, never the keys: the column names vary by bank, and searching
+ * "type" must not match every row that kept a Type column. Prisma has no
+ * filter for "any value of a JSON object contains", hence raw SQL — tagged
+ * and parameterised, so the search text is never spliced into the query.
+ */
+async function detailMatchIds(
+  userId: string,
+  search: string,
+): Promise<string[]> {
+  const pattern = `%${escapeLike(search)}%`;
+  const rows = await prisma.$queryRaw<{ id: string }[]>`
+    SELECT t.id
+    FROM "Transaction" t
+    WHERE t."userId" = ${userId}::uuid
+      AND t."deletedAt" IS NULL
+      AND jsonb_typeof(t.extra) = 'object'
+      AND EXISTS (
+        SELECT 1 FROM jsonb_each_text(t.extra) AS detail(key, value)
+        WHERE detail.value ILIKE ${pattern}
+      )`;
+  return rows.map((row) => row.id);
 }
 
 // Count of uncategorized transactions, for the "needs attention" nudge. A

@@ -70,14 +70,19 @@ function amountClause(
 
 // Every ledger read goes through here. Fenced on userId — per ADR-002 the
 // server Prisma role bypasses RLS, so this filter is the boundary.
+//
+// `detailMatchIds`: rows whose kept import columns (the Details panel) mention
+// the search, found by a lookup Prisma cannot express (see detailMatchIds in
+// server.ts). Passed in so this stays a pure function.
 export function ledgerWhere(
   userId: string,
   filters: LedgerFilters,
+  detailMatchIds: readonly string[] = [],
 ): Prisma.TransactionWhereInput {
   const search = filters.search?.trim();
   const date = dateRange(filters.from, filters.to);
   const and: Prisma.TransactionWhereInput[] = [
-    ...(search ? [searchClause(search)] : []),
+    ...(search ? [searchClause(search, detailMatchIds)] : []),
     ...(filters.onlyToCheck
       ? [
           {
@@ -117,8 +122,13 @@ export function escapeLike(text: string): string {
 }
 
 // The search box reads every field a person wrote or would recognise a row
-// by: the statement description, their own note, and the category's label.
-function searchClause(search: string): Prisma.TransactionWhereInput {
+// by: the statement description, their own note, the category's label, for a
+// transfer what its category cell says instead, and the import columns the
+// user kept (the Details panel: a bank's own "Pot transfer" type, say).
+function searchClause(
+  search: string,
+  detailMatchIds: readonly string[],
+): Prisma.TransactionWhereInput {
   const contains = {
     contains: escapeLike(search),
     mode: "insensitive" as const,
@@ -128,6 +138,44 @@ function searchClause(search: string): Prisma.TransactionWhereInput {
       { description: contains },
       { note: contains },
       { category: { is: { label: contains } } },
+      ...transferSearch(search),
+      ...(detailMatchIds.length > 0
+        ? [{ id: { in: [...detailMatchIds] } }]
+        : []),
     ],
   };
+}
+
+const IS_TRANSFER = { transferAccountId: { not: null } };
+
+// A transfer has no category: its category cell reads "Transfer to ISA" (money
+// out) or "Transfer from ISA" (money in), from the account it moved to or
+// from. So a transfer is found by that account's name, by the word "transfer"
+// or the start of it ("trans"), or by the phrase as the cell shows it.
+function transferSearch(search: string): Prisma.TransactionWhereInput[] {
+  const text = search.trim().toLowerCase();
+  const byAccount = (name: string): Prisma.TransactionWhereInput => ({
+    transferAccount: {
+      is: { name: { contains: escapeLike(name), mode: "insensitive" } },
+    },
+  });
+
+  const phrase = /^transfers?\s+(to|from)\b\s*(.*)$/.exec(text);
+  if (phrase) {
+    const [, direction, name = ""] = phrase;
+    const sign = direction === "to" ? { lt: 0 } : { gt: 0 };
+    return [
+      {
+        ...IS_TRANSFER,
+        amount: sign,
+        ...(name ? byAccount(name) : {}),
+      },
+    ];
+  }
+
+  const clauses = [byAccount(search.trim())];
+  const namesTheKind =
+    text.length >= 3 && ("transfers".startsWith(text) || text === "transfers");
+  if (namesTheKind) clauses.push(IS_TRANSFER);
+  return clauses;
 }

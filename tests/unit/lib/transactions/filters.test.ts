@@ -12,14 +12,16 @@ describe("ledgerWhere", () => {
 
   test("search reads description, note and category name, trimmed", () => {
     const contains = { contains: "tesco", mode: "insensitive" };
+    // Containing, not equal: transfers add their own clauses, covered against
+    // a real database in server.integration.test.ts.
     expect(ledgerWhere(USER, { search: "  tesco " })).toMatchObject({
       AND: [
         {
-          OR: [
+          OR: expect.arrayContaining([
             { description: contains },
             { note: contains },
             { category: { is: { label: contains } } },
-          ],
+          ]),
         },
       ],
     });
@@ -163,7 +165,7 @@ describe("ledgerWhere", () => {
       deletedAt: null,
       AND: [
         {
-          OR: [
+          OR: expect.arrayContaining([
             { description: { contains: "rent", mode: "insensitive" } },
             { note: { contains: "rent", mode: "insensitive" } },
             {
@@ -171,7 +173,7 @@ describe("ledgerWhere", () => {
                 is: { label: { contains: "rent", mode: "insensitive" } },
               },
             },
-          ],
+          ]),
         },
       ],
       date: { gte: new Date("2026-02-01T00:00:00.000Z") },

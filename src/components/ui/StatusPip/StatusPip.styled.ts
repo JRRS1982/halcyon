@@ -11,6 +11,10 @@ const dotColor = {
     theme.colors.negative,
 };
 
+// Status, not a control: a dot and caps words, with no box. The hairline box it
+// used to sit in made it read as a disabled button, beside toolbar buttons that
+// now carry a fill of their own; the phone layout had already dropped it for
+// that reason.
 export const PipWrapper = styled.span`
   ${({ theme }) => css`
     font-family: ${theme.typography.kicker.family};
@@ -19,33 +23,21 @@ export const PipWrapper = styled.span`
     text-transform: uppercase;
     letter-spacing: ${theme.typography.kicker.letterSpacing};
     color: ${theme.colors.body};
-    background: ${theme.colors.canvas};
-    border: 1px solid ${theme.colors.hairline};
-    border-radius: ${theme.rounded.sm};
-    /* Match the toolbar buttons' height/format so the pill sits flush in the
-       toolbar row rather than looking short. */
+    /* The toolbar buttons' height, so it sits level in the toolbar row. */
     height: 30px;
-    padding: 0 ${theme.spacing.md};
     display: inline-flex;
     align-items: center;
     gap: ${theme.spacing.sm};
     line-height: 1;
-    /* Reserve a stable width so the pill doesn't resize as its label cycles
-       (Saving… → Saved just now → Saved 3m ago → Up to date). The slack that
-       reserve leaves on a short label is shared between both ends rather than
-       pushed to one — flex-end parked "Up to date" against the right edge
-       behind 45px of empty pill, which read as a spacing bug. */
+    /* A stable width, so the toolbar does not shift as the label cycles
+       (Saving… → Saved just now → Saved 3m ago → Up to date). The words sit
+       at its right end, against the sheet's edge. */
     min-width: 132px;
-    justify-content: center;
+    justify-content: flex-end;
 
-    /* On a phone the pip is status, not a control — the chip chrome made it
-       read as one more button in the wrapped toolbar. Bare mono-caps text. */
     @media (max-width: 767px) {
       height: auto;
       min-width: 0;
-      padding: 0;
-      border: none;
-      background: none;
     }
   `}
 `;

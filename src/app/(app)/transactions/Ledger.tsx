@@ -48,6 +48,7 @@ import {
   setTransactionTransfer,
 } from "./actions";
 import { CategoryCombobox, type NewCategoryInput } from "./CategoryCombobox";
+import { DetailCard } from "./DetailCard";
 import { ExtraColumns } from "./ExtraColumns";
 import { FilterDrawer } from "./FilterDrawer";
 import { LedgerControls } from "./LedgerControls";
@@ -242,7 +243,7 @@ const Th = styled.th<{ $align?: "right" }>`
 // top, the description and its amount, then the category with its approval
 // and the note toggle. Cells keep their table order (select, date,
 // description, account, amount, category, note) and are placed by area.
-const Row = styled.tr<{ $leaving: boolean }>`
+const Row = styled.tr<{ $leaving: boolean; $isOpen: boolean }>`
   cursor: pointer;
   ${({ $leaving }) => $leaving && leaving}
 
@@ -306,6 +307,17 @@ const Row = styled.tr<{ $leaving: boolean }>`
       padding-top: ${({ theme }) => theme.spacing.xs};
     }
   }
+
+  /* An open row has no rule under it: its details card hangs off it. Last,
+     so it outranks the phone layout's own rule. */
+  ${({ $isOpen }) =>
+    $isOpen &&
+    css`
+      &,
+      > td {
+        border-bottom-color: transparent;
+      }
+    `}
 `;
 
 const Td = styled.td`
@@ -410,15 +422,36 @@ const NoteToggle = styled.button<{ $has: boolean }>`
   ${reachTall}
 `;
 
-const DetailTd = styled.td`
-  padding: ${({ theme }) => theme.spacing.md};
+// The open row's details: an empty cell under select and date, so the card
+// starts under Description, then the card itself across the rest.
+const DetailSpacer = styled.td`
   border-bottom: 1px solid ${({ theme }) => theme.colors.hairline};
-  background: ${({ theme }) => theme.colors.canvasSoft};
+
+  @media (max-width: 767px) {
+    display: none;
+  }
 `;
 
-const DetailPanel = styled.div`
-  display: grid;
-  gap: ${({ theme }) => theme.spacing.sm};
+const DetailTd = styled.td`
+  padding: ${({ theme }) => `${theme.spacing.xxs} ${theme.spacing.md} ${theme.spacing.lg} 0`};
+  border-bottom: 1px solid ${({ theme }) => theme.colors.hairline};
+
+  @media (max-width: 767px) {
+    padding: ${({ theme }) => `${theme.spacing.xxs} 0 ${theme.spacing.lg}`};
+  }
+`;
+
+// Under the note toggle: centred on "Details" in the 76px note column, or on
+// the toggle at the end of a phone's statement line.
+const DETAIL_NOTCH = "27px";
+const DETAIL_NOTCH_PHONE = "17px";
+
+const LedgerDetailCard = styled(DetailCard)`
+  @media (max-width: 767px) {
+    &::before {
+      right: ${DETAIL_NOTCH_PHONE};
+    }
+  }
 `;
 
 const NoteRow = styled.div`
@@ -480,6 +513,9 @@ const PageGap = styled.span`
 
 const NoteArea = styled.textarea`
   flex: 1;
+  /* A textarea's default width (Firefox's is wide) is otherwise its floor,
+     and on a phone it pushed Save past the screen's edge. */
+  min-width: 0;
   resize: vertical;
   min-height: 36px;
   padding: ${({ theme }) => theme.spacing.sm}
@@ -1103,6 +1139,7 @@ export function Ledger({
                 <Fragment key={tx.id}>
                   <Row
                     $leaving={leavingIds.has(tx.id)}
+                    $isOpen={expandedId === tx.id}
                     onClick={() => toggleRow(tx.id)}
                   >
                     <TdCheck>
@@ -1191,8 +1228,9 @@ export function Ledger({
                   </Row>
                   {expandedId === tx.id && (
                     <tr>
-                      <DetailTd colSpan={7}>
-                        <DetailPanel>
+                      <DetailSpacer colSpan={2} />
+                      <DetailTd colSpan={5}>
+                        <LedgerDetailCard $notchRight={DETAIL_NOTCH}>
                           {tx.extra ? (
                             <>
                               <ExtraColumns extra={tx.extra} />
@@ -1223,7 +1261,7 @@ export function Ledger({
                               Save
                             </Button>
                           </NoteRow>
-                        </DetailPanel>
+                        </LedgerDetailCard>
                       </DetailTd>
                     </tr>
                   )}

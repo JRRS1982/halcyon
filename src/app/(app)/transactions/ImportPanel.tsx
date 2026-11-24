@@ -46,6 +46,7 @@ import {
   type ImportResult,
   previewImport,
 } from "./actions";
+import { DetailCard } from "./DetailCard";
 import { ExtraColumns } from "./ExtraColumns";
 
 type Account = { id: string; name: string };
@@ -408,16 +409,29 @@ const DetailsToggle = styled.button`
 
 // The opened row's kept columns. Wraps, unlike the nowrap cells above it, so a
 // wide statement reads as lines rather than one long pan.
+// An open row has no rule under it: its details card hangs off it.
+const PreviewRow = styled.tr<{ $isOpen: boolean }>`
+  ${({ $isOpen }) => ($isOpen ? "> td { border-bottom-color: transparent; }" : "")}
+`;
+
+// Under the Date column, so the card starts under Description.
+const DetailSpacer = styled.td`
+  border-bottom: 1px solid ${({ theme }) => theme.colors.hairline};
+`;
+
+// Centred on the "Details" toggle at the end of the row. The toggle's column
+// shrinks to fit it (ThToggle), so the toggle's place is fixed from the right.
+const DETAIL_NOTCH = "17px";
+
+const ThToggle = styled(Th)`
+  width: 1%;
+`;
+
 const DetailTd = styled.td`
   display: table-cell;
-  padding: ${({ theme }) => theme.spacing.md};
+  padding: ${({ theme }) => `${theme.spacing.xxs} ${theme.spacing.sm} ${theme.spacing.md} 0`};
   border-bottom: 1px solid ${({ theme }) => theme.colors.hairline};
-  background: ${({ theme }) => theme.colors.canvasSoft};
   white-space: normal;
-
-  > * + * {
-    margin-top: ${({ theme }) => theme.spacing.sm};
-  }
 `;
 
 const VisuallyHidden = styled.span`
@@ -1106,9 +1120,9 @@ export function ImportPanel({
                           <Th>
                             <VisuallyHidden>Status</VisuallyHidden>
                           </Th>
-                          <Th>
+                          <ThToggle>
                             <VisuallyHidden>Details</VisuallyHidden>
-                          </Th>
+                          </ThToggle>
                         </tr>
                       </thead>
                       <tbody>
@@ -1118,7 +1132,7 @@ export function ImportPanel({
                           const isOpen = openRow === row.index;
                           return (
                             <Fragment key={row.index}>
-                              <tr>
+                              <PreviewRow $isOpen={isOpen}>
                                 <Td $bad={bad || out}>
                                   {row.date
                                     ? shortDate(dayLabel(row.date), today)
@@ -1156,11 +1170,14 @@ export function ImportPanel({
                                     </DetailsToggle>
                                   )}
                                 </Td>
-                              </tr>
+                              </PreviewRow>
                               {isOpen && row.extra && (
                                 <tr>
-                                  <DetailTd colSpan={5}>
-                                    <ExtraColumns extra={row.extra} />
+                                  <DetailSpacer />
+                                  <DetailTd colSpan={4}>
+                                    <DetailCard $notchRight={DETAIL_NOTCH}>
+                                      <ExtraColumns extra={row.extra} />
+                                    </DetailCard>
                                   </DetailTd>
                                 </tr>
                               )}
