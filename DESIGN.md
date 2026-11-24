@@ -522,7 +522,7 @@ The helpers live in `src/lib/motion.ts`.
 
 ### Masthead
 
-Two tiers on a paper ground, sticky to the top. The upper tier is the "Balanced Money" wordmark in 26px bold serif on the left and the account action on the right (an outline "Sign out" button when signed in; a "Sign in" link and an oxford "Get started" link when signed out). The lower tier is a plain text link row in 15px semibold sans, 24px apart. The whole masthead closes on a 1px ink rule; the active page is set in claret with a 4px claret underline that sits on that rule. Hover draws a strong-hairline underline. Below 768px the masthead is 56px tall with the wordmark and a 44px menu button; the menu opens full-screen with 17px links ruled by hairlines and the active link marked with a 4px claret bar.
+Two tiers on a paper ground, sticky to the top. The upper tier is the "Balanced Money" wordmark in 26px bold serif on the left; the lower tier is a plain text link row in 15px semibold sans, 24px apart. The account action ("Sign out" when signed in; a "Sign in" link and an oxford "Get started" link when signed out) sits on the right, spanning both tiers and centred between them, so it balances against the masthead as a whole rather than the wordmark alone. The whole masthead closes on a 1px ink rule; the active page is set in claret with a 4px claret underline that sits on that rule. Hover draws a strong-hairline underline. Below 768px the masthead is 56px tall with the wordmark and a 44px menu button; the menu opens full-screen with 17px links ruled by hairlines and the active link marked with a 4px claret bar.
 
 ### Footer
 

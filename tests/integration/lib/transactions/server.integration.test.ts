@@ -134,6 +134,73 @@ describe("ledger queries (integration)", () => {
     expect(byCategory.items.map((t) => t.description)).toEqual(["Tesco"]);
   });
 
+  // A transfer has no category; its category cell reads "Transfer to ISA" or
+  // "Transfer from ISA". If search ignores that, a user typing what they see
+  // finds nothing.
+  describe("search finds transfers by what their category cell says", () => {
+    const seedTransfers = async () => {
+      await seedTxns();
+      const cur = await prisma.account.findFirstOrThrow({
+        where: { userId: TEST_USER_ID, name: "Cur" },
+      });
+      const isa = await prisma.account.create({
+        data: {
+          userId: TEST_USER_ID,
+          name: "Vanguard ISA",
+          ...buildAccountData({ type: "STOCKS_ISA" }),
+        },
+      });
+      await prisma.transaction.createMany({
+        data: [
+          {
+            userId: TEST_USER_ID,
+            accountId: cur.id,
+            transferAccountId: isa.id,
+            date: new Date("2026-03-04"),
+            amount: -200,
+            description: "STO 1234",
+          },
+          {
+            userId: TEST_USER_ID,
+            accountId: cur.id,
+            transferAccountId: isa.id,
+            date: new Date("2026-03-05"),
+            amount: 50,
+            description: "Withdrawal 99",
+          },
+        ],
+      });
+    };
+    const found = async (search: string) =>
+      (await getTransactionsPage(TEST_USER_ID, { search })).items
+        .map((t) => t.description)
+        .sort();
+
+    test("by the account it moved to or from", async () => {
+      await seedTransfers();
+      expect(await found("vanguard")).toEqual(["STO 1234", "Withdrawal 99"]);
+    });
+
+    test("by the word transfer, or the start of it", async () => {
+      await seedTransfers();
+      expect(await found("transfer")).toEqual(["STO 1234", "Withdrawal 99"]);
+      expect(await found("trans")).toEqual(["STO 1234", "Withdrawal 99"]);
+    });
+
+    test("by the phrase, with to and from following the money", async () => {
+      await seedTransfers();
+      expect(await found("transfer to vanguard")).toEqual(["STO 1234"]);
+      expect(await found("Transfer from Vanguard ISA")).toEqual([
+        "Withdrawal 99",
+      ]);
+    });
+
+    test("and not for a word that only shares a few letters", async () => {
+      await seedTransfers();
+      expect(await found("tr")).toEqual([]);
+    });
+  });
+
   test("a % or _ in the search is matched literally", async () => {
     await seedTxns();
     const percent = await getTransactionsPage(TEST_USER_ID, { search: "%" });

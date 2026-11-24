@@ -112,7 +112,7 @@ describe("Ledger search box", () => {
     try {
       const { rerender } = renderWithSearch("");
       const box = screen.getByPlaceholderText(
-        "Search description, note or category…",
+        "Search description, note, category or transfer…",
       );
 
       fireEvent.change(box, { target: { value: "coffee" } });
@@ -147,7 +147,7 @@ describe("Ledger search box", () => {
   test("still adopts the URL on a genuine external change (back/forward)", () => {
     const { rerender } = renderWithSearch("coffee");
     const box = screen.getByPlaceholderText(
-      "Search description, note or category…",
+      "Search description, note, category or transfer…",
     );
     expect(box).toHaveValue("coffee");
 

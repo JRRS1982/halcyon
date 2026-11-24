@@ -117,7 +117,8 @@ export function escapeLike(text: string): string {
 }
 
 // The search box reads every field a person wrote or would recognise a row
-// by: the statement description, their own note, and the category's label.
+// by: the statement description, their own note, the category's label, and
+// for a transfer what its category cell says instead.
 function searchClause(search: string): Prisma.TransactionWhereInput {
   const contains = {
     contains: escapeLike(search),
@@ -128,6 +129,41 @@ function searchClause(search: string): Prisma.TransactionWhereInput {
       { description: contains },
       { note: contains },
       { category: { is: { label: contains } } },
+      ...transferSearch(search),
     ],
   };
+}
+
+const IS_TRANSFER = { transferAccountId: { not: null } };
+
+// A transfer has no category: its category cell reads "Transfer to ISA" (money
+// out) or "Transfer from ISA" (money in), from the account it moved to or
+// from. So a transfer is found by that account's name, by the word "transfer"
+// or the start of it ("trans"), or by the phrase as the cell shows it.
+function transferSearch(search: string): Prisma.TransactionWhereInput[] {
+  const text = search.trim().toLowerCase();
+  const byAccount = (name: string): Prisma.TransactionWhereInput => ({
+    transferAccount: {
+      is: { name: { contains: escapeLike(name), mode: "insensitive" } },
+    },
+  });
+
+  const phrase = /^transfers?\s+(to|from)\b\s*(.*)$/.exec(text);
+  if (phrase) {
+    const [, direction, name = ""] = phrase;
+    const sign = direction === "to" ? { lt: 0 } : { gt: 0 };
+    return [
+      {
+        ...IS_TRANSFER,
+        amount: sign,
+        ...(name ? byAccount(name) : {}),
+      },
+    ];
+  }
+
+  const clauses = [byAccount(search.trim())];
+  const namesTheKind =
+    text.length >= 3 && ("transfers".startsWith(text) || text === "transfers");
+  if (namesTheKind) clauses.push(IS_TRANSFER);
+  return clauses;
 }

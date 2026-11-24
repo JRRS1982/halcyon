@@ -21,9 +21,12 @@ export const Inner = styled.div`
   ${({ theme }) => css`
     display: grid;
     grid-template-columns: 1fr auto;
+    /* The account action spans both rows, centred against the wordmark and
+       the links together: in the top row alone it lined up with the wordmark
+       only and sat high against the masthead as a whole. */
     grid-template-areas:
       "brand right"
-      "links links";
+      "links right";
     align-items: center;
     max-width: 1240px;
     margin: 0 auto;
@@ -85,11 +88,15 @@ export const NavLink = styled(Link)<{ $active: boolean }>`
   `}
 `;
 
-export const RightZone = styled.div`
+// $level: no link row to balance against (signed out), so the action stays
+// level with the wordmark instead of centring on an empty second row.
+export const RightZone = styled.div<{ $level?: boolean }>`
   grid-area: right;
+  ${({ $level }) => ($level ? "grid-row: 1;" : "")}
   display: flex;
   align-items: center;
   justify-self: end;
+  align-self: center;
 
   @media (max-width: 767px) {
     display: none;

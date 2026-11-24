@@ -171,7 +171,7 @@ export function NavBar({
           ))}
         </Links>
 
-        <RightZone>
+        <RightZone $level={items.length === 0}>
           {signedIn ? (
             <form action={signOut}>
               <Button type="submit">Sign out</Button>

@@ -21,7 +21,11 @@ box:
 | To approve only | `?check=1` | no category and no transfer, **or** a category still in pencil (`isCategoryConfirmed = false`) |
 
 The search box (`?q=`) matches the description, the note and the category's
-label, case-insensitively. It is the one filter that stays outside the drawer — it is
+label, case-insensitively. A transfer has no category, so it is matched by what
+its category cell shows instead: the account it moved to or from ("ISA"), the
+word "transfer" or the start of it ("trans", three letters or more), or the
+whole phrase ("transfer to ISA", where "to" is money out and "from" is money
+in). The rules are `transferSearch` in `src/lib/transactions/filters.ts`. It is the one filter that stays outside the drawer — it is
 a single gesture, it is debounced, and the controls card gives it a permanent
 home. Everything else, both status toggles included, lives in the drawer and
 reports itself as a chip.
