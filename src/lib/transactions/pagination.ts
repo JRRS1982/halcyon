@@ -4,6 +4,7 @@
 // &acct=…&cat=…&min=10&max=50&pairs=1&hidden=1) so the server component renders exactly one
 // page, and back/forward + shareable links work. Pure helpers only.
 
+import { formatYm, parseYm } from "@/lib/budget/period";
 import type { SortColumn, SortDir } from "./server";
 
 export const PAGE_SIZE = 50;
@@ -44,11 +45,18 @@ export type LedgerUrlQuery = {
   /** Non-negative magnitudes — amounts match on absolute value, not sign. */
   amountMin: number | null;
   amountMax: number | null;
+  /** The rows a budget transfer or debt payment Actual counted that month. */
+  countedIn: CountedIn | null;
   /** Show rows that look like the two sides of an untagged transfer, in pairs. */
   possibleTransfers: boolean;
   /** Within possibleTransfers: the pairs the user hid, instead of the rest. */
   showHiddenPairs: boolean;
 };
+
+// A budget row's account and month (0-indexed, as the budget's period helpers
+// speak it). Reached only from the budget's "Open in ledger" link; it has no
+// control in the drawer.
+export type CountedIn = { accountId: string; year: number; month: number };
 
 // Account and category ids are @db.Uuid columns, so anything else is not a
 // filter that finds nothing — it is a Prisma error and a 500 on a page anyone
@@ -87,6 +95,21 @@ function parseCategory(raw: string | undefined): CategoryFilter {
   return categoryId ? { kind: "category", categoryId } : { kind: "any" };
 }
 
+// The `counted` param is one value, `<accountId>:<YYYY-MM>`, so its chip
+// clears with one key. Built here beside its parser so the two cannot drift.
+export const countedParam = (
+  accountId: string,
+  year: number,
+  month: number,
+): string => `${accountId}:${formatYm(year, month)}`;
+
+function parseCounted(raw: string | undefined): CountedIn | null {
+  const [rawAccount, rawYm, ...rest] = (raw ?? "").split(":");
+  const accountId = idOrNull(rawAccount);
+  const ym = rest.length === 0 ? parseYm(rawYm ?? "") : null;
+  return accountId && ym ? { accountId, ...ym } : null;
+}
+
 const first = (v: string | string[] | undefined): string | undefined =>
   Array.isArray(v) ? v[0] : v;
 
@@ -115,6 +138,7 @@ export function parseLedgerSearchParams(
     category: parseCategory(first(params.cat)),
     amountMin: amountOrNull(first(params.min)),
     amountMax: amountOrNull(first(params.max)),
+    countedIn: parseCounted(first(params.counted)),
     possibleTransfers,
     showHiddenPairs: possibleTransfers && first(params.hidden) === "1",
   };

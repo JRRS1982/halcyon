@@ -20,6 +20,7 @@ box:
 | Amount | `?min=&max=` | **magnitude**, either sign |
 | Uncategorised only | `?uncat=1` | no category and no transfer |
 | To approve only | `?check=1` | no category and no transfer, **or** a category still in pencil (`isCategoryConfirmed = false`) |
+| Counted in budget | `?counted=<accountId>:<YYYY-MM>` | exactly the transactions a budget Transfer or Debt payment row's Actual counted that month; no drawer control |
 | Possible transfers | `?pairs=1` | rows in a possible-transfer pair, shown pair by pair; see [below](#possible-transfers) |
 | Show hidden pairs | `?pairs=1&hidden=1` | instead, the pairs the user marked *Not a transfer* |
 
@@ -41,6 +42,29 @@ own filter. It is the one filter that stays outside the drawer — it is
 a single gesture, it is debounced, and the controls card gives it a permanent
 home. Everything else, both status toggles included, lives in the drawer and
 reports itself as a chip.
+
+## Counted in budget
+
+The budget's Actual popover links to the ledger. For a category row that link
+is the drawer's own filters (category plus the month's dates), so the usual
+chips appear. A Transfer or Debt payment row's Actual cannot be expressed that
+way: it counts one side per counterparty pair, sometimes a leg recorded on
+another account ([budget-transfers.md](budget-transfers.md#one-source-per-counterparty-pair)).
+So it links to `?counted=<accountId>:<YYYY-MM>`, chip "Counted in budget:
+Savings · Mar 2026".
+
+`getTransactionsPage` resolves it to ids with `getTransferBreakdown`, the same
+lookup the popover lists, and passes them into `ledgerWhere` beside
+`detailMatchIds`. With the filter on and no ids, it matches nothing rather than
+everything. It has no drawer control, but it is a chip and counts in the
+badge, so both its chip and the drawer's `Clear all` clear it. A malformed
+value (a non-uuid, a month outside 1–12) falls back to no filter, like every
+other bad param.
+
+A budget month can link to an account archived since, so the page looks up
+names for the account and category ids the query names — archived and deleted
+ones included, fenced on the user (`getFilterNames`) — and the chip still says
+which account it is rather than `Unknown account`.
 
 ## Amounts match magnitude, not sign
 
@@ -95,8 +119,10 @@ six times to reach one state. It holds a draft and writes once, on **Apply** —
 and re-seeds from the URL on every open, so an abandoned edit is discarded
 rather than waiting to surprise the next person who opens it.
 
-`Clear all` clears every drawer filter — `uncat` and `check` included — and deliberately
-leaves `q` alone: it clears what the drawer owns.
+`Clear all` clears every drawer filter — `uncat`, `check`, and `pairs` with
+its `hidden` view included — and the budget's `counted` filter, and
+deliberately leaves `q` alone: it clears every
+filter the badge counts.
 
 ## Two contradictions the URL can express and the UI cannot
 

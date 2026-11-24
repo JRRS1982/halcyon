@@ -5,6 +5,7 @@ import styled from "styled-components";
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
 import type { NumberFormat } from "@/lib/settings/currency";
+import type { FilterLookup } from "@/lib/transactions/activeFilters";
 import { importLimitHint } from "@/lib/transactions/limits";
 import type { LedgerUrlQuery } from "@/lib/transactions/pagination";
 import type { LedgerCategory, LedgerPage } from "@/lib/transactions/server";
@@ -91,6 +92,7 @@ export function TransactionsView({
   transfersEnabled,
   currency,
   numberFormat,
+  filterNames,
 }: {
   // Importable accounts only (canImportTransactions: true) — the import
   // target picker, quick-add, and the ledger's account filter render from
@@ -109,6 +111,7 @@ export function TransactionsView({
   transfersEnabled: boolean;
   currency: string;
   numberFormat: NumberFormat;
+  filterNames?: FilterLookup;
 }) {
   const [isApproving, startApproving] = useTransition();
   const addHeadId = useId();
@@ -161,6 +164,7 @@ export function TransactionsView({
         currency={currency}
         numberFormat={numberFormat}
         reviewAction={approveAll}
+        filterNames={filterNames}
       />
     </Shell>
   );

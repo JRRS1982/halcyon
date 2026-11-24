@@ -7,6 +7,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { ThemeProvider } from "styled-components";
 import { Ledger } from "@/app/(app)/transactions/Ledger";
 import { theme } from "@/lib/theme";
+import type { FilterLookup } from "@/lib/transactions/activeFilters";
 import { parseLedgerSearchParams } from "@/lib/transactions/pagination";
 
 const replace = jest.fn();
@@ -32,7 +33,7 @@ const SAVINGS = "11111111-1111-1111-1111-111111111111";
 const CURRENT = "22222222-2222-2222-2222-222222222222";
 const FOOD = "33333333-3333-3333-3333-333333333333";
 
-const renderLedger = (search: string) => {
+const renderLedger = (search: string, filterNames?: FilterLookup) => {
   currentParams = new URLSearchParams(search);
   const query = parseLedgerSearchParams(
     Object.fromEntries(currentParams.entries()),
@@ -50,6 +51,7 @@ const renderLedger = (search: string) => {
           { id: CURRENT, name: "Current", kind: "ASSET" },
         ]}
         transfersEnabled={true}
+        filterNames={filterNames}
       />
     </ThemeProvider>,
   );
@@ -227,6 +229,37 @@ describe("ledger filter drawer", () => {
     expect(params.get("uncat")).toBeNull();
     // The search box is not in the drawer, so Clear all does not reach it.
     expect(params.get("q")).toBe("tesco");
+  });
+
+  test("Clear all clears the budget's counted filter too, since it is a chip", () => {
+    renderLedger(`counted=${SAVINGS}:2026-03`);
+    expect(
+      screen.getByRole("button", { name: "Filters (1 active)" }),
+    ).toBeInTheDocument();
+    openDrawer();
+    fireEvent.click(screen.getByRole("button", { name: "Clear all" }));
+    expect(lastReplacedParams().get("counted")).toBeNull();
+  });
+
+  test("Clear all clears possible transfers and counted together", () => {
+    renderLedger(`pairs=1&hidden=1&counted=${SAVINGS}:2026-03`);
+    openDrawer();
+    fireEvent.click(screen.getByRole("button", { name: "Clear all" }));
+    const params = lastReplacedParams();
+    expect(params.get("pairs")).toBeNull();
+    expect(params.get("hidden")).toBeNull();
+    expect(params.get("counted")).toBeNull();
+  });
+
+  test("a filter on an archived account still names it", () => {
+    const ARCHIVED = "44444444-4444-4444-4444-444444444444";
+    renderLedger(`counted=${ARCHIVED}:2026-03`, {
+      accounts: [{ id: ARCHIVED, name: "Old ISA" }],
+      categories: [],
+    });
+    expect(
+      screen.getByText("Counted in budget: Old ISA · Mar 2026"),
+    ).toBeInTheDocument();
   });
 });
 

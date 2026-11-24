@@ -1,4 +1,5 @@
 import {
+  countedParam,
   PAGE_SIZE,
   PAIRS_PER_PAGE,
   pageCount,
@@ -7,6 +8,30 @@ import {
 } from "@/lib/transactions/pagination";
 
 describe("parseLedgerSearchParams", () => {
+  // The budget's Open-in-ledger link for a transfer or debt payment row. A
+  // malformed one must fall back to no filter, like every other bad param,
+  // rather than reaching Prisma as a bad uuid and failing the page.
+  describe("counted", () => {
+    const ACCOUNT = "11111111-1111-1111-1111-111111111111";
+
+    test("reads an account and a month", () => {
+      expect(
+        parseLedgerSearchParams({ counted: countedParam(ACCOUNT, 2026, 2) })
+          .countedIn,
+      ).toEqual({ accountId: ACCOUNT, year: 2026, month: 2 });
+    });
+
+    test.each([
+      ["no month", ACCOUNT],
+      ["a non-uuid account", "banana:2026-03"],
+      ["an impossible month", `${ACCOUNT}:2026-13`],
+      ["a malformed month", `${ACCOUNT}:2026-3`],
+      ["a trailing segment", `${ACCOUNT}:2026-03:x`],
+    ])("drops %s", (_, raw) => {
+      expect(parseLedgerSearchParams({ counted: raw }).countedIn).toBeNull();
+    });
+  });
+
   test("defaults when no params are present", () => {
     expect(parseLedgerSearchParams({})).toEqual({
       page: 1,
@@ -21,6 +46,7 @@ describe("parseLedgerSearchParams", () => {
       category: { kind: "any" },
       amountMin: null,
       amountMax: null,
+      countedIn: null,
       possibleTransfers: false,
       showHiddenPairs: false,
     });
@@ -60,6 +86,7 @@ describe("parseLedgerSearchParams", () => {
       },
       amountMin: 10,
       amountMax: 50.5,
+      countedIn: null,
       possibleTransfers: true,
       showHiddenPairs: true,
     });

@@ -6,7 +6,7 @@
 - Four row kinds: `INCOME`, `EXPENSE`, `TRANSFER`, `REPAYMENT`. Each keys on a `Category` or an `Account`.
 - Columns are Category, Budget, Actual, vs budget, Share and Notes. A "Left over" footer shows the surplus for both Budget and Actual.
 - The page opens with a headline and a month-in-brief strip computed from the rows (`monthBrief`, `src/lib/insights/monthBrief.ts`).
-- Transactions mode off: Actual is a number you type. Transactions mode on: Actual is read-only and computed from transactions.
+- Transactions mode off: Actual is a number you type. Transactions mode on: Actual is read-only and computed from transactions, and clicking it lists the transactions behind it.
 - `REPAYMENT` rows render inside Expenses and count in that total. `TRANSFER` rows get their own section and do not count as spending.
 
 ## The month in brief
@@ -40,6 +40,43 @@ A "Past months" table under the sheet lists income, expenses and net for each re
 ## Actuals
 
 With the transactions feature off, `BudgetItem.actual` is stored and editable. With it on (Settings toggle), the page overlays a computed figure for display and the stored column is left alone. Category-keyed rows net their category's transactions in the month; account-keyed rows net their account's transfer flow. When transactions mode is on, any category with a categorised transaction in the month gets a £0 budget row materialised on page load, so categorised spend always appears.
+
+### What makes up an Actual
+
+In transactions mode each Actual is a button. It opens a popover beside the
+figure listing the transactions the figure is made of: date, account,
+description and signed amount, with a pencilled row (a category an import
+suggested, `isCategoryConfirmed = false`) marked "pencil". The header names the
+row and its section and counts the rows ("7 transactions · 1 still in pencil");
+the footer reads "Actual £X of £Y budgeted" and links to the same rows in the
+ledger. The list scrolls after about eight rows.
+
+It is view only — changes happen in the ledger — and it does not exist with
+transactions mode off, where the Actual is typed and has nothing behind it.
+
+| Row | Lists | Signs | Open in ledger |
+|---|---|---|---|
+| Income, Expense | the category's transactions in the month | as stored (spending negative) | `?cat=<id>&from=&to=`, the drawer's own filters |
+| Transfer, Debt payment | the legs the Actual counted, one source per counterparty pair ([budget-transfers.md](budget-transfers.md#one-source-per-counterparty-pair)) | as seen from the row's account | `?counted=<accountId>:<YYYY-MM>` ([ledger-filters.md](ledger-filters.md#counted-in-budget)) |
+
+A leg recorded on the other account's side is labelled "Recorded on <account>'s
+side" and sign-flipped, so the list nets to the figure.
+
+**The list and the figure come from one calculation.** The breakdown is read
+through the same queries the page's overlay uses (`categoryActualWhere`,
+`transferLegs`), the transfer legs through the same rule
+(`countedTransferLegs`, which `netTransfersForAccounts` sums), and the footer's
+figure is derived from the listed amounts by the same `netActual` /
+`accountActual` (`breakdownActual`, `src/lib/transactions/breakdown.ts`).
+
+It is fetched by the `getActualBreakdown` server action when the popover opens,
+not with the sheet. The popover (`ActualBreakdown.tsx`) renders inline, right
+after its figure, so Tab and Shift+Tab move through it in reading order and a
+click inside it does not change the sheet's selected cell. It is
+fixed-positioned, like the sheet's info popover, so the sheet's overflow cannot
+clip it. It closes on a click outside, on focus moving elsewhere on the page,
+on Esc (focus returns to the figure), on a second click of the figure, and on a
+page scroll or resize, which would otherwise strand it.
 
 ## Period management
 

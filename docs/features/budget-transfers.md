@@ -132,6 +132,12 @@ receives £500 from the current account would otherwise report only the fee —
 the wrong sign, not merely a low reading. Each pair still resolves to exactly
 one source, so double-counting stays impossible by construction.
 
+The rule is `countedTransferLegs`, which returns the legs each account counted
+(signed from that account, and whether each was recorded on the other side);
+`netTransfersForAccounts` is their sum. The budget's Actual popover lists those
+same legs, so it can never show a row the figure did not count — see
+[budget.md](budget.md#what-makes-up-an-actual).
+
 **Accepted limitation.** A single pair that records some of its movements from
 one side and some from the other counts only the owned legs, so that pair
 reads low. It is narrow, it is visible on the sheet, and it fails safe:
@@ -325,9 +331,9 @@ whole mitigation.
 | Which `Account.kind` each kind must target, and the fence's message | [`src/lib/budget/anchors.ts`](../../src/lib/budget/anchors.ts) |
 | Section placement, row labels, picker eligibility, the skipped-rows notice | [`src/lib/budget/sections.ts`](../../src/lib/budget/sections.ts) |
 | Section sums, `surplus`, `favourableVariance` | [`src/lib/budget/totals.ts`](../../src/lib/budget/totals.ts) |
-| Net transfer flow per account, one source per counterparty pair | [`src/lib/transactions/transfers.ts`](../../src/lib/transactions/transfers.ts) |
+| Net transfer flow per account, and the legs it counted (`countedTransferLegs`), one source per counterparty pair | [`src/lib/transactions/transfers.ts`](../../src/lib/transactions/transfers.ts) |
 | `isAccountKeyed`, `netActual`, `accountActual` | [`src/lib/transactions/actual.ts`](../../src/lib/transactions/actual.ts) |
-| `transferLegs`, `getTransferFlowByAccount`, `getTransferFlowByMonthAndAccount`, `getLedgerAccounts` | [`src/lib/transactions/server.ts`](../../src/lib/transactions/server.ts) |
+| `transferLegs`, `getTransferFlowByAccount`, `getTransferFlowByMonthAndAccount`, `getTransferBreakdown`, `getLedgerAccounts` | [`src/lib/transactions/server.ts`](../../src/lib/transactions/server.ts) |
 | Create/copy fences, `withValidAnchorsOnly`, `copyPeriodFrom` | [`src/app/(app)/budget/actions.ts`](<../../src/app/(app)/budget/actions.ts>) |
 | Actual overlay routing, `serializedItems` carrying the anchor | [`src/app/(app)/budget/page.tsx`](<../../src/app/(app)/budget/page.tsx>) |
 | Add drawers, three sections, the Repayments bucket | [`src/app/(app)/budget/BudgetSheet.tsx`](<../../src/app/(app)/budget/BudgetSheet.tsx>) |
@@ -342,6 +348,6 @@ whole mitigation.
 
 Paths are under `tests/`.
 
-- **Unit**: `unit/lib/budget/` (`schemas.test.ts` for the anchor and direction invariants, `anchors.test.ts`, `sections.test.ts` for `sectionOf`, labels, `eligibleAnchorAccounts`, `anchorPickerEmptyReason` and `skippedRowsNotice`, `totals.test.ts` for `surplus` and `favourableVariance`), `unit/lib/transactions/` (`transfers.transferSource.test.ts` for the per-pair source rule and the month-bucketed variant, `actual.test.ts`), `unit/app/(app)/transactions/CategoryCombobox.test.tsx` (the four picker groups), and `unit/lib/dashboard/series.test.ts` (`monthFlow` counts a repayment and excludes a transfer).
+- **Unit**: `unit/lib/budget/` (`schemas.test.ts` for the anchor and direction invariants, `anchors.test.ts`, `sections.test.ts` for `sectionOf`, labels, `eligibleAnchorAccounts`, `anchorPickerEmptyReason` and `skippedRowsNotice`, `totals.test.ts` for `surplus` and `favourableVariance`), `unit/lib/transactions/` (`transfers.transferSource.test.ts` for the per-pair source rule and the month-bucketed variant, `actual.test.ts`, `breakdown.test.ts` for the Actual popover's list summing to the figure for every kind), `unit/app/(app)/transactions/CategoryCombobox.test.tsx` (the four picker groups), and `unit/lib/dashboard/series.test.ts` (`monthFlow` counts a repayment and excludes a transfer).
 - **Integration** (real Postgres): `integration/schema.budgetTransfers.integration.test.ts`; under `integration/app/(app)/budget/`, `actions.transfers` (cross-tenant, kind mismatches, the one-row-per-account fence), `actions.copyAnchors` (anchors carried and re-fenced across a copy) and `actions.copyComputedActuals` (a copied anchored row adopts the target month's flow); `integration/app/(app)/dashboard/page.cashFlow.integration.test.ts` (a repayment is charted as expenditure in both modes); `integration/lib/transactions/server.transferSource.integration.test.ts`; `integration/lib/plan/reality.integration.test.ts` (the flow read and the `OUTFLOW` zero); and `integration/app/(app)/plan/syncActions.integration.test.ts` (flow reaching both plan columns, the widened zero-value guard).
 - **E2E**: [`tests/e2e/budget-transfers.spec.ts`](../../tests/e2e/budget-transfers.spec.ts) budgets a transfer to an ISA and checks it sits in Transfers, outside Expenses, with the surplus falling by it. It then tags a real movement and watches the row's actual fill. It also budgets a repayment at a mortgage, checks it counts in Expenses, then Syncs and finds it on the plan's liability. Both are chromium-gated server-action journeys. Section placement is asserted through section totals, not DOM order, so no structural claim is engine-gated.

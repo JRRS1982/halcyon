@@ -41,26 +41,61 @@ export function netTransfersForAccounts(
   ownLegs: TransferLeg[],
   legsPointingAt: TransferLeg[],
 ): Map<string, number> {
+  const net = new Map<string, number>();
+  for (const [accountId, counted] of countedTransferLegs(
+    ownLegs,
+    legsPointingAt,
+  )) {
+    net.set(
+      accountId,
+      counted.reduce((sum, c) => round(sum + c.amount), 0),
+    );
+  }
+  return net;
+}
+
+// One leg as an account's flow counts it: the leg, its amount signed from that
+// account, and whether it was recorded on the other account's side (and so
+// sign-flipped).
+export type CountedLeg<L extends TransferLeg> = {
+  leg: L;
+  amount: number;
+  isOtherSide: boolean;
+};
+
+// The legs each account's net flow is made of, under the per-counterparty-pair
+// source rule described above. netTransfersForAccounts is the sum of this, so
+// a list of what an account counted can never disagree with its figure.
+export function countedTransferLegs<L extends TransferLeg>(
+  ownLegs: L[],
+  legsPointingAt: L[],
+): Map<string, CountedLeg<L>[]> {
   const pairKey = (accountId: string, counterpartyId: string): string =>
     `${accountId}|${counterpartyId}`;
 
-  const net = new Map<string, number>();
+  const counted = new Map<string, CountedLeg<L>[]>();
+  const add = (accountId: string, entry: CountedLeg<L>) => {
+    const list = counted.get(accountId);
+    if (list) list.push(entry);
+    else counted.set(accountId, [entry]);
+  };
   const ownedPairs = new Set(
     ownLegs.map((leg) => pairKey(leg.accountId, leg.counterpartyId)),
   );
 
   for (const leg of ownLegs) {
-    net.set(leg.accountId, round((net.get(leg.accountId) ?? 0) + leg.amount));
+    add(leg.accountId, { leg, amount: leg.amount, isOtherSide: false });
   }
   for (const leg of legsPointingAt) {
     // The pair from the target's side: it is the counterparty's account.
     if (ownedPairs.has(pairKey(leg.counterpartyId, leg.accountId))) continue;
-    net.set(
-      leg.counterpartyId,
-      round((net.get(leg.counterpartyId) ?? 0) - leg.amount),
-    );
+    add(leg.counterpartyId, {
+      leg,
+      amount: round(-leg.amount),
+      isOtherSide: true,
+    });
   }
-  return net;
+  return counted;
 }
 
 // A leg with the date it fell on, so a multi-month window can be split into

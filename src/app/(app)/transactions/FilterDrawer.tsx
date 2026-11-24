@@ -192,7 +192,11 @@ export function FilterDrawer({
           <Button
             type="button"
             variant="outline"
-            onClick={() => onApply(paramsFrom(EMPTY_DRAFT))}
+            // The budget's counted filter has no control here, but it is a
+            // chip and counts in the badge, so Clear all clears it too.
+            onClick={() =>
+              onApply({ ...paramsFrom(EMPTY_DRAFT), counted: null })
+            }
           >
             Clear all
           </Button>
