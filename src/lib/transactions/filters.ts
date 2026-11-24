@@ -70,14 +70,19 @@ function amountClause(
 
 // Every ledger read goes through here. Fenced on userId — per ADR-002 the
 // server Prisma role bypasses RLS, so this filter is the boundary.
+//
+// `detailMatchIds`: rows whose kept import columns (the Details panel) mention
+// the search, found by a lookup Prisma cannot express (see detailMatchIds in
+// server.ts). Passed in so this stays a pure function.
 export function ledgerWhere(
   userId: string,
   filters: LedgerFilters,
+  detailMatchIds: readonly string[] = [],
 ): Prisma.TransactionWhereInput {
   const search = filters.search?.trim();
   const date = dateRange(filters.from, filters.to);
   const and: Prisma.TransactionWhereInput[] = [
-    ...(search ? [searchClause(search)] : []),
+    ...(search ? [searchClause(search, detailMatchIds)] : []),
     ...(filters.onlyToCheck
       ? [
           {
@@ -117,9 +122,13 @@ export function escapeLike(text: string): string {
 }
 
 // The search box reads every field a person wrote or would recognise a row
-// by: the statement description, their own note, the category's label, and
-// for a transfer what its category cell says instead.
-function searchClause(search: string): Prisma.TransactionWhereInput {
+// by: the statement description, their own note, the category's label, for a
+// transfer what its category cell says instead, and the import columns the
+// user kept (the Details panel: a bank's own "Pot transfer" type, say).
+function searchClause(
+  search: string,
+  detailMatchIds: readonly string[],
+): Prisma.TransactionWhereInput {
   const contains = {
     contains: escapeLike(search),
     mode: "insensitive" as const,
@@ -130,6 +139,9 @@ function searchClause(search: string): Prisma.TransactionWhereInput {
       { note: contains },
       { category: { is: { label: contains } } },
       ...transferSearch(search),
+      ...(detailMatchIds.length > 0
+        ? [{ id: { in: [...detailMatchIds] } }]
+        : []),
     ],
   };
 }

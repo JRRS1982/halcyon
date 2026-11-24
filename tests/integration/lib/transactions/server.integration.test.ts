@@ -201,6 +201,72 @@ describe("ledger queries (integration)", () => {
     });
   });
 
+  // The Details panel shows the import columns a user kept (a bank's own
+  // "Pot transfer" type, say). If search skips them, the one word a user can
+  // see on the row finds nothing.
+  describe("search reads the kept import columns (Details)", () => {
+    const seedDetails = async () => {
+      await seedTxns();
+      const cur = await prisma.account.findFirstOrThrow({
+        where: { userId: TEST_USER_ID, name: "Cur" },
+      });
+      await prisma.transaction.create({
+        data: {
+          userId: TEST_USER_ID,
+          accountId: cur.id,
+          date: new Date("2026-03-06"),
+          amount: 50,
+          description: "Bills",
+          extra: { Type: "Pot transfer", Name: "Bills Pot" },
+        },
+      });
+    };
+    const found = async (search: string) =>
+      (await getTransactionsPage(TEST_USER_ID, { search })).items.map(
+        (t) => t.description,
+      );
+
+    test("finds a row by a kept column's value", async () => {
+      await seedDetails();
+      expect(await found("pot transfer")).toEqual(["Bills"]);
+      expect(await found("BILLS POT")).toEqual(["Bills"]);
+    });
+
+    test("reads the values, not the column names", async () => {
+      await seedDetails();
+      expect(await found("type")).toEqual([]);
+    });
+
+    // The Details lookup is raw SQL outside Prisma's usual where. The outcome
+    // is fenced twice: the lookup filters on the user itself, and the ledger
+    // query wraps the ids it returns in the user's own filter, so this passes
+    // even if either fence alone were dropped (checked by removing the SQL's).
+    test("never finds another user's row", async () => {
+      await seedDetails();
+      const other = await prisma.user.create({
+        data: { id: "00000000-0000-0000-0000-0000000000bb" },
+      });
+      const theirAccount = await prisma.account.create({
+        data: {
+          userId: other.id,
+          name: "Theirs",
+          ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+        },
+      });
+      await prisma.transaction.create({
+        data: {
+          userId: other.id,
+          accountId: theirAccount.id,
+          date: new Date("2026-03-07"),
+          amount: 75,
+          description: "Their pot",
+          extra: { Type: "Pot transfer" },
+        },
+      });
+      expect(await found("pot transfer")).toEqual(["Bills"]);
+    });
+  });
+
   test("a % or _ in the search is matched literally", async () => {
     await seedTxns();
     const percent = await getTransactionsPage(TEST_USER_ID, { search: "%" });
