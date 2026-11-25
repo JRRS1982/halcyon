@@ -6,10 +6,12 @@ import {
   markPairsAsTransfer,
   reverseImport,
   unhidePairs,
+  unmarkPairsAsTransfer,
 } from "@/app/(app)/transactions/actions";
 import { buildAccountData } from "@/lib/accounts/creation";
 import { prisma } from "@/lib/prisma";
 import { MAX_DISMISSED_PAIRS_PER_USER } from "@/lib/transactions/limits";
+import { UNTAGGED } from "@/lib/transactions/possibleTransfers";
 import { getTransactionsPage } from "@/lib/transactions/server";
 
 const OTHER_USER = "00000000-0000-0000-0000-0000000000bb";
@@ -36,6 +38,21 @@ const tx = (
     },
   });
 
+const category = (label: string, userId = TEST_USER_ID) =>
+  prisma.category.create({
+    data: { userId, type: "INCOME", section: "OTHER", label },
+  });
+
+// What a row's category cell holds, as stored.
+const tagOf = async (id: string) => {
+  const row = await prisma.transaction.findUniqueOrThrow({ where: { id } });
+  return {
+    categoryId: row.categoryId,
+    transferAccountId: row.transferAccountId,
+    isCategoryConfirmed: row.isCategoryConfirmed,
+  };
+};
+
 const pairsOnScreen = async () =>
   (await getTransactionsPage(TEST_USER_ID, { possibleTransfers: true })).pairs;
 
@@ -55,7 +72,7 @@ describe("markPairsAsTransfer (integration)", () => {
       pairs: [{ outId: out.id, inId: into.id }],
     });
 
-    expect(result).toEqual({ updated: 2, skipped: 0 });
+    expect(result).toMatchObject({ updated: 2, skipped: 0 });
     const rows = await prisma.transaction.findMany({
       where: { id: { in: [out.id, into.id] } },
     });
@@ -89,7 +106,7 @@ describe("markPairsAsTransfer (integration)", () => {
       pairs: [{ outId: out.id, inId: into.id }],
     });
 
-    expect(result).toEqual({ updated: 0, skipped: 1 });
+    expect(result).toEqual({ updated: 0, skipped: 1, marked: [] });
     const rows = await prisma.transaction.findMany({
       where: { id: { in: [out.id, into.id] } },
     });
@@ -108,7 +125,7 @@ describe("markPairsAsTransfer (integration)", () => {
       pairs: [{ outId: out.id, inId: into.id }],
     });
 
-    expect(result).toEqual({ updated: 0, skipped: 1 });
+    expect(result).toEqual({ updated: 0, skipped: 1, marked: [] });
     const rows = await prisma.transaction.findMany({
       where: { id: { in: [out.id, into.id] } },
     });
@@ -126,7 +143,240 @@ describe("markPairsAsTransfer (integration)", () => {
       pairs: [{ outId: out.id, inId: into.id }],
     });
 
-    expect(result).toEqual({ updated: 0, skipped: 1 });
+    expect(result).toEqual({ updated: 0, skipped: 1, marked: [] });
+  });
+});
+
+// Approving a pair is undone by handing back what markPairsAsTransfer said
+// each row held. If either half is wrong, withdrawing an approval loses the
+// category a row had, or leaves a transfer the user took back in their budget.
+describe("markPairsAsTransfer then unmarkPairsAsTransfer (integration)", () => {
+  test("marking says what each row held before", async () => {
+    const { out, into } = await seedPair();
+    const salary = await category("Salary");
+    await prisma.transaction.update({
+      where: { id: into.id },
+      data: { categoryId: salary.id, isCategoryConfirmed: false },
+    });
+
+    const { marked } = await markPairsAsTransfer({
+      pairs: [{ outId: out.id, inId: into.id }],
+    });
+
+    expect(marked).toEqual([
+      {
+        outId: out.id,
+        inId: into.id,
+        outBefore: UNTAGGED,
+        inBefore: {
+          categoryId: salary.id,
+          transferAccountId: null,
+          isCategoryConfirmed: false,
+        },
+      },
+    ]);
+  });
+
+  test("withdrawing an approval leaves both rows uncategorised again", async () => {
+    const { out, into } = await seedPair();
+    const { marked } = await markPairsAsTransfer({
+      pairs: [{ outId: out.id, inId: into.id }],
+    });
+
+    const result = await unmarkPairsAsTransfer({ pairs: marked });
+
+    expect(result).toEqual({ restored: 1, skipped: [] });
+    expect(await tagOf(out.id)).toEqual(UNTAGGED);
+    expect(await tagOf(into.id)).toEqual(UNTAGGED);
+  });
+
+  test("a row that had a category gets it back, still in pencil", async () => {
+    const { out, into } = await seedPair();
+    const salary = await category("Salary");
+    await prisma.transaction.update({
+      where: { id: into.id },
+      data: { categoryId: salary.id, isCategoryConfirmed: false },
+    });
+    const { marked } = await markPairsAsTransfer({
+      pairs: [{ outId: out.id, inId: into.id }],
+    });
+
+    await unmarkPairsAsTransfer({ pairs: marked });
+
+    expect(await tagOf(into.id)).toEqual({
+      categoryId: salary.id,
+      transferAccountId: null,
+      isCategoryConfirmed: false,
+    });
+    expect(await tagOf(out.id)).toEqual(UNTAGGED);
+  });
+
+  test("a row that was a transfer to a third account gets that back", async () => {
+    const { out, into } = await seedPair();
+    const isa = await account("ISA");
+    await prisma.transaction.update({
+      where: { id: out.id },
+      data: { transferAccountId: isa.id },
+    });
+    const { marked } = await markPairsAsTransfer({
+      pairs: [{ outId: out.id, inId: into.id }],
+    });
+
+    await unmarkPairsAsTransfer({ pairs: marked });
+
+    expect((await tagOf(out.id)).transferAccountId).toBe(isa.id);
+  });
+
+  test("a pair changed since it was approved is left alone, and reported", async () => {
+    const { out, into, current } = await seedPair();
+    const salary = await category("Salary");
+    const { marked } = await markPairsAsTransfer({
+      pairs: [{ outId: out.id, inId: into.id }],
+    });
+    // The user then filed one side themselves: that choice must survive.
+    await prisma.transaction.update({
+      where: { id: out.id },
+      data: { categoryId: salary.id, transferAccountId: null },
+    });
+
+    const result = await unmarkPairsAsTransfer({ pairs: marked });
+
+    expect(result).toEqual({
+      restored: 0,
+      skipped: [{ outId: out.id, inId: into.id }],
+    });
+    expect((await tagOf(out.id)).categoryId).toBe(salary.id);
+    expect((await tagOf(into.id)).transferAccountId).toBe(current.id);
+  });
+
+  test("refreshes the budget and dashboard, whose totals it changes", async () => {
+    const { out, into } = await seedPair();
+    const { marked } = await markPairsAsTransfer({
+      pairs: [{ outId: out.id, inId: into.id }],
+    });
+    jest.mocked(revalidatePath).mockClear();
+
+    await unmarkPairsAsTransfer({ pairs: marked });
+
+    for (const path of ["/transactions", "/budget", "/dashboard"]) {
+      expect(revalidatePath).toHaveBeenCalledWith(path);
+    }
+  });
+
+  test("leaves another user's rows untouched", async () => {
+    await prisma.user.create({ data: { id: OTHER_USER } });
+    const theirsA = await account("A", OTHER_USER);
+    const theirsB = await account("B", OTHER_USER);
+    const out = await tx(theirsA.id, "2026-11-03", -5, { userId: OTHER_USER });
+    const into = await tx(theirsB.id, "2026-11-03", 5, { userId: OTHER_USER });
+    await prisma.transaction.update({
+      where: { id: out.id },
+      data: { transferAccountId: theirsB.id },
+    });
+    await prisma.transaction.update({
+      where: { id: into.id },
+      data: { transferAccountId: theirsA.id },
+    });
+
+    const result = await unmarkPairsAsTransfer({
+      pairs: [
+        {
+          outId: out.id,
+          inId: into.id,
+          outBefore: UNTAGGED,
+          inBefore: UNTAGGED,
+        },
+      ],
+    });
+
+    expect(result.restored).toBe(0);
+    expect((await tagOf(out.id)).transferAccountId).toBe(theirsB.id);
+    expect((await tagOf(into.id)).transferAccountId).toBe(theirsA.id);
+  });
+
+  // The "before" travels through the browser, so it is checked like any
+  // other input: a row may only go back to a category or account of the
+  // user's own.
+  test("will not put back a category that is not the user's", async () => {
+    const { out, into, savings } = await seedPair();
+    await prisma.user.create({ data: { id: OTHER_USER } });
+    const theirs = await category("Theirs", OTHER_USER);
+    const { marked } = await markPairsAsTransfer({
+      pairs: [{ outId: out.id, inId: into.id }],
+    });
+
+    const result = await unmarkPairsAsTransfer({
+      pairs: marked.map((pair) => ({
+        ...pair,
+        outBefore: { ...UNTAGGED, categoryId: theirs.id },
+      })),
+    });
+
+    expect(result.restored).toBe(0);
+    expect(await tagOf(out.id)).toEqual({
+      ...UNTAGGED,
+      transferAccountId: savings.id,
+    });
+  });
+
+  test.each([
+    ["another user's", "theirs"],
+    ["archived", "archived"],
+    ["the row's own", "own"],
+  ] as const)(
+    "will not put back a transfer to an account that is %s",
+    async (_, which) => {
+      const { out, into, current, savings } = await seedPair();
+      await prisma.user.create({ data: { id: OTHER_USER } });
+      const targets = {
+        theirs: await account("Theirs", OTHER_USER),
+        archived: await prisma.account.create({
+          data: {
+            userId: TEST_USER_ID,
+            name: "Closed",
+            deletedAt: new Date(),
+            ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+          },
+        }),
+        own: current,
+      };
+      const { marked } = await markPairsAsTransfer({
+        pairs: [{ outId: out.id, inId: into.id }],
+      });
+
+      const result = await unmarkPairsAsTransfer({
+        pairs: marked.map((pair) => ({
+          ...pair,
+          outBefore: { ...UNTAGGED, transferAccountId: targets[which].id },
+        })),
+      });
+
+      expect(result.restored).toBe(0);
+      expect((await tagOf(out.id)).transferAccountId).toBe(savings.id);
+    },
+  );
+
+  test("refuses a row put back as both a category and a transfer", async () => {
+    const { out, into, savings } = await seedPair();
+    const salary = await category("Salary");
+    const isa = await account("ISA");
+    const { marked } = await markPairsAsTransfer({
+      pairs: [{ outId: out.id, inId: into.id }],
+    });
+
+    await expect(
+      unmarkPairsAsTransfer({
+        pairs: marked.map((pair) => ({
+          ...pair,
+          outBefore: {
+            categoryId: salary.id,
+            transferAccountId: isa.id,
+            isCategoryConfirmed: true,
+          },
+        })),
+      }),
+    ).rejects.toThrow();
+    expect((await tagOf(out.id)).transferAccountId).toBe(savings.id);
   });
 });
 

@@ -28,6 +28,7 @@ import {
 import {
   countedByCap,
   MAX_IMPORT_ROWS,
+  MAX_PAIRS_PER_ACTION,
   MAX_TRANSACTIONS_PER_USER,
 } from "@/lib/transactions/limits";
 import {
@@ -36,10 +37,16 @@ import {
   MEMORY_WINDOW,
 } from "@/lib/transactions/memory";
 import {
+  beforeTags,
+  isMarkedAsTransfer,
   isMatch,
+  type MarkedPair,
   orderedIds,
   type PairCandidate,
+  type RowTag,
   snapshotOf,
+  type TaggedRow,
+  transferTags,
 } from "@/lib/transactions/possibleTransfers";
 import type { LedgerCategory } from "@/lib/transactions/server";
 
@@ -865,7 +872,7 @@ const pairsSchema = z.object({
   pairs: z
     .array(z.object({ outId: z.string().uuid(), inId: z.string().uuid() }))
     .min(1)
-    .max(250),
+    .max(MAX_PAIRS_PER_ACTION),
 });
 
 type PairsInput = z.input<typeof pairsSchema>;
@@ -887,7 +894,7 @@ function dropDismissalsNaming(
 async function pairRows(
   userId: string,
   pairs: { outId: string; inId: string }[],
-): Promise<Map<string, PairCandidate>> {
+): Promise<Map<string, PairCandidate & RowTag>> {
   const rows = await prisma.transaction.findMany({
     where: {
       id: { in: pairs.flatMap((pair) => [pair.outId, pair.inId]) },
@@ -900,6 +907,8 @@ async function pairRows(
       amount: true,
       accountId: true,
       transferAccountId: true,
+      categoryId: true,
+      isCategoryConfirmed: true,
     },
   });
   return new Map(
@@ -914,6 +923,20 @@ async function pairRows(
   );
 }
 
+// Writes one row's category cell. Typed string ids only: an undefined id would
+// drop the filter and tag every row the user has.
+const writeTag = (userId: string, { id, ...tag }: TaggedRow) =>
+  prisma.transaction.updateMany({
+    where: { id, userId, deletedAt: null },
+    data: tag,
+  });
+
+const tagOf = (row: RowTag): RowTag => ({
+  categoryId: row.categoryId,
+  transferAccountId: row.transferAccountId,
+  isCategoryConfirmed: row.isCategoryConfirmed,
+});
+
 // Tags both rows of each pair as a transfer to the OTHER row's account, in
 // one step: the money out of Current points at Savings and the money into
 // Savings points at Current. bulkSetTransactionTransfer cannot — it points
@@ -922,9 +945,12 @@ async function pairRows(
 // A pair is skipped, and counted in `skipped` so the ledger can say so, when
 // its rows are not the user's, no longer match (edited since the page was
 // drawn), or sit in an archived account, which nothing can be a transfer to.
+//
+// `marked` is each pair it tagged with what both rows held before: the
+// ledger hands it back to unmarkPairsAsTransfer when an approval is withdrawn.
 export async function markPairsAsTransfer(
   input: PairsInput,
-): Promise<{ updated: number; skipped: number }> {
+): Promise<{ updated: number; skipped: number; marked: MarkedPair[] }> {
   const userId = await requireTransactionsEnabled();
   const { pairs } = pairsSchema.parse(input);
   const rows = await pairRows(userId, pairs);
@@ -941,30 +967,128 @@ export async function markPairsAsTransfer(
     ).map((account) => account.id),
   );
 
-  // Typed string ids only: an undefined id would drop the filter and tag
-  // every row the user has.
-  const pointAt = (id: string, transferAccountId: string) =>
-    prisma.transaction.updateMany({
-      where: { id, userId, deletedAt: null },
-      // Transfer and category are mutually exclusive — see setTransactionTransfer.
-      data: { transferAccountId, categoryId: null, isCategoryConfirmed: true },
-    });
-  const writes = pairs.flatMap(({ outId, inId }) => {
+  const matched = pairs.flatMap(({ outId, inId }) => {
     const out = rows.get(outId);
     const into = rows.get(inId);
     if (!out || !into || !isMatch(out, into)) return [];
     if (!liveAccounts.has(out.accountId) || !liveAccounts.has(into.accountId))
       return [];
-    return [pointAt(out.id, into.accountId), pointAt(into.id, out.accountId)];
+    return [{ out, into }];
   });
-  const results = await prisma.$transaction(writes);
+  // Transfer and category are mutually exclusive — see setTransactionTransfer.
+  const results = await prisma.$transaction(
+    matched.flatMap(({ out, into }) =>
+      transferTags(out, into).map((tag) => writeTag(userId, tag)),
+    ),
+  );
 
   revalidatePath("/transactions");
   revalidatePath("/budget");
   revalidatePath("/dashboard");
   return {
     updated: results.reduce((sum, result) => sum + result.count, 0),
-    skipped: pairs.length - writes.length / 2,
+    skipped: pairs.length - matched.length,
+    marked: matched.map(({ out, into }) => ({
+      outId: out.id,
+      inId: into.id,
+      outBefore: tagOf(out),
+      inBefore: tagOf(into),
+    })),
+  };
+}
+
+const rowTagSchema = z
+  .object({
+    categoryId: z.string().uuid().nullable(),
+    transferAccountId: z.string().uuid().nullable(),
+    isCategoryConfirmed: z.boolean(),
+  })
+  // Transfer and category are mutually exclusive — see setTransactionTransfer.
+  .refine((tag) => tag.categoryId === null || tag.transferAccountId === null, {
+    message: "A row holds a category or a transfer, not both",
+  });
+
+const markedPairsSchema = z.object({
+  pairs: z
+    .array(
+      z.object({
+        outId: z.string().uuid(),
+        inId: z.string().uuid(),
+        outBefore: rowTagSchema,
+        inBefore: rowTagSchema,
+      }),
+    )
+    .min(1)
+    .max(MAX_PAIRS_PER_ACTION),
+});
+
+// Withdraws an approval: puts both rows of each pair back as they were before
+// markPairsAsTransfer tagged them, in one transaction.
+//
+// What they were comes back from the browser, so it is checked like any other
+// input. A pair is left alone, and returned in `skipped`, unless its rows are
+// the user's and still marked as a transfer to each other (a row changed
+// since keeps the change), and each row goes back to nothing, to a category of
+// the user's, or to a transfer to another live account of the user's. The
+// category may have been deleted since: the row held it, and deleted
+// categories stay on the rows that had them.
+export async function unmarkPairsAsTransfer(
+  input: z.input<typeof markedPairsSchema>,
+): Promise<{ restored: number; skipped: { outId: string; inId: string }[] }> {
+  const userId = await requireTransactionsEnabled();
+  const { pairs } = markedPairsSchema.parse(input);
+  const rows = await pairRows(userId, pairs);
+
+  const befores = pairs.flatMap((pair) => [pair.outBefore, pair.inBefore]);
+  const named = (ids: (string | null)[]) =>
+    ids.filter((id): id is string => id !== null);
+  const [categories, accounts] = await Promise.all([
+    prisma.category.findMany({
+      where: { userId, id: { in: named(befores.map((b) => b.categoryId)) } },
+      select: { id: true },
+    }),
+    prisma.account.findMany({
+      where: {
+        userId,
+        deletedAt: null,
+        id: { in: named(befores.map((b) => b.transferAccountId)) },
+      },
+      select: { id: true },
+    }),
+  ]);
+  const ownCategories = new Set(categories.map((category) => category.id));
+  const liveAccounts = new Set(accounts.map((account) => account.id));
+  const canGoBack = (row: { accountId: string }, before: RowTag) =>
+    (before.categoryId === null || ownCategories.has(before.categoryId)) &&
+    (before.transferAccountId === null ||
+      (liveAccounts.has(before.transferAccountId) &&
+        before.transferAccountId !== row.accountId));
+
+  const restorable = pairs.filter((pair) => {
+    const out = rows.get(pair.outId);
+    const into = rows.get(pair.inId);
+    return (
+      out !== undefined &&
+      into !== undefined &&
+      isMarkedAsTransfer(out, into) &&
+      canGoBack(out, pair.outBefore) &&
+      canGoBack(into, pair.inBefore)
+    );
+  });
+  await prisma.$transaction(
+    restorable.flatMap((pair) =>
+      beforeTags(pair).map((tag) => writeTag(userId, tag)),
+    ),
+  );
+
+  revalidatePath("/transactions");
+  revalidatePath("/budget");
+  revalidatePath("/dashboard");
+  return {
+    restored: restorable.length,
+    skipped: pairs
+      .filter((pair) => !restorable.includes(pair))
+      .map(({ outId, inId }) => ({ outId, inId })),
   };
 }
 

@@ -226,6 +226,7 @@ describe("possible transfers view", () => {
     jest.mocked(markPairsAsTransfer).mockResolvedValueOnce({
       updated: 0,
       skipped: 1,
+      marked: [],
     });
     renderPairs();
     tickPair();
