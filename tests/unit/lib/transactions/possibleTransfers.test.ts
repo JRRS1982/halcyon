@@ -1,7 +1,12 @@
 import {
+  approveAllOffer,
+  approveNotice,
+  beforeTags,
   daysApartLabel,
   dismissNotice,
   hiddenPairs,
+  isEligibleForApproveAll,
+  isMarkedAsTransfer,
   isMatch,
   liveDismissals,
   markNotice,
@@ -10,6 +15,11 @@ import {
   pairPossibleTransfers,
   pairWarnings,
   snapshotOf,
+  transferSuggestion,
+  transferTags,
+  UNTAGGED,
+  withdrawNotice,
+  withHeldPairs,
 } from "@/lib/transactions/possibleTransfers";
 
 const row = (
@@ -313,6 +323,245 @@ describe("what the ledger says after a pair action", () => {
     );
     expect(markNotice(2)).toBe(
       "2 pairs were not marked: they no longer match, or one side is in an archived account.",
+    );
+  });
+});
+
+describe("the transfer a pair suggests for a row", () => {
+  const leg = (
+    amount: number,
+    accountId: string,
+    accountName: string,
+    tag: { categoryId?: string; transferAccountId?: string } = {},
+  ) => ({
+    amount,
+    accountId,
+    accountName,
+    categoryId: tag.categoryId ?? null,
+    transferAccountId: tag.transferAccountId ?? null,
+  });
+  const out = leg(-200, "cur", "Current");
+  const into = leg(200, "sav", "Savings");
+
+  test("money out is a transfer to the other row's account", () => {
+    expect(transferSuggestion(out, into)).toBe("Transfer to Savings");
+  });
+
+  test("money in is a transfer from the other row's account", () => {
+    expect(transferSuggestion(into, out)).toBe("Transfer from Current");
+  });
+
+  test("a row that has a category keeps it: nothing is suggested over it", () => {
+    expect(
+      transferSuggestion(
+        leg(-200, "cur", "Current", { categoryId: "c" }),
+        into,
+      ),
+    ).toBeNull();
+  });
+
+  test("a row already tagged as a transfer keeps that too", () => {
+    expect(
+      transferSuggestion(
+        leg(-200, "cur", "Current", { transferAccountId: "isa" }),
+        into,
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("whether a pair is marked as a transfer", () => {
+  const side = (id: string, accountId: string, transferAccountId?: string) => ({
+    id,
+    accountId,
+    transferAccountId: transferAccountId ?? null,
+  });
+
+  test("it is when each row points at the other row's account", () => {
+    expect(
+      isMarkedAsTransfer(side("a", "cur", "sav"), side("b", "sav", "cur")),
+    ).toBe(true);
+  });
+
+  test.each([
+    ["only one row is tagged", side("a", "cur", "sav"), side("b", "sav")],
+    ["neither is", side("a", "cur"), side("b", "sav")],
+    [
+      "one points at a third account",
+      side("a", "cur", "isa"),
+      side("b", "sav", "cur"),
+    ],
+  ])("it is not when %s", (_, out, into) => {
+    expect(isMarkedAsTransfer(out, into)).toBe(false);
+  });
+
+  test("marking tags each row with the other's account, approved", () => {
+    expect(transferTags(side("a", "cur"), side("b", "sav"))).toEqual([
+      {
+        id: "a",
+        transferAccountId: "sav",
+        categoryId: null,
+        isCategoryConfirmed: true,
+      },
+      {
+        id: "b",
+        transferAccountId: "cur",
+        categoryId: null,
+        isCategoryConfirmed: true,
+      },
+    ]);
+  });
+
+  test("withdrawing puts back what each row held before", () => {
+    const pencilled = {
+      categoryId: "c",
+      transferAccountId: null,
+      isCategoryConfirmed: false,
+    };
+    expect(
+      beforeTags({
+        outId: "a",
+        inId: "b",
+        outBefore: UNTAGGED,
+        inBefore: pencilled,
+      }),
+    ).toEqual([
+      { id: "a", ...UNTAGGED },
+      { id: "b", ...pencilled },
+    ]);
+  });
+});
+
+describe("Approve all", () => {
+  const flags = { otherMatches: 0, isTaggedElsewhere: false };
+
+  test("takes a pair with nothing to check", () => {
+    expect(isEligibleForApproveAll(flags)).toBe(true);
+  });
+
+  test("leaves a pair another row could also match", () => {
+    expect(isEligibleForApproveAll({ ...flags, otherMatches: 1 })).toBe(false);
+  });
+
+  test("leaves a pair tagged to a different account", () => {
+    expect(isEligibleForApproveAll({ ...flags, isTaggedElsewhere: true })).toBe(
+      false,
+    );
+  });
+
+  const pair = (
+    id: string,
+    state: { isEligible?: boolean; isApproved?: boolean; isHeld?: boolean },
+  ) => ({ id, isEligible: true, isApproved: false, isHeld: false, ...state });
+
+  test("offers to approve the eligible pairs not yet approved", () => {
+    const offer = approveAllOffer([
+      pair("a", {}),
+      pair("b", { isApproved: true, isHeld: true }),
+      pair("warned", { isEligible: false }),
+    ]);
+    expect(offer?.action).toBe("approve");
+    expect(offer?.pairs.map((p) => p.id)).toEqual(["a"]);
+  });
+
+  test("with none left, offers to withdraw the ones this view approved", () => {
+    const offer = approveAllOffer([
+      pair("a", { isApproved: true, isHeld: true }),
+      pair("b", { isApproved: true, isHeld: true }),
+      pair("warned", { isEligible: false }),
+    ]);
+    expect(offer?.action).toBe("withdraw");
+    expect(offer?.pairs.map((p) => p.id)).toEqual(["a", "b"]);
+  });
+
+  // One click must never untag a page of transfers made long ago.
+  test("never offers to withdraw a pair tagged before this view", () => {
+    const offer = approveAllOffer([
+      pair("old", { isApproved: true }),
+      pair("new", { isApproved: true, isHeld: true }),
+    ]);
+    expect(offer?.pairs.map((p) => p.id)).toEqual(["new"]);
+    expect(approveAllOffer([pair("old", { isApproved: true })])).toBeNull();
+  });
+
+  test("a warned pair approved by hand is not part of all", () => {
+    expect(
+      approveAllOffer([
+        pair("warned", { isEligible: false, isApproved: true, isHeld: true }),
+      ]),
+    ).toBeNull();
+  });
+
+  test("offers nothing when every pair has a warning", () => {
+    expect(approveAllOffer([pair("warned", { isEligible: false })])).toBeNull();
+  });
+});
+
+describe("pairs kept on screen after the page stops listing them", () => {
+  const pair = (outId: string, earlierDate: string) => ({
+    outId,
+    inId: `${outId}-in`,
+    amount: 20,
+    daysApart: 0,
+    earlierDate,
+    otherMatches: 0,
+    isTaggedElsewhere: false,
+  });
+  const newest = pair("a", "2026-11-12");
+  const middle = pair("b", "2026-11-08");
+  const oldest = pair("c", "2026-11-01");
+
+  test("a held pair the page dropped keeps its place by date", () => {
+    expect(
+      withHeldPairs([newest, oldest], [middle]).map((p) => p.outId),
+    ).toEqual(["a", "b", "c"]);
+  });
+
+  test("a pair the page still lists is shown once, as the page has it", () => {
+    const fresh = { ...middle, otherMatches: 2 };
+    expect(withHeldPairs([fresh], [middle])).toEqual([fresh]);
+  });
+});
+
+describe("what the ledger says after approving or withdrawing", () => {
+  test("one pair approved", () => {
+    expect(approveNotice(1, 0, 0)).toBe("Both rows marked as a transfer.");
+  });
+
+  test("several approved, with the warned pairs left", () => {
+    expect(approveNotice(3, 0, 0)).toBe("3 pairs marked as transfers.");
+    expect(approveNotice(3, 1, 0)).toBe(
+      "3 pairs marked as transfers; 1 with a warning left for you.",
+    );
+    expect(approveNotice(1, 2, 0)).toBe(
+      "1 pair marked as a transfer; 2 with a warning left for you.",
+    );
+  });
+
+  test("a pair the server would not mark is owned up to", () => {
+    expect(approveNotice(2, 0, 1)).toBe(
+      "2 pairs marked as transfers. 1 pair was not marked: it no longer matches, or one side is in an archived account.",
+    );
+    expect(approveNotice(0, 0, 1)).toBe(
+      "1 pair was not marked: it no longer matches, or one side is in an archived account.",
+    );
+  });
+
+  test("an approval withdrawn", () => {
+    expect(withdrawNotice(1, 0)).toBe(
+      "Approval withdrawn: both rows are as they were.",
+    );
+    expect(withdrawNotice(3, 0)).toBe(
+      "Approval withdrawn from 3 pairs: their rows are as they were.",
+    );
+  });
+
+  test("a pair changed since it was approved is left alone, and says so", () => {
+    expect(withdrawNotice(0, 1)).toBe(
+      "1 pair was left as it is: its rows have changed since.",
+    );
+    expect(withdrawNotice(2, 2)).toBe(
+      "Approval withdrawn from 2 pairs: their rows are as they were. 2 pairs were left as they are: their rows have changed since.",
     );
   });
 });

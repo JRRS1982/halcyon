@@ -50,6 +50,10 @@ export const countedByCap = (
 // gets near it.
 export const MAX_DISMISSED_PAIRS_PER_USER = 10_000;
 
+// Pairs one possible-transfers action accepts: each is two updates in one
+// database transaction. The ledger sends at most this many per click.
+export const MAX_PAIRS_PER_ACTION = 250;
+
 export const MAX_IMPORT_FILE_MB = MAX_IMPORT_FILE_BYTES / (1024 * 1024);
 
 // Shown next to the file picker and reused in the rejection messages so the

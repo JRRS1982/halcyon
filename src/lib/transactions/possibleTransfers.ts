@@ -46,6 +46,33 @@ export type PossiblePair = {
   isTaggedElsewhere: boolean;
 };
 
+/** What a row's category cell holds: a category, a transfer, or neither. */
+export type RowTag = {
+  categoryId: string | null;
+  transferAccountId: string | null;
+  isCategoryConfirmed: boolean;
+};
+
+export type TaggedRow = RowTag & { id: string };
+
+/** A pair marked as a transfer, with what each row held before it was. */
+export type MarkedPair = {
+  outId: string;
+  inId: string;
+  outBefore: RowTag;
+  inBefore: RowTag;
+};
+
+/** No category and no transfer; such a row is stored as confirmed. */
+export const UNTAGGED: RowTag = {
+  categoryId: null,
+  transferAccountId: null,
+  isCategoryConfirmed: true,
+};
+
+type Side = { id: string; accountId: string };
+type TaggedSide = Side & { transferAccountId: string | null };
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 const cents = (amount: number): number => Math.round(amount * 100);
 const dayNumber = (isoDate: string): number =>
@@ -70,14 +97,23 @@ export function isMatch(a: PairCandidate, b: PairCandidate): boolean {
   );
 }
 
+const isStrayTag = (row: TaggedSide, other: TaggedSide): boolean =>
+  row.transferAccountId !== null && row.transferAccountId !== other.accountId;
+
+/** A row is tagged as a transfer to some account other than its match's. */
+export const isTaggedElsewhere = (a: TaggedSide, b: TaggedSide): boolean =>
+  isStrayTag(a, b) || isStrayTag(b, a);
+
+/** Both rows are tagged as a transfer to the other row's account. */
+export const isMarkedAsTransfer = (a: TaggedSide, b: TaggedSide): boolean =>
+  a.transferAccountId === b.accountId && b.transferAccountId === a.accountId;
+
 function toPair(
   a: PairCandidate,
   b: PairCandidate,
   otherMatches: number,
 ): PossiblePair {
   const [out, into] = a.amount < 0 ? [a, b] : [b, a];
-  const isStrayTag = (row: PairCandidate, other: PairCandidate) =>
-    row.transferAccountId !== null && row.transferAccountId !== other.accountId;
   return {
     outId: out.id,
     inId: into.id,
@@ -85,7 +121,7 @@ function toPair(
     daysApart: daysBetween(out, into),
     earlierDate: out.date.localeCompare(into.date) <= 0 ? out.date : into.date,
     otherMatches,
-    isTaggedElsewhere: isStrayTag(out, into) || isStrayTag(into, out),
+    isTaggedElsewhere: isTaggedElsewhere(out, into),
   };
 }
 
@@ -217,17 +253,88 @@ export function hiddenPairs(
   });
 }
 
+/**
+ * The page's pairs plus the held ones it no longer lists, newest first, so a
+ * pair the user just approved keeps its place when a filter drops it.
+ */
+export function withHeldPairs<P extends PossiblePair>(
+  listed: readonly P[],
+  held: readonly P[],
+): P[] {
+  const onPage = new Set(listed.map((pair) => pairKey(pair.outId, pair.inId)));
+  return [
+    ...listed,
+    ...held.filter((pair) => !onPage.has(pairKey(pair.outId, pair.inId))),
+  ].sort(newestFirst);
+}
+
+/**
+ * The transfer a pair suggests for `row`: to the other row's account when
+ * `row` is money out, from it when money in. Null when `row` already has a
+ * category or a transfer, which a suggestion never covers.
+ */
+export function transferSuggestion(
+  row: Pick<RowTag, "categoryId" | "transferAccountId"> & { amount: number },
+  other: { accountName: string },
+): string | null {
+  if (row.categoryId !== null || row.transferAccountId !== null) return null;
+  return `Transfer ${row.amount < 0 ? "to" : "from"} ${other.accountName}`;
+}
+
+/** What marking a pair leaves: each row a transfer to the other's account. */
+export function transferTags(out: Side, into: Side): TaggedRow[] {
+  const pointAt = (row: Side, other: Side): TaggedRow => ({
+    id: row.id,
+    transferAccountId: other.accountId,
+    categoryId: null,
+    isCategoryConfirmed: true,
+  });
+  return [pointAt(out, into), pointAt(into, out)];
+}
+
+/** What withdrawing a marked pair puts back on each row. */
+export function beforeTags(marked: MarkedPair): TaggedRow[] {
+  return [
+    { id: marked.outId, ...marked.outBefore },
+    { id: marked.inId, ...marked.inBefore },
+  ];
+}
+
 export function daysApartLabel(days: number): string {
   if (days === 0) return "same day";
   return `${days} day${days === 1 ? "" : "s"} apart`;
 }
 
-export function pairWarnings(pair: PossiblePair): string[] {
+type PairFlags = Pick<PossiblePair, "otherMatches" | "isTaggedElsewhere">;
+
+export function pairWarnings(pair: PairFlags): string[] {
   const n = pair.otherMatches;
   return [
     ...(n > 0 ? [`${n} other row${n === 1 ? "" : "s"} could also match`] : []),
     ...(pair.isTaggedElsewhere ? ["Tagged to a different account"] : []),
   ];
+}
+
+/** Approve all takes only the pairs with nothing for the user to check. */
+export const isEligibleForApproveAll = (pair: PairFlags): boolean =>
+  pairWarnings(pair).length === 0;
+
+/**
+ * What the page's Approve all button does next: approve the eligible pairs
+ * still waiting, or, with none waiting, withdraw the ones this view approved
+ * (`isHeld`). A pair tagged before this view is never withdrawn in bulk. Null
+ * when there is nothing to do either way.
+ */
+export function approveAllOffer<
+  T extends { isEligible: boolean; isApproved: boolean; isHeld: boolean },
+>(pairs: readonly T[]): { action: "approve" | "withdraw"; pairs: T[] } | null {
+  const eligible = pairs.filter((pair) => pair.isEligible);
+  const waiting = eligible.filter((pair) => !pair.isApproved);
+  if (waiting.length > 0) return { action: "approve", pairs: waiting };
+  const approvedHere = eligible.filter((pair) => pair.isHeld);
+  return approvedHere.length > 0
+    ? { action: "withdraw", pairs: approvedHere }
+    : null;
 }
 
 const pairCount = (n: number) => `${n} pair${n === 1 ? "" : "s"}`;
@@ -250,4 +357,51 @@ export function markNotice(skipped: number): string | null {
   if (skipped === 0) return null;
   const one = skipped === 1;
   return `${pairCount(skipped)} ${one ? "was" : "were"} not marked: ${one ? "it no longer matches" : "they no longer match"}, or one side is in an archived account.`;
+}
+
+function markedSentence(marked: number, left: number): string | null {
+  if (marked === 0) return null;
+  if (marked === 1 && left === 0) return "Both rows marked as a transfer.";
+  const what =
+    marked === 1
+      ? "1 pair marked as a transfer"
+      : `${marked} pairs marked as transfers`;
+  return left > 0
+    ? `${what}; ${left} with a warning left for you.`
+    : `${what}.`;
+}
+
+/**
+ * After approving: the pairs marked, the warned ones Approve all left for the
+ * user, and any the server would not mark.
+ */
+export function approveNotice(
+  marked: number,
+  left: number,
+  skipped: number,
+): string {
+  return [markedSentence(marked, left), markNotice(skipped)]
+    .filter((sentence) => sentence !== null)
+    .join(" ");
+}
+
+/** After withdrawing: the pairs put back, and any changed since and so left. */
+export function withdrawNotice(restored: number, skipped: number): string {
+  const one = skipped === 1;
+  const parts = [
+    ...(restored === 1
+      ? ["Approval withdrawn: both rows are as they were."]
+      : []),
+    ...(restored > 1
+      ? [
+          `Approval withdrawn from ${restored} pairs: their rows are as they were.`,
+        ]
+      : []),
+    ...(skipped > 0
+      ? [
+          `${pairCount(skipped)} ${one ? "was left as it is: its rows have" : "were left as they are: their rows have"} changed since.`,
+        ]
+      : []),
+  ];
+  return parts.join(" ");
 }
