@@ -26,6 +26,7 @@ import {
   activeFilters,
   type FilterLookup,
 } from "@/lib/transactions/activeFilters";
+import { MAX_PAIRS_PER_ACTION } from "@/lib/transactions/limits";
 import {
   type LedgerUrlQuery,
   PAGE_SIZE,
@@ -34,10 +35,23 @@ import {
   pageWindow,
 } from "@/lib/transactions/pagination";
 import {
+  approveAllOffer,
+  approveNotice,
+  beforeTags,
   daysApartLabel,
   dismissNotice,
-  markNotice,
+  isEligibleForApproveAll,
+  isMarkedAsTransfer,
+  isTaggedElsewhere,
+  type MarkedPair,
+  pairKey,
   pairWarnings,
+  type TaggedRow,
+  transferSuggestion,
+  transferTags,
+  UNTAGGED,
+  withdrawNotice,
+  withHeldPairs,
 } from "@/lib/transactions/possibleTransfers";
 import type {
   LedgerCategory,
@@ -61,6 +75,7 @@ import {
   setTransactionNote,
   setTransactionTransfer,
   unhidePairs,
+  unmarkPairsAsTransfer,
 } from "./actions";
 import { CategoryCombobox, type NewCategoryInput } from "./CategoryCombobox";
 import { DetailCard } from "./DetailCard";
@@ -626,6 +641,24 @@ type Notice = { text: string; undo: PairIds[] | null };
 const idsOf = (pairs: PairIds[]) =>
   pairs.flatMap(({ outId, inId }) => [outId, inId]);
 
+const keyOf = ({ outId, inId }: PairIds) => pairKey(outId, inId);
+
+// A pair on screen: its two rows, and where its approval stands.
+type ShownPair = {
+  pair: LedgerPair;
+  out: LedgerTransaction;
+  into: LedgerTransaction;
+  // Each row is a transfer to the other row's account.
+  isApproved: boolean;
+  // No warning, so Approve all may take it.
+  isEligible: boolean;
+  isHeld: boolean;
+};
+
+// A pair approved or withdrawn in this view. `marked` is what its rows held
+// before this view approved it; null when it has not.
+type HeldPair = { pair: LedgerPair; marked: MarkedPair | null };
+
 const COLUMNS: { key: SortColumn; label: string; align?: "right" }[] = [
   { key: "date", label: "Date" },
   { key: "description", label: "Description" },
@@ -672,6 +705,9 @@ export function Ledger({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [pending, startTransition] = useTransition();
+  // Approving a pair, or withdrawing that. Its own transition: the approval
+  // buttons wait on it, and nothing else does.
+  const [isApproving, startApproving] = useTransition();
   // Local mirror of the server-rendered rows so mutations can apply
   // optimistically; re-adopted whenever the server re-renders the page.
   const [items, setItems] = useState<LedgerTransaction[]>(page.items);
@@ -694,11 +730,53 @@ export function Ledger({
   // What the last pair action did, while it is on screen.
   const [notice, setNotice] = useState<Notice | null>(null);
   const [isNoticeHeld, setNoticeHeld] = useState(false);
+  // The pairs approved or withdrawn in this view. They stay on screen until
+  // the query changes, even when a filter (Uncategorised only) stops listing
+  // them, so the click that undoes it is always in reach.
+  const view = JSON.stringify(query);
+  const [held, setHeld] = useState<{ view: string; pairs: HeldPair[] }>({
+    view,
+    pairs: [],
+  });
+  if (held.view !== view) setHeld({ view, pairs: [] });
+  const heldKeys = new Set(held.pairs.map(({ pair }) => keyOf(pair)));
+  const heldRowIds = new Set(idsOf(held.pairs.map(({ pair }) => pair)));
 
   const { onlyUncategorized, sortColumn, sortDir } = query;
   // The possible-transfers view: rows come in pairs, and the page is pairs.
   const pairs = page.pairs;
   const isPairView = pairs !== null;
+  // Each pair on screen with its rows: the page's, plus the held ones it no
+  // longer lists. A pair whose rows are fading out after an action is gone.
+  const rowById = new Map(items.map((row) => [row.id, row]));
+  const shown: ShownPair[] = withHeldPairs(
+    pairs ?? [],
+    held.pairs.map(({ pair }) => pair),
+  ).flatMap((listed) => {
+    const out = rowById.get(listed.outId);
+    const into = rowById.get(listed.inId);
+    if (!out || !into) return [];
+    // Read off the rows as they are now, not as the page last had them.
+    const pair = { ...listed, isTaggedElsewhere: isTaggedElsewhere(out, into) };
+    return [
+      {
+        pair,
+        out,
+        into,
+        isApproved: isMarkedAsTransfer(out, into),
+        isEligible: isEligibleForApproveAll(pair),
+        isHeld: heldKeys.has(keyOf(pair)),
+      },
+    ];
+  });
+  const listedKeys = new Set((pairs ?? []).map(keyOf));
+  const heldUnlisted = shown.filter(
+    ({ pair }) => !listedKeys.has(keyOf(pair)),
+  ).length;
+  // In the pair view the rows on screen are the shown pairs' rows.
+  const rows = isPairView
+    ? shown.flatMap(({ out, into }) => [out, into])
+    : items;
   // A row categorised under "Uncategorised only" leaves the ordinary ledger
   // at once. In the pair view the server decides, since a pair stays while
   // either of its rows still needs dealing with.
@@ -716,19 +794,24 @@ export function Ledger({
   // Nets the rows on screen, not every matching row — and says which it is,
   // so a partial sum can never read as a grand total.
   const footer = isPairView
-    ? pairFooter(items, pairs.length, page.total)
-    : ledgerFooter(items, page.total);
+    ? pairFooter(rows, pairs.length + heldUnlisted, page.total + heldUnlisted)
+    : ledgerFooter(rows, page.total);
   const widths = columnWidths(
-    [...items.map((tx) => tx.amount), footer.net].map((amount) =>
+    [...rows.map((tx) => tx.amount), footer.net].map((amount) =>
       formatAmount(currency, amount, numberFormat),
     ),
   );
 
   // Adopt fresh server data whenever the rendered page changes — a URL
   // navigation, or a revalidation after a mutation. Stale row selections are
-  // dropped with it.
+  // dropped with it. A held pair's rows stay when the page stops listing them.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the page is the trigger; the held pairs are read as they stand when it arrives.
   useEffect(() => {
-    setItems(page.items);
+    const listed = new Set(page.items.map((row) => row.id));
+    setItems((prev) => [
+      ...page.items,
+      ...prev.filter((row) => heldRowIds.has(row.id) && !listed.has(row.id)),
+    ]);
     setSelected(new Set());
   }, [page]);
 
@@ -934,7 +1017,7 @@ export function Ledger({
   const hasSelection = selected.size > 0;
 
   const allOnPageSelected =
-    items.length > 0 && items.every((t) => selected.has(t.id));
+    rows.length > 0 && rows.every((t) => selected.has(t.id));
 
   const toggleRow = (id: string) =>
     setSelected((prev) => {
@@ -945,9 +1028,7 @@ export function Ledger({
     });
 
   const toggleAllOnPage = () =>
-    setSelected(
-      allOnPageSelected ? new Set() : new Set(items.map((t) => t.id)),
-    );
+    setSelected(allOnPageSelected ? new Set() : new Set(rows.map((t) => t.id)));
 
   // The categorize-select-categorize loop: once a batch is categorised, clear
   // the search and put the cursor back in it so the next merchant can be
@@ -1100,9 +1181,12 @@ export function Ledger({
 
   // Pairs whose both rows are ticked: a pair is ticked as one, so this is
   // every pair the selection touches.
-  const selectedPairs: PairIds[] = (pairs ?? [])
-    .filter((pair) => selected.has(pair.outId) && selected.has(pair.inId))
-    .map(({ outId, inId }) => ({ outId, inId }));
+  const tickedPairs = shown.filter(
+    ({ pair }) => selected.has(pair.outId) && selected.has(pair.inId),
+  );
+  const selectedPairs: PairIds[] = tickedPairs.map(
+    ({ pair: { outId, inId } }) => ({ outId, inId }),
+  );
 
   const togglePair = (pair: LedgerPair) =>
     setSelected((prev) => {
@@ -1115,37 +1199,113 @@ export function Ledger({
       return next;
     });
 
-  // Each row becomes a transfer to the other row's account, optimistically.
-  const onMarkPairs = () => {
-    const accountOf = new Map(items.map((t) => [t.id, t.accountId]));
-    const counterpart = new Map(
-      selectedPairs.flatMap(({ outId, inId }) => [
-        [outId, accountOf.get(inId)],
-        [inId, accountOf.get(outId)],
-      ]),
-    );
+  // Sets the category cell of the rows named, leaving the rest as they are.
+  const tagRows = (tags: TaggedRow[]) => {
+    const byId = new Map(tags.map((tag) => [tag.id, tag]));
     setItems((prev) =>
-      prev.map((t) => {
-        const transferAccountId = counterpart.get(t.id);
-        return transferAccountId
-          ? {
-              ...t,
-              transferAccountId,
-              categoryId: null,
-              isCategoryConfirmed: true,
-            }
-          : t;
+      prev.map((row) => {
+        const tag = byId.get(row.id);
+        return tag ? { ...row, ...tag } : row;
       }),
     );
-    setSelected(new Set());
-    const chosen = selectedPairs;
-    startTransition(async () => {
-      // The ledger refreshes either way, so a skipped pair's optimistic tag
-      // goes; this says why it did.
-      const { skipped } = await markPairsAsTransfer({ pairs: chosen });
-      const text = markNotice(skipped);
-      if (text) showNotice({ text, undo: null });
+  };
+
+  const hold = (chosen: LedgerPair[]) =>
+    setHeld((prev) => {
+      const known = new Set(prev.pairs.map(({ pair }) => keyOf(pair)));
+      const added = chosen.filter((pair) => !known.has(keyOf(pair)));
+      return {
+        ...prev,
+        pairs: [
+          ...prev.pairs,
+          ...added.map((pair) => ({ pair, marked: null })),
+        ],
+      };
     });
+
+  // Applies an action's answer to the held pairs; null lets one go. An answer
+  // that arrives after the user moved on finds that view's pairs gone.
+  const updateHeld = (change: (pair: HeldPair) => HeldPair | null) =>
+    setHeld((prev) =>
+      prev.view === view
+        ? { view, pairs: prev.pairs.flatMap((pair) => change(pair) ?? []) }
+        : prev,
+    );
+
+  // Marks each pair as a transfer, each row to the other row's account, and
+  // keeps it on screen. The rows change when the server answers, not before:
+  // they never show a transfer that was not stored. `left` is the warned
+  // pairs Approve all passed over, for the notice.
+  const onApprovePairs = (chosen: ShownPair[], left = 0) => {
+    const sent = chosen.slice(0, MAX_PAIRS_PER_ACTION);
+    if (sent.length === 0) return;
+    hold(sent.map(({ pair }) => pair));
+    startApproving(async () => {
+      const { marked, skipped } = await markPairsAsTransfer({
+        pairs: sent.map(({ pair: { outId, inId } }) => ({ outId, inId })),
+      });
+      const before = new Map(marked.map((pair) => [keyOf(pair), pair]));
+      tagRows(
+        sent.flatMap(({ pair, out, into }) =>
+          before.has(keyOf(pair)) ? transferTags(out, into) : [],
+        ),
+      );
+      // A pair the server would not mark is not kept: the refreshed page
+      // decides whether it is still listed.
+      const asked = new Set(sent.map(({ pair }) => keyOf(pair)));
+      updateHeld((heldPair) => {
+        const key = keyOf(heldPair.pair);
+        if (!asked.has(key)) return heldPair;
+        const was = before.get(key);
+        return was ? { ...heldPair, marked: was } : null;
+      });
+      showNotice({
+        text: approveNotice(marked.length, left, skipped),
+        undo: null,
+      });
+    });
+  };
+
+  // Withdraws an approval: each row goes back to what the server said it held
+  // when this view approved the pair, or to uncategorised for a pair marked
+  // before this visit.
+  const onWithdrawPairs = (chosen: ShownPair[]) => {
+    const kept = chosen.slice(0, MAX_PAIRS_PER_ACTION);
+    if (kept.length === 0) return;
+    const remembered = new Map(
+      held.pairs.map(({ pair, marked }) => [keyOf(pair), marked]),
+    );
+    const sent = kept.map(
+      ({ pair: { outId, inId } }) =>
+        remembered.get(pairKey(outId, inId)) ?? {
+          outId,
+          inId,
+          outBefore: UNTAGGED,
+          inBefore: UNTAGGED,
+        },
+    );
+    hold(kept.map(({ pair }) => pair));
+    startApproving(async () => {
+      const { skipped } = await unmarkPairsAsTransfer({ pairs: sent });
+      const leftAlone = new Set(skipped.map(keyOf));
+      const restored = sent.filter((pair) => !leftAlone.has(keyOf(pair)));
+      tagRows(restored.flatMap(beforeTags));
+      const putBack = new Set(restored.map(keyOf));
+      updateHeld((heldPair) =>
+        putBack.has(keyOf(heldPair.pair))
+          ? { ...heldPair, marked: null }
+          : heldPair,
+      );
+      showNotice({
+        text: withdrawNotice(restored.length, skipped.length),
+        undo: null,
+      });
+    });
+  };
+
+  const onMarkPairs = () => {
+    onApprovePairs(tickedPairs.filter(({ isApproved }) => !isApproved));
+    setSelected(new Set());
   };
 
   const showNotice = (next: Notice) => {
@@ -1228,6 +1388,36 @@ export function Ledger({
       </>
     );
 
+  // The page's Approve all: every pair without a warning, then the way back.
+  const offer =
+    isPairView && !query.showHiddenPairs ? approveAllOffer(shown) : null;
+  const approveAll = offer ? (
+    <Approval
+      type="button"
+      $approved={offer.action === "withdraw"}
+      aria-pressed={offer.action === "withdraw"}
+      disabled={isApproving}
+      title={
+        offer.action === "withdraw"
+          ? "Approved. Click to undo."
+          : "Marks every pair on this page as a transfer, except pairs with a warning."
+      }
+      onClick={() =>
+        offer.action === "withdraw"
+          ? onWithdrawPairs(offer.pairs)
+          : onApprovePairs(
+              offer.pairs,
+              shown.filter((pair) => !pair.isEligible && !pair.isApproved)
+                .length,
+            )
+      }
+    >
+      {offer.action === "withdraw"
+        ? "✓ All approved"
+        : `Approve all ${offer.pairs.length}`}
+    </Approval>
+  ) : null;
+
   const pairLabel = (pair: LedgerPair) =>
     [
       `${pair.outAccountName} → ${pair.inAccountName}`,
@@ -1237,8 +1427,13 @@ export function Ledger({
 
   // One ledger row and, when open, its details. `inPair` marks a row shown
   // under a possible-transfer pair: no checkbox of its own (the pair's tick
-  // selects both), a click toggles the pair, and no note.
-  const renderRow = (tx: LedgerTransaction, inPair: LedgerPair | null) => (
+  // selects both), a click toggles the pair, and no note. `suggestion` is the
+  // transfer its pair suggests, pencilled in where the row has nothing.
+  const renderRow = (
+    tx: LedgerTransaction,
+    inPair: LedgerPair | null,
+    suggestion: string | null,
+  ) => (
     <Fragment key={tx.id}>
       <Row
         $leaving={leavingIds.has(tx.id)}
@@ -1265,13 +1460,22 @@ export function Ledger({
         </Amount>
         <Td onClick={(e) => e.stopPropagation()}>
           <CategoryCell
-            $pencilled={tx.categoryId !== null && !tx.isCategoryConfirmed}
+            $pencilled={
+              suggestion !== null ||
+              (tx.categoryId !== null && !tx.isCategoryConfirmed)
+            }
+            title={
+              suggestion === null
+                ? undefined
+                : "Suggested from the other row of this pair. Nothing is saved until you approve the transfer."
+            }
           >
             <CategoryCombobox
               categories={categories}
               transferAccounts={transferAccounts}
               value={tx.categoryId}
               transferAccountId={tx.transferAccountId}
+              placeholder={suggestion ?? undefined}
               ownAccountId={tx.accountId}
               defaultType={tx.amount < 0 ? "EXPENSE" : "INCOME"}
               transfersEnabled={transfersEnabled}
@@ -1404,7 +1608,11 @@ export function Ledger({
         selectedCount={selected.size}
         onClearSelection={() => setSelected(new Set())}
         onDelete={() => setConfirmDelete(true)}
-        reviewAction={reviewAction}
+        // In the pair view the slot is the pairs' Approve all: beside the
+        // categories' one it would read as the same button twice.
+        reviewAction={
+          isPairView && !query.showHiddenPairs ? approveAll : reviewAction
+        }
         selectionActions={pairActions}
         categorizer={
           <CategoryCombobox
@@ -1443,7 +1651,7 @@ export function Ledger({
         }}
       />
 
-      {items.length === 0 ? (
+      {rows.length === 0 ? (
         <Empty>
           {/* Any narrowing at all — the toggle, the search box, or a drawer
               filter — means the ledger is not necessarily empty, just this
@@ -1498,31 +1706,59 @@ export function Ledger({
               </tr>
             </thead>
             {isPairView ? (
-              pairs.map((pair) => {
-                const out = items.find((t) => t.id === pair.outId);
-                const into = items.find((t) => t.id === pair.inId);
-                // Fading out after an action: the pair goes with its rows.
-                if (!out || !into) return null;
+              shown.map((entry) => {
+                const { pair, out, into, isApproved } = entry;
                 const isTicked = selected.has(out.id) && selected.has(into.id);
+                const label = pairLabel(pair);
+                // The user said a hidden pair is not a transfer.
+                const suggest = (
+                  row: LedgerTransaction,
+                  other: LedgerTransaction,
+                ) => (pair.isHidden ? null : transferSuggestion(row, other));
                 return (
                   <PairGroup
                     key={`${pair.outId}|${pair.inId}`}
                     $selected={isTicked}
+                    $approved={isApproved}
                   >
                     <PairSummary
-                      label={pairLabel(pair)}
+                      label={label}
                       warnings={pairWarnings(pair)}
                       checked={isTicked}
                       onToggle={() => togglePair(pair)}
                       span={widths.length - 1}
+                      action={
+                        pair.isHidden ? null : (
+                          <Approval
+                            type="button"
+                            $approved={isApproved}
+                            aria-pressed={isApproved}
+                            aria-label={`Approve transfer ${label}`}
+                            title={
+                              isApproved
+                                ? "Approved. Click to undo."
+                                : "Marks both rows as a transfer between these two accounts."
+                            }
+                            disabled={isApproving}
+                            onClick={(e) => {
+                              // The line's own click ticks the pair.
+                              e.stopPropagation();
+                              if (isApproved) onWithdrawPairs([entry]);
+                              else onApprovePairs([entry]);
+                            }}
+                          >
+                            {isApproved ? "✓ Approved" : "Approve transfer"}
+                          </Approval>
+                        )
+                      }
                     />
-                    {renderRow(out, pair)}
-                    {renderRow(into, pair)}
+                    {renderRow(out, pair, suggest(out, into))}
+                    {renderRow(into, pair, suggest(into, out))}
                   </PairGroup>
                 );
               })
             ) : (
-              <tbody>{items.map((tx) => renderRow(tx, null))}</tbody>
+              <tbody>{items.map((tx) => renderRow(tx, null, null))}</tbody>
             )}
             <tfoot>
               <tr>

@@ -46,6 +46,26 @@ async function seedPair(db: PrismaClient) {
   return { current, savings, out, into };
 }
 
+// A second, same-day move between the same two accounts.
+async function addPair(
+  db: PrismaClient,
+  from: { id: string; userId: string },
+  to: { id: string },
+  amount: number,
+) {
+  const row = (accountId: string, signed: number) =>
+    db.transaction.create({
+      data: {
+        userId: from.userId,
+        accountId,
+        date: new Date("2026-10-20"),
+        amount: signed,
+        description: `Standing order ${signed}`,
+      },
+    });
+  return { out: await row(from.id, -amount), into: await row(to.id, amount) };
+}
+
 const pairCheckbox = (page: import("@playwright/test").Page) =>
   page.getByRole("checkbox", { name: /Select pair Everyday → Rainy Day/ });
 
@@ -87,6 +107,60 @@ test.describe("possible transfers", () => {
       .toEqual([savings.id, current.id]);
   });
 
+  test("Approve all marks every pair and keeps it listed; a second click puts the rows back in pencil", async ({
+    page,
+    db,
+  }) => {
+    await signIn(page);
+    const { current, savings, out, into } = await seedPair(db);
+    const second = await addPair(db, current, savings, 75);
+    const outs = [out.id, second.out.id];
+    const ins = [into.id, second.into.id];
+    // Each row's transfer account, by row.
+    const transfers = async () =>
+      Object.fromEntries(
+        (
+          await db.transaction.findMany({
+            where: { id: { in: [...outs, ...ins] } },
+          })
+        ).map((row) => [row.id, row.transferAccountId]),
+      );
+    const all = (outTo: string | null, inFrom: string | null) =>
+      Object.fromEntries([
+        ...outs.map((id) => [id, outTo]),
+        ...ins.map((id) => [id, inFrom]),
+      ]);
+    const pairLines = page.getByRole("checkbox", { name: /^Select pair/ });
+
+    // Uncategorised only: an approved pair no longer matches it.
+    await page.goto("/transactions?pairs=1&uncat=1");
+    await expect(pairLines).toHaveCount(2);
+
+    await withServerAction(page, () =>
+      page.getByRole("button", { name: "Approve all 2" }).click(),
+    );
+    await expect.poll(transfers).toEqual(all(savings.id, current.id));
+    await expect(page.getByText("2 pairs marked as transfers.")).toBeVisible();
+    await expect(pairLines).toHaveCount(2);
+    await expect(
+      page.getByRole("button", { name: /^Approve transfer/, pressed: true }),
+    ).toHaveCount(2);
+
+    await withServerAction(page, () =>
+      page.getByRole("button", { name: "✓ All approved" }).click(),
+    );
+    await expect.poll(transfers).toEqual(all(null, null));
+    await expect(
+      page.getByRole("button", { name: "Approve all 2" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Transfer to Rainy Day" }),
+    ).toHaveCount(2);
+    await expect(
+      page.getByRole("button", { name: "Transfer from Everyday" }),
+    ).toHaveCount(2);
+  });
+
   test("Not a transfer hides the pair, and Undo brings it back", async ({
     page,
     db,
@@ -107,6 +181,22 @@ test.describe("possible transfers", () => {
     );
     await expect.poll(() => db.dismissedTransferPair.count()).toBe(0);
     await expect(pairCheckbox(page)).toBeVisible();
+  });
+});
+
+// Styling, so every engine runs it. Nothing is written.
+test.describe("a possible transfer's suggestion", () => {
+  test("is pencilled in each row: dashed and italic", async ({ page, db }) => {
+    await signIn(page);
+    await seedPair(db);
+
+    await page.goto("/transactions?pairs=1");
+
+    for (const name of ["Transfer to Rainy Day", "Transfer from Everyday"]) {
+      const suggestion = page.getByRole("button", { name });
+      await expect(suggestion).toHaveCSS("font-style", "italic");
+      await expect(suggestion).toHaveCSS("border-top-style", "dashed");
+    }
   });
 });
 
@@ -131,7 +221,7 @@ test.describe("possible transfers on a phone", () => {
     }));
     expect(scrollWidth).toBeLessThanOrEqual(clientWidth);
     for (const text of ["To Rainy Day", "From Everyday"]) {
-      await expect(page.getByText(text)).toBeInViewport();
+      await expect(page.getByText(text, { exact: true })).toBeInViewport();
     }
   });
 });

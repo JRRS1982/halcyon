@@ -9,11 +9,19 @@ import styled, { css } from "styled-components";
 import { Checkbox } from "@/components/ui/Checkbox";
 
 // The bracket: a rule down the left of the summary and both rows, in the
-// action colour while the pair is ticked. On a phone the table is a stack of
-// blocks, so the group itself carries the rule.
-export const PairGroup = styled.tbody<{ $selected: boolean }>`
-  ${({ $selected, theme }) => {
-    const rule = $selected ? theme.colors.primary : theme.colors.hairlineStrong;
+// action colour while the pair is ticked and the sign green once it is
+// approved. On a phone the table is a stack of blocks, so the group itself
+// carries the rule.
+export const PairGroup = styled.tbody<{
+  $selected: boolean;
+  $approved: boolean;
+}>`
+  ${({ $selected, $approved, theme }) => {
+    const rule = $selected
+      ? theme.colors.primary
+      : $approved
+        ? theme.colors.positive
+        : theme.colors.hairlineStrong;
     return css`
       > tr > td:first-child {
         box-shadow: inset 3px 0 0 ${rule};
@@ -85,6 +93,7 @@ export function PairSummary({
   checked,
   onToggle,
   span,
+  action,
 }: {
   label: string;
   warnings: string[];
@@ -92,6 +101,8 @@ export function PairSummary({
   onToggle: () => void;
   /** Columns the summary spans after the checkbox. */
   span: number;
+  /** What can be done to the whole pair from its line (Approve transfer). */
+  action?: ReactNode;
 }): ReactNode {
   return (
     <SummaryRow onClick={onToggle}>
@@ -110,6 +121,7 @@ export function PairSummary({
           {warnings.map((warning) => (
             <Warning key={warning}>{warning}</Warning>
           ))}
+          {action}
         </SummaryLine>
       </SummaryCell>
     </SummaryRow>
