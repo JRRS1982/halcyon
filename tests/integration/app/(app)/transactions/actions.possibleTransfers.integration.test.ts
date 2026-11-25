@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { TEST_USER_ID } from "@test/support/helpers";
 import { revalidatePath } from "next/cache";
 import {
@@ -52,6 +53,34 @@ const tagOf = async (id: string) => {
     isCategoryConfirmed: row.isCategoryConfirmed,
   };
 };
+
+// Runs `during` while `change` is saved but not yet committed, as a save from
+// another tab still in flight would be. The pause only gives `during` time to
+// reach the row; code that waits for the row passes however long it takes.
+async function whileUncommitted<T>(
+  change: (tx: Prisma.TransactionClient) => Promise<unknown>,
+  during: () => Promise<T>,
+): Promise<T> {
+  let commit = () => {};
+  const untilCommit = new Promise<void>((resolve) => {
+    commit = resolve;
+  });
+  let changed = () => {};
+  const untilChanged = new Promise<void>((resolve) => {
+    changed = resolve;
+  });
+  const otherTab = prisma.$transaction(async (tx) => {
+    await change(tx);
+    changed();
+    await untilCommit;
+  });
+  await untilChanged;
+  const action = during();
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  commit();
+  await otherTab;
+  return action;
+}
 
 const pairsOnScreen = async () =>
   (await getTransactionsPage(TEST_USER_ID, { possibleTransfers: true })).pairs;
@@ -366,6 +395,88 @@ describe("markPairsAsTransfer then unmarkPairsAsTransfer (integration)", () => {
       expect((await tagOf(out.id)).transferAccountId).toBe(savings.id);
     },
   );
+
+  // Such a row would match "To approve only" for good: nothing can approve it.
+  test("refuses a row put back unconfirmed with no category", async () => {
+    const { out, into, savings } = await seedPair();
+    const { marked } = await markPairsAsTransfer({
+      pairs: [{ outId: out.id, inId: into.id }],
+    });
+
+    await expect(
+      unmarkPairsAsTransfer({
+        pairs: marked.map((pair) => ({
+          ...pair,
+          outBefore: { ...UNTAGGED, isCategoryConfirmed: false },
+        })),
+      }),
+    ).rejects.toThrow();
+    expect(await tagOf(out.id)).toEqual({
+      ...UNTAGGED,
+      transferAccountId: savings.id,
+    });
+  });
+
+  // Whatever is stored, marking must hand back something withdrawing accepts.
+  test("a row with no category is reported as confirmed, so it can be put back", async () => {
+    const { out, into } = await seedPair();
+    await prisma.transaction.update({
+      where: { id: out.id },
+      data: { isCategoryConfirmed: false },
+    });
+
+    const { marked } = await markPairsAsTransfer({
+      pairs: [{ outId: out.id, inId: into.id }],
+    });
+
+    expect(marked[0]?.outBefore).toEqual(UNTAGGED);
+    expect((await unmarkPairsAsTransfer({ pairs: marked })).restored).toBe(1);
+  });
+
+  // The check and the write are one step: a save from another tab that lands
+  // between them must not be overwritten, and a pair is written whole or not
+  // at all.
+  test("a pair edited in another tab while it is being marked is left alone", async () => {
+    const { out, into } = await seedPair();
+
+    const result = await whileUncommitted(
+      (tx) =>
+        tx.transaction.update({
+          where: { id: into.id },
+          data: { amount: 199 },
+        }),
+      () => markPairsAsTransfer({ pairs: [{ outId: out.id, inId: into.id }] }),
+    );
+
+    expect(result).toEqual({ updated: 0, skipped: 1, marked: [] });
+    expect(await tagOf(out.id)).toEqual(UNTAGGED);
+    expect(await tagOf(into.id)).toEqual(UNTAGGED);
+  });
+
+  test("a row re-filed in another tab while its approval is withdrawn keeps that choice", async () => {
+    const { out, into, current } = await seedPair();
+    const salary = await category("Salary");
+    const { marked } = await markPairsAsTransfer({
+      pairs: [{ outId: out.id, inId: into.id }],
+    });
+
+    const result = await whileUncommitted(
+      (tx) =>
+        tx.transaction.update({
+          where: { id: out.id },
+          data: { categoryId: salary.id, transferAccountId: null },
+        }),
+      () => unmarkPairsAsTransfer({ pairs: marked }),
+    );
+
+    expect(result).toEqual({
+      restored: 0,
+      skipped: [{ outId: out.id, inId: into.id }],
+    });
+    expect((await tagOf(out.id)).categoryId).toBe(salary.id);
+    // The other row is not put back on its own.
+    expect((await tagOf(into.id)).transferAccountId).toBe(current.id);
+  });
 
   test("refuses a row put back as both a category and a transfer", async () => {
     const { out, into, savings } = await seedPair();
