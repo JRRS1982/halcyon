@@ -72,7 +72,18 @@ describe("markPairsAsTransfer (integration)", () => {
       pairs: [{ outId: out.id, inId: into.id }],
     });
 
-    expect(result).toMatchObject({ updated: 2, skipped: 0 });
+    expect(result).toEqual({
+      updated: 2,
+      skipped: 0,
+      marked: [
+        {
+          outId: out.id,
+          inId: into.id,
+          outBefore: UNTAGGED,
+          inBefore: UNTAGGED,
+        },
+      ],
+    });
     const rows = await prisma.transaction.findMany({
       where: { id: { in: [out.id, into.id] } },
     });

@@ -1379,7 +1379,8 @@ export function Ledger({
       </Button>
     ) : (
       <>
-        <Button type="button" onClick={onMarkPairs}>
+        {/* Waits like the approval buttons: it is the same action. */}
+        <Button type="button" onClick={onMarkPairs} disabled={isApproving}>
           Mark as transfer
         </Button>
         <Button variant="outline" type="button" onClick={onDismissPairs}>
