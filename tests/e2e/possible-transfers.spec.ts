@@ -66,6 +66,44 @@ async function addPair(
   return { out: await row(from.id, -amount), into: await row(to.id, amount) };
 }
 
+// Pairs of distinct sizes, so each row has exactly one match and no pair
+// carries a warning. Newest first on screen: the largest amount is the newest.
+async function seedPairs(db: PrismaClient, count: number) {
+  const user = await signedInUser(db);
+  const account = (name: string) =>
+    db.account.create({
+      data: {
+        userId: user.id,
+        name,
+        ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+      },
+    });
+  const current = await account("Everyday");
+  const savings = await account("Rainy Day");
+  const rows = Array.from({ length: count }, (_, i) => ({
+    userId: user.id,
+    date: new Date(Date.UTC(2026, 8, 1 + i)),
+    amount: 10 + i,
+  }));
+  await db.transaction.createMany({
+    data: rows.flatMap((row) => [
+      {
+        ...row,
+        accountId: current.id,
+        amount: -row.amount,
+        description: `Out ${row.amount}`,
+      },
+      { ...row, accountId: savings.id, description: `In ${row.amount}` },
+    ]),
+  });
+}
+
+// The page's Approve all keeps one name; its text says where it stands.
+const approveAll = (page: import("@playwright/test").Page) =>
+  page.getByRole("button", {
+    name: "Approve all possible transfers on this page",
+  });
+
 const pairCheckbox = (page: import("@playwright/test").Page) =>
   page.getByRole("checkbox", { name: /Select pair Everyday → Rainy Day/ });
 
@@ -136,9 +174,8 @@ test.describe("possible transfers", () => {
     await page.goto("/transactions?pairs=1&uncat=1");
     await expect(pairLines).toHaveCount(2);
 
-    await withServerAction(page, () =>
-      page.getByRole("button", { name: "Approve all 2" }).click(),
-    );
+    await expect(approveAll(page)).toHaveText("Approve all 2");
+    await withServerAction(page, () => approveAll(page).click());
     await expect.poll(transfers).toEqual(all(savings.id, current.id));
     await expect(page.getByText("2 pairs marked as transfers.")).toBeVisible();
     await expect(pairLines).toHaveCount(2);
@@ -146,19 +183,48 @@ test.describe("possible transfers", () => {
       page.getByRole("button", { name: /^Approve transfer/, pressed: true }),
     ).toHaveCount(2);
 
-    await withServerAction(page, () =>
-      page.getByRole("button", { name: "✓ All approved" }).click(),
-    );
+    await expect(approveAll(page)).toHaveText("✓ All approved");
+    await withServerAction(page, () => approveAll(page).click());
     await expect.poll(transfers).toEqual(all(null, null));
-    await expect(
-      page.getByRole("button", { name: "Approve all 2" }),
-    ).toBeVisible();
+    await expect(approveAll(page)).toHaveText("Approve all 2");
     await expect(
       page.getByRole("button", { name: "Transfer to Rainy Day" }),
     ).toHaveCount(2);
     await expect(
       page.getByRole("button", { name: "Transfer from Everyday" }),
     ).toHaveCount(2);
+  });
+
+  // An approved pair leaves the Uncategorised filter, so the server's next
+  // page one is the pairs that came after. They must wait.
+  test("with more pairs than a page, Approve all holds the page; its second click withdraws that batch, and the next page brings the rest", async ({
+    page,
+    db,
+  }) => {
+    await signIn(page);
+    await seedPairs(db, 27);
+    const tagged = () =>
+      db.transaction.count({ where: { transferAccountId: { not: null } } });
+    const pairLines = page.getByRole("checkbox", { name: /^Select pair/ });
+
+    await page.goto("/transactions?pairs=1&uncat=1");
+    await expect(approveAll(page)).toHaveText("Approve all 25");
+
+    await withServerAction(page, () => approveAll(page).click());
+    await expect.poll(tagged).toBe(50);
+    await expect(approveAll(page)).toHaveText("✓ All approved");
+    await expect(pairLines).toHaveCount(25);
+    await expect(page.getByText("This page · 25 of 27 pairs")).toBeVisible();
+
+    await withServerAction(page, () => approveAll(page).click());
+    await expect.poll(tagged).toBe(0);
+    await expect(approveAll(page)).toHaveText("Approve all 25");
+
+    await withServerAction(page, () => approveAll(page).click());
+    await expect.poll(tagged).toBe(50);
+    await page.getByRole("button", { name: "Next page" }).click();
+    await expect(pairLines).toHaveCount(2);
+    await expect(approveAll(page)).toHaveText("Approve all 2");
   });
 
   test("Not a transfer hides the pair, and Undo brings it back", async ({
@@ -197,6 +263,31 @@ test.describe("a possible transfer's suggestion", () => {
       await expect(suggestion).toHaveCSS("font-style", "italic");
       await expect(suggestion).toHaveCSS("border-top-style", "dashed");
     }
+  });
+});
+
+// Focus, so every engine runs it: a button disabled while its click is saved
+// drops keyboard focus on some engines, and the undo is then a tab-hunt away.
+test.describe("approving a pair from the keyboard", () => {
+  test("leaves focus on the button that was pressed", async ({ page, db }) => {
+    await signIn(page);
+    const { out } = await seedPair(db);
+
+    await page.goto("/transactions?pairs=1");
+    const approve = page.getByRole("button", { name: /^Approve transfer/ });
+    await approve.focus();
+    await withServerAction(page, () => page.keyboard.press("Enter"));
+
+    await expect(approve).toHaveAttribute("aria-pressed", "true");
+    await expect(approve).toBeFocused();
+    // The write is done before the test ends, whatever the engine.
+    await expect
+      .poll(
+        async () =>
+          (await db.transaction.findUniqueOrThrow({ where: { id: out.id } }))
+            .transferAccountId,
+      )
+      .not.toBeNull();
   });
 });
 

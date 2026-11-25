@@ -35,14 +35,12 @@ import {
   pageWindow,
 } from "@/lib/transactions/pagination";
 import {
+  approvalState,
   approveAllOffer,
   approveNotice,
   beforeTags,
   daysApartLabel,
   dismissNotice,
-  isEligibleForApproveAll,
-  isMarkedAsTransfer,
-  isTaggedElsewhere,
   type MarkedPair,
   pairKey,
   pairWarnings,
@@ -228,6 +226,12 @@ const Approval = styled.button<{ $approved: boolean }>`
       border-color: ${$approved ? theme.colors.hairlineStrong : theme.colors.primary};
       background: ${$approved ? "transparent" : theme.colors.primary};
       color: ${$approved ? theme.colors.positive : theme.colors.onPrimary};
+    }
+
+    /* Waiting on the server. Not the disabled attribute: that takes keyboard
+       focus off the button that was just pressed. */
+    &[aria-disabled="true"] {
+      cursor: progress;
     }
   `}
 `;
@@ -609,12 +613,17 @@ const DialogActions = styled.div`
   gap: ${({ theme }) => theme.spacing.md};
 `;
 
-// After "Not a transfer": says what was hidden and offers it back.
-const Toast = styled.div`
+// Where notices appear. It is always in the page, empty or not: a live region
+// announces what is put into it, not its own arrival.
+const NoticeRegion = styled.div`
   position: fixed;
   right: ${({ theme }) => theme.spacing["2xl"]};
   bottom: ${({ theme }) => theme.spacing["2xl"]};
   z-index: 70;
+`;
+
+// After "Not a transfer": says what was hidden and offers it back.
+const Toast = styled.div`
   display: flex;
   align-items: center;
   gap: ${({ theme }) => theme.spacing.md};
@@ -662,8 +671,19 @@ type ShownPair = {
 };
 
 // A pair approved or withdrawn in this view. `marked` is what its rows held
-// before this view approved it; null when it has not.
-type HeldPair = { pair: LedgerPair; marked: MarkedPair | null };
+// before this view approved it; null when it has not. `isEligible` is
+// whether it had no warning as it stood when its button was last pressed.
+type HeldPair = {
+  pair: LedgerPair;
+  marked: MarkedPair | null;
+  isEligible: boolean;
+};
+
+// The held pairs of one view (a query), and the keys of the pairs that were
+// on screen when the first of them was held.
+type Held = { view: string; pairs: HeldPair[]; onScreen: string[] };
+
+const NOTHING_HELD = { pairs: [], onScreen: [] };
 
 const COLUMNS: { key: SortColumn; label: string; align?: "right" }[] = [
   { key: "date", label: "Date" },
@@ -735,47 +755,54 @@ export function Ledger({
   // Which row's detail panel (kept import columns + editable note) is open.
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
-  // What the last pair action did, while it is on screen.
-  const [notice, setNotice] = useState<Notice | null>(null);
+  // What the last pair action did, while it is on screen. Each notice has
+  // its own id, so one that repeats the last still replaces it on the page.
+  const [notice, setNotice] = useState<(Notice & { id: number }) | null>(null);
+  const noticeCount = useRef(0);
   const [isNoticeHeld, setNoticeHeld] = useState(false);
   // The pairs approved or withdrawn in this view. They stay on screen until
   // the query changes, even when a filter (Uncategorised only) stops listing
   // them, so the click that undoes it is always in reach.
   const view = JSON.stringify(query);
-  const [held, setHeld] = useState<{ view: string; pairs: HeldPair[] }>({
-    view,
-    pairs: [],
-  });
-  if (held.view !== view) setHeld({ view, pairs: [] });
-  const heldKeys = new Set(held.pairs.map(({ pair }) => keyOf(pair)));
+  const [held, setHeld] = useState<Held>({ view, ...NOTHING_HELD });
+  if (held.view !== view) setHeld({ view, ...NOTHING_HELD });
+  const heldByKey = new Map(
+    held.pairs.map((heldPair) => [keyOf(heldPair.pair), heldPair]),
+  );
   const heldRowIds = new Set(idsOf(held.pairs.map(({ pair }) => pair)));
 
   const { onlyUncategorized, sortColumn, sortDir } = query;
   // The possible-transfers view: rows come in pairs, and the page is pairs.
   const pairs = page.pairs;
   const isPairView = pairs !== null;
+  // While pairs are held, the page keeps the pairs it had when the first was.
+  // Under a filter an approved pair no longer matches, the refreshed page
+  // lists the pairs after it instead, moved up. Those wait: were they to join,
+  // Approve all would offer itself again for pairs nobody has looked at, and
+  // its second click would approve them rather than withdraw.
+  const keptOnScreen = new Set(held.onScreen);
+  const listed = (pairs ?? []).filter(
+    (pair) => held.pairs.length === 0 || keptOnScreen.has(keyOf(pair)),
+  );
+  const waiting = (pairs ?? []).length - listed.length;
   // Each pair on screen with its rows: the page's, plus the held ones it no
   // longer lists. A pair whose rows are fading out after an action is gone.
   const rowById = new Map(items.map((row) => [row.id, row]));
   const shown: ShownPair[] = withHeldPairs(
-    pairs ?? [],
+    listed,
     held.pairs.map(({ pair }) => pair),
-  ).flatMap((listed) => {
-    const out = rowById.get(listed.outId);
-    const into = rowById.get(listed.inId);
+  ).flatMap((pair) => {
+    const out = rowById.get(pair.outId);
+    const into = rowById.get(pair.inId);
     if (!out || !into) return [];
     // Read off the rows as they are now, not as the page last had them.
-    const pair = { ...listed, isTaggedElsewhere: isTaggedElsewhere(out, into) };
-    return [
-      {
-        pair,
-        out,
-        into,
-        isApproved: isMarkedAsTransfer(out, into),
-        isEligible: isEligibleForApproveAll(pair),
-        isHeld: heldKeys.has(keyOf(pair)),
-      },
-    ];
+    const { isTaggedElsewhere, ...state } = approvalState(
+      pair,
+      out,
+      into,
+      heldByKey.get(keyOf(pair)) ?? null,
+    );
+    return [{ pair: { ...pair, isTaggedElsewhere }, out, into, ...state }];
   });
   const listedKeys = new Set((pairs ?? []).map(keyOf));
   const heldUnlisted = shown.filter(
@@ -802,7 +829,7 @@ export function Ledger({
   // Nets the rows on screen, not every matching row — and says which it is,
   // so a partial sum can never read as a grand total.
   const footer = isPairView
-    ? pairFooter(rows, pairs.length + heldUnlisted, page.total + heldUnlisted)
+    ? pairFooter(rows, listed.length + heldUnlisted, page.total + heldUnlisted)
     : ledgerFooter(rows, page.total);
   const widths = columnWidths(
     [...rows.map((tx) => tx.amount), footer.net].map((amount) =>
@@ -899,8 +926,20 @@ export function Ledger({
     isPairView ? PAIRS_PER_PAGE : PAGE_SIZE,
   );
 
+  // Lets the held pairs go, which shows the ones waiting behind them. The
+  // selection goes too: it may name rows that are leaving.
+  const showWaiting = () => {
+    setHeld({ view, ...NOTHING_HELD });
+    setSelected(new Set());
+  };
+
+  // The pairs waiting on this page are the next ones: they moved up into it
+  // as the approved pairs left the filter. Turning the page shows them,
+  // rather than passing over them to the page after.
   const goToPage = (n: number) =>
-    updateParams({ page: n <= 1 ? null : String(n) }, "push");
+    waiting > 0 && (n === query.page || n === query.page + 1)
+      ? showWaiting()
+      : updateParams({ page: n <= 1 ? null : String(n) }, "push");
 
   // Rows that no longer belong on screen fade before they go, so the eye can
   // follow what a categorise or a delete just did. The server's next render
@@ -1218,15 +1257,35 @@ export function Ledger({
     );
   };
 
-  const hold = (chosen: LedgerPair[]) =>
+  // Keeps pairs on screen from here on, each remembering whether it had a
+  // warning as it stood when its button was pressed. The first pair held
+  // also fixes the page: see `listed`.
+  const hold = (chosen: ShownPair[]) =>
     setHeld((prev) => {
+      const pressed = new Map(
+        chosen.map((entry) => [keyOf(entry.pair), entry]),
+      );
       const known = new Set(prev.pairs.map(({ pair }) => keyOf(pair)));
-      const added = chosen.filter((pair) => !known.has(keyOf(pair)));
       return {
-        ...prev,
+        view: prev.view,
+        onScreen:
+          prev.pairs.length === 0
+            ? shown.map(({ pair }) => keyOf(pair))
+            : prev.onScreen,
         pairs: [
-          ...prev.pairs,
-          ...added.map((pair) => ({ pair, marked: null })),
+          ...prev.pairs.map((heldPair) => {
+            const entry = pressed.get(keyOf(heldPair.pair));
+            return entry
+              ? { ...heldPair, isEligible: entry.isEligible }
+              : heldPair;
+          }),
+          ...chosen
+            .filter(({ pair }) => !known.has(keyOf(pair)))
+            .map(({ pair, isEligible }) => ({
+              pair,
+              marked: null,
+              isEligible,
+            })),
         ],
       };
     });
@@ -1236,7 +1295,7 @@ export function Ledger({
   const updateHeld = (change: (pair: HeldPair) => HeldPair | null) =>
     setHeld((prev) =>
       prev.view === view
-        ? { view, pairs: prev.pairs.flatMap((pair) => change(pair) ?? []) }
+        ? { ...prev, pairs: prev.pairs.flatMap((pair) => change(pair) ?? []) }
         : prev,
     );
 
@@ -1251,8 +1310,8 @@ export function Ledger({
     left = 0,
   ) => {
     const sent = chosen.slice(0, MAX_PAIRS_PER_ACTION);
-    if (sent.length === 0) return;
-    hold(sent.map(({ pair }) => pair));
+    if (isApproving || sent.length === 0) return;
+    hold(sent);
     setSaving(from);
     startApproving(async () => {
       const { marked, skipped } = await markPairsAsTransfer({
@@ -1286,7 +1345,7 @@ export function Ledger({
   // before this visit.
   const onWithdrawPairs = (chosen: ShownPair[], from: string) => {
     const kept = chosen.slice(0, MAX_PAIRS_PER_ACTION);
-    if (kept.length === 0) return;
+    if (isApproving || kept.length === 0) return;
     const remembered = new Map(
       held.pairs.map(({ pair, marked }) => [keyOf(pair), marked]),
     );
@@ -1299,7 +1358,7 @@ export function Ledger({
           inBefore: UNTAGGED,
         },
     );
-    hold(kept.map(({ pair }) => pair));
+    hold(kept);
     setSaving(from);
     startApproving(async () => {
       const { skipped } = await unmarkPairsAsTransfer({ pairs: sent });
@@ -1313,14 +1372,23 @@ export function Ledger({
           : heldPair,
       );
       setSaving(null);
+      // A pair with nothing remembered went to uncategorised, not "back".
+      const asTheyWere = restored.filter((pair) =>
+        remembered.get(keyOf(pair)),
+      ).length;
       showNotice({
-        text: withdrawNotice(restored.length, skipped.length),
+        text: withdrawNotice(
+          asTheyWere,
+          restored.length - asTheyWere,
+          skipped.length,
+        ),
         undo: null,
       });
     });
   };
 
   const onMarkPairs = () => {
+    if (isApproving) return;
     onApprovePairs(
       tickedPairs.filter(({ isApproved }) => !isApproved),
       null,
@@ -1329,8 +1397,9 @@ export function Ledger({
   };
 
   const showNotice = (next: Notice) => {
+    noticeCount.current += 1;
     setNoticeHeld(false);
-    setNotice(next);
+    setNotice({ ...next, id: noticeCount.current });
   };
 
   // The chosen pairs' rows fade while their action runs. Once it answers, the
@@ -1400,7 +1469,7 @@ export function Ledger({
     ) : (
       <>
         {/* Waits like the approval buttons: it is the same action. */}
-        <Button type="button" onClick={onMarkPairs} disabled={isApproving}>
+        <Button type="button" onClick={onMarkPairs} aria-disabled={isApproving}>
           Mark as transfer
         </Button>
         <Button variant="outline" type="button" onClick={onDismissPairs}>
@@ -1417,7 +1486,9 @@ export function Ledger({
       type="button"
       $approved={offer.action === "withdraw"}
       aria-pressed={offer.action === "withdraw"}
-      disabled={isApproving}
+      // One name whichever way it reads, like the toggles beside the rows.
+      aria-label="Approve all possible transfers on this page"
+      aria-disabled={isApproving}
       title={
         offer.action === "withdraw"
           ? "Approved. Click to undo."
@@ -1763,7 +1834,7 @@ export function Ledger({
                                 ? "Approved. Click to undo."
                                 : "Marks both rows as a transfer between these two accounts."
                             }
-                            disabled={isApproving}
+                            aria-disabled={isApproving}
                             onClick={(e) => {
                               // The line's own click ticks the pair.
                               e.stopPropagation();
@@ -1806,7 +1877,7 @@ export function Ledger({
         </TableScroll>
       )}
 
-      {totalPages > 1 && (
+      {(totalPages > 1 || waiting > 0) && (
         <Pagination aria-label="Ledger pages">
           <PageButton
             type="button"
@@ -1835,7 +1906,7 @@ export function Ledger({
           )}
           <PageButton
             type="button"
-            disabled={query.page >= totalPages || pending}
+            disabled={(query.page >= totalPages && waiting === 0) || pending}
             onClick={() => goToPage(query.page + 1)}
             aria-label="Next page"
           >
@@ -1844,23 +1915,24 @@ export function Ledger({
         </Pagination>
       )}
 
-      {notice && (
-        <Toast
-          role="status"
-          aria-live="polite"
-          onMouseEnter={() => setNoticeHeld(true)}
-          onMouseLeave={() => setNoticeHeld(false)}
-          onFocus={() => setNoticeHeld(true)}
-          onBlur={() => setNoticeHeld(false)}
-        >
-          {notice.text}
-          {notice.undo ? (
-            <Button variant="outline" type="button" onClick={onUndoDismiss}>
-              Undo
-            </Button>
-          ) : null}
-        </Toast>
-      )}
+      <NoticeRegion role="status" aria-live="polite">
+        {notice && (
+          <Toast
+            key={notice.id}
+            onMouseEnter={() => setNoticeHeld(true)}
+            onMouseLeave={() => setNoticeHeld(false)}
+            onFocus={() => setNoticeHeld(true)}
+            onBlur={() => setNoticeHeld(false)}
+          >
+            {notice.text}
+            {notice.undo ? (
+              <Button variant="outline" type="button" onClick={onUndoDismiss}>
+                Undo
+              </Button>
+            ) : null}
+          </Toast>
+        )}
+      </NoticeRegion>
 
       {confirmDelete && (
         <Overlay

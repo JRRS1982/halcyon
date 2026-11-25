@@ -1,4 +1,5 @@
 import {
+  approvalState,
   approveAllOffer,
   approveNotice,
   beforeTags,
@@ -484,12 +485,51 @@ describe("Approve all", () => {
     expect(approveAllOffer([pair("old", { isApproved: true })])).toBeNull();
   });
 
-  test("a warned pair approved by hand is not part of all", () => {
+  // What the ledger works out for a pair, from its rows and what it
+  // remembers of approving it here.
+  const side = (id: string, accountId: string, transferAccountId?: string) => ({
+    id,
+    accountId,
+    transferAccountId: transferAccountId ?? null,
+  });
+  const approved = [side("a", "cur", "sav"), side("b", "sav", "cur")] as const;
+
+  test("a pair tagged to a different account is not eligible", () => {
     expect(
-      approveAllOffer([
-        pair("warned", { isEligible: false, isApproved: true, isHeld: true }),
-      ]),
-    ).toBeNull();
+      approvalState(flags, side("a", "cur", "isa"), side("b", "sav"), null),
+    ).toEqual({
+      isTaggedElsewhere: true,
+      isApproved: false,
+      isEligible: false,
+      isHeld: false,
+    });
+  });
+
+  // Approving it clears that warning: both rows now point at each other. It
+  // must still count as the warned pair it was, or the page's second click
+  // would withdraw a pair the user approved by hand.
+  test("a warned pair approved by hand is not part of all", () => {
+    const state = approvalState(flags, ...approved, { isEligible: false });
+    expect(state).toEqual({
+      isTaggedElsewhere: false,
+      isApproved: true,
+      isEligible: false,
+      isHeld: true,
+    });
+    expect(approveAllOffer([state])).toBeNull();
+  });
+
+  test("a clean pair approved here is part of all", () => {
+    const state = approvalState(flags, ...approved, { isEligible: true });
+    expect(approveAllOffer([state])?.action).toBe("withdraw");
+  });
+
+  test("a pair withdrawn here is eligible again as its rows now stand", () => {
+    expect(
+      approvalState(flags, side("a", "cur"), side("b", "sav"), {
+        isEligible: false,
+      }).isEligible,
+    ).toBe(true);
   });
 
   test("offers nothing when every pair has a warning", () => {
@@ -548,19 +588,33 @@ describe("what the ledger says after approving or withdrawing", () => {
   });
 
   test("an approval withdrawn", () => {
-    expect(withdrawNotice(1, 0)).toBe(
+    expect(withdrawNotice(1, 0, 0)).toBe(
       "Approval withdrawn: both rows are as they were.",
     );
-    expect(withdrawNotice(3, 0)).toBe(
+    expect(withdrawNotice(3, 0, 0)).toBe(
       "Approval withdrawn from 3 pairs: their rows are as they were.",
     );
   });
 
+  // Nothing is remembered about a pair marked before this visit, so the
+  // notice must not claim its rows went back to anything.
+  test("a pair with nothing remembered is said to be uncategorised again", () => {
+    expect(withdrawNotice(0, 1, 0)).toBe(
+      "Approval withdrawn: both rows are uncategorised again.",
+    );
+    expect(withdrawNotice(0, 2, 0)).toBe(
+      "Approval withdrawn from 2 pairs: their rows are uncategorised again.",
+    );
+    expect(withdrawNotice(2, 1, 0)).toBe(
+      "Approval withdrawn from 3 pairs: 2 are as they were, 1 is uncategorised again.",
+    );
+  });
+
   test("a pair changed since it was approved is left alone, and says so", () => {
-    expect(withdrawNotice(0, 1)).toBe(
+    expect(withdrawNotice(0, 0, 1)).toBe(
       "1 pair was left as it is: its rows have changed since.",
     );
-    expect(withdrawNotice(2, 2)).toBe(
+    expect(withdrawNotice(2, 0, 2)).toBe(
       "Approval withdrawn from 2 pairs: their rows are as they were. 2 pairs were left as they are: their rows have changed since.",
     );
   });

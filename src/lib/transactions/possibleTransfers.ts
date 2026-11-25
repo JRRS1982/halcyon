@@ -320,6 +320,41 @@ export const isEligibleForApproveAll = (pair: PairFlags): boolean =>
   pairWarnings(pair).length === 0;
 
 /**
+ * Where a pair on screen stands for the page's Approve all, worked out from
+ * its rows as they are now. `held` is what the ledger remembers of a pair it
+ * approved or withdrew in this view.
+ *
+ * Approving a pair clears its "tagged to a different account" warning: both
+ * rows then point at each other. So an approved pair answers with the
+ * eligibility it had when it was approved, and a pair the user approved by
+ * hand, warning and all, stays out of the page's batch.
+ */
+export function approvalState(
+  listed: Pick<PossiblePair, "otherMatches">,
+  out: TaggedSide,
+  into: TaggedSide,
+  held: { isEligible: boolean } | null,
+): {
+  isTaggedElsewhere: boolean;
+  isApproved: boolean;
+  isEligible: boolean;
+  isHeld: boolean;
+} {
+  const isApproved = isMarkedAsTransfer(out, into);
+  const now = {
+    otherMatches: listed.otherMatches,
+    isTaggedElsewhere: isTaggedElsewhere(out, into),
+  };
+  return {
+    isTaggedElsewhere: now.isTaggedElsewhere,
+    isApproved,
+    isEligible:
+      isApproved && held ? held.isEligible : isEligibleForApproveAll(now),
+    isHeld: held !== null,
+  };
+}
+
+/**
  * What the page's Approve all button does next: approve the eligible pairs
  * still waiting, or, with none waiting, withdraw the ones this view approved
  * (`isHeld`). A pair tagged before this view is never withdrawn in bulk. Null
@@ -385,23 +420,34 @@ export function approveNotice(
     .join(" ");
 }
 
-/** After withdrawing: the pairs put back, and any changed since and so left. */
-export function withdrawNotice(restored: number, skipped: number): string {
+function withdrawnSentence(putBack: number, cleared: number): string | null {
+  const total = putBack + cleared;
+  if (total === 0) return null;
+  const are = (n: number) => `${n} ${n === 1 ? "is" : "are"}`;
+  if (putBack > 0 && cleared > 0)
+    return `Approval withdrawn from ${total} pairs: ${are(putBack)} as they were, ${are(cleared)} uncategorised again.`;
+  const outcome = cleared === 0 ? "as they were" : "uncategorised again";
+  return total === 1
+    ? `Approval withdrawn: both rows are ${outcome}.`
+    : `Approval withdrawn from ${total} pairs: their rows are ${outcome}.`;
+}
+
+/**
+ * After withdrawing: the pairs put back as they were, the ones with nothing
+ * remembered (marked before this visit) and so left uncategorised, and any
+ * changed since and so left alone.
+ */
+export function withdrawNotice(
+  putBack: number,
+  cleared: number,
+  skipped: number,
+): string {
   const one = skipped === 1;
-  const parts = [
-    ...(restored === 1
-      ? ["Approval withdrawn: both rows are as they were."]
-      : []),
-    ...(restored > 1
-      ? [
-          `Approval withdrawn from ${restored} pairs: their rows are as they were.`,
-        ]
-      : []),
-    ...(skipped > 0
-      ? [
-          `${pairCount(skipped)} ${one ? "was left as it is: its rows have" : "were left as they are: their rows have"} changed since.`,
-        ]
-      : []),
-  ];
-  return parts.join(" ");
+  const leftAlone =
+    skipped > 0
+      ? `${pairCount(skipped)} ${one ? "was left as it is: its rows have" : "were left as they are: their rows have"} changed since.`
+      : null;
+  return [withdrawnSentence(putBack, cleared), leftAlone]
+    .filter((sentence) => sentence !== null)
+    .join(" ");
 }

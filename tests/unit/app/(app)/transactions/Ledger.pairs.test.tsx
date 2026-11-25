@@ -300,6 +300,7 @@ describe("possible transfers view", () => {
 // or every unwarned pair on the page at once; a second click puts the rows
 // back.
 
+const ISA = "33333333-3333-3333-3333-333333333333";
 const SALARY = "44444444-4444-4444-4444-444444444444";
 const GROCERIES = "55555555-5555-5555-5555-555555555555";
 
@@ -384,6 +385,9 @@ const approveButton = (amount: number) =>
   screen.getByRole("button", {
     name: new RegExp(`Approve transfer .*£${amount}\\.00`),
   });
+
+const ALL = "Approve all possible transfers on this page";
+const approveAll = () => screen.getByRole("button", { name: ALL });
 
 const click = (button: HTMLElement) =>
   act(async () => {
@@ -528,6 +532,25 @@ describe("approving one pair", () => {
       ],
     });
     expect(approveButton(200)).toHaveAttribute("aria-pressed", "false");
+    // Nothing was remembered, so the notice does not claim "as they were".
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Approval withdrawn: both rows are uncategorised again.",
+    );
+  });
+
+  // The same sentence twice changes nothing in a live region unless the
+  // notice itself is replaced, and then a screen reader hears only the first.
+  test("the same notice twice is announced twice", async () => {
+    render(ledger(pageOf(clean(200), clean(50))));
+    await click(approveButton(200));
+    const first = screen.getByText("Both rows marked as a transfer.");
+
+    await click(approveButton(50));
+
+    const second = screen.getByText("Both rows marked as a transfer.");
+    expect(second).not.toBe(first);
+    expect(first).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toContainElement(second);
   });
 
   // Withdrawing needs the server's answer to the approval, so a second click
@@ -546,14 +569,18 @@ describe("approving one pair", () => {
     render(ledger(pageOf(clean(200))));
 
     await click(approveButton(200));
-    expect(approveButton(200)).toBeDisabled();
+    // Not natively disabled: that would drop keyboard focus from the button.
+    expect(approveButton(200)).toBeEnabled();
+    expect(approveButton(200)).toHaveAttribute("aria-disabled", "true");
     expect(approveButton(200)).toHaveTextContent("Approving…");
     expect(approveButton(200)).toHaveAttribute("aria-pressed", "false");
+    await click(approveButton(200));
+    expect(markPairsAsTransfer).toHaveBeenCalledTimes(1);
 
     await act(async () => {
       answer({ updated: 0, skipped: 1, marked: [] });
     });
-    expect(approveButton(200)).toBeEnabled();
+    expect(approveButton(200)).toHaveAttribute("aria-disabled", "false");
     expect(approveButton(200)).toHaveTextContent("Approve transfer");
   });
 
@@ -597,7 +624,8 @@ describe("approving every pair on the page", () => {
   test("takes the pairs without a warning and says what it left", async () => {
     render(ledger(pageOf(clean(200), clean(50), warned)));
 
-    await click(screen.getByRole("button", { name: "Approve all 2" }));
+    expect(approveAll()).toHaveTextContent("Approve all 2");
+    await click(approveAll());
 
     expect(markPairsAsTransfer).toHaveBeenCalledWith({
       pairs: [
@@ -609,14 +637,13 @@ describe("approving every pair on the page", () => {
       "2 pairs marked as transfers; 1 with a warning left for you.",
     );
     expect(approveButton(75)).toHaveAttribute("aria-pressed", "false");
-    expect(
-      screen.getByRole("button", { name: "✓ All approved" }),
-    ).toHaveAttribute("aria-pressed", "true");
+    expect(approveAll()).toHaveTextContent("✓ All approved");
+    expect(approveAll()).toHaveAttribute("aria-pressed", "true");
   });
 
   test("says it is withdrawing while the server is asked", async () => {
     render(ledger(pageOf(clean(200), clean(50))));
-    await click(screen.getByRole("button", { name: "Approve all 2" }));
+    await click(approveAll());
     let answer: (value: {
       restored: number;
       skipped: { outId: string; inId: string }[];
@@ -627,22 +654,24 @@ describe("approving every pair on the page", () => {
       }),
     );
 
-    await click(screen.getByRole("button", { name: "✓ All approved" }));
-    expect(screen.getByRole("button", { name: "Withdrawing…" })).toBeDisabled();
+    await click(approveAll());
+    expect(approveAll()).toHaveTextContent("Withdrawing…");
+    expect(approveAll()).toHaveAttribute("aria-disabled", "true");
     // Only the button that was pressed says so.
     expect(approveButton(200)).toHaveTextContent("✓ Approved");
 
     await act(async () => {
       answer({ restored: 2, skipped: [] });
     });
-    expect(screen.getByRole("button", { name: "Approve all 2" })).toBeEnabled();
+    expect(approveAll()).toHaveTextContent("Approve all 2");
+    expect(approveAll()).toHaveAttribute("aria-disabled", "false");
   });
 
   test("a second click withdraws them all", async () => {
     render(ledger(pageOf(clean(200), clean(50))));
-    await click(screen.getByRole("button", { name: "Approve all 2" }));
+    await click(approveAll());
 
-    await click(screen.getByRole("button", { name: "✓ All approved" }));
+    await click(approveAll());
 
     expect(unmarkPairsAsTransfer).toHaveBeenCalledWith({
       pairs: [
@@ -653,9 +682,7 @@ describe("approving every pair on the page", () => {
     expect(screen.getByRole("status")).toHaveTextContent(
       "Approval withdrawn from 2 pairs: their rows are as they were.",
     );
-    expect(
-      screen.getByRole("button", { name: "Approve all 2" }),
-    ).toBeInTheDocument();
+    expect(approveAll()).toHaveTextContent("Approve all 2");
   });
 
   // One click must never untag transfers made long before this visit.
@@ -668,14 +695,34 @@ describe("approving every pair on the page", () => {
       }),
     };
     render(ledger(pageOf(before, clean(50))));
-    await click(screen.getByRole("button", { name: "Approve all 1" }));
+    await click(approveAll());
 
-    await click(screen.getByRole("button", { name: "✓ All approved" }));
+    await click(approveAll());
 
     expect(unmarkPairsAsTransfer).toHaveBeenCalledWith({
       pairs: [expect.objectContaining({ outId: "out-50", inId: "in-50" })],
     });
     expect(approveButton(200)).toHaveAttribute("aria-pressed", "true");
+  });
+
+  // Approving it clears its warning, but it is still the pair the user chose
+  // to approve by hand: the page's second click must leave it alone.
+  test("withdrawing all leaves a pair approved by hand despite a warning", async () => {
+    const taggedElsewhere = {
+      pair: pairOf(75, { isTaggedElsewhere: true }),
+      rows: legs(75, { out: { transferAccountId: ISA } }),
+    };
+    render(ledger(pageOf(clean(200), taggedElsewhere)));
+    await click(approveButton(75));
+    expect(approveAll()).toHaveTextContent("Approve all 1");
+    await click(approveAll());
+
+    await click(approveAll());
+
+    expect(unmarkPairsAsTransfer).toHaveBeenCalledWith({
+      pairs: [expect.objectContaining({ outId: "out-200", inId: "in-200" })],
+    });
+    expect(approveButton(75)).toHaveAttribute("aria-pressed", "true");
   });
 
   test("offers nothing when every pair was marked before this visit", () => {
@@ -690,8 +737,7 @@ describe("approving every pair on the page", () => {
         }),
       ),
     );
-    expect(screen.queryByRole("button", { name: /All approved/ })).toBeNull();
-    expect(screen.queryByRole("button", { name: /Approve all/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: ALL })).toBeNull();
   });
 
   // Two "Approve all" buttons side by side would read as one button twice.
@@ -714,6 +760,81 @@ describe("approving every pair on the page", () => {
     expect(
       screen.getByRole("button", { name: "Approve all 9 suggested" }),
     ).toBeInTheDocument();
+  });
+});
+
+// Under Uncategorised only an approved pair leaves the filtered list, so the
+// refreshed page lists the pairs after it. They must wait: the page holds what
+// was on screen, or "Approve all" would offer itself again for pairs nobody
+// has looked at and its second click would approve them.
+describe("approving a full page when more pairs follow", () => {
+  const uncat = { pairs: "1", uncat: "1" };
+  // Newest first, as the server lists them: 127 down to 101.
+  const all = Array.from({ length: 27 }, (_, i) =>
+    clean(127 - i, `2026-11-${String(27 - i).padStart(2, "0")}`),
+  );
+  const firstPage = { ...pageOf(...all.slice(0, 25)), total: 27 };
+  // What the server sends once the first 25 are approved.
+  const nextPage = { ...pageOf(...all.slice(25)), total: 2 };
+
+  const approveThePage = async () => {
+    const view = render(ledger(firstPage, uncat));
+    expect(approveAll()).toHaveTextContent("Approve all 25");
+    await click(approveAll());
+    view.rerender(ledger(nextPage, uncat));
+    return view;
+  };
+
+  test("reads All approved and keeps the pairs that follow off the page", async () => {
+    await approveThePage();
+
+    expect(approveAll()).toHaveTextContent("✓ All approved");
+    expect(
+      screen.getAllByRole("checkbox", { name: /Select pair/ }),
+    ).toHaveLength(25);
+    expect(screen.queryByText("Out 102")).toBeNull();
+    expect(screen.getByText("This page · 25 of 27 pairs")).toBeInTheDocument();
+  });
+
+  test("a second click withdraws that batch and approves nothing new", async () => {
+    await approveThePage();
+
+    await click(approveAll());
+
+    expect(markPairsAsTransfer).toHaveBeenCalledTimes(1);
+    const [withdrawn] = jest.mocked(unmarkPairsAsTransfer).mock.calls[0] ?? [];
+    expect(withdrawn?.pairs.map((pair) => pair.outId)).toEqual(
+      all.slice(0, 25).map(({ pair }) => pair.outId),
+    );
+  });
+
+  test("the next page brings the pairs that were waiting", async () => {
+    await approveThePage();
+
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+
+    expect(
+      screen
+        .getAllByRole("checkbox", { name: /Select pair/ })
+        .map((box) => box.getAttribute("aria-label")),
+    ).toEqual([
+      expect.stringContaining("£102.00"),
+      expect.stringContaining("£101.00"),
+    ]);
+    expect(approveAll()).toHaveTextContent("Approve all 2");
+    expect(screen.getByText("Total · 2 pairs")).toBeInTheDocument();
+  });
+
+  test("one pair approved by hand holds the page too", async () => {
+    const { rerender } = render(ledger(firstPage, uncat));
+    await click(approveButton(127));
+
+    // One pair left the filter, so one moved up from the next page.
+    rerender(ledger({ ...pageOf(...all.slice(1, 26)), total: 26 }, uncat));
+
+    expect(screen.queryByText("Out 102")).toBeNull();
+    expect(approveAll()).toHaveTextContent("Approve all 24");
+    expect(screen.getByText("This page · 25 of 27 pairs")).toBeInTheDocument();
   });
 });
 
