@@ -547,12 +547,14 @@ describe("approving one pair", () => {
 
     await click(approveButton(200));
     expect(approveButton(200)).toBeDisabled();
+    expect(approveButton(200)).toHaveTextContent("Approving…");
     expect(approveButton(200)).toHaveAttribute("aria-pressed", "false");
 
     await act(async () => {
       answer({ updated: 0, skipped: 1, marked: [] });
     });
     expect(approveButton(200)).toBeEnabled();
+    expect(approveButton(200)).toHaveTextContent("Approve transfer");
   });
 
   test("a pair the server would not mark stays as it was, with the reason", async () => {
@@ -610,6 +612,30 @@ describe("approving every pair on the page", () => {
     expect(
       screen.getByRole("button", { name: "✓ All approved" }),
     ).toHaveAttribute("aria-pressed", "true");
+  });
+
+  test("says it is withdrawing while the server is asked", async () => {
+    render(ledger(pageOf(clean(200), clean(50))));
+    await click(screen.getByRole("button", { name: "Approve all 2" }));
+    let answer: (value: {
+      restored: number;
+      skipped: { outId: string; inId: string }[];
+    }) => void = () => {};
+    jest.mocked(unmarkPairsAsTransfer).mockReturnValueOnce(
+      new Promise((resolve) => {
+        answer = resolve;
+      }),
+    );
+
+    await click(screen.getByRole("button", { name: "✓ All approved" }));
+    expect(screen.getByRole("button", { name: "Withdrawing…" })).toBeDisabled();
+    // Only the button that was pressed says so.
+    expect(approveButton(200)).toHaveTextContent("✓ Approved");
+
+    await act(async () => {
+      answer({ restored: 2, skipped: [] });
+    });
+    expect(screen.getByRole("button", { name: "Approve all 2" })).toBeEnabled();
   });
 
   test("a second click withdraws them all", async () => {

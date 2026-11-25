@@ -643,6 +643,12 @@ const idsOf = (pairs: PairIds[]) =>
 
 const keyOf = ({ outId, inId }: PairIds) => pairKey(outId, inId);
 
+// The page's Approve all, as the button a click came from.
+const ALL = "all";
+
+const savingLabel = (isWithdrawing: boolean) =>
+  isWithdrawing ? "Withdrawing…" : "Approving…";
+
 // A pair on screen: its two rows, and where its approval stands.
 type ShownPair = {
   pair: LedgerPair;
@@ -706,8 +712,10 @@ export function Ledger({
   const searchParams = useSearchParams();
   const [pending, startTransition] = useTransition();
   // Approving a pair, or withdrawing that. Its own transition: the approval
-  // buttons wait on it, and nothing else does.
+  // buttons wait on it, and nothing else does. `saving` is the button that
+  // was pressed (a pair's key, or ALL), which says so until the answer comes.
   const [isApproving, startApproving] = useTransition();
+  const [saving, setSaving] = useState<string | null>(null);
   // Local mirror of the server-rendered rows so mutations can apply
   // optimistically; re-adopted whenever the server re-renders the page.
   const [items, setItems] = useState<LedgerTransaction[]>(page.items);
@@ -1234,12 +1242,18 @@ export function Ledger({
 
   // Marks each pair as a transfer, each row to the other row's account, and
   // keeps it on screen. The rows change when the server answers, not before:
-  // they never show a transfer that was not stored. `left` is the warned
-  // pairs Approve all passed over, for the notice.
-  const onApprovePairs = (chosen: ShownPair[], left = 0) => {
+  // they never show a transfer that was not stored. `from` is the button
+  // pressed, if it was an approval button; `left` is the warned pairs Approve
+  // all passed over, for the notice.
+  const onApprovePairs = (
+    chosen: ShownPair[],
+    from: string | null,
+    left = 0,
+  ) => {
     const sent = chosen.slice(0, MAX_PAIRS_PER_ACTION);
     if (sent.length === 0) return;
     hold(sent.map(({ pair }) => pair));
+    setSaving(from);
     startApproving(async () => {
       const { marked, skipped } = await markPairsAsTransfer({
         pairs: sent.map(({ pair: { outId, inId } }) => ({ outId, inId })),
@@ -1259,6 +1273,7 @@ export function Ledger({
         const was = before.get(key);
         return was ? { ...heldPair, marked: was } : null;
       });
+      setSaving(null);
       showNotice({
         text: approveNotice(marked.length, left, skipped),
         undo: null,
@@ -1269,7 +1284,7 @@ export function Ledger({
   // Withdraws an approval: each row goes back to what the server said it held
   // when this view approved the pair, or to uncategorised for a pair marked
   // before this visit.
-  const onWithdrawPairs = (chosen: ShownPair[]) => {
+  const onWithdrawPairs = (chosen: ShownPair[], from: string) => {
     const kept = chosen.slice(0, MAX_PAIRS_PER_ACTION);
     if (kept.length === 0) return;
     const remembered = new Map(
@@ -1285,6 +1300,7 @@ export function Ledger({
         },
     );
     hold(kept.map(({ pair }) => pair));
+    setSaving(from);
     startApproving(async () => {
       const { skipped } = await unmarkPairsAsTransfer({ pairs: sent });
       const leftAlone = new Set(skipped.map(keyOf));
@@ -1296,6 +1312,7 @@ export function Ledger({
           ? { ...heldPair, marked: null }
           : heldPair,
       );
+      setSaving(null);
       showNotice({
         text: withdrawNotice(restored.length, skipped.length),
         undo: null,
@@ -1304,7 +1321,10 @@ export function Ledger({
   };
 
   const onMarkPairs = () => {
-    onApprovePairs(tickedPairs.filter(({ isApproved }) => !isApproved));
+    onApprovePairs(
+      tickedPairs.filter(({ isApproved }) => !isApproved),
+      null,
+    );
     setSelected(new Set());
   };
 
@@ -1405,17 +1425,20 @@ export function Ledger({
       }
       onClick={() =>
         offer.action === "withdraw"
-          ? onWithdrawPairs(offer.pairs)
+          ? onWithdrawPairs(offer.pairs, ALL)
           : onApprovePairs(
               offer.pairs,
+              ALL,
               shown.filter((pair) => !pair.isEligible && !pair.isApproved)
                 .length,
             )
       }
     >
-      {offer.action === "withdraw"
-        ? "✓ All approved"
-        : `Approve all ${offer.pairs.length}`}
+      {isApproving && saving === ALL
+        ? savingLabel(offer.action === "withdraw")
+        : offer.action === "withdraw"
+          ? "✓ All approved"
+          : `Approve all ${offer.pairs.length}`}
     </Approval>
   ) : null;
 
@@ -1744,11 +1767,16 @@ export function Ledger({
                             onClick={(e) => {
                               // The line's own click ticks the pair.
                               e.stopPropagation();
-                              if (isApproved) onWithdrawPairs([entry]);
-                              else onApprovePairs([entry]);
+                              if (isApproved)
+                                onWithdrawPairs([entry], keyOf(pair));
+                              else onApprovePairs([entry], keyOf(pair));
                             }}
                           >
-                            {isApproved ? "✓ Approved" : "Approve transfer"}
+                            {isApproving && saving === keyOf(pair)
+                              ? savingLabel(isApproved)
+                              : isApproved
+                                ? "✓ Approved"
+                                : "Approve transfer"}
                           </Approval>
                         )
                       }
