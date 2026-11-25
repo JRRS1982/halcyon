@@ -262,9 +262,9 @@ The refreshed page still lists the pairs that follow, so approving a full page
 brings the next ones into view beneath the approved ones.
 
 **Nothing here is optimistic.** The rows change when the server answers, so
-the ledger never shows a transfer that was not stored, and the approval
-buttons wait meanwhile. One click sends at most `MAX_PAIRS_PER_ACTION` (250)
-pairs.
+the ledger never shows a transfer that was not stored. Meanwhile the approval
+buttons wait, and the one pressed reads *Approving…* or *Withdrawing…*. One
+click sends at most `MAX_PAIRS_PER_ACTION` (250) pairs.
 
 ## Where it lives
 
