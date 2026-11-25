@@ -7,6 +7,7 @@
 - The drawer badge shows the count of active non-search filters
 - `ledgerWhere()` in `src/lib/transactions/` is the single pure predicate composing all filters
 - Possible transfers are found on read across every row, shown pair by pair, and never change a total
+- Each pair's transfer is suggested in pencil and approved in one click; a second click puts the rows back
 
 A drawer on the toolbar narrows the ledger by month, account, category, size of
 charge, missing category or a category still to approve, alongside the search
@@ -180,7 +181,8 @@ nets the rows on screen, which for whole pairs is £0.
 
 **Layout:** each pair is a summary line, *"Current → Savings · £200.00 · 1 day
 apart"*, with both rows bracketed beneath it as ordinary ledger rows. Their
-category cells work as usual. In this view a row offers **Details** only when
+category cells work as usual, except for the
+[suggestion](#the-suggested-transfer). In this view a row offers **Details** only when
 its import kept columns, and shows no note. Pairs are listed newest first, by
 the pair's earlier date, so the column headings do not sort here. The list
 pages by pair (`PAIRS_PER_PAGE`, 25, which is 50 rows), so a pair is never split
@@ -188,11 +190,19 @@ across two pages.
 
 **Acting on pairs.** One tick on the summary selects both rows, and the usual
 bulk actions (categorise, delete) apply to both. Two more appear in the
-controls card:
+controls card, and each pair's line carries its own
+[Approve transfer](#approving-a-pair):
 
 | Action | Server action | Does |
 |---|---|---|
-| Mark as transfer | `markPairsAsTransfer` | Each row becomes a transfer to the **other** row's account, in one transaction. `bulkSetTransactionTransfer` cannot do this: it points every row at one account and skips rows already in it. A pair that no longer matches (edited since the page was drawn) or has a side in an archived account is left alone, and the ledger says how many. |
+| Mark as transfer, Approve transfer, Approve all N | `markPairsAsTransfer` | Each row becomes a transfer to the **other** row's account, in one transaction. `bulkSetTransactionTransfer` cannot do this: it points every row at one account and skips rows already in it. A pair that no longer matches (edited since the page was drawn) or has a side in an archived account is left alone, and the ledger says how many. Returns what each row held before, for the withdrawal below. |
+| ✓ Approved, ✓ All approved | `unmarkPairsAsTransfer` | Withdraws an approval: both rows go back to what they held before, in one transaction. A pair is left alone, and the ledger says so, unless its rows are still marked at each other and each goes back to nothing, a category of the user's, or a transfer to another live account of the user's. A row can go back unconfirmed only if it goes back to a category. |
+
+Both actions lock the pairs' rows (`SELECT … FOR UPDATE`, in id order) before
+they read them, so the check and the write are one step: a save from another
+tab waits its turn instead of landing in between, and a pair is written whole
+or not at all. Each write still names what was read, and what the action
+reports is counted from the writes.
 | Not a transfer | `dismissPairs` | Stores a `DismissedTransferPair` (both ids plus a snapshot of each row's amount, date and account), then offers **Undo**. A pair that no longer matches is not stored and stays listed, and the ledger says so. At the cap nothing is stored and the reason is shown. |
 | Unhide (hidden view) | `unhidePairs` | Removes the record, so the pair is offered again. Undo uses it too. |
 
@@ -213,7 +223,71 @@ reveals the next.
 
 The notice after a pair action (with Undo, after a dismissal) closes itself
 after eight seconds, but not while the pointer or keyboard focus is on it.
-Show hidden pairs is there after it goes.
+Show hidden pairs is there after it goes. The status region it appears in is
+always in the page, and each notice is a new element in it, so a sentence
+repeated word for word (approving one pair after another) is announced again.
+
+### The suggested transfer
+
+A row with no category and no transfer shows the transfer its pair suggests in
+its category cell, in pencil (dashed and italic, as a suggested category is):
+*Transfer to Savings* on the money-out row, *Transfer from Current* on the
+money-in row. `transferSuggestion` works it out from the two rows on screen.
+Nothing is stored until the pair is approved, so a guess never changes a total.
+
+A row that already has a category or a transfer keeps showing it. Picking
+anything in a row's category box replaces that row's suggestion. Hidden pairs
+get none: the user said they are not transfers.
+
+### Approving a pair
+
+**Approve transfer**, on the pair's line, marks both rows. It then reads
+**✓ Approved**, and pressing it again withdraws the approval. *Approved* is
+read off the rows (each is a transfer to the other row's account), so a pair
+marked before this visit reads ✓ Approved too.
+
+**Approve all N**, beside the search box, takes every pair on screen that has
+no warning, and the notice says how many warned pairs it left for the user.
+With none left it reads **✓ All approved**, and pressing it withdraws the pairs
+this view approved. It never withdraws a pair marked before this visit: one
+click must not untag a page of long-standing transfers. Nor a pair the user
+approved by hand while it carried a warning: approving clears the *Tagged to a
+different account* warning, so the ledger remembers how the pair stood when it
+was approved (`approvalState`). The button shows only when it has something to
+do, and keeps one accessible name whichever way it reads. In this view it
+takes the slot of the categories' `Approve all N suggested`, which beside it
+would read as the same button twice.
+
+**What a withdrawal puts back.** `markPairsAsTransfer` returns what each row
+held before it tagged it: category, transfer and whether that was approved.
+The ledger keeps it for as long as the pair is on screen and hands it to
+`unmarkPairsAsTransfer`. So a row that had a pencilled category gets it back,
+still in pencil. A pair marked before this visit has nothing remembered and
+goes back to uncategorised, and the notice says *uncategorised again* rather
+than *as they were*. The remembered state passes through the browser, so the
+server checks it like any other input (see the table above).
+
+**An approved pair stays on screen.** A pair approved or withdrawn here stays
+listed, in its place by date, until the query changes (a filter, the search,
+another page), even when a filter such as *Uncategorised only* no longer
+matches it. Otherwise approving a pair would remove the button that undoes it.
+
+**And the page holds still.** Under such a filter the approved pairs leave the
+list, so the refreshed page lists the pairs that came after them, moved up.
+While any pair is held, those wait: the page keeps the pairs it had when the
+first was held. Were they to join, *Approve all 25* would read *Approve all
+25* again for pairs nobody had looked at, and its second click would approve
+them instead of withdrawing. The footer says how many there are (*This page ·
+25 of 60 pairs*), and the pager's next button shows them. It lets the held
+pairs go and stays on this page number, because that is where the next pairs
+now are; the page after would pass over them.
+
+**Nothing here is optimistic.** The rows change when the server answers, so
+the ledger never shows a transfer that was not stored. Meanwhile the approval
+buttons wait, and the one pressed reads *Approving…* or *Withdrawing…*. They
+are marked `aria-disabled` and ignore clicks rather than being disabled: a
+disabled button drops keyboard focus, on every engine, and the undo is then a
+tab-hunt away. One click sends at most `MAX_PAIRS_PER_ACTION` (250) pairs.
 
 ## Where it lives
 
@@ -221,9 +295,9 @@ Show hidden pairs is there after it goes.
 |---|---|
 | [`src/lib/transactions/pagination.ts`](../../src/lib/transactions/pagination.ts) | URL → sanitized `LedgerUrlQuery` |
 | [`src/lib/transactions/filters.ts`](../../src/lib/transactions/filters.ts) | query → Prisma predicate |
-| [`src/lib/transactions/possibleTransfers.ts`](../../src/lib/transactions/possibleTransfers.ts) | candidate rows → pairs, dismissals, warnings |
+| [`src/lib/transactions/possibleTransfers.ts`](../../src/lib/transactions/possibleTransfers.ts) | candidate rows → pairs, dismissals, warnings, suggestions, approval rules |
 | [`src/lib/transactions/dismissWithinCap.ts`](../../src/lib/transactions/dismissWithinCap.ts) | the one writer of dismissals: prune, cap, store |
-| [`src/app/(app)/transactions/PairSummary.tsx`](../../src/app/(app)/transactions/PairSummary.tsx) | a pair's summary line and bracket |
+| [`src/app/(app)/transactions/PairSummary.tsx`](../../src/app/(app)/transactions/PairSummary.tsx) | a pair's summary line, its bracket and its Approve transfer button |
 | [`src/lib/transactions/activeFilters.ts`](../../src/lib/transactions/activeFilters.ts) | query → chips + badge count |
 | [`src/lib/transactions/dateRanges.ts`](../../src/lib/transactions/dateRanges.ts) | the one-tap presets, on an injected `today` |
 | [`src/app/(app)/transactions/FilterDrawer.tsx`](../../src/app/(app)/transactions/FilterDrawer.tsx) | the drawer, on the shared `Drawer` chrome |
@@ -244,6 +318,7 @@ own section. The card is contextual:
 | | Card contents |
 |---|---|
 | Nothing selected | `Filters ⌄` (with count badge) · search box · `Approve all N suggested` (when any are pencilled) · active-filter chips |
+| Nothing selected (Possible transfers) | as above, with `Approve all N` / `✓ All approved` for the pairs in place of `Approve all N suggested` |
 | Rows selected | `N selected` · **categorize box** · `Delete…` · `Clear` |
 | Pairs selected (Possible transfers) | as above, plus `Mark as transfer` · `Not a transfer` (or `Unhide` among hidden pairs) before `Delete…` |
 

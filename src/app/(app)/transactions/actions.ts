@@ -28,6 +28,7 @@ import {
 import {
   countedByCap,
   MAX_IMPORT_ROWS,
+  MAX_PAIRS_PER_ACTION,
   MAX_TRANSACTIONS_PER_USER,
 } from "@/lib/transactions/limits";
 import {
@@ -36,10 +37,16 @@ import {
   MEMORY_WINDOW,
 } from "@/lib/transactions/memory";
 import {
+  beforeTags,
+  isMarkedAsTransfer,
   isMatch,
+  type MarkedPair,
   orderedIds,
   type PairCandidate,
+  type RowTag,
   snapshotOf,
+  type TaggedRow,
+  transferTags,
 } from "@/lib/transactions/possibleTransfers";
 import type { LedgerCategory } from "@/lib/transactions/server";
 
@@ -865,7 +872,7 @@ const pairsSchema = z.object({
   pairs: z
     .array(z.object({ outId: z.string().uuid(), inId: z.string().uuid() }))
     .min(1)
-    .max(250),
+    .max(MAX_PAIRS_PER_ACTION),
 });
 
 type PairsInput = z.input<typeof pairsSchema>;
@@ -885,10 +892,11 @@ function dropDismissalsNaming(
 // ADR-002 this is the boundary, so a pair naming anyone else's row finds
 // nothing and is skipped.
 async function pairRows(
+  db: Prisma.TransactionClient,
   userId: string,
   pairs: { outId: string; inId: string }[],
-): Promise<Map<string, PairCandidate>> {
-  const rows = await prisma.transaction.findMany({
+): Promise<Map<string, PairCandidate & RowTag>> {
+  const rows = await db.transaction.findMany({
     where: {
       id: { in: pairs.flatMap((pair) => [pair.outId, pair.inId]) },
       userId,
@@ -900,6 +908,8 @@ async function pairRows(
       amount: true,
       accountId: true,
       transferAccountId: true,
+      categoryId: true,
+      isCategoryConfirmed: true,
     },
   });
   return new Map(
@@ -914,6 +924,63 @@ async function pairRows(
   );
 }
 
+// The pairs' rows, locked until the transaction ends and read after the lock.
+// What is checked is then what is written: a save from another tab waits its
+// turn rather than landing between the check and the write, and a pair is
+// written whole or not at all. Locked in id order, so two of these cannot
+// wait on each other.
+async function lockedPairRows(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  pairs: { outId: string; inId: string }[],
+): Promise<Map<string, PairCandidate & RowTag>> {
+  const ids = pairs.flatMap((pair) => [pair.outId, pair.inId]);
+  await tx.$queryRaw`
+    SELECT id FROM "Transaction"
+    WHERE id = ANY(${ids}::uuid[]) AND "userId" = ${userId}::uuid
+    ORDER BY id
+    FOR UPDATE`;
+  return pairRows(tx, userId, pairs);
+}
+
+// Writes a pair's two rows, each only while it still holds what was read, and
+// returns how many landed. Typed string ids only: an undefined id would drop
+// the filter and tag every row the user has.
+async function writePair(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  read: [TaggedRow, TaggedRow],
+  next: TaggedRow[],
+): Promise<number> {
+  let landed = 0;
+  for (const [i, { id, ...tag }] of next.entries()) {
+    const was = read[i];
+    if (was?.id !== id) continue;
+    const { count } = await tx.transaction.updateMany({
+      where: {
+        id,
+        userId,
+        deletedAt: null,
+        categoryId: was.categoryId,
+        transferAccountId: was.transferAccountId,
+        isCategoryConfirmed: was.isCategoryConfirmed,
+      },
+      data: tag,
+    });
+    landed += count;
+  }
+  return landed;
+}
+
+// What a row held, as the ledger gets it back. A row with no category has
+// nothing to confirm, so it is reported as confirmed whatever is stored:
+// unmarkPairsAsTransfer refuses the other combination.
+const tagOf = (row: RowTag): RowTag => ({
+  categoryId: row.categoryId,
+  transferAccountId: row.transferAccountId,
+  isCategoryConfirmed: row.isCategoryConfirmed || row.categoryId === null,
+});
+
 // Tags both rows of each pair as a transfer to the OTHER row's account, in
 // one step: the money out of Current points at Savings and the money into
 // Savings points at Current. bulkSetTransactionTransfer cannot — it points
@@ -922,49 +989,161 @@ async function pairRows(
 // A pair is skipped, and counted in `skipped` so the ledger can say so, when
 // its rows are not the user's, no longer match (edited since the page was
 // drawn), or sit in an archived account, which nothing can be a transfer to.
+//
+// `marked` is each pair it tagged with what both rows held before: the
+// ledger hands it back to unmarkPairsAsTransfer when an approval is withdrawn.
+// It is counted from the writes, not from the checks before them.
 export async function markPairsAsTransfer(
   input: PairsInput,
-): Promise<{ updated: number; skipped: number }> {
+): Promise<{ updated: number; skipped: number; marked: MarkedPair[] }> {
   const userId = await requireTransactionsEnabled();
   const { pairs } = pairsSchema.parse(input);
-  const rows = await pairRows(userId, pairs);
-  const liveAccounts = new Set(
-    (
-      await prisma.account.findMany({
+
+  const { updated, marked } = await prisma.$transaction(async (tx) => {
+    const rows = await lockedPairRows(tx, userId, pairs);
+    const liveAccounts = new Set(
+      (
+        await tx.account.findMany({
+          where: {
+            id: { in: [...rows.values()].map((row) => row.accountId) },
+            userId,
+            deletedAt: null,
+          },
+          select: { id: true },
+        })
+      ).map((account) => account.id),
+    );
+
+    const written: MarkedPair[] = [];
+    let landed = 0;
+    for (const { outId, inId } of pairs) {
+      const out = rows.get(outId);
+      const into = rows.get(inId);
+      if (!out || !into || !isMatch(out, into)) continue;
+      if (!liveAccounts.has(out.accountId) || !liveAccounts.has(into.accountId))
+        continue;
+      // Transfer and category are mutually exclusive — see setTransactionTransfer.
+      const count = await writePair(
+        tx,
+        userId,
+        [out, into],
+        transferTags(out, into),
+      );
+      landed += count;
+      if (count !== 2) continue;
+      written.push({
+        outId: out.id,
+        inId: into.id,
+        outBefore: tagOf(out),
+        inBefore: tagOf(into),
+      });
+    }
+    return { updated: landed, marked: written };
+  });
+
+  revalidatePath("/transactions");
+  revalidatePath("/budget");
+  revalidatePath("/dashboard");
+  return { updated, skipped: pairs.length - marked.length, marked };
+}
+
+const rowTagSchema = z
+  .object({
+    categoryId: z.string().uuid().nullable(),
+    transferAccountId: z.string().uuid().nullable(),
+    isCategoryConfirmed: z.boolean(),
+  })
+  // Transfer and category are mutually exclusive — see setTransactionTransfer.
+  .refine((tag) => tag.categoryId === null || tag.transferAccountId === null, {
+    message: "A row holds a category or a transfer, not both",
+  })
+  // Only a category can wait for approval. A row left unconfirmed without
+  // one would match "To approve only" for good: nothing approves it.
+  .refine((tag) => tag.isCategoryConfirmed || tag.categoryId !== null, {
+    message: "Only a row with a category can be unconfirmed",
+  });
+
+const markedPairsSchema = z.object({
+  pairs: z
+    .array(
+      z.object({
+        outId: z.string().uuid(),
+        inId: z.string().uuid(),
+        outBefore: rowTagSchema,
+        inBefore: rowTagSchema,
+      }),
+    )
+    .min(1)
+    .max(MAX_PAIRS_PER_ACTION),
+});
+
+// Withdraws an approval: puts both rows of each pair back as they were before
+// markPairsAsTransfer tagged them, in one transaction.
+//
+// What they were comes back from the browser, so it is checked like any other
+// input. A pair is left alone, and returned in `skipped`, unless its rows are
+// the user's and still marked as a transfer to each other (a row changed
+// since keeps the change), and each row goes back to nothing, to a category of
+// the user's, or to a transfer to another live account of the user's. The
+// category may have been deleted since: the row held it, and deleted
+// categories stay on the rows that had them.
+//
+// `restored` and `skipped` are counted from the writes, not from the checks.
+export async function unmarkPairsAsTransfer(
+  input: z.input<typeof markedPairsSchema>,
+): Promise<{ restored: number; skipped: { outId: string; inId: string }[] }> {
+  const userId = await requireTransactionsEnabled();
+  const { pairs } = markedPairsSchema.parse(input);
+
+  const befores = pairs.flatMap((pair) => [pair.outBefore, pair.inBefore]);
+  const named = (ids: (string | null)[]) =>
+    ids.filter((id): id is string => id !== null);
+
+  const restored = await prisma.$transaction(async (tx) => {
+    const rows = await lockedPairRows(tx, userId, pairs);
+    const [categories, accounts] = await Promise.all([
+      tx.category.findMany({
+        where: { userId, id: { in: named(befores.map((b) => b.categoryId)) } },
+        select: { id: true },
+      }),
+      tx.account.findMany({
         where: {
-          id: { in: [...rows.values()].map((row) => row.accountId) },
           userId,
           deletedAt: null,
+          id: { in: named(befores.map((b) => b.transferAccountId)) },
         },
         select: { id: true },
-      })
-    ).map((account) => account.id),
-  );
+      }),
+    ]);
+    const ownCategories = new Set(categories.map((category) => category.id));
+    const liveAccounts = new Set(accounts.map((account) => account.id));
+    const canGoBack = (row: { accountId: string }, before: RowTag) =>
+      (before.categoryId === null || ownCategories.has(before.categoryId)) &&
+      (before.transferAccountId === null ||
+        (liveAccounts.has(before.transferAccountId) &&
+          before.transferAccountId !== row.accountId));
 
-  // Typed string ids only: an undefined id would drop the filter and tag
-  // every row the user has.
-  const pointAt = (id: string, transferAccountId: string) =>
-    prisma.transaction.updateMany({
-      where: { id, userId, deletedAt: null },
-      // Transfer and category are mutually exclusive — see setTransactionTransfer.
-      data: { transferAccountId, categoryId: null, isCategoryConfirmed: true },
-    });
-  const writes = pairs.flatMap(({ outId, inId }) => {
-    const out = rows.get(outId);
-    const into = rows.get(inId);
-    if (!out || !into || !isMatch(out, into)) return [];
-    if (!liveAccounts.has(out.accountId) || !liveAccounts.has(into.accountId))
-      return [];
-    return [pointAt(out.id, into.accountId), pointAt(into.id, out.accountId)];
+    const written: typeof pairs = [];
+    for (const pair of pairs) {
+      const out = rows.get(pair.outId);
+      const into = rows.get(pair.inId);
+      if (!out || !into || !isMarkedAsTransfer(out, into)) continue;
+      if (!canGoBack(out, pair.outBefore) || !canGoBack(into, pair.inBefore))
+        continue;
+      const count = await writePair(tx, userId, [out, into], beforeTags(pair));
+      if (count === 2) written.push(pair);
+    }
+    return written;
   });
-  const results = await prisma.$transaction(writes);
 
   revalidatePath("/transactions");
   revalidatePath("/budget");
   revalidatePath("/dashboard");
   return {
-    updated: results.reduce((sum, result) => sum + result.count, 0),
-    skipped: pairs.length - writes.length / 2,
+    restored: restored.length,
+    skipped: pairs
+      .filter((pair) => !restored.includes(pair))
+      .map(({ outId, inId }) => ({ outId, inId })),
   };
 }
 
@@ -982,7 +1161,7 @@ export type DismissOutcome =
 export async function dismissPairs(input: PairsInput): Promise<DismissOutcome> {
   const userId = await requireTransactionsEnabled();
   const { pairs } = pairsSchema.parse(input);
-  const rows = await pairRows(userId, pairs);
+  const rows = await pairRows(prisma, userId, pairs);
 
   const matched = pairs.flatMap((pair) => {
     const out = rows.get(pair.outId);
