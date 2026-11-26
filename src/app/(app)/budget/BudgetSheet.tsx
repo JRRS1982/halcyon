@@ -68,10 +68,11 @@ import {
   sumAmounts,
   surplus,
 } from "@/lib/budget/totals";
-import type {
-  CategorySection,
-  ExpenseSection,
-  IncomeSection,
+import {
+  type CategorySection,
+  type ExpenseSection,
+  type IncomeSection,
+  sectionLabel,
 } from "@/lib/categories/sections";
 import { useDebouncedCallback } from "@/lib/hooks/useDebouncedCallback";
 import type { CategoryHistory } from "@/lib/insights/history";
@@ -90,6 +91,7 @@ import {
   significantBefore,
 } from "@/lib/settings/currency";
 import { theme } from "@/lib/theme";
+import { ActualBreakdown } from "./ActualBreakdown";
 import {
   copyPeriodFrom,
   createItemForMonth,
@@ -823,6 +825,23 @@ const LinkBtn = styled.button`
 
   ${hoverInk}
 `;
+
+// Where a row sits on the sheet, as its Actual's popover names it: the band,
+// then the subhead it renders under.
+function breakdownContext(item: SerializedItem): string {
+  switch (item.type) {
+    case "INCOME":
+      return item.section ? `Income · ${sectionLabel(item.section)}` : "Income";
+    case "EXPENSE":
+      return item.section
+        ? `Expenses · ${sectionLabel(item.section)}`
+        : "Expenses";
+    case "REPAYMENT":
+      return "Expenses · Debt payments";
+    case "TRANSFER":
+      return "Transfers and saving";
+  }
+}
 
 const REPAYMENTS_HELP =
   "Money paid at a debt you owe — a mortgage, a loan, a credit card. It counts as spending here because it left your account; the plan works out how much of it cleared the debt.";
@@ -1792,8 +1811,20 @@ export function BudgetSheet({
             // When transactions mode is on, actual is the computed sum of the
             // category's transactions — read-only, rendered as static text so
             // there's no edit path that could overwrite the stored value.
+            // Its figure opens the transactions behind it.
             value: actualsReadOnly ? (
-              fmtAmount(item.actual)
+              <ActualBreakdown
+                itemId={item.id}
+                label={item.label}
+                context={breakdownContext(item)}
+                actual={item.actual}
+                budget={item.budget}
+                fmtAmount={fmtAmount}
+                fmtSigned={fmtSigned}
+                onFocus={() =>
+                  setFocusedCell({ itemId: item.id, field: "actual" })
+                }
+              />
             ) : (
               <AmountInput
                 currency={currency}

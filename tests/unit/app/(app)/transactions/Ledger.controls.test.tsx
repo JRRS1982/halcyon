@@ -69,6 +69,7 @@ const renderLedger = (search = "") => {
             },
           ],
           total: 2,
+          pairs: null,
         }}
         query={parseLedgerSearchParams(
           Object.fromEntries(currentParams.entries()),

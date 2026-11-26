@@ -81,6 +81,8 @@ type Account = { id: string; name: string };
 type Draft = {
   onlyUncategorized: boolean;
   onlyToCheck: boolean;
+  possibleTransfers: boolean;
+  showHiddenPairs: boolean;
   from: string;
   to: string;
   accountId: string;
@@ -94,6 +96,8 @@ const TRANSFERS = "transfers";
 const draftFrom = (query: LedgerUrlQuery): Draft => ({
   onlyUncategorized: query.onlyUncategorized,
   onlyToCheck: query.onlyToCheck,
+  possibleTransfers: query.possibleTransfers,
+  showHiddenPairs: query.showHiddenPairs,
   from: query.from ?? "",
   to: query.to ?? "",
   accountId: query.accountId ?? "",
@@ -110,6 +114,8 @@ const draftFrom = (query: LedgerUrlQuery): Draft => ({
 const EMPTY_DRAFT: Draft = {
   onlyUncategorized: false,
   onlyToCheck: false,
+  possibleTransfers: false,
+  showHiddenPairs: false,
   from: "",
   to: "",
   accountId: "",
@@ -123,6 +129,9 @@ const EMPTY_DRAFT: Draft = {
 const paramsFrom = (draft: Draft): Record<string, string | null> => ({
   uncat: draft.onlyUncategorized ? "1" : null,
   check: draft.onlyToCheck ? "1" : null,
+  pairs: draft.possibleTransfers ? "1" : null,
+  // Hidden pairs are a view of possible transfers, so they go with it.
+  hidden: draft.possibleTransfers && draft.showHiddenPairs ? "1" : null,
   from: draft.from || null,
   to: draft.to || null,
   acct: draft.accountId || null,
@@ -152,6 +161,8 @@ export function FilterDrawer({
   const [draft, setDraft] = useState<Draft>(() => draftFrom(query));
   const uncategorizedId = useId();
   const toCheckId = useId();
+  const pairsId = useId();
+  const hiddenPairsId = useId();
 
   // Re-seed from the URL each time the drawer *opens*, so an abandoned edit is
   // discarded rather than waiting to surprise the next person to open it.
@@ -181,7 +192,11 @@ export function FilterDrawer({
           <Button
             type="button"
             variant="outline"
-            onClick={() => onApply(paramsFrom(EMPTY_DRAFT))}
+            // The budget's counted filter has no control here, but it is a
+            // chip and counts in the badge, so Clear all clears it too.
+            onClick={() =>
+              onApply({ ...paramsFrom(EMPTY_DRAFT), counted: null })
+            }
           >
             Clear all
           </Button>
@@ -209,6 +224,28 @@ export function FilterDrawer({
             onChange={(e) => set({ onlyToCheck: e.target.checked })}
           />
         </Field>
+        {/* Two rows that cancel out across accounts: an untagged transfer
+            reads as spending in one and income in the other. Without
+            transfers there is nothing to tag them as. */}
+        {transfersEnabled ? (
+          <>
+            <Field label="Possible transfers" htmlFor={pairsId}>
+              <Checkbox
+                id={pairsId}
+                checked={draft.possibleTransfers}
+                onChange={(e) => set({ possibleTransfers: e.target.checked })}
+              />
+            </Field>
+            <Field label="Show hidden pairs" htmlFor={hiddenPairsId}>
+              <Checkbox
+                id={hiddenPairsId}
+                checked={draft.possibleTransfers && draft.showHiddenPairs}
+                disabled={!draft.possibleTransfers}
+                onChange={(e) => set({ showHiddenPairs: e.target.checked })}
+              />
+            </Field>
+          </>
+        ) : null}
       </DrawerSection>
 
       <DrawerSection title="Date" defaultOpen>

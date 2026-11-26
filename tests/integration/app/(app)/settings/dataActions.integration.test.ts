@@ -204,6 +204,64 @@ describe("exportMyData (integration)", () => {
   });
 });
 
+describe("exportMyData: hidden transfer pairs (integration)", () => {
+  test("includes the pairs the user said are not transfers", async () => {
+    const account = await prisma.account.create({
+      data: {
+        userId: TEST_USER_ID,
+        name: "Current",
+        ...buildAccountData({ type: "CURRENT_ACCOUNT" }),
+      },
+    });
+    const savings = await prisma.account.create({
+      data: {
+        userId: TEST_USER_ID,
+        name: "Savings",
+        ...buildAccountData({ type: "SAVINGS" }),
+      },
+    });
+    const row = (accountId: string, amount: number) =>
+      prisma.transaction.create({
+        data: {
+          userId: TEST_USER_ID,
+          accountId,
+          date: new Date("2026-03-02"),
+          amount,
+          description: "Move",
+        },
+      });
+    const [first, second] = [
+      await row(account.id, -5),
+      await row(savings.id, 5),
+    ];
+    await prisma.dismissedTransferPair.create({
+      data: {
+        userId: TEST_USER_ID,
+        firstId: first.id,
+        secondId: second.id,
+        firstAmount: -5,
+        firstDate: new Date("2026-03-02"),
+        firstAccountId: account.id,
+        secondAmount: 5,
+        secondDate: new Date("2026-03-02"),
+        secondAccountId: savings.id,
+      },
+    });
+
+    const result = await exportMyData({
+      method: "password",
+      password: "test-password",
+    });
+    if (!result.ok) throw new Error(`export refused: ${result.reason}`);
+    const dump = JSON.parse(result.json);
+
+    expect(dump.schemaVersion).toBe(5);
+    expect(dump.dismissedTransferPairs).toEqual([
+      expect.objectContaining({ firstId: first.id, secondId: second.id }),
+    ]);
+  });
+});
+
 describe("clearMyData (integration)", () => {
   test("removes financial rows but keeps User, settings, and categories", async () => {
     await seedFinancialData(TEST_USER_ID);

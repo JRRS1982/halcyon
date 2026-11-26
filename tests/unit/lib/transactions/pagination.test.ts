@@ -1,11 +1,37 @@
 import {
+  countedParam,
   PAGE_SIZE,
+  PAIRS_PER_PAGE,
   pageCount,
   pageWindow,
   parseLedgerSearchParams,
 } from "@/lib/transactions/pagination";
 
 describe("parseLedgerSearchParams", () => {
+  // The budget's Open-in-ledger link for a transfer or debt payment row. A
+  // malformed one must fall back to no filter, like every other bad param,
+  // rather than reaching Prisma as a bad uuid and failing the page.
+  describe("counted", () => {
+    const ACCOUNT = "11111111-1111-1111-1111-111111111111";
+
+    test("reads an account and a month", () => {
+      expect(
+        parseLedgerSearchParams({ counted: countedParam(ACCOUNT, 2026, 2) })
+          .countedIn,
+      ).toEqual({ accountId: ACCOUNT, year: 2026, month: 2 });
+    });
+
+    test.each([
+      ["no month", ACCOUNT],
+      ["a non-uuid account", "banana:2026-03"],
+      ["an impossible month", `${ACCOUNT}:2026-13`],
+      ["a malformed month", `${ACCOUNT}:2026-3`],
+      ["a trailing segment", `${ACCOUNT}:2026-03:x`],
+    ])("drops %s", (_, raw) => {
+      expect(parseLedgerSearchParams({ counted: raw }).countedIn).toBeNull();
+    });
+  });
+
   test("defaults when no params are present", () => {
     expect(parseLedgerSearchParams({})).toEqual({
       page: 1,
@@ -20,6 +46,9 @@ describe("parseLedgerSearchParams", () => {
       category: { kind: "any" },
       amountMin: null,
       amountMax: null,
+      countedIn: null,
+      possibleTransfers: false,
+      showHiddenPairs: false,
     });
   });
 
@@ -38,6 +67,8 @@ describe("parseLedgerSearchParams", () => {
         cat: "22222222-2222-2222-2222-222222222222",
         min: "10",
         max: "50.5",
+        pairs: "1",
+        hidden: "1",
       }),
     ).toEqual({
       page: 3,
@@ -55,7 +86,17 @@ describe("parseLedgerSearchParams", () => {
       },
       amountMin: 10,
       amountMax: 50.5,
+      countedIn: null,
+      possibleTransfers: true,
+      showHiddenPairs: true,
     });
+  });
+
+  test("hidden pairs mean nothing without the possible-transfers filter", () => {
+    // A stray ?hidden=1 must not narrow the ordinary ledger.
+    expect(parseLedgerSearchParams({ hidden: "1" }).showHiddenPairs).toBe(
+      false,
+    );
   });
 
   test("malformed values fall back to defaults", () => {
@@ -152,6 +193,10 @@ describe("pageCount", () => {
     expect(pageCount(PAGE_SIZE)).toBe(1);
     expect(pageCount(PAGE_SIZE + 1)).toBe(2);
     expect(pageCount(PAGE_SIZE * 4)).toBe(4);
+  });
+
+  test("counts pages of pairs by the pair page size", () => {
+    expect(pageCount(PAIRS_PER_PAGE + 1, PAIRS_PER_PAGE)).toBe(2);
   });
 });
 

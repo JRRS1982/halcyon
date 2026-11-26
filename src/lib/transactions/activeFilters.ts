@@ -8,11 +8,21 @@
 // it moved into the drawer — invisible state that hides rows is exactly what
 // the chips exist to prevent.
 
+import { MONTH_LABELS_SHORT } from "@/lib/budget/period";
 import { humanDate } from "@/lib/date/humanDate";
 import type { LedgerUrlQuery } from "./pagination";
 
 export type ActiveFilter = {
-  key: "uncategorized" | "toCheck" | "date" | "account" | "category" | "amount";
+  key:
+    | "uncategorized"
+    | "toCheck"
+    | "possibleTransfers"
+    | "hiddenPairs"
+    | "date"
+    | "account"
+    | "category"
+    | "amount"
+    | "counted";
   label: string;
   /** The searchParams patch that clears this filter. */
   clear: Record<string, null>;
@@ -67,6 +77,22 @@ export function activeFilters(
     });
   }
 
+  if (query.possibleTransfers) {
+    filters.push({
+      key: "possibleTransfers",
+      label: "Possible transfers",
+      clear: { pairs: null, hidden: null },
+    });
+  }
+
+  if (query.showHiddenPairs) {
+    filters.push({
+      key: "hiddenPairs",
+      label: "Hidden pairs",
+      clear: { hidden: null },
+    });
+  }
+
   const date = dateLabel(query.from, query.to);
   if (date) {
     filters.push({ key: "date", label: date, clear: { from: null, to: null } });
@@ -102,6 +128,18 @@ export function activeFilters(
       key: "amount",
       label: amount,
       clear: { min: null, max: null },
+    });
+  }
+
+  if (query.countedIn) {
+    const { accountId, year, month } = query.countedIn;
+    const account =
+      lookup.accounts.find((a) => a.id === accountId)?.name ??
+      "Unknown account";
+    filters.push({
+      key: "counted",
+      label: `Counted in budget: ${account} · ${MONTH_LABELS_SHORT[month]} ${year}`,
+      clear: { counted: null },
     });
   }
 

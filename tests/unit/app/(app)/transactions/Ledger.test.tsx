@@ -61,6 +61,7 @@ const renderLedger = () =>
             },
           ],
           total: 1,
+          pairs: null,
         }}
         query={queryWith()}
         categories={[]}
@@ -98,7 +99,7 @@ describe("Ledger search box", () => {
     render(
       <ThemeProvider theme={theme}>
         <Ledger
-          page={{ items: [], total: 0 }}
+          page={{ items: [], total: 0, pairs: null }}
           query={queryWith({ q: search })}
           categories={[]}
           transferAccounts={[]}
@@ -129,7 +130,7 @@ describe("Ledger search box", () => {
       rerender(
         <ThemeProvider theme={theme}>
           <Ledger
-            page={{ items: [], total: 0 }}
+            page={{ items: [], total: 0, pairs: null }}
             query={queryWith({ q: "coffee" })}
             categories={[]}
             transferAccounts={[]}
@@ -154,7 +155,7 @@ describe("Ledger search box", () => {
     rerender(
       <ThemeProvider theme={theme}>
         <Ledger
-          page={{ items: [], total: 0 }}
+          page={{ items: [], total: 0, pairs: null }}
           query={queryWith({ q: "rent" })}
           categories={[]}
           transferAccounts={[]}

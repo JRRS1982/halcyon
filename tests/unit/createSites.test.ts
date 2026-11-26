@@ -30,6 +30,7 @@ const OWNERS: Record<string, string> = {
   planIncome: "src/lib/plan/createWithinCap.ts",
   planExpense: "src/lib/plan/createWithinCap.ts",
   planEvent: "src/lib/plan/createWithinCap.ts",
+  dismissedTransferPair: "src/lib/transactions/dismissWithinCap.ts",
 };
 
 // Every way Prisma writes a new row, not just .create(. The first version of

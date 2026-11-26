@@ -27,6 +27,27 @@ describe("ledgerWhere", () => {
     });
   });
 
+  // The rows a budget Actual counted are found by a lookup (the transfer
+  // source rule cannot be a Prisma predicate) and passed in as ids.
+  test("counted narrows to the ids the budget counted", () => {
+    const where = ledgerWhere(
+      USER,
+      { countedIn: { accountId: "acct", year: 2026, month: 2 } },
+      { counted: ["t1", "t2"] },
+    );
+    expect(where).toMatchObject({
+      userId: USER,
+      AND: [{ id: { in: ["t1", "t2"] } }],
+    });
+  });
+
+  test("counted with nothing counted matches nothing, never everything", () => {
+    const where = ledgerWhere(USER, {
+      countedIn: { accountId: "acct", year: 2026, month: 2 },
+    });
+    expect(where.AND).toEqual([{ id: { in: [] } }]);
+  });
+
   test("a whitespace-only search is not a filter", () => {
     expect(ledgerWhere(USER, { search: "   " })).not.toHaveProperty("AND");
   });
@@ -34,6 +55,19 @@ describe("ledgerWhere", () => {
   test("search and to-check both apply, neither replacing the other", () => {
     const where = ledgerWhere(USER, { search: "rent", onlyToCheck: true });
     expect(where.AND).toHaveLength(2);
+  });
+
+  test("possible transfers narrows to the paired rows it is given", () => {
+    expect(
+      ledgerWhere(USER, { possibleTransfers: true }, { pairs: ["a", "b"] }),
+    ).toMatchObject({ AND: [{ id: { in: ["a", "b"] } }] });
+  });
+
+  test("possible transfers with no pairs matches nothing", () => {
+    // An empty list must not fall back to "every row".
+    expect(ledgerWhere(USER, { possibleTransfers: true })).toMatchObject({
+      AND: [{ id: { in: [] } }],
+    });
   });
 
   test("uncategorized means no category and no transfer", () => {

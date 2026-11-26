@@ -37,14 +37,15 @@ model User {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
-  periods       FinancialPeriod[]
-  settings      UserSettings?
-  categories    Category[]
-  accounts      Account[]
-  transactions  Transaction[]
-  importBatches ImportBatch[]
-  plans         Plan[]
-  sentMessages  SentMessage[]
+  periods                FinancialPeriod[]
+  settings               UserSettings?
+  categories             Category[]
+  accounts               Account[]
+  transactions           Transaction[]
+  importBatches          ImportBatch[]
+  plans                  Plan[]
+  sentMessages           SentMessage[]
+  dismissedTransferPairs DismissedTransferPair[]
 }
 
 // Per-user app preferences. Lazily upserted on first read — there is no
@@ -440,14 +441,16 @@ model Transaction {
   updatedAt           DateTime  @updatedAt
   deletedAt           DateTime?
 
-  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  account         Account      @relation("AccountTransactions", fields: [accountId], references: [id], onDelete: Cascade)
-  category        Category?    @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  user              User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account           Account                 @relation("AccountTransactions", fields: [accountId], references: [id], onDelete: Cascade)
+  category          Category?               @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   // The other side of a transfer. App-level guards block deleting an account
   // still referenced here (accounts are soft-deleted), so onDelete: Restrict is
   // belt-and-braces defence that is never expected to fire.
-  transferAccount Account?     @relation("TransferCounterparty", fields: [transferAccountId], references: [id], onDelete: Restrict)
-  importBatch     ImportBatch? @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+  transferAccount   Account?                @relation("TransferCounterparty", fields: [transferAccountId], references: [id], onDelete: Restrict)
+  importBatch       ImportBatch?            @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+  dismissedAsFirst  DismissedTransferPair[] @relation("DismissedFirst")
+  dismissedAsSecond DismissedTransferPair[] @relation("DismissedSecond")
 
   // (userId, accountId, date) → pagination + the dedup-fingerprint day lookup,
   // and the per-account transfer aggregate (filtered transferAccountId IS NOT NULL).
@@ -456,6 +459,38 @@ model Transaction {
   @@index([userId, accountId, date])
   @@index([userId, categoryId, date])
   @@index([importBatchId])
+}
+
+// Two rows the user said are NOT a transfer, from the ledger's "Possible
+// transfers" filter. The filter pairs rows on read (same size, opposite sign,
+// different accounts, within a few days); a dismissal hides that exact pair.
+//
+// It holds a snapshot of each row's amount, date and account, and hides the
+// pair only while both rows still match it: editing either row brings the pair
+// back. firstId < secondId, so one pair has one record. Removed when either
+// row is deleted (the soft-delete paths do it; the FKs cover hard deletes),
+// and, once it no longer matches its rows, at the user's next dismissal
+// (dismissWithinCap). Written only by src/lib/transactions/dismissWithinCap.ts.
+model DismissedTransferPair {
+  id              String   @id @default(uuid()) @db.Uuid
+  userId          String   @db.Uuid
+  firstId         String   @db.Uuid
+  secondId        String   @db.Uuid
+  firstAmount     Decimal  @db.Decimal(14, 2)
+  firstDate       DateTime @db.Date
+  firstAccountId  String   @db.Uuid
+  secondAmount    Decimal  @db.Decimal(14, 2)
+  secondDate      DateTime @db.Date
+  secondAccountId String   @db.Uuid
+  createdAt       DateTime @default(now())
+
+  user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  first  Transaction @relation("DismissedFirst", fields: [firstId], references: [id], onDelete: Cascade)
+  second Transaction @relation("DismissedSecond", fields: [secondId], references: [id], onDelete: Cascade)
+
+  @@unique([firstId, secondId])
+  @@index([userId])
+  @@index([secondId])
 }
 
 // ─── Life-planning models ──────────────────────────────────────────────────

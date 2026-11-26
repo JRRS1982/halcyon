@@ -8,6 +8,7 @@
 - Import pre-categorises rows from the user's own history (`src/lib/transactions/memory.ts`). Those categories are suggestions, shown in pencil until the user approves them (`Transaction.isCategoryConfirmed`).
 - The page has two ruled sections under the headline: **Add transactions** (`Import statement…`, `Undo import…` and the CSV limits, then `Add transaction` at the end of the row) and **Review transactions** (the controls card, then the ledger). Approving belongs to reviewing, so `Approve all N suggested` sits in the controls card, not with the import buttons.
 - Filters, search and the controls card: see [ledger-filters.md](ledger-filters.md).
+- **Possible transfers** (a drawer filter) pairs rows that cancel out across accounts, so an untagged transfer can be marked as one, both sides at once, or dismissed as not one. Each row's transfer is suggested in pencil; one click approves a pair, or every pair on the page without a warning, and a second click puts the rows back: see [ledger-filters.md](ledger-filters.md#possible-transfers).
 
 All actions in `src/app/(app)/transactions/actions.ts` call `requireTransactionsEnabled`, so the route and its server actions both refuse a user who has the feature off.
 
@@ -53,7 +54,7 @@ A pencilled row (a category with `isCategoryConfirmed = false`) still counts in 
 - **One row:** the row's `Approve` button approves it, and pressing `✓ Approved` takes the approval back.
 - **Every row:** `Approve all N suggested`, beside the ledger's search box, sends no ids and approves every pencilled row the user has.
 
-Withdrawing approval always needs the rows it applies to. Only rows that carry a category have an approval to give or take. The filter drawer's `To approve only` (`?check=1`) narrows the ledger to rows still needing you; see [ledger-filters.md](ledger-filters.md).
+Withdrawing approval always needs the rows it applies to. Only rows that carry a category have an approval to give or take. A transfer suggested in the Possible transfers view is also shown in pencil, but nothing is stored for it until its pair is approved: see [ledger-filters.md](ledger-filters.md#the-suggested-transfer). The filter drawer's `To approve only` (`?check=1`) narrows the ledger to rows still needing you; see [ledger-filters.md](ledger-filters.md).
 
 ## Adding one transaction
 

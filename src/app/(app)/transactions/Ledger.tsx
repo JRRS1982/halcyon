@@ -22,36 +22,65 @@ import {
   formatAmount,
   type NumberFormat,
 } from "@/lib/settings/currency";
-import { activeFilters } from "@/lib/transactions/activeFilters";
+import {
+  activeFilters,
+  type FilterLookup,
+} from "@/lib/transactions/activeFilters";
+import { MAX_PAIRS_PER_ACTION } from "@/lib/transactions/limits";
 import {
   type LedgerUrlQuery,
+  PAGE_SIZE,
+  PAIRS_PER_PAGE,
   pageCount,
   pageWindow,
 } from "@/lib/transactions/pagination";
+import {
+  approvalState,
+  approveAllOffer,
+  approveNotice,
+  beforeTags,
+  daysApartLabel,
+  dismissNotice,
+  type MarkedPair,
+  pairKey,
+  pairWarnings,
+  type TaggedRow,
+  transferSuggestion,
+  transferTags,
+  UNTAGGED,
+  withdrawNotice,
+  withHeldPairs,
+} from "@/lib/transactions/possibleTransfers";
 import type {
   LedgerCategory,
   LedgerPage,
+  LedgerPair,
   LedgerTransaction,
   SortColumn,
   SortDir,
 } from "@/lib/transactions/server";
-import { ledgerFooter } from "@/lib/transactions/totals";
+import { ledgerFooter, pairFooter } from "@/lib/transactions/totals";
 import {
   bulkDeleteTransactions,
   bulkSetTransactionCategory,
   bulkSetTransactionTransfer,
   createAccountAndTransfer,
   createAndAssignCategory,
+  dismissPairs,
+  markPairsAsTransfer,
   setCategoryApproval,
   setTransactionCategory,
   setTransactionNote,
   setTransactionTransfer,
+  unhidePairs,
+  unmarkPairsAsTransfer,
 } from "./actions";
 import { CategoryCombobox, type NewCategoryInput } from "./CategoryCombobox";
 import { DetailCard } from "./DetailCard";
 import { ExtraColumns } from "./ExtraColumns";
 import { FilterDrawer } from "./FilterDrawer";
 import { LedgerControls } from "./LedgerControls";
+import { PairGroup, PairSummary } from "./PairSummary";
 import { SectionHead } from "./SectionHead";
 
 type LedgerAccount = {
@@ -197,6 +226,12 @@ const Approval = styled.button<{ $approved: boolean }>`
       border-color: ${$approved ? theme.colors.hairlineStrong : theme.colors.primary};
       background: ${$approved ? "transparent" : theme.colors.primary};
       color: ${$approved ? theme.colors.positive : theme.colors.onPrimary};
+    }
+
+    /* Waiting on the server. Not the disabled attribute: that takes keyboard
+       focus off the button that was just pressed. */
+    &[aria-disabled="true"] {
+      cursor: progress;
     }
   `}
 `;
@@ -578,6 +613,78 @@ const DialogActions = styled.div`
   gap: ${({ theme }) => theme.spacing.md};
 `;
 
+// Where notices appear. It is always in the page, empty or not: a live region
+// announces what is put into it, not its own arrival.
+const NoticeRegion = styled.div`
+  position: fixed;
+  right: ${({ theme }) => theme.spacing["2xl"]};
+  bottom: ${({ theme }) => theme.spacing["2xl"]};
+  z-index: 70;
+`;
+
+// After "Not a transfer": says what was hidden and offers it back.
+const Toast = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.md};
+  padding: ${({ theme }) => theme.spacing.md}
+    ${({ theme }) => theme.spacing.lg};
+  background: ${({ theme }) => theme.colors.canvas};
+  border: 1px solid ${({ theme }) => theme.colors.hairline};
+  border-radius: ${({ theme }) => theme.rounded.sm};
+  box-shadow: rgba(15, 17, 22, 0.08) 0px 4px 12px 0px;
+  font-family: ${({ theme }) => theme.typography.bodyMd.family};
+  font-size: 14px;
+  color: ${({ theme }) => theme.colors.ink};
+`;
+
+// How long a notice stays unattended. It does not close while the pointer or
+// focus is on it (WCAG 2.2.1), and Show hidden pairs is there after it goes.
+const NOTICE_MS = 8000;
+
+type PairIds = { outId: string; inId: string };
+
+// What a pair action reports back: a sentence, and the pairs Undo restores.
+type Notice = { text: string; undo: PairIds[] | null };
+
+const idsOf = (pairs: PairIds[]) =>
+  pairs.flatMap(({ outId, inId }) => [outId, inId]);
+
+const keyOf = ({ outId, inId }: PairIds) => pairKey(outId, inId);
+
+// The page's Approve all, as the button a click came from.
+const ALL = "all";
+
+const savingLabel = (isWithdrawing: boolean) =>
+  isWithdrawing ? "Withdrawing…" : "Approving…";
+
+// A pair on screen: its two rows, and where its approval stands.
+type ShownPair = {
+  pair: LedgerPair;
+  out: LedgerTransaction;
+  into: LedgerTransaction;
+  // Each row is a transfer to the other row's account.
+  isApproved: boolean;
+  // No warning, so Approve all may take it.
+  isEligible: boolean;
+  isHeld: boolean;
+};
+
+// A pair approved or withdrawn in this view. `marked` is what its rows held
+// before this view approved it; null when it has not. `isEligible` is
+// whether it had no warning as it stood when its button was last pressed.
+type HeldPair = {
+  pair: LedgerPair;
+  marked: MarkedPair | null;
+  isEligible: boolean;
+};
+
+// The held pairs of one view (a query), and the keys of the pairs that were
+// on screen when the first of them was held.
+type Held = { view: string; pairs: HeldPair[]; onScreen: string[] };
+
+const NOTHING_HELD = { pairs: [], onScreen: [] };
+
 const COLUMNS: { key: SortColumn; label: string; align?: "right" }[] = [
   { key: "date", label: "Date" },
   { key: "description", label: "Description" },
@@ -602,6 +709,12 @@ type LedgerProps = {
   numberFormat?: NumberFormat;
   /** A page-level review action, shown beside the search (Approve all). */
   reviewAction?: ReactNode;
+  /**
+   * Names for archived accounts and deleted categories the URL filters on —
+   * a budget month's link can point at one — so their chips can say what
+   * they are. Not offered anywhere else.
+   */
+  filterNames?: FilterLookup;
 };
 
 export function Ledger({
@@ -613,10 +726,16 @@ export function Ledger({
   currency = "GBP",
   numberFormat = DEFAULT_NUMBER_FORMAT,
   reviewAction,
+  filterNames = { accounts: [], categories: [] },
 }: LedgerProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [pending, startTransition] = useTransition();
+  // Approving a pair, or withdrawing that. Its own transition: the approval
+  // buttons wait on it, and nothing else does. `saving` is the button that
+  // was pressed (a pair's key, or ALL), which says so until the answer comes.
+  const [isApproving, startApproving] = useTransition();
+  const [saving, setSaving] = useState<string | null>(null);
   // Local mirror of the server-rendered rows so mutations can apply
   // optimistically; re-adopted whenever the server re-renders the page.
   const [items, setItems] = useState<LedgerTransaction[]>(page.items);
@@ -636,34 +755,106 @@ export function Ledger({
   // Which row's detail panel (kept import columns + editable note) is open.
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
+  // What the last pair action did, while it is on screen. Each notice has
+  // its own id, so one that repeats the last still replaces it on the page.
+  const [notice, setNotice] = useState<(Notice & { id: number }) | null>(null);
+  const noticeCount = useRef(0);
+  const [isNoticeHeld, setNoticeHeld] = useState(false);
+  // The pairs approved or withdrawn in this view. They stay on screen until
+  // the query changes, even when a filter (Uncategorised only) stops listing
+  // them, so the click that undoes it is always in reach.
+  const view = JSON.stringify(query);
+  const [held, setHeld] = useState<Held>({ view, ...NOTHING_HELD });
+  if (held.view !== view) setHeld({ view, ...NOTHING_HELD });
+  const heldByKey = new Map(
+    held.pairs.map((heldPair) => [keyOf(heldPair.pair), heldPair]),
+  );
+  const heldRowIds = new Set(idsOf(held.pairs.map(({ pair }) => pair)));
 
   const { onlyUncategorized, sortColumn, sortDir } = query;
+  // The possible-transfers view: rows come in pairs, and the page is pairs.
+  const pairs = page.pairs;
+  const isPairView = pairs !== null;
+  // While pairs are held, the page keeps the pairs it had when the first was.
+  // Under a filter an approved pair no longer matches, the refreshed page
+  // lists the pairs after it instead, moved up. Those wait: were they to join,
+  // Approve all would offer itself again for pairs nobody has looked at, and
+  // its second click would approve them rather than withdraw.
+  const keptOnScreen = new Set(held.onScreen);
+  const listed = (pairs ?? []).filter(
+    (pair) => held.pairs.length === 0 || keptOnScreen.has(keyOf(pair)),
+  );
+  const waiting = (pairs ?? []).length - listed.length;
+  // Each pair on screen with its rows: the page's, plus the held ones it no
+  // longer lists. A pair whose rows are fading out after an action is gone.
+  const rowById = new Map(items.map((row) => [row.id, row]));
+  const shown: ShownPair[] = withHeldPairs(
+    listed,
+    held.pairs.map(({ pair }) => pair),
+  ).flatMap((pair) => {
+    const out = rowById.get(pair.outId);
+    const into = rowById.get(pair.inId);
+    if (!out || !into) return [];
+    // Read off the rows as they are now, not as the page last had them.
+    const { isTaggedElsewhere, ...state } = approvalState(
+      pair,
+      out,
+      into,
+      heldByKey.get(keyOf(pair)) ?? null,
+    );
+    return [{ pair: { ...pair, isTaggedElsewhere }, out, into, ...state }];
+  });
+  const listedKeys = new Set((pairs ?? []).map(keyOf));
+  const heldUnlisted = shown.filter(
+    ({ pair }) => !listedKeys.has(keyOf(pair)),
+  ).length;
+  // In the pair view the rows on screen are the shown pairs' rows.
+  const rows = isPairView
+    ? shown.flatMap(({ out, into }) => [out, into])
+    : items;
+  // A row categorised under "Uncategorised only" leaves the ordinary ledger
+  // at once. In the pair view the server decides, since a pair stays while
+  // either of its rows still needs dealing with.
+  const dropsResolvedRows = onlyUncategorized && !isPairView;
 
   // One source for both the badge count and the chips, so the number can never
   // claim more or fewer filters than the row beneath it shows. The account
   // names come from the full active-account list rather than the importable
   // subset, so a filter can never point at an account the chip cannot name.
   const chips = activeFilters(query, {
-    accounts: transferAccounts,
-    categories,
+    accounts: [...transferAccounts, ...filterNames.accounts],
+    categories: [...categories, ...filterNames.categories],
   });
 
   // Nets the rows on screen, not every matching row — and says which it is,
   // so a partial sum can never read as a grand total.
-  const footer = ledgerFooter(items, page.total);
+  const footer = isPairView
+    ? pairFooter(rows, listed.length + heldUnlisted, page.total + heldUnlisted)
+    : ledgerFooter(rows, page.total);
   const widths = columnWidths(
-    [...items.map((tx) => tx.amount), footer.net].map((amount) =>
+    [...rows.map((tx) => tx.amount), footer.net].map((amount) =>
       formatAmount(currency, amount, numberFormat),
     ),
   );
 
   // Adopt fresh server data whenever the rendered page changes — a URL
   // navigation, or a revalidation after a mutation. Stale row selections are
-  // dropped with it.
+  // dropped with it. A held pair's rows stay when the page stops listing them.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the page is the trigger; the held pairs are read as they stand when it arrives.
   useEffect(() => {
-    setItems(page.items);
+    const listed = new Set(page.items.map((row) => row.id));
+    setItems((prev) => [
+      ...page.items,
+      ...prev.filter((row) => heldRowIds.has(row.id) && !listed.has(row.id)),
+    ]);
     setSelected(new Set());
   }, [page]);
+
+  useEffect(() => {
+    if (!notice || isNoticeHeld) return;
+    const timer = setTimeout(() => setNotice(null), NOTICE_MS);
+    return () => clearTimeout(timer);
+  }, [notice, isNoticeHeld]);
 
   useEffect(() => {
     setCategories(initialCategories);
@@ -730,10 +921,25 @@ export function Ledger({
     }
   };
 
-  const totalPages = pageCount(page.total);
+  const totalPages = pageCount(
+    page.total,
+    isPairView ? PAIRS_PER_PAGE : PAGE_SIZE,
+  );
 
+  // Lets the held pairs go, which shows the ones waiting behind them. The
+  // selection goes too: it may name rows that are leaving.
+  const showWaiting = () => {
+    setHeld({ view, ...NOTHING_HELD });
+    setSelected(new Set());
+  };
+
+  // The pairs waiting on this page are the next ones: they moved up into it
+  // as the approved pairs left the filter. Turning the page shows them,
+  // rather than passing over them to the page after.
   const goToPage = (n: number) =>
-    updateParams({ page: n <= 1 ? null : String(n) }, "push");
+    waiting > 0 && (n === query.page || n === query.page + 1)
+      ? showWaiting()
+      : updateParams({ page: n <= 1 ? null : String(n) }, "push");
 
   // Rows that no longer belong on screen fade before they go, so the eye can
   // follow what a categorise or a delete just did. The server's next render
@@ -754,7 +960,7 @@ export function Ledger({
     transactionId: string,
     categoryId: string | null,
   ) => {
-    if (onlyUncategorized && categoryId !== null) {
+    if (dropsResolvedRows && categoryId !== null) {
       dismissRows([transactionId]);
       return;
     }
@@ -775,7 +981,7 @@ export function Ledger({
   // Optimistically reflect a transfer; clears any category. A transfer is no
   // longer "uncategorized", so drop it under that filter.
   const applyTransfer = (transactionId: string, accountId: string) => {
-    if (onlyUncategorized) {
+    if (dropsResolvedRows) {
       dismissRows([transactionId]);
       return;
     }
@@ -858,7 +1064,7 @@ export function Ledger({
   const hasSelection = selected.size > 0;
 
   const allOnPageSelected =
-    items.length > 0 && items.every((t) => selected.has(t.id));
+    rows.length > 0 && rows.every((t) => selected.has(t.id));
 
   const toggleRow = (id: string) =>
     setSelected((prev) => {
@@ -869,9 +1075,7 @@ export function Ledger({
     });
 
   const toggleAllOnPage = () =>
-    setSelected(
-      allOnPageSelected ? new Set() : new Set(items.map((t) => t.id)),
-    );
+    setSelected(allOnPageSelected ? new Set() : new Set(rows.map((t) => t.id)));
 
   // The categorize-select-categorize loop: once a batch is categorised, clear
   // the search and put the cursor back in it so the next merchant can be
@@ -887,7 +1091,7 @@ export function Ledger({
   // "uncategorized only" filter: newly categorised rows leave the list.
   const onBulkCategorise = (categoryId: string | null) => {
     const ids = Array.from(selected);
-    if (onlyUncategorized && categoryId !== null) {
+    if (dropsResolvedRows && categoryId !== null) {
       dismissRows(ids);
     } else {
       setItems((prev) =>
@@ -918,7 +1122,7 @@ export function Ledger({
       .filter((t) => selected.has(t.id) && t.accountId !== accountId)
       .map((t) => t.id);
     const changed = new Set(ids);
-    if (onlyUncategorized) {
+    if (dropsResolvedRows) {
       dismissRows(ids);
     } else {
       setItems((prev) =>
@@ -959,7 +1163,7 @@ export function Ledger({
             a.type.localeCompare(b.type) || a.label.localeCompare(b.label),
         ),
       );
-      if (onlyUncategorized) {
+      if (dropsResolvedRows) {
         dismissRows(ids);
         return;
       }
@@ -985,7 +1189,7 @@ export function Ledger({
       setTransferAccounts((prev) =>
         [...prev, created].sort((a, b) => a.name.localeCompare(b.name)),
       );
-      if (onlyUncategorized) {
+      if (dropsResolvedRows) {
         dismissRows(ids);
         return;
       }
@@ -1022,6 +1226,457 @@ export function Ledger({
     });
   };
 
+  // Pairs whose both rows are ticked: a pair is ticked as one, so this is
+  // every pair the selection touches.
+  const tickedPairs = shown.filter(
+    ({ pair }) => selected.has(pair.outId) && selected.has(pair.inId),
+  );
+  const selectedPairs: PairIds[] = tickedPairs.map(
+    ({ pair: { outId, inId } }) => ({ outId, inId }),
+  );
+
+  const togglePair = (pair: LedgerPair) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      const isTicked = prev.has(pair.outId) && prev.has(pair.inId);
+      for (const id of [pair.outId, pair.inId]) {
+        if (isTicked) next.delete(id);
+        else next.add(id);
+      }
+      return next;
+    });
+
+  // Sets the category cell of the rows named, leaving the rest as they are.
+  const tagRows = (tags: TaggedRow[]) => {
+    const byId = new Map(tags.map((tag) => [tag.id, tag]));
+    setItems((prev) =>
+      prev.map((row) => {
+        const tag = byId.get(row.id);
+        return tag ? { ...row, ...tag } : row;
+      }),
+    );
+  };
+
+  // Keeps pairs on screen from here on, each remembering whether it had a
+  // warning as it stood when its button was pressed. The first pair held
+  // also fixes the page: see `listed`.
+  const hold = (chosen: ShownPair[]) =>
+    setHeld((prev) => {
+      const pressed = new Map(
+        chosen.map((entry) => [keyOf(entry.pair), entry]),
+      );
+      const known = new Set(prev.pairs.map(({ pair }) => keyOf(pair)));
+      return {
+        view: prev.view,
+        onScreen:
+          prev.pairs.length === 0
+            ? shown.map(({ pair }) => keyOf(pair))
+            : prev.onScreen,
+        pairs: [
+          ...prev.pairs.map((heldPair) => {
+            const entry = pressed.get(keyOf(heldPair.pair));
+            return entry
+              ? { ...heldPair, isEligible: entry.isEligible }
+              : heldPair;
+          }),
+          ...chosen
+            .filter(({ pair }) => !known.has(keyOf(pair)))
+            .map(({ pair, isEligible }) => ({
+              pair,
+              marked: null,
+              isEligible,
+            })),
+        ],
+      };
+    });
+
+  // Applies an action's answer to the held pairs; null lets one go. An answer
+  // that arrives after the user moved on finds that view's pairs gone.
+  const updateHeld = (change: (pair: HeldPair) => HeldPair | null) =>
+    setHeld((prev) =>
+      prev.view === view
+        ? { ...prev, pairs: prev.pairs.flatMap((pair) => change(pair) ?? []) }
+        : prev,
+    );
+
+  // Marks each pair as a transfer, each row to the other row's account, and
+  // keeps it on screen. The rows change when the server answers, not before:
+  // they never show a transfer that was not stored. `from` is the button
+  // pressed, if it was an approval button; `left` is the warned pairs Approve
+  // all passed over, for the notice.
+  const onApprovePairs = (
+    chosen: ShownPair[],
+    from: string | null,
+    left = 0,
+  ) => {
+    const sent = chosen.slice(0, MAX_PAIRS_PER_ACTION);
+    if (isApproving || sent.length === 0) return;
+    hold(sent);
+    setSaving(from);
+    startApproving(async () => {
+      const { marked, skipped } = await markPairsAsTransfer({
+        pairs: sent.map(({ pair: { outId, inId } }) => ({ outId, inId })),
+      });
+      const before = new Map(marked.map((pair) => [keyOf(pair), pair]));
+      tagRows(
+        sent.flatMap(({ pair, out, into }) =>
+          before.has(keyOf(pair)) ? transferTags(out, into) : [],
+        ),
+      );
+      // A pair the server would not mark is not kept: the refreshed page
+      // decides whether it is still listed.
+      const asked = new Set(sent.map(({ pair }) => keyOf(pair)));
+      updateHeld((heldPair) => {
+        const key = keyOf(heldPair.pair);
+        if (!asked.has(key)) return heldPair;
+        const was = before.get(key);
+        return was ? { ...heldPair, marked: was } : null;
+      });
+      setSaving(null);
+      showNotice({
+        text: approveNotice(marked.length, left, skipped),
+        undo: null,
+      });
+    });
+  };
+
+  // Withdraws an approval: each row goes back to what the server said it held
+  // when this view approved the pair, or to uncategorised for a pair marked
+  // before this visit.
+  const onWithdrawPairs = (chosen: ShownPair[], from: string) => {
+    const kept = chosen.slice(0, MAX_PAIRS_PER_ACTION);
+    if (isApproving || kept.length === 0) return;
+    const remembered = new Map(
+      held.pairs.map(({ pair, marked }) => [keyOf(pair), marked]),
+    );
+    const sent = kept.map(
+      ({ pair: { outId, inId } }) =>
+        remembered.get(pairKey(outId, inId)) ?? {
+          outId,
+          inId,
+          outBefore: UNTAGGED,
+          inBefore: UNTAGGED,
+        },
+    );
+    hold(kept);
+    setSaving(from);
+    startApproving(async () => {
+      const { skipped } = await unmarkPairsAsTransfer({ pairs: sent });
+      const leftAlone = new Set(skipped.map(keyOf));
+      const restored = sent.filter((pair) => !leftAlone.has(keyOf(pair)));
+      tagRows(restored.flatMap(beforeTags));
+      const putBack = new Set(restored.map(keyOf));
+      updateHeld((heldPair) =>
+        putBack.has(keyOf(heldPair.pair))
+          ? { ...heldPair, marked: null }
+          : heldPair,
+      );
+      setSaving(null);
+      // A pair with nothing remembered went to uncategorised, not "back".
+      const asTheyWere = restored.filter((pair) =>
+        remembered.get(keyOf(pair)),
+      ).length;
+      showNotice({
+        text: withdrawNotice(
+          asTheyWere,
+          restored.length - asTheyWere,
+          skipped.length,
+        ),
+        undo: null,
+      });
+    });
+  };
+
+  const onMarkPairs = () => {
+    if (isApproving) return;
+    onApprovePairs(
+      tickedPairs.filter(({ isApproved }) => !isApproved),
+      null,
+    );
+    setSelected(new Set());
+  };
+
+  const showNotice = (next: Notice) => {
+    noticeCount.current += 1;
+    setNoticeHeld(false);
+    setNotice({ ...next, id: noticeCount.current });
+  };
+
+  // The chosen pairs' rows fade while their action runs. Once it answers, the
+  // pairs it acted on leave the list and the rest come back: a pair the
+  // server did not store must not stay hidden with nothing behind it.
+  const fadePairs = (chosen: PairIds[]) =>
+    setLeavingIds((prev) => new Set([...prev, ...idsOf(chosen)]));
+
+  const settlePairs = (chosen: PairIds[], stayed: PairIds[]) => {
+    const stays = new Set(idsOf(stayed));
+    const faded = new Set(idsOf(chosen));
+    setItems((prev) => prev.filter((t) => !faded.has(t.id) || stays.has(t.id)));
+    setLeavingIds((prev) => new Set([...prev].filter((id) => !faded.has(id))));
+  };
+
+  // "Not a transfer" hides the pairs (with an Undo); "Unhide" brings hidden
+  // ones back. Either way they leave this view.
+  const onDismissPairs = () => {
+    const chosen = selectedPairs;
+    fadePairs(chosen);
+    setSelected(new Set());
+    startTransition(async () => {
+      const outcome = await dismissPairs({ pairs: chosen });
+      if (!outcome.ok) {
+        settlePairs(chosen, chosen);
+        showNotice({ text: outcome.reason, undo: null });
+        return;
+      }
+      settlePairs(chosen, outcome.skipped);
+      const isSkipped = (pair: PairIds) =>
+        outcome.skipped.some(
+          (s) => s.outId === pair.outId && s.inId === pair.inId,
+        );
+      const hidden = chosen.filter((pair) => !isSkipped(pair));
+      showNotice({
+        text: dismissNotice(hidden.length, outcome.skipped.length),
+        undo: hidden.length > 0 ? hidden : null,
+      });
+    });
+  };
+
+  const onUnhidePairs = () => {
+    const chosen = selectedPairs;
+    fadePairs(chosen);
+    setSelected(new Set());
+    startTransition(async () => {
+      await unhidePairs({ pairs: chosen });
+      settlePairs(chosen, []);
+    });
+  };
+
+  const onUndoDismiss = () => {
+    const chosen = notice?.undo;
+    if (!chosen) return;
+    setNotice(null);
+    setNoticeHeld(false);
+    startTransition(async () => {
+      await unhidePairs({ pairs: chosen });
+    });
+  };
+
+  const pairActions =
+    selectedPairs.length === 0 ? null : query.showHiddenPairs ? (
+      <Button type="button" onClick={onUnhidePairs}>
+        Unhide
+      </Button>
+    ) : (
+      <>
+        {/* Waits like the approval buttons: it is the same action. */}
+        <Button type="button" onClick={onMarkPairs} aria-disabled={isApproving}>
+          Mark as transfer
+        </Button>
+        <Button variant="outline" type="button" onClick={onDismissPairs}>
+          Not a transfer
+        </Button>
+      </>
+    );
+
+  // The page's Approve all: every pair without a warning, then the way back.
+  const offer =
+    isPairView && !query.showHiddenPairs ? approveAllOffer(shown) : null;
+  const approveAll = offer ? (
+    <Approval
+      type="button"
+      $approved={offer.action === "withdraw"}
+      aria-pressed={offer.action === "withdraw"}
+      // One name whichever way it reads, like the toggles beside the rows.
+      aria-label="Approve all possible transfers on this page"
+      aria-disabled={isApproving}
+      title={
+        offer.action === "withdraw"
+          ? "Approved. Click to undo."
+          : "Marks every pair on this page as a transfer, except pairs with a warning."
+      }
+      onClick={() =>
+        offer.action === "withdraw"
+          ? onWithdrawPairs(offer.pairs, ALL)
+          : onApprovePairs(
+              offer.pairs,
+              ALL,
+              shown.filter((pair) => !pair.isEligible && !pair.isApproved)
+                .length,
+            )
+      }
+    >
+      {isApproving && saving === ALL
+        ? savingLabel(offer.action === "withdraw")
+        : offer.action === "withdraw"
+          ? "✓ All approved"
+          : `Approve all ${offer.pairs.length}`}
+    </Approval>
+  ) : null;
+
+  const pairLabel = (pair: LedgerPair) =>
+    [
+      `${pair.outAccountName} → ${pair.inAccountName}`,
+      formatAmount(currency, pair.amount, numberFormat),
+      daysApartLabel(pair.daysApart),
+    ].join(" · ");
+
+  // One ledger row and, when open, its details. `inPair` marks a row shown
+  // under a possible-transfer pair: no checkbox of its own (the pair's tick
+  // selects both), a click toggles the pair, and no note. `suggestion` is the
+  // transfer its pair suggests, pencilled in where the row has nothing.
+  const renderRow = (
+    tx: LedgerTransaction,
+    inPair: LedgerPair | null,
+    suggestion: string | null,
+  ) => (
+    <Fragment key={tx.id}>
+      <Row
+        $leaving={leavingIds.has(tx.id)}
+        $isOpen={expandedId === tx.id}
+        onClick={() => (inPair ? togglePair(inPair) : toggleRow(tx.id))}
+      >
+        <TdCheck>
+          {inPair ? null : (
+            <Checkbox
+              checked={selected.has(tx.id)}
+              onChange={() => toggleRow(tx.id)}
+              // Without this the change handler and the row's click
+              // handler both fire and cancel each other out.
+              onClick={(e) => e.stopPropagation()}
+              aria-label={`Select ${tx.description}`}
+            />
+          )}
+        </TdCheck>
+        <TdNowrap>{shortDate(tx.date, today)}</TdNowrap>
+        <Td>{tx.description}</Td>
+        <TdNowrap title={tx.accountName}>{tx.accountName}</TdNowrap>
+        <Amount $negative={tx.amount < 0}>
+          {formatAmount(currency, tx.amount, numberFormat)}
+        </Amount>
+        <Td onClick={(e) => e.stopPropagation()}>
+          <CategoryCell
+            $pencilled={
+              suggestion !== null ||
+              (tx.categoryId !== null && !tx.isCategoryConfirmed)
+            }
+            title={
+              suggestion === null
+                ? undefined
+                : "Suggested from the other row of this pair. Nothing is saved until you approve the transfer."
+            }
+          >
+            <CategoryCombobox
+              categories={categories}
+              transferAccounts={transferAccounts}
+              value={tx.categoryId}
+              transferAccountId={tx.transferAccountId}
+              placeholder={suggestion ?? undefined}
+              ownAccountId={tx.accountId}
+              defaultType={tx.amount < 0 ? "EXPENSE" : "INCOME"}
+              transfersEnabled={transfersEnabled}
+              // A ticked row speaks for the whole selection: its
+              // category box does what the controls card's does.
+              onSelect={(categoryId) =>
+                selected.has(tx.id)
+                  ? onBulkCategorise(categoryId)
+                  : onSelect(tx.id, categoryId)
+              }
+              onCreate={(input) =>
+                selected.has(tx.id)
+                  ? onBulkCreateAndAssign(input)
+                  : onCreateAndAssign(tx.id, input)
+              }
+              onTransfer={(accountId) =>
+                selected.has(tx.id)
+                  ? onBulkTransfer(accountId)
+                  : onTransfer(tx.id, accountId)
+              }
+              onCreateAccount={(name) =>
+                selected.has(tx.id)
+                  ? onBulkCreateAccountAndTransfer(name)
+                  : onCreateAccountAndTransfer(tx.id, name)
+              }
+            />
+            {tx.categoryId !== null && (
+              <Approval
+                type="button"
+                $approved={tx.isCategoryConfirmed}
+                aria-pressed={tx.isCategoryConfirmed}
+                aria-label={`Approve the category for ${tx.description}`}
+                title={
+                  tx.isCategoryConfirmed
+                    ? "Approved. Click to undo."
+                    : "Suggested from your history. Approve it if it's right."
+                }
+                onClick={() => onApprove(tx.id, !tx.isCategoryConfirmed)}
+              >
+                {tx.isCategoryConfirmed ? "✓ Approved" : "Approve"}
+              </Approval>
+            )}
+          </CategoryCell>
+        </Td>
+        {/* In a pair the job is matching the two sides, so a row offers
+            only what its import kept, and no note. */}
+        <Td onClick={(e) => e.stopPropagation()}>
+          {inPair && !tx.extra ? null : (
+            <NoteToggle
+              type="button"
+              $has={Boolean(tx.note || tx.extra)}
+              aria-expanded={expandedId === tx.id}
+              onClick={() => toggleExpanded(tx)}
+            >
+              {inPair
+                ? "Details"
+                : tx.note
+                  ? "Note ●"
+                  : tx.extra
+                    ? "Details"
+                    : "+ Note"}
+            </NoteToggle>
+          )}
+        </Td>
+      </Row>
+      {expandedId === tx.id && (
+        <tr>
+          <DetailSpacer colSpan={2} />
+          <DetailTd colSpan={5}>
+            <LedgerDetailCard $notchRight={DETAIL_NOTCH}>
+              {tx.extra ? (
+                <>
+                  <ExtraColumns extra={tx.extra} />
+                  <DetailHint>
+                    Showing only the columns ticked under “Also keep” when this
+                    statement was imported.
+                  </DetailHint>
+                </>
+              ) : null}
+              {inPair ? null : (
+                <NoteRow>
+                  <NoteArea
+                    value={noteDraft}
+                    onChange={(e) => setNoteDraft(e.target.value)}
+                    placeholder="Add a note…"
+                    aria-label={`Note for ${tx.description}`}
+                  />
+                  <Button
+                    variant="outline"
+                    type="button"
+                    onClick={() => setExpandedId(null)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="button" onClick={() => saveNote(tx.id)}>
+                    Save
+                  </Button>
+                </NoteRow>
+              )}
+            </LedgerDetailCard>
+          </DetailTd>
+        </tr>
+      )}
+    </Fragment>
+  );
+
   const onBulkDelete = () => {
     const ids = Array.from(selected);
     dismissRows(ids);
@@ -1048,7 +1703,12 @@ export function Ledger({
         selectedCount={selected.size}
         onClearSelection={() => setSelected(new Set())}
         onDelete={() => setConfirmDelete(true)}
-        reviewAction={reviewAction}
+        // In the pair view the slot is the pairs' Approve all: beside the
+        // categories' one it would read as the same button twice.
+        reviewAction={
+          isPairView && !query.showHiddenPairs ? approveAll : reviewAction
+        }
+        selectionActions={pairActions}
         categorizer={
           <CategoryCombobox
             categories={categories}
@@ -1086,13 +1746,17 @@ export function Ledger({
         }}
       />
 
-      {items.length === 0 ? (
+      {rows.length === 0 ? (
         <Empty>
           {/* Any narrowing at all — the toggle, the search box, or a drawer
               filter — means the ledger is not necessarily empty, just this
               view of it. The first-run copy below would read as "your
               transactions are gone". */}
-          {onlyUncategorized || search || chips.length > 0 ? (
+          {query.showHiddenPairs ? (
+            "No hidden pairs."
+          ) : isPairView && !search && chips.length === 1 ? (
+            "No possible transfers: no two rows in different accounts cancel each other out."
+          ) : onlyUncategorized || search || chips.length > 0 ? (
             "No transactions match."
           ) : (
             <>
@@ -1125,149 +1789,77 @@ export function Ledger({
                   <Th
                     key={col.key}
                     $align={col.align}
-                    onClick={() => onSort(col.key)}
+                    // Pairs keep their own order (newest first), so the
+                    // columns do not sort in that view.
+                    onClick={isPairView ? undefined : () => onSort(col.key)}
                   >
                     {col.label}
-                    {sortMark(col.key)}
+                    {isPairView ? null : sortMark(col.key)}
                   </Th>
                 ))}
                 <ThCheck aria-label="Notes" />
               </tr>
             </thead>
-            <tbody>
-              {items.map((tx) => (
-                <Fragment key={tx.id}>
-                  <Row
-                    $leaving={leavingIds.has(tx.id)}
-                    $isOpen={expandedId === tx.id}
-                    onClick={() => toggleRow(tx.id)}
+            {isPairView ? (
+              shown.map((entry) => {
+                const { pair, out, into, isApproved } = entry;
+                const isTicked = selected.has(out.id) && selected.has(into.id);
+                const label = pairLabel(pair);
+                // The user said a hidden pair is not a transfer.
+                const suggest = (
+                  row: LedgerTransaction,
+                  other: LedgerTransaction,
+                ) => (pair.isHidden ? null : transferSuggestion(row, other));
+                return (
+                  <PairGroup
+                    key={`${pair.outId}|${pair.inId}`}
+                    $selected={isTicked}
+                    $approved={isApproved}
                   >
-                    <TdCheck>
-                      <Checkbox
-                        checked={selected.has(tx.id)}
-                        onChange={() => toggleRow(tx.id)}
-                        // Without this the change handler and the row's click
-                        // handler both fire and cancel each other out.
-                        onClick={(e) => e.stopPropagation()}
-                        aria-label={`Select ${tx.description}`}
-                      />
-                    </TdCheck>
-                    <TdNowrap>{shortDate(tx.date, today)}</TdNowrap>
-                    <Td>{tx.description}</Td>
-                    <TdNowrap title={tx.accountName}>{tx.accountName}</TdNowrap>
-                    <Amount $negative={tx.amount < 0}>
-                      {formatAmount(currency, tx.amount, numberFormat)}
-                    </Amount>
-                    <Td onClick={(e) => e.stopPropagation()}>
-                      <CategoryCell
-                        $pencilled={
-                          tx.categoryId !== null && !tx.isCategoryConfirmed
-                        }
-                      >
-                        <CategoryCombobox
-                          categories={categories}
-                          transferAccounts={transferAccounts}
-                          value={tx.categoryId}
-                          transferAccountId={tx.transferAccountId}
-                          ownAccountId={tx.accountId}
-                          defaultType={tx.amount < 0 ? "EXPENSE" : "INCOME"}
-                          transfersEnabled={transfersEnabled}
-                          // A ticked row speaks for the whole selection: its
-                          // category box does what the controls card's does.
-                          onSelect={(categoryId) =>
-                            selected.has(tx.id)
-                              ? onBulkCategorise(categoryId)
-                              : onSelect(tx.id, categoryId)
-                          }
-                          onCreate={(input) =>
-                            selected.has(tx.id)
-                              ? onBulkCreateAndAssign(input)
-                              : onCreateAndAssign(tx.id, input)
-                          }
-                          onTransfer={(accountId) =>
-                            selected.has(tx.id)
-                              ? onBulkTransfer(accountId)
-                              : onTransfer(tx.id, accountId)
-                          }
-                          onCreateAccount={(name) =>
-                            selected.has(tx.id)
-                              ? onBulkCreateAccountAndTransfer(name)
-                              : onCreateAccountAndTransfer(tx.id, name)
-                          }
-                        />
-                        {tx.categoryId !== null && (
+                    <PairSummary
+                      label={label}
+                      warnings={pairWarnings(pair)}
+                      checked={isTicked}
+                      onToggle={() => togglePair(pair)}
+                      span={widths.length - 1}
+                      action={
+                        pair.isHidden ? null : (
                           <Approval
                             type="button"
-                            $approved={tx.isCategoryConfirmed}
-                            aria-pressed={tx.isCategoryConfirmed}
-                            aria-label={`Approve the category for ${tx.description}`}
+                            $approved={isApproved}
+                            aria-pressed={isApproved}
+                            aria-label={`Approve transfer ${label}`}
                             title={
-                              tx.isCategoryConfirmed
+                              isApproved
                                 ? "Approved. Click to undo."
-                                : "Suggested from your history. Approve it if it's right."
+                                : "Marks both rows as a transfer between these two accounts."
                             }
-                            onClick={() =>
-                              onApprove(tx.id, !tx.isCategoryConfirmed)
-                            }
+                            aria-disabled={isApproving}
+                            onClick={(e) => {
+                              // The line's own click ticks the pair.
+                              e.stopPropagation();
+                              if (isApproved)
+                                onWithdrawPairs([entry], keyOf(pair));
+                              else onApprovePairs([entry], keyOf(pair));
+                            }}
                           >
-                            {tx.isCategoryConfirmed ? "✓ Approved" : "Approve"}
+                            {isApproving && saving === keyOf(pair)
+                              ? savingLabel(isApproved)
+                              : isApproved
+                                ? "✓ Approved"
+                                : "Approve transfer"}
                           </Approval>
-                        )}
-                      </CategoryCell>
-                    </Td>
-                    <Td onClick={(e) => e.stopPropagation()}>
-                      <NoteToggle
-                        type="button"
-                        $has={Boolean(tx.note || tx.extra)}
-                        aria-expanded={expandedId === tx.id}
-                        onClick={() => toggleExpanded(tx)}
-                      >
-                        {tx.note ? "Note ●" : tx.extra ? "Details" : "+ Note"}
-                      </NoteToggle>
-                    </Td>
-                  </Row>
-                  {expandedId === tx.id && (
-                    <tr>
-                      <DetailSpacer colSpan={2} />
-                      <DetailTd colSpan={5}>
-                        <LedgerDetailCard $notchRight={DETAIL_NOTCH}>
-                          {tx.extra ? (
-                            <>
-                              <ExtraColumns extra={tx.extra} />
-                              <DetailHint>
-                                Showing only the columns ticked under “Also
-                                keep” when this statement was imported.
-                              </DetailHint>
-                            </>
-                          ) : null}
-                          <NoteRow>
-                            <NoteArea
-                              value={noteDraft}
-                              onChange={(e) => setNoteDraft(e.target.value)}
-                              placeholder="Add a note…"
-                              aria-label={`Note for ${tx.description}`}
-                            />
-                            <Button
-                              variant="outline"
-                              type="button"
-                              onClick={() => setExpandedId(null)}
-                            >
-                              Cancel
-                            </Button>
-                            <Button
-                              type="button"
-                              onClick={() => saveNote(tx.id)}
-                            >
-                              Save
-                            </Button>
-                          </NoteRow>
-                        </LedgerDetailCard>
-                      </DetailTd>
-                    </tr>
-                  )}
-                </Fragment>
-              ))}
-            </tbody>
+                        )
+                      }
+                    />
+                    {renderRow(out, pair, suggest(out, into))}
+                    {renderRow(into, pair, suggest(into, out))}
+                  </PairGroup>
+                );
+              })
+            ) : (
+              <tbody>{items.map((tx) => renderRow(tx, null, null))}</tbody>
+            )}
             <tfoot>
               <tr>
                 {/* Spans select + date so the label starts under Description,
@@ -1285,7 +1877,7 @@ export function Ledger({
         </TableScroll>
       )}
 
-      {totalPages > 1 && (
+      {(totalPages > 1 || waiting > 0) && (
         <Pagination aria-label="Ledger pages">
           <PageButton
             type="button"
@@ -1314,7 +1906,7 @@ export function Ledger({
           )}
           <PageButton
             type="button"
-            disabled={query.page >= totalPages || pending}
+            disabled={(query.page >= totalPages && waiting === 0) || pending}
             onClick={() => goToPage(query.page + 1)}
             aria-label="Next page"
           >
@@ -1322,6 +1914,25 @@ export function Ledger({
           </PageButton>
         </Pagination>
       )}
+
+      <NoticeRegion role="status" aria-live="polite">
+        {notice && (
+          <Toast
+            key={notice.id}
+            onMouseEnter={() => setNoticeHeld(true)}
+            onMouseLeave={() => setNoticeHeld(false)}
+            onFocus={() => setNoticeHeld(true)}
+            onBlur={() => setNoticeHeld(false)}
+          >
+            {notice.text}
+            {notice.undo ? (
+              <Button variant="outline" type="button" onClick={onUndoDismiss}>
+                Undo
+              </Button>
+            ) : null}
+          </Toast>
+        )}
+      </NoticeRegion>
 
       {confirmDelete && (
         <Overlay

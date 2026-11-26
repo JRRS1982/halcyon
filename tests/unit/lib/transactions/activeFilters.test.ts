@@ -13,6 +13,23 @@ const chips = (params: Record<string, string>) =>
   activeFilters(parseLedgerSearchParams(params), LOOKUP);
 
 describe("activeFilters", () => {
+  test("the budget's counted filter names the account and the month", () => {
+    expect(chips({ counted: `${ACCOUNT}:2026-03` })).toEqual([
+      {
+        key: "counted",
+        label: "Counted in budget: Savings · Mar 2026",
+        clear: { counted: null },
+      },
+    ]);
+  });
+
+  test("a counted filter on a since-deleted account keeps its chip", () => {
+    const gone = "33333333-3333-3333-3333-333333333333";
+    expect(chips({ counted: `${gone}:2026-11` })[0]?.label).toBe(
+      "Counted in budget: Unknown account · Nov 2026",
+    );
+  });
+
   test("an unfiltered ledger has nothing to show or clear", () => {
     expect(chips({})).toEqual([]);
   });
@@ -28,6 +45,24 @@ describe("activeFilters", () => {
     expect(chips({ uncat: "1" })).toEqual([
       { key: "uncategorized", label: "Uncategorised", clear: { uncat: null } },
     ]);
+  });
+
+  test("possible transfers is a chip that also clears the hidden view", () => {
+    expect(chips({ pairs: "1" })).toEqual([
+      {
+        key: "possibleTransfers",
+        label: "Possible transfers",
+        clear: { pairs: null, hidden: null },
+      },
+    ]);
+  });
+
+  test("showing hidden pairs is its own chip", () => {
+    expect(chips({ pairs: "1", hidden: "1" })[1]).toEqual({
+      key: "hiddenPairs",
+      label: "Hidden pairs",
+      clear: { hidden: null },
+    });
   });
 
   test("a closed date range reads as one chip", () => {

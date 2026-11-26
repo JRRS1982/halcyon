@@ -28,3 +28,18 @@ export function ledgerFooter(
 
   return { net: netOf(rows), label };
 }
+
+// The possible-transfers view pages by pair, so it counts pairs. The net is
+// still the rows on screen: a pair cancels out, which is the point.
+export function pairFooter(
+  rows: { amount: number }[],
+  pairsShown: number,
+  matchingPairs: number,
+): LedgerFooter {
+  const pairs = (n: number) => `${n} pair${n === 1 ? "" : "s"}`;
+  const label =
+    pairsShown < matchingPairs
+      ? `This page · ${pairsShown} of ${pairs(matchingPairs)}`
+      : `Total · ${pairs(pairsShown)}`;
+  return { net: netOf(rows), label };
+}

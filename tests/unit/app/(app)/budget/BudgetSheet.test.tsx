@@ -28,6 +28,7 @@ jest.mock("@/app/(app)/budget/actions", () => ({
   copyPeriodFrom: (...args: unknown[]) => copyPeriodFrom(...args),
   createItemForMonth: (...args: unknown[]) => createItemForMonth(...args),
   deleteItem: (...args: unknown[]) => deleteItem(...args),
+  getActualBreakdown: jest.fn(),
   listCopyablePeriods: (...args: unknown[]) => listCopyablePeriods(...args),
   updateItem: jest.fn(),
 }));
