@@ -27,10 +27,18 @@ test("plan: asset fees field round-trips through the drawer", async ({
   await createPlanWithDob(page);
 
   // Open the seeded asset's drawer (summary row → dialog).
+  // Clicked until the dialog is up, as addPlanAsset does: the plan has only
+  // just been created, and a click that lands while its refresh is
+  // re-rendering the page is swallowed (firefox under CI load, 24 Nov 2026).
+  // The dialog is still required to open; only a lost click is retried.
   const assetPanel = page.locator("section", { hasText: "Assets" });
-  await assetPanel.getByRole("button", { name: /SIPP/ }).click();
   const drawer = page.getByRole("dialog");
-  await expect(drawer).toBeVisible();
+  await expect(async () => {
+    if (!(await drawer.isVisible())) {
+      await assetPanel.getByRole("button", { name: /SIPP/ }).click();
+    }
+    await expect(drawer).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 15_000 });
 
   // Expand the Growth section (collapsed by default) to reveal the fee field.
   await drawer.getByRole("button", { name: /growth/i }).click();
